@@ -8,11 +8,8 @@ import { SITE_URL, SITE_NAME, SITE_DESCRIPTION } from '@/lib/site';
 import { buttonVariants } from '@/components/ui/button';
 import { JsonLd } from '@/components/seo/json-ld';
 import { ExperienceCard } from '@/features/experiences/components/experience-card';
-import {
-  CATEGORIES,
-  getExperiences,
-  getFeaturedExperiences,
-} from '@/features/experiences/lib/sample-data';
+import { CATEGORIES } from '@/features/experiences/lib/sample-data';
+import { getExperiences, getFeaturedExperiences } from '@/features/experiences/queries';
 
 const languagesAlternates = Object.fromEntries(routing.locales.map((l) => [l, `${SITE_URL}/${l}`]));
 
@@ -52,8 +49,7 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
   const t = await getTranslations('home');
   const loc = locale as Locale;
 
-  const experiences = getExperiences();
-  const featured = getFeaturedExperiences();
+  const [experiences, featured] = await Promise.all([getExperiences(), getFeaturedExperiences()]);
 
   const jsonLd = {
     '@context': 'https://schema.org',

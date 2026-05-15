@@ -10,11 +10,12 @@ import { SITE_URL, SITE_NAME } from '@/lib/site';
 import { buttonVariants } from '@/components/ui/button';
 import { JsonLd } from '@/components/seo/json-ld';
 import { HostCard } from '@/features/hosts/components/host-card';
-import { getAllSlugs, getExperienceBySlug } from '@/features/experiences/lib/sample-data';
 import { CATEGORIES } from '@/features/experiences/lib/sample-data';
+import { getAllSlugs, getExperienceBySlug } from '@/features/experiences/queries';
 
-export function generateStaticParams() {
-  return routing.locales.flatMap((locale) => getAllSlugs().map((slug) => ({ locale, slug })));
+export async function generateStaticParams() {
+  const slugs = await getAllSlugs();
+  return routing.locales.flatMap((locale) => slugs.map((slug) => ({ locale, slug })));
 }
 
 export async function generateMetadata({
@@ -23,7 +24,7 @@ export async function generateMetadata({
   params: Promise<{ locale: string; slug: string }>;
 }): Promise<Metadata> {
   const { locale, slug } = await params;
-  const exp = getExperienceBySlug(slug);
+  const exp = await getExperienceBySlug(slug);
   if (!exp) return {};
   const title = locale === 'ar' ? exp.titleAr : exp.titleEn;
   const description = locale === 'ar' ? exp.descriptionAr : exp.descriptionEn;
@@ -50,7 +51,7 @@ export default async function ExperienceDetailPage({
   setRequestLocale(locale);
   const loc = locale as Locale;
 
-  const exp = getExperienceBySlug(slug);
+  const exp = await getExperienceBySlug(slug);
   if (!exp) notFound();
 
   const t = await getTranslations('experienceDetail');
