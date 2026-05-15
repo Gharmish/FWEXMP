@@ -1,10 +1,19 @@
+import { Search, Heart, Plus } from 'lucide-react';
 import { setRequestLocale } from 'next-intl/server';
-import { COLORS, type ColorToken, type RampStop, CATEGORY_COLOR } from '@/lib/colors';
+import {
+  COLORS,
+  type ColorToken,
+  type RampStop,
+  type Category,
+  CATEGORY_COLOR,
+} from '@/lib/colors';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Avatar } from '@/components/ui/avatar';
+import { Pill } from '@/components/ui/pill';
+import { IconButton } from '@/components/ui/icon-button';
 
 /**
  * Internal living style guide. Renders every design token and primitive
@@ -209,6 +218,42 @@ export default async function StyleGuidePage({ params }: { params: Promise<{ loc
           <Avatar name="Faisal Al Qahtani" size="sm" />
           <Avatar name="Faisal Al Qahtani" size="md" />
           <Avatar name="Faisal Al Qahtani" size="lg" />
+        </div>
+      </Section>
+
+      <Section title="Pill (filter / category chips)">
+        <div className="flex flex-col gap-4">
+          <div className="flex flex-wrap items-center gap-3">
+            <Pill selected>All</Pill>
+            <Pill>Abha</Pill>
+            <Pill>This weekend</Pill>
+            <Pill>Under SAR 300</Pill>
+          </div>
+          <div className="flex flex-wrap items-center gap-3">
+            {(Object.keys(CATEGORY_COLOR) as Category[]).map((category) => (
+              <Pill key={category} category={category} selected>
+                {category}
+              </Pill>
+            ))}
+          </div>
+        </div>
+      </Section>
+
+      <Section title="IconButton">
+        <div className="flex flex-col gap-4">
+          {(['primary', 'secondary', 'premium'] as const).map((variant) => (
+            <div key={variant} className="flex flex-wrap items-center gap-4">
+              <IconButton variant={variant} size="md" aria-label="Search experiences">
+                <Search />
+              </IconButton>
+              <IconButton variant={variant} size="lg" aria-label="Save to wishlist">
+                <Heart />
+              </IconButton>
+              <IconButton variant={variant} size="md" aria-label="Add" disabled>
+                <Plus />
+              </IconButton>
+            </div>
+          ))}
         </div>
       </Section>
 
