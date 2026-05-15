@@ -6,7 +6,9 @@ import { formatSAR, durationHours } from '@/lib/format';
 import { Link } from '@/lib/i18n';
 import type { Locale } from '@/lib/i18n';
 import { routing } from '@/lib/i18n';
+import { SITE_URL, SITE_NAME } from '@/lib/site';
 import { buttonVariants } from '@/components/ui/button';
+import { JsonLd } from '@/components/seo/json-ld';
 import { HostCard } from '@/features/hosts/components/host-card';
 import { getAllSlugs, getExperienceBySlug } from '@/features/experiences/lib/sample-data';
 import { CATEGORIES } from '@/features/experiences/lib/sample-data';
@@ -25,10 +27,17 @@ export async function generateMetadata({
   if (!exp) return {};
   const title = locale === 'ar' ? exp.titleAr : exp.titleEn;
   const description = locale === 'ar' ? exp.descriptionAr : exp.descriptionEn;
+  const url = `${SITE_URL}/${locale}/experiences/${slug}`;
   return {
-    title: `${title} · Gharmish`,
+    title,
     description,
-    openGraph: { title, description, type: 'website' },
+    alternates: {
+      canonical: url,
+      languages: Object.fromEntries(
+        routing.locales.map((l) => [l, `${SITE_URL}/${l}/experiences/${slug}`]),
+      ),
+    },
+    openGraph: { title, description, url, type: 'website' },
   };
 }
 
@@ -56,8 +65,44 @@ export default async function ExperienceDetailPage({
       : category.labelEn
     : exp.category;
 
+  const url = `${SITE_URL}/${loc}/experiences/${exp.slug}`;
+  const jsonLd = {
+    '@context': 'https://schema.org',
+    '@graph': [
+      {
+        '@type': 'Product',
+        '@id': `${url}#product`,
+        name: title,
+        description,
+        category: categoryLabel,
+        url,
+        brand: { '@type': 'Organization', name: SITE_NAME },
+        offers: {
+          '@type': 'Offer',
+          price: exp.priceSar,
+          priceCurrency: 'SAR',
+          availability: 'https://schema.org/InStock',
+          url,
+        },
+      },
+      {
+        '@type': 'BreadcrumbList',
+        itemListElement: [
+          {
+            '@type': 'ListItem',
+            position: 1,
+            name: SITE_NAME,
+            item: `${SITE_URL}/${loc}`,
+          },
+          { '@type': 'ListItem', position: 2, name: title, item: url },
+        ],
+      },
+    ],
+  };
+
   return (
     <article className="mx-auto w-full max-w-6xl px-6 py-12">
+      <JsonLd data={jsonLd} />
       <Link
         href="/"
         className="text-sarat-black-600 text-sm transition-opacity duration-200 hover:opacity-60"

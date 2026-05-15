@@ -1,14 +1,40 @@
+import type { Metadata } from 'next';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { cn } from '@/lib/utils';
 import type { Locale } from '@/lib/i18n';
+import { routing } from '@/lib/i18n';
 import type { Category } from '@/lib/colors';
+import { SITE_URL, SITE_NAME, SITE_DESCRIPTION } from '@/lib/site';
 import { buttonVariants } from '@/components/ui/button';
+import { JsonLd } from '@/components/seo/json-ld';
 import { ExperienceCard } from '@/features/experiences/components/experience-card';
 import {
   CATEGORIES,
   getExperiences,
   getFeaturedExperiences,
 } from '@/features/experiences/lib/sample-data';
+
+const languagesAlternates = Object.fromEntries(routing.locales.map((l) => [l, `${SITE_URL}/${l}`]));
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ locale: string }>;
+}): Promise<Metadata> {
+  const { locale } = await params;
+  return {
+    alternates: {
+      canonical: `${SITE_URL}/${locale}`,
+      languages: languagesAlternates,
+    },
+    openGraph: {
+      title: SITE_NAME,
+      description: SITE_DESCRIPTION,
+      url: `${SITE_URL}/${locale}`,
+      type: 'website',
+    },
+  };
+}
 
 // Category accent dots — literal classes so Tailwind v4 detects them.
 const CATEGORY_DOT: Record<Category, string> = {
@@ -29,8 +55,31 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
   const experiences = getExperiences();
   const featured = getFeaturedExperiences();
 
+  const jsonLd = {
+    '@context': 'https://schema.org',
+    '@graph': [
+      {
+        '@type': 'Organization',
+        '@id': `${SITE_URL}/#organization`,
+        name: SITE_NAME,
+        url: SITE_URL,
+        description: SITE_DESCRIPTION,
+        areaServed: 'Abha, Asir, Saudi Arabia',
+      },
+      {
+        '@type': 'WebSite',
+        '@id': `${SITE_URL}/#website`,
+        name: SITE_NAME,
+        url: `${SITE_URL}/${loc}`,
+        inLanguage: loc,
+        publisher: { '@id': `${SITE_URL}/#organization` },
+      },
+    ],
+  };
+
   return (
     <div className="flex flex-col">
+      <JsonLd data={jsonLd} />
       {/* Hero — editorial, type-forward, no imagery (BRIEF §3). */}
       <section className="mx-auto w-full max-w-6xl px-6 py-24 sm:py-32">
         <div className="flex max-w-3xl flex-col gap-6">
