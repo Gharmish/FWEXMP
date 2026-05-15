@@ -13,7 +13,24 @@
   },
   "experience": {
     "originals": "TODO(ar): translate",
-    "perPerson": "TODO(ar): translate"
+    "perPerson": "TODO(ar): translate",
+    "hours": "TODO(ar): translate"
+  },
+  "experienceDetail": {
+    "back": "TODO(ar): translate",
+    "about": "TODO(ar): translate",
+    "timeline": "TODO(ar): translate",
+    "included": "TODO(ar): translate",
+    "bring": "TODO(ar): translate",
+    "cancellation": "TODO(ar): translate",
+    "hostedBy": "TODO(ar): translate",
+    "groupSizeUpTo": "TODO(ar): translate {count}",
+    "minAge": "TODO(ar): translate {age}",
+    "requestToBook": "TODO(ar): translate",
+    "bookingSoon": "TODO(ar): translate"
+  },
+  "host": {
+    "verified": "TODO(ar): translate"
   },
   "footer": {
     "tagline": "TODO(ar): translate",

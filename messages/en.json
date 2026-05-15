@@ -13,7 +13,24 @@
   },
   "experience": {
     "originals": "Originals",
-    "perPerson": "/ person"
+    "perPerson": "/ person",
+    "hours": "hr"
+  },
+  "experienceDetail": {
+    "back": "Back to experiences",
+    "about": "About this experience",
+    "timeline": "The timeline",
+    "included": "What's included",
+    "bring": "What to bring",
+    "cancellation": "Cancellation policy",
+    "hostedBy": "Hosted by",
+    "groupSizeUpTo": "Up to {count} guests",
+    "minAge": "Minimum age {age}",
+    "requestToBook": "Request to book",
+    "bookingSoon": "Booking opens soon."
+  },
+  "host": {
+    "verified": "Verified host"
   },
   "footer": {
     "tagline": "Experiences hosted by the people who know Asir best.",

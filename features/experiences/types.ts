@@ -28,3 +28,38 @@ export interface CategoryMeta {
   /** Arabic label is brand taxonomy from BRIEF §3, not an AI translation. */
   labelAr: string;
 }
+
+export interface HostInfo {
+  name: string;
+  bioEn: string;
+  bioAr: string;
+  verified: boolean;
+}
+
+export interface MomentInfo {
+  orderIndex: number;
+  timeOfDay: string;
+  titleEn: string;
+  titleAr: string;
+  descriptionEn: string;
+  descriptionAr: string;
+}
+
+/**
+ * Full experience for the detail page. Extends the card summary.
+ *
+ * Note: `inclusions` / `whatToBring` / `cancellationPolicy` are
+ * English-only here (mirroring db/seed.ts). Making these arrays bilingual
+ * is deferred — flagged for the localization pass.
+ */
+export interface ExperienceDetail extends ExperienceSummary {
+  city: string;
+  region: string;
+  minAge: number;
+  maxGroupSize: number;
+  inclusions: string[];
+  whatToBring: string[];
+  cancellationPolicy: string;
+  host: HostInfo;
+  moments: MomentInfo[];
+}

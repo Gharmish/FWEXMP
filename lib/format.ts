@@ -60,6 +60,17 @@ export function formatDate(
 }
 
 /**
+ * Duration in hours as a localized number string (no unit — callers add
+ * the translated unit). 180 → "3", 90 → "1.5".
+ */
+export function durationHours(minutes: number, locale: Locale): string {
+  const hours = minutes / 60;
+  return new Intl.NumberFormat(intlLocale[locale], {
+    maximumFractionDigits: 1,
+  }).format(hours);
+}
+
+/**
  * Format a time as 12-hour with AM/PM (English) or ص/م (Arabic).
  */
 export function formatTime(date: Date, locale: Locale): string {
