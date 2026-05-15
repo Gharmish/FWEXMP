@@ -19,15 +19,19 @@ We are not a passive listing platform. We are a **partnership marketplace**: we 
 ## 2. Brand
 
 ### Name
+
 **Gharmish** (English) / **غارميش** (Arabic). The name evokes Garmisch-Partenkirchen, positioning Abha as Saudi Arabia's alpine destination — green, cool, cultural, distinct from desert KSA.
 
 ### Tone of voice
+
 Calm, confident, culturally rooted, premium without pretension. Apple-like restraint. Never markety, never loud, never discount-driven. We speak as a host introducing a friend to their hometown.
 
 ### Positioning statement
+
 > Experiences hosted by the people who know Asir best.
 
 ### Brand pillars
+
 1. **Authenticity** — every experience ties to Asiri culture, geography, or community.
 2. **Partnership** — hosts are partners, not inventory.
 3. **Restraint** — design, copy, and feature set are deliberate. Less is the point.
@@ -40,34 +44,34 @@ Calm, confident, culturally rooted, premium without pretension. Apple-like restr
 
 Use these tokens exclusively. No off-palette hex values anywhere in the codebase.
 
-| Token | Hex | Role |
-|---|---|---|
-| `sarat-black` | `#0A0A0A` | Text, dark sections, Originals tier |
-| `saffron-gold` | `#F5B800` | Primary CTAs, premium accent, emphasis |
-| `sarawat-blue` | `#2E5BFF` | Family category, informational links |
-| `soudah-sunset` | `#E85D27` | Adventure category, warmth |
-| `juniper-green` | `#1F7A5C` | Nature category, success states |
-| `al-qatt-red` | `#C8312A` | Heritage category, destructive/error states |
-| `fog-white` | `#F5F2EC` | Primary background, surfaces in dark mode text |
-| `honey-amber` | `#F4B898` | Soft accent, secondary surfaces |
-| `habala-mist` | `#BFD4E8` | Soft accent, info surfaces |
-| `tihama-coral` | `#FFB089` | Soft accent |
-| `wadi-mint` | `#9FD9C0` | Wellness category |
-| `rijal-clay` | `#8B2E20` | Deep accent, sold-out / past states |
+| Token           | Hex       | Role                                           |
+| --------------- | --------- | ---------------------------------------------- |
+| `sarat-black`   | `#0A0A0A` | Text, dark sections, Originals tier            |
+| `saffron-gold`  | `#F5B800` | Primary CTAs, premium accent, emphasis         |
+| `sarawat-blue`  | `#2E5BFF` | Family category, informational links           |
+| `soudah-sunset` | `#E85D27` | Adventure category, warmth                     |
+| `juniper-green` | `#1F7A5C` | Nature category, success states                |
+| `al-qatt-red`   | `#C8312A` | Heritage category, destructive/error states    |
+| `fog-white`     | `#F5F2EC` | Primary background, surfaces in dark mode text |
+| `honey-amber`   | `#F4B898` | Soft accent, secondary surfaces                |
+| `habala-mist`   | `#BFD4E8` | Soft accent, info surfaces                     |
+| `tihama-coral`  | `#FFB089` | Soft accent                                    |
+| `wadi-mint`     | `#9FD9C0` | Wellness category                              |
+| `rijal-clay`    | `#8B2E20` | Deep accent, sold-out / past states            |
 
 Each primary color has a `-50`, `-100`, `-200`, `-400`, `-600`, `-800`, `-900` ramp generated for fills and tints — keep these in `tailwind.config.ts`.
 
 ### Category-to-color map (immutable)
 
-| Category | Color | Arabic |
-|---|---|---|
-| Nature | Juniper Green | الطبيعة |
-| Heritage | Al-Qatt Red | التراث |
-| Food & coffee | Saffron Gold | الطعام والقهوة |
-| Wellness | Wadi Mint | العافية |
-| Adventure | Soudah Sunset | المغامرة |
-| Family | Sarawat Blue | العائلة |
-| Originals (premium tier) | Sarat Black bg + Saffron Gold accent | أصول غارميش |
+| Category                 | Color                                | Arabic         |
+| ------------------------ | ------------------------------------ | -------------- |
+| Nature                   | Juniper Green                        | الطبيعة        |
+| Heritage                 | Al-Qatt Red                          | التراث         |
+| Food & coffee            | Saffron Gold                         | الطعام والقهوة |
+| Wellness                 | Wadi Mint                            | العافية        |
+| Adventure                | Soudah Sunset                        | المغامرة       |
+| Family                   | Sarawat Blue                         | العائلة        |
+| Originals (premium tier) | Sarat Black bg + Saffron Gold accent | أصول غارميش    |
 
 ### Typography
 
@@ -80,16 +84,16 @@ Load both via `next/font` with `display: swap`. Self-host, do not link to Google
 
 #### Type scale (English)
 
-| Role | Size | Weight | opsz | Tracking |
-|---|---|---|---|---|
-| Display | 72–96 | 500 | 96 | -0.04em |
-| H1 | 48–64 | 500 | 56 | -0.035em |
-| H2 | 32–36 | 500 | 36 | -0.03em |
-| H3 | 24 | 500 | 24 | -0.025em |
-| Body large | 18 | 400 | 18 | -0.01em |
-| Body | 16 | 400 | 16 | 0 |
-| Caption | 13 | 500 | 13 | 0.02em (uppercase) |
-| Eyebrow | 10–11 | 500 | 11 | 0.2em (uppercase) |
+| Role       | Size  | Weight | opsz | Tracking           |
+| ---------- | ----- | ------ | ---- | ------------------ |
+| Display    | 72–96 | 500    | 96   | -0.04em            |
+| H1         | 48–64 | 500    | 56   | -0.035em           |
+| H2         | 32–36 | 500    | 36   | -0.03em            |
+| H3         | 24    | 500    | 24   | -0.025em           |
+| Body large | 18    | 400    | 18   | -0.01em            |
+| Body       | 16    | 400    | 16   | 0                  |
+| Caption    | 13    | 500    | 13   | 0.02em (uppercase) |
+| Eyebrow    | 10–11 | 500    | 11   | 0.2em (uppercase)  |
 
 #### Type scale (Arabic)
 
@@ -103,14 +107,14 @@ Use the 8-point grid exclusively: `4, 8, 12, 16, 24, 32, 48, 64, 80, 120` (pixel
 
 ### Border radius
 
-| Element | Radius |
-|---|---|
+| Element         | Radius         |
+| --------------- | -------------- |
 | Buttons (pills) | `100px` (full) |
-| Cards | `20px` |
-| Inputs | `12px` |
-| Images | `16px` |
-| Avatars | `50%` (full) |
-| Modals | `24px` |
+| Cards           | `20px`         |
+| Inputs          | `12px`         |
+| Images          | `16px`         |
+| Avatars         | `50%` (full)   |
+| Modals          | `24px`         |
 
 ### Borders
 
@@ -146,13 +150,16 @@ Use the 8-point grid exclusively: `4, 8, 12, 16, 24, 32, 48, 64, 80, 120` (pixel
 ## 4. Bilingual & localization
 
 ### Languages
+
 - `ar` — Arabic (default for Saudi visitors based on `Accept-Language` and geo)
 - `en` — English (default for international)
 
 ### Routing
+
 Every page exists at `/ar/*` and `/en/*`. Middleware detects locale on first visit, user can switch and the choice is persisted in a cookie.
 
 ### RTL rules
+
 - Set `dir="rtl"` on the `<html>` element in Arabic locale.
 - Use logical CSS properties exclusively: `margin-inline-start`, `padding-inline-end`, `border-inline-end`. Never `margin-left/right`.
 - Mirror all directional icons (chevrons, arrows) in RTL.
@@ -166,6 +173,7 @@ Every page exists at `/ar/*` and `/en/*`. Middleware detects locale on first vis
 - Time: 12-hour with AM/PM in English, 12-hour with ص/م in Arabic.
 
 ### Translation
+
 - All UI strings go through next-intl message catalogs.
 - Never hardcode user-facing strings in components.
 - Leave clear `TODO(ar):` placeholders where Arabic translation is pending — never write Arabic translations as the AI; flag them for human review.
@@ -176,33 +184,33 @@ Every page exists at `/ar/*` and `/en/*`. Middleware detects locale on first vis
 
 ### Frontend
 
-| Layer | Choice | Version |
-|---|---|---|
-| Framework | Next.js | 16 (App Router, RSC, PPR) — scaffolded 2026-05-15; create-next-app@latest resolves to 16.x, decision approved over the original 15.x target |
-| Language | TypeScript | 5.x strict mode |
-| Styling | Tailwind CSS | v4 |
-| Components | shadcn/ui | latest (restyled to Gharmish) |
-| Animation | Framer Motion | latest |
-| Forms | react-hook-form + zod | latest |
-| Tables | TanStack Table | latest (when needed) |
-| Icons | lucide-react | latest |
-| i18n | next-intl | latest |
-| Date | date-fns + date-fns-tz | latest |
+| Layer      | Choice                 | Version                                                                                                                                     |
+| ---------- | ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| Framework  | Next.js                | 16 (App Router, RSC, PPR) — scaffolded 2026-05-15; create-next-app@latest resolves to 16.x, decision approved over the original 15.x target |
+| Language   | TypeScript             | 5.x strict mode                                                                                                                             |
+| Styling    | Tailwind CSS           | v4                                                                                                                                          |
+| Components | shadcn/ui              | latest (restyled to Gharmish)                                                                                                               |
+| Animation  | Framer Motion          | latest                                                                                                                                      |
+| Forms      | react-hook-form + zod  | latest                                                                                                                                      |
+| Tables     | TanStack Table         | latest (when needed)                                                                                                                        |
+| Icons      | lucide-react           | latest                                                                                                                                      |
+| i18n       | next-intl              | latest                                                                                                                                      |
+| Date       | date-fns + date-fns-tz | latest                                                                                                                                      |
 
 ### Backend & data
 
-| Layer | Choice |
-|---|---|
-| Database | PostgreSQL via Supabase |
-| ORM | Drizzle |
-| Server actions | Next.js native + zod validation |
-| Search | Meilisearch (Arabic-aware, self-hosted or cloud) |
-| Vector | pgvector extension (for AI features later) |
-| File storage | Cloudflare R2 |
-| Image CDN | Cloudflare Images or imgix |
-| Email | Resend |
-| Messaging | WhatsApp Business API via 360dialog |
-| Maps | Mapbox GL JS |
+| Layer          | Choice                                           |
+| -------------- | ------------------------------------------------ |
+| Database       | PostgreSQL via Supabase                          |
+| ORM            | Drizzle                                          |
+| Server actions | Next.js native + zod validation                  |
+| Search         | Meilisearch (Arabic-aware, self-hosted or cloud) |
+| Vector         | pgvector extension (for AI features later)       |
+| File storage   | Cloudflare R2                                    |
+| Image CDN      | Cloudflare Images or imgix                       |
+| Email          | Resend                                           |
+| Messaging      | WhatsApp Business API via 360dialog              |
+| Maps           | Mapbox GL JS                                     |
 
 ### Auth & identity
 
@@ -228,12 +236,15 @@ Every page exists at `/ar/*` and `/en/*`. Middleware detects locale on first vis
 ## 6. Architecture principles
 
 ### Server-first
+
 React Server Components by default. Mark `"use client"` only when the component truly needs interactivity (forms, hooks, browser APIs). Data fetching happens in server components or server actions, never `useEffect`.
 
 ### Type safety end-to-end
+
 Shared zod schemas between database, API, and frontend. Drizzle generates types from the schema. No `any`, no `@ts-ignore`. If TypeScript complains, fix it — don't suppress.
 
 ### AI-friendly
+
 This is non-negotiable and most platforms in 2026 will miss it.
 
 - **Schema.org structured data** on every page: `TouristAttraction`, `Event`, `Product`, `Offer`, `Review`.
@@ -246,6 +257,7 @@ This is non-negotiable and most platforms in 2026 will miss it.
 - **Idempotency keys** on all booking-creation endpoints. Agents need safe retries.
 
 ### Accessibility
+
 - WCAG 2.2 AA minimum, AAA where reasonable.
 - Keyboard navigation works for every interactive element.
 - Focus rings visible, never removed.
@@ -255,6 +267,7 @@ This is non-negotiable and most platforms in 2026 will miss it.
 - 44×44px minimum touch targets.
 
 ### Performance budget
+
 - Lighthouse mobile ≥ 95, desktop ≥ 98.
 - LCP < 2.0s, INP < 100ms, CLS < 0.05.
 - FCP < 1.0s on 4G from Riyadh.
@@ -263,6 +276,7 @@ This is non-negotiable and most platforms in 2026 will miss it.
 - Track real-user metrics, not lab.
 
 ### SEO
+
 - Server-rendered metadata via `generateMetadata`.
 - Sitemap auto-generated.
 - `robots.txt` includes the `/llms.txt` reference.
@@ -324,6 +338,7 @@ This is non-negotiable and most platforms in 2026 will miss it.
 ```
 
 ### Naming
+
 - Files: `kebab-case.ts`, `kebab-case.tsx`
 - Components: `PascalCase`
 - Hooks: `useCamelCase`
@@ -332,6 +347,7 @@ This is non-negotiable and most platforms in 2026 will miss it.
 - API routes: `kebab-case`
 
 ### TypeScript rules
+
 - `strict: true` always.
 - No `any`. No `@ts-ignore`. No `as unknown as`.
 - Use `type` for unions and primitives, `interface` for object shapes that may be extended.
@@ -339,6 +355,7 @@ This is non-negotiable and most platforms in 2026 will miss it.
 - Discriminated unions for state machines.
 
 ### Component patterns
+
 - One component per file. File name matches component name.
 - Props always typed via `interface ComponentNameProps`.
 - Server Components by default. `"use client"` directive only when needed.
@@ -346,24 +363,28 @@ This is non-negotiable and most platforms in 2026 will miss it.
 - Avoid `forwardRef` unless integrating with a third-party library that requires it.
 
 ### Styling
+
 - Tailwind only. No CSS modules, no inline styles except for dynamic values.
 - Reference design tokens by name: `bg-saffron-gold`, `text-sarat-black`. Never raw hex.
 - Use `cn()` utility from `lib/utils.ts` for conditional classes.
 - Logical properties: `ps-4 pe-2` not `pl-4 pr-2`. The Tailwind v4 config enables logical variants by default.
 
 ### Forms & validation
+
 - Every form uses `react-hook-form` + a zod schema.
 - The same zod schema validates client-side, server action, and database write.
 - Show inline field errors, not toast errors.
 - Submit button disables during pending state.
 
 ### Error handling
+
 - Server actions return `{ success: true, data }` or `{ success: false, error: { code, message } }` — never throw to the client.
 - Use Next.js `error.tsx` boundaries at the route group level.
 - Log all unexpected errors to Sentry with user context.
 - User-facing errors are translated; technical errors are not exposed.
 
 ### Git & commits
+
 - Conventional commits: `feat:`, `fix:`, `chore:`, `refactor:`, `docs:`, `style:`, `test:`.
 - Small, atomic commits. Never one giant commit per day.
 - Branch naming: `feat/short-description`, `fix/short-description`.
@@ -376,7 +397,9 @@ This is non-negotiable and most platforms in 2026 will miss it.
 Initial entities. We'll expand as features ship.
 
 ### Host
+
 Individual Saudi or registered tourism company. Has:
+
 - Identity (national ID / CR number, name, photo, bio)
 - License documents (MoT license, insurance, civil defense where applicable)
 - Verification status (`pending | verified | suspended`)
@@ -385,7 +408,9 @@ Individual Saudi or registered tourism company. Has:
 - Languages spoken
 
 ### Experience
+
 A bookable activity. Has:
+
 - Slug, title (en + ar), description (en + ar)
 - Category (one of fixed set)
 - Host (N:1)
@@ -400,13 +425,17 @@ A bookable activity. Has:
 - Featured flag (Originals tier)
 
 ### Moment
+
 Sub-element of an Experience timeline:
+
 - Order index, time of day, title (en + ar), description (en + ar), optional photo.
 
 ### Category
+
 Fixed set: `nature | heritage | food | wellness | adventure | family`. Stored in DB for joins; the enum is the source of truth.
 
 ### Booking
+
 - Guest (N:1)
 - Experience (N:1)
 - Date, time, party size, total amount, currency
@@ -415,11 +444,14 @@ Fixed set: `nature | heritage | food | wellness | adventure | family`. Stored in
 - Idempotency key (for safe retries from AI agents)
 
 ### Guest
+
 End user. Has:
+
 - Phone (primary identifier in KSA), email (optional), name, preferred language
 - Saved experiences, bookings, reviews left
 
 ### Review
+
 - Gated by completed Booking (one review per booking)
 - Rating 1–5, text (en + ar), photos
 - Visible after a 24h cooldown for editing
@@ -448,6 +480,7 @@ Deploy to a Vercel preview URL by end of Sprint 1.
 ## 10. Out of scope until Sprint 2+
 
 Do not build these unless explicitly asked:
+
 - Real authentication flows (use a stub session)
 - Real payments (use Moyasar sandbox at most)
 - Host dashboards

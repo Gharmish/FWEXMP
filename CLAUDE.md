@@ -22,26 +22,31 @@ Before doing anything, read `BRIEF.md` in the repo root. If the conversation con
 ## While writing code
 
 ### TypeScript
+
 - Strict mode. No `any`. No `@ts-ignore`. No `as unknown as` shortcuts.
 - Types live next to the code that uses them, in `types.ts` files inside feature folders.
 
 ### Components
+
 - Server Components by default. Add `"use client"` only when truly needed (forms, hooks, browser APIs).
 - One component per file. Named exports only.
 - Props typed via `interface ComponentNameProps`.
 
 ### Styling
+
 - Tailwind v4 only. No CSS modules. No inline styles except for dynamic values that can't be Tailwind classes.
 - Use design tokens by name (`bg-saffron-gold`, `text-sarat-black`). Never raw hex.
 - Use logical properties (`ps-4`, `pe-2`, `border-inline-end`). Never `pl-`, `pr-`, `border-right`.
 - Use `cn()` from `lib/utils.ts` for conditional classes.
 
 ### Data & validation
+
 - Every form uses `react-hook-form` + a zod schema.
 - The same zod schema validates client, server action, and database insert.
 - Server actions return `{ success: true, data }` or `{ success: false, error }`. Never throw to the client.
 
 ### Files & naming
+
 - Files: `kebab-case.ts`/`kebab-case.tsx`
 - Components: `PascalCase`
 - Hooks: `useCamelCase`
@@ -49,6 +54,7 @@ Before doing anything, read `BRIEF.md` in the repo root. If the conversation con
 - Feature folders, not type folders.
 
 ### Errors
+
 - Wrap risky operations. Log to Sentry with user context.
 - User-facing errors are translated through next-intl.
 - Never expose stack traces to users.
