@@ -1,0 +1,229 @@
+import { setRequestLocale } from 'next-intl/server';
+import { COLORS, type ColorToken, type RampStop, CATEGORY_COLOR } from '@/lib/colors';
+import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Badge } from '@/components/ui/badge';
+import { Avatar } from '@/components/ui/avatar';
+
+/**
+ * Internal living style guide. Renders every design token and primitive
+ * so the system can be sanity-checked in the browser, in both /en and
+ * /ar (RTL + Arabic face). Not linked from the product.
+ *
+ * The Arabic strings below are type *specimens* (to show the IBM Plex
+ * Sans Arabic face), not product copy — product strings still go through
+ * next-intl with TODO(ar) placeholders.
+ */
+
+const RAMP_STOPS: RampStop[] = [50, 100, 200, 400, 600, 800, 900];
+
+const TYPE_SCALE = [
+  { role: 'Display', cls: 'text-7xl tracking-[-0.04em]', en: 'Discover Asir', ar: 'اكتشف عسير' },
+  { role: 'H1', cls: 'text-5xl tracking-[-0.035em]', en: 'The flower men', ar: 'رجال الزهور' },
+  { role: 'H2', cls: 'text-3xl tracking-[-0.03em]', en: 'Mountain trails', ar: 'مسارات الجبال' },
+  { role: 'H3', cls: 'text-2xl tracking-[-0.025em]', en: 'Coffee & qahwa', ar: 'القهوة العربية' },
+  { role: 'Body large', cls: 'text-lg', en: 'Hosted by locals.', ar: 'يستضيفها الأهالي.' },
+  { role: 'Body', cls: 'text-base', en: 'Booked in minutes.', ar: 'احجز في دقائق.' },
+  {
+    role: 'Caption',
+    cls: 'text-[13px] tracking-[0.02em] uppercase',
+    en: 'From SAR 480',
+    ar: 'من ٤٨٠ ر.س',
+  },
+  {
+    role: 'Eyebrow',
+    cls: 'text-[11px] tracking-[0.2em] uppercase',
+    en: 'Originals',
+    ar: 'أصول',
+  },
+] as const;
+
+const SPACING = [
+  { name: '1', px: 4 },
+  { name: '2', px: 8 },
+  { name: '3', px: 12 },
+  { name: '4', px: 16 },
+  { name: '6', px: 24 },
+  { name: '8', px: 32 },
+  { name: '12', px: 48 },
+  { name: '16', px: 64 },
+  { name: '20', px: 80 },
+  { name: '30', px: 120 },
+] as const;
+
+function Section({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <section className="border-sarat-black/8 flex flex-col gap-6 [border-top-width:0.5px] py-12">
+      <h2 className="font-display text-3xl font-medium tracking-[-0.03em]">{title}</h2>
+      {children}
+    </section>
+  );
+}
+
+export default async function StyleGuidePage({ params }: { params: Promise<{ locale: string }> }) {
+  const { locale } = await params;
+  setRequestLocale(locale);
+
+  const tokens = Object.keys(COLORS) as ColorToken[];
+
+  return (
+    <div className="mx-auto flex max-w-5xl flex-col px-6 py-12">
+      <header className="flex flex-col gap-2">
+        <p className="text-sarat-black-600 text-[11px] tracking-[0.2em] uppercase">
+          Gharmish · internal
+        </p>
+        <h1 className="font-display text-5xl font-medium tracking-[-0.035em]">Design system</h1>
+        <p className="text-sarat-black-600 text-base">
+          Living reference for tokens and primitives. Locale: {locale}.
+        </p>
+      </header>
+
+      <Section title="Color">
+        <div className="flex flex-col gap-8">
+          {tokens.map((token) => {
+            const entry = COLORS[token];
+            return (
+              <div key={token} className="flex flex-col gap-2">
+                <div className="flex items-baseline justify-between">
+                  <span className="font-medium">{token}</span>
+                  <span className="text-sarat-black-600 text-sm">
+                    {entry.base} · {entry.role}
+                  </span>
+                </div>
+                <div className="grid grid-cols-4 gap-2 sm:grid-cols-8">
+                  <div className="flex flex-col gap-1">
+                    <div
+                      className="rounded-image border-sarat-black/8 h-16 [border-width:0.5px]"
+                      style={{ backgroundColor: entry.base }}
+                    />
+                    <span className="text-sarat-black-600 text-[11px]">base</span>
+                  </div>
+                  {RAMP_STOPS.map((stop) => (
+                    <div key={stop} className="flex flex-col gap-1">
+                      <div
+                        className="rounded-image border-sarat-black/8 h-16 [border-width:0.5px]"
+                        style={{ backgroundColor: entry.ramp[stop] }}
+                      />
+                      <span className="text-sarat-black-600 text-[11px]">{stop}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </Section>
+
+      <Section title="Category → color">
+        <div className="flex flex-wrap gap-3">
+          {Object.entries(CATEGORY_COLOR).map(([category, color]) => (
+            <span
+              key={category}
+              className="rounded-button text-fog-white px-4 py-2 text-sm font-medium"
+              style={{ backgroundColor: COLORS[color].base }}
+            >
+              {category}
+            </span>
+          ))}
+        </div>
+      </Section>
+
+      <Section title="Typography">
+        <div className="flex flex-col gap-6">
+          {TYPE_SCALE.map((t) => (
+            <div
+              key={t.role}
+              className="border-sarat-black/8 grid grid-cols-1 gap-2 [border-bottom-width:0.5px] pb-6 sm:grid-cols-[120px_1fr_1fr]"
+            >
+              <span className="text-sarat-black-600 text-[11px] tracking-[0.2em] uppercase">
+                {t.role}
+              </span>
+              <span className={`font-display font-medium ${t.cls}`}>{t.en}</span>
+              <span className={`font-arabic font-medium ${t.cls}`} dir="rtl" lang="ar">
+                {t.ar}
+              </span>
+            </div>
+          ))}
+        </div>
+      </Section>
+
+      <Section title="Buttons">
+        <div className="flex flex-col gap-4">
+          {(['primary', 'secondary', 'premium'] as const).map((variant) => (
+            <div key={variant} className="flex flex-wrap items-center gap-4">
+              <Button variant={variant} size="sm">
+                {variant} sm
+              </Button>
+              <Button variant={variant} size="md">
+                {variant} md
+              </Button>
+              <Button variant={variant} size="lg">
+                {variant} lg
+              </Button>
+              <Button variant={variant} size="md" disabled>
+                disabled
+              </Button>
+            </div>
+          ))}
+        </div>
+      </Section>
+
+      <Section title="Card">
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Card className="p-6">
+            <h3 className="font-display text-2xl font-medium tracking-[-0.025em]">Default card</h3>
+            <p className="text-sarat-black-600 mt-2 text-base">
+              Fog White surface, 0.5px hairline, no shadow.
+            </p>
+          </Card>
+          <Card variant="dark" className="p-6">
+            <h3 className="font-display text-2xl font-medium tracking-[-0.025em]">
+              Originals card
+            </h3>
+            <p className="text-fog-white/70 mt-2 text-base">
+              Sarat Black surface for the premium tier.
+            </p>
+          </Card>
+        </div>
+      </Section>
+
+      <Section title="Input">
+        <div className="flex max-w-sm flex-col gap-3">
+          <Input placeholder="Search experiences in Abha" />
+          <Input placeholder="Disabled" disabled />
+        </div>
+      </Section>
+
+      <Section title="Badge">
+        <div className="flex flex-wrap gap-3">
+          <Badge variant="verified">Verified host</Badge>
+          <Badge variant="licensed">MoT licensed</Badge>
+          <Badge variant="neutral">Neutral</Badge>
+          <Badge variant="soldOut">Sold out</Badge>
+        </div>
+      </Section>
+
+      <Section title="Avatar">
+        <div className="flex items-center gap-4">
+          <Avatar name="Faisal Al Qahtani" size="sm" />
+          <Avatar name="Faisal Al Qahtani" size="md" />
+          <Avatar name="Faisal Al Qahtani" size="lg" />
+        </div>
+      </Section>
+
+      <Section title="Spacing (8-pt grid)">
+        <div className="flex flex-col gap-2">
+          {SPACING.map((s) => (
+            <div key={s.name} className="flex items-center gap-4">
+              <span className="text-sarat-black-600 w-20 text-sm">
+                {s.name} · {s.px}px
+              </span>
+              <div className="bg-saffron-gold h-4 rounded-full" style={{ width: `${s.px}px` }} />
+            </div>
+          ))}
+        </div>
+      </Section>
+    </div>
+  );
+}

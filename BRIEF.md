@@ -301,7 +301,9 @@ This is non-negotiable and most platforms in 2026 will miss it.
   /llms.txt/route.ts
   /sitemap.ts
   /robots.ts
-  /_dev/page.tsx               # internal-only style guide
+  /dev/page.tsx                # internal-only style guide (was /_dev; the
+                               # underscore prefix is a Next.js private
+                               # folder and is not routable, so /dev)
 /features
   /experiences
     /components/
@@ -465,7 +467,7 @@ Build these in order:
 
 1. **Repo + tooling**: Next.js 15, TS strict, Tailwind v4, ESLint, Prettier, Husky, lint-staged, commitlint.
 2. **Bilingual routing**: next-intl with `/en` and `/ar`, RTL fully working, language switcher.
-3. **Design tokens**: full color palette, typography, spacing as Tailwind theme + CSS variables. Self-hosted fonts. A `/_dev` route showing every token.
+3. **Design tokens**: full color palette, typography, spacing as Tailwind theme + CSS variables. Self-hosted fonts. A `/dev` route showing every token.
 4. **Core UI primitives** (shadcn-based, restyled): Button, Card, Input, Pill, Badge, Avatar, IconButton.
 5. **Layout shell**: top nav (sticky, blur), footer, language switcher.
 6. **Home page** (desktop + mobile) matching approved mockups.
