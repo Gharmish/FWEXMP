@@ -3,7 +3,17 @@
     "discover": "TODO(ar): translate"
   },
   "home": {
-    "welcome": "TODO(ar): translate"
+    "eyebrow": "TODO(ar): translate",
+    "headline": "TODO(ar): translate",
+    "intro": "TODO(ar): translate",
+    "cta": "TODO(ar): translate",
+    "originalsTitle": "TODO(ar): translate",
+    "originalsSub": "TODO(ar): translate",
+    "allTitle": "TODO(ar): translate"
+  },
+  "experience": {
+    "originals": "TODO(ar): translate",
+    "perPerson": "TODO(ar): translate"
   },
   "footer": {
     "tagline": "TODO(ar): translate",

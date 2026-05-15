@@ -3,7 +3,17 @@
     "discover": "Discover"
   },
   "home": {
-    "welcome": "Experiences hosted by the people who know Asir best."
+    "eyebrow": "Abha · Asir",
+    "headline": "Experiences hosted by the people who know Asir best.",
+    "intro": "A curated marketplace of authentic Asiri experiences — heritage, mountains, food, and more — co-created with local hosts.",
+    "cta": "Discover experiences",
+    "originalsTitle": "Gharmish Originals",
+    "originalsSub": "Premium experiences we produce hand in hand with our hosts.",
+    "allTitle": "All experiences"
+  },
+  "experience": {
+    "originals": "Originals",
+    "perPerson": "/ person"
   },
   "footer": {
     "tagline": "Experiences hosted by the people who know Asir best.",
