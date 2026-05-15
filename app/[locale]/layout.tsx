@@ -4,7 +4,8 @@ import { NextIntlClientProvider, hasLocale } from 'next-intl';
 import { setRequestLocale } from 'next-intl/server';
 import { bricolage, ibmPlexArabic } from '@/lib/fonts';
 import { routing, localeDirection, type Locale } from '@/lib/i18n';
-import { LanguageSwitcher } from '@/components/layout/language-switcher';
+import { Navbar } from '@/components/layout/navbar';
+import { Footer } from '@/components/layout/footer';
 import '../globals.css';
 
 export const metadata: Metadata = {
@@ -41,10 +42,9 @@ export default async function LocaleLayout({
     >
       <body className="flex min-h-full flex-col">
         <NextIntlClientProvider>
-          <header className="flex items-center justify-end p-4">
-            <LanguageSwitcher />
-          </header>
+          <Navbar />
           <main className="flex flex-1 flex-col">{children}</main>
+          <Footer />
         </NextIntlClientProvider>
       </body>
     </html>
