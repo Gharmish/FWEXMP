@@ -1,26 +1,192 @@
 @import 'tailwindcss';
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
+/* ------------------------------------------------------------------ *
+ * Gharmish design tokens (Tailwind v4, CSS-first)
+ *
+ * Mirrors lib/colors.ts and BRIEF.md sections 3. No off-palette hex
+ * anywhere else in the codebase. Base values are the brand colors;
+ * -50..-900 are HSL-lightness ramps for fills and tints.
+ * ------------------------------------------------------------------ */
+@theme {
+  /* Sarat Black — text, dark sections, Originals tier */
+  --color-sarat-black: #0a0a0a;
+  --color-sarat-black-50: #f5f5f5;
+  --color-sarat-black-100: #e8e8e8;
+  --color-sarat-black-200: #d4d4d4;
+  --color-sarat-black-400: #a3a3a3;
+  --color-sarat-black-600: #737373;
+  --color-sarat-black-800: #4a4a4a;
+  --color-sarat-black-900: #363636;
+
+  /* Saffron Gold — primary CTAs, premium accent, emphasis */
+  --color-saffron-gold: #f5b800;
+  --color-saffron-gold-50: #faf8ef;
+  --color-saffron-gold-100: #f8f0d8;
+  --color-saffron-gold-200: #f7e5b0;
+  --color-saffron-gold-400: #facf4c;
+  --color-saffron-gold-600: #e6ac00;
+  --color-saffron-gold-800: #906d04;
+  --color-saffron-gold-900: #664e05;
+
+  /* Sarawat Blue — family category, informational links */
+  --color-sarawat-blue: #2e5bff;
+  --color-sarawat-blue-50: #eff2fa;
+  --color-sarawat-blue-100: #d8dff8;
+  --color-sarawat-blue-200: #b0bff7;
+  --color-sarawat-blue-400: #4c72fa;
+  --color-sarawat-blue-600: #0031e6;
+  --color-sarawat-blue-800: #042290;
+  --color-sarawat-blue-900: #051a66;
+
+  /* Soudah Sunset — adventure category, warmth */
+  --color-soudah-sunset: #e85d27;
+  --color-soudah-sunset-50: #f9f3f0;
+  --color-soudah-sunset-100: #f5e2db;
+  --color-soudah-sunset-200: #f0c7b7;
+  --color-soudah-sunset-400: #ea845d;
+  --color-soudah-sunset-600: #cf4a16;
+  --color-soudah-sunset-800: #833111;
+  --color-soudah-sunset-900: #5c240f;
+
+  /* Juniper Green — nature category, success states */
+  --color-juniper-green: #1f7a5c;
+  --color-juniper-green-50: #f1f8f6;
+  --color-juniper-green-100: #def2eb;
+  --color-juniper-green-200: #bfe9db;
+  --color-juniper-green-400: #6fd7b5;
+  --color-juniper-green-600: #2eb78a;
+  --color-juniper-green-800: #207458;
+  --color-juniper-green-900: #19523f;
+
+  /* Al-Qatt Red — heritage category, destructive / error states */
+  --color-al-qatt-red: #c8312a;
+  --color-al-qatt-red-50: #f8f1f1;
+  --color-al-qatt-red-100: #f3dede;
+  --color-al-qatt-red-200: #ebbebc;
+  --color-al-qatt-red-400: #dc6f6a;
+  --color-al-qatt-red-600: #be2e28;
+  --color-al-qatt-red-800: #78201c;
+  --color-al-qatt-red-900: #551916;
+
+  /* Fog White — primary background, surfaces */
+  --color-fog-white: #f5f2ec;
+  --color-fog-white-50: #f7f5f3;
+  --color-fog-white-100: #edeae3;
+  --color-fog-white-200: #dfd7c9;
+  --color-fog-white-400: #beac88;
+  --color-fog-white-600: #967f4f;
+  --color-fog-white-800: #605134;
+  --color-fog-white-900: #453b27;
+
+  /* Honey Amber — soft accent, secondary surfaces */
+  --color-honey-amber: #f4b898;
+  --color-honey-amber-50: #f9f3f0;
+  --color-honey-amber-100: #f5e4db;
+  --color-honey-amber-200: #f0cbb7;
+  --color-honey-amber-400: #ea8e5d;
+  --color-honey-amber-600: #cf5716;
+  --color-honey-amber-800: #833911;
+  --color-honey-amber-900: #5c2a0f;
+
+  /* Habala Mist — soft accent, info surfaces */
+  --color-habala-mist: #bfd4e8;
+  --color-habala-mist-50: #f2f5f7;
+  --color-habala-mist-100: #e0e8f0;
+  --color-habala-mist-200: #c3d4e4;
+  --color-habala-mist-400: #7aa4cc;
+  --color-habala-mist-600: #3d74a9;
+  --color-habala-mist-800: #294b6b;
+  --color-habala-mist-900: #1f364c;
+
+  /* Tihama Coral — soft accent */
+  --color-tihama-coral: #ffb089;
+  --color-tihama-coral-50: #faf3ef;
+  --color-tihama-coral-100: #f8e3d8;
+  --color-tihama-coral-200: #f7c8b0;
+  --color-tihama-coral-400: #fa864c;
+  --color-tihama-coral-600: #e64c00;
+  --color-tihama-coral-800: #903204;
+  --color-tihama-coral-900: #662505;
+
+  /* Wadi Mint — wellness category */
+  --color-wadi-mint: #9fd9c0;
+  --color-wadi-mint-50: #f2f7f5;
+  --color-wadi-mint-100: #e1efe9;
+  --color-wadi-mint-200: #c4e3d6;
+  --color-wadi-mint-400: #7dc9a8;
+  --color-wadi-mint-600: #41a47a;
+  --color-wadi-mint-800: #2c684e;
+  --color-wadi-mint-900: #214a38;
+
+  /* Rijal Clay — deep accent, sold-out / past states */
+  --color-rijal-clay: #8b2e20;
+  --color-rijal-clay-50: #f8f2f1;
+  --color-rijal-clay-100: #f2e1de;
+  --color-rijal-clay-200: #eac3bd;
+  --color-rijal-clay-400: #da7b6d;
+  --color-rijal-clay-600: #bb3e2b;
+  --color-rijal-clay-800: #76291e;
+  --color-rijal-clay-900: #541f17;
+
+  /* Typography. Bricolage for Latin/display, IBM Plex Sans Arabic for RTL.
+   * Variables come from next/font (lib/fonts.ts). */
+  --font-display: var(--font-bricolage), ui-sans-serif, system-ui, sans-serif;
+  --font-sans: var(--font-bricolage), ui-sans-serif, system-ui, sans-serif;
+  --font-arabic: var(--font-arabic), ui-sans-serif, system-ui, sans-serif;
+
+  /* 8-point grid (BRIEF.md section 3). Tailwind v4's dynamic spacing scale
+   * (base 0.25rem = 4px) already yields the allowed steps: p-1=4, p-2=8,
+   * p-3=12, p-4=16, p-6=24, p-8=32, p-12=48, p-16=64, p-20=80, p-30=120.
+   * Use only these steps. No arbitrary spacing values. */
+  --spacing: 0.25rem;
+
+  /* Border radius (BRIEF.md section 3). */
+  --radius-button: 100px;
+  --radius-card: 20px;
+  --radius-input: 12px;
+  --radius-image: 16px;
+  --radius-modal: 24px;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
-
+/* ------------------------------------------------------------------ *
+ * Base styles
+ * ------------------------------------------------------------------ */
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background-color: var(--color-fog-white);
+  color: var(--color-sarat-black);
+  font-family: var(--font-sans);
+  /* English body line-height (BRIEF.md section 3: 1.4–1.5). */
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Arabic locale: switch face and loosen line-height (BRIEF.md: 1.7–1.8). */
+[dir='rtl'] body {
+  font-family: var(--font-arabic);
+  line-height: 1.75;
+}
+
+/* Focus: remove the default ring, use a single visible focus-visible ring
+ * (BRIEF.md accessibility: focus rings visible, never removed). */
+* {
+  outline: none;
+}
+
+:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--color-fog-white), 0 0 0 4px rgb(10 10 10 / 0.4);
+  border-radius: 4px;
+}
+
+/* Honor reduced-motion globally (BRIEF.md motion + accessibility). */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }
