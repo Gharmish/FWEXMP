@@ -14,6 +14,9 @@ interface BookingRequestCopy {
   phone: string;
   preferredDate: string;
   partySize: string;
+  phoneHint: string;
+  preferredDateHint: string;
+  partySizeHint: string;
   submit: string;
   pending: string;
   validation: string;
@@ -31,6 +34,9 @@ export interface BookingRequestFormProps {
 
 const FIELD_NAMES = ['name', 'phone', 'preferredDate', 'partySize'] as const;
 type FieldName = (typeof FIELD_NAMES)[number];
+
+/** Which fields carry a static helper hint under the label. */
+const FIELDS_WITH_HINTS = new Set<FieldName>(['phone', 'preferredDate', 'partySize']);
 
 const initialState: BookingRequestState = { success: false, values: {} };
 
@@ -78,6 +84,7 @@ export function BookingRequestForm({
   // input it belongs to.
   const errorPrefix = useId();
   const errorId = (field: FieldName) => `${errorPrefix}-${field}-error`;
+  const hintId = (field: FieldName) => `${errorPrefix}-${field}-hint`;
   const formErrorId = `${errorPrefix}-form-error`;
 
   // The success path on the server action redirects to
@@ -117,9 +124,17 @@ export function BookingRequestForm({
 
   function fieldProps(field: FieldName) {
     const hasError = Boolean(state.fields?.[field]);
+    const hasHint = FIELDS_WITH_HINTS.has(field);
+    // aria-describedby supports a space-separated list — when both a
+    // hint and an error apply, screen readers announce the hint first
+    // then the error, matching the visual order.
+    const describedBy =
+      [hasHint ? hintId(field) : null, hasError ? errorId(field) : null]
+        .filter((id): id is string => id !== null)
+        .join(' ') || undefined;
     return {
       'aria-invalid': hasError ? ('true' as const) : undefined,
-      'aria-describedby': hasError ? errorId(field) : undefined,
+      'aria-describedby': describedBy,
     };
   }
 
@@ -167,6 +182,9 @@ export function BookingRequestForm({
           placeholder="+966 5X XXX XXXX"
           {...fieldProps('phone')}
         />
+        <p id={hintId('phone')} className="text-sarat-black-600 text-sm">
+          {copy.phoneHint}
+        </p>
         <FieldError id={errorId('phone')} message={state.fields?.phone && copy.required} />
       </div>
 
@@ -183,6 +201,9 @@ export function BookingRequestForm({
             defaultValue={values.preferredDate}
             {...fieldProps('preferredDate')}
           />
+          <p id={hintId('preferredDate')} className="text-sarat-black-600 text-sm">
+            {copy.preferredDateHint}
+          </p>
           <FieldError
             id={errorId('preferredDate')}
             message={state.fields?.preferredDate && copy.required}
@@ -203,6 +224,9 @@ export function BookingRequestForm({
             defaultValue={values.partySize ?? '1'}
             {...fieldProps('partySize')}
           />
+          <p id={hintId('partySize')} className="text-sarat-black-600 text-sm">
+            {copy.partySizeHint}
+          </p>
           <FieldError
             id={errorId('partySize')}
             message={state.fields?.partySize && copy.required}
