@@ -12,6 +12,8 @@ import { EmptyState } from '@/features/experiences/components/empty-state';
 import { CATEGORIES } from '@/features/experiences/lib/sample-data';
 import { getExperiencesFiltered, getFeaturedExperiences } from '@/features/experiences/queries';
 import { parseSearchParams } from '@/features/experiences/lib/search';
+import { getWishlistSet } from '@/features/wishlist/queries';
+import { WishlistButton } from '@/features/wishlist/components/wishlist-button';
 
 const languagesAlternates = Object.fromEntries(
   routing.locales.map((l) => [l, `${SITE_URL}/${l}/experiences`]),
@@ -80,9 +82,10 @@ export default async function ExperiencesIndexPage({
     criteria.priceBucket === null &&
     criteria.durationBucket === null;
 
-  const [results, featured] = await Promise.all([
+  const [results, featured, savedSlugs] = await Promise.all([
     getExperiencesFiltered(criteria),
     showFeatured ? getFeaturedExperiences() : Promise.resolve([] as const),
+    getWishlistSet(),
   ]);
 
   const url = `${SITE_URL}/${loc}/experiences`;
@@ -125,7 +128,18 @@ export default async function ExperiencesIndexPage({
             </h2>
             <div className="grid gap-4 sm:grid-cols-2">
               {featured.map((experience) => (
-                <ExperienceCard key={experience.slug} experience={experience} locale={loc} />
+                <ExperienceCard
+                  key={experience.slug}
+                  experience={experience}
+                  locale={loc}
+                  actions={
+                    <WishlistButton
+                      slug={experience.slug}
+                      isSaved={savedSlugs.has(experience.slug)}
+                      surface={experience.featured ? 'dark' : 'light'}
+                    />
+                  }
+                />
               ))}
             </div>
           </div>
@@ -152,7 +166,18 @@ export default async function ExperiencesIndexPage({
           ) : (
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {results.map((experience) => (
-                <ExperienceCard key={experience.slug} experience={experience} locale={loc} />
+                <ExperienceCard
+                  key={experience.slug}
+                  experience={experience}
+                  locale={loc}
+                  actions={
+                    <WishlistButton
+                      slug={experience.slug}
+                      isSaved={savedSlugs.has(experience.slug)}
+                      surface={experience.featured ? 'dark' : 'light'}
+                    />
+                  }
+                />
               ))}
             </div>
           )}

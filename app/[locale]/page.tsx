@@ -15,6 +15,8 @@ import { CATEGORIES } from '@/features/experiences/lib/sample-data';
 import { getExperiences, getFeaturedExperiences } from '@/features/experiences/queries';
 import { getAllHosts } from '@/features/hosts/queries';
 import { toArabicText } from '@/features/experiences/lib/arabic-content';
+import { getWishlistSet } from '@/features/wishlist/queries';
+import { WishlistButton } from '@/features/wishlist/components/wishlist-button';
 
 const languagesAlternates = Object.fromEntries(routing.locales.map((l) => [l, `${SITE_URL}/${l}`]));
 
@@ -63,10 +65,11 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
     loc === 'en' && 'tracking-[0.2em] uppercase',
   );
 
-  const [experiences, featured, hosts] = await Promise.all([
+  const [experiences, featured, hosts, savedSlugs] = await Promise.all([
     getExperiences(),
     getFeaturedExperiences(),
     getAllHosts(),
+    getWishlistSet(),
   ]);
 
   const jsonLd = {
@@ -139,7 +142,18 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
         </div>
         <div className="grid gap-4 sm:grid-cols-2">
           {featured.map((e) => (
-            <ExperienceCard key={e.slug} experience={e} locale={loc} />
+            <ExperienceCard
+              key={e.slug}
+              experience={e}
+              locale={loc}
+              actions={
+                <WishlistButton
+                  slug={e.slug}
+                  isSaved={savedSlugs.has(e.slug)}
+                  surface={e.featured ? 'dark' : 'light'}
+                />
+              }
+            />
           ))}
         </div>
       </section>
@@ -158,7 +172,18 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
         </div>
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {experiences.map((e) => (
-            <ExperienceCard key={e.slug} experience={e} locale={loc} />
+            <ExperienceCard
+              key={e.slug}
+              experience={e}
+              locale={loc}
+              actions={
+                <WishlistButton
+                  slug={e.slug}
+                  isSaved={savedSlugs.has(e.slug)}
+                  surface={e.featured ? 'dark' : 'light'}
+                />
+              }
+            />
           ))}
         </div>
       </section>

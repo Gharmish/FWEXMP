@@ -12,6 +12,8 @@ import { JsonLd } from '@/components/seo/json-ld';
 import { ExperienceCard } from '@/features/experiences/components/experience-card';
 import { toArabicText } from '@/features/experiences/lib/arabic-content';
 import { getAllHostSlugs, getExperiencesByHostSlug, getHostBySlug } from '@/features/hosts/queries';
+import { getWishlistSet } from '@/features/wishlist/queries';
+import { WishlistButton } from '@/features/wishlist/components/wishlist-button';
 
 export async function generateStaticParams() {
   const slugs = await getAllHostSlugs();
@@ -56,7 +58,10 @@ export default async function HostProfilePage({
   const host = await getHostBySlug(slug);
   if (!host) notFound();
 
-  const experiences = await getExperiencesByHostSlug(slug);
+  const [experiences, savedSlugs] = await Promise.all([
+    getExperiencesByHostSlug(slug),
+    getWishlistSet(),
+  ]);
   const t = await getTranslations('hostProfile');
   const th = await getTranslations('host');
 
@@ -158,7 +163,18 @@ export default async function HostProfilePage({
         ) : (
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {experiences.map((experience) => (
-              <ExperienceCard key={experience.slug} experience={experience} locale={loc} />
+              <ExperienceCard
+                key={experience.slug}
+                experience={experience}
+                locale={loc}
+                actions={
+                  <WishlistButton
+                    slug={experience.slug}
+                    isSaved={savedSlugs.has(experience.slug)}
+                    surface={experience.featured ? 'dark' : 'light'}
+                  />
+                }
+              />
             ))}
           </div>
         )}

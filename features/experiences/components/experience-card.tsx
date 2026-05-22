@@ -29,9 +29,16 @@ const CATEGORY_DOT: Record<Category, string> = {
 export interface ExperienceCardProps {
   experience: ExperienceSummary;
   locale: Locale;
+  /**
+   * Optional content rendered absolutely positioned in the card's
+   * top-end corner — wishlist heart today, room for share / quick-book
+   * later. Lives outside the Link wrapper so its own click events
+   * don't trigger card navigation.
+   */
+  actions?: React.ReactNode;
 }
 
-export async function ExperienceCard({ experience, locale }: ExperienceCardProps) {
+export async function ExperienceCard({ experience, locale, actions }: ExperienceCardProps) {
   const t = await getTranslations('experience');
   const tr = await getTranslations('reviews');
   const title = locale === 'ar' ? experience.titleAr : experience.titleEn;
@@ -58,66 +65,69 @@ export async function ExperienceCard({ experience, locale }: ExperienceCardProps
   const ratingCountDisplay = formatInteger(experience.ratingCount, locale);
 
   return (
-    <Link
-      href={`/experiences/${experience.slug}`}
-      className="block transition-transform duration-200 hover:-translate-y-0.5"
-    >
-      <Card
-        variant={experience.featured ? 'dark' : 'default'}
-        className="flex h-full flex-col gap-4 p-6"
+    <div className="relative">
+      <Link
+        href={`/experiences/${experience.slug}`}
+        className="block transition-transform duration-200 hover:-translate-y-0.5"
       >
-        <div className="flex items-center gap-2">
-          <span
-            className={`size-2 rounded-full ${experience.featured ? 'bg-saffron-gold' : CATEGORY_DOT[experience.category]}`}
-            aria-hidden
-          />
-          <span className={labelClassName}>
-            {experience.featured ? t('originals') : categoryLabel}
-          </span>
-        </div>
+        <Card
+          variant={experience.featured ? 'dark' : 'default'}
+          className="flex h-full flex-col gap-4 p-6"
+        >
+          <div className="flex items-center gap-2">
+            <span
+              className={`size-2 rounded-full ${experience.featured ? 'bg-saffron-gold' : CATEGORY_DOT[experience.category]}`}
+              aria-hidden
+            />
+            <span className={labelClassName}>
+              {experience.featured ? t('originals') : categoryLabel}
+            </span>
+          </div>
 
-        <div className="flex flex-col gap-2">
-          <h3 className="font-display text-2xl font-medium tracking-[-0.025em] text-balance">
-            {title}
-          </h3>
-          <p className={`text-base ${muted}`}>{description}</p>
-        </div>
+          <div className="flex flex-col gap-2">
+            <h3 className="font-display text-2xl font-medium tracking-[-0.025em] text-balance">
+              {title}
+            </h3>
+            <p className={`text-base ${muted}`}>{description}</p>
+          </div>
 
-        <div className={`mt-auto flex flex-wrap items-baseline gap-x-3 gap-y-1 text-sm ${muted}`}>
-          <span>{placeName}</span>
-          <span aria-hidden>·</span>
-          <span>
-            {durationHours(experience.durationMinutes, locale)} {t('hours')}
-          </span>
-          <span aria-hidden>·</span>
-          <span>{hostName}</span>
-        </div>
+          <div className={`mt-auto flex flex-wrap items-baseline gap-x-3 gap-y-1 text-sm ${muted}`}>
+            <span>{placeName}</span>
+            <span aria-hidden>·</span>
+            <span>
+              {durationHours(experience.durationMinutes, locale)} {t('hours')}
+            </span>
+            <span aria-hidden>·</span>
+            <span>{hostName}</span>
+          </div>
 
-        <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-2">
-          <p className="text-base font-medium">
-            {formatSAR(experience.priceSar, locale)}
-            <span className={`text-sm font-normal ${muted}`}> {t('perPerson')}</span>
-          </p>
-
-          {ratingDisplay && (
-            <p
-              className={cn('flex items-center gap-1.5 text-sm', muted)}
-              aria-label={tr('ratingLabel', { rating: experience.ratingAverage ?? 0 })}
-            >
-              <Star className="text-saffron-gold size-3.5 shrink-0" aria-hidden />
-              <span
-                className={cn(
-                  'font-medium',
-                  experience.featured ? 'text-fog-white' : 'text-sarat-black',
-                )}
-              >
-                {ratingDisplay}
-              </span>
-              <span>({ratingCountDisplay})</span>
+          <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-2">
+            <p className="text-base font-medium">
+              {formatSAR(experience.priceSar, locale)}
+              <span className={`text-sm font-normal ${muted}`}> {t('perPerson')}</span>
             </p>
-          )}
-        </div>
-      </Card>
-    </Link>
+
+            {ratingDisplay && (
+              <p
+                className={cn('flex items-center gap-1.5 text-sm', muted)}
+                aria-label={tr('ratingLabel', { rating: experience.ratingAverage ?? 0 })}
+              >
+                <Star className="text-saffron-gold size-3.5 shrink-0" aria-hidden />
+                <span
+                  className={cn(
+                    'font-medium',
+                    experience.featured ? 'text-fog-white' : 'text-sarat-black',
+                  )}
+                >
+                  {ratingDisplay}
+                </span>
+                <span>({ratingCountDisplay})</span>
+              </p>
+            )}
+          </div>
+        </Card>
+      </Link>
+      {actions && <div className="absolute end-4 top-4 z-10">{actions}</div>}
+    </div>
   );
 }

@@ -157,6 +157,21 @@
     "region": "أبها · عسير، المملكة العربية السعودية",
     "exploreLabel": "TODO(ar): Explore",
     "linkExperiences": "TODO(ar): Experiences",
-    "linkHosts": "TODO(ar): Hosts"
+    "linkHosts": "TODO(ar): Hosts",
+    "linkWishlist": "TODO(ar): Wishlist"
+  },
+  "wishlistButton": {
+    "save": "TODO(ar): Save to wishlist",
+    "remove": "TODO(ar): Remove from wishlist"
+  },
+  "wishlist": {
+    "eyebrow": "TODO(ar): Your wishlist",
+    "title": "TODO(ar): The experiences you've saved.",
+    "intro": "TODO(ar): Bookings open with one tap when you're ready — these stay here, private to you.",
+    "introEmpty": "TODO(ar): Nothing here yet. Tap the heart on any experience to add it to your wishlist.",
+    "emptyEyebrow": "TODO(ar): Empty",
+    "emptyTitle": "TODO(ar): Start saving experiences.",
+    "emptyDescription": "TODO(ar): Tap the heart on any card while you're browsing. We'll keep them here for when you're ready to book.",
+    "emptyCta": "TODO(ar): Browse experiences"
   }
 }
