@@ -1,327 +1,327 @@
 {
   "nav": {
     "discover": "اكتشف",
-    "signIn": "TODO(ar): Sign in",
-    "signOut": "TODO(ar): Sign out",
-    "account": "TODO(ar): Your activity",
-    "hostDashboard": "TODO(ar): Host"
+    "signIn": "تسجيل الدخول",
+    "signOut": "تسجيل الخروج",
+    "account": "حسابك",
+    "hostDashboard": "لوحة المضيف"
   },
   "auth": {
-    "eyebrow": "TODO(ar): Sign in",
-    "title": "TODO(ar): Welcome to Gharmish.",
-    "intro": "TODO(ar): Sign in with your Saudi mobile to keep track of your saved experiences and bookings.",
-    "phoneLabel": "TODO(ar): Mobile number",
+    "eyebrow": "تسجيل الدخول",
+    "title": "أهلاً بك في غارميش.",
+    "intro": "سجّل دخولك برقم جوالك السعودي لتتابع تجاربك المحفوظة وحجوزاتك.",
+    "phoneLabel": "رقم الجوال",
     "phonePlaceholder": "+966 5X XXX XXXX",
-    "phoneHint": "TODO(ar): We'll send a 6-digit verification code by SMS.",
-    "requestSubmit": "TODO(ar): Send code",
-    "requestPending": "TODO(ar): Sending",
-    "codeLabel": "TODO(ar): Verification code",
-    "codeHint": "TODO(ar): Enter the 6-digit code we just sent.",
-    "codeHintStub": "TODO(ar): Development mode — any 6-digit code works (e.g. 000000).",
-    "verifySubmit": "TODO(ar): Sign in",
-    "verifyPending": "TODO(ar): Verifying",
-    "changePhone": "TODO(ar): Use a different number",
+    "phoneHint": "سنرسل لك رمز تحقّق مكوّن من 6 أرقام عبر رسالة نصية.",
+    "requestSubmit": "أرسل الرمز",
+    "requestPending": "جارٍ الإرسال",
+    "codeLabel": "رمز التحقّق",
+    "codeHint": "أدخل الرمز المكوّن من 6 أرقام الذي وصلك للتو.",
+    "codeHintStub": "وضع التطوير — أي رمز مكوّن من 6 أرقام يعمل (مثال: 000000).",
+    "verifySubmit": "دخول",
+    "verifyPending": "جارٍ التحقّق",
+    "changePhone": "استخدم رقماً آخر",
     "errors": {
-      "validation": "TODO(ar): Check the highlighted fields and try again.",
-      "invalidPhone": "TODO(ar): Enter a Saudi mobile number — any common format works.",
-      "invalidCode": "TODO(ar): That code didn't match. Check it and try again.",
-      "rateLimited": "TODO(ar): Too many attempts. Wait a moment before requesting a new code.",
-      "server": "TODO(ar): We couldn't reach the verification service. Try again in a moment."
+      "validation": "راجع الحقول المحدّدة وحاول مرة أخرى.",
+      "invalidPhone": "أدخل رقم جوال سعودي — أي صيغة معتادة تعمل.",
+      "invalidCode": "الرمز غير مطابق. راجعه وحاول مرة أخرى.",
+      "rateLimited": "محاولات كثيرة. انتظر قليلاً قبل طلب رمز جديد.",
+      "server": "لم نتمكّن من الوصول لخدمة التحقّق. حاول بعد قليل."
     }
   },
   "admin": {
-    "eyebrow": "TODO(ar): Admin",
-    "title": "TODO(ar): Gharmish admin.",
-    "intro": "TODO(ar): Internal tools — keep things sharp, kind, and quick.",
-    "open": "TODO(ar): Open",
-    "backToAdmin": "TODO(ar): Admin home",
+    "eyebrow": "الإدارة",
+    "title": "إدارة غارميش.",
+    "intro": "أدوات داخلية — مختصرة ومرتّبة وسريعة.",
+    "open": "افتح",
+    "backToAdmin": "الرئيسية",
     "sections": {
       "hostApplications": {
-        "title": "TODO(ar): Host applications",
-        "description": "TODO(ar): Review, approve, or reject incoming host applications. Approval mints a verified host record."
+        "title": "طلبات المضيفين",
+        "description": "راجع طلبات المضيفين الواردة، واعتمدها أو ارفضها. الاعتماد ينشئ ملف مضيف موثّق."
       }
     },
     "hostApplicationsList": {
-      "eyebrow": "TODO(ar): Host applications",
-      "title": "TODO(ar): Applications.",
-      "intro": "TODO(ar): Pending applications are surfaced first. Click through to review identity, bio, and contact details.",
+      "eyebrow": "طلبات المضيفين",
+      "title": "الطلبات.",
+      "intro": "الطلبات قيد المراجعة تظهر أولاً. اضغط على الطلب لمراجعة الهوية والنبذة وتفاصيل التواصل.",
       "empty": {
-        "eyebrow": "TODO(ar): Empty",
-        "title": "TODO(ar): No applications yet.",
-        "description": "TODO(ar): When someone submits at /host/apply, they'll show up here."
+        "eyebrow": "لا يوجد",
+        "title": "لا توجد طلبات بعد.",
+        "description": "عند إرسال أحدهم لطلبه عبر /host/apply، سيظهر هنا."
       }
     },
     "noDb": {
-      "eyebrow": "TODO(ar): DB required",
-      "title": "TODO(ar): Admin needs a database connection.",
-      "description": "TODO(ar): Set DATABASE_URL and run pnpm db:push. Host applications submitted in stub mode live on each user's device cookie and can't be reviewed by anyone else."
+      "eyebrow": "قاعدة البيانات مطلوبة",
+      "title": "تحتاج لوحة الإدارة إلى اتصال بقاعدة البيانات.",
+      "description": "اضبط DATABASE_URL ثم نفّذ pnpm db:push. الطلبات المُرسلة في الوضع التجريبي محفوظة على جهاز كل مستخدم، ولا يمكن لأحد آخر مراجعتها."
     },
     "status": {
-      "pending": "TODO(ar): Pending",
-      "approved": "TODO(ar): Approved",
-      "rejected": "TODO(ar): Rejected"
+      "pending": "قيد المراجعة",
+      "approved": "معتمد",
+      "rejected": "مرفوض"
     },
     "identityType": {
-      "national_id": "TODO(ar): Individual",
-      "cr": "TODO(ar): Company (CR)"
+      "national_id": "فرد",
+      "cr": "منشأة (سجل تجاري)"
     },
     "languages": {
-      "ar": "TODO(ar): Arabic",
-      "en": "TODO(ar): English",
-      "fr": "TODO(ar): French",
-      "ur": "TODO(ar): Urdu"
+      "ar": "العربية",
+      "en": "الإنجليزية",
+      "fr": "الفرنسية",
+      "ur": "الأردية"
     },
     "detail": {
-      "submittedOn": "TODO(ar): Submitted on {date}",
-      "reviewedOn": "TODO(ar): Reviewed on {date}",
-      "identity": "TODO(ar): Identity",
-      "contact": "TODO(ar): Contact",
-      "languages": "TODO(ar): Languages",
-      "location": "TODO(ar): Location",
-      "bio": "TODO(ar): Bio (English)",
-      "reviewerNotes": "TODO(ar): Reviewer notes"
+      "submittedOn": "أُرسل في {date}",
+      "reviewedOn": "روجع في {date}",
+      "identity": "الهوية",
+      "contact": "التواصل",
+      "languages": "اللغات",
+      "location": "الموقع",
+      "bio": "النبذة (بالإنجليزية)",
+      "reviewerNotes": "ملاحظات المراجعة"
     },
     "actions": {
-      "approve": "TODO(ar): Approve and create host",
-      "approvePending": "TODO(ar): Approving",
-      "reject": "TODO(ar): Reject",
-      "rejectPending": "TODO(ar): Rejecting",
-      "notesLabel": "TODO(ar): Reviewer notes",
-      "notesApproveHint": "TODO(ar): Optional — internal context, never shown to the applicant.",
-      "notesRejectHint": "TODO(ar): Required, minimum 10 characters. Shown to the applicant so they know how to refile.",
+      "approve": "اعتمد وأنشئ ملف المضيف",
+      "approvePending": "جارٍ الاعتماد",
+      "reject": "رفض",
+      "rejectPending": "جارٍ الرفض",
+      "notesLabel": "ملاحظات المراجعة",
+      "notesApproveHint": "اختياري — سياق داخلي لا يراه مقدّم الطلب.",
+      "notesRejectHint": "إلزامي، 10 أحرف على الأقل. يراها مقدّم الطلب ليعرف كيف يعدّل طلبه.",
       "errors": {
-        "forbidden": "TODO(ar): You're not authorised to do that.",
-        "noDb": "TODO(ar): Admin actions require a database connection.",
-        "notFound": "TODO(ar): This application no longer exists.",
-        "validation": "TODO(ar): Check the form and try again.",
-        "server": "TODO(ar): We couldn't complete that action. Try again in a moment.",
-        "rejectionNoteShort": "TODO(ar): Add at least 10 characters of context so the applicant knows how to refile."
+        "forbidden": "ليس لديك صلاحية لذلك.",
+        "noDb": "إجراءات الإدارة تتطلّب اتصالاً بقاعدة البيانات.",
+        "notFound": "هذا الطلب لم يعد موجوداً.",
+        "validation": "راجع النموذج وحاول مرة أخرى.",
+        "server": "لم نتمكّن من إتمام العملية. حاول بعد قليل.",
+        "rejectionNoteShort": "أضف 10 أحرف على الأقل من السياق حتى يعرف مقدّم الطلب كيف يعدّل طلبه."
       }
     }
   },
   "hostApply": {
-    "eyebrow": "TODO(ar): Host with us",
-    "title": "TODO(ar): Co-create an experience with Gharmish.",
-    "intro": "TODO(ar): Gharmish is a partnership marketplace, not a passive listing site. We work alongside you on photography, training, and distribution — and we share the upside fairly. Tell us about yourself to start the conversation.",
-    "introMeta": "TODO(ar): Submitting this form doesn't list anything yet. Our partnerships team reviews each application and follows up to discuss insurance, payouts, and the experience you'd love to host.",
+    "eyebrow": "كن مضيفاً معنا",
+    "title": "صمّم تجربتك مع غارميش.",
+    "intro": "غارميش سوق شراكة لا مجرّد منصّة عرض. نعمل معك على التصوير والتدريب والتوزيع، ونتقاسم العائد بإنصاف. عرّفنا بنفسك لنبدأ الحوار.",
+    "introMeta": "إرسال النموذج لا يعني نشر التجربة. فريق الشراكات يراجع كل طلب ويتواصل معك لمناقشة التأمين والمستحقّات والتجربة التي تودّ تقديمها.",
     "sections": {
-      "about": "TODO(ar): About you",
-      "identity": "TODO(ar): Identity",
-      "contact": "TODO(ar): Contact"
+      "about": "عنك",
+      "identity": "الهوية",
+      "contact": "التواصل"
     },
     "fields": {
       "displayName": {
-        "label": "TODO(ar): Display name",
-        "hint": "TODO(ar): How you'd like to appear to guests — your full name or your company's brand name."
+        "label": "الاسم المعروض",
+        "hint": "كيف تحبّ أن يراك الضيوف — اسمك الكامل أو اسم منشأتك."
       },
       "bio": {
-        "label": "TODO(ar): Short bio (English)",
-        "hint": "TODO(ar): A paragraph or two on who you are and what you love about Asir. We'll have it translated to Arabic with you. Minimum 40 characters."
+        "label": "نبذة قصيرة (بالإنجليزية)",
+        "hint": "فقرة أو فقرتان عن من أنت وما الذي يشدّك إلى عسير. سنترجمها للعربية معك. 40 حرفاً على الأقل."
       },
       "languages": {
-        "label": "TODO(ar): Languages you host in",
-        "hint": "TODO(ar): Pick at least one. You can add more later."
+        "label": "اللغات التي تقدّم بها التجربة",
+        "hint": "اختر لغة واحدة على الأقل. يمكنك إضافة المزيد لاحقاً."
       },
       "identityType": {
-        "label": "TODO(ar): I'm applying as"
+        "label": "أتقدّم بصفتي"
       },
       "identityNumber": {
-        "label": "TODO(ar): Identity number",
-        "hint": "TODO(ar): 10-digit Saudi national ID, Iqama, or commercial registration number. We verify this before any listing goes live."
+        "label": "رقم الهوية",
+        "hint": "10 أرقام: الهوية الوطنية، الإقامة، أو رقم السجل التجاري. نتحقّق من ذلك قبل نشر أي تجربة."
       },
       "contactPhone": {
-        "label": "TODO(ar): Phone",
-        "hint": "TODO(ar): Pulled from your account. The partnerships team confirms on WhatsApp."
+        "label": "الجوال",
+        "hint": "من بيانات حسابك. يؤكّد فريق الشراكات معك عبر واتساب."
       },
       "contactEmail": {
-        "label": "TODO(ar): Email (optional)",
-        "hint": "TODO(ar): If you'd rather we reach you by email for the first conversation."
+        "label": "البريد الإلكتروني (اختياري)",
+        "hint": "إن فضّلت أن نتواصل معك على البريد في أوّل محادثة."
       }
     },
     "identityType": {
-      "national_id": "TODO(ar): An individual (national ID or Iqama)",
-      "cr": "TODO(ar): A registered company (commercial registration)"
+      "national_id": "فرد (هوية وطنية أو إقامة)",
+      "cr": "منشأة مسجّلة (سجل تجاري)"
     },
     "languages": {
-      "ar": "TODO(ar): Arabic",
-      "en": "TODO(ar): English",
-      "fr": "TODO(ar): French",
-      "ur": "TODO(ar): Urdu"
+      "ar": "العربية",
+      "en": "الإنجليزية",
+      "fr": "الفرنسية",
+      "ur": "الأردية"
     },
     "actions": {
-      "submit": "TODO(ar): Submit application",
-      "resubmit": "TODO(ar): Resubmit application",
-      "pending": "TODO(ar): Sending",
-      "browseExperiences": "TODO(ar): Browse the catalog",
-      "backToAccount": "TODO(ar): Back to your activity"
+      "submit": "أرسل الطلب",
+      "resubmit": "أعد إرسال الطلب",
+      "pending": "جارٍ الإرسال",
+      "browseExperiences": "تصفّح التجارب",
+      "backToAccount": "عودة إلى حسابك"
     },
     "status": {
       "pending": {
-        "eyebrow": "TODO(ar): Application received",
-        "title": "TODO(ar): We've got your application, {name}.",
-        "description": "TODO(ar): Our partnerships team reviews each application personally — usually within a week. We'll be in touch on WhatsApp to set up a call."
+        "eyebrow": "استلمنا طلبك",
+        "title": "وصلنا طلبك يا {name}.",
+        "description": "فريق الشراكات يراجع كل طلب شخصياً — عادةً خلال أسبوع. سنتواصل معك على واتساب لتنسيق مكالمة."
       },
       "approved": {
-        "eyebrow": "TODO(ar): Approved",
-        "title": "TODO(ar): Welcome to Gharmish, {name}.",
-        "description": "TODO(ar): Your application has been approved. The team will reach out with next steps — bank details, insurance, and your first experience."
+        "eyebrow": "تم الاعتماد",
+        "title": "أهلاً بك في غارميش يا {name}.",
+        "description": "تم اعتماد طلبك. سيتواصل معك الفريق للخطوات التالية — البيانات البنكية والتأمين وتجربتك الأولى."
       },
       "rejected": {
-        "eyebrow": "TODO(ar): Update from the team",
-        "title": "TODO(ar): We can't move forward yet, {name}.",
-        "description": "TODO(ar): Our team left a note on your application. You can update your details and resubmit when you're ready."
+        "eyebrow": "تحديث من الفريق",
+        "title": "لا نستطيع المضيّ قُدماً الآن يا {name}.",
+        "description": "ترك الفريق ملاحظة على طلبك. يمكنك تحديث بياناتك وإعادة الإرسال متى كنت جاهزاً."
       }
     },
     "summary": {
-      "displayName": "TODO(ar): Display name",
-      "languages": "TODO(ar): Languages",
-      "identity": "TODO(ar): Applying as",
-      "contact": "TODO(ar): Contact phone"
+      "displayName": "الاسم المعروض",
+      "languages": "اللغات",
+      "identity": "الصفة",
+      "contact": "جوال التواصل"
     },
     "submitted": {
-      "eyebrow": "TODO(ar): Application received",
-      "title": "TODO(ar): Thank you — we've got it from here.",
-      "description": "TODO(ar): Your application is on the partnerships team's desk. We review every one personally, so you'll hear back within a week.",
-      "step1": "TODO(ar): We review your application and get in touch on WhatsApp to schedule a short call.",
-      "step2": "TODO(ar): If we're a fit, we'll talk through insurance, payouts, and the experience you'd love to host.",
-      "step3": "TODO(ar): You'll get a host account with the tools to draft your first listing — and we'll co-produce the photography.",
-      "browseExperiences": "TODO(ar): Browse the catalog",
-      "backToAccount": "TODO(ar): Back to your activity"
+      "eyebrow": "استلمنا طلبك",
+      "title": "شكراً — تركنا الأمر بين أيدينا.",
+      "description": "طلبك الآن على طاولة فريق الشراكات. نراجع كل طلب شخصياً، وسنعود إليك خلال أسبوع.",
+      "step1": "نراجع طلبك ونتواصل معك على واتساب لتحديد مكالمة قصيرة.",
+      "step2": "إذا كان هناك توافق، سنناقش معك التأمين والمستحقّات والتجربة التي تودّ تقديمها.",
+      "step3": "ستحصل على حساب مضيف وأدوات لإعداد تجربتك الأولى — وننتج معك جلسة التصوير.",
+      "browseExperiences": "تصفّح التجارب",
+      "backToAccount": "عودة إلى حسابك"
     },
     "errors": {
-      "validation": "TODO(ar): Check the highlighted fields and try again.",
-      "server": "TODO(ar): We couldn't submit your application. Try again in a moment.",
-      "authRequired": "TODO(ar): Sign in again to submit your application.",
+      "validation": "راجع الحقول المحدّدة وحاول مرة أخرى.",
+      "server": "لم نتمكّن من إرسال طلبك. حاول بعد قليل.",
+      "authRequired": "سجّل دخولك مرة أخرى لإرسال طلبك.",
       "fields": {
-        "required": "TODO(ar): Enter a valid value.",
-        "displayNameShort": "TODO(ar): Use at least two characters.",
-        "displayNameLong": "TODO(ar): Keep this under 80 characters.",
-        "bioShort": "TODO(ar): Tell us a little more — at least 40 characters.",
-        "bioLong": "TODO(ar): Keep this under 1,200 characters.",
-        "languagesRequired": "TODO(ar): Pick at least one language.",
-        "identityInvalid": "TODO(ar): Enter a 10-digit national ID, Iqama, or CR number.",
-        "emailInvalid": "TODO(ar): Enter a valid email or leave this blank."
+        "required": "أدخل قيمة صحيحة.",
+        "displayNameShort": "حرفان على الأقل.",
+        "displayNameLong": "اجعله أقل من 80 حرفاً.",
+        "bioShort": "أخبرنا أكثر قليلاً — 40 حرفاً على الأقل.",
+        "bioLong": "اجعله أقل من 1,200 حرف.",
+        "languagesRequired": "اختر لغة واحدة على الأقل.",
+        "identityInvalid": "أدخل 10 أرقام: هوية وطنية، إقامة، أو سجل تجاري.",
+        "emailInvalid": "أدخل بريداً إلكترونياً صحيحاً أو اتركه فارغاً."
       }
     }
   },
   "hostDashboard": {
-    "eyebrow": "TODO(ar): Host dashboard",
-    "greeting": "TODO(ar): Welcome back, {name}.",
-    "verifiedBadge": "TODO(ar): Verified host",
-    "publicProfile": "TODO(ar): Public profile:",
+    "eyebrow": "لوحة المضيف",
+    "greeting": "أهلاً مرة أخرى يا {name}.",
+    "verifiedBadge": "مضيف موثّق",
+    "publicProfile": "الملف العام:",
     "whatsNext": {
-      "eyebrow": "TODO(ar): What's next",
-      "title": "TODO(ar): Get ready to host.",
-      "step1Title": "TODO(ar): Draft your first experience",
-      "step1Description": "TODO(ar): Tools for hosts to draft and submit experiences open soon. Until then, share your idea with the partnerships team and we'll co-produce it with you.",
-      "step2Title": "TODO(ar): Photography session",
-      "step2Description": "TODO(ar): We bring the camera. Our photographer captures the place, the moments, and you — natural light, no filters.",
-      "step3Title": "TODO(ar): Go live",
-      "step3Description": "TODO(ar): Once your listing is approved, it appears in the catalog and bookings open. We'll text you the first time someone books."
+      "eyebrow": "الخطوات التالية",
+      "title": "استعدّ لاستضافة ضيوفك.",
+      "step1Title": "ضع مسوّدة تجربتك الأولى",
+      "step1Description": "أدوات إعداد التجارب وإرسالها للمضيفين ستُتاح قريباً. حتى ذلك الحين، شاركنا فكرتك مع فريق الشراكات وسنصممها معك.",
+      "step2Title": "جلسة تصوير",
+      "step2Description": "نأتي بالكاميرا. مصوّرنا يلتقط المكان واللحظات وأنت — بضوء طبيعي بلا فلاتر.",
+      "step3Title": "اذهب للنشر",
+      "step3Description": "حالما تُعتمد تجربتك، تظهر في قائمة التجارب ويُفتح الحجز. سنخبرك عند أوّل حجز."
     },
     "experiences": {
-      "title": "TODO(ar): Your experiences",
-      "newCta": "TODO(ar): New experience",
-      "perPerson": "TODO(ar): per guest",
+      "title": "تجاربك",
+      "newCta": "تجربة جديدة",
+      "perPerson": "للضيف",
       "status": {
-        "draft": "TODO(ar): Draft",
-        "live": "TODO(ar): Live",
-        "paused": "TODO(ar): Paused",
-        "archived": "TODO(ar): Archived"
+        "draft": "مسوّدة",
+        "live": "منشورة",
+        "paused": "موقوفة",
+        "archived": "مؤرشفة"
       },
       "empty": {
-        "eyebrow": "TODO(ar): Empty",
-        "title": "TODO(ar): No experiences yet.",
-        "description": "TODO(ar): Start with a draft — you can save and come back any time. Publishing makes the listing appear in the public catalog."
+        "eyebrow": "لا يوجد",
+        "title": "لا توجد تجارب بعد.",
+        "description": "ابدأ بمسوّدة — يمكنك حفظها والعودة إليها في أي وقت. النشر يُظهر التجربة في القائمة العامة."
       }
     },
     "actions": {
-      "viewPublicProfile": "TODO(ar): View public profile",
-      "browseCatalog": "TODO(ar): Browse the catalog"
+      "viewPublicProfile": "افتح الملف العام",
+      "browseCatalog": "تصفّح التجارب"
     }
   },
   "hostExperiences": {
     "new": {
-      "eyebrow": "TODO(ar): New experience",
-      "title": "TODO(ar): Draft your experience.",
-      "intro": "TODO(ar): Start with a working title and a paragraph or two. You can save as a draft and refine it before publishing.",
-      "arabicNotice": "TODO(ar): Arabic title and description are added by the partnerships team before your listing goes live. Write your draft in English for now."
+      "eyebrow": "تجربة جديدة",
+      "title": "ضع مسوّدة تجربتك.",
+      "intro": "ابدأ بعنوان مبدئي وفقرة أو فقرتين. يمكنك الحفظ كمسوّدة وتعديلها قبل النشر.",
+      "arabicNotice": "العنوان والوصف بالعربية يضيفهما فريق الشراكات قبل نشر تجربتك. اكتب مسوّدتك بالإنجليزية الآن."
     },
     "edit": {
-      "back": "TODO(ar): Back to your dashboard",
-      "formHeading": "TODO(ar): Edit"
+      "back": "عودة إلى لوحتك",
+      "formHeading": "تعديل"
     },
     "status": {
       "draft": {
-        "eyebrow": "TODO(ar): Draft",
-        "label": "TODO(ar): Draft"
+        "eyebrow": "مسوّدة",
+        "label": "مسوّدة"
       },
       "live": {
-        "eyebrow": "TODO(ar): Live",
-        "label": "TODO(ar): Live"
+        "eyebrow": "منشورة",
+        "label": "منشورة"
       },
       "paused": {
-        "eyebrow": "TODO(ar): Paused",
-        "label": "TODO(ar): Paused"
+        "eyebrow": "موقوفة",
+        "label": "موقوفة"
       },
       "archived": {
-        "eyebrow": "TODO(ar): Archived",
-        "label": "TODO(ar): Archived"
+        "eyebrow": "مؤرشفة",
+        "label": "مؤرشفة"
       }
     },
     "lifecycle": {
-      "publish": "TODO(ar): Publish",
-      "publishPending": "TODO(ar): Publishing",
-      "pause": "TODO(ar): Pause",
-      "pausePending": "TODO(ar): Pausing",
-      "republish": "TODO(ar): Republish",
-      "viewPublic": "TODO(ar): View public page",
+      "publish": "انشر",
+      "publishPending": "جارٍ النشر",
+      "pause": "أوقف",
+      "pausePending": "جارٍ الإيقاف",
+      "republish": "أعد النشر",
+      "viewPublic": "افتح الصفحة العامة",
       "errors": {
-        "cannotPublish": "TODO(ar): Add at least one inclusion, pick at least one available weekday, and write a description of 60+ characters before publishing.",
-        "notFound": "TODO(ar): This experience no longer exists.",
-        "forbidden": "TODO(ar): You're not authorised to do that.",
-        "noDb": "TODO(ar): Publishing requires a database connection.",
-        "server": "TODO(ar): We couldn't complete that action. Try again in a moment.",
-        "validation": "TODO(ar): Check the form and try again."
+        "cannotPublish": "أضف بنداً واحداً على الأقل لِما يشمله السعر، واختر يوماً واحداً على الأقل، واكتب وصفاً من 60 حرفاً فأكثر قبل النشر.",
+        "notFound": "هذه التجربة لم تعد موجودة.",
+        "forbidden": "ليس لديك صلاحية لذلك.",
+        "noDb": "النشر يتطلّب اتصالاً بقاعدة البيانات.",
+        "server": "لم نتمكّن من إتمام العملية. حاول بعد قليل.",
+        "validation": "راجع النموذج وحاول مرة أخرى."
       }
     },
     "form": {
-      "sectionBasics": "TODO(ar): Basics",
-      "sectionPracticalities": "TODO(ar): Practicalities",
-      "sectionPlace": "TODO(ar): Place",
-      "sectionDetail": "TODO(ar): Practical detail",
-      "sectionAvailability": "TODO(ar): Availability",
-      "titleLabel": "TODO(ar): Title (English)",
-      "titleHint": "TODO(ar): A clear, evocative title in English. 8–120 characters.",
-      "descriptionLabel": "TODO(ar): Description (English)",
-      "descriptionHint": "TODO(ar): What guests will see, do, taste, learn. Rich prose helps both humans and AI agents understand the experience.",
-      "categoryLabel": "TODO(ar): Category",
-      "durationLabel": "TODO(ar): Duration (minutes)",
-      "priceLabel": "TODO(ar): Price per guest (SAR)",
-      "groupSizeLabel": "TODO(ar): Max group size",
-      "minAgeLabel": "TODO(ar): Minimum age",
-      "placeNameLabel": "TODO(ar): Place name",
-      "placeNameHint": "TODO(ar): Where this happens — e.g. Habala village, Soudah viewpoint.",
-      "cityLabel": "TODO(ar): City",
-      "regionLabel": "TODO(ar): Region",
-      "inclusionsLabel": "TODO(ar): What's included",
-      "inclusionsPlaceholder": "TODO(ar): Bottled water\nTransportation from Abha\nLight Asiri breakfast",
-      "inclusionsHint": "TODO(ar): One per line.",
-      "whatToBringLabel": "TODO(ar): What to bring",
-      "whatToBringPlaceholder": "TODO(ar): Comfortable walking shoes\nA layer for the evening",
-      "whatToBringHint": "TODO(ar): One per line. Leave blank if nothing.",
-      "cancellationLabel": "TODO(ar): Cancellation policy",
-      "cancellationPlaceholder": "TODO(ar): Free cancellation up to 24 hours before the experience. 50% refund if cancelled within 24 hours.",
-      "weekdaysLabel": "TODO(ar): Available days (recurring)",
-      "weekdaysHint": "TODO(ar): Weekdays this experience runs. Blackout dates are managed separately (coming soon).",
+      "sectionBasics": "الأساسيات",
+      "sectionPracticalities": "التفاصيل العملية",
+      "sectionPlace": "المكان",
+      "sectionDetail": "التفاصيل",
+      "sectionAvailability": "التوفّر",
+      "titleLabel": "العنوان (بالإنجليزية)",
+      "titleHint": "عنوان واضح وموحٍ بالإنجليزية. من 8 إلى 120 حرفاً.",
+      "descriptionLabel": "الوصف (بالإنجليزية)",
+      "descriptionHint": "ما الذي سيراه الضيف ويفعله ويتذوّقه ويتعلّمه. النصّ الغنيّ يساعد البشر ومساعدي الذكاء الاصطناعي على فهم التجربة.",
+      "categoryLabel": "التصنيف",
+      "durationLabel": "المدّة (دقائق)",
+      "priceLabel": "السعر للضيف (ر.س)",
+      "groupSizeLabel": "أقصى عدد للمجموعة",
+      "minAgeLabel": "أدنى عمر",
+      "placeNameLabel": "اسم المكان",
+      "placeNameHint": "أين تجري التجربة — مثال: قرية الحبلة، إطلالة السودة.",
+      "cityLabel": "المدينة",
+      "regionLabel": "المنطقة",
+      "inclusionsLabel": "ما الذي يشمله السعر",
+      "inclusionsPlaceholder": "ماء معبأ\nالتنقّل من أبها\nفطور عسيري خفيف",
+      "inclusionsHint": "بنداً في كل سطر.",
+      "whatToBringLabel": "ما الذي تحضره معك",
+      "whatToBringPlaceholder": "حذاء مشي مريح\nطبقة إضافية للمساء",
+      "whatToBringHint": "بنداً في كل سطر. اتركه فارغاً إن لم يكن هناك شيء.",
+      "cancellationLabel": "سياسة الإلغاء",
+      "cancellationPlaceholder": "إلغاء مجاني حتى 24 ساعة قبل التجربة. استرداد 50% عند الإلغاء خلال آخر 24 ساعة.",
+      "weekdaysLabel": "أيام التوفّر (متكرّرة)",
+      "weekdaysHint": "الأيام التي تُقام فيها التجربة أسبوعياً. تواريخ التوقّف تُدار بشكل منفصل (قريباً).",
       "weekdays": {
-        "sun": "TODO(ar): Sun",
-        "mon": "TODO(ar): Mon",
-        "tue": "TODO(ar): Tue",
-        "wed": "TODO(ar): Wed",
-        "thu": "TODO(ar): Thu",
-        "fri": "TODO(ar): Fri",
-        "sat": "TODO(ar): Sat"
+        "sun": "الأحد",
+        "mon": "الإثنين",
+        "tue": "الثلاثاء",
+        "wed": "الأربعاء",
+        "thu": "الخميس",
+        "fri": "الجمعة",
+        "sat": "السبت"
       },
       "categories": {
         "nature": "الطبيعة",
@@ -331,29 +331,29 @@
         "adventure": "المغامرة",
         "family": "العائلة"
       },
-      "submitCreate": "TODO(ar): Create draft",
-      "submitCreatePending": "TODO(ar): Creating",
-      "submitEdit": "TODO(ar): Save changes",
-      "submitEditPending": "TODO(ar): Saving",
+      "submitCreate": "أنشئ المسوّدة",
+      "submitCreatePending": "جارٍ الإنشاء",
+      "submitEdit": "احفظ التغييرات",
+      "submitEditPending": "جارٍ الحفظ",
       "errors": {
-        "validation": "TODO(ar): Check the highlighted fields and try again.",
-        "server": "TODO(ar): We couldn't save your changes. Try again in a moment.",
-        "forbidden": "TODO(ar): You're not authorised to edit this experience.",
-        "notFound": "TODO(ar): That experience doesn't exist anymore.",
-        "noDb": "TODO(ar): Experience editing requires a database connection.",
-        "cannotPublish": "TODO(ar): Add at least one inclusion, pick at least one available weekday, and write a description of 60+ characters before publishing.",
+        "validation": "راجع الحقول المحدّدة وحاول مرة أخرى.",
+        "server": "لم نتمكّن من حفظ تغييراتك. حاول بعد قليل.",
+        "forbidden": "ليس لديك صلاحية لتعديل هذه التجربة.",
+        "notFound": "هذه التجربة لم تعد موجودة.",
+        "noDb": "تعديل التجارب يتطلّب اتصالاً بقاعدة البيانات.",
+        "cannotPublish": "أضف بنداً واحداً على الأقل لِما يشمله السعر، واختر يوماً واحداً على الأقل، واكتب وصفاً من 60 حرفاً فأكثر قبل النشر.",
         "fields": {
-          "titleShort": "TODO(ar): Title is too short — minimum 8 characters.",
-          "titleLong": "TODO(ar): Title is too long — maximum 120 characters.",
-          "descriptionShort": "TODO(ar): Description is too short — write at least 60 characters.",
-          "descriptionLong": "TODO(ar): Description is too long — keep it under 4000 characters.",
-          "durationShort": "TODO(ar): Duration must be at least 30 minutes.",
-          "durationLong": "TODO(ar): Duration must be under 24 hours.",
-          "priceNegative": "TODO(ar): Price can't be negative.",
-          "priceTooHigh": "TODO(ar): Price is unusually high — check the value.",
-          "policyShort": "TODO(ar): Cancellation policy is too short — write at least 20 characters.",
-          "policyLong": "TODO(ar): Cancellation policy is too long — keep it under 1000 characters.",
-          "required": "TODO(ar): Check this field."
+          "titleShort": "العنوان قصير — 8 أحرف على الأقل.",
+          "titleLong": "العنوان طويل — 120 حرفاً كحدّ أقصى.",
+          "descriptionShort": "الوصف قصير — اكتب 60 حرفاً على الأقل.",
+          "descriptionLong": "الوصف طويل — اجعله أقل من 4000 حرف.",
+          "durationShort": "المدّة لا تقلّ عن 30 دقيقة.",
+          "durationLong": "المدّة أقل من 24 ساعة.",
+          "priceNegative": "السعر لا يمكن أن يكون سالباً.",
+          "priceTooHigh": "السعر مرتفع بشكل غير معتاد — راجع القيمة.",
+          "policyShort": "سياسة الإلغاء قصيرة — اكتب 20 حرفاً على الأقل.",
+          "policyLong": "سياسة الإلغاء طويلة — اجعلها أقل من 1000 حرف.",
+          "required": "راجع هذا الحقل."
         }
       }
     }
@@ -364,41 +364,41 @@
     "intro": "مجموعة منتقاة من تجارب التراث والجبال والطعام والعافية والمغامرة والعائلة، يقدمها شركاء محليون موثوقون.",
     "featured": "أصول غارميش المميزة",
     "all": "كل التجارب",
-    "results": "TODO(ar): {count, plural, =0 {No experiences} =1 {1 experience} other {# experiences}}",
-    "reset": "TODO(ar): Reset filters",
-    "originalsToggle": "TODO(ar): Originals only",
-    "originalsToggleAria": "TODO(ar): Show only Gharmish Originals",
-    "priceLegend": "TODO(ar): Price (SAR)",
-    "durationLegend": "TODO(ar): Duration",
+    "results": "{count, plural, =0 {لا توجد تجارب} one {تجربة واحدة} two {تجربتان} few {# تجارب} many {# تجربة} other {# تجربة}}",
+    "reset": "إعادة الضبط",
+    "originalsToggle": "أصول غارميش فقط",
+    "originalsToggleAria": "اعرض أصول غارميش فقط",
+    "priceLegend": "السعر (ر.س)",
+    "durationLegend": "المدّة",
     "price": {
-      "under-200": "TODO(ar): Under 200",
-      "200-500": "TODO(ar): 200 – 500",
-      "500-1000": "TODO(ar): 500 – 1,000",
-      "over-1000": "TODO(ar): Over 1,000"
+      "under-200": "أقل من 200",
+      "200-500": "200 – 500",
+      "500-1000": "500 – 1,000",
+      "over-1000": "أكثر من 1,000"
     },
     "duration": {
-      "under-2h": "TODO(ar): Under 2 hr",
-      "2-4h": "TODO(ar): 2 – 4 hr",
-      "half-day": "TODO(ar): Half day",
-      "full-day": "TODO(ar): Full day"
+      "under-2h": "أقل من ساعتين",
+      "2-4h": "من 2 إلى 4 ساعات",
+      "half-day": "نصف يوم",
+      "full-day": "يوم كامل"
     },
     "search": {
-      "label": "TODO(ar): Search experiences",
-      "placeholder": "TODO(ar): Search by name or place",
-      "clear": "TODO(ar): Clear search"
+      "label": "ابحث في التجارب",
+      "placeholder": "ابحث بالاسم أو المكان",
+      "clear": "امسح البحث"
     },
     "sort": {
-      "label": "TODO(ar): Sort",
-      "featured": "TODO(ar): Featured first",
-      "newest": "TODO(ar): Newest",
-      "priceAsc": "TODO(ar): Price: low to high",
-      "priceDesc": "TODO(ar): Price: high to low",
-      "ratingDesc": "TODO(ar): Best rated"
+      "label": "الترتيب",
+      "featured": "المميّزة أولاً",
+      "newest": "الأحدث",
+      "priceAsc": "السعر: من الأقل للأعلى",
+      "priceDesc": "السعر: من الأعلى للأقل",
+      "ratingDesc": "الأعلى تقييماً"
     },
     "empty": {
-      "eyebrow": "TODO(ar): No matches",
-      "title": "TODO(ar): Nothing fits those filters yet.",
-      "description": "TODO(ar): Try removing a filter, clearing the search, or browsing every experience."
+      "eyebrow": "لا نتائج",
+      "title": "لا توجد تجارب تطابق هذه التصفية.",
+      "description": "جرّب إزالة أحد عوامل التصفية، أو مسح البحث، أو تصفّح كل التجارب."
     }
   },
   "home": {
@@ -409,11 +409,11 @@
     "originalsTitle": "أصول غارميش",
     "originalsSub": "تجارب مميزة ننتجها يداً بيد مع مضيفينا.",
     "allTitle": "كل التجارب",
-    "viewAll": "TODO(ar): View all",
-    "hostsEyebrow": "TODO(ar): Our hosts",
-    "hostsTitle": "TODO(ar): Meet the people behind the experiences.",
-    "hostsIntro": "TODO(ar): Vetted local partners — farmers, guides, artisans, and licensed operators — co-creating every Gharmish experience.",
-    "hostsView": "TODO(ar): View profile"
+    "viewAll": "عرض الكل",
+    "hostsEyebrow": "مضيفونا",
+    "hostsTitle": "تعرّف على من يقفون خلف التجارب.",
+    "hostsIntro": "شركاء محليون موثوقون — مزارعون ومرشدون وحرفيون ومنشآت سياحية مرخّصة — نصمّم معهم كل تجربة في غارميش.",
+    "hostsView": "افتح الملف"
   },
   "experience": {
     "originals": "أصول غارميش",
@@ -440,9 +440,9 @@
     "phone": "رقم الجوال",
     "preferredDate": "التاريخ المفضل",
     "partySize": "عدد الضيوف",
-    "phoneHint": "TODO(ar): Any Saudi format — we'll confirm by WhatsApp.",
-    "preferredDateHint": "TODO(ar): Your host confirms the exact start time within 24 hours.",
-    "partySizeHint": "TODO(ar): Up to {max} guests for this experience.",
+    "phoneHint": "أي صيغة سعودية تعمل — سنؤكّد معك عبر واتساب.",
+    "preferredDateHint": "المضيف يؤكّد وقت البداية الدقيق خلال 24 ساعة.",
+    "partySizeHint": "حتى {max} ضيفاً لهذه التجربة.",
     "submit": "اطلب الحجز",
     "pending": "جارٍ إرسال الطلب",
     "validation": "راجع الحقول المحددة وحاول مرة أخرى.",
@@ -451,22 +451,22 @@
     "required": "أدخل قيمة صحيحة."
   },
   "bookingConfirmed": {
-    "eyebrow": "TODO(ar): Request received",
-    "title": "TODO(ar): Thank you — your request is in.",
-    "descriptionStored": "TODO(ar): We've sent your request to the host. You'll hear back within 24 hours to confirm availability and finalise the booking.",
-    "descriptionPreview": "TODO(ar): This is a preview environment — the request was not stored, but the booking flow works end-to-end. In production this page would show your booking details.",
-    "referenceLabel": "TODO(ar): Reference",
-    "experienceLabel": "TODO(ar): Experience",
-    "placeLabel": "TODO(ar): Where",
-    "dateLabel": "TODO(ar): Date",
-    "partyLabel": "TODO(ar): Guests",
-    "totalLabel": "TODO(ar): Estimated total",
-    "nextStepsHeading": "TODO(ar): What happens next",
-    "nextStep1": "TODO(ar): Your host reviews the request and confirms availability.",
-    "nextStep2": "TODO(ar): Once confirmed, we share a secure Moyasar payment link to complete the booking.",
-    "nextStep3": "TODO(ar): You'll get full details — meeting point, what to bring, host contact — by WhatsApp the day before.",
-    "backToExperience": "TODO(ar): Back to the experience",
-    "keepExploring": "TODO(ar): Keep exploring"
+    "eyebrow": "استلمنا طلبك",
+    "title": "شكراً — طلبك وصلنا.",
+    "descriptionStored": "أرسلنا طلبك إلى المضيف. ستصلك إجابة خلال 24 ساعة لتأكيد التوفّر وإتمام الحجز.",
+    "descriptionPreview": "هذه بيئة معاينة — لم يُحفظ الطلب فعلياً، لكن مسار الحجز يعمل من البداية إلى النهاية. في الإنتاج تظهر هنا تفاصيل حجزك.",
+    "referenceLabel": "الرقم المرجعي",
+    "experienceLabel": "التجربة",
+    "placeLabel": "المكان",
+    "dateLabel": "التاريخ",
+    "partyLabel": "عدد الضيوف",
+    "totalLabel": "الإجمالي التقديري",
+    "nextStepsHeading": "ما الذي يحدث بعد ذلك",
+    "nextStep1": "المضيف يراجع الطلب ويؤكّد التوفّر.",
+    "nextStep2": "بعد التأكيد، نرسل لك رابط دفع آمن عبر مُيسّر لإتمام الحجز.",
+    "nextStep3": "تصلك التفاصيل الكاملة — نقطة اللقاء، ما تحضره معك، تواصل المضيف — على واتساب قبل التجربة بيوم.",
+    "backToExperience": "العودة إلى التجربة",
+    "keepExploring": "واصل التصفّح"
   },
   "notFound": {
     "eyebrow": "٤٠٤",
@@ -484,84 +484,84 @@
   },
   "host": {
     "verified": "مضيف موثوق",
-    "viewProfile": "TODO(ar): View host profile"
+    "viewProfile": "افتح ملف المضيف"
   },
   "hostsIndex": {
-    "eyebrow": "TODO(ar): Our hosts",
-    "title": "TODO(ar): The people behind every experience.",
-    "intro": "TODO(ar): Vetted local partners — Saudi individuals and licensed Asiri tourism operators — co-creating the Gharmish catalog. Every host is verified before they go live.",
-    "empty": "TODO(ar): No hosts have been listed yet."
+    "eyebrow": "مضيفونا",
+    "title": "الناس خلف كل تجربة.",
+    "intro": "شركاء محليون موثوقون — أفراد سعوديون ومنشآت سياحية عسيرية مرخّصة — نصمّم معهم قائمة تجارب غارميش. كل مضيف موثّق قبل أن يبدأ في الاستضافة.",
+    "empty": "لا يوجد مضيفون مدرجون بعد."
   },
   "hostProfile": {
-    "eyebrow": "TODO(ar): Host",
-    "backToExperiences": "TODO(ar): Back to experiences",
-    "languages": "TODO(ar): Languages spoken",
-    "experiencesHeading": "TODO(ar): Experiences hosted by {name}",
-    "experiencesCount": "TODO(ar): {count, plural, =0 {No experiences yet} =1 {1 experience} other {# experiences}}",
-    "noExperiences": "TODO(ar): No experiences are live for this host yet."
+    "eyebrow": "مضيف",
+    "backToExperiences": "العودة إلى التجارب",
+    "languages": "اللغات",
+    "experiencesHeading": "تجارب يقدّمها {name}",
+    "experiencesCount": "{count, plural, =0 {لا توجد تجارب بعد} one {تجربة واحدة} two {تجربتان} few {# تجارب} many {# تجربة} other {# تجربة}}",
+    "noExperiences": "لا توجد تجارب منشورة لهذا المضيف بعد."
   },
   "reviews": {
-    "eyebrow": "TODO(ar): From guests",
-    "heading": "TODO(ar): Reviews",
-    "noReviews": "TODO(ar): No reviews yet — be the first to share this experience.",
-    "outOf": "TODO(ar): of {max}",
-    "basedOn": "TODO(ar): Based on {count} reviews",
-    "ratingLabel": "TODO(ar): Rated {rating} out of 5",
-    "hostReply": "TODO(ar): Reply from the host",
-    "moreHidden": "TODO(ar): {count, plural, =1 {1 more review not shown} other {# more reviews not shown}}"
+    "eyebrow": "من ضيوفنا",
+    "heading": "التقييمات",
+    "noReviews": "لا توجد تقييمات بعد — كن أول من يشارك تجربته.",
+    "outOf": "من {max}",
+    "basedOn": "بناءً على {count} تقييم",
+    "ratingLabel": "تقييم {rating} من 5",
+    "hostReply": "ردّ من المضيف",
+    "moreHidden": "{count, plural, =1 {تقييم واحد إضافي غير معروض} =2 {تقييمان إضافيان غير معروضين} few {# تقييمات إضافية غير معروضة} many {# تقييماً إضافياً غير معروض} other {# تقييم إضافي غير معروض}}"
   },
   "footer": {
     "tagline": "تجارب يقدمها أهل عسير الذين يعرفونها أكثر.",
     "rights": "جميع الحقوق محفوظة.",
     "region": "أبها · عسير، المملكة العربية السعودية",
-    "exploreLabel": "TODO(ar): Explore",
-    "linkExperiences": "TODO(ar): Experiences",
-    "linkHosts": "TODO(ar): Hosts",
-    "linkHostApply": "TODO(ar): Host with us",
-    "linkWishlist": "TODO(ar): Wishlist",
-    "linkMe": "TODO(ar): Your activity"
+    "exploreLabel": "تصفّح",
+    "linkExperiences": "التجارب",
+    "linkHosts": "المضيفون",
+    "linkHostApply": "كن مضيفاً معنا",
+    "linkWishlist": "المفضّلة",
+    "linkMe": "حسابك"
   },
   "wishlistButton": {
-    "save": "TODO(ar): Save to wishlist",
-    "remove": "TODO(ar): Remove from wishlist"
+    "save": "أضف إلى المفضّلة",
+    "remove": "أزل من المفضّلة"
   },
   "me": {
-    "eyebrow": "TODO(ar): Your activity",
-    "title": "TODO(ar): Where you left off.",
-    "intro": "TODO(ar): Your last request and the experiences you've saved — private to this device until accounts land.",
-    "introEmpty": "TODO(ar): Nothing here yet. Once you save an experience or make a request, it'll show up on this page.",
-    "signedInAs": "TODO(ar): Signed in as {phone}",
-    "emptyEyebrow": "TODO(ar): Empty",
-    "emptyTitle": "TODO(ar): Start exploring.",
-    "emptyDescription": "TODO(ar): Save experiences with the heart icon, or send a booking request from any experience page. We'll keep track here.",
-    "emptyCta": "TODO(ar): Browse experiences",
-    "lastBookingEyebrow": "TODO(ar): Last request",
-    "lastBookingFallbackTitle": "TODO(ar): Your booking request",
-    "referenceLabel": "TODO(ar): Reference",
-    "statusLabel": "TODO(ar): Status",
-    "dateLabel": "TODO(ar): Date",
-    "partyLabel": "TODO(ar): Guests",
-    "totalLabel": "TODO(ar): Estimated total",
+    "eyebrow": "حسابك",
+    "title": "حيث توقّفت.",
+    "intro": "آخر طلب لك والتجارب التي حفظتها — خاصة بجهازك حتى تكتمل الحسابات.",
+    "introEmpty": "لا شيء هنا بعد. حالما تحفظ تجربة أو ترسل طلباً، سيظهر في هذه الصفحة.",
+    "signedInAs": "مسجّل دخولك برقم {phone}",
+    "emptyEyebrow": "فارغة",
+    "emptyTitle": "ابدأ الاكتشاف.",
+    "emptyDescription": "احفظ التجارب بزرّ القلب، أو أرسل طلب حجز من أي صفحة تجربة. سنحتفظ بها لك هنا.",
+    "emptyCta": "تصفّح التجارب",
+    "lastBookingEyebrow": "آخر طلب",
+    "lastBookingFallbackTitle": "طلب الحجز الخاص بك",
+    "referenceLabel": "الرقم المرجعي",
+    "statusLabel": "الحالة",
+    "dateLabel": "التاريخ",
+    "partyLabel": "عدد الضيوف",
+    "totalLabel": "الإجمالي التقديري",
     "status": {
-      "pending": "TODO(ar): Awaiting host confirmation",
-      "confirmed": "TODO(ar): Confirmed",
-      "completed": "TODO(ar): Completed",
-      "cancelled": "TODO(ar): Cancelled",
-      "refunded": "TODO(ar): Refunded"
+      "pending": "بانتظار تأكيد المضيف",
+      "confirmed": "مؤكَّد",
+      "completed": "مكتمل",
+      "cancelled": "ملغى",
+      "refunded": "مُستردّ"
     },
-    "viewConfirmation": "TODO(ar): Open confirmation",
-    "viewExperience": "TODO(ar): Open experience",
-    "wishlistTitle": "TODO(ar): Saved experiences",
-    "wishlistViewAll": "TODO(ar): View all"
+    "viewConfirmation": "افتح التأكيد",
+    "viewExperience": "افتح التجربة",
+    "wishlistTitle": "تجاربك المحفوظة",
+    "wishlistViewAll": "عرض الكل"
   },
   "wishlist": {
-    "eyebrow": "TODO(ar): Your wishlist",
-    "title": "TODO(ar): The experiences you've saved.",
-    "intro": "TODO(ar): Bookings open with one tap when you're ready — these stay here, private to you.",
-    "introEmpty": "TODO(ar): Nothing here yet. Tap the heart on any experience to add it to your wishlist.",
-    "emptyEyebrow": "TODO(ar): Empty",
-    "emptyTitle": "TODO(ar): Start saving experiences.",
-    "emptyDescription": "TODO(ar): Tap the heart on any card while you're browsing. We'll keep them here for when you're ready to book.",
-    "emptyCta": "TODO(ar): Browse experiences"
+    "eyebrow": "المفضّلة",
+    "title": "التجارب التي حفظتها.",
+    "intro": "الحجز جاهز بنقرة واحدة حين تكون مستعدّاً — تبقى هنا، خاصة بك.",
+    "introEmpty": "لا شيء هنا بعد. اضغط على القلب في أي تجربة لإضافتها إلى مفضّلتك.",
+    "emptyEyebrow": "فارغة",
+    "emptyTitle": "ابدأ بحفظ التجارب.",
+    "emptyDescription": "اضغط على القلب في أي بطاقة أثناء التصفّح. سنحتفظ بها هنا حتى تصبح جاهزاً للحجز.",
+    "emptyCta": "تصفّح التجارب"
   }
 }
