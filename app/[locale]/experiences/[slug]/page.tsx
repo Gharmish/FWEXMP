@@ -14,6 +14,8 @@ import { HostCard } from '@/features/hosts/components/host-card';
 import { toArabicText } from '@/features/experiences/lib/arabic-content';
 import { CATEGORIES } from '@/features/experiences/lib/sample-data';
 import { getAllSlugs, getExperienceBySlug } from '@/features/experiences/queries';
+import { ReviewsSection } from '@/features/reviews/components/reviews-section';
+import { getReviewAggregateForExperience } from '@/features/reviews/queries';
 
 export async function generateStaticParams() {
   const slugs = await getAllSlugs();
@@ -56,6 +58,11 @@ export default async function ExperienceDetailPage({
 
   const exp = await getExperienceBySlug(slug);
   if (!exp) notFound();
+
+  // Fetch the aggregate rating in parallel with translation setup — it
+  // feeds both the JSON-LD AggregateRating and the visible reviews
+  // section (which re-fetches the full list itself, also cached).
+  const ratingAggregate = await getReviewAggregateForExperience(slug);
 
   const t = await getTranslations('experienceDetail');
   const te = await getTranslations('experience');
@@ -118,6 +125,17 @@ export default async function ExperienceDetailPage({
           availability: 'https://schema.org/InStock',
           url,
         },
+        ...(ratingAggregate.count > 0 && ratingAggregate.average !== null
+          ? {
+              aggregateRating: {
+                '@type': 'AggregateRating',
+                ratingValue: Number(ratingAggregate.average.toFixed(1)),
+                reviewCount: ratingAggregate.count,
+                bestRating: 5,
+                worstRating: 1,
+              },
+            }
+          : {}),
       },
       {
         '@type': 'BreadcrumbList',
@@ -231,6 +249,8 @@ export default async function ExperienceDetailPage({
             </h2>
             <HostCard host={exp.host} locale={loc} />
           </section>
+
+          <ReviewsSection experienceSlug={exp.slug} locale={loc} />
         </div>
 
         {/* Right: sticky price / booking panel */}

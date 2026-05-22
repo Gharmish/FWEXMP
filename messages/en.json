@@ -90,6 +90,16 @@
   "host": {
     "verified": "Verified host"
   },
+  "reviews": {
+    "eyebrow": "From guests",
+    "heading": "Reviews",
+    "noReviews": "No reviews yet — be the first to share this experience.",
+    "outOf": "of {max}",
+    "basedOn": "Based on {count} reviews",
+    "ratingLabel": "Rated {rating} out of 5",
+    "hostReply": "Reply from the host",
+    "moreHidden": "{count, plural, =1 {1 more review not shown} other {# more reviews not shown}}"
+  },
   "footer": {
     "tagline": "Experiences hosted by the people who know Asir best.",
     "rights": "All rights reserved.",

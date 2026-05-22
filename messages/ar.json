@@ -90,6 +90,16 @@
   "host": {
     "verified": "مضيف موثوق"
   },
+  "reviews": {
+    "eyebrow": "TODO(ar): From guests",
+    "heading": "TODO(ar): Reviews",
+    "noReviews": "TODO(ar): No reviews yet — be the first to share this experience.",
+    "outOf": "TODO(ar): of {max}",
+    "basedOn": "TODO(ar): Based on {count} reviews",
+    "ratingLabel": "TODO(ar): Rated {rating} out of 5",
+    "hostReply": "TODO(ar): Reply from the host",
+    "moreHidden": "TODO(ar): {count, plural, =1 {1 more review not shown} other {# more reviews not shown}}"
+  },
   "footer": {
     "tagline": "تجارب يقدمها أهل عسير الذين يعرفونها أكثر.",
     "rights": "جميع الحقوق محفوظة.",
