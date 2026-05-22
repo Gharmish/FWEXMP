@@ -5,7 +5,13 @@ import { SITE_DESCRIPTION, SITE_NAME, SITE_URL } from '@/lib/site';
 import { routing, type Locale } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
 import { ExperienceCard } from '@/features/experiences/components/experience-card';
-import { getExperiences, getFeaturedExperiences } from '@/features/experiences/queries';
+import { FilterBar } from '@/features/experiences/components/filter-bar';
+import { SortSelect } from '@/features/experiences/components/sort-select';
+import { SearchInput } from '@/features/experiences/components/search-input';
+import { EmptyState } from '@/features/experiences/components/empty-state';
+import { CATEGORIES } from '@/features/experiences/lib/sample-data';
+import { getExperiencesFiltered, getFeaturedExperiences } from '@/features/experiences/queries';
+import { parseSearchParams } from '@/features/experiences/lib/search';
 
 const languagesAlternates = Object.fromEntries(
   routing.locales.map((l) => [l, `${SITE_URL}/${l}/experiences`]),
@@ -44,10 +50,14 @@ export async function generateMetadata({
   };
 }
 
+type SearchParamValue = string | string[] | undefined;
+
 export default async function ExperiencesIndexPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ locale: string }>;
+  searchParams: Promise<Readonly<Record<string, SearchParamValue>>>;
 }) {
   const { locale } = await params;
   setRequestLocale(locale);
@@ -58,7 +68,19 @@ export default async function ExperiencesIndexPage({
     loc === 'en' && 'tracking-[0.2em] uppercase',
   );
 
-  const [experiences, featured] = await Promise.all([getExperiences(), getFeaturedExperiences()]);
+  const rawSearchParams = await searchParams;
+  const criteria = parseSearchParams(rawSearchParams);
+
+  // Featured row only appears with no active filters — once the user
+  // narrows the catalog the featured set becomes noise.
+  const showFeatured =
+    criteria.q.length === 0 && criteria.categories.length === 0 && !criteria.originalsOnly;
+
+  const [results, featured] = await Promise.all([
+    getExperiencesFiltered(criteria),
+    showFeatured ? getFeaturedExperiences() : Promise.resolve([] as const),
+  ]);
+
   const url = `${SITE_URL}/${loc}/experiences`;
 
   const jsonLd = {
@@ -69,7 +91,7 @@ export default async function ExperiencesIndexPage({
     description: SITE_DESCRIPTION,
     url,
     publisher: { '@type': 'Organization', name: SITE_NAME, url: SITE_URL },
-    itemListElement: experiences.map((experience, index) => ({
+    itemListElement: results.map((experience, index) => ({
       '@type': 'ListItem',
       position: index + 1,
       url: `${SITE_URL}/${loc}/experiences/${experience.slug}`,
@@ -91,7 +113,7 @@ export default async function ExperiencesIndexPage({
         </div>
       </section>
 
-      {featured.length > 0 && (
+      {showFeatured && featured.length > 0 && (
         <section className="border-sarat-black/8 [border-top-width:0.5px]">
           <div className="mx-auto w-full max-w-6xl px-6 py-16">
             <h2 className="font-display mb-8 text-3xl font-medium tracking-[-0.03em]">
@@ -106,12 +128,30 @@ export default async function ExperiencesIndexPage({
         </section>
       )}
 
-      <section className="mx-auto w-full max-w-6xl px-6 py-16 sm:py-20">
-        <h2 className="font-display mb-8 text-3xl font-medium tracking-[-0.03em]">{t('all')}</h2>
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {experiences.map((experience) => (
-            <ExperienceCard key={experience.slug} experience={experience} locale={loc} />
-          ))}
+      <section className="border-sarat-black/8 [border-top-width:0.5px]">
+        <div className="mx-auto flex w-full max-w-6xl flex-col gap-10 px-6 py-16 sm:py-20">
+          <div className="flex flex-col gap-6">
+            <h2 className="font-display text-3xl font-medium tracking-[-0.03em]">{t('all')}</h2>
+
+            <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
+              <div className="lg:max-w-md lg:flex-1">
+                <SearchInput />
+              </div>
+              <SortSelect />
+            </div>
+
+            <FilterBar locale={loc} categories={CATEGORIES} resultCount={results.length} />
+          </div>
+
+          {results.length === 0 ? (
+            <EmptyState locale={loc} />
+          ) : (
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {results.map((experience) => (
+                <ExperienceCard key={experience.slug} experience={experience} locale={loc} />
+              ))}
+            </div>
+          )}
         </div>
       </section>
     </div>

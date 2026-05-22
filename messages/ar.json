@@ -7,7 +7,28 @@
     "title": "اكتشف تجارب عسيرية أصيلة.",
     "intro": "مجموعة منتقاة من تجارب التراث والجبال والطعام والعافية والمغامرة والعائلة، يقدمها شركاء محليون موثوقون.",
     "featured": "أصول غارميش المميزة",
-    "all": "كل التجارب"
+    "all": "كل التجارب",
+    "results": "TODO(ar): {count, plural, =0 {No experiences} =1 {1 experience} other {# experiences}}",
+    "reset": "TODO(ar): Reset filters",
+    "originalsToggle": "TODO(ar): Originals only",
+    "originalsToggleAria": "TODO(ar): Show only Gharmish Originals",
+    "search": {
+      "label": "TODO(ar): Search experiences",
+      "placeholder": "TODO(ar): Search by name or place",
+      "clear": "TODO(ar): Clear search"
+    },
+    "sort": {
+      "label": "TODO(ar): Sort",
+      "featured": "TODO(ar): Featured first",
+      "newest": "TODO(ar): Newest",
+      "priceAsc": "TODO(ar): Price: low to high",
+      "priceDesc": "TODO(ar): Price: high to low"
+    },
+    "empty": {
+      "eyebrow": "TODO(ar): No matches",
+      "title": "TODO(ar): Nothing fits those filters yet.",
+      "description": "TODO(ar): Try removing a filter, clearing the search, or browsing every experience."
+    }
   },
   "home": {
     "eyebrow": "أبها · عسير",

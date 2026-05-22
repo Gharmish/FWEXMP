@@ -7,7 +7,28 @@
     "title": "Explore authentic Asiri experiences.",
     "intro": "A curated collection of heritage, mountain, food, wellness, adventure, and family activities hosted by vetted local partners.",
     "featured": "Featured Originals",
-    "all": "All experiences"
+    "all": "All experiences",
+    "results": "{count, plural, =0 {No experiences} =1 {1 experience} other {# experiences}}",
+    "reset": "Reset filters",
+    "originalsToggle": "Originals only",
+    "originalsToggleAria": "Show only Gharmish Originals",
+    "search": {
+      "label": "Search experiences",
+      "placeholder": "Search by name or place",
+      "clear": "Clear search"
+    },
+    "sort": {
+      "label": "Sort",
+      "featured": "Featured first",
+      "newest": "Newest",
+      "priceAsc": "Price: low to high",
+      "priceDesc": "Price: high to low"
+    },
+    "empty": {
+      "eyebrow": "No matches",
+      "title": "Nothing fits those filters yet.",
+      "description": "Try removing a filter, clearing the search, or browsing every experience."
+    }
   },
   "home": {
     "eyebrow": "Abha · Asir",

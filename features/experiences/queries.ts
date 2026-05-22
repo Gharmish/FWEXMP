@@ -9,6 +9,11 @@ import type {
   MomentInfo,
 } from '@/features/experiences/types';
 import * as sample from '@/features/experiences/lib/sample-data';
+import {
+  filterExperiences,
+  sortExperiences,
+  type ExperienceCriteria,
+} from '@/features/experiences/lib/search';
 
 /**
  * Experience data access. These are the swap-in replacements for the
@@ -107,6 +112,20 @@ export async function getExperienceBySlug(slug: string): Promise<ExperienceDetai
     with: { host: true, moments: true },
   });
   return row ? toDetail(row) : undefined;
+}
+
+/**
+ * Catalog-with-filters accessor. Loads the live set through the same
+ * path as `getExperiences()`, then applies the criteria + sort in JS.
+ * At launch scale (single-digit to low-double-digit rows) this is
+ * cheaper than per-request WHERE/ORDER BY planning and keeps the DB
+ * and sample-data paths byte-identical.
+ */
+export async function getExperiencesFiltered(
+  criteria: ExperienceCriteria,
+): Promise<readonly ExperienceSummary[]> {
+  const all = await getExperiences();
+  return sortExperiences(filterExperiences(all, criteria), criteria.sort);
 }
 
 export async function getAllSlugs(): Promise<string[]> {

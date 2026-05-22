@@ -1,0 +1,125 @@
+'use client';
+
+import { useTransition } from 'react';
+import { useSearchParams } from 'next/navigation';
+import { useTranslations } from 'next-intl';
+import { usePathname, useRouter } from '@/lib/i18n';
+import type { Locale } from '@/lib/i18n';
+import { Pill } from '@/components/ui/pill';
+import { cn } from '@/lib/utils';
+import type { CategoryMeta } from '@/features/experiences/types';
+import {
+  DEFAULT_SORT,
+  hasActiveFilters,
+  parseSearchParams,
+  toSearchParams,
+  type ExperienceCriteria,
+} from '@/features/experiences/lib/search';
+
+interface FilterBarProps {
+  locale: Locale;
+  categories: readonly CategoryMeta[];
+  /**
+   * Total matches under the *current* criteria. Surfaced inline so the
+   * filter row doubles as a result counter.
+   */
+  resultCount: number;
+}
+
+/**
+ * Filter row for /experiences. Reads the criteria from the URL,
+ * renders a category chip strip plus an Originals toggle, and writes
+ * changes back to the URL with router.replace (so back/forward and
+ * deep-links work without client state).
+ */
+export function FilterBar({ locale, categories, resultCount }: FilterBarProps) {
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const [isPending, startTransition] = useTransition();
+  const t = useTranslations('experiencesIndex');
+
+  const params: Record<string, string | string[]> = {};
+  searchParams.forEach((value, key) => {
+    const existing = params[key];
+    if (existing === undefined) {
+      params[key] = value;
+    } else if (Array.isArray(existing)) {
+      existing.push(value);
+    } else {
+      params[key] = [existing, value];
+    }
+  });
+  const criteria = parseSearchParams(params);
+
+  function push(next: ExperienceCriteria) {
+    const qs = toSearchParams(next).toString();
+    startTransition(() => {
+      router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
+    });
+  }
+
+  function toggleCategory(key: CategoryMeta['key']) {
+    const set = new Set(criteria.categories);
+    if (set.has(key)) {
+      set.delete(key);
+    } else {
+      set.add(key);
+    }
+    push({ ...criteria, categories: Array.from(set) as ExperienceCriteria['categories'] });
+  }
+
+  function toggleOriginals() {
+    push({ ...criteria, originalsOnly: !criteria.originalsOnly });
+  }
+
+  function reset() {
+    push({ q: '', categories: [], originalsOnly: false, sort: DEFAULT_SORT });
+  }
+
+  const eyebrowClassName = cn(
+    'text-sarat-black-600 text-[11px]',
+    locale === 'en' && 'tracking-[0.2em] uppercase',
+  );
+  const resultsLabel = t('results', { count: resultCount });
+
+  return (
+    <div
+      className={cn('flex flex-col gap-4', isPending && 'opacity-70 transition-opacity')}
+      data-pending={isPending ? 'true' : undefined}
+    >
+      <div className="flex items-baseline justify-between gap-4">
+        <p className={eyebrowClassName}>{resultsLabel}</p>
+        {hasActiveFilters(criteria) && (
+          <button
+            type="button"
+            onClick={reset}
+            className="text-sarat-black-600 hover:text-sarat-black inline-flex min-h-11 items-center text-sm transition-opacity duration-200 hover:opacity-60"
+          >
+            {t('reset')}
+          </button>
+        )}
+      </div>
+
+      <div className="-mx-1 flex flex-wrap gap-2 px-1">
+        <Pill
+          selected={criteria.originalsOnly}
+          onClick={toggleOriginals}
+          aria-label={t('originalsToggleAria')}
+        >
+          {t('originalsToggle')}
+        </Pill>
+        {categories.map((c) => (
+          <Pill
+            key={c.key}
+            category={c.key}
+            selected={criteria.categories.includes(c.key)}
+            onClick={() => toggleCategory(c.key)}
+          >
+            {locale === 'ar' ? c.labelAr : c.labelEn}
+          </Pill>
+        ))}
+      </div>
+    </div>
+  );
+}
