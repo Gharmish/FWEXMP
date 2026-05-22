@@ -145,10 +145,54 @@ const SPACING = [
   { name: '30', px: 120 },
 ] as const;
 
+/** Stable id for in-page anchors. Slug-style ASCII; matches the TOC. */
+function sectionId(title: string): string {
+  return title
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+}
+
+/**
+ * Ordered list of section titles — drives both the TOC at the top of
+ * the page and the in-page anchors via the same sectionId() helper.
+ * Keep in sync with the <Section> calls below; an anchor that doesn't
+ * find a matching id just jumps to the top, which is the smallest
+ * possible consequence on an internal page.
+ */
+const TOC_SECTIONS = [
+  'Color',
+  'Category → color',
+  'Typography',
+  'Buttons',
+  'Card',
+  'Input',
+  'Badge',
+  'Avatar',
+  'Pill (filter / category chips)',
+  'IconButton',
+  'Spacing (8-pt grid)',
+  'Experience card',
+  'Host card',
+  'Wishlist button — state matrix',
+  'Reviews — rating summary',
+  'Reviews — single card',
+] as const;
+
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <section className="border-sarat-black/8 flex flex-col gap-6 [border-top-width:0.5px] py-12">
-      <h2 className="font-display text-3xl font-medium tracking-[-0.03em]">{title}</h2>
+    <section
+      id={sectionId(title)}
+      className="border-sarat-black/8 flex scroll-mt-12 flex-col gap-6 [border-top-width:0.5px] py-12"
+    >
+      <h2 className="font-display text-3xl font-medium tracking-[-0.03em]">
+        <a
+          href={`#${sectionId(title)}`}
+          className="transition-opacity duration-200 hover:opacity-60"
+        >
+          {title}
+        </a>
+      </h2>
       {children}
     </section>
   );
@@ -170,6 +214,26 @@ export default async function StyleGuidePage({ params }: { params: Promise<{ loc
         <p className="text-sarat-black-600 text-base">
           Living reference for tokens and primitives. Locale: {locale}.
         </p>
+        <nav
+          aria-label="Sections"
+          className="border-sarat-black/8 rounded-card mt-6 [border-width:0.5px] p-5"
+        >
+          <p className="text-sarat-black-600 mb-3 text-[11px] tracking-[0.2em] uppercase">
+            Jump to
+          </p>
+          <ul className="flex flex-wrap gap-x-4 gap-y-1.5 text-sm">
+            {TOC_SECTIONS.map((title) => (
+              <li key={title}>
+                <a
+                  href={`#${sectionId(title)}`}
+                  className="text-sarat-black transition-opacity duration-200 hover:opacity-60"
+                >
+                  {title}
+                </a>
+              </li>
+            ))}
+          </ul>
+        </nav>
       </header>
 
       <Section title="Color">
