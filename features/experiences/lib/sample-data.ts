@@ -13,10 +13,8 @@ import type {
  * (db/schema.ts) once the database is connected — callers go through
  * these functions so page code won't change.
  *
- * English content is real; Arabic is `TODO(ar):` per CLAUDE.md.
+ * English and Arabic content are kept side by side for the offline demo.
  */
-
-const AR = 'TODO(ar): translate';
 
 /** Category labels — bilingual taxonomy quoted verbatim from BRIEF §3. */
 export const CATEGORIES: readonly CategoryMeta[] = [
@@ -32,7 +30,8 @@ const FAISAL: HostInfo = {
   name: 'Faisal Al Qahtani',
   bioEn:
     'A third-generation farmer from Habala who grew up among the juniper terraces. Faisal hosts small groups to share Asiri food, music, and the slow rhythm of mountain life.',
-  bioAr: AR,
+  bioAr:
+    'مزارع من الجيل الثالث من الحبلة، نشأ بين مدرجات العرعر. يستضيف فيصل مجموعات صغيرة ليشاركهم طعام عسير وموسيقاها وإيقاع الحياة الجبلية الهادئ.',
   verified: true,
 };
 
@@ -40,7 +39,8 @@ const ASIR_ADVENTURES: HostInfo = {
   name: 'Asir Adventures Co.',
   bioEn:
     'A licensed Abha tourism operator specialising in guided mountain activities, with certified guides and full safety equipment.',
-  bioAr: AR,
+  bioAr:
+    'شركة سياحية مرخصة في أبها متخصصة في الأنشطة الجبلية الموجهة، مع مرشدين معتمدين وتجهيزات سلامة كاملة.',
   verified: true,
 };
 
@@ -48,10 +48,11 @@ const EXPERIENCES: readonly ExperienceDetail[] = [
   {
     slug: 'juniper-forest-dawn-walk-jabal-sawda',
     titleEn: 'Juniper forest dawn walk on Jabal Sawda',
-    titleAr: AR,
+    titleAr: 'مشي الفجر بين عرعر جبل السودة',
     descriptionEn:
       'Meet before sunrise and walk the cloud-line trails of Jabal Sawda, Saudi Arabia’s highest peak, as mist moves through ancient juniper. Your host reads the landscape — the trees, the terraces, the birds — at an unhurried pace.',
-    descriptionAr: AR,
+    descriptionAr:
+      'نلتقي قبل الشروق ونسير في مسارات جبل السودة، أعلى قمم السعودية، بينما يتحرك الضباب بين أشجار العرعر العتيقة. يقرأ لك المضيف ملامح المكان؛ الأشجار والمدرجات والطيور، بوتيرة هادئة لا تستعجل.',
     category: 'nature',
     priceSar: 320,
     durationMinutes: 180,
@@ -71,27 +72,28 @@ const EXPERIENCES: readonly ExperienceDetail[] = [
         orderIndex: 0,
         timeOfDay: 'Before dawn',
         titleEn: 'Meet at the trailhead',
-        titleAr: AR,
+        titleAr: 'لقاء عند بداية المسار',
         descriptionEn: 'Gather in the dark with hot qahwa and a short briefing.',
-        descriptionAr: AR,
+        descriptionAr: 'نجتمع في العتمة مع قهوة ساخنة وتعريف قصير بالمسار.',
       },
       {
         orderIndex: 1,
         timeOfDay: 'Sunrise',
         titleEn: 'Into the juniper',
-        titleAr: AR,
+        titleAr: 'بين أشجار العرعر',
         descriptionEn: 'Walk the cloud-line as the first light comes through the trees.',
-        descriptionAr: AR,
+        descriptionAr: 'نسير بمحاذاة خط السحاب مع أول ضوء يتسلل بين الأشجار.',
       },
     ],
   },
   {
     slug: 'an-evening-with-the-flower-men',
     titleEn: 'An evening with the flower men of Habala',
-    titleAr: AR,
+    titleAr: 'أمسية مع رجال الزهور في الحبلة',
     descriptionEn:
       'Spend an evening with the Qahtani “flower men,” who wear crowns of marigold and herbs. Share stories, music, and a home-cooked meal on a terrace above the Habala valley as the light goes gold.',
-    descriptionAr: AR,
+    descriptionAr:
+      'اقضِ أمسية مع رجال الزهور من قحطان، الذين يضعون أكاليل القطيفة والأعشاب العطرية. شاركهم القصص والموسيقى ووجبة منزلية على شرفة تطل على وادي الحبلة حين يميل الضوء إلى الذهبي.',
     category: 'heritage',
     priceSar: 480,
     durationMinutes: 240,
@@ -111,35 +113,36 @@ const EXPERIENCES: readonly ExperienceDetail[] = [
         orderIndex: 0,
         timeOfDay: 'Late afternoon',
         titleEn: 'Arrive on the terrace',
-        titleAr: AR,
+        titleAr: 'الوصول إلى الشرفة',
         descriptionEn: 'Welcome with qahwa and dates as the valley light softens.',
-        descriptionAr: AR,
+        descriptionAr: 'استقبال بالقهوة والتمر بينما يهدأ ضوء الوادي.',
       },
       {
         orderIndex: 1,
         timeOfDay: 'Evening',
         titleEn: 'Stories and music',
-        titleAr: AR,
+        titleAr: 'قصص وموسيقى',
         descriptionEn: 'The flower men share the meaning behind the crowns, with live Asiri music.',
-        descriptionAr: AR,
+        descriptionAr: 'يشارك رجال الزهور معاني الأكاليل، مع موسيقى عسيرية حية.',
       },
       {
         orderIndex: 2,
         timeOfDay: 'Night',
         titleEn: 'Shared dinner',
-        titleAr: AR,
+        titleAr: 'عشاء مشترك',
         descriptionEn: 'A home-cooked Asiri meal eaten together under the stars.',
-        descriptionAr: AR,
+        descriptionAr: 'وجبة عسيرية منزلية نتشاركها تحت النجوم.',
       },
     ],
   },
   {
     slug: 'asiri-coffee-ritual-and-saleeg-lunch',
     titleEn: 'Asiri coffee ritual and saleeg lunch',
-    titleAr: AR,
+    titleAr: 'طقوس القهوة العسيرية وغداء السليق',
     descriptionEn:
       'Roast and pound green beans the Asiri way, learn the etiquette of the dallah, then sit to a slow saleeg lunch. A hands-on afternoon in a family majlis in old Abha.',
-    descriptionAr: AR,
+    descriptionAr:
+      'حمص واطحن البن الأخضر على الطريقة العسيرية، وتعرّف على آداب تقديم الدلة، ثم اجلس إلى غداء سليق هادئ. بعد ظهر عملي في مجلس عائلي في أبها القديمة.',
     category: 'food',
     priceSar: 260,
     durationMinutes: 150,
@@ -159,27 +162,28 @@ const EXPERIENCES: readonly ExperienceDetail[] = [
         orderIndex: 0,
         timeOfDay: 'Midday',
         titleEn: 'Roast and pound',
-        titleAr: AR,
+        titleAr: 'التحميص والدق',
         descriptionEn: 'Roast green beans over coals and pound them with cardamom.',
-        descriptionAr: AR,
+        descriptionAr: 'نحمص البن الأخضر على الجمر وندقه مع الهيل.',
       },
       {
         orderIndex: 1,
         timeOfDay: 'Afternoon',
         titleEn: 'Saleeg lunch',
-        titleAr: AR,
+        titleAr: 'غداء السليق',
         descriptionEn: 'Sit to a slow saleeg lunch in the family majlis.',
-        descriptionAr: AR,
+        descriptionAr: 'نجلس إلى غداء سليق هادئ في المجلس العائلي.',
       },
     ],
   },
   {
     slug: 'sound-and-breath-wadi-mahala',
     titleEn: 'Sound and breath at Wadi Mahala',
-    titleAr: AR,
+    titleAr: 'الصوت والتنفس في وادي محالة',
     descriptionEn:
       'A quiet ninety minutes of guided breathwork and sound by the running water of Wadi Mahala, ending with mountain tea. Suitable for complete beginners.',
-    descriptionAr: AR,
+    descriptionAr:
+      'تسعون دقيقة هادئة من تمارين التنفس الموجهة وجلسة صوت بجانب مياه وادي محالة الجارية، تنتهي بشاي الجبل. مناسبة تماماً للمبتدئين.',
     category: 'wellness',
     priceSar: 180,
     durationMinutes: 90,
@@ -199,27 +203,28 @@ const EXPERIENCES: readonly ExperienceDetail[] = [
         orderIndex: 0,
         timeOfDay: 'Morning',
         titleEn: 'Settle by the water',
-        titleAr: AR,
+        titleAr: 'الاستقرار قرب الماء',
         descriptionEn: 'Find a spot by the stream and ease into slow breathing.',
-        descriptionAr: AR,
+        descriptionAr: 'اختر مكاناً قرب السيل وابدأ تنفساً بطيئاً ومريحاً.',
       },
       {
         orderIndex: 1,
         timeOfDay: 'Late morning',
         titleEn: 'Sound and tea',
-        titleAr: AR,
+        titleAr: 'صوت وشاي',
         descriptionEn: 'Close with a sound session and mountain tea.',
-        descriptionAr: AR,
+        descriptionAr: 'نختتم بجلسة صوت وشاي جبلي.',
       },
     ],
   },
   {
     slug: 'soudah-cliff-via-ferrata',
     titleEn: 'Soudah cliff via ferrata and cable descent',
-    titleAr: AR,
+    titleAr: 'مسار فيا فيراتا على حافة السودة ونزول بالحبل',
     descriptionEn:
       'A guided via ferrata along the Soudah escarpment with a cable descent over the valley. Certified guides, full equipment, and a serious view. No prior climbing experience required.',
-    descriptionAr: AR,
+    descriptionAr:
+      'مسار فيا فيراتا موجه على حافة السودة مع نزول بالحبل فوق الوادي. مرشدون معتمدون وتجهيزات كاملة وإطلالة جادة. لا تحتاج إلى خبرة سابقة في التسلق.',
     category: 'adventure',
     priceSar: 540,
     durationMinutes: 210,
@@ -239,27 +244,28 @@ const EXPERIENCES: readonly ExperienceDetail[] = [
         orderIndex: 0,
         timeOfDay: 'Morning',
         titleEn: 'Safety briefing and gear',
-        titleAr: AR,
+        titleAr: 'تعليمات السلامة والتجهيز',
         descriptionEn: 'Fit harnesses and helmets, learn the system on a low practice section.',
-        descriptionAr: AR,
+        descriptionAr: 'نرتدي الأحزمة والخوذ ونتعلم النظام على جزء تدريبي منخفض.',
       },
       {
         orderIndex: 1,
         timeOfDay: 'Midday',
         titleEn: 'The traverse',
-        titleAr: AR,
+        titleAr: 'العبور',
         descriptionEn: 'Move along the escarpment with the Tihama plain far below.',
-        descriptionAr: AR,
+        descriptionAr: 'نتحرك بمحاذاة الحافة وسهل تهامة يبدو بعيداً في الأسفل.',
       },
     ],
   },
   {
     slug: 'al-qatt-painting-rijal-almaa',
     titleEn: 'Al-Qatt Al-Asiri painting for families in Rijal Almaa',
-    titleAr: AR,
+    titleAr: 'رسم القط العسيري للعائلات في رجال ألمع',
     descriptionEn:
       'In the stone village of Rijal Almaa, a local artist teaches families the geometric Al-Qatt Al-Asiri wall painting — a UNESCO-listed Asiri craft. Everyone takes home their own panel.',
-    descriptionAr: AR,
+    descriptionAr:
+      'في قرية رجال ألمع الحجرية، تعلّم فنانة محلية العائلات زخرفة القط العسيري الهندسية، وهي حرفة عسيرية مدرجة لدى اليونسكو. يأخذ كل مشارك لوحته معه إلى البيت.',
     category: 'family',
     priceSar: 220,
     durationMinutes: 120,
@@ -279,17 +285,17 @@ const EXPERIENCES: readonly ExperienceDetail[] = [
         orderIndex: 0,
         timeOfDay: 'Morning',
         titleEn: 'Meet the artist',
-        titleAr: AR,
+        titleAr: 'لقاء الفنانة',
         descriptionEn: 'Learn the meaning of the Al-Qatt geometry and colours.',
-        descriptionAr: AR,
+        descriptionAr: 'تعرّف على معاني هندسة القط وألوانه.',
       },
       {
         orderIndex: 1,
         timeOfDay: 'Midday',
         titleEn: 'Paint your panel',
-        titleAr: AR,
+        titleAr: 'ارسم لوحتك',
         descriptionEn: 'Paint a panel to take home, with the artist guiding each family.',
-        descriptionAr: AR,
+        descriptionAr: 'ارسم لوحة تأخذها معك، مع إرشاد الفنانة لكل عائلة.',
       },
     ],
   },

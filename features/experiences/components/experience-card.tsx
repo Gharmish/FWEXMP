@@ -2,9 +2,11 @@ import { getTranslations } from 'next-intl/server';
 import { Card } from '@/components/ui/card';
 import { formatSAR, durationHours } from '@/lib/format';
 import { Link } from '@/lib/i18n';
+import { cn } from '@/lib/utils';
 import type { Locale } from '@/lib/i18n';
 import type { Category } from '@/lib/colors';
 import type { ExperienceSummary } from '@/features/experiences/types';
+import { toArabicText } from '@/features/experiences/lib/arabic-content';
 import { CATEGORIES } from '@/features/experiences/lib/sample-data';
 
 /**
@@ -34,6 +36,8 @@ export async function ExperienceCard({ experience, locale }: ExperienceCardProps
   const t = await getTranslations('experience');
   const title = locale === 'ar' ? experience.titleAr : experience.titleEn;
   const description = locale === 'ar' ? experience.descriptionAr : experience.descriptionEn;
+  const placeName = locale === 'ar' ? toArabicText(experience.placeName) : experience.placeName;
+  const hostName = locale === 'ar' ? toArabicText(experience.hostName) : experience.hostName;
   const category = CATEGORIES.find((c) => c.key === experience.category);
   const categoryLabel = category
     ? locale === 'ar'
@@ -42,6 +46,7 @@ export async function ExperienceCard({ experience, locale }: ExperienceCardProps
     : experience.category;
 
   const muted = experience.featured ? 'text-fog-white/70' : 'text-sarat-black-600';
+  const labelClassName = cn('text-[11px]', locale === 'en' && 'tracking-[0.2em] uppercase');
 
   return (
     <Link
@@ -57,7 +62,7 @@ export async function ExperienceCard({ experience, locale }: ExperienceCardProps
             className={`size-2 rounded-full ${experience.featured ? 'bg-saffron-gold' : CATEGORY_DOT[experience.category]}`}
             aria-hidden
           />
-          <span className="text-[11px] tracking-[0.2em] uppercase">
+          <span className={labelClassName}>
             {experience.featured ? t('originals') : categoryLabel}
           </span>
         </div>
@@ -70,13 +75,13 @@ export async function ExperienceCard({ experience, locale }: ExperienceCardProps
         </div>
 
         <div className={`mt-auto flex flex-wrap items-baseline gap-x-3 gap-y-1 text-sm ${muted}`}>
-          <span>{experience.placeName}</span>
+          <span>{placeName}</span>
           <span aria-hidden>·</span>
           <span>
             {durationHours(experience.durationMinutes, locale)} {t('hours')}
           </span>
           <span aria-hidden>·</span>
-          <span>{experience.hostName}</span>
+          <span>{hostName}</span>
         </div>
 
         <p className="text-base font-medium">

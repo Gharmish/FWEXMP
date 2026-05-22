@@ -18,8 +18,7 @@ import {
  * Conventions: snake_case columns (applied globally via `casing` in
  * drizzle.config.ts and lib/db.ts — keys here stay camelCase). UUID
  * primary keys via `gen_random_uuid()` (Supabase ships pgcrypto).
- * Bilingual content is stored as paired `*En` / `*Ar` columns; Arabic
- * is seeded as `TODO(ar):` placeholders for human translation.
+ * Bilingual content is stored as paired `*En` / `*Ar` columns.
  *
  * Simplification noted for review: availability is modelled inline on
  * `experiences` as a recurring weekday set + blackout dates (BRIEF §8

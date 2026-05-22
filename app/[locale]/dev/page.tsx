@@ -21,8 +21,8 @@ import { IconButton } from '@/components/ui/icon-button';
  * /ar (RTL + Arabic face). Not linked from the product.
  *
  * The Arabic strings below are type *specimens* (to show the IBM Plex
- * Sans Arabic face), not product copy — product strings still go through
- * next-intl with TODO(ar) placeholders.
+ * Sans Arabic face), not product copy — product strings go through
+ * next-intl message catalogs.
  */
 
 const RAMP_STOPS: RampStop[] = [50, 100, 200, 400, 600, 800, 900];

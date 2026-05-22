@@ -11,6 +11,7 @@ export async function Footer() {
   const locale = (await getLocale()) as Locale;
   const t = await getTranslations('footer');
   const year = new Date().getFullYear();
+  const brand = locale === 'ar' ? 'غارميش' : 'Gharmish';
 
   return (
     <footer className="border-sarat-black/8 [border-top-width:0.5px]">
@@ -21,7 +22,7 @@ export async function Footer() {
         </div>
         <div className="border-sarat-black/8 text-sarat-black-600 flex flex-col gap-1 [border-top-width:0.5px] pt-6 text-sm">
           <span>
-            © {year} Gharmish. {t('rights')}
+            © {year} {brand}. {t('rights')}
           </span>
           <span>{t('region')}</span>
         </div>

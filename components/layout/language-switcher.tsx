@@ -22,7 +22,7 @@ export function LanguageSwitcher() {
       locale={other}
       lang={other}
       aria-label={`Switch language to ${localeLabel[other]}`}
-      className="rounded-button bg-sarat-black text-fog-white inline-flex min-h-9 items-center px-4 text-sm font-medium transition-transform duration-200 hover:-translate-y-px"
+      className="rounded-button bg-sarat-black text-fog-white inline-flex min-h-11 items-center px-4 text-sm font-medium transition-transform duration-200 hover:-translate-y-px"
     >
       {localeLabel[other]}
     </Link>

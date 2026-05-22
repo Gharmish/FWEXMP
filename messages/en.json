@@ -34,7 +34,8 @@
     "groupSizeUpTo": "Up to {count} guests",
     "minAge": "Minimum age {age}",
     "requestToBook": "Request to book",
-    "bookingSoon": "Booking opens soon."
+    "bookingSoon": "Booking opens soon.",
+    "translationPending": "Translation pending."
   },
   "notFound": {
     "eyebrow": "404",

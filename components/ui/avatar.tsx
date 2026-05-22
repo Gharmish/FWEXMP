@@ -1,16 +1,13 @@
+import Image from 'next/image';
 import { cva, type VariantProps } from 'class-variance-authority';
 import { cn } from '@/lib/utils';
 
 /**
  * Gharmish Avatar — circular. Falls back to initials in Saffron Gold on
  * Sarat Black when no image is provided.
- *
- * Note: uses a plain <img> (not next/image) to keep this primitive free
- * of remote-domain config. Swap to next/image once image hosts are
- * configured (tracked for Sprint 1 task 8 / media work).
  */
 const avatarVariants = cva(
-  'inline-flex shrink-0 items-center justify-center overflow-hidden rounded-full bg-sarat-black font-medium text-saffron-gold select-none',
+  'relative inline-flex shrink-0 items-center justify-center overflow-hidden rounded-full bg-sarat-black font-medium text-saffron-gold select-none',
   {
     variants: {
       size: {
@@ -38,6 +35,7 @@ export interface AvatarProps
   extends React.HTMLAttributes<HTMLSpanElement>, VariantProps<typeof avatarVariants> {
   /** Person/host name — used for initials and as image alt fallback. */
   name: string;
+  /** Local path or next/image-configured remote URL. */
   src?: string;
 }
 
@@ -45,13 +43,13 @@ export function Avatar({ className, size, name, src, ...props }: AvatarProps) {
   return (
     <span
       data-slot="avatar"
-      role="img"
-      aria-label={name}
+      role={src ? undefined : 'img'}
+      aria-label={src ? undefined : name}
       className={cn(avatarVariants({ size }), className)}
       {...props}
     >
       {src ? (
-        <img src={src} alt={name} className="size-full object-cover" />
+        <Image src={src} alt={name} fill sizes="64px" className="object-cover" />
       ) : (
         <span aria-hidden>{initialsOf(name)}</span>
       )}

@@ -22,7 +22,7 @@ export function Wordmark({ locale, className }: WordmarkProps) {
       href="/"
       aria-label={BRAND.en}
       className={cn(
-        'font-display text-sarat-black text-xl font-medium tracking-[-0.03em]',
+        'font-display text-sarat-black inline-flex min-h-11 items-center text-xl font-medium tracking-[-0.03em]',
         locale === 'ar' && 'font-arabic',
         className,
       )}

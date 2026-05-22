@@ -34,7 +34,8 @@
     "groupSizeUpTo": "حتى {count} ضيفاً",
     "minAge": "الحد الأدنى للعمر {age}",
     "requestToBook": "اطلب الحجز",
-    "bookingSoon": "سيتاح الحجز قريباً."
+    "bookingSoon": "سيتاح الحجز قريباً.",
+    "translationPending": "الترجمة قيد المراجعة."
   },
   "notFound": {
     "eyebrow": "٤٠٤",

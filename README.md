@@ -1,36 +1,61 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Gharmish
+
+Gharmish is a curated experiences marketplace for Abha and the wider Asir region. The app is a bilingual Next.js 16 App Router project with English and Arabic routes, RTL support, Gharmish design tokens, Drizzle/Postgres data access, SEO foundations, and AI-readable `/llms.txt`.
+
+## Stack
+
+- Next.js 16 App Router with React 19
+- TypeScript strict mode
+- Tailwind CSS v4
+- next-intl for `/en` and `/ar`
+- Drizzle ORM with Postgres/Supabase
+- Framer Motion for approved spring motion
 
 ## Getting Started
 
-First, run the development server:
+Install dependencies and run the local server:
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
+pnpm install
 pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000). Locale-prefixed routes are available at `/en` and `/ar`.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Environment
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Copy `.env.example` to `.env` when connecting a database:
 
-## Learn More
+```bash
+cp .env.example .env
+```
 
-To learn more about Next.js, take a look at the following resources:
+`DATABASE_URL` is optional for local UI work. When it is unset, the app uses the in-repo sample experience dataset so builds and previews stay green. When it is set, experience queries read live rows through Drizzle.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Scripts
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+```bash
+pnpm dev
+pnpm build
+pnpm start
+pnpm typecheck
+pnpm lint
+pnpm format
+pnpm db:generate
+pnpm db:push
+pnpm db:studio
+pnpm db:seed
+```
 
-## Deploy on Vercel
+## Project Notes
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+- Read `BRIEF.md` before changing product scope, design, architecture, or localization.
+- Arabic copy is currently draft translation and should be reviewed before launch.
+- Keep components server-first. Add `"use client"` only for browser APIs, hooks, or interactive error boundaries.
+- Use named color tokens from the brief. Do not introduce raw hex values outside the central token files.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Current Scope
+
+Implemented Sprint 1 foundations include localized routing, layout shell, UI primitives, home page, experiences index, experience detail pages, Drizzle schema/seed support, sitemap, robots, `/llms.txt`, and structured data.
+
+Out-of-scope until a later sprint: real auth, payments, host dashboards, admin tools, search/filtering UI, WhatsApp, email, and AI features.

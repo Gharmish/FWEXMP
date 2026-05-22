@@ -3,6 +3,7 @@ import { Avatar } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import type { Locale } from '@/lib/i18n';
 import type { HostInfo } from '@/features/experiences/types';
+import { toArabicText } from '@/features/experiences/lib/arabic-content';
 
 /**
  * Host card — Avatar (initials fallback), name, verified badge, bio.
@@ -16,13 +17,14 @@ export interface HostCardProps {
 export async function HostCard({ host, locale }: HostCardProps) {
   const t = await getTranslations('host');
   const bio = locale === 'ar' ? host.bioAr : host.bioEn;
+  const name = locale === 'ar' ? toArabicText(host.name) : host.name;
 
   return (
     <div className="flex flex-col gap-4">
       <div className="flex items-center gap-4">
-        <Avatar name={host.name} size="lg" />
+        <Avatar name={name} size="lg" />
         <div className="flex flex-col gap-1">
-          <span className="text-lg font-medium">{host.name}</span>
+          <span className="text-lg font-medium">{name}</span>
           {host.verified && <Badge variant="verified">{t('verified')}</Badge>}
         </div>
       </div>

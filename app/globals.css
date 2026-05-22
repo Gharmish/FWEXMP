@@ -167,6 +167,11 @@ body {
   line-height: 1.75;
 }
 
+[dir='rtl'] .font-display {
+  font-family: var(--font-arabic);
+  letter-spacing: 0;
+}
+
 /* Focus: remove the default ring, use a single visible focus-visible ring
  * (BRIEF.md accessibility: focus rings visible, never removed). */
 * {

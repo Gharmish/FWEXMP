@@ -30,6 +30,11 @@ export async function generateMetadata({
       url: `${SITE_URL}/${locale}`,
       type: 'website',
     },
+    twitter: {
+      card: 'summary_large_image',
+      title: SITE_NAME,
+      description: SITE_DESCRIPTION,
+    },
   };
 }
 
@@ -48,6 +53,10 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
   setRequestLocale(locale);
   const t = await getTranslations('home');
   const loc = locale as Locale;
+  const eyebrowClassName = cn(
+    'text-sarat-black-600 text-[11px]',
+    loc === 'en' && 'tracking-[0.2em] uppercase',
+  );
 
   const [experiences, featured] = await Promise.all([getExperiences(), getFeaturedExperiences()]);
 
@@ -79,9 +88,7 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
       {/* Hero — editorial, type-forward, no imagery (BRIEF §3). */}
       <section className="mx-auto w-full max-w-6xl px-6 py-24 sm:py-32">
         <div className="flex max-w-3xl flex-col gap-6">
-          <p className="text-sarat-black-600 text-[11px] tracking-[0.2em] uppercase">
-            {t('eyebrow')}
-          </p>
+          <p className={eyebrowClassName}>{t('eyebrow')}</p>
           <h1 className="font-display text-5xl font-medium tracking-[-0.035em] text-balance sm:text-7xl">
             {t('headline')}
           </h1>

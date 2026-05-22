@@ -70,6 +70,12 @@ export function durationHours(minutes: number, locale: Locale): string {
   }).format(hours);
 }
 
+export function formatInteger(value: number, locale: Locale): string {
+  return new Intl.NumberFormat(intlLocale[locale], {
+    maximumFractionDigits: 0,
+  }).format(value);
+}
+
 /**
  * Format a time as 12-hour with AM/PM (English) or ص/م (Arabic).
  */
