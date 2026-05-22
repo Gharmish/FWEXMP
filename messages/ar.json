@@ -37,7 +37,12 @@
     "cta": "اكتشف التجارب",
     "originalsTitle": "أصول غارميش",
     "originalsSub": "تجارب مميزة ننتجها يداً بيد مع مضيفينا.",
-    "allTitle": "كل التجارب"
+    "allTitle": "كل التجارب",
+    "viewAll": "TODO(ar): View all",
+    "hostsEyebrow": "TODO(ar): Our hosts",
+    "hostsTitle": "TODO(ar): Meet the people behind the experiences.",
+    "hostsIntro": "TODO(ar): Vetted local partners — farmers, guides, artisans, and licensed operators — co-creating every Gharmish experience.",
+    "hostsView": "TODO(ar): View profile"
   },
   "experience": {
     "originals": "أصول غارميش",

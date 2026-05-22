@@ -12,10 +12,8 @@ import { CATEGORIES } from '@/features/experiences/lib/sample-data';
 /**
  * Presentational experience card. Restraint-first (BRIEF §3): hairline
  * border, no shadow. Featured ("Originals") uses the dark Sarat Black
- * surface with a Saffron Gold category accent.
- *
- * Intentionally NOT a link yet: the experience detail route doesn't
- * exist until Sprint 1 task 7. Becomes a Link then (no dead links).
+ * surface with a Saffron Gold category accent. Wraps the whole card
+ * in a Link to /experiences/[slug] with a 2px hover lift.
  */
 
 const CATEGORY_DOT: Record<Category, string> = {

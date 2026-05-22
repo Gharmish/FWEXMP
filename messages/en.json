@@ -37,7 +37,12 @@
     "cta": "Discover experiences",
     "originalsTitle": "Gharmish Originals",
     "originalsSub": "Premium experiences we produce hand in hand with our hosts.",
-    "allTitle": "All experiences"
+    "allTitle": "All experiences",
+    "viewAll": "View all",
+    "hostsEyebrow": "Our hosts",
+    "hostsTitle": "Meet the people behind the experiences.",
+    "hostsIntro": "Vetted local partners — farmers, guides, artisans, and licensed operators — co-creating every Gharmish experience.",
+    "hostsView": "View profile"
   },
   "experience": {
     "originals": "Originals",
