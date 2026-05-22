@@ -20,6 +20,13 @@ export interface ExperienceSummary {
   placeName: string;
   hostName: string;
   featured: boolean;
+  /**
+   * Aggregate rating for this experience — populated by the queries
+   * layer (sample-data or Drizzle path). `null` average + `0` count is
+   * the zero-state for experiences with no reviews yet.
+   */
+  ratingAverage: number | null;
+  ratingCount: number;
 }
 
 export interface CategoryMeta {

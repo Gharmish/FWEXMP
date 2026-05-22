@@ -1,6 +1,7 @@
+import { Star } from 'lucide-react';
 import { getTranslations } from 'next-intl/server';
 import { Card } from '@/components/ui/card';
-import { formatSAR, durationHours } from '@/lib/format';
+import { formatSAR, durationHours, formatInteger } from '@/lib/format';
 import { Link } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
 import type { Locale } from '@/lib/i18n';
@@ -32,6 +33,7 @@ export interface ExperienceCardProps {
 
 export async function ExperienceCard({ experience, locale }: ExperienceCardProps) {
   const t = await getTranslations('experience');
+  const tr = await getTranslations('reviews');
   const title = locale === 'ar' ? experience.titleAr : experience.titleEn;
   const description = locale === 'ar' ? experience.descriptionAr : experience.descriptionEn;
   const placeName = locale === 'ar' ? toArabicText(experience.placeName) : experience.placeName;
@@ -45,6 +47,15 @@ export async function ExperienceCard({ experience, locale }: ExperienceCardProps
 
   const muted = experience.featured ? 'text-fog-white/70' : 'text-sarat-black-600';
   const labelClassName = cn('text-[11px]', locale === 'en' && 'tracking-[0.2em] uppercase');
+
+  const ratingDisplay =
+    experience.ratingAverage !== null
+      ? new Intl.NumberFormat(locale === 'ar' ? 'ar-SA' : 'en-SA', {
+          minimumFractionDigits: 1,
+          maximumFractionDigits: 1,
+        }).format(experience.ratingAverage)
+      : null;
+  const ratingCountDisplay = formatInteger(experience.ratingCount, locale);
 
   return (
     <Link
@@ -82,10 +93,30 @@ export async function ExperienceCard({ experience, locale }: ExperienceCardProps
           <span>{hostName}</span>
         </div>
 
-        <p className="text-base font-medium">
-          {formatSAR(experience.priceSar, locale)}
-          <span className={`text-sm font-normal ${muted}`}> {t('perPerson')}</span>
-        </p>
+        <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-2">
+          <p className="text-base font-medium">
+            {formatSAR(experience.priceSar, locale)}
+            <span className={`text-sm font-normal ${muted}`}> {t('perPerson')}</span>
+          </p>
+
+          {ratingDisplay && (
+            <p
+              className={cn('flex items-center gap-1.5 text-sm', muted)}
+              aria-label={tr('ratingLabel', { rating: experience.ratingAverage ?? 0 })}
+            >
+              <Star className="text-saffron-gold size-3.5 shrink-0" aria-hidden />
+              <span
+                className={cn(
+                  'font-medium',
+                  experience.featured ? 'text-fog-white' : 'text-sarat-black',
+                )}
+              >
+                {ratingDisplay}
+              </span>
+              <span>({ratingCountDisplay})</span>
+            </p>
+          )}
+        </div>
       </Card>
     </Link>
   );

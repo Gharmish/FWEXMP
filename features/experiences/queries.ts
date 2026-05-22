@@ -14,6 +14,8 @@ import {
   sortExperiences,
   type ExperienceCriteria,
 } from '@/features/experiences/lib/search';
+import { getRatingsBySlug } from '@/features/reviews/queries';
+import type { ReviewAggregate } from '@/features/reviews/types';
 
 /**
  * Experience data access. These are the swap-in replacements for the
@@ -34,7 +36,11 @@ const hasDb = (): boolean => Boolean(serverEnv.DATABASE_URL);
 type ExperienceWithHost = Experience & { host: Host };
 type ExperienceWithDetail = ExperienceWithHost & { moments: Moment[] };
 
-function toSummary(row: ExperienceWithHost): ExperienceSummary {
+function toSummary(
+  row: ExperienceWithHost,
+  ratings: Map<string, ReviewAggregate>,
+): ExperienceSummary {
+  const agg = ratings.get(row.slug);
   return {
     slug: row.slug,
     titleEn: row.titleEn,
@@ -47,6 +53,8 @@ function toSummary(row: ExperienceWithHost): ExperienceSummary {
     placeName: row.placeName,
     hostName: row.host.name,
     featured: row.featured,
+    ratingAverage: agg?.average ?? null,
+    ratingCount: agg?.count ?? 0,
   };
 }
 
@@ -70,9 +78,12 @@ function toMomentInfo(m: Moment): MomentInfo {
   };
 }
 
-function toDetail(row: ExperienceWithDetail): ExperienceDetail {
+function toDetail(
+  row: ExperienceWithDetail,
+  ratings: Map<string, ReviewAggregate>,
+): ExperienceDetail {
   return {
-    ...toSummary(row),
+    ...toSummary(row, ratings),
     city: row.city,
     region: row.region,
     minAge: row.minAge,
@@ -87,31 +98,40 @@ function toDetail(row: ExperienceWithDetail): ExperienceDetail {
 
 export async function getExperiences(): Promise<readonly ExperienceSummary[]> {
   if (!hasDb()) return sample.getExperiences();
-  const rows = await db.query.experiences.findMany({
-    where: (e) => eq(e.status, 'live'),
-    with: { host: true },
-    orderBy: (e) => asc(e.createdAt),
-  });
-  return rows.map(toSummary);
+  const [rows, ratings] = await Promise.all([
+    db.query.experiences.findMany({
+      where: (e) => eq(e.status, 'live'),
+      with: { host: true },
+      orderBy: (e) => asc(e.createdAt),
+    }),
+    getRatingsBySlug(),
+  ]);
+  return rows.map((row) => toSummary(row, ratings));
 }
 
 export async function getFeaturedExperiences(): Promise<readonly ExperienceSummary[]> {
   if (!hasDb()) return sample.getFeaturedExperiences();
-  const rows = await db.query.experiences.findMany({
-    where: (e) => and(eq(e.status, 'live'), eq(e.featured, true)),
-    with: { host: true },
-    orderBy: (e) => asc(e.createdAt),
-  });
-  return rows.map(toSummary);
+  const [rows, ratings] = await Promise.all([
+    db.query.experiences.findMany({
+      where: (e) => and(eq(e.status, 'live'), eq(e.featured, true)),
+      with: { host: true },
+      orderBy: (e) => asc(e.createdAt),
+    }),
+    getRatingsBySlug(),
+  ]);
+  return rows.map((row) => toSummary(row, ratings));
 }
 
 export async function getExperienceBySlug(slug: string): Promise<ExperienceDetail | undefined> {
   if (!hasDb()) return sample.getExperienceBySlug(slug);
-  const row = await db.query.experiences.findFirst({
-    where: (e) => and(eq(e.slug, slug), eq(e.status, 'live')),
-    with: { host: true, moments: true },
-  });
-  return row ? toDetail(row) : undefined;
+  const [row, ratings] = await Promise.all([
+    db.query.experiences.findFirst({
+      where: (e) => and(eq(e.slug, slug), eq(e.status, 'live')),
+      with: { host: true, moments: true },
+    }),
+    getRatingsBySlug(),
+  ]);
+  return row ? toDetail(row, ratings) : undefined;
 }
 
 /**

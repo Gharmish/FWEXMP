@@ -4,6 +4,20 @@ import type {
   CategoryMeta,
   HostInfo,
 } from '@/features/experiences/types';
+import { aggregateReviews } from '@/features/reviews/lib/aggregate';
+import { getReviewsForExperience as getSampleReviews } from '@/features/reviews/lib/sample-data';
+
+/**
+ * Rating fields are populated dynamically by `attachRatings()` from the
+ * companion sample reviews — keeping them off the literals below means
+ * the source dataset and the seed reviews can't drift out of sync.
+ */
+type SampleExperience = Omit<ExperienceDetail, 'ratingAverage' | 'ratingCount'>;
+
+function attachRatings(e: SampleExperience): ExperienceDetail {
+  const agg = aggregateReviews(getSampleReviews(e.slug));
+  return { ...e, ratingAverage: agg.average, ratingCount: agg.count };
+}
 
 /**
  * Temporary in-repo dataset mirroring db/seed.ts, used until a Supabase
@@ -44,7 +58,7 @@ const ASIR_ADVENTURES: HostInfo = {
   verified: true,
 };
 
-const EXPERIENCES: readonly ExperienceDetail[] = [
+const EXPERIENCES: readonly SampleExperience[] = [
   {
     slug: 'juniper-forest-dawn-walk-jabal-sawda',
     titleEn: 'Juniper forest dawn walk on Jabal Sawda',
@@ -302,15 +316,16 @@ const EXPERIENCES: readonly ExperienceDetail[] = [
 ];
 
 export function getExperiences(): readonly ExperienceSummary[] {
-  return EXPERIENCES;
+  return EXPERIENCES.map(attachRatings);
 }
 
 export function getFeaturedExperiences(): readonly ExperienceSummary[] {
-  return EXPERIENCES.filter((e) => e.featured);
+  return EXPERIENCES.filter((e) => e.featured).map(attachRatings);
 }
 
 export function getExperienceBySlug(slug: string): ExperienceDetail | undefined {
-  return EXPERIENCES.find((e) => e.slug === slug);
+  const found = EXPERIENCES.find((e) => e.slug === slug);
+  return found ? attachRatings(found) : undefined;
 }
 
 export function getAllSlugs(): string[] {
