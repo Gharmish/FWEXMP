@@ -1,15 +1,17 @@
 import type { Metadata } from 'next';
+import { ArrowLeft } from 'lucide-react';
 import { notFound } from 'next/navigation';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { cn } from '@/lib/utils';
-import { formatSAR, durationHours } from '@/lib/format';
+import { formatSAR, durationHours, formatInteger } from '@/lib/format';
 import { Link } from '@/lib/i18n';
 import type { Locale } from '@/lib/i18n';
 import { routing } from '@/lib/i18n';
 import { SITE_URL, SITE_NAME } from '@/lib/site';
-import { buttonVariants } from '@/components/ui/button';
 import { JsonLd } from '@/components/seo/json-ld';
+import { BookingRequestForm } from '@/features/bookings/components/booking-request-form';
 import { HostCard } from '@/features/hosts/components/host-card';
+import { toArabicText } from '@/features/experiences/lib/arabic-content';
 import { CATEGORIES } from '@/features/experiences/lib/sample-data';
 import { getAllSlugs, getExperienceBySlug } from '@/features/experiences/queries';
 
@@ -39,6 +41,7 @@ export async function generateMetadata({
       ),
     },
     openGraph: { title, description, url, type: 'website' },
+    twitter: { card: 'summary_large_image', title, description },
   };
 }
 
@@ -56,9 +59,39 @@ export default async function ExperienceDetailPage({
 
   const t = await getTranslations('experienceDetail');
   const te = await getTranslations('experience');
+  const tb = await getTranslations('bookingRequest');
 
   const title = loc === 'ar' ? exp.titleAr : exp.titleEn;
   const description = loc === 'ar' ? exp.descriptionAr : exp.descriptionEn;
+  const placeName = loc === 'ar' ? toArabicText(exp.placeName) : exp.placeName;
+  const city = loc === 'ar' ? toArabicText(exp.city) : exp.city;
+  const region = loc === 'ar' ? toArabicText(exp.region) : exp.region;
+  const location = loc === 'ar' ? `${city}، ${region}` : `${city}, ${region}`;
+  const inclusions = loc === 'ar' ? exp.inclusions.map(toArabicText) : exp.inclusions;
+  const whatToBring = loc === 'ar' ? exp.whatToBring.map(toArabicText) : exp.whatToBring;
+  const cancellationPolicy =
+    loc === 'ar' ? toArabicText(exp.cancellationPolicy) : exp.cancellationPolicy;
+  const maxGroupSize = formatInteger(exp.maxGroupSize, loc);
+  const minAge = formatInteger(exp.minAge, loc);
+  const bookingCopy = {
+    title: tb('title'),
+    name: tb('name'),
+    phone: tb('phone'),
+    preferredDate: tb('preferredDate'),
+    partySize: tb('partySize'),
+    submit: tb('submit'),
+    pending: tb('pending'),
+    success: tb('success'),
+    preview: tb('preview'),
+    validation: tb('validation'),
+    server: tb('server'),
+    notFound: tb('notFound'),
+    required: tb('required'),
+  };
+  const eyebrowClassName = cn(
+    'text-sarat-black-600 text-[11px]',
+    loc === 'en' && 'tracking-[0.2em] uppercase',
+  );
   const category = CATEGORIES.find((c) => c.key === exp.category);
   const categoryLabel = category
     ? loc === 'ar'
@@ -105,31 +138,28 @@ export default async function ExperienceDetailPage({
     <article className="mx-auto w-full max-w-6xl px-6 py-12">
       <JsonLd data={jsonLd} />
       <Link
-        href="/"
-        className="text-sarat-black-600 text-sm transition-opacity duration-200 hover:opacity-60"
+        href="/experiences"
+        className="text-sarat-black-600 inline-flex min-h-11 items-center gap-2 text-sm transition-opacity duration-200 hover:opacity-60"
       >
-        ← {t('back')}
+        <ArrowLeft className="size-4 shrink-0 rtl:rotate-180" aria-hidden />
+        {t('back')}
       </Link>
 
       <header className="border-sarat-black/8 mt-8 flex flex-col gap-3 [border-bottom-width:0.5px] pb-10">
-        <span className="text-sarat-black-600 text-[11px] tracking-[0.2em] uppercase">
-          {exp.featured ? te('originals') : categoryLabel}
-        </span>
+        <span className={eyebrowClassName}>{exp.featured ? te('originals') : categoryLabel}</span>
         <h1 className="font-display max-w-3xl text-4xl font-medium tracking-[-0.035em] text-balance sm:text-6xl">
           {title}
         </h1>
         <div className="text-sarat-black-600 flex flex-wrap items-baseline gap-x-3 gap-y-1 text-base">
-          <span>{exp.placeName}</span>
+          <span>{placeName}</span>
           <span aria-hidden>·</span>
-          <span>
-            {exp.city}, {exp.region}
-          </span>
+          <span>{location}</span>
           <span aria-hidden>·</span>
           <span>
             {durationHours(exp.durationMinutes, loc)} {te('hours')}
           </span>
           <span aria-hidden>·</span>
-          <span>{t('groupSizeUpTo', { count: exp.maxGroupSize })}</span>
+          <span>{t('groupSizeUpTo', { count: maxGroupSize })}</span>
         </div>
       </header>
 
@@ -148,8 +178,8 @@ export default async function ExperienceDetailPage({
             <ol className="flex flex-col gap-5">
               {exp.moments.map((m) => (
                 <li key={m.orderIndex} className="flex flex-col gap-1">
-                  <span className="text-sarat-black-600 text-[11px] tracking-[0.2em] uppercase">
-                    {m.timeOfDay}
+                  <span className={eyebrowClassName}>
+                    {loc === 'ar' ? toArabicText(m.timeOfDay) : m.timeOfDay}
                   </span>
                   <span className="text-lg font-medium">
                     {loc === 'ar' ? m.titleAr : m.titleEn}
@@ -162,26 +192,26 @@ export default async function ExperienceDetailPage({
             </ol>
           </section>
 
-          {exp.inclusions.length > 0 && (
+          {inclusions.length > 0 && (
             <section className="flex flex-col gap-3">
               <h2 className="font-display text-2xl font-medium tracking-[-0.025em]">
                 {t('included')}
               </h2>
               <ul className="text-sarat-black-600 flex flex-col gap-2 text-base">
-                {exp.inclusions.map((item) => (
+                {inclusions.map((item) => (
                   <li key={item}>{item}</li>
                 ))}
               </ul>
             </section>
           )}
 
-          {exp.whatToBring.length > 0 && (
+          {whatToBring.length > 0 && (
             <section className="flex flex-col gap-3">
               <h2 className="font-display text-2xl font-medium tracking-[-0.025em]">
                 {t('bring')}
               </h2>
               <ul className="text-sarat-black-600 flex flex-col gap-2 text-base">
-                {exp.whatToBring.map((item) => (
+                {whatToBring.map((item) => (
                   <li key={item}>{item}</li>
                 ))}
               </ul>
@@ -192,7 +222,7 @@ export default async function ExperienceDetailPage({
             <h2 className="font-display text-2xl font-medium tracking-[-0.025em]">
               {t('cancellation')}
             </h2>
-            <p className="text-sarat-black-600 text-base">{exp.cancellationPolicy}</p>
+            <p className="text-sarat-black-600 text-base">{cancellationPolicy}</p>
           </section>
 
           <section className="border-sarat-black/8 flex flex-col gap-4 [border-top-width:0.5px] pt-10">
@@ -206,22 +236,21 @@ export default async function ExperienceDetailPage({
         {/* Right: sticky price / booking panel */}
         <aside className="lg:sticky lg:top-20 lg:self-start">
           <div className="rounded-card border-sarat-black/8 flex flex-col gap-5 [border-width:0.5px] p-6">
+            <h2 className="font-display text-2xl font-medium tracking-[-0.025em]">{tb('title')}</h2>
             <p className="text-2xl font-medium">
               {formatSAR(exp.priceSar, loc)}
               <span className="text-sarat-black-600 text-base font-normal"> {te('perPerson')}</span>
             </p>
             <div className="text-sarat-black-600 flex flex-col gap-1 text-sm">
-              <span>{t('groupSizeUpTo', { count: exp.maxGroupSize })}</span>
-              <span>{t('minAge', { age: exp.minAge })}</span>
+              <span>{t('groupSizeUpTo', { count: maxGroupSize })}</span>
+              <span>{t('minAge', { age: minAge })}</span>
             </div>
-            <button
-              type="button"
-              disabled
-              className={cn(buttonVariants({ variant: 'primary', size: 'lg' }), 'w-full')}
-            >
-              {t('requestToBook')}
-            </button>
-            <p className="text-sarat-black-600 text-center text-xs">{t('bookingSoon')}</p>
+            <BookingRequestForm
+              experienceSlug={exp.slug}
+              locale={loc}
+              maxGroupSize={String(exp.maxGroupSize)}
+              copy={bookingCopy}
+            />
           </div>
         </aside>
       </div>

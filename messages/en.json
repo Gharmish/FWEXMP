@@ -37,6 +37,21 @@
     "bookingSoon": "Booking opens soon.",
     "translationPending": "Translation pending."
   },
+  "bookingRequest": {
+    "title": "Request this experience",
+    "name": "Full name",
+    "phone": "Mobile number",
+    "preferredDate": "Preferred date",
+    "partySize": "Guests",
+    "submit": "Request to book",
+    "pending": "Sending request",
+    "success": "Request received.",
+    "preview": "This preview is not connected to a database yet, but the flow is working.",
+    "validation": "Check the highlighted fields and try again.",
+    "server": "We could not save the request. Try again in a moment.",
+    "notFound": "This experience is no longer available.",
+    "required": "Enter a valid value."
+  },
   "notFound": {
     "eyebrow": "404",
     "title": "This path is not on the map.",
