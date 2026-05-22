@@ -15,8 +15,6 @@ interface BookingRequestCopy {
   partySize: string;
   submit: string;
   pending: string;
-  success: string;
-  preview: string;
   validation: string;
   server: string;
   notFound: string;
@@ -56,17 +54,9 @@ export function BookingRequestForm({
   const [state, formAction] = useActionState(requestBooking, initialState);
   const values = state.values ?? {};
 
-  if (state.success) {
-    return (
-      <div className="border-juniper-green/30 bg-juniper-green/10 rounded-input flex flex-col gap-2 [border-width:0.5px] p-4">
-        <p className="text-juniper-green-900 text-base font-medium">{copy.success}</p>
-        <p className="text-juniper-green-800 text-sm">
-          {state.message === 'preview' ? copy.preview : state.reference}
-        </p>
-      </div>
-    );
-  }
-
+  // The success path on the server action redirects to
+  // /book/confirmed/[ref] before this component ever sees a success
+  // state — so anything observable here is one of the error branches.
   const formMessage =
     state.message === 'server'
       ? copy.server

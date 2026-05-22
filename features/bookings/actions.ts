@@ -4,12 +4,19 @@ import { eq } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import { serverEnv } from '@/lib/env';
 import { bookings, guests } from '@/db/schema';
+import { redirect } from '@/lib/i18n';
+import { reportError } from '@/lib/log';
 import { bookingRequestSchema } from '@/features/bookings/schemas';
 
+/**
+ * The success path throws (Next.js `redirect`) before the action ever
+ * returns — so observable state is always one of the error shapes.
+ * `success` is kept on the type only to satisfy the useActionState
+ * initial value contract.
+ */
 export interface BookingRequestState {
-  success: boolean;
+  success: false;
   message?: string;
-  reference?: string;
   fields?: Partial<Record<'name' | 'phone' | 'preferredDate' | 'partySize', string>>;
   values?: Partial<Record<'name' | 'phone' | 'preferredDate' | 'partySize', string>>;
 }
@@ -56,14 +63,16 @@ export async function requestBooking(
 
   const input = parsed.data;
   const reference = crypto.randomUUID();
+  const confirmedPath =
+    `/book/confirmed/${reference}?slug=${encodeURIComponent(input.experienceSlug)}` as const;
 
   if (!serverEnv.DATABASE_URL) {
-    return {
-      success: true,
-      message: 'preview',
-      reference,
-      values: {},
-    };
+    // Preview mode: nothing is persisted, but we still navigate to the
+    // confirmation page so the user lands somewhere real. The page
+    // renders preview copy when getBookingByReference returns undefined.
+    redirect({ href: confirmedPath, locale: input.locale });
+    // unreachable — redirect() throws NEXT_REDIRECT
+    throw new Error('unreachable');
   }
 
   try {
@@ -111,9 +120,12 @@ export async function requestBooking(
       idempotencyKey: reference,
       status: 'pending',
     });
-
-    return { success: true, message: 'stored', reference, values: {} };
-  } catch {
+  } catch (error) {
+    reportError(error, { surface: 'booking-request', experienceSlug: input.experienceSlug });
     return { success: false, message: 'server', values: currentValues(formData) };
   }
+
+  redirect({ href: confirmedPath, locale: input.locale });
+  // unreachable — redirect() throws NEXT_REDIRECT
+  throw new Error('unreachable');
 }

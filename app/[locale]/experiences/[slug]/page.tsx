@@ -88,8 +88,6 @@ export default async function ExperienceDetailPage({
     partySize: tb('partySize'),
     submit: tb('submit'),
     pending: tb('pending'),
-    success: tb('success'),
-    preview: tb('preview'),
     validation: tb('validation'),
     server: tb('server'),
     notFound: tb('notFound'),
