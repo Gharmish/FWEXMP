@@ -204,6 +204,160 @@
       }
     }
   },
+  "hostDashboard": {
+    "eyebrow": "Host dashboard",
+    "greeting": "Welcome back, {name}.",
+    "verifiedBadge": "Verified host",
+    "publicProfile": "Public profile:",
+    "whatsNext": {
+      "eyebrow": "What's next",
+      "title": "Get ready to host.",
+      "step1Title": "Draft your first experience",
+      "step1Description": "Tools for hosts to draft and submit experiences open soon. Until then, share your idea with the partnerships team and we'll co-produce it with you.",
+      "step2Title": "Photography session",
+      "step2Description": "We bring the camera. Our photographer captures the place, the moments, and you — natural light, no filters.",
+      "step3Title": "Go live",
+      "step3Description": "Once your listing is approved, it appears in the catalog and bookings open. We'll text you the first time someone books."
+    },
+    "experiences": {
+      "title": "Your experiences",
+      "newCta": "New experience",
+      "perPerson": "per guest",
+      "status": {
+        "draft": "Draft",
+        "live": "Live",
+        "paused": "Paused",
+        "archived": "Archived"
+      },
+      "empty": {
+        "eyebrow": "Empty",
+        "title": "No experiences yet.",
+        "description": "Start with a draft — you can save and come back any time. Publishing makes the listing appear in the public catalog."
+      }
+    },
+    "actions": {
+      "viewPublicProfile": "View public profile",
+      "browseCatalog": "Browse the catalog"
+    }
+  },
+  "hostExperiences": {
+    "new": {
+      "eyebrow": "New experience",
+      "title": "Draft your experience.",
+      "intro": "Start with a working title and a paragraph or two. You can save as a draft and refine it before publishing.",
+      "arabicNotice": "Arabic title and description are added by the partnerships team before your listing goes live. Write your draft in English for now."
+    },
+    "edit": {
+      "back": "Back to your dashboard",
+      "formHeading": "Edit"
+    },
+    "status": {
+      "draft": {
+        "eyebrow": "Draft",
+        "label": "Draft"
+      },
+      "live": {
+        "eyebrow": "Live",
+        "label": "Live"
+      },
+      "paused": {
+        "eyebrow": "Paused",
+        "label": "Paused"
+      },
+      "archived": {
+        "eyebrow": "Archived",
+        "label": "Archived"
+      }
+    },
+    "lifecycle": {
+      "publish": "Publish",
+      "publishPending": "Publishing",
+      "pause": "Pause",
+      "pausePending": "Pausing",
+      "republish": "Republish",
+      "viewPublic": "View public page",
+      "errors": {
+        "cannotPublish": "Add at least one inclusion, pick at least one available weekday, and write a description of 60+ characters before publishing.",
+        "notFound": "This experience no longer exists.",
+        "forbidden": "You're not authorised to do that.",
+        "noDb": "Publishing requires a database connection.",
+        "server": "We couldn't complete that action. Try again in a moment.",
+        "validation": "Check the form and try again."
+      }
+    },
+    "form": {
+      "sectionBasics": "Basics",
+      "sectionPracticalities": "Practicalities",
+      "sectionPlace": "Place",
+      "sectionDetail": "Practical detail",
+      "sectionAvailability": "Availability",
+      "titleLabel": "Title (English)",
+      "titleHint": "A clear, evocative title in English. 8–120 characters.",
+      "descriptionLabel": "Description (English)",
+      "descriptionHint": "What guests will see, do, taste, learn. Rich prose helps both humans and AI agents understand the experience.",
+      "categoryLabel": "Category",
+      "durationLabel": "Duration (minutes)",
+      "priceLabel": "Price per guest (SAR)",
+      "groupSizeLabel": "Max group size",
+      "minAgeLabel": "Minimum age",
+      "placeNameLabel": "Place name",
+      "placeNameHint": "Where this happens — e.g. Habala village, Soudah viewpoint.",
+      "cityLabel": "City",
+      "regionLabel": "Region",
+      "inclusionsLabel": "What's included",
+      "inclusionsPlaceholder": "Bottled water\nTransportation from Abha\nLight Asiri breakfast",
+      "inclusionsHint": "One per line.",
+      "whatToBringLabel": "What to bring",
+      "whatToBringPlaceholder": "Comfortable walking shoes\nA layer for the evening",
+      "whatToBringHint": "One per line. Leave blank if nothing.",
+      "cancellationLabel": "Cancellation policy",
+      "cancellationPlaceholder": "Free cancellation up to 24 hours before the experience. 50% refund if cancelled within 24 hours.",
+      "weekdaysLabel": "Available days (recurring)",
+      "weekdaysHint": "Weekdays this experience runs. Blackout dates are managed separately (coming soon).",
+      "weekdays": {
+        "sun": "Sun",
+        "mon": "Mon",
+        "tue": "Tue",
+        "wed": "Wed",
+        "thu": "Thu",
+        "fri": "Fri",
+        "sat": "Sat"
+      },
+      "categories": {
+        "nature": "Nature",
+        "heritage": "Heritage",
+        "food": "Food & coffee",
+        "wellness": "Wellness",
+        "adventure": "Adventure",
+        "family": "Family"
+      },
+      "submitCreate": "Create draft",
+      "submitCreatePending": "Creating",
+      "submitEdit": "Save changes",
+      "submitEditPending": "Saving",
+      "errors": {
+        "validation": "Check the highlighted fields and try again.",
+        "server": "We couldn't save your changes. Try again in a moment.",
+        "forbidden": "You're not authorised to edit this experience.",
+        "notFound": "That experience doesn't exist anymore.",
+        "noDb": "Experience editing requires a database connection.",
+        "cannotPublish": "Add at least one inclusion, pick at least one available weekday, and write a description of 60+ characters before publishing.",
+        "fields": {
+          "titleShort": "Title is too short — minimum 8 characters.",
+          "titleLong": "Title is too long — maximum 120 characters.",
+          "descriptionShort": "Description is too short — write at least 60 characters.",
+          "descriptionLong": "Description is too long — keep it under 4000 characters.",
+          "durationShort": "Duration must be at least 30 minutes.",
+          "durationLong": "Duration must be under 24 hours.",
+          "priceNegative": "Price can't be negative.",
+          "priceTooHigh": "Price is unusually high — check the value.",
+          "policyShort": "Cancellation policy is too short — write at least 20 characters.",
+          "policyLong": "Cancellation policy is too long — keep it under 1000 characters.",
+          "required": "Check this field."
+        }
+      }
+    }
+  },
   "experiencesIndex": {
     "eyebrow": "Abha experiences",
     "title": "Explore authentic Asiri experiences.",

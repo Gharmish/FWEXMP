@@ -204,6 +204,160 @@
       }
     }
   },
+  "hostDashboard": {
+    "eyebrow": "TODO(ar): Host dashboard",
+    "greeting": "TODO(ar): Welcome back, {name}.",
+    "verifiedBadge": "TODO(ar): Verified host",
+    "publicProfile": "TODO(ar): Public profile:",
+    "whatsNext": {
+      "eyebrow": "TODO(ar): What's next",
+      "title": "TODO(ar): Get ready to host.",
+      "step1Title": "TODO(ar): Draft your first experience",
+      "step1Description": "TODO(ar): Tools for hosts to draft and submit experiences open soon. Until then, share your idea with the partnerships team and we'll co-produce it with you.",
+      "step2Title": "TODO(ar): Photography session",
+      "step2Description": "TODO(ar): We bring the camera. Our photographer captures the place, the moments, and you — natural light, no filters.",
+      "step3Title": "TODO(ar): Go live",
+      "step3Description": "TODO(ar): Once your listing is approved, it appears in the catalog and bookings open. We'll text you the first time someone books."
+    },
+    "experiences": {
+      "title": "TODO(ar): Your experiences",
+      "newCta": "TODO(ar): New experience",
+      "perPerson": "TODO(ar): per guest",
+      "status": {
+        "draft": "TODO(ar): Draft",
+        "live": "TODO(ar): Live",
+        "paused": "TODO(ar): Paused",
+        "archived": "TODO(ar): Archived"
+      },
+      "empty": {
+        "eyebrow": "TODO(ar): Empty",
+        "title": "TODO(ar): No experiences yet.",
+        "description": "TODO(ar): Start with a draft — you can save and come back any time. Publishing makes the listing appear in the public catalog."
+      }
+    },
+    "actions": {
+      "viewPublicProfile": "TODO(ar): View public profile",
+      "browseCatalog": "TODO(ar): Browse the catalog"
+    }
+  },
+  "hostExperiences": {
+    "new": {
+      "eyebrow": "TODO(ar): New experience",
+      "title": "TODO(ar): Draft your experience.",
+      "intro": "TODO(ar): Start with a working title and a paragraph or two. You can save as a draft and refine it before publishing.",
+      "arabicNotice": "TODO(ar): Arabic title and description are added by the partnerships team before your listing goes live. Write your draft in English for now."
+    },
+    "edit": {
+      "back": "TODO(ar): Back to your dashboard",
+      "formHeading": "TODO(ar): Edit"
+    },
+    "status": {
+      "draft": {
+        "eyebrow": "TODO(ar): Draft",
+        "label": "TODO(ar): Draft"
+      },
+      "live": {
+        "eyebrow": "TODO(ar): Live",
+        "label": "TODO(ar): Live"
+      },
+      "paused": {
+        "eyebrow": "TODO(ar): Paused",
+        "label": "TODO(ar): Paused"
+      },
+      "archived": {
+        "eyebrow": "TODO(ar): Archived",
+        "label": "TODO(ar): Archived"
+      }
+    },
+    "lifecycle": {
+      "publish": "TODO(ar): Publish",
+      "publishPending": "TODO(ar): Publishing",
+      "pause": "TODO(ar): Pause",
+      "pausePending": "TODO(ar): Pausing",
+      "republish": "TODO(ar): Republish",
+      "viewPublic": "TODO(ar): View public page",
+      "errors": {
+        "cannotPublish": "TODO(ar): Add at least one inclusion, pick at least one available weekday, and write a description of 60+ characters before publishing.",
+        "notFound": "TODO(ar): This experience no longer exists.",
+        "forbidden": "TODO(ar): You're not authorised to do that.",
+        "noDb": "TODO(ar): Publishing requires a database connection.",
+        "server": "TODO(ar): We couldn't complete that action. Try again in a moment.",
+        "validation": "TODO(ar): Check the form and try again."
+      }
+    },
+    "form": {
+      "sectionBasics": "TODO(ar): Basics",
+      "sectionPracticalities": "TODO(ar): Practicalities",
+      "sectionPlace": "TODO(ar): Place",
+      "sectionDetail": "TODO(ar): Practical detail",
+      "sectionAvailability": "TODO(ar): Availability",
+      "titleLabel": "TODO(ar): Title (English)",
+      "titleHint": "TODO(ar): A clear, evocative title in English. 8–120 characters.",
+      "descriptionLabel": "TODO(ar): Description (English)",
+      "descriptionHint": "TODO(ar): What guests will see, do, taste, learn. Rich prose helps both humans and AI agents understand the experience.",
+      "categoryLabel": "TODO(ar): Category",
+      "durationLabel": "TODO(ar): Duration (minutes)",
+      "priceLabel": "TODO(ar): Price per guest (SAR)",
+      "groupSizeLabel": "TODO(ar): Max group size",
+      "minAgeLabel": "TODO(ar): Minimum age",
+      "placeNameLabel": "TODO(ar): Place name",
+      "placeNameHint": "TODO(ar): Where this happens — e.g. Habala village, Soudah viewpoint.",
+      "cityLabel": "TODO(ar): City",
+      "regionLabel": "TODO(ar): Region",
+      "inclusionsLabel": "TODO(ar): What's included",
+      "inclusionsPlaceholder": "TODO(ar): Bottled water\nTransportation from Abha\nLight Asiri breakfast",
+      "inclusionsHint": "TODO(ar): One per line.",
+      "whatToBringLabel": "TODO(ar): What to bring",
+      "whatToBringPlaceholder": "TODO(ar): Comfortable walking shoes\nA layer for the evening",
+      "whatToBringHint": "TODO(ar): One per line. Leave blank if nothing.",
+      "cancellationLabel": "TODO(ar): Cancellation policy",
+      "cancellationPlaceholder": "TODO(ar): Free cancellation up to 24 hours before the experience. 50% refund if cancelled within 24 hours.",
+      "weekdaysLabel": "TODO(ar): Available days (recurring)",
+      "weekdaysHint": "TODO(ar): Weekdays this experience runs. Blackout dates are managed separately (coming soon).",
+      "weekdays": {
+        "sun": "TODO(ar): Sun",
+        "mon": "TODO(ar): Mon",
+        "tue": "TODO(ar): Tue",
+        "wed": "TODO(ar): Wed",
+        "thu": "TODO(ar): Thu",
+        "fri": "TODO(ar): Fri",
+        "sat": "TODO(ar): Sat"
+      },
+      "categories": {
+        "nature": "الطبيعة",
+        "heritage": "التراث",
+        "food": "الطعام والقهوة",
+        "wellness": "العافية",
+        "adventure": "المغامرة",
+        "family": "العائلة"
+      },
+      "submitCreate": "TODO(ar): Create draft",
+      "submitCreatePending": "TODO(ar): Creating",
+      "submitEdit": "TODO(ar): Save changes",
+      "submitEditPending": "TODO(ar): Saving",
+      "errors": {
+        "validation": "TODO(ar): Check the highlighted fields and try again.",
+        "server": "TODO(ar): We couldn't save your changes. Try again in a moment.",
+        "forbidden": "TODO(ar): You're not authorised to edit this experience.",
+        "notFound": "TODO(ar): That experience doesn't exist anymore.",
+        "noDb": "TODO(ar): Experience editing requires a database connection.",
+        "cannotPublish": "TODO(ar): Add at least one inclusion, pick at least one available weekday, and write a description of 60+ characters before publishing.",
+        "fields": {
+          "titleShort": "TODO(ar): Title is too short — minimum 8 characters.",
+          "titleLong": "TODO(ar): Title is too long — maximum 120 characters.",
+          "descriptionShort": "TODO(ar): Description is too short — write at least 60 characters.",
+          "descriptionLong": "TODO(ar): Description is too long — keep it under 4000 characters.",
+          "durationShort": "TODO(ar): Duration must be at least 30 minutes.",
+          "durationLong": "TODO(ar): Duration must be under 24 hours.",
+          "priceNegative": "TODO(ar): Price can't be negative.",
+          "priceTooHigh": "TODO(ar): Price is unusually high — check the value.",
+          "policyShort": "TODO(ar): Cancellation policy is too short — write at least 20 characters.",
+          "policyLong": "TODO(ar): Cancellation policy is too long — keep it under 1000 characters.",
+          "required": "TODO(ar): Check this field."
+        }
+      }
+    }
+  },
   "experiencesIndex": {
     "eyebrow": "تجارب أبها",
     "title": "اكتشف تجارب عسيرية أصيلة.",
