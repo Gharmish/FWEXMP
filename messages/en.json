@@ -2,6 +2,13 @@
   "nav": {
     "discover": "Discover"
   },
+  "experiencesIndex": {
+    "eyebrow": "Abha experiences",
+    "title": "Explore authentic Asiri experiences.",
+    "intro": "A curated collection of heritage, mountain, food, wellness, adventure, and family activities hosted by vetted local partners.",
+    "featured": "Featured Originals",
+    "all": "All experiences"
+  },
   "home": {
     "eyebrow": "Abha · Asir",
     "headline": "Experiences hosted by the people who know Asir best.",

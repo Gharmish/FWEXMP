@@ -20,8 +20,8 @@ export async function Navbar() {
         <Wordmark locale={locale} />
         <div className="flex items-center gap-6">
           <Link
-            href="/"
-            className="text-sarat-black text-sm font-medium transition-opacity duration-200 hover:opacity-60"
+            href="/experiences"
+            className="text-sarat-black inline-flex min-h-11 items-center px-2 text-sm font-medium transition-opacity duration-200 hover:opacity-60"
           >
             {t('discover')}
           </Link>

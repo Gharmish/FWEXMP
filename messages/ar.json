@@ -1,40 +1,47 @@
 {
   "nav": {
-    "discover": "TODO(ar): translate"
+    "discover": "اكتشف"
+  },
+  "experiencesIndex": {
+    "eyebrow": "تجارب أبها",
+    "title": "اكتشف تجارب عسيرية أصيلة.",
+    "intro": "مجموعة منتقاة من تجارب التراث والجبال والطعام والعافية والمغامرة والعائلة، يقدمها شركاء محليون موثوقون.",
+    "featured": "أصول غارميش المميزة",
+    "all": "كل التجارب"
   },
   "home": {
-    "eyebrow": "TODO(ar): translate",
-    "headline": "TODO(ar): translate",
-    "intro": "TODO(ar): translate",
-    "cta": "TODO(ar): translate",
-    "originalsTitle": "TODO(ar): translate",
-    "originalsSub": "TODO(ar): translate",
-    "allTitle": "TODO(ar): translate"
+    "eyebrow": "أبها · عسير",
+    "headline": "تجارب يقدمها أهل عسير الذين يعرفونها أكثر.",
+    "intro": "سوق منتقى لتجارب عسيرية أصيلة؛ من التراث والجبال إلى الطعام وما بعدها، نصممها مع مضيفين محليين.",
+    "cta": "اكتشف التجارب",
+    "originalsTitle": "أصول غارميش",
+    "originalsSub": "تجارب مميزة ننتجها يداً بيد مع مضيفينا.",
+    "allTitle": "كل التجارب"
   },
   "experience": {
-    "originals": "TODO(ar): translate",
-    "perPerson": "TODO(ar): translate",
-    "hours": "TODO(ar): translate"
+    "originals": "أصول غارميش",
+    "perPerson": "/ للشخص",
+    "hours": "ساعة"
   },
   "experienceDetail": {
-    "back": "TODO(ar): translate",
-    "about": "TODO(ar): translate",
-    "timeline": "TODO(ar): translate",
-    "included": "TODO(ar): translate",
-    "bring": "TODO(ar): translate",
-    "cancellation": "TODO(ar): translate",
-    "hostedBy": "TODO(ar): translate",
-    "groupSizeUpTo": "TODO(ar): translate {count}",
-    "minAge": "TODO(ar): translate {age}",
-    "requestToBook": "TODO(ar): translate",
-    "bookingSoon": "TODO(ar): translate"
+    "back": "العودة إلى التجارب",
+    "about": "عن هذه التجربة",
+    "timeline": "مسار التجربة",
+    "included": "ما الذي يشمله السعر",
+    "bring": "ما الذي تحضره معك",
+    "cancellation": "سياسة الإلغاء",
+    "hostedBy": "يقدمها",
+    "groupSizeUpTo": "حتى {count} ضيفاً",
+    "minAge": "الحد الأدنى للعمر {age}",
+    "requestToBook": "اطلب الحجز",
+    "bookingSoon": "سيتاح الحجز قريباً."
   },
   "host": {
-    "verified": "TODO(ar): translate"
+    "verified": "مضيف موثوق"
   },
   "footer": {
-    "tagline": "TODO(ar): translate",
-    "rights": "TODO(ar): translate",
-    "region": "TODO(ar): translate"
+    "tagline": "تجارب يقدمها أهل عسير الذين يعرفونها أكثر.",
+    "rights": "جميع الحقوق محفوظة.",
+    "region": "أبها · عسير، المملكة العربية السعودية"
   }
 }
