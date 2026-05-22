@@ -36,7 +36,8 @@
       "featured": "TODO(ar): Featured first",
       "newest": "TODO(ar): Newest",
       "priceAsc": "TODO(ar): Price: low to high",
-      "priceDesc": "TODO(ar): Price: high to low"
+      "priceDesc": "TODO(ar): Price: high to low",
+      "ratingDesc": "TODO(ar): Best rated"
     },
     "empty": {
       "eyebrow": "TODO(ar): No matches",

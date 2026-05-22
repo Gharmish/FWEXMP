@@ -84,6 +84,7 @@ describe('parseSearchParams', () => {
     expect(parseSearchParams({ sort: 'priceDesc' }).sort).toBe('priceDesc');
     expect(parseSearchParams({ sort: 'newest' }).sort).toBe('newest');
     expect(parseSearchParams({ sort: 'featured' }).sort).toBe('featured');
+    expect(parseSearchParams({ sort: 'ratingDesc' }).sort).toBe('ratingDesc');
   });
 
   it('accepts the valid price buckets and falls back to null otherwise', () => {
@@ -302,5 +303,44 @@ describe('sortExperiences', () => {
     const before = all.map((r) => r.slug);
     sortExperiences(all, 'priceAsc');
     expect(all.map((r) => r.slug)).toEqual(before);
+  });
+});
+
+describe('sortExperiences — ratingDesc', () => {
+  it('orders rated experiences by average rating descending', () => {
+    const rows = [
+      exp({ slug: 'low', ratingAverage: 3.5, ratingCount: 4 }),
+      exp({ slug: 'high', ratingAverage: 4.9, ratingCount: 27 }),
+      exp({ slug: 'mid', ratingAverage: 4.2, ratingCount: 12 }),
+    ];
+    const out = sortExperiences(rows, 'ratingDesc');
+    expect(out.map((r) => r.slug)).toEqual(['high', 'mid', 'low']);
+  });
+
+  it('sinks unrated experiences to the bottom regardless of input order', () => {
+    const rows = [
+      exp({ slug: 'unrated-1', ratingAverage: null, ratingCount: 0 }),
+      exp({ slug: 'rated-low', ratingAverage: 3.0, ratingCount: 2 }),
+      exp({ slug: 'unrated-2', ratingAverage: null, ratingCount: 0 }),
+      exp({ slug: 'rated-high', ratingAverage: 5.0, ratingCount: 1 }),
+    ];
+    const out = sortExperiences(rows, 'ratingDesc');
+    expect(out.map((r) => r.slug)).toEqual(['rated-high', 'rated-low', 'unrated-1', 'unrated-2']);
+  });
+
+  it('preserves input order among same-rating rows (stable)', () => {
+    const rows = [
+      exp({ slug: 'a', ratingAverage: 4.5, ratingCount: 5 }),
+      exp({ slug: 'b', ratingAverage: 4.5, ratingCount: 5 }),
+      exp({ slug: 'c', ratingAverage: 4.5, ratingCount: 5 }),
+    ];
+    const out = sortExperiences(rows, 'ratingDesc');
+    expect(out.map((r) => r.slug)).toEqual(['a', 'b', 'c']);
+  });
+
+  it('handles an all-unrated input as a no-op', () => {
+    const rows = [exp({ slug: 'a', ratingAverage: null }), exp({ slug: 'b', ratingAverage: null })];
+    const out = sortExperiences(rows, 'ratingDesc');
+    expect(out.map((r) => r.slug)).toEqual(['a', 'b']);
   });
 });

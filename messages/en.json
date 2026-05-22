@@ -36,7 +36,8 @@
       "featured": "Featured first",
       "newest": "Newest",
       "priceAsc": "Price: low to high",
-      "priceDesc": "Price: high to low"
+      "priceDesc": "Price: high to low",
+      "ratingDesc": "Best rated"
     },
     "empty": {
       "eyebrow": "No matches",

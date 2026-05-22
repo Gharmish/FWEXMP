@@ -17,7 +17,7 @@ import type { ExperienceSummary } from '@/features/experiences/types';
  */
 
 /** Sort options exposed in the UI. */
-export const SORT_KEYS = ['featured', 'newest', 'priceAsc', 'priceDesc'] as const;
+export const SORT_KEYS = ['featured', 'newest', 'priceAsc', 'priceDesc', 'ratingDesc'] as const;
 export type SortKey = (typeof SORT_KEYS)[number];
 
 export const DEFAULT_SORT: SortKey = 'featured';
@@ -243,6 +243,18 @@ export function sortExperiences(
       return out;
     case 'priceDesc':
       out.sort((a, b) => b.priceSar - a.priceSar);
+      return out;
+    case 'ratingDesc':
+      // Rated experiences first (highest average → lowest), unrated
+      // sink to the bottom. Among same-rating rows, Array.sort is
+      // stable in every engine we ship to, so insertion order holds.
+      out.sort((a, b) => {
+        const aRated = a.ratingAverage !== null;
+        const bRated = b.ratingAverage !== null;
+        if (aRated !== bRated) return aRated ? -1 : 1;
+        if (!aRated) return 0;
+        return (b.ratingAverage ?? 0) - (a.ratingAverage ?? 0);
+      });
       return out;
   }
 }
