@@ -7,6 +7,7 @@ import {
   type Category,
   CATEGORY_COLOR,
 } from '@/lib/colors';
+import type { Locale } from '@/lib/i18n';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -14,6 +15,13 @@ import { Badge } from '@/components/ui/badge';
 import { Avatar } from '@/components/ui/avatar';
 import { Pill } from '@/components/ui/pill';
 import { IconButton } from '@/components/ui/icon-button';
+import { ExperienceCard } from '@/features/experiences/components/experience-card';
+import type { ExperienceSummary } from '@/features/experiences/types';
+import { HostCard } from '@/features/hosts/components/host-card';
+import type { HostInfo } from '@/features/experiences/types';
+import { RatingSummary } from '@/features/reviews/components/rating-summary';
+import { ReviewCard } from '@/features/reviews/components/review-card';
+import type { ReviewAggregate, ReviewSummary } from '@/features/reviews/types';
 
 /**
  * Internal living style guide. Renders every design token and primitive
@@ -47,6 +55,81 @@ const TYPE_SCALE = [
     ar: 'أصول',
   },
 ] as const;
+
+/* --------------------- Composite-component fixtures --------------------- *
+ * Hand-built sample objects used only by /dev to render the higher-level
+ * composites (ExperienceCard / RatingSummary / ReviewCard / HostCard) in
+ * isolation. Not connected to the real sample-data — having an inline
+ * fixture means tweaking the showcase here doesn't risk drift in the
+ * sample datasets that feed the real catalog. */
+
+function makeExperience(
+  overrides: Partial<ExperienceSummary> & { slug: string },
+): ExperienceSummary {
+  return {
+    slug: overrides.slug,
+    titleEn: overrides.titleEn ?? 'Sample experience',
+    titleAr: overrides.titleAr ?? 'تجربة عينة',
+    descriptionEn:
+      overrides.descriptionEn ??
+      'A short description that explains what makes this experience worth booking, in one breath.',
+    descriptionAr: overrides.descriptionAr ?? 'وصف قصير يشرح ما يميز هذه التجربة.',
+    category: overrides.category ?? 'nature',
+    priceSar: overrides.priceSar ?? 320,
+    durationMinutes: overrides.durationMinutes ?? 180,
+    placeName: overrides.placeName ?? 'Jabal Sawda',
+    hostName: overrides.hostName ?? 'Faisal Al Qahtani',
+    featured: overrides.featured ?? false,
+    ratingAverage: overrides.ratingAverage ?? null,
+    ratingCount: overrides.ratingCount ?? 0,
+  };
+}
+
+const SAMPLE_REVIEW: ReviewSummary = {
+  id: 'rv_dev_001',
+  experienceSlug: 'dev-fixture',
+  guestName: 'Reem A.',
+  rating: 5,
+  textEn:
+    'We met before sunrise and walked into the clouds. Our host knew every tree by name and slowed us down enough to actually notice the place.',
+  textAr: null,
+  hostReply: null,
+  createdAt: '2026-04-12T05:30:00Z',
+};
+
+const SAMPLE_REVIEW_WITH_REPLY: ReviewSummary = {
+  id: 'rv_dev_002',
+  experienceSlug: 'dev-fixture',
+  guestName: 'James T.',
+  rating: 4,
+  textEn:
+    'Small group, unhurried pace, and the early-morning mist on the juniper trees was unreal. Bring layers — it is genuinely cold up there at dawn.',
+  textAr: null,
+  hostReply:
+    'Thank you for joining us, James. You picked the perfect week — the mist had not yet lifted off the terraces.',
+  createdAt: '2026-03-28T07:15:00Z',
+};
+
+const SAMPLE_AGGREGATE: ReviewAggregate = {
+  count: 27,
+  average: 4.7,
+  distribution: { 1: 0, 2: 1, 3: 2, 4: 6, 5: 18 },
+};
+
+const EMPTY_AGGREGATE: ReviewAggregate = {
+  count: 0,
+  average: null,
+  distribution: { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 },
+};
+
+const SAMPLE_HOST: HostInfo = {
+  name: 'Faisal Al Qahtani',
+  bioEn:
+    'A third-generation farmer from Habala who grew up among the juniper terraces. Faisal hosts small groups to share Asiri food, music, and the slow rhythm of mountain life.',
+  bioAr:
+    'مزارع من الجيل الثالث من الحبلة، نشأ بين مدرجات العرعر. يستضيف فيصل مجموعات صغيرة ليشاركهم طعام عسير وموسيقاها وإيقاع الحياة الجبلية الهادئ.',
+  verified: true,
+};
 
 const SPACING = [
   { name: '1', px: 4 },
@@ -267,6 +350,88 @@ export default async function StyleGuidePage({ params }: { params: Promise<{ loc
               <div className="bg-saffron-gold h-4 rounded-full" style={{ width: `${s.px}px` }} />
             </div>
           ))}
+        </div>
+      </Section>
+
+      <Section title="Experience card">
+        <div className="grid gap-4 sm:grid-cols-2">
+          <ExperienceCard
+            locale={locale as Locale}
+            experience={makeExperience({
+              slug: 'dev-default-no-ratings',
+              titleEn: 'Default — no reviews yet',
+              titleAr: 'افتراضي — لا توجد مراجعات',
+              category: 'food',
+              priceSar: 220,
+            })}
+          />
+          <ExperienceCard
+            locale={locale as Locale}
+            experience={makeExperience({
+              slug: 'dev-default-rated',
+              titleEn: 'Default — with reviews',
+              titleAr: 'افتراضي — مع مراجعات',
+              category: 'nature',
+              ratingAverage: 4.6,
+              ratingCount: 14,
+            })}
+          />
+          <ExperienceCard
+            locale={locale as Locale}
+            experience={makeExperience({
+              slug: 'dev-originals',
+              titleEn: 'Originals tier',
+              titleAr: 'فئة الأصول',
+              featured: true,
+              category: 'heritage',
+              priceSar: 980,
+              ratingAverage: 4.9,
+              ratingCount: 32,
+            })}
+          />
+          <ExperienceCard
+            locale={locale as Locale}
+            experience={makeExperience({
+              slug: 'dev-cheap',
+              titleEn: 'Adventure · short',
+              titleAr: 'مغامرة قصيرة',
+              category: 'adventure',
+              priceSar: 95,
+              durationMinutes: 60,
+              ratingAverage: 4.3,
+              ratingCount: 5,
+            })}
+          />
+        </div>
+      </Section>
+
+      <Section title="Host card">
+        <Card className="p-6">
+          <HostCard host={SAMPLE_HOST} locale={locale as Locale} />
+        </Card>
+      </Section>
+
+      <Section title="Reviews — rating summary">
+        <div className="flex flex-col gap-10">
+          <div className="flex flex-col gap-2">
+            <p className="text-sarat-black-600 text-[11px] tracking-[0.2em] uppercase">
+              With reviews
+            </p>
+            <RatingSummary aggregate={SAMPLE_AGGREGATE} locale={locale as Locale} />
+          </div>
+          <div className="flex flex-col gap-2">
+            <p className="text-sarat-black-600 text-[11px] tracking-[0.2em] uppercase">
+              Zero state
+            </p>
+            <RatingSummary aggregate={EMPTY_AGGREGATE} locale={locale as Locale} />
+          </div>
+        </div>
+      </Section>
+
+      <Section title="Reviews — single card">
+        <div className="grid gap-4 sm:grid-cols-2">
+          <ReviewCard review={SAMPLE_REVIEW} locale={locale as Locale} />
+          <ReviewCard review={SAMPLE_REVIEW_WITH_REPLY} locale={locale as Locale} />
         </div>
       </Section>
     </div>
