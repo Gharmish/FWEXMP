@@ -97,6 +97,17 @@ export async function requestOtp(
     const supabase = await getSupabaseServerClient();
     const { error } = await supabase.auth.signInWithOtp({ phone });
     if (error) {
+      // Log the underlying reason so dev mode actually tells you what
+      // went wrong (the client only sees a generic 'server' code).
+      // Common gotcha: a fresh Supabase project has no SMS provider
+      // configured — `error_code: phone_provider_disabled`.
+      reportError(error, {
+        surface: 'auth:requestOtp:supabaseError',
+        phone,
+        status: error.status,
+        code: error.code,
+        name: error.name,
+      });
       // Supabase returns a friendly status code for rate limiting; surface
       // it so the UI can show the right copy.
       const message: AuthFailure['message'] = error.status === 429 ? 'rate_limited' : 'server';
