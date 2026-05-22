@@ -14,6 +14,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const paths = [
     '',
     '/experiences',
+    '/hosts',
     ...experienceSlugs.map((slug) => `/experiences/${slug}`),
     ...hostSlugs.map((slug) => `/hosts/${slug}`),
   ];
@@ -24,6 +25,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   function priorityFor(path: string): number {
     if (path === '') return 1;
     if (path === '/experiences') return 0.9;
+    if (path === '/hosts') return 0.8;
     if (path.startsWith('/hosts/')) return 0.7;
     return 0.8;
   }

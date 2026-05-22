@@ -30,6 +30,8 @@ export async function GET(): Promise<Response> {
     `- [Home (Arabic)](${SITE_URL}/ar)`,
     `- [Experiences (English)](${SITE_URL}/en/experiences)`,
     `- [Experiences (Arabic)](${SITE_URL}/ar/experiences)`,
+    `- [Hosts (English)](${SITE_URL}/en/hosts)`,
+    `- [Hosts (Arabic)](${SITE_URL}/ar/hosts)`,
     `- [Sitemap](${SITE_URL}/sitemap.xml)`,
     '',
   ];

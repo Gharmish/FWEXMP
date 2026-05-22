@@ -112,6 +112,12 @@
     "verified": "مضيف موثوق",
     "viewProfile": "TODO(ar): View host profile"
   },
+  "hostsIndex": {
+    "eyebrow": "TODO(ar): Our hosts",
+    "title": "TODO(ar): The people behind every experience.",
+    "intro": "TODO(ar): Vetted local partners — Saudi individuals and licensed Asiri tourism operators — co-creating the Gharmish catalog. Every host is verified before they go live.",
+    "empty": "TODO(ar): No hosts have been listed yet."
+  },
   "hostProfile": {
     "eyebrow": "TODO(ar): Host",
     "backToExperiences": "TODO(ar): Back to experiences",
@@ -133,6 +139,9 @@
   "footer": {
     "tagline": "تجارب يقدمها أهل عسير الذين يعرفونها أكثر.",
     "rights": "جميع الحقوق محفوظة.",
-    "region": "أبها · عسير، المملكة العربية السعودية"
+    "region": "أبها · عسير، المملكة العربية السعودية",
+    "exploreLabel": "TODO(ar): Explore",
+    "linkExperiences": "TODO(ar): Experiences",
+    "linkHosts": "TODO(ar): Hosts"
   }
 }

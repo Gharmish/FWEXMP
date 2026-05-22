@@ -112,6 +112,12 @@
     "verified": "Verified host",
     "viewProfile": "View host profile"
   },
+  "hostsIndex": {
+    "eyebrow": "Our hosts",
+    "title": "The people behind every experience.",
+    "intro": "Vetted local partners — Saudi individuals and licensed Asiri tourism operators — co-creating the Gharmish catalog. Every host is verified before they go live.",
+    "empty": "No hosts have been listed yet."
+  },
   "hostProfile": {
     "eyebrow": "Host",
     "backToExperiences": "Back to experiences",
@@ -133,6 +139,9 @@
   "footer": {
     "tagline": "Experiences hosted by the people who know Asir best.",
     "rights": "All rights reserved.",
-    "region": "Abha · Asir, Saudi Arabia"
+    "region": "Abha · Asir, Saudi Arabia",
+    "exploreLabel": "Explore",
+    "linkExperiences": "Experiences",
+    "linkHosts": "Hosts"
   }
 }
