@@ -1,12 +1,13 @@
 import { SITE_URL, SITE_NAME, SITE_DESCRIPTION } from '@/lib/site';
 import { getExperiences } from '@/features/experiences/queries';
+import { getAllHosts } from '@/features/hosts/queries';
 
 /**
  * /llms.txt — AI-readable site map (BRIEF §6), llmstxt.org style.
- * Generated from the experiences data so it stays in sync.
+ * Generated from the experiences and host data so it stays in sync.
  */
 export async function GET(): Promise<Response> {
-  const experiences = await getExperiences();
+  const [experiences, hosts] = await Promise.all([getExperiences(), getAllHosts()]);
 
   const lines = [
     `# ${SITE_NAME}`,
@@ -18,6 +19,10 @@ export async function GET(): Promise<Response> {
     ...experiences.map(
       (e) => `- [${e.titleEn}](${SITE_URL}/en/experiences/${e.slug}): ${e.descriptionEn}`,
     ),
+    '',
+    '## Hosts',
+    '',
+    ...hosts.map((h) => `- [${h.name}](${SITE_URL}/en/hosts/${h.slug}): ${h.bioEn}`),
     '',
     '## Site',
     '',

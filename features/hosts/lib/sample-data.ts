@@ -1,0 +1,49 @@
+import type { HostProfile } from '@/features/hosts/types';
+import { hostSlug } from '@/features/hosts/lib/slug';
+
+/**
+ * In-repo host directory. The display names here match the host
+ * objects embedded in features/experiences/lib/sample-data.ts — the
+ * two are linked by `hostSlug(host.name)` on both sides.
+ *
+ * Languages are sample data; in the live system they come from
+ * db/schema.ts `hosts.languages text[]`.
+ *
+ * Arabic bios are kept here verbatim (not authored by Claude) so the
+ * profile page can show real Arabic copy. If we ever lose confidence
+ * in these strings, swap them for TODO(ar): placeholders per BRIEF §4.
+ */
+const HOSTS: readonly HostProfile[] = [
+  {
+    slug: hostSlug('Faisal Al Qahtani'),
+    name: 'Faisal Al Qahtani',
+    bioEn:
+      'A third-generation farmer from Habala who grew up among the juniper terraces. Faisal hosts small groups to share Asiri food, music, and the slow rhythm of mountain life.',
+    bioAr:
+      'مزارع من الجيل الثالث من الحبلة، نشأ بين مدرجات العرعر. يستضيف فيصل مجموعات صغيرة ليشاركهم طعام عسير وموسيقاها وإيقاع الحياة الجبلية الهادئ.',
+    verified: true,
+    languages: ['ar', 'en'],
+  },
+  {
+    slug: hostSlug('Asir Adventures Co.'),
+    name: 'Asir Adventures Co.',
+    bioEn:
+      'A licensed Abha tourism operator specialising in guided mountain activities, with certified guides and full safety equipment.',
+    bioAr:
+      'شركة سياحية مرخصة في أبها متخصصة في الأنشطة الجبلية الموجهة، مع مرشدين معتمدين وتجهيزات سلامة كاملة.',
+    verified: true,
+    languages: ['ar', 'en'],
+  },
+];
+
+export function getHostBySlug(slug: string): HostProfile | undefined {
+  return HOSTS.find((h) => h.slug === slug);
+}
+
+export function getAllHostSlugs(): readonly string[] {
+  return HOSTS.map((h) => h.slug);
+}
+
+export function getAllHosts(): readonly HostProfile[] {
+  return HOSTS;
+}

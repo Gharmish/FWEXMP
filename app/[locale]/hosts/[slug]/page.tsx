@@ -1,0 +1,168 @@
+import type { Metadata } from 'next';
+import { ArrowLeft } from 'lucide-react';
+import { notFound } from 'next/navigation';
+import { getTranslations, setRequestLocale } from 'next-intl/server';
+import { Link } from '@/lib/i18n';
+import { routing, type Locale } from '@/lib/i18n';
+import { SITE_NAME, SITE_URL } from '@/lib/site';
+import { cn } from '@/lib/utils';
+import { Avatar } from '@/components/ui/avatar';
+import { Badge } from '@/components/ui/badge';
+import { JsonLd } from '@/components/seo/json-ld';
+import { ExperienceCard } from '@/features/experiences/components/experience-card';
+import { toArabicText } from '@/features/experiences/lib/arabic-content';
+import { getAllHostSlugs, getExperiencesByHostSlug, getHostBySlug } from '@/features/hosts/queries';
+
+export async function generateStaticParams() {
+  const slugs = await getAllHostSlugs();
+  return routing.locales.flatMap((locale) => slugs.map((slug) => ({ locale, slug })));
+}
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ locale: string; slug: string }>;
+}): Promise<Metadata> {
+  const { locale, slug } = await params;
+  const host = await getHostBySlug(slug);
+  if (!host) return {};
+  const name = locale === 'ar' ? toArabicText(host.name) : host.name;
+  const description = locale === 'ar' ? host.bioAr : host.bioEn;
+  const url = `${SITE_URL}/${locale}/hosts/${slug}`;
+  const title = locale === 'ar' ? `${name} · مضيف على غارميش` : `${name} · Host on ${SITE_NAME}`;
+  return {
+    title,
+    description,
+    alternates: {
+      canonical: url,
+      languages: Object.fromEntries(
+        routing.locales.map((l) => [l, `${SITE_URL}/${l}/hosts/${slug}`]),
+      ),
+    },
+    openGraph: { title, description, url, type: 'profile' },
+    twitter: { card: 'summary_large_image', title, description },
+  };
+}
+
+export default async function HostProfilePage({
+  params,
+}: {
+  params: Promise<{ locale: string; slug: string }>;
+}) {
+  const { locale, slug } = await params;
+  setRequestLocale(locale);
+  const loc = locale as Locale;
+
+  const host = await getHostBySlug(slug);
+  if (!host) notFound();
+
+  const experiences = await getExperiencesByHostSlug(slug);
+  const t = await getTranslations('hostProfile');
+  const th = await getTranslations('host');
+
+  const name = loc === 'ar' ? toArabicText(host.name) : host.name;
+  const bio = loc === 'ar' ? host.bioAr : host.bioEn;
+
+  const eyebrowClassName = cn(
+    'text-sarat-black-600 text-[11px]',
+    loc === 'en' && 'tracking-[0.2em] uppercase',
+  );
+
+  const languageDisplay = new Intl.DisplayNames([loc === 'ar' ? 'ar-SA' : 'en-SA'], {
+    type: 'language',
+  });
+  const languageLabels = host.languages
+    .map((code) => languageDisplay.of(code) ?? code)
+    .filter((label): label is string => Boolean(label));
+
+  const url = `${SITE_URL}/${loc}/hosts/${slug}`;
+
+  // schema.org Person/Organization picked by host type heuristic — a
+  // Co.-style name is treated as an Organization, individuals as Person.
+  // This isn't perfect; once db/schema.ts distinguishes individual vs
+  // company hosts, this picks itself.
+  const isOrganization = /\b(co\.?|company|llc|ltd|inc|الشركة|شركة)\b/i.test(host.name);
+  const jsonLd = {
+    '@context': 'https://schema.org',
+    '@graph': [
+      {
+        '@type': isOrganization ? 'Organization' : 'Person',
+        '@id': `${url}#host`,
+        name: host.name,
+        description: host.bioEn,
+        url,
+        knowsLanguage: [...host.languages],
+        ...(host.verified ? { hasCredential: 'Verified host' } : {}),
+      },
+      {
+        '@type': 'BreadcrumbList',
+        itemListElement: [
+          { '@type': 'ListItem', position: 1, name: SITE_NAME, item: `${SITE_URL}/${loc}` },
+          { '@type': 'ListItem', position: 2, name: host.name, item: url },
+        ],
+      },
+    ],
+  };
+
+  return (
+    <article className="mx-auto w-full max-w-6xl px-6 py-12">
+      <JsonLd data={jsonLd} />
+
+      <Link
+        href="/experiences"
+        className="text-sarat-black-600 inline-flex min-h-11 items-center gap-2 text-sm transition-opacity duration-200 hover:opacity-60"
+      >
+        <ArrowLeft className="size-4 shrink-0 rtl:rotate-180" aria-hidden />
+        {t('backToExperiences')}
+      </Link>
+
+      <header className="border-sarat-black/8 mt-8 flex flex-col gap-6 [border-bottom-width:0.5px] pb-12">
+        <p className={eyebrowClassName}>{t('eyebrow')}</p>
+        <div className="flex flex-col gap-6 sm:flex-row sm:items-center">
+          <Avatar name={name} size="lg" />
+          <div className="flex flex-col gap-3">
+            <h1 className="font-display text-4xl font-medium tracking-[-0.035em] text-balance sm:text-5xl">
+              {name}
+            </h1>
+            {host.verified && (
+              <div>
+                <Badge variant="verified">{th('verified')}</Badge>
+              </div>
+            )}
+          </div>
+        </div>
+        <p className="text-sarat-black-600 max-w-2xl text-lg leading-relaxed">{bio}</p>
+
+        {languageLabels.length > 0 && (
+          <div className="flex flex-col gap-2">
+            <p className={eyebrowClassName}>{t('languages')}</p>
+            <p className="text-base">{languageLabels.join(' · ')}</p>
+          </div>
+        )}
+      </header>
+
+      <section className="mt-12 flex flex-col gap-8">
+        <div className="flex items-baseline justify-between gap-4">
+          <h2 className="font-display text-2xl font-medium tracking-[-0.025em]">
+            {t('experiencesHeading', { name })}
+          </h2>
+          <p className="text-sarat-black-600 text-sm">
+            {t('experiencesCount', { count: experiences.length })}
+          </p>
+        </div>
+
+        {experiences.length === 0 ? (
+          <div className="border-sarat-black/8 rounded-card [border-width:0.5px] p-10">
+            <p className="text-sarat-black-600 text-base">{t('noExperiences')}</p>
+          </div>
+        ) : (
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {experiences.map((experience) => (
+              <ExperienceCard key={experience.slug} experience={experience} locale={loc} />
+            ))}
+          </div>
+        )}
+      </section>
+    </article>
+  );
+}
