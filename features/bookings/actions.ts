@@ -1,12 +1,27 @@
 'use server';
 
 import { eq } from 'drizzle-orm';
+import { cookies } from 'next/headers';
 import { db } from '@/lib/db';
 import { serverEnv } from '@/lib/env';
 import { bookings, guests } from '@/db/schema';
 import { redirect } from '@/lib/i18n';
 import { reportError } from '@/lib/log';
 import { bookingRequestSchema } from '@/features/bookings/schemas';
+import { LAST_BOOKING_COOKIE, serializeLastBookingCookie } from '@/features/account/cookie';
+
+const LAST_BOOKING_COOKIE_MAX_AGE_SECONDS = 60 * 60 * 24 * 90; // 90 days
+
+async function writeLastBookingCookie(reference: string, experienceSlug: string): Promise<void> {
+  const store = await cookies();
+  store.set(LAST_BOOKING_COOKIE, serializeLastBookingCookie({ reference, experienceSlug }), {
+    httpOnly: true,
+    sameSite: 'lax',
+    secure: process.env.NODE_ENV === 'production',
+    path: '/',
+    maxAge: LAST_BOOKING_COOKIE_MAX_AGE_SECONDS,
+  });
+}
 
 /**
  * The success path throws (Next.js `redirect`) before the action ever
@@ -70,6 +85,8 @@ export async function requestBooking(
     // Preview mode: nothing is persisted, but we still navigate to the
     // confirmation page so the user lands somewhere real. The page
     // renders preview copy when getBookingByReference returns undefined.
+    // Stash the reference + slug so /me can show 'your last request'.
+    await writeLastBookingCookie(reference, input.experienceSlug);
     redirect({ href: confirmedPath, locale: input.locale });
     // unreachable — redirect() throws NEXT_REDIRECT
     throw new Error('unreachable');
@@ -125,6 +142,7 @@ export async function requestBooking(
     return { success: false, message: 'server', values: currentValues(formData) };
   }
 
+  await writeLastBookingCookie(reference, input.experienceSlug);
   redirect({ href: confirmedPath, locale: input.locale });
   // unreachable — redirect() throws NEXT_REDIRECT
   throw new Error('unreachable');

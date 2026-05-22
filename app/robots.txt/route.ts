@@ -7,6 +7,7 @@ import { routing } from '@/lib/i18n';
  *
  * Disallows, by locale:
  *   /<locale>/dev              internal style guide
+ *   /<locale>/me               per-guest activity page
  *   /<locale>/wishlist         per-guest cookie state, never useful to a crawler
  *   /<locale>/book/confirmed/  per-booking reference URLs (UUID-shaped)
  *
@@ -15,7 +16,7 @@ import { routing } from '@/lib/i18n';
  * for crawlers that ignore page meta but honor robots.txt.
  */
 export function GET(): Response {
-  const privatePaths = ['dev', 'wishlist', 'book/confirmed/'];
+  const privatePaths = ['dev', 'me', 'wishlist', 'book/confirmed/'];
   const disallows = routing.locales
     .flatMap((l) => privatePaths.map((p) => `Disallow: /${l}/${p}`))
     .join('\n');

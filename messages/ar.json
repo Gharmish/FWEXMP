@@ -161,11 +161,40 @@
     "exploreLabel": "TODO(ar): Explore",
     "linkExperiences": "TODO(ar): Experiences",
     "linkHosts": "TODO(ar): Hosts",
-    "linkWishlist": "TODO(ar): Wishlist"
+    "linkWishlist": "TODO(ar): Wishlist",
+    "linkMe": "TODO(ar): Your activity"
   },
   "wishlistButton": {
     "save": "TODO(ar): Save to wishlist",
     "remove": "TODO(ar): Remove from wishlist"
+  },
+  "me": {
+    "eyebrow": "TODO(ar): Your activity",
+    "title": "TODO(ar): Where you left off.",
+    "intro": "TODO(ar): Your last request and the experiences you've saved — private to this device until accounts land.",
+    "introEmpty": "TODO(ar): Nothing here yet. Once you save an experience or make a request, it'll show up on this page.",
+    "emptyEyebrow": "TODO(ar): Empty",
+    "emptyTitle": "TODO(ar): Start exploring.",
+    "emptyDescription": "TODO(ar): Save experiences with the heart icon, or send a booking request from any experience page. We'll keep track here.",
+    "emptyCta": "TODO(ar): Browse experiences",
+    "lastBookingEyebrow": "TODO(ar): Last request",
+    "lastBookingFallbackTitle": "TODO(ar): Your booking request",
+    "referenceLabel": "TODO(ar): Reference",
+    "statusLabel": "TODO(ar): Status",
+    "dateLabel": "TODO(ar): Date",
+    "partyLabel": "TODO(ar): Guests",
+    "totalLabel": "TODO(ar): Estimated total",
+    "status": {
+      "pending": "TODO(ar): Awaiting host confirmation",
+      "confirmed": "TODO(ar): Confirmed",
+      "completed": "TODO(ar): Completed",
+      "cancelled": "TODO(ar): Cancelled",
+      "refunded": "TODO(ar): Refunded"
+    },
+    "viewConfirmation": "TODO(ar): Open confirmation",
+    "viewExperience": "TODO(ar): Open experience",
+    "wishlistTitle": "TODO(ar): Saved experiences",
+    "wishlistViewAll": "TODO(ar): View all"
   },
   "wishlist": {
     "eyebrow": "TODO(ar): Your wishlist",

@@ -161,11 +161,40 @@
     "exploreLabel": "Explore",
     "linkExperiences": "Experiences",
     "linkHosts": "Hosts",
-    "linkWishlist": "Wishlist"
+    "linkWishlist": "Wishlist",
+    "linkMe": "Your activity"
   },
   "wishlistButton": {
     "save": "Save to wishlist",
     "remove": "Remove from wishlist"
+  },
+  "me": {
+    "eyebrow": "Your activity",
+    "title": "Where you left off.",
+    "intro": "Your last request and the experiences you've saved — private to this device until accounts land.",
+    "introEmpty": "Nothing here yet. Once you save an experience or make a request, it'll show up on this page.",
+    "emptyEyebrow": "Empty",
+    "emptyTitle": "Start exploring.",
+    "emptyDescription": "Save experiences with the heart icon, or send a booking request from any experience page. We'll keep track here.",
+    "emptyCta": "Browse experiences",
+    "lastBookingEyebrow": "Last request",
+    "lastBookingFallbackTitle": "Your booking request",
+    "referenceLabel": "Reference",
+    "statusLabel": "Status",
+    "dateLabel": "Date",
+    "partyLabel": "Guests",
+    "totalLabel": "Estimated total",
+    "status": {
+      "pending": "Awaiting host confirmation",
+      "confirmed": "Confirmed",
+      "completed": "Completed",
+      "cancelled": "Cancelled",
+      "refunded": "Refunded"
+    },
+    "viewConfirmation": "Open confirmation",
+    "viewExperience": "Open experience",
+    "wishlistTitle": "Saved experiences",
+    "wishlistViewAll": "View all"
   },
   "wishlist": {
     "eyebrow": "Your wishlist",
