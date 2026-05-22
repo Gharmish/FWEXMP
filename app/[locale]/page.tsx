@@ -182,13 +182,13 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
                   <li key={host.slug}>
                     <Link
                       href={`/hosts/${host.slug}`}
-                      className="rounded-card border-sarat-black/8 group flex h-full items-start gap-4 [border-width:0.5px] p-6 transition-transform duration-200 hover:-translate-y-0.5"
+                      className="rounded-card border-sarat-black/8 group flex h-full items-start gap-4 [border-width:0.5px] p-6 transition-transform duration-200 hover:-translate-y-0.5 focus-visible:-translate-y-0.5"
                     >
                       <Avatar name={name} size="lg" />
                       <div className="flex flex-1 flex-col gap-2">
                         <span className="text-lg font-medium">{name}</span>
                         <p className="text-sarat-black-600 line-clamp-3 text-sm">{bio}</p>
-                        <span className="text-sarat-black inline-flex items-center gap-1 text-sm font-medium opacity-0 transition-opacity duration-200 group-hover:opacity-100">
+                        <span className="text-sarat-black inline-flex items-center gap-1 text-sm font-medium opacity-0 transition-opacity duration-200 group-hover:opacity-100 group-focus-visible:opacity-100">
                           {t('hostsView')}
                           <ArrowRight className="size-4 shrink-0 rtl:rotate-180" aria-hidden />
                         </span>

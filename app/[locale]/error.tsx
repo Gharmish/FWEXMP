@@ -6,6 +6,7 @@ import { Link } from '@/lib/i18n';
 import type { Locale } from '@/lib/i18n';
 import { buttonVariants } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
+import { reportError } from '@/lib/log';
 
 export default function LocaleError({
   error,
@@ -22,8 +23,8 @@ export default function LocaleError({
   );
 
   useEffect(() => {
-    console.error(error);
-  }, [error]);
+    reportError(error, { surface: 'locale-error-boundary', locale, digest: error.digest });
+  }, [error, locale]);
 
   return (
     <section className="mx-auto flex w-full max-w-6xl flex-1 items-center px-6 py-24">
