@@ -9,6 +9,7 @@ import { ExperienceCard } from '@/features/experiences/components/experience-car
 import { WishlistButton } from '@/features/wishlist/components/wishlist-button';
 import { getWishlistExperiences } from '@/features/wishlist/queries';
 import { getLastBookingView } from '@/features/account/queries';
+import { getCurrentUser } from '@/features/auth/queries';
 import { toArabicText } from '@/features/experiences/lib/arabic-content';
 import { formatDate, formatInteger, formatSAR } from '@/lib/format';
 
@@ -31,9 +32,10 @@ export default async function MePage({ params }: { params: Promise<{ locale: str
   setRequestLocale(locale);
   const loc = locale as Locale;
 
-  const [wishlist, lastBooking, t] = await Promise.all([
+  const [wishlist, lastBooking, user, t] = await Promise.all([
     getWishlistExperiences(),
     getLastBookingView(),
+    getCurrentUser(),
     getTranslations('me'),
   ]);
 
@@ -55,6 +57,17 @@ export default async function MePage({ params }: { params: Promise<{ locale: str
           <p className="text-sarat-black-600 max-w-2xl text-lg leading-relaxed">
             {hasAnything ? t('intro') : t('introEmpty')}
           </p>
+          {user && (
+            <p
+              className="text-sarat-black-600 inline-flex items-center gap-2 text-sm"
+              dir={loc === 'ar' ? 'rtl' : 'ltr'}
+            >
+              <span className="bg-juniper-green inline-block size-2 rounded-full" aria-hidden />
+              {/* Phone stays LTR-isolated so the +966 sign reads
+                  correctly inside an RTL paragraph. */}
+              {t('signedInAs', { phone: user.phone })}
+            </p>
+          )}
         </div>
       </section>
 

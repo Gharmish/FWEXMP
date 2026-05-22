@@ -1,6 +1,33 @@
 {
   "nav": {
-    "discover": "Discover"
+    "discover": "Discover",
+    "signIn": "Sign in",
+    "signOut": "Sign out",
+    "account": "Your activity",
+    "hostDashboard": "Host"
+  },
+  "auth": {
+    "eyebrow": "Sign in",
+    "title": "Welcome to Gharmish.",
+    "intro": "Sign in with your Saudi mobile to keep track of your saved experiences and bookings.",
+    "phoneLabel": "Mobile number",
+    "phonePlaceholder": "+966 5X XXX XXXX",
+    "phoneHint": "We'll send a 6-digit verification code by SMS.",
+    "requestSubmit": "Send code",
+    "requestPending": "Sending",
+    "codeLabel": "Verification code",
+    "codeHint": "Enter the 6-digit code we just sent.",
+    "codeHintStub": "Development mode — any 6-digit code works (e.g. 000000).",
+    "verifySubmit": "Sign in",
+    "verifyPending": "Verifying",
+    "changePhone": "Use a different number",
+    "errors": {
+      "validation": "Check the highlighted fields and try again.",
+      "invalidPhone": "Enter a Saudi mobile number — any common format works.",
+      "invalidCode": "That code didn't match. Check it and try again.",
+      "rateLimited": "Too many attempts. Wait a moment before requesting a new code.",
+      "server": "We couldn't reach the verification service. Try again in a moment."
+    }
   },
   "experiencesIndex": {
     "eyebrow": "Abha experiences",
@@ -173,6 +200,7 @@
     "title": "Where you left off.",
     "intro": "Your last request and the experiences you've saved — private to this device until accounts land.",
     "introEmpty": "Nothing here yet. Once you save an experience or make a request, it'll show up on this page.",
+    "signedInAs": "Signed in as {phone}",
     "emptyEyebrow": "Empty",
     "emptyTitle": "Start exploring.",
     "emptyDescription": "Save experiences with the heart icon, or send a booking request from any experience page. We'll keep track here.",

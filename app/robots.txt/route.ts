@@ -10,13 +10,14 @@ import { routing } from '@/lib/i18n';
  *   /<locale>/me               per-guest activity page
  *   /<locale>/wishlist         per-guest cookie state, never useful to a crawler
  *   /<locale>/book/confirmed/  per-booking reference URLs (UUID-shaped)
+ *   /<locale>/sign-in          auth surface
  *
- * The wishlist + confirmation pages already carry `robots: noindex,
- * nofollow` in their generateMetadata — this is belt-and-suspenders
- * for crawlers that ignore page meta but honor robots.txt.
+ * The disallowed pages already carry `robots: noindex, nofollow` in
+ * their generateMetadata — this is belt-and-suspenders for crawlers
+ * that ignore page meta but honor robots.txt.
  */
 export function GET(): Response {
-  const privatePaths = ['dev', 'me', 'wishlist', 'book/confirmed/'];
+  const privatePaths = ['dev', 'me', 'wishlist', 'book/confirmed/', 'sign-in'];
   const disallows = routing.locales
     .flatMap((l) => privatePaths.map((p) => `Disallow: /${l}/${p}`))
     .join('\n');

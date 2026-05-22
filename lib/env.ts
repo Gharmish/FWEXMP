@@ -16,11 +16,22 @@ const serverSchema = z.object({
   // stay quiet. Set in Vercel as a Sensitive var when production
   // monitoring is wanted (BRIEF §5).
   SENTRY_DSN: z.string().default(''),
+  // Comma-separated E.164 phone numbers (`+9665XXXXXXXX,+9665...`)
+  // that get access to `/admin`. Server-only and never exposed to the
+  // client. Empty → nobody is admin. Promote to a `user_roles` table
+  // when richer admin management is needed.
+  ADMIN_PHONES: z.string().default(''),
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
 });
 
 const clientSchema = z.object({
   NEXT_PUBLIC_SENTRY_DSN: z.string().default(''),
+  // Supabase Auth — BRIEF §5 ("Supabase Auth for guest and host accounts,
+  // email + phone OTP"). Both must be set for real auth; if either is
+  // empty the auth layer falls back to a dev-mode cookie stub so the
+  // UX stays demoable creds-free. Same boundary pattern as `hasDb()`.
+  NEXT_PUBLIC_SUPABASE_URL: z.string().default(''),
+  NEXT_PUBLIC_SUPABASE_ANON_KEY: z.string().default(''),
 });
 
 function parse<T extends z.ZodType>(schema: T, source: unknown, scope: string): z.infer<T> {
@@ -39,6 +50,7 @@ export const serverEnv = parse(
   {
     DATABASE_URL: process.env.DATABASE_URL,
     SENTRY_DSN: process.env.SENTRY_DSN,
+    ADMIN_PHONES: process.env.ADMIN_PHONES,
     NODE_ENV: process.env.NODE_ENV,
   },
   'server',
@@ -48,6 +60,18 @@ export const clientEnv = parse(
   clientSchema,
   {
     NEXT_PUBLIC_SENTRY_DSN: process.env.NEXT_PUBLIC_SENTRY_DSN,
+    NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL,
+    NEXT_PUBLIC_SUPABASE_ANON_KEY: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
   },
   'client',
 );
+
+/**
+ * Is real Supabase Auth configured? Mirrors the `hasDb()` boundary in
+ * spirit: every auth code path checks this and falls back to the
+ * stub-session cookie when false. Flips the moment both vars arrive
+ * in production — no code change.
+ */
+export function hasSupabaseAuth(): boolean {
+  return Boolean(clientEnv.NEXT_PUBLIC_SUPABASE_URL && clientEnv.NEXT_PUBLIC_SUPABASE_ANON_KEY);
+}

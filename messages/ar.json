@@ -1,6 +1,33 @@
 {
   "nav": {
-    "discover": "اكتشف"
+    "discover": "اكتشف",
+    "signIn": "TODO(ar): Sign in",
+    "signOut": "TODO(ar): Sign out",
+    "account": "TODO(ar): Your activity",
+    "hostDashboard": "TODO(ar): Host"
+  },
+  "auth": {
+    "eyebrow": "TODO(ar): Sign in",
+    "title": "TODO(ar): Welcome to Gharmish.",
+    "intro": "TODO(ar): Sign in with your Saudi mobile to keep track of your saved experiences and bookings.",
+    "phoneLabel": "TODO(ar): Mobile number",
+    "phonePlaceholder": "+966 5X XXX XXXX",
+    "phoneHint": "TODO(ar): We'll send a 6-digit verification code by SMS.",
+    "requestSubmit": "TODO(ar): Send code",
+    "requestPending": "TODO(ar): Sending",
+    "codeLabel": "TODO(ar): Verification code",
+    "codeHint": "TODO(ar): Enter the 6-digit code we just sent.",
+    "codeHintStub": "TODO(ar): Development mode — any 6-digit code works (e.g. 000000).",
+    "verifySubmit": "TODO(ar): Sign in",
+    "verifyPending": "TODO(ar): Verifying",
+    "changePhone": "TODO(ar): Use a different number",
+    "errors": {
+      "validation": "TODO(ar): Check the highlighted fields and try again.",
+      "invalidPhone": "TODO(ar): Enter a Saudi mobile number — any common format works.",
+      "invalidCode": "TODO(ar): That code didn't match. Check it and try again.",
+      "rateLimited": "TODO(ar): Too many attempts. Wait a moment before requesting a new code.",
+      "server": "TODO(ar): We couldn't reach the verification service. Try again in a moment."
+    }
   },
   "experiencesIndex": {
     "eyebrow": "تجارب أبها",
@@ -173,6 +200,7 @@
     "title": "TODO(ar): Where you left off.",
     "intro": "TODO(ar): Your last request and the experiences you've saved — private to this device until accounts land.",
     "introEmpty": "TODO(ar): Nothing here yet. Once you save an experience or make a request, it'll show up on this page.",
+    "signedInAs": "TODO(ar): Signed in as {phone}",
     "emptyEyebrow": "TODO(ar): Empty",
     "emptyTitle": "TODO(ar): Start exploring.",
     "emptyDescription": "TODO(ar): Save experiences with the heart icon, or send a booking request from any experience page. We'll keep track here.",

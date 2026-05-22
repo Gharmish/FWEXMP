@@ -2,6 +2,20 @@ import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { NextIntlClientProvider, hasLocale } from 'next-intl';
 import { setRequestLocale } from 'next-intl/server';
+
+/**
+ * The locale layout reads cookies (Navbar → getCurrentUser) and is the
+ * shell every locale page lives under. Forcing dynamic at the layout
+ * level is intentional: Next 16 otherwise streams the prerendered
+ * shell BEFORE a child page-level `redirect()` or `notFound()` throws,
+ * which makes the framework fall back to a `<meta http-equiv="refresh">`
+ * tag in the body instead of a proper 307/404 response.
+ *
+ * Static gains are minimal — every locale page already opts into
+ * dynamic rendering via cookie/searchParams reads — and clean status
+ * codes matter more for auth gates than a fractional render saving.
+ */
+export const dynamic = 'force-dynamic';
 import { bricolage, ibmPlexArabic } from '@/lib/fonts';
 import { routing, localeDirection, type Locale } from '@/lib/i18n';
 import { Navbar } from '@/components/layout/navbar';
