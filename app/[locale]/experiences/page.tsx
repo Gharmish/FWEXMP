@@ -74,7 +74,11 @@ export default async function ExperiencesIndexPage({
   // Featured row only appears with no active filters — once the user
   // narrows the catalog the featured set becomes noise.
   const showFeatured =
-    criteria.q.length === 0 && criteria.categories.length === 0 && !criteria.originalsOnly;
+    criteria.q.length === 0 &&
+    criteria.categories.length === 0 &&
+    !criteria.originalsOnly &&
+    criteria.priceBucket === null &&
+    criteria.durationBucket === null;
 
   const [results, featured] = await Promise.all([
     getExperiencesFiltered(criteria),

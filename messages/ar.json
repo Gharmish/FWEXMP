@@ -12,6 +12,20 @@
     "reset": "TODO(ar): Reset filters",
     "originalsToggle": "TODO(ar): Originals only",
     "originalsToggleAria": "TODO(ar): Show only Gharmish Originals",
+    "priceLegend": "TODO(ar): Price (SAR)",
+    "durationLegend": "TODO(ar): Duration",
+    "price": {
+      "under-200": "TODO(ar): Under 200",
+      "200-500": "TODO(ar): 200 – 500",
+      "500-1000": "TODO(ar): 500 – 1,000",
+      "over-1000": "TODO(ar): Over 1,000"
+    },
+    "duration": {
+      "under-2h": "TODO(ar): Under 2 hr",
+      "2-4h": "TODO(ar): 2 – 4 hr",
+      "half-day": "TODO(ar): Half day",
+      "full-day": "TODO(ar): Full day"
+    },
     "search": {
       "label": "TODO(ar): Search experiences",
       "placeholder": "TODO(ar): Search by name or place",

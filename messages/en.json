@@ -12,6 +12,20 @@
     "reset": "Reset filters",
     "originalsToggle": "Originals only",
     "originalsToggleAria": "Show only Gharmish Originals",
+    "priceLegend": "Price (SAR)",
+    "durationLegend": "Duration",
+    "price": {
+      "under-200": "Under 200",
+      "200-500": "200 – 500",
+      "500-1000": "500 – 1,000",
+      "over-1000": "Over 1,000"
+    },
+    "duration": {
+      "under-2h": "Under 2 hr",
+      "2-4h": "2 – 4 hr",
+      "half-day": "Half day",
+      "full-day": "Full day"
+    },
     "search": {
       "label": "Search experiences",
       "placeholder": "Search by name or place",

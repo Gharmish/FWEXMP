@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import {
   DEFAULT_SORT,
+  DURATION_BUCKETS,
   EMPTY_CRITERIA,
+  PRICE_BUCKETS,
   filterExperiences,
   hasActiveFilters,
   parseSearchParams,
@@ -81,6 +83,23 @@ describe('parseSearchParams', () => {
     expect(parseSearchParams({ sort: 'newest' }).sort).toBe('newest');
     expect(parseSearchParams({ sort: 'featured' }).sort).toBe('featured');
   });
+
+  it('accepts the valid price buckets and falls back to null otherwise', () => {
+    for (const bucket of PRICE_BUCKETS) {
+      expect(parseSearchParams({ price: bucket }).priceBucket).toBe(bucket);
+    }
+    expect(parseSearchParams({}).priceBucket).toBeNull();
+    expect(parseSearchParams({ price: 'made-up' }).priceBucket).toBeNull();
+    expect(parseSearchParams({ price: '' }).priceBucket).toBeNull();
+  });
+
+  it('accepts the valid duration buckets and falls back to null otherwise', () => {
+    for (const bucket of DURATION_BUCKETS) {
+      expect(parseSearchParams({ duration: bucket }).durationBucket).toBe(bucket);
+    }
+    expect(parseSearchParams({}).durationBucket).toBeNull();
+    expect(parseSearchParams({ duration: 'forever' }).durationBucket).toBeNull();
+  });
 });
 
 describe('toSearchParams', () => {
@@ -99,11 +118,18 @@ describe('toSearchParams', () => {
       q: 'coffee',
       categories: ['nature', 'food'] as Category[],
       originalsOnly: true,
+      priceBucket: '200-500',
+      durationBucket: '2-4h',
       sort: 'priceDesc',
     };
     const qs = toSearchParams(original).toString();
     const round = parseSearchParams(Object.fromEntries(new URLSearchParams(qs).entries()));
     expect(round).toEqual(original);
+  });
+
+  it('omits null buckets from the URL', () => {
+    const qs = toSearchParams({ ...EMPTY_CRITERIA, priceBucket: null }).toString();
+    expect(qs).toBe('');
   });
 });
 
@@ -116,6 +142,8 @@ describe('hasActiveFilters', () => {
     expect(hasActiveFilters({ ...EMPTY_CRITERIA, q: 'x' })).toBe(true);
     expect(hasActiveFilters({ ...EMPTY_CRITERIA, originalsOnly: true })).toBe(true);
     expect(hasActiveFilters({ ...EMPTY_CRITERIA, categories: ['nature'] })).toBe(true);
+    expect(hasActiveFilters({ ...EMPTY_CRITERIA, priceBucket: 'under-200' })).toBe(true);
+    expect(hasActiveFilters({ ...EMPTY_CRITERIA, durationBucket: 'half-day' })).toBe(true);
     expect(hasActiveFilters({ ...EMPTY_CRITERIA, sort: 'priceAsc' })).toBe(true);
   });
 });
@@ -173,6 +201,68 @@ describe('filterExperiences', () => {
   it('returns an empty array when nothing matches', () => {
     const result = filterExperiences(all, { ...EMPTY_CRITERIA, q: 'nonexistent-token-xyz' });
     expect(result).toEqual([]);
+  });
+});
+
+describe('price + duration buckets', () => {
+  const all: readonly ExperienceSummary[] = [
+    // priceSar, durationMinutes
+    exp({ slug: 'free-walk', priceSar: 0, durationMinutes: 60 }), // under-200, under-2h
+    exp({ slug: 'short', priceSar: 199, durationMinutes: 90 }), // under-200, under-2h
+    exp({ slug: 'mid', priceSar: 200, durationMinutes: 180 }), // 200-500, 2-4h
+    exp({ slug: 'edge-500', priceSar: 499, durationMinutes: 239 }), // 200-500, 2-4h
+    exp({ slug: 'half', priceSar: 500, durationMinutes: 240 }), // 500-1000, half-day
+    exp({ slug: 'premium', priceSar: 999, durationMinutes: 359 }), // 500-1000, half-day
+    exp({ slug: 'lux', priceSar: 1000, durationMinutes: 360 }), // over-1000, full-day
+    exp({ slug: 'epic', priceSar: 2500, durationMinutes: 720 }), // over-1000, full-day
+  ];
+
+  it('each price has exactly one bucket (half-open intervals)', () => {
+    // Sum of bucket matches should equal the dataset size — i.e. every
+    // row belongs to exactly one bucket, none overlap.
+    const totals = PRICE_BUCKETS.reduce((acc, bucket) => {
+      const filtered = filterExperiences(all, { ...EMPTY_CRITERIA, priceBucket: bucket });
+      return acc + filtered.length;
+    }, 0);
+    expect(totals).toBe(all.length);
+  });
+
+  it('each duration has exactly one bucket (half-open intervals)', () => {
+    const totals = DURATION_BUCKETS.reduce((acc, bucket) => {
+      const filtered = filterExperiences(all, { ...EMPTY_CRITERIA, durationBucket: bucket });
+      return acc + filtered.length;
+    }, 0);
+    expect(totals).toBe(all.length);
+  });
+
+  it('boundary values land in the upper bucket (200, 500, 1000)', () => {
+    // priceSar=200 is in '200-500', not 'under-200'.
+    const upper = filterExperiences(all, { ...EMPTY_CRITERIA, priceBucket: '200-500' });
+    expect(upper.map((r) => r.slug)).toContain('mid');
+
+    // priceSar=199 stays in 'under-200'.
+    const lower = filterExperiences(all, { ...EMPTY_CRITERIA, priceBucket: 'under-200' });
+    expect(lower.map((r) => r.slug)).toContain('short');
+    expect(lower.map((r) => r.slug)).not.toContain('mid');
+  });
+
+  it('over-1000 is open-ended on the top', () => {
+    const result = filterExperiences(all, { ...EMPTY_CRITERIA, priceBucket: 'over-1000' });
+    expect(result.map((r) => r.slug).sort()).toEqual(['epic', 'lux']);
+  });
+
+  it('full-day is open-ended on the top', () => {
+    const result = filterExperiences(all, { ...EMPTY_CRITERIA, durationBucket: 'full-day' });
+    expect(result.map((r) => r.slug).sort()).toEqual(['epic', 'lux']);
+  });
+
+  it('price + duration compose as AND', () => {
+    const result = filterExperiences(all, {
+      ...EMPTY_CRITERIA,
+      priceBucket: '200-500',
+      durationBucket: '2-4h',
+    });
+    expect(result.map((r) => r.slug).sort()).toEqual(['edge-500', 'mid']);
   });
 });
 

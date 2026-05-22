@@ -9,11 +9,15 @@ import { Pill } from '@/components/ui/pill';
 import { cn } from '@/lib/utils';
 import type { CategoryMeta } from '@/features/experiences/types';
 import {
-  DEFAULT_SORT,
+  DURATION_BUCKETS,
+  PRICE_BUCKETS,
+  EMPTY_CRITERIA,
   hasActiveFilters,
   parseSearchParams,
   toSearchParams,
+  type DurationBucket,
   type ExperienceCriteria,
+  type PriceBucket,
 } from '@/features/experiences/lib/search';
 
 interface FilterBarProps {
@@ -73,8 +77,17 @@ export function FilterBar({ locale, categories, resultCount }: FilterBarProps) {
     push({ ...criteria, originalsOnly: !criteria.originalsOnly });
   }
 
+  function togglePrice(bucket: PriceBucket) {
+    // Single-select — picking the active one clears it.
+    push({ ...criteria, priceBucket: criteria.priceBucket === bucket ? null : bucket });
+  }
+
+  function toggleDuration(bucket: DurationBucket) {
+    push({ ...criteria, durationBucket: criteria.durationBucket === bucket ? null : bucket });
+  }
+
   function reset() {
-    push({ q: '', categories: [], originalsOnly: false, sort: DEFAULT_SORT });
+    push(EMPTY_CRITERIA);
   }
 
   const eyebrowClassName = cn(
@@ -119,6 +132,38 @@ export function FilterBar({ locale, categories, resultCount }: FilterBarProps) {
             {locale === 'ar' ? c.labelAr : c.labelEn}
           </Pill>
         ))}
+      </div>
+
+      <div className="flex flex-col gap-3 sm:flex-row sm:gap-8">
+        <fieldset className="flex flex-col gap-2">
+          <legend className={eyebrowClassName}>{t('priceLegend')}</legend>
+          <div className="-mx-1 flex flex-wrap gap-2 px-1">
+            {PRICE_BUCKETS.map((bucket) => (
+              <Pill
+                key={bucket}
+                selected={criteria.priceBucket === bucket}
+                onClick={() => togglePrice(bucket)}
+              >
+                {t(`price.${bucket}`)}
+              </Pill>
+            ))}
+          </div>
+        </fieldset>
+
+        <fieldset className="flex flex-col gap-2">
+          <legend className={eyebrowClassName}>{t('durationLegend')}</legend>
+          <div className="-mx-1 flex flex-wrap gap-2 px-1">
+            {DURATION_BUCKETS.map((bucket) => (
+              <Pill
+                key={bucket}
+                selected={criteria.durationBucket === bucket}
+                onClick={() => toggleDuration(bucket)}
+              >
+                {t(`duration.${bucket}`)}
+              </Pill>
+            ))}
+          </div>
+        </fieldset>
       </div>
     </div>
   );
