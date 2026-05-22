@@ -1,11 +1,15 @@
+import * as Sentry from '@sentry/nextjs';
+
 /**
  * Application logger. Single chokepoint so the rest of the codebase
- * never reaches for `console.*` directly (CLAUDE.md ban) — and so when
- * we wire Sentry (BRIEF §5 monitoring) it lands in one file.
+ * never reaches for `console.*` directly (CLAUDE.md ban). Production
+ * errors route through Sentry; dev errors go to the local console with
+ * a stable `[gharmish]` prefix and a surface label.
  *
- * In development we want the error in the terminal / browser console;
- * in production this is a no-op until the Sentry SDK is installed and
- * `reportError` forwards to `Sentry.captureException`.
+ * Sentry is initialised in `instrumentation.ts` (server) and
+ * `instrumentation-client.ts` (client). When no DSN is set those
+ * inits are no-ops, so calling `Sentry.captureException` here is also
+ * safe — it just enqueues nothing.
  */
 export interface ReportErrorContext {
   /** Free-form label so the surface is grep-able in logs. */
@@ -22,5 +26,13 @@ export function reportError(error: unknown, context?: ReportErrorContext): void 
     console.error('[gharmish]', context?.surface ?? 'error', error, context);
     return;
   }
-  // TODO(sentry): forward to Sentry.captureException(error, { extra: context }).
+
+  // The `surface` field becomes a Sentry tag (queryable in the
+  // dashboard); everything else flows through `extra` (visible on the
+  // event but not indexed).
+  const { surface, ...extra } = context ?? {};
+  Sentry.captureException(error, {
+    tags: surface ? { surface } : undefined,
+    extra,
+  });
 }
