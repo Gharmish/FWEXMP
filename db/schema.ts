@@ -61,10 +61,31 @@ export const bookingStatusEnum = pgEnum('booking_status', [
   'refunded',
 ]);
 
+/**
+ * Host-application workflow. Distinct from `hosts.verificationStatus`:
+ * an application is the user-submitted artifact (one per auth user, may
+ * be rejected and re-submitted by updating the existing row). When an
+ * application is approved, the admin flow mints a `hosts` row from it.
+ */
+export const hostApplicationStatusEnum = pgEnum('host_application_status', [
+  'pending',
+  'approved',
+  'rejected',
+]);
+
+/** Individual vs. registered tourism company (BRIEF §8). */
+export const hostIdentityTypeEnum = pgEnum('host_identity_type', ['national_id', 'cr']);
+
 /* ----------------------------- Tables ---------------------------- */
 
 export const hosts = pgTable('hosts', {
   id: uuid().defaultRandom().primaryKey(),
+  /**
+   * Supabase auth id of the host. Unique — one host record per auth
+   * user. Nullable so the seeded sample hosts (no real owner) stay
+   * valid; live hosts always have it set by the admin-approval flow.
+   */
+  userId: uuid().unique(),
   name: text().notNull(),
   bioEn: text().notNull(),
   bioAr: text().notNull(),
@@ -185,6 +206,48 @@ export const reviews = pgTable('reviews', {
   createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
 });
 
+/**
+ * Host applications (BRIEF §8 "Host" + §10 Sprint 4+: real onboarding).
+ *
+ * One row per Supabase auth user (`userId` unique). A user can refile
+ * after rejection by re-submitting — the existing row is updated rather
+ * than appended, so we keep a single record of the user's intent.
+ *
+ * Approval is a separate admin flow (not in this PR): on approval the
+ * admin creates a `hosts` row with the application's identity fields
+ * and sets `host_applications.status = 'approved'`. Photos / MoT
+ * licence / insurance / payout details are gathered out-of-band until
+ * the file-upload pipeline lands (R2, Nafath KYC — BRIEF §5 + §10).
+ */
+export const hostApplications = pgTable('host_applications', {
+  id: uuid().defaultRandom().primaryKey(),
+  /** Supabase auth user id — unique, one application per user. */
+  userId: uuid().notNull().unique(),
+  /** Canonical E.164 phone, copied from the auth user at submit time. */
+  contactPhone: text().notNull(),
+  contactEmail: text(),
+  /** Display name as the host would like to appear in the catalog. */
+  displayName: text().notNull(),
+  /** English bio. Arabic is collected later (translation team / host edits). */
+  bioEn: text().notNull(),
+  bioAr: text(),
+  /** Languages spoken, ISO-ish tags e.g. ['ar','en']. */
+  languages: text().array().notNull().default([]),
+  identityType: hostIdentityTypeEnum().notNull(),
+  identityNumber: text().notNull(),
+  city: text().notNull().default('Abha'),
+  region: text().notNull().default('Asir'),
+  status: hostApplicationStatusEnum().notNull().default('pending'),
+  reviewerNotes: text(),
+  /** Supabase auth id of the admin who approved/rejected. Audit trail. */
+  reviewedByUserId: uuid(),
+  reviewedAt: timestamp({ withTimezone: true }),
+  /** When approved, the `hosts.id` row that was minted from this application. */
+  hostId: uuid().references(() => hosts.id, { onDelete: 'set null' }),
+  createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
+});
+
 /** Guest wishlist (BRIEF §8: "Saved experiences"). */
 export const savedExperiences = pgTable(
   'saved_experiences',
@@ -270,3 +333,5 @@ export type Booking = typeof bookings.$inferSelect;
 export type NewBooking = typeof bookings.$inferInsert;
 export type Review = typeof reviews.$inferSelect;
 export type NewReview = typeof reviews.$inferInsert;
+export type HostApplication = typeof hostApplications.$inferSelect;
+export type NewHostApplication = typeof hostApplications.$inferInsert;

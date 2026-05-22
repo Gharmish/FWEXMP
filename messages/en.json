@@ -29,6 +29,181 @@
       "server": "We couldn't reach the verification service. Try again in a moment."
     }
   },
+  "admin": {
+    "eyebrow": "Admin",
+    "title": "Gharmish admin.",
+    "intro": "Internal tools — keep things sharp, kind, and quick.",
+    "open": "Open",
+    "backToAdmin": "Admin home",
+    "sections": {
+      "hostApplications": {
+        "title": "Host applications",
+        "description": "Review, approve, or reject incoming host applications. Approval mints a verified host record."
+      }
+    },
+    "hostApplicationsList": {
+      "eyebrow": "Host applications",
+      "title": "Applications.",
+      "intro": "Pending applications are surfaced first. Click through to review identity, bio, and contact details.",
+      "empty": {
+        "eyebrow": "Empty",
+        "title": "No applications yet.",
+        "description": "When someone submits at /host/apply, they'll show up here."
+      }
+    },
+    "noDb": {
+      "eyebrow": "DB required",
+      "title": "Admin needs a database connection.",
+      "description": "Set DATABASE_URL and run pnpm db:push. Host applications submitted in stub mode live on each user's device cookie and can't be reviewed by anyone else."
+    },
+    "status": {
+      "pending": "Pending",
+      "approved": "Approved",
+      "rejected": "Rejected"
+    },
+    "identityType": {
+      "national_id": "Individual",
+      "cr": "Company (CR)"
+    },
+    "languages": {
+      "ar": "Arabic",
+      "en": "English",
+      "fr": "French",
+      "ur": "Urdu"
+    },
+    "detail": {
+      "submittedOn": "Submitted on {date}",
+      "reviewedOn": "Reviewed on {date}",
+      "identity": "Identity",
+      "contact": "Contact",
+      "languages": "Languages",
+      "location": "Location",
+      "bio": "Bio (English)",
+      "reviewerNotes": "Reviewer notes"
+    },
+    "actions": {
+      "approve": "Approve and create host",
+      "approvePending": "Approving",
+      "reject": "Reject",
+      "rejectPending": "Rejecting",
+      "notesLabel": "Reviewer notes",
+      "notesApproveHint": "Optional — internal context, never shown to the applicant.",
+      "notesRejectHint": "Required, minimum 10 characters. Shown to the applicant so they know how to refile.",
+      "errors": {
+        "forbidden": "You're not authorised to do that.",
+        "noDb": "Admin actions require a database connection.",
+        "notFound": "This application no longer exists.",
+        "validation": "Check the form and try again.",
+        "server": "We couldn't complete that action. Try again in a moment.",
+        "rejectionNoteShort": "Add at least 10 characters of context so the applicant knows how to refile."
+      }
+    }
+  },
+  "hostApply": {
+    "eyebrow": "Host with us",
+    "title": "Co-create an experience with Gharmish.",
+    "intro": "Gharmish is a partnership marketplace, not a passive listing site. We work alongside you on photography, training, and distribution — and we share the upside fairly. Tell us about yourself to start the conversation.",
+    "introMeta": "Submitting this form doesn't list anything yet. Our partnerships team reviews each application and follows up to discuss insurance, payouts, and the experience you'd love to host.",
+    "sections": {
+      "about": "About you",
+      "identity": "Identity",
+      "contact": "Contact"
+    },
+    "fields": {
+      "displayName": {
+        "label": "Display name",
+        "hint": "How you'd like to appear to guests — your full name or your company's brand name."
+      },
+      "bio": {
+        "label": "Short bio (English)",
+        "hint": "A paragraph or two on who you are and what you love about Asir. We'll have it translated to Arabic with you. Minimum 40 characters."
+      },
+      "languages": {
+        "label": "Languages you host in",
+        "hint": "Pick at least one. You can add more later."
+      },
+      "identityType": {
+        "label": "I'm applying as"
+      },
+      "identityNumber": {
+        "label": "Identity number",
+        "hint": "10-digit Saudi national ID, Iqama, or commercial registration number. We verify this before any listing goes live."
+      },
+      "contactPhone": {
+        "label": "Phone",
+        "hint": "Pulled from your account. The partnerships team confirms on WhatsApp."
+      },
+      "contactEmail": {
+        "label": "Email (optional)",
+        "hint": "If you'd rather we reach you by email for the first conversation."
+      }
+    },
+    "identityType": {
+      "national_id": "An individual (national ID or Iqama)",
+      "cr": "A registered company (commercial registration)"
+    },
+    "languages": {
+      "ar": "Arabic",
+      "en": "English",
+      "fr": "French",
+      "ur": "Urdu"
+    },
+    "actions": {
+      "submit": "Submit application",
+      "resubmit": "Resubmit application",
+      "pending": "Sending",
+      "browseExperiences": "Browse the catalog",
+      "backToAccount": "Back to your activity"
+    },
+    "status": {
+      "pending": {
+        "eyebrow": "Application received",
+        "title": "We've got your application, {name}.",
+        "description": "Our partnerships team reviews each application personally — usually within a week. We'll be in touch on WhatsApp to set up a call."
+      },
+      "approved": {
+        "eyebrow": "Approved",
+        "title": "Welcome to Gharmish, {name}.",
+        "description": "Your application has been approved. The team will reach out with next steps — bank details, insurance, and your first experience."
+      },
+      "rejected": {
+        "eyebrow": "Update from the team",
+        "title": "We can't move forward yet, {name}.",
+        "description": "Our team left a note on your application. You can update your details and resubmit when you're ready."
+      }
+    },
+    "summary": {
+      "displayName": "Display name",
+      "languages": "Languages",
+      "identity": "Applying as",
+      "contact": "Contact phone"
+    },
+    "submitted": {
+      "eyebrow": "Application received",
+      "title": "Thank you — we've got it from here.",
+      "description": "Your application is on the partnerships team's desk. We review every one personally, so you'll hear back within a week.",
+      "step1": "We review your application and get in touch on WhatsApp to schedule a short call.",
+      "step2": "If we're a fit, we'll talk through insurance, payouts, and the experience you'd love to host.",
+      "step3": "You'll get a host account with the tools to draft your first listing — and we'll co-produce the photography.",
+      "browseExperiences": "Browse the catalog",
+      "backToAccount": "Back to your activity"
+    },
+    "errors": {
+      "validation": "Check the highlighted fields and try again.",
+      "server": "We couldn't submit your application. Try again in a moment.",
+      "authRequired": "Sign in again to submit your application.",
+      "fields": {
+        "required": "Enter a valid value.",
+        "displayNameShort": "Use at least two characters.",
+        "displayNameLong": "Keep this under 80 characters.",
+        "bioShort": "Tell us a little more — at least 40 characters.",
+        "bioLong": "Keep this under 1,200 characters.",
+        "languagesRequired": "Pick at least one language.",
+        "identityInvalid": "Enter a 10-digit national ID, Iqama, or CR number.",
+        "emailInvalid": "Enter a valid email or leave this blank."
+      }
+    }
+  },
   "experiencesIndex": {
     "eyebrow": "Abha experiences",
     "title": "Explore authentic Asiri experiences.",
@@ -188,6 +363,7 @@
     "exploreLabel": "Explore",
     "linkExperiences": "Experiences",
     "linkHosts": "Hosts",
+    "linkHostApply": "Host with us",
     "linkWishlist": "Wishlist",
     "linkMe": "Your activity"
   },

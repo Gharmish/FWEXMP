@@ -18,6 +18,7 @@ export async function Footer() {
   const links: Array<{ href: string; label: string }> = [
     { href: '/experiences', label: t('linkExperiences') },
     { href: '/hosts', label: t('linkHosts') },
+    { href: '/host/apply', label: t('linkHostApply') },
     { href: '/wishlist', label: t('linkWishlist') },
     { href: '/me', label: t('linkMe') },
   ];

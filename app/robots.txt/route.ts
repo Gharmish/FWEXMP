@@ -11,13 +11,28 @@ import { routing } from '@/lib/i18n';
  *   /<locale>/wishlist         per-guest cookie state, never useful to a crawler
  *   /<locale>/book/confirmed/  per-booking reference URLs (UUID-shaped)
  *   /<locale>/sign-in          auth surface
+ *   /<locale>/host             host dashboard (signed-in hosts only)
+ *   /<locale>/host/apply       private host-application workflow
+ *   /<locale>/admin            internal admin tools
  *
  * The disallowed pages already carry `robots: noindex, nofollow` in
  * their generateMetadata — this is belt-and-suspenders for crawlers
  * that ignore page meta but honor robots.txt.
  */
 export function GET(): Response {
-  const privatePaths = ['dev', 'me', 'wishlist', 'book/confirmed/', 'sign-in'];
+  // Note: order matters — robots.txt disallow rules are prefix matches,
+  // so 'host' would shadow 'host/apply'. We keep both explicit for
+  // clarity even though 'host' alone would suffice.
+  const privatePaths = [
+    'dev',
+    'me',
+    'wishlist',
+    'book/confirmed/',
+    'sign-in',
+    'host',
+    'host/apply',
+    'admin',
+  ];
   const disallows = routing.locales
     .flatMap((l) => privatePaths.map((p) => `Disallow: /${l}/${p}`))
     .join('\n');

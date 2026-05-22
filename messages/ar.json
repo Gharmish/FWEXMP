@@ -29,6 +29,181 @@
       "server": "TODO(ar): We couldn't reach the verification service. Try again in a moment."
     }
   },
+  "admin": {
+    "eyebrow": "TODO(ar): Admin",
+    "title": "TODO(ar): Gharmish admin.",
+    "intro": "TODO(ar): Internal tools — keep things sharp, kind, and quick.",
+    "open": "TODO(ar): Open",
+    "backToAdmin": "TODO(ar): Admin home",
+    "sections": {
+      "hostApplications": {
+        "title": "TODO(ar): Host applications",
+        "description": "TODO(ar): Review, approve, or reject incoming host applications. Approval mints a verified host record."
+      }
+    },
+    "hostApplicationsList": {
+      "eyebrow": "TODO(ar): Host applications",
+      "title": "TODO(ar): Applications.",
+      "intro": "TODO(ar): Pending applications are surfaced first. Click through to review identity, bio, and contact details.",
+      "empty": {
+        "eyebrow": "TODO(ar): Empty",
+        "title": "TODO(ar): No applications yet.",
+        "description": "TODO(ar): When someone submits at /host/apply, they'll show up here."
+      }
+    },
+    "noDb": {
+      "eyebrow": "TODO(ar): DB required",
+      "title": "TODO(ar): Admin needs a database connection.",
+      "description": "TODO(ar): Set DATABASE_URL and run pnpm db:push. Host applications submitted in stub mode live on each user's device cookie and can't be reviewed by anyone else."
+    },
+    "status": {
+      "pending": "TODO(ar): Pending",
+      "approved": "TODO(ar): Approved",
+      "rejected": "TODO(ar): Rejected"
+    },
+    "identityType": {
+      "national_id": "TODO(ar): Individual",
+      "cr": "TODO(ar): Company (CR)"
+    },
+    "languages": {
+      "ar": "TODO(ar): Arabic",
+      "en": "TODO(ar): English",
+      "fr": "TODO(ar): French",
+      "ur": "TODO(ar): Urdu"
+    },
+    "detail": {
+      "submittedOn": "TODO(ar): Submitted on {date}",
+      "reviewedOn": "TODO(ar): Reviewed on {date}",
+      "identity": "TODO(ar): Identity",
+      "contact": "TODO(ar): Contact",
+      "languages": "TODO(ar): Languages",
+      "location": "TODO(ar): Location",
+      "bio": "TODO(ar): Bio (English)",
+      "reviewerNotes": "TODO(ar): Reviewer notes"
+    },
+    "actions": {
+      "approve": "TODO(ar): Approve and create host",
+      "approvePending": "TODO(ar): Approving",
+      "reject": "TODO(ar): Reject",
+      "rejectPending": "TODO(ar): Rejecting",
+      "notesLabel": "TODO(ar): Reviewer notes",
+      "notesApproveHint": "TODO(ar): Optional — internal context, never shown to the applicant.",
+      "notesRejectHint": "TODO(ar): Required, minimum 10 characters. Shown to the applicant so they know how to refile.",
+      "errors": {
+        "forbidden": "TODO(ar): You're not authorised to do that.",
+        "noDb": "TODO(ar): Admin actions require a database connection.",
+        "notFound": "TODO(ar): This application no longer exists.",
+        "validation": "TODO(ar): Check the form and try again.",
+        "server": "TODO(ar): We couldn't complete that action. Try again in a moment.",
+        "rejectionNoteShort": "TODO(ar): Add at least 10 characters of context so the applicant knows how to refile."
+      }
+    }
+  },
+  "hostApply": {
+    "eyebrow": "TODO(ar): Host with us",
+    "title": "TODO(ar): Co-create an experience with Gharmish.",
+    "intro": "TODO(ar): Gharmish is a partnership marketplace, not a passive listing site. We work alongside you on photography, training, and distribution — and we share the upside fairly. Tell us about yourself to start the conversation.",
+    "introMeta": "TODO(ar): Submitting this form doesn't list anything yet. Our partnerships team reviews each application and follows up to discuss insurance, payouts, and the experience you'd love to host.",
+    "sections": {
+      "about": "TODO(ar): About you",
+      "identity": "TODO(ar): Identity",
+      "contact": "TODO(ar): Contact"
+    },
+    "fields": {
+      "displayName": {
+        "label": "TODO(ar): Display name",
+        "hint": "TODO(ar): How you'd like to appear to guests — your full name or your company's brand name."
+      },
+      "bio": {
+        "label": "TODO(ar): Short bio (English)",
+        "hint": "TODO(ar): A paragraph or two on who you are and what you love about Asir. We'll have it translated to Arabic with you. Minimum 40 characters."
+      },
+      "languages": {
+        "label": "TODO(ar): Languages you host in",
+        "hint": "TODO(ar): Pick at least one. You can add more later."
+      },
+      "identityType": {
+        "label": "TODO(ar): I'm applying as"
+      },
+      "identityNumber": {
+        "label": "TODO(ar): Identity number",
+        "hint": "TODO(ar): 10-digit Saudi national ID, Iqama, or commercial registration number. We verify this before any listing goes live."
+      },
+      "contactPhone": {
+        "label": "TODO(ar): Phone",
+        "hint": "TODO(ar): Pulled from your account. The partnerships team confirms on WhatsApp."
+      },
+      "contactEmail": {
+        "label": "TODO(ar): Email (optional)",
+        "hint": "TODO(ar): If you'd rather we reach you by email for the first conversation."
+      }
+    },
+    "identityType": {
+      "national_id": "TODO(ar): An individual (national ID or Iqama)",
+      "cr": "TODO(ar): A registered company (commercial registration)"
+    },
+    "languages": {
+      "ar": "TODO(ar): Arabic",
+      "en": "TODO(ar): English",
+      "fr": "TODO(ar): French",
+      "ur": "TODO(ar): Urdu"
+    },
+    "actions": {
+      "submit": "TODO(ar): Submit application",
+      "resubmit": "TODO(ar): Resubmit application",
+      "pending": "TODO(ar): Sending",
+      "browseExperiences": "TODO(ar): Browse the catalog",
+      "backToAccount": "TODO(ar): Back to your activity"
+    },
+    "status": {
+      "pending": {
+        "eyebrow": "TODO(ar): Application received",
+        "title": "TODO(ar): We've got your application, {name}.",
+        "description": "TODO(ar): Our partnerships team reviews each application personally — usually within a week. We'll be in touch on WhatsApp to set up a call."
+      },
+      "approved": {
+        "eyebrow": "TODO(ar): Approved",
+        "title": "TODO(ar): Welcome to Gharmish, {name}.",
+        "description": "TODO(ar): Your application has been approved. The team will reach out with next steps — bank details, insurance, and your first experience."
+      },
+      "rejected": {
+        "eyebrow": "TODO(ar): Update from the team",
+        "title": "TODO(ar): We can't move forward yet, {name}.",
+        "description": "TODO(ar): Our team left a note on your application. You can update your details and resubmit when you're ready."
+      }
+    },
+    "summary": {
+      "displayName": "TODO(ar): Display name",
+      "languages": "TODO(ar): Languages",
+      "identity": "TODO(ar): Applying as",
+      "contact": "TODO(ar): Contact phone"
+    },
+    "submitted": {
+      "eyebrow": "TODO(ar): Application received",
+      "title": "TODO(ar): Thank you — we've got it from here.",
+      "description": "TODO(ar): Your application is on the partnerships team's desk. We review every one personally, so you'll hear back within a week.",
+      "step1": "TODO(ar): We review your application and get in touch on WhatsApp to schedule a short call.",
+      "step2": "TODO(ar): If we're a fit, we'll talk through insurance, payouts, and the experience you'd love to host.",
+      "step3": "TODO(ar): You'll get a host account with the tools to draft your first listing — and we'll co-produce the photography.",
+      "browseExperiences": "TODO(ar): Browse the catalog",
+      "backToAccount": "TODO(ar): Back to your activity"
+    },
+    "errors": {
+      "validation": "TODO(ar): Check the highlighted fields and try again.",
+      "server": "TODO(ar): We couldn't submit your application. Try again in a moment.",
+      "authRequired": "TODO(ar): Sign in again to submit your application.",
+      "fields": {
+        "required": "TODO(ar): Enter a valid value.",
+        "displayNameShort": "TODO(ar): Use at least two characters.",
+        "displayNameLong": "TODO(ar): Keep this under 80 characters.",
+        "bioShort": "TODO(ar): Tell us a little more — at least 40 characters.",
+        "bioLong": "TODO(ar): Keep this under 1,200 characters.",
+        "languagesRequired": "TODO(ar): Pick at least one language.",
+        "identityInvalid": "TODO(ar): Enter a 10-digit national ID, Iqama, or CR number.",
+        "emailInvalid": "TODO(ar): Enter a valid email or leave this blank."
+      }
+    }
+  },
   "experiencesIndex": {
     "eyebrow": "تجارب أبها",
     "title": "اكتشف تجارب عسيرية أصيلة.",
@@ -188,6 +363,7 @@
     "exploreLabel": "TODO(ar): Explore",
     "linkExperiences": "TODO(ar): Experiences",
     "linkHosts": "TODO(ar): Hosts",
+    "linkHostApply": "TODO(ar): Host with us",
     "linkWishlist": "TODO(ar): Wishlist",
     "linkMe": "TODO(ar): Your activity"
   },
