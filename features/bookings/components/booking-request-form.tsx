@@ -1,11 +1,12 @@
 'use client';
 
-import { useActionState, useEffect, useId, useRef } from 'react';
+import { useActionState, useEffect, useId, useRef, useState } from 'react';
 import { useFormStatus } from 'react-dom';
 import { requestBooking, type BookingRequestState } from '@/features/bookings/actions';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import type { Locale } from '@/lib/i18n';
+import { formatSaudiPhone } from '@/lib/format';
 
 interface BookingRequestCopy {
   title: string;
@@ -61,6 +62,17 @@ export function BookingRequestForm({
   const [state, formAction] = useActionState(requestBooking, initialState);
   const values = state.values ?? {};
   const formRef = useRef<HTMLFormElement>(null);
+  // Phone field is controlled so we can canonicalise on blur via
+  // formatSaudiPhone (e.g. "0512345678" -> "+966 51 234 5678"). All
+  // other fields stay uncontrolled — they don't need keystroke-level
+  // handling and `defaultValue` is enough to echo server-validation
+  // errors back to the user.
+  //
+  // We don't sync `phone` from state.values.phone on server-side
+  // errors: useActionState preserves the component across re-renders,
+  // so whatever the user just typed (and submitted) is still in
+  // `phone`. The server echo is informational — they match.
+  const [phone, setPhone] = useState<string>(values.phone ?? '');
   // Deterministic IDs for each field's error message — fed into
   // aria-describedby so screen readers associate the error with the
   // input it belongs to.
@@ -142,7 +154,16 @@ export function BookingRequestForm({
           autoComplete="tel"
           required
           dir="ltr"
-          defaultValue={values.phone}
+          value={phone}
+          onChange={(event) => setPhone(event.target.value)}
+          onBlur={() => {
+            // Canonicalise on blur, not on every keystroke — formatting
+            // mid-typing fights the caret. formatSaudiPhone returns the
+            // input untouched when the value isn't a recognisable Saudi
+            // mobile, so this is a no-op for partial / non-Saudi input.
+            const formatted = formatSaudiPhone(phone);
+            if (formatted !== phone) setPhone(formatted);
+          }}
           placeholder="+966 5X XXX XXXX"
           {...fieldProps('phone')}
         />
