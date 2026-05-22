@@ -36,6 +36,20 @@
     "requestToBook": "Request to book",
     "bookingSoon": "Booking opens soon."
   },
+  "notFound": {
+    "eyebrow": "404",
+    "title": "This path is not on the map.",
+    "description": "The experience or page you are looking for may have moved, paused, or never existed.",
+    "home": "Back to home",
+    "experiences": "Browse experiences"
+  },
+  "error": {
+    "eyebrow": "Something went wrong",
+    "title": "We could not load this page.",
+    "description": "Try again in a moment. If the issue continues, return to the experiences list.",
+    "retry": "Try again",
+    "experiences": "Browse experiences"
+  },
   "host": {
     "verified": "Verified host"
   },
