@@ -22,6 +22,7 @@ import type { HostInfo } from '@/features/experiences/types';
 import { RatingSummary } from '@/features/reviews/components/rating-summary';
 import { ReviewCard } from '@/features/reviews/components/review-card';
 import type { ReviewAggregate, ReviewSummary } from '@/features/reviews/types';
+import { WishlistButton } from '@/features/wishlist/components/wishlist-button';
 
 /**
  * Internal living style guide. Renders every design token and primitive
@@ -369,25 +370,27 @@ export default async function StyleGuidePage({ params }: { params: Promise<{ loc
             locale={locale as Locale}
             experience={makeExperience({
               slug: 'dev-default-rated',
-              titleEn: 'Default — with reviews',
-              titleAr: 'افتراضي — مع مراجعات',
+              titleEn: 'Default — with reviews + actions slot',
+              titleAr: 'افتراضي — مع مراجعات وزر إجراء',
               category: 'nature',
               ratingAverage: 4.6,
               ratingCount: 14,
             })}
+            actions={<WishlistButton slug="dev-default-rated" isSaved={false} surface="light" />}
           />
           <ExperienceCard
             locale={locale as Locale}
             experience={makeExperience({
               slug: 'dev-originals',
-              titleEn: 'Originals tier',
-              titleAr: 'فئة الأصول',
+              titleEn: 'Originals tier — saved state',
+              titleAr: 'فئة الأصول — محفوظ',
               featured: true,
               category: 'heritage',
               priceSar: 980,
               ratingAverage: 4.9,
               ratingCount: 32,
             })}
+            actions={<WishlistButton slug="dev-originals" isSaved surface="dark" />}
           />
           <ExperienceCard
             locale={locale as Locale}
@@ -409,6 +412,33 @@ export default async function StyleGuidePage({ params }: { params: Promise<{ loc
         <Card className="p-6">
           <HostCard host={SAMPLE_HOST} locale={locale as Locale} />
         </Card>
+      </Section>
+
+      <Section title="Wishlist button — state matrix">
+        <p className="text-sarat-black-600 max-w-2xl text-sm">
+          Two surfaces × two saved states. Tapping any of these triggers the real toggleWishlist
+          action and mutates the cookie — so /wishlist updates in real time.
+        </p>
+        <div className="grid gap-6 sm:grid-cols-2">
+          <div className="flex flex-col gap-3">
+            <span className="text-sarat-black-600 text-[11px] tracking-[0.2em] uppercase">
+              Light surface
+            </span>
+            <div className="border-sarat-black/8 rounded-card bg-fog-white flex items-center gap-4 [border-width:0.5px] p-6">
+              <WishlistButton slug="dev-light-unsaved" isSaved={false} surface="light" />
+              <WishlistButton slug="dev-light-saved" isSaved surface="light" />
+            </div>
+          </div>
+          <div className="flex flex-col gap-3">
+            <span className="text-sarat-black-600 text-[11px] tracking-[0.2em] uppercase">
+              Dark surface
+            </span>
+            <div className="rounded-card bg-sarat-black flex items-center gap-4 p-6">
+              <WishlistButton slug="dev-dark-unsaved" isSaved={false} surface="dark" />
+              <WishlistButton slug="dev-dark-saved" isSaved surface="dark" />
+            </div>
+          </div>
+        </div>
       </Section>
 
       <Section title="Reviews — rating summary">
