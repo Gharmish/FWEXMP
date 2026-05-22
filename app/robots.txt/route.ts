@@ -4,14 +4,25 @@ import { routing } from '@/lib/i18n';
 /**
  * robots.txt as a text route (not metadata API) so it can reference the
  * AI manifest (BRIEF §6: "robots.txt includes the /llms.txt reference").
- * Internal style guide (/dev) is disallowed in every locale.
+ *
+ * Disallows, by locale:
+ *   /<locale>/dev              internal style guide
+ *   /<locale>/wishlist         per-guest cookie state, never useful to a crawler
+ *   /<locale>/book/confirmed/  per-booking reference URLs (UUID-shaped)
+ *
+ * The wishlist + confirmation pages already carry `robots: noindex,
+ * nofollow` in their generateMetadata — this is belt-and-suspenders
+ * for crawlers that ignore page meta but honor robots.txt.
  */
 export function GET(): Response {
-  const disallowDev = routing.locales.map((l) => `Disallow: /${l}/dev`).join('\n');
+  const privatePaths = ['dev', 'wishlist', 'book/confirmed/'];
+  const disallows = routing.locales
+    .flatMap((l) => privatePaths.map((p) => `Disallow: /${l}/${p}`))
+    .join('\n');
 
   const body = `User-agent: *
 Allow: /
-${disallowDev}
+${disallows}
 
 Sitemap: ${SITE_URL}/sitemap.xml
 
