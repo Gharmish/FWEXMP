@@ -95,7 +95,13 @@
       "languages": "Languages",
       "location": "Location",
       "bio": "Bio (English)",
-      "reviewerNotes": "Reviewer notes"
+      "reviewerNotes": "Reviewer notes",
+      "historyHeading": "Decision history"
+    },
+    "applicationEvent": {
+      "submitted": "Submitted",
+      "approved": "Approved",
+      "rejected": "Rejected"
     },
     "actions": {
       "approve": "Approve and create host",
@@ -187,9 +193,14 @@
       "bio": "Bio",
       "experiencesHeading": "Experiences",
       "experiencesEmpty": "This host hasn't drafted anything yet.",
+      "historyHeading": "Status history",
       "pendingEyebrow": "Pending",
       "pendingDescription": "This host's application is still being reviewed.",
       "pendingCta": "Go to host applications →"
+    },
+    "hostStatusEvent": {
+      "suspended": "Suspended",
+      "restored": "Restored"
     },
     "hostActions": {
       "suspend": "Suspend host",
@@ -197,6 +208,8 @@
       "suspendConfirm": "Suspending puts the host's account on hold. Every live experience is paused so it leaves the catalog immediately. Existing bookings are not cancelled.",
       "unsuspend": "Restore host",
       "unsuspendPending": "Restoring",
+      "notesLabel": "Reviewer notes",
+      "notesHint": "Internal-only. Saved to the status history so future reviewers see why this happened.",
       "errors": {
         "forbidden": "You're not authorised to do that.",
         "noDb": "Admin actions require a database connection.",

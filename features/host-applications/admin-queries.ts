@@ -1,11 +1,14 @@
 import { desc, eq } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import { serverEnv } from '@/lib/env';
-import { hostApplications } from '@/db/schema';
+import { hostApplications, hostApplicationEvents } from '@/db/schema';
 import { reportError } from '@/lib/log';
 import { getCurrentUser } from '@/features/auth/queries';
 import { isAdminUser } from '@/features/admin/auth';
-import type { HostApplicationView } from '@/features/host-applications/types';
+import type {
+  HostApplicationEventView,
+  HostApplicationView,
+} from '@/features/host-applications/types';
 
 /**
  * Admin reads over host_applications. Two gates apply to every call:
@@ -90,5 +93,32 @@ export async function getApplicationForAdmin(id: string): Promise<HostApplicatio
   } catch (error) {
     reportError(error, { surface: 'admin:getApplication', applicationId: id });
     return null;
+  }
+}
+
+/**
+ * Full audit trail for one application, newest-first. Returns an
+ * empty list for non-admins, missing applications, or stub-mode.
+ */
+export async function getApplicationEventsForAdmin(
+  applicationId: string,
+): Promise<readonly HostApplicationEventView[]> {
+  const block = await adminGuard();
+  if (block) return [];
+  try {
+    const rows = await db
+      .select()
+      .from(hostApplicationEvents)
+      .where(eq(hostApplicationEvents.applicationId, applicationId))
+      .orderBy(desc(hostApplicationEvents.createdAt));
+    return rows.map((row) => ({
+      id: row.id,
+      event: row.event,
+      reviewerNotes: row.reviewerNotes,
+      createdAt: row.createdAt.toISOString(),
+    }));
+  } catch (error) {
+    reportError(error, { surface: 'admin:getApplicationEvents', applicationId });
+    return [];
   }
 }

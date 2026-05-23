@@ -4,7 +4,7 @@ import { and, eq } from 'drizzle-orm';
 import { revalidatePath } from 'next/cache';
 import { db } from '@/lib/db';
 import { serverEnv } from '@/lib/env';
-import { experiences, hosts } from '@/db/schema';
+import { experiences, hosts, hostStatusEvents } from '@/db/schema';
 import { redirect } from '@/lib/i18n';
 import { reportError } from '@/lib/log';
 import { getCurrentUser } from '@/features/auth/queries';
@@ -60,10 +60,11 @@ export async function suspendHost(
 
   const parsed = suspendHostSchema.safeParse({
     hostId: formValue(formData, 'hostId'),
+    reviewerNotes: formValue(formData, 'reviewerNotes'),
     locale: formValue(formData, 'locale'),
   });
   if (!parsed.success) return { success: false, message: 'validation' };
-  const { hostId, locale } = parsed.data;
+  const { hostId, reviewerNotes, locale } = parsed.data;
 
   try {
     // Conditional update: only flips if the host isn't already suspended.
@@ -86,6 +87,14 @@ export async function suspendHost(
       .update(experiences)
       .set({ status: 'paused', updatedAt: new Date() })
       .where(and(eq(experiences.hostId, hostId), eq(experiences.status, 'live')));
+
+    // Audit row — admin host detail renders the timeline from these.
+    await db.insert(hostStatusEvents).values({
+      hostId,
+      event: 'suspended',
+      reviewerUserId: guard.adminUserId,
+      reviewerNotes: reviewerNotes ?? null,
+    });
   } catch (error) {
     reportError(error, { surface: 'admin:suspendHost', hostId });
     return { success: false, message: 'server' };
@@ -110,10 +119,11 @@ export async function unsuspendHost(
 
   const parsed = unsuspendHostSchema.safeParse({
     hostId: formValue(formData, 'hostId'),
+    reviewerNotes: formValue(formData, 'reviewerNotes'),
     locale: formValue(formData, 'locale'),
   });
   if (!parsed.success) return { success: false, message: 'validation' };
-  const { hostId, locale } = parsed.data;
+  const { hostId, reviewerNotes, locale } = parsed.data;
 
   try {
     const updated = await db
@@ -130,6 +140,14 @@ export async function unsuspendHost(
     }
     // Intentionally NOT auto-republishing experiences. The host
     // re-engages with each listing deliberately.
+
+    // Audit row.
+    await db.insert(hostStatusEvents).values({
+      hostId,
+      event: 'restored',
+      reviewerUserId: guard.adminUserId,
+      reviewerNotes: reviewerNotes ?? null,
+    });
   } catch (error) {
     reportError(error, { surface: 'admin:unsuspendHost', hostId });
     return { success: false, message: 'server' };

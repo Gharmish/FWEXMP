@@ -95,7 +95,13 @@
       "languages": "اللغات",
       "location": "الموقع",
       "bio": "النبذة (بالإنجليزية)",
-      "reviewerNotes": "ملاحظات المراجعة"
+      "reviewerNotes": "ملاحظات المراجعة",
+      "historyHeading": "TODO(ar): Decision history"
+    },
+    "applicationEvent": {
+      "submitted": "TODO(ar): Submitted",
+      "approved": "TODO(ar): Approved",
+      "rejected": "TODO(ar): Rejected"
     },
     "actions": {
       "approve": "اعتمد وأنشئ ملف المضيف",
@@ -187,9 +193,14 @@
       "bio": "TODO(ar): Bio",
       "experiencesHeading": "TODO(ar): Experiences",
       "experiencesEmpty": "TODO(ar): This host hasn't drafted anything yet.",
+      "historyHeading": "TODO(ar): Status history",
       "pendingEyebrow": "TODO(ar): Pending",
       "pendingDescription": "TODO(ar): This host's application is still being reviewed.",
       "pendingCta": "TODO(ar): Go to host applications →"
+    },
+    "hostStatusEvent": {
+      "suspended": "TODO(ar): Suspended",
+      "restored": "TODO(ar): Restored"
     },
     "hostActions": {
       "suspend": "TODO(ar): Suspend host",
@@ -197,6 +208,8 @@
       "suspendConfirm": "TODO(ar): Suspending puts the host's account on hold. Every live experience is paused so it leaves the catalog immediately. Existing bookings are not cancelled.",
       "unsuspend": "TODO(ar): Restore host",
       "unsuspendPending": "TODO(ar): Restoring",
+      "notesLabel": "TODO(ar): Reviewer notes",
+      "notesHint": "TODO(ar): Internal-only. Saved to the status history so future reviewers see why this happened.",
       "errors": {
         "forbidden": "TODO(ar): You're not authorised to do that.",
         "noDb": "TODO(ar): Admin actions require a database connection.",

@@ -9,7 +9,11 @@ import { Badge } from '@/components/ui/badge';
 import { formatDate } from '@/lib/format';
 import { getHostForAdmin, isAdminAndDbReady } from '@/features/admin/hosts/queries';
 import { HostActions } from '@/app/[locale]/admin/hosts/[id]/host-actions';
-import type { AdminHostExperienceRow, HostVerificationStatus } from '@/features/admin/hosts/types';
+import type {
+  AdminHostExperienceRow,
+  HostStatusEventType,
+  HostVerificationStatus,
+} from '@/features/admin/hosts/types';
 
 export async function generateMetadata({
   params,
@@ -36,6 +40,11 @@ const EXP_STATUS_TONE: Record<AdminHostExperienceRow['status'], string> = {
   live: 'bg-juniper-green/15 text-juniper-green',
   paused: 'bg-saffron-gold/20 text-sarat-black',
   archived: 'bg-sarat-black/8 text-sarat-black',
+};
+
+const EVENT_TONE: Record<HostStatusEventType, string> = {
+  suspended: 'bg-al-qatt-red/15 text-al-qatt-red',
+  restored: 'bg-juniper-green/15 text-juniper-green',
 };
 
 export default async function AdminHostDetailPage({
@@ -199,6 +208,32 @@ export default async function AdminHostDetailPage({
         )}
       </section>
 
+      {/* History */}
+      {host.statusEvents.length > 0 && (
+        <section className="border-sarat-black/8 rounded-card flex flex-col gap-4 [border-width:0.5px] p-6">
+          <h2 className={eyebrowClassName}>{t('hostDetail.historyHeading')}</h2>
+          <ol className="flex flex-col gap-4">
+            {host.statusEvents.map((event) => (
+              <li key={event.id} className="flex flex-col gap-1.5">
+                <div className="flex flex-wrap items-center gap-3">
+                  <Badge className={EVENT_TONE[event.event]}>
+                    {t(`hostStatusEvent.${event.event}`)}
+                  </Badge>
+                  <span className="text-sarat-black-600 text-sm">
+                    {formatDate(new Date(event.createdAt), loc)}
+                  </span>
+                </div>
+                {event.reviewerNotes && (
+                  <p className="text-base leading-relaxed whitespace-pre-line">
+                    {event.reviewerNotes}
+                  </p>
+                )}
+              </li>
+            ))}
+          </ol>
+        </section>
+      )}
+
       {/* Actions */}
       <HostActions
         hostId={host.id}
@@ -211,6 +246,8 @@ export default async function AdminHostDetailPage({
           suspendConfirm: t('hostActions.suspendConfirm'),
           unsuspendLabel: t('hostActions.unsuspend'),
           unsuspendPending: t('hostActions.unsuspendPending'),
+          notesLabel: t('hostActions.notesLabel'),
+          notesHint: t('hostActions.notesHint'),
           errors: {
             forbidden: t('hostActions.errors.forbidden'),
             no_db: t('hostActions.errors.noDb'),

@@ -25,10 +25,20 @@ export interface AdminHostExperienceRow {
   status: 'draft' | 'pending_review' | 'changes_requested' | 'live' | 'paused' | 'archived';
 }
 
+export type HostStatusEventType = 'suspended' | 'restored';
+
+export interface AdminHostStatusEventView {
+  id: string;
+  event: HostStatusEventType;
+  reviewerNotes: string | null;
+  createdAt: string;
+}
+
 export interface AdminHostDetail extends AdminHostRow {
   bioAr: string;
   nationalId: string | null;
   crNumber: string | null;
   languages: readonly string[];
   experiences: readonly AdminHostExperienceRow[];
+  statusEvents: readonly AdminHostStatusEventView[];
 }

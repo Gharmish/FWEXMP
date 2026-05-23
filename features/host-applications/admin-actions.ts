@@ -5,7 +5,7 @@ import { notFound } from 'next/navigation';
 import { revalidatePath } from 'next/cache';
 import { db } from '@/lib/db';
 import { serverEnv } from '@/lib/env';
-import { hostApplications, hosts } from '@/db/schema';
+import { hostApplications, hostApplicationEvents, hosts } from '@/db/schema';
 import { redirect } from '@/lib/i18n';
 import { reportError } from '@/lib/log';
 import { getCurrentUser } from '@/features/auth/queries';
@@ -108,6 +108,14 @@ export async function approveApplication(
         updatedAt: new Date(),
       })
       .where(eq(hostApplications.id, applicationId));
+
+    // Audit row — preserves the decision across any future resubmits.
+    await db.insert(hostApplicationEvents).values({
+      applicationId,
+      event: 'approved',
+      reviewerUserId: guard.adminUserId,
+      reviewerNotes: reviewerNotes ?? null,
+    });
   } catch (error) {
     reportError(error, { surface: 'admin:approveApplication', applicationId });
     return { success: false, message: 'server' };
@@ -161,6 +169,13 @@ export async function rejectApplication(
         updatedAt: new Date(),
       })
       .where(eq(hostApplications.id, applicationId));
+
+    await db.insert(hostApplicationEvents).values({
+      applicationId,
+      event: 'rejected',
+      reviewerUserId: guard.adminUserId,
+      reviewerNotes,
+    });
   } catch (error) {
     reportError(error, { surface: 'admin:rejectApplication', applicationId });
     return { success: false, message: 'server' };

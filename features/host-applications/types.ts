@@ -30,6 +30,17 @@ export interface HostApplicationView {
   reviewedAt: string | null;
 }
 
+export type HostApplicationEventType = 'submitted' | 'approved' | 'rejected';
+
+/** One entry in the application's audit timeline (DB-backed only). */
+export interface HostApplicationEventView {
+  id: string;
+  event: HostApplicationEventType;
+  reviewerNotes: string | null;
+  /** ISO 8601. */
+  createdAt: string;
+}
+
 /** Languages the form offers, in display order. Subset of BRIEF §8. */
 export const HOST_LANGUAGE_OPTIONS = ['ar', 'en', 'fr', 'ur'] as const;
 export type HostLanguage = (typeof HOST_LANGUAGE_OPTIONS)[number];

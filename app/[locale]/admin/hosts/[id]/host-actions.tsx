@@ -1,8 +1,9 @@
 'use client';
 
-import { useActionState } from 'react';
+import { useActionState, useId } from 'react';
 import { useFormStatus } from 'react-dom';
 import { Button } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
 import type { Locale } from '@/lib/i18n';
 import { suspendHost, unsuspendHost, type AdminHostResult } from '@/features/admin/hosts/actions';
 import type { HostVerificationStatus } from '@/features/admin/hosts/types';
@@ -15,8 +16,15 @@ interface Copy {
   suspendConfirm: string;
   unsuspendLabel: string;
   unsuspendPending: string;
+  notesLabel: string;
+  notesHint: string;
   errors: Record<ErrorKey, string>;
 }
+
+const TEXTAREA_CLASS = cn(
+  'rounded-input border-sarat-black/20 bg-fog-white text-sarat-black w-full resize-y [border-width:0.5px] px-4 py-3 text-base',
+  'placeholder:text-sarat-black-600 disabled:pointer-events-none disabled:opacity-50',
+);
 
 export interface HostActionsProps {
   hostId: string;
@@ -64,6 +72,8 @@ export function HostActions({ hostId, status, livePublished, locale, copy }: Hos
   const [unsuspendState, unsuspendAction] = useActionState(unsuspendHost, initialState);
   const suspendError = errorMessage(suspendState, copy);
   const unsuspendError = errorMessage(unsuspendState, copy);
+  const suspendNotesId = useId();
+  const unsuspendNotesId = useId();
 
   // We don't surface lifecycle actions for `pending` hosts here — that
   // flow lives at /admin/host-applications. The detail page links over.
@@ -82,6 +92,17 @@ export function HostActions({ hostId, status, livePublished, locale, copy }: Hos
         <form action={suspendAction} className="flex flex-col gap-3">
           <input type="hidden" name="hostId" value={hostId} />
           <input type="hidden" name="locale" value={locale} />
+          <label htmlFor={suspendNotesId} className="text-sm font-medium">
+            {copy.notesLabel}
+          </label>
+          <textarea
+            id={suspendNotesId}
+            name="reviewerNotes"
+            rows={3}
+            maxLength={2000}
+            className={TEXTAREA_CLASS}
+          />
+          <p className="text-sarat-black-600 text-xs">{copy.notesHint}</p>
           {suspendError && (
             <p role="alert" className="text-al-qatt-red-800 text-sm">
               {suspendError}
@@ -101,6 +122,17 @@ export function HostActions({ hostId, status, livePublished, locale, copy }: Hos
       <form action={unsuspendAction} className="flex flex-col gap-3">
         <input type="hidden" name="hostId" value={hostId} />
         <input type="hidden" name="locale" value={locale} />
+        <label htmlFor={unsuspendNotesId} className="text-sm font-medium">
+          {copy.notesLabel}
+        </label>
+        <textarea
+          id={unsuspendNotesId}
+          name="reviewerNotes"
+          rows={3}
+          maxLength={2000}
+          className={TEXTAREA_CLASS}
+        />
+        <p className="text-sarat-black-600 text-xs">{copy.notesHint}</p>
         {unsuspendError && (
           <p role="alert" className="text-al-qatt-red-800 text-sm">
             {unsuspendError}

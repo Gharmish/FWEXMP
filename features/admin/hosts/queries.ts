@@ -1,7 +1,7 @@
 import { count, desc, eq, inArray, sql } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import { serverEnv } from '@/lib/env';
-import { bookings, experiences, hosts } from '@/db/schema';
+import { bookings, experiences, hosts, hostStatusEvents } from '@/db/schema';
 import { reportError } from '@/lib/log';
 import { getCurrentUser } from '@/features/auth/queries';
 import { isAdminUser } from '@/features/admin/auth';
@@ -9,6 +9,7 @@ import type {
   AdminHostDetail,
   AdminHostRow,
   AdminHostExperienceRow,
+  AdminHostStatusEventView,
 } from '@/features/admin/hosts/types';
 
 /**
@@ -158,11 +159,18 @@ export async function getHostForAdmin(id: string): Promise<AdminHostDetail | nul
     });
     if (!host) return null;
 
-    const expRows = await db.query.experiences.findMany({
-      where: (e) => eq(e.hostId, id),
-      orderBy: (e) => desc(e.createdAt),
-      columns: { id: true, slug: true, titleEn: true, status: true },
-    });
+    const [expRows, eventRows] = await Promise.all([
+      db.query.experiences.findMany({
+        where: (e) => eq(e.hostId, id),
+        orderBy: (e) => desc(e.createdAt),
+        columns: { id: true, slug: true, titleEn: true, status: true },
+      }),
+      db
+        .select()
+        .from(hostStatusEvents)
+        .where(eq(hostStatusEvents.hostId, id))
+        .orderBy(desc(hostStatusEvents.createdAt)),
+    ]);
 
     const [counts, bookingCounts] = await Promise.all([
       experienceCounts([id]),
@@ -188,6 +196,13 @@ export async function getHostForAdmin(id: string): Promise<AdminHostDetail | nul
       status: row.status,
     }));
 
+    const eventViews: AdminHostStatusEventView[] = eventRows.map((row) => ({
+      id: row.id,
+      event: row.event,
+      reviewerNotes: row.reviewerNotes,
+      createdAt: row.createdAt.toISOString(),
+    }));
+
     return {
       ...base,
       bioAr: host.bioAr,
@@ -195,6 +210,7 @@ export async function getHostForAdmin(id: string): Promise<AdminHostDetail | nul
       crNumber: host.crNumber,
       languages: host.languages,
       experiences: expViews,
+      statusEvents: eventViews,
     };
   } catch (error) {
     reportError(error, { surface: 'admin:getHost', hostId: id });

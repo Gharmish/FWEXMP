@@ -15,6 +15,20 @@
       "when": 1779496634444,
       "tag": "0001_organic_warpath",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1779528330230,
+      "tag": "0002_broken_doorman",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1779530376878,
+      "tag": "0003_ordinary_captain_britain",
+      "breakpoints": true
     }
   ]
 }

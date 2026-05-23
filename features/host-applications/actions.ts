@@ -5,7 +5,7 @@ import { revalidatePath } from 'next/cache';
 import { eq } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import { serverEnv } from '@/lib/env';
-import { hostApplications } from '@/db/schema';
+import { hostApplications, hostApplicationEvents } from '@/db/schema';
 import { redirect } from '@/lib/i18n';
 import { reportError } from '@/lib/log';
 import { getCurrentUser } from '@/features/auth/queries';
@@ -161,7 +161,14 @@ export async function submitHostApplication(
       columns: { id: true, status: true },
     });
 
+    let applicationId: string;
+    let isResubmission = false;
     if (existing) {
+      applicationId = existing.id;
+      // Approved applications stay approved — re-submitting after
+      // approval shouldn't reset anyone's verified status. Log the
+      // event though so the trail captures the attempt.
+      isResubmission = existing.status !== 'approved';
       await db
         .update(hostApplications)
         .set({
@@ -183,18 +190,34 @@ export async function submitHostApplication(
         })
         .where(eq(hostApplications.id, existing.id));
     } else {
-      await db.insert(hostApplications).values({
-        userId: user.id,
-        contactPhone: user.phone,
-        contactEmail: input.contactEmail ?? null,
-        displayName: input.displayName,
-        bioEn: input.bioEn,
-        languages: [...input.languages],
-        identityType: input.identityType,
-        identityNumber: input.identityNumber,
-        city: input.city,
-        region: input.region,
-        status: 'pending',
+      const [inserted] = await db
+        .insert(hostApplications)
+        .values({
+          userId: user.id,
+          contactPhone: user.phone,
+          contactEmail: input.contactEmail ?? null,
+          displayName: input.displayName,
+          bioEn: input.bioEn,
+          languages: [...input.languages],
+          identityType: input.identityType,
+          identityNumber: input.identityNumber,
+          city: input.city,
+          region: input.region,
+          status: 'pending',
+        })
+        .returning({ id: hostApplications.id });
+      applicationId = inserted.id;
+    }
+
+    // Audit row — captures every submission cycle, including
+    // resubmissions after rejection. Only `submitted` events come
+    // from this action; admin decisions live in admin-actions.ts.
+    if (!existing || isResubmission) {
+      await db.insert(hostApplicationEvents).values({
+        applicationId,
+        event: 'submitted',
+        reviewerUserId: null,
+        reviewerNotes: null,
       });
     }
   } catch (error) {

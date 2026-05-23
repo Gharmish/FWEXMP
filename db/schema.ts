@@ -84,6 +84,25 @@ export const moderationEventEnum = pgEnum('experience_moderation_event', [
   'changes_requested',
 ]);
 
+/**
+ * Lifecycle events on a host record. Today: suspend / restore. If we
+ * later split "verify" out of the host-applications approve action,
+ * add a 'verified' value here.
+ */
+export const hostStatusEventEnum = pgEnum('host_status_event', ['suspended', 'restored']);
+
+/**
+ * Per-cycle events on a host application. The application row itself
+ * carries the *latest* state; this table preserves every submit and
+ * decision across resubmissions, which the single-row fields would
+ * overwrite.
+ */
+export const hostApplicationEventEnum = pgEnum('host_application_event', [
+  'submitted',
+  'approved',
+  'rejected',
+]);
+
 export const bookingStatusEnum = pgEnum('booking_status', [
   'pending',
   'confirmed',
@@ -320,6 +339,41 @@ export const experienceModerationEvents = pgTable('experience_moderation_events'
   createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
 });
 
+/**
+ * Append-only audit log of host application decisions. Preserves
+ * every submit / approve / reject across resubmission cycles, which
+ * `host_applications.reviewerNotes / reviewedAt` would overwrite.
+ */
+export const hostApplicationEvents = pgTable('host_application_events', {
+  id: uuid().defaultRandom().primaryKey(),
+  applicationId: uuid()
+    .notNull()
+    .references(() => hostApplications.id, { onDelete: 'cascade' }),
+  event: hostApplicationEventEnum().notNull(),
+  /** Null on host-initiated `submitted` events; set on admin decisions. */
+  reviewerUserId: uuid(),
+  /** Free-text. Required by the action layer on `rejected`. */
+  reviewerNotes: text(),
+  createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
+});
+
+/**
+ * Append-only audit log of host status changes (suspend / restore).
+ * Mirrors `experience_moderation_events`: newest row tells the story.
+ */
+export const hostStatusEvents = pgTable('host_status_events', {
+  id: uuid().defaultRandom().primaryKey(),
+  hostId: uuid()
+    .notNull()
+    .references(() => hosts.id, { onDelete: 'cascade' }),
+  event: hostStatusEventEnum().notNull(),
+  /** Supabase auth id of the admin who acted. */
+  reviewerUserId: uuid(),
+  /** Optional context — internal-only, never shown to the host. */
+  reviewerNotes: text(),
+  createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
+});
+
 /** Guest wishlist (BRIEF §8: "Saved experiences"). */
 export const savedExperiences = pgTable(
   'saved_experiences',
@@ -339,6 +393,21 @@ export const savedExperiences = pgTable(
 
 export const hostsRelations = relations(hosts, ({ many }) => ({
   experiences: many(experiences),
+  statusEvents: many(hostStatusEvents),
+}));
+
+export const hostStatusEventsRelations = relations(hostStatusEvents, ({ one }) => ({
+  host: one(hosts, {
+    fields: [hostStatusEvents.hostId],
+    references: [hosts.id],
+  }),
+}));
+
+export const hostApplicationEventsRelations = relations(hostApplicationEvents, ({ one }) => ({
+  application: one(hostApplications, {
+    fields: [hostApplicationEvents.applicationId],
+    references: [hostApplications.id],
+  }),
 }));
 
 export const guestsRelations = relations(guests, ({ many }) => ({
@@ -420,3 +489,7 @@ export type HostApplication = typeof hostApplications.$inferSelect;
 export type NewHostApplication = typeof hostApplications.$inferInsert;
 export type ExperienceModerationEvent = typeof experienceModerationEvents.$inferSelect;
 export type NewExperienceModerationEvent = typeof experienceModerationEvents.$inferInsert;
+export type HostStatusEvent = typeof hostStatusEvents.$inferSelect;
+export type NewHostStatusEvent = typeof hostStatusEvents.$inferInsert;
+export type HostApplicationEvent = typeof hostApplicationEvents.$inferSelect;
+export type NewHostApplicationEvent = typeof hostApplicationEvents.$inferInsert;

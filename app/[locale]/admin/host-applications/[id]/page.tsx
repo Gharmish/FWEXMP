@@ -8,11 +8,15 @@ import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 import { formatDate } from '@/lib/format';
 import {
+  getApplicationEventsForAdmin,
   getApplicationForAdmin,
   isAdminAndDbReady,
 } from '@/features/host-applications/admin-queries';
 import { ReviewerActions } from '@/app/[locale]/admin/host-applications/[id]/reviewer-actions';
-import type { HostApplicationStatus } from '@/features/host-applications/types';
+import type {
+  HostApplicationEventType,
+  HostApplicationStatus,
+} from '@/features/host-applications/types';
 
 export async function generateMetadata({
   params,
@@ -28,6 +32,12 @@ export async function generateMetadata({
 
 const STATUS_TONE: Record<HostApplicationStatus, string> = {
   pending: 'bg-saffron-gold/20 text-sarat-black',
+  approved: 'bg-juniper-green/15 text-juniper-green',
+  rejected: 'bg-al-qatt-red/15 text-al-qatt-red',
+};
+
+const EVENT_TONE: Record<HostApplicationEventType, string> = {
+  submitted: 'bg-sarat-black/8 text-sarat-black',
   approved: 'bg-juniper-green/15 text-juniper-green',
   rejected: 'bg-al-qatt-red/15 text-al-qatt-red',
 };
@@ -71,6 +81,10 @@ export default async function AdminHostApplicationDetailPage({
 
   const application = await getApplicationForAdmin(id);
   if (!application || application.id === null) notFound();
+  // Application id is non-null here — the cookie-mode view never
+  // reaches the DB-only admin queries above. Pull the event timeline
+  // in parallel-friendly form (single roundtrip).
+  const events = await getApplicationEventsForAdmin(application.id);
 
   const t = await getTranslations('admin');
   const eyebrowClassName = cn(
@@ -152,6 +166,31 @@ export default async function AdminHostApplicationDetailPage({
           <p className="text-base leading-relaxed whitespace-pre-line">
             {application.reviewerNotes}
           </p>
+        </section>
+      )}
+
+      {events.length > 0 && (
+        <section className="border-sarat-black/8 rounded-card flex flex-col gap-4 [border-width:0.5px] p-6">
+          <h2 className={eyebrowClassName}>{t('detail.historyHeading')}</h2>
+          <ol className="flex flex-col gap-4">
+            {events.map((event) => (
+              <li key={event.id} className="flex flex-col gap-1.5">
+                <div className="flex flex-wrap items-center gap-3">
+                  <Badge className={EVENT_TONE[event.event]}>
+                    {t(`applicationEvent.${event.event}`)}
+                  </Badge>
+                  <span className="text-sarat-black-600 text-sm">
+                    {formatDate(new Date(event.createdAt), loc)}
+                  </span>
+                </div>
+                {event.reviewerNotes && (
+                  <p className="text-base leading-relaxed whitespace-pre-line">
+                    {event.reviewerNotes}
+                  </p>
+                )}
+              </li>
+            ))}
+          </ol>
         </section>
       )}
 
