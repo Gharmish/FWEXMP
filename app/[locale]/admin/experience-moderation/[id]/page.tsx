@@ -1,0 +1,315 @@
+import type { Metadata } from 'next';
+import { notFound } from 'next/navigation';
+import Image from 'next/image';
+import { ArrowLeft, ExternalLink } from 'lucide-react';
+import { getTranslations, setRequestLocale } from 'next-intl/server';
+import { Link } from '@/lib/i18n';
+import type { Locale } from '@/lib/i18n';
+import { cn } from '@/lib/utils';
+import { Badge } from '@/components/ui/badge';
+import { formatDate, formatSAR } from '@/lib/format';
+import {
+  getModerationDetail,
+  isAdminAndDbReady,
+} from '@/features/admin/experience-moderation/queries';
+import { ReviewerActions } from '@/app/[locale]/admin/experience-moderation/[id]/reviewer-actions';
+import type {
+  ExperienceStatus,
+  ModerationEventType,
+} from '@/features/admin/experience-moderation/types';
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ locale: string; id: string }>;
+}): Promise<Metadata> {
+  const { locale } = await params;
+  return {
+    title: locale === 'ar' ? 'مراجعة تجربة' : 'Experience review',
+    robots: { index: false, follow: false },
+  };
+}
+
+const STATUS_TONE: Record<ExperienceStatus, string> = {
+  draft: 'bg-sarat-black/8 text-sarat-black',
+  pending_review: 'bg-saffron-gold/20 text-sarat-black',
+  changes_requested: 'bg-rijal-clay/15 text-rijal-clay',
+  live: 'bg-juniper-green/15 text-juniper-green',
+  paused: 'bg-saffron-gold/20 text-sarat-black',
+  archived: 'bg-sarat-black/8 text-sarat-black',
+};
+
+const EVENT_TONE: Record<ModerationEventType, string> = {
+  submitted: 'bg-sarat-black/8 text-sarat-black',
+  approved: 'bg-juniper-green/15 text-juniper-green',
+  rejected: 'bg-al-qatt-red/15 text-al-qatt-red',
+  changes_requested: 'bg-rijal-clay/15 text-rijal-clay',
+};
+
+const WEEKDAY_LABELS = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'] as const;
+
+export default async function AdminExperienceModerationDetailPage({
+  params,
+}: {
+  params: Promise<{ locale: string; id: string }>;
+}) {
+  const { locale, id } = await params;
+  setRequestLocale(locale);
+  const loc = locale as Locale;
+
+  const block = await isAdminAndDbReady();
+  if (block?.reason === 'no_db') {
+    const t = await getTranslations('admin');
+    const eyebrowClassName = cn(
+      'text-sarat-black-600 text-[11px]',
+      loc === 'en' && 'tracking-[0.2em] uppercase',
+    );
+    return (
+      <div className="flex flex-col gap-10">
+        <Link
+          href="/admin/experience-moderation"
+          className="text-sarat-black-600 inline-flex min-h-11 items-center gap-2 self-start text-sm font-medium transition-opacity duration-200 hover:opacity-60"
+        >
+          <ArrowLeft className="size-4 shrink-0 rtl:rotate-180" aria-hidden />
+          {t('experienceModerationList.title')}
+        </Link>
+        <div className="border-sarat-black/8 rounded-card flex flex-col items-start gap-4 [border-width:0.5px] p-10">
+          <p className={eyebrowClassName}>{t('noDb.eyebrow')}</p>
+          <h2 className="font-display text-2xl font-medium tracking-[-0.025em]">
+            {t('noDb.title')}
+          </h2>
+          <p className="text-sarat-black-600 max-w-xl text-base">{t('noDb.description')}</p>
+        </div>
+      </div>
+    );
+  }
+
+  const detail = await getModerationDetail(id);
+  if (!detail) notFound();
+
+  const [t, tCat, tWeek] = await Promise.all([
+    getTranslations('admin'),
+    getTranslations('hostExperiences.form.categories'),
+    getTranslations('hostExperiences.form.weekdays'),
+  ]);
+  const eyebrowClassName = cn(
+    'text-sarat-black-600 text-[11px]',
+    loc === 'en' && 'tracking-[0.2em] uppercase',
+  );
+
+  const titleArIsPlaceholder = detail.titleAr.startsWith('TODO(ar):');
+  const descriptionArIsPlaceholder = detail.descriptionAr.startsWith('TODO(ar):');
+
+  return (
+    <div className="flex flex-col gap-10">
+      <div className="flex flex-col gap-4">
+        <Link
+          href="/admin/experience-moderation"
+          className="text-sarat-black-600 inline-flex min-h-11 items-center gap-2 self-start text-sm font-medium transition-opacity duration-200 hover:opacity-60"
+        >
+          <ArrowLeft className="size-4 shrink-0 rtl:rotate-180" aria-hidden />
+          {t('experienceModerationList.title')}
+        </Link>
+
+        <div className="flex flex-wrap items-baseline gap-3">
+          <h1 className="font-display text-4xl font-medium tracking-[-0.035em] text-balance sm:text-5xl">
+            {detail.titleEn}
+          </h1>
+          <Badge className={STATUS_TONE[detail.status]}>
+            {t(`experienceStatus.${detail.status}`)}
+          </Badge>
+        </div>
+        <div className="text-sarat-black-600 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
+          <span>{detail.hostName}</span>
+          <span aria-hidden>·</span>
+          <span>
+            {detail.placeName} · {detail.city}
+          </span>
+          {detail.submittedAt && (
+            <>
+              <span aria-hidden>·</span>
+              <span>
+                {t('experienceModerationDetail.submittedOn', {
+                  date: formatDate(new Date(detail.submittedAt), loc),
+                })}
+              </span>
+            </>
+          )}
+        </div>
+      </div>
+
+      {/* Hero */}
+      {detail.heroImage && (
+        <div className="rounded-card relative aspect-[16/9] w-full overflow-hidden">
+          <Image
+            src={detail.heroImage}
+            alt={detail.titleEn}
+            fill
+            sizes="(max-width: 768px) 100vw, 768px"
+            className="object-cover"
+          />
+        </div>
+      )}
+
+      {/* Quick facts */}
+      <dl className="border-sarat-black/8 rounded-card grid gap-5 [border-width:0.5px] p-6 sm:grid-cols-2">
+        <div className="flex flex-col gap-0.5">
+          <dt className={eyebrowClassName}>{t('experienceModerationDetail.price')}</dt>
+          <dd className="text-base font-medium">{formatSAR(detail.priceSar, loc)}</dd>
+        </div>
+        <div className="flex flex-col gap-0.5">
+          <dt className={eyebrowClassName}>{t('experienceModerationDetail.duration')}</dt>
+          <dd className="text-base font-medium">
+            {t('experienceModerationDetail.minutes', { count: detail.durationMinutes })}
+          </dd>
+        </div>
+        <div className="flex flex-col gap-0.5">
+          <dt className={eyebrowClassName}>{t('experienceModerationDetail.category')}</dt>
+          <dd className="text-base font-medium">{tCat(detail.category)}</dd>
+        </div>
+        <div className="flex flex-col gap-0.5">
+          <dt className={eyebrowClassName}>{t('experienceModerationDetail.groupAndAge')}</dt>
+          <dd className="text-base font-medium">
+            {t('experienceModerationDetail.groupAndAgeValue', {
+              max: detail.maxGroupSize,
+              age: detail.minAge,
+            })}
+          </dd>
+        </div>
+        <div className="flex flex-col gap-0.5 sm:col-span-2">
+          <dt className={eyebrowClassName}>{t('experienceModerationDetail.availability')}</dt>
+          <dd className="text-base font-medium">
+            {detail.availabilityWeekdays.length === 0
+              ? '—'
+              : detail.availabilityWeekdays
+                  .map((d) => tWeek(WEEKDAY_LABELS[d] ?? 'sun'))
+                  .join(' · ')}
+          </dd>
+        </div>
+      </dl>
+
+      {/* Description */}
+      <section className="flex flex-col gap-3">
+        <h2 className={eyebrowClassName}>{t('experienceModerationDetail.descriptionEn')}</h2>
+        <p className="text-base leading-relaxed whitespace-pre-line">{detail.descriptionEn}</p>
+      </section>
+
+      <section className="flex flex-col gap-3">
+        <h2 className={eyebrowClassName}>{t('experienceModerationDetail.descriptionAr')}</h2>
+        {descriptionArIsPlaceholder ? (
+          <p className="text-sarat-black-600 text-base italic">
+            {t('experienceModerationDetail.arabicPending')}
+          </p>
+        ) : (
+          <p className="text-base leading-relaxed whitespace-pre-line" dir="rtl">
+            {detail.descriptionAr}
+          </p>
+        )}
+      </section>
+
+      {titleArIsPlaceholder && (
+        <p className="text-sarat-black-600 text-sm italic">
+          {t('experienceModerationDetail.arabicTitlePending')}
+        </p>
+      )}
+
+      {/* Inclusions / what to bring */}
+      {(detail.inclusions.length > 0 || detail.whatToBring.length > 0) && (
+        <section className="grid gap-8 sm:grid-cols-2">
+          {detail.inclusions.length > 0 && (
+            <div className="flex flex-col gap-3">
+              <h2 className={eyebrowClassName}>{t('experienceModerationDetail.inclusions')}</h2>
+              <ul className="text-sarat-black-600 list-inside list-disc text-base leading-relaxed">
+                {detail.inclusions.map((item, i) => (
+                  <li key={i}>{item}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+          {detail.whatToBring.length > 0 && (
+            <div className="flex flex-col gap-3">
+              <h2 className={eyebrowClassName}>{t('experienceModerationDetail.whatToBring')}</h2>
+              <ul className="text-sarat-black-600 list-inside list-disc text-base leading-relaxed">
+                {detail.whatToBring.map((item, i) => (
+                  <li key={i}>{item}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </section>
+      )}
+
+      {/* Cancellation */}
+      <section className="flex flex-col gap-3">
+        <h2 className={eyebrowClassName}>{t('experienceModerationDetail.cancellation')}</h2>
+        <p className="text-base leading-relaxed whitespace-pre-line">{detail.cancellationPolicy}</p>
+      </section>
+
+      {/* History */}
+      {detail.events.length > 0 && (
+        <section className="border-sarat-black/8 rounded-card flex flex-col gap-4 [border-width:0.5px] p-6">
+          <h2 className={eyebrowClassName}>{t('experienceModerationDetail.history')}</h2>
+          <ol className="flex flex-col gap-4">
+            {detail.events.map((event) => (
+              <li key={event.id} className="flex flex-col gap-1.5">
+                <div className="flex flex-wrap items-center gap-3">
+                  <Badge className={EVENT_TONE[event.event]}>
+                    {t(`moderationEvent.${event.event}`)}
+                  </Badge>
+                  <span className="text-sarat-black-600 text-sm">
+                    {formatDate(new Date(event.createdAt), loc)}
+                  </span>
+                </div>
+                {event.reviewerNotes && (
+                  <p className="text-base leading-relaxed whitespace-pre-line">
+                    {event.reviewerNotes}
+                  </p>
+                )}
+              </li>
+            ))}
+          </ol>
+        </section>
+      )}
+
+      {/* Public link (for live / paused) */}
+      {(detail.status === 'live' || detail.status === 'paused') && (
+        <Link
+          href={`/experiences/${detail.slug}`}
+          className="text-sarat-black-600 inline-flex min-h-11 items-center gap-2 self-start text-sm font-medium underline-offset-4 hover:underline"
+        >
+          <ExternalLink className="size-4 shrink-0" aria-hidden />
+          {t('experienceModerationDetail.viewPublic')}
+        </Link>
+      )}
+
+      {/* Actions */}
+      {detail.status === 'pending_review' && (
+        <ReviewerActions
+          experienceId={detail.id}
+          locale={loc}
+          copy={{
+            approveLabel: t('experienceActions.approve'),
+            approvePending: t('experienceActions.approvePending'),
+            rejectLabel: t('experienceActions.reject'),
+            rejectPending: t('experienceActions.rejectPending'),
+            requestChangesLabel: t('experienceActions.requestChanges'),
+            requestChangesPending: t('experienceActions.requestChangesPending'),
+            notesLabel: t('experienceActions.notesLabel'),
+            notesApproveHint: t('experienceActions.notesApproveHint'),
+            notesRejectHint: t('experienceActions.notesRejectHint'),
+            notesRequestChangesHint: t('experienceActions.notesRequestChangesHint'),
+            errors: {
+              forbidden: t('experienceActions.errors.forbidden'),
+              no_db: t('experienceActions.errors.noDb'),
+              not_found: t('experienceActions.errors.notFound'),
+              validation: t('experienceActions.errors.validation'),
+              server: t('experienceActions.errors.server'),
+              wrong_state: t('experienceActions.errors.wrongState'),
+              reviewer_note_short: t('experienceActions.errors.reviewerNoteShort'),
+            },
+          }}
+        />
+      )}
+    </div>
+  );
+}

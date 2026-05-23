@@ -9,9 +9,11 @@ import { Badge } from '@/components/ui/badge';
 import { getCurrentUser } from '@/features/auth/queries';
 import { getHostDashboard } from '@/features/host-dashboard/queries';
 import { getMyExperienceById } from '@/features/host-experiences/queries';
+import { getLatestModerationDecision } from '@/features/admin/experience-moderation/queries';
 import { ExperienceForm } from '@/app/[locale]/host/experiences/[id]/experience-form';
 import { buildExperienceFormCopy } from '@/app/[locale]/host/experiences/[id]/build-form-copy';
 import { LifecycleActions } from '@/app/[locale]/host/experiences/[id]/lifecycle-actions';
+import { formatDate } from '@/lib/format';
 
 export async function generateMetadata({
   params,
@@ -25,8 +27,13 @@ export async function generateMetadata({
   };
 }
 
-const STATUS_TONE: Record<'draft' | 'live' | 'paused' | 'archived', string> = {
+const STATUS_TONE: Record<
+  'draft' | 'pending_review' | 'changes_requested' | 'live' | 'paused' | 'archived',
+  string
+> = {
   draft: 'bg-sarat-black/8 text-sarat-black',
+  pending_review: 'bg-saffron-gold/20 text-sarat-black',
+  changes_requested: 'bg-rijal-clay/15 text-rijal-clay',
   live: 'bg-juniper-green/15 text-juniper-green',
   paused: 'bg-saffron-gold/20 text-sarat-black',
   archived: 'bg-rijal-clay/10 text-rijal-clay',
@@ -55,6 +62,15 @@ export default async function EditExperiencePage({
 
   const experience = await getMyExperienceById(id);
   if (!experience) notFound();
+
+  const hostSuspended = dashboard.host.verificationStatus === 'suspended';
+
+  // Surface the most recent reviewer decision so a host who hit
+  // `changes_requested` or `rejected` sees what to fix.
+  const latestDecision =
+    experience.status === 'changes_requested' || experience.status === 'draft'
+      ? await getLatestModerationDecision(experience.id)
+      : null;
 
   const [t, tForm] = await Promise.all([
     getTranslations('hostExperiences'),
@@ -90,6 +106,36 @@ export default async function EditExperiencePage({
           /experiences/{experience.slug}
         </p>
 
+        {hostSuspended && (
+          <section
+            role="status"
+            className="border-al-qatt-red/40 bg-al-qatt-red/5 text-sarat-black rounded-card mt-6 [border-width:0.5px] p-4 text-sm leading-relaxed"
+          >
+            {t('suspendedHostBanner')}
+          </section>
+        )}
+
+        {latestDecision &&
+          (latestDecision.event === 'changes_requested' || latestDecision.event === 'rejected') && (
+            <section className="border-rijal-clay/30 bg-rijal-clay/5 rounded-card mt-8 flex flex-col gap-2 [border-width:0.5px] p-5">
+              <p className={eyebrowClassName}>
+                {latestDecision.event === 'changes_requested'
+                  ? t('reviewerFeedback.changesRequestedEyebrow')
+                  : t('reviewerFeedback.rejectedEyebrow')}
+              </p>
+              <p className="text-sarat-black-600 text-sm">
+                {t('reviewerFeedback.receivedOn', {
+                  date: formatDate(new Date(latestDecision.createdAt), loc),
+                })}
+              </p>
+              {latestDecision.reviewerNotes && (
+                <p className="text-base leading-relaxed whitespace-pre-line">
+                  {latestDecision.reviewerNotes}
+                </p>
+              )}
+            </section>
+          )}
+
         <div className="border-sarat-black/8 mt-10 [border-top-width:0.5px] pt-10">
           <LifecycleActions
             experienceId={experience.id}
@@ -98,9 +144,11 @@ export default async function EditExperiencePage({
             copy={{
               publish: t('lifecycle.publish'),
               publishPending: t('lifecycle.publishPending'),
+              resubmit: t('lifecycle.resubmit'),
+              republish: t('lifecycle.republish'),
+              pendingReviewLabel: t('lifecycle.pendingReviewLabel'),
               pause: t('lifecycle.pause'),
               pausePending: t('lifecycle.pausePending'),
-              republish: t('lifecycle.republish'),
               viewPublic: t('lifecycle.viewPublic'),
               errors: {
                 cannot_publish: t('lifecycle.errors.cannotPublish'),
@@ -109,6 +157,8 @@ export default async function EditExperiencePage({
                 no_db: t('lifecycle.errors.noDb'),
                 server: t('lifecycle.errors.server'),
                 validation: t('lifecycle.errors.validation'),
+                wrong_state: t('lifecycle.errors.wrongState'),
+                suspended: t('lifecycle.errors.suspended'),
               },
             }}
           />
@@ -116,6 +166,14 @@ export default async function EditExperiencePage({
 
         <div className="border-sarat-black/8 mt-10 [border-top-width:0.5px] pt-10">
           <h2 className={eyebrowClassName}>{t('edit.formHeading')}</h2>
+          {experience.status === 'live' && (
+            <p
+              role="status"
+              className="border-saffron-gold/40 bg-saffron-gold/10 text-sarat-black rounded-card mt-4 [border-width:0.5px] p-4 text-sm leading-relaxed"
+            >
+              {t('edit.liveEditWarning')}
+            </p>
+          )}
           <div className="mt-6">
             <ExperienceForm
               mode="edit"

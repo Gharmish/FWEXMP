@@ -4,7 +4,7 @@ import { and, eq } from 'drizzle-orm';
 import { revalidatePath } from 'next/cache';
 import { db } from '@/lib/db';
 import { serverEnv } from '@/lib/env';
-import { experiences } from '@/db/schema';
+import { experiences, experienceModerationEvents } from '@/db/schema';
 import { redirect } from '@/lib/i18n';
 import { reportError } from '@/lib/log';
 import {
@@ -31,7 +31,15 @@ import { getCurrentHostIdForWrite } from '@/features/host-experiences/queries';
 
 export interface HostExperienceState {
   success: false;
-  message?: 'validation' | 'forbidden' | 'not_found' | 'cannot_publish' | 'server' | 'no_db';
+  message?:
+    | 'validation'
+    | 'forbidden'
+    | 'not_found'
+    | 'cannot_publish'
+    | 'wrong_state'
+    | 'suspended'
+    | 'server'
+    | 'no_db';
   fields?: Partial<
     Record<
       | 'titleEn'
@@ -208,14 +216,39 @@ export async function updateHostExperience(
   }
   const input = parsed.data;
 
+  // Edits to a `live` listing pull it back into review. Editing a
+  // `paused` / `draft` / `pending_review` / `changes_requested` row
+  // is a no-op on status (the host can iterate freely).
+  let demoteFromLive = false;
   try {
+    const current = await db.query.experiences.findFirst({
+      where: (e) => eq(e.id, experienceId),
+      columns: { status: true },
+    });
+    if (!current) return { success: false, message: 'not_found' };
+    demoteFromLive = current.status === 'live';
+
     await db
       .update(experiences)
       .set({
         ...payloadForWrite(input),
+        ...(demoteFromLive ? { status: 'pending_review' as const } : {}),
         updatedAt: new Date(),
       })
       .where(and(eq(experiences.id, experienceId), eq(experiences.hostId, guard.hostId)));
+
+    if (demoteFromLive) {
+      // Audit row — both the admin queue and the host edit page rely
+      // on this to render the history timeline.
+      await db.insert(experienceModerationEvents).values({
+        experienceId,
+        event: 'submitted',
+        fromStatus: 'live',
+        toStatus: 'pending_review',
+        reviewerUserId: null,
+        reviewerNotes: null,
+      });
+    }
   } catch (error) {
     reportError(error, { surface: 'host-experiences:update', experienceId });
     return { success: false, message: 'server' };
@@ -225,13 +258,27 @@ export async function updateHostExperience(
   revalidatePath(`/[locale]/host/experiences/${experienceId}`, 'page');
   // The public detail page renders by slug — invalidate the bucket.
   revalidatePath('/[locale]/experiences/[slug]', 'page');
+  if (demoteFromLive) {
+    // Newly demoted listings need to disappear from the catalog index
+    // and show up in the admin moderation queue.
+    revalidatePath('/[locale]/experiences', 'page');
+    revalidatePath('/[locale]/admin/experience-moderation', 'page');
+  }
   redirect({ href: `/host/experiences/${experienceId}`, locale: input.locale });
   throw new Error('unreachable');
 }
 
-// ---------- publish / pause ----------
+// ---------- submit for review / pause ----------
 
-/** Publish a draft (or republish a paused listing). */
+/**
+ * Submit a draft (or resubmit after a rejection / changes_requested
+ * event) for admin review. Goes to `pending_review`; the admin
+ * moderates from /admin/experience-moderation.
+ *
+ * Republishing a paused listing skips moderation: the experience
+ * has already been approved at least once, so `paused → live` is a
+ * host-controlled toggle, not a re-review.
+ */
 export async function publishHostExperience(
   _previous: HostExperienceState,
   formData: FormData,
@@ -241,13 +288,27 @@ export async function publishHostExperience(
   const guard = await requireOwnership(experienceId);
   if ('error' in guard) return guard.error;
 
-  // Minimum-bar publish check — these mirror the not-null DB columns
-  // plus a soft requirement that the listing isn't bare-minimum text.
   try {
+    // Suspended hosts can edit drafts freely (no public impact) but
+    // cannot submit anything for review or pull it back online. This
+    // is enforced here, on the only host action that can change a
+    // listing's public visibility.
+    const hostRow = await db.query.hosts.findFirst({
+      where: (h) => eq(h.id, guard.hostId),
+      columns: { verificationStatus: true },
+    });
+    if (hostRow?.verificationStatus === 'suspended') {
+      return { success: false, message: 'suspended' };
+    }
+
     const row = await db.query.experiences.findFirst({
       where: (e) => eq(e.id, experienceId),
     });
     if (!row) return { success: false, message: 'not_found' };
+
+    // Minimum-bar checks before the row goes near the reviewer. Mirrors
+    // the not-null DB columns plus a soft requirement that the listing
+    // isn't bare-minimum text.
     if (
       row.inclusions.length === 0 ||
       row.availabilityWeekdays.length === 0 ||
@@ -256,10 +317,32 @@ export async function publishHostExperience(
       return { success: false, message: 'cannot_publish' };
     }
 
-    await db
-      .update(experiences)
-      .set({ status: 'live', updatedAt: new Date() })
-      .where(and(eq(experiences.id, experienceId), eq(experiences.hostId, guard.hostId)));
+    // Paused listings have already passed review — toggle back to live
+    // without re-entering the queue.
+    if (row.status === 'paused') {
+      await db
+        .update(experiences)
+        .set({ status: 'live', updatedAt: new Date() })
+        .where(and(eq(experiences.id, experienceId), eq(experiences.hostId, guard.hostId)));
+    } else if (row.status === 'draft' || row.status === 'changes_requested') {
+      await db
+        .update(experiences)
+        .set({ status: 'pending_review', updatedAt: new Date() })
+        .where(and(eq(experiences.id, experienceId), eq(experiences.hostId, guard.hostId)));
+      // Audit row — reviewer (and the host) see the history on the
+      // moderation detail and the host edit page.
+      await db.insert(experienceModerationEvents).values({
+        experienceId,
+        event: 'submitted',
+        fromStatus: row.status,
+        toStatus: 'pending_review',
+        reviewerUserId: null,
+        reviewerNotes: null,
+      });
+    } else {
+      // pending_review / live / archived → nothing to do here.
+      return { success: false, message: 'wrong_state' };
+    }
   } catch (error) {
     reportError(error, { surface: 'host-experiences:publish', experienceId });
     return { success: false, message: 'server' };
@@ -267,6 +350,7 @@ export async function publishHostExperience(
 
   revalidatePath('/[locale]/host', 'page');
   revalidatePath(`/[locale]/host/experiences/${experienceId}`, 'page');
+  revalidatePath('/[locale]/admin/experience-moderation', 'page');
   revalidatePath('/[locale]/experiences', 'page');
   redirect({ href: `/host/experiences/${experienceId}`, locale });
   throw new Error('unreachable');

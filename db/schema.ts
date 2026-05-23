@@ -48,9 +48,40 @@ export const hostVerificationEnum = pgEnum('host_verification', [
 
 export const experienceStatusEnum = pgEnum('experience_status', [
   'draft',
+  /**
+   * Host has submitted for review. Not visible publicly. Admin
+   * decides → `live` (approve), `draft` (reject), or
+   * `changes_requested` (send back with notes).
+   */
+  'pending_review',
+  /**
+   * Admin returned the submission with reviewer notes. The host can
+   * edit and re-submit (back to `pending_review`) without losing the
+   * thread of the conversation.
+   */
+  'changes_requested',
   'live',
   'paused',
   'archived',
+]);
+
+/**
+ * Append-only history of moderation decisions on an experience.
+ *
+ * One row per submit / approve / reject / changes_requested event.
+ * The current row in `experiences.status` is the latest *resulting*
+ * state; this table preserves the conversation between host and
+ * reviewer across multiple cycles (which `host_applications` doesn't
+ * need, since that flow is one-shot).
+ *
+ * `reviewerUserId` is null for host-initiated `submitted` events;
+ * set to the admin's Supabase auth id for review decisions.
+ */
+export const moderationEventEnum = pgEnum('experience_moderation_event', [
+  'submitted',
+  'approved',
+  'rejected',
+  'changes_requested',
 ]);
 
 export const bookingStatusEnum = pgEnum('booking_status', [
@@ -264,6 +295,31 @@ export const hostApplications = pgTable('host_applications', {
   updatedAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
 });
 
+/**
+ * Moderation event log for experiences. See `moderationEventEnum`.
+ * Append-only — newest row tells the story of the current state.
+ */
+export const experienceModerationEvents = pgTable('experience_moderation_events', {
+  id: uuid().defaultRandom().primaryKey(),
+  experienceId: uuid()
+    .notNull()
+    .references(() => experiences.id, { onDelete: 'cascade' }),
+  event: moderationEventEnum().notNull(),
+  /** Status the experience was in immediately before this event fired. */
+  fromStatus: experienceStatusEnum().notNull(),
+  /** Status the experience was set to as a result of this event. */
+  toStatus: experienceStatusEnum().notNull(),
+  /** Supabase auth id of the admin who acted. Null on host-submitted events. */
+  reviewerUserId: uuid(),
+  /**
+   * Free-text reviewer note. Required on `rejected` and
+   * `changes_requested` (the host needs to know what to fix),
+   * optional on `approved`, always null on `submitted`.
+   */
+  reviewerNotes: text(),
+  createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
+});
+
 /** Guest wishlist (BRIEF §8: "Saved experiences"). */
 export const savedExperiences = pgTable(
   'saved_experiences',
@@ -297,7 +353,18 @@ export const experiencesRelations = relations(experiences, ({ one, many }) => ({
   bookings: many(bookings),
   reviews: many(reviews),
   savedBy: many(savedExperiences),
+  moderationEvents: many(experienceModerationEvents),
 }));
+
+export const experienceModerationEventsRelations = relations(
+  experienceModerationEvents,
+  ({ one }) => ({
+    experience: one(experiences, {
+      fields: [experienceModerationEvents.experienceId],
+      references: [experiences.id],
+    }),
+  }),
+);
 
 export const momentsRelations = relations(moments, ({ one }) => ({
   experience: one(experiences, {
@@ -351,3 +418,5 @@ export type Review = typeof reviews.$inferSelect;
 export type NewReview = typeof reviews.$inferInsert;
 export type HostApplication = typeof hostApplications.$inferSelect;
 export type NewHostApplication = typeof hostApplications.$inferInsert;
+export type ExperienceModerationEvent = typeof experienceModerationEvents.$inferSelect;
+export type NewExperienceModerationEvent = typeof experienceModerationEvents.$inferInsert;

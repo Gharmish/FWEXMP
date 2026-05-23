@@ -39,6 +39,22 @@
       "hostApplications": {
         "title": "Host applications",
         "description": "Review, approve, or reject incoming host applications. Approval mints a verified host record."
+      },
+      "experienceModeration": {
+        "title": "Experience moderation",
+        "description": "Approve, reject, or request changes on experiences hosts have submitted for review."
+      },
+      "bookings": {
+        "title": "Bookings",
+        "description": "Every booking across the platform — for support, debugging, and end-of-day sanity checks."
+      },
+      "analytics": {
+        "title": "Platform analytics",
+        "description": "GMV, booking volume, top experiences and hosts — at a glance, over 7 / 30 / 90 days."
+      },
+      "hosts": {
+        "title": "Hosts",
+        "description": "Verified, pending, or suspended. Suspend a host to pause every one of their live listings in one move."
       }
     },
     "hostApplicationsList": {
@@ -96,6 +112,175 @@
         "validation": "Check the form and try again.",
         "server": "We couldn't complete that action. Try again in a moment.",
         "rejectionNoteShort": "Add at least 10 characters of context so the applicant knows how to refile."
+      }
+    },
+    "experienceModerationList": {
+      "eyebrow": "Experience moderation",
+      "title": "Experiences awaiting review.",
+      "intro": "Pending submissions are at the top, oldest first. Click through to read the listing in full and approve, request changes, or reject.",
+      "submittedOn": "Submitted {date}",
+      "empty": {
+        "eyebrow": "Inbox zero",
+        "title": "Nothing waiting on you.",
+        "description": "When a host submits an experience for review, it'll show up here."
+      }
+    },
+    "experienceModerationDetail": {
+      "submittedOn": "Submitted on {date}",
+      "price": "Price per guest",
+      "duration": "Duration",
+      "minutes": "{count} minutes",
+      "category": "Category",
+      "groupAndAge": "Group size · Min age",
+      "groupAndAgeValue": "Up to {max} · {age}+",
+      "availability": "Available days",
+      "descriptionEn": "Description (English)",
+      "descriptionAr": "Description (Arabic)",
+      "arabicPending": "Arabic copy hasn't been written yet. The partnerships team adds it before the listing goes live.",
+      "arabicTitlePending": "Arabic title is a placeholder — partnerships team will add it before the listing goes live.",
+      "inclusions": "What's included",
+      "whatToBring": "What to bring",
+      "cancellation": "Cancellation policy",
+      "history": "History",
+      "viewPublic": "View public page"
+    },
+    "experienceStatus": {
+      "draft": "Draft",
+      "pending_review": "Pending review",
+      "changes_requested": "Changes requested",
+      "live": "Live",
+      "paused": "Paused",
+      "archived": "Archived"
+    },
+    "moderationEvent": {
+      "submitted": "Submitted for review",
+      "approved": "Approved",
+      "rejected": "Rejected",
+      "changes_requested": "Changes requested"
+    },
+    "hostsList": {
+      "eyebrow": "Hosts",
+      "title": "Every host on the platform.",
+      "intro": "Suspended first (action needed), then pending, then verified. A suspended host's live experiences are paused — the catalog hides them automatically.",
+      "publishedCount": "{count, plural, =0 {No published experiences} =1 {1 published} other {# published}}",
+      "bookingsCount": "{count, plural, =0 {No bookings} =1 {1 booking} other {# bookings}}",
+      "joinedOn": "Joined {date}",
+      "empty": {
+        "eyebrow": "Empty",
+        "title": "No hosts on the platform yet.",
+        "description": "Approved host applications mint a host record — that's when they show up here."
+      }
+    },
+    "hostStatus": {
+      "verified": "Verified",
+      "pending": "Pending",
+      "suspended": "Suspended"
+    },
+    "hostDetail": {
+      "joinedOn": "Joined {date}",
+      "publishedExperiences": "Live + paused",
+      "totalExperiences": "Total experiences",
+      "liveBookings": "Confirmed bookings",
+      "nationalId": "National ID",
+      "crNumber": "CR number",
+      "languages": "Languages",
+      "bio": "Bio",
+      "experiencesHeading": "Experiences",
+      "experiencesEmpty": "This host hasn't drafted anything yet.",
+      "pendingEyebrow": "Pending",
+      "pendingDescription": "This host's application is still being reviewed.",
+      "pendingCta": "Go to host applications →"
+    },
+    "hostActions": {
+      "suspend": "Suspend host",
+      "suspendPending": "Suspending",
+      "suspendConfirm": "Suspending puts the host's account on hold. Every live experience is paused so it leaves the catalog immediately. Existing bookings are not cancelled.",
+      "unsuspend": "Restore host",
+      "unsuspendPending": "Restoring",
+      "errors": {
+        "forbidden": "You're not authorised to do that.",
+        "noDb": "Admin actions require a database connection.",
+        "notFound": "This host no longer exists.",
+        "validation": "Something didn't validate. Refresh and try again.",
+        "server": "We couldn't complete that action. Try again in a moment.",
+        "wrongState": "This host's status changed — refresh to see the latest."
+      }
+    },
+    "analytics": {
+      "eyebrow": "Platform analytics",
+      "title": "How Gharmish is doing.",
+      "intro": "GMV is gross merchandise value — money moving through the platform on confirmed and completed bookings, net of refunds. Cancellations and pending requests are counted separately.",
+      "generatedOn": "Snapshot taken {date}",
+      "catalogHeading": "Catalog",
+      "windowsHeading": "Activity",
+      "sparkHeading": "Bookings — last 30 days",
+      "sparkSubtitle": "One bar per day. Confirmed + completed bookings only.",
+      "topExperiencesHeading": "Top experiences (last 30 days)",
+      "topHostsHeading": "Top hosts (last 30 days)",
+      "windows": {
+        "7d": "Last 7 days",
+        "30d": "Last 30 days",
+        "90d": "Last 90 days",
+        "allTime": "All time"
+      },
+      "catalog": {
+        "hosts": "Hosts",
+        "publishedExperiences": "Live + paused",
+        "pendingReview": "Pending review",
+        "changesRequested": "Changes requested",
+        "pendingApplications": "Pending applications"
+      },
+      "gmvLabel": "GMV",
+      "bookingsLabel": "{count, plural, =1 {1 booking} other {# bookings}}",
+      "bookingsLabelShort": "Bookings",
+      "pendingLabel": "Pending",
+      "guestsLabel": "Unique guests",
+      "activeExperiencesLabel": "Experiences booked",
+      "cancelledLabel": "Cancelled",
+      "refundedLabel": "Refunded",
+      "empty": "No bookings in this window yet."
+    },
+    "bookingsList": {
+      "eyebrow": "Bookings",
+      "title": "Every booking, newest first.",
+      "intro": "A flat list. No filters, no detail page yet — the data is small enough to scan, and the reference id is right there if you need to dig deeper.",
+      "stats": {
+        "total": "Total"
+      },
+      "partyOf": "{count, plural, =1 {1 guest} other {# guests}}",
+      "requestedOn": "Requested {date}",
+      "empty": {
+        "eyebrow": "Nothing yet",
+        "title": "No bookings on the platform.",
+        "description": "When a guest sends a booking request, it'll show up here."
+      }
+    },
+    "bookingStatus": {
+      "pending": "Pending",
+      "confirmed": "Confirmed",
+      "completed": "Completed",
+      "cancelled": "Cancelled",
+      "refunded": "Refunded"
+    },
+    "experienceActions": {
+      "approve": "Approve and publish",
+      "approvePending": "Publishing",
+      "reject": "Reject",
+      "rejectPending": "Rejecting",
+      "requestChanges": "Request changes",
+      "requestChangesPending": "Sending",
+      "notesLabel": "Reviewer notes",
+      "notesApproveHint": "Optional — internal context, never shown to the host.",
+      "notesRejectHint": "Required, minimum 10 characters. Shown to the host. Rejected listings return to draft.",
+      "notesRequestChangesHint": "Required, minimum 10 characters. Shown to the host so they know what to fix before resubmitting.",
+      "errors": {
+        "forbidden": "You're not authorised to do that.",
+        "noDb": "Admin actions require a database connection.",
+        "notFound": "This experience no longer exists.",
+        "validation": "Check the form and try again.",
+        "server": "We couldn't complete that action. Try again in a moment.",
+        "wrongState": "This experience isn't pending review anymore — refresh to see the latest status.",
+        "reviewerNoteShort": "Add at least 10 characters of context so the host knows how to respond."
       }
     }
   },
@@ -208,6 +393,7 @@
     "eyebrow": "Host dashboard",
     "greeting": "Welcome back, {name}.",
     "verifiedBadge": "Verified host",
+    "suspendedBanner": "Your host account is currently suspended by the team. Every live experience has been paused. We'll be in touch on WhatsApp to resolve this — for urgent questions, reply to your last message from us.",
     "publicProfile": "Public profile:",
     "whatsNext": {
       "eyebrow": "What's next",
@@ -225,6 +411,8 @@
       "perPerson": "per guest",
       "status": {
         "draft": "Draft",
+        "pending_review": "Pending review",
+        "changes_requested": "Changes requested",
         "live": "Live",
         "paused": "Paused",
         "archived": "Archived"
@@ -232,7 +420,7 @@
       "empty": {
         "eyebrow": "Empty",
         "title": "No experiences yet.",
-        "description": "Start with a draft — you can save and come back any time. Publishing makes the listing appear in the public catalog."
+        "description": "Start with a draft — you can save and come back any time. Submitting for review gets your listing into the public catalog after we approve it."
       }
     },
     "actions": {
@@ -249,12 +437,22 @@
     },
     "edit": {
       "back": "Back to your dashboard",
-      "formHeading": "Edit"
+      "formHeading": "Edit",
+      "liveEditWarning": "Heads up — this listing is live. Saving any changes will pull it off the catalog until we re-approve the updated version."
     },
+    "suspendedHostBanner": "Your host account is suspended. You can still see and edit this listing, but submitting it for review is blocked until the team restores your account.",
     "status": {
       "draft": {
         "eyebrow": "Draft",
         "label": "Draft"
+      },
+      "pending_review": {
+        "eyebrow": "Pending review",
+        "label": "Pending review"
+      },
+      "changes_requested": {
+        "eyebrow": "Changes requested",
+        "label": "Changes requested"
       },
       "live": {
         "eyebrow": "Live",
@@ -270,20 +468,29 @@
       }
     },
     "lifecycle": {
-      "publish": "Publish",
-      "publishPending": "Publishing",
+      "publish": "Submit for review",
+      "publishPending": "Submitting",
+      "resubmit": "Resubmit for review",
+      "republish": "Republish",
+      "pendingReviewLabel": "Waiting on the team. We'll let you know once your listing is reviewed.",
       "pause": "Pause",
       "pausePending": "Pausing",
-      "republish": "Republish",
       "viewPublic": "View public page",
       "errors": {
-        "cannotPublish": "Add at least one inclusion, pick at least one available weekday, and write a description of 60+ characters before publishing.",
+        "cannotPublish": "Add at least one inclusion, pick at least one available weekday, and write a description of 60+ characters before submitting.",
         "notFound": "This experience no longer exists.",
         "forbidden": "You're not authorised to do that.",
         "noDb": "Publishing requires a database connection.",
         "server": "We couldn't complete that action. Try again in a moment.",
-        "validation": "Check the form and try again."
+        "validation": "Check the form and try again.",
+        "wrongState": "This experience can't be submitted from its current state — refresh to see the latest.",
+        "suspended": "Your host account is suspended — submitting for review is blocked until the team restores it."
       }
+    },
+    "reviewerFeedback": {
+      "changesRequestedEyebrow": "Changes requested",
+      "rejectedEyebrow": "Rejected by the team",
+      "receivedOn": "Received {date}"
     },
     "form": {
       "sectionBasics": "Basics",

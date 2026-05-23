@@ -34,6 +34,26 @@ export default async function AdminIndexPage({ params }: { params: Promise<{ loc
       title: t('sections.hostApplications.title'),
       description: t('sections.hostApplications.description'),
     },
+    {
+      href: '/admin/experience-moderation',
+      title: t('sections.experienceModeration.title'),
+      description: t('sections.experienceModeration.description'),
+    },
+    {
+      href: '/admin/bookings',
+      title: t('sections.bookings.title'),
+      description: t('sections.bookings.description'),
+    },
+    {
+      href: '/admin/analytics',
+      title: t('sections.analytics.title'),
+      description: t('sections.analytics.description'),
+    },
+    {
+      href: '/admin/hosts',
+      title: t('sections.hosts.title'),
+      description: t('sections.hosts.description'),
+    },
   ];
 
   return (

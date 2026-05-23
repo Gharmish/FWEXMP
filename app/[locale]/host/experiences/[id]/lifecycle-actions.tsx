@@ -13,21 +13,34 @@ import {
 } from '@/features/host-experiences/actions';
 import Link from 'next/link';
 
-type ErrorKey = 'cannot_publish' | 'not_found' | 'forbidden' | 'no_db' | 'server' | 'validation';
+type ErrorKey =
+  | 'cannot_publish'
+  | 'not_found'
+  | 'forbidden'
+  | 'no_db'
+  | 'server'
+  | 'validation'
+  | 'wrong_state'
+  | 'suspended';
 
 interface LifecycleCopy {
+  /** Default "Submit for review" / "Publish (back to live)" label. */
   publish: string;
   publishPending: string;
+  /** Used when status is `changes_requested` — "Resubmit for review". */
+  resubmit: string;
+  /** Used when status is `paused` — paused listings skip review. */
+  republish: string;
+  pendingReviewLabel: string;
   pause: string;
   pausePending: string;
-  republish: string;
   viewPublic: string;
   errors: Record<ErrorKey, string>;
 }
 
 export interface LifecycleActionsProps {
   experienceId: string;
-  status: 'draft' | 'live' | 'paused' | 'archived';
+  status: 'draft' | 'pending_review' | 'changes_requested' | 'live' | 'paused' | 'archived';
   /** Slug isn't needed for the buttons themselves — only the "view public" link in `live`. */
   locale: Locale;
   copy: LifecycleCopy;
@@ -75,6 +88,18 @@ export function LifecycleActions({ experienceId, status, locale, copy }: Lifecyc
             <input type="hidden" name="locale" value={locale} />
             <PublishSubmit label={copy.publish} pendingLabel={copy.publishPending} />
           </form>
+        )}
+        {status === 'changes_requested' && (
+          <form action={publishAction}>
+            <input type="hidden" name="experienceId" value={experienceId} />
+            <input type="hidden" name="locale" value={locale} />
+            <PublishSubmit label={copy.resubmit} pendingLabel={copy.publishPending} />
+          </form>
+        )}
+        {status === 'pending_review' && (
+          // No action — reviewer holds the next move. Show a passive
+          // affordance so the host knows where things stand.
+          <span className="text-sarat-black-600 text-sm">{copy.pendingReviewLabel}</span>
         )}
         {status === 'live' && (
           <form action={pauseAction}>

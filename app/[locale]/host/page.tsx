@@ -69,6 +69,14 @@ export default async function HostDashboardPage({
           <h1 className="font-display text-4xl font-medium tracking-[-0.035em] text-balance sm:text-6xl">
             {t('greeting', { name: host.name })}
           </h1>
+          {host.verificationStatus === 'suspended' && (
+            <p
+              role="status"
+              className="border-al-qatt-red/40 bg-al-qatt-red/5 text-sarat-black rounded-card [border-width:0.5px] p-4 text-sm leading-relaxed"
+            >
+              {t('suspendedBanner')}
+            </p>
+          )}
           <div className="flex flex-wrap items-center gap-3">
             {host.verificationStatus === 'verified' && (
               <Badge variant="verified">{t('verifiedBadge')}</Badge>
@@ -206,6 +214,8 @@ export default async function HostDashboardPage({
 
 const STATUS_TONE: Record<HostExperienceRow['status'], string> = {
   draft: 'bg-sarat-black/8 text-sarat-black',
+  pending_review: 'bg-saffron-gold/20 text-sarat-black',
+  changes_requested: 'bg-rijal-clay/15 text-rijal-clay',
   live: 'bg-juniper-green/15 text-juniper-green',
   paused: 'bg-saffron-gold/20 text-sarat-black',
   archived: 'bg-rijal-clay/10 text-rijal-clay',
