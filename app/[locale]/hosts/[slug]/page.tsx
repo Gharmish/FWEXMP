@@ -124,7 +124,7 @@ export default async function HostProfilePage({
       <header className="border-sarat-black/8 mt-8 flex flex-col gap-6 [border-bottom-width:0.5px] pb-12">
         <p className={eyebrowClassName}>{t('eyebrow')}</p>
         <div className="flex flex-col gap-6 sm:flex-row sm:items-center">
-          <Avatar name={name} size="lg" />
+          <Avatar name={name} src={host.photoUrl ?? undefined} size="lg" />
           <div className="flex flex-col gap-3">
             <h1 className="font-display text-4xl font-medium tracking-[-0.035em] text-balance sm:text-5xl">
               {name}

@@ -28,6 +28,7 @@ function toProfile(row: Host): HostProfile {
     bioAr: row.bioAr,
     verified: row.verificationStatus === 'verified',
     languages: row.languages,
+    photoUrl: row.photoUrl,
   };
 }
 

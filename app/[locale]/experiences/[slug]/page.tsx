@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import Image from 'next/image';
 import { ArrowLeft } from 'lucide-react';
 import { notFound } from 'next/navigation';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
@@ -164,7 +165,29 @@ export default async function ExperienceDetailPage({
         {t('back')}
       </Link>
 
-      <header className="border-sarat-black/8 mt-8 flex flex-col gap-3 [border-bottom-width:0.5px] pb-10">
+      {/* Hero — full-bleed-ish, sits between the back link and the
+          eyebrow/title block. `priority` because LCP almost always
+          falls on this image. Tonal placeholder mirrors the catalog
+          card's empty state so listings without a photo stay clean. */}
+      <div
+        className={cn(
+          'rounded-image relative mt-8 aspect-[16/9] w-full overflow-hidden',
+          !exp.heroImage && 'bg-honey-amber/30',
+        )}
+      >
+        {exp.heroImage && (
+          <Image
+            src={exp.heroImage}
+            alt={title}
+            fill
+            sizes="(min-width: 1024px) 1024px, 100vw"
+            className="object-cover"
+            priority
+          />
+        )}
+      </div>
+
+      <header className="border-sarat-black/8 mt-10 flex flex-col gap-3 [border-bottom-width:0.5px] pb-10">
         <span className={eyebrowClassName}>{exp.featured ? te('originals') : categoryLabel}</span>
         <h1 className="font-display max-w-3xl text-4xl font-medium tracking-[-0.035em] text-balance sm:text-6xl">
           {title}

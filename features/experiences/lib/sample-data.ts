@@ -8,15 +8,25 @@ import { aggregateReviews } from '@/features/reviews/lib/aggregate';
 import { getReviewsForExperience as getSampleReviews } from '@/features/reviews/lib/sample-data';
 
 /**
- * Rating fields are populated dynamically by `attachRatings()` from the
- * companion sample reviews — keeping them off the literals below means
- * the source dataset and the seed reviews can't drift out of sync.
+ * Rating and image fields are populated dynamically by `attachRatings()`
+ * — keeping them off the literals below means the source dataset and
+ * the seed reviews can't drift out of sync, and the hero URL is
+ * derived from the slug so renaming a slug doesn't orphan a file.
  */
-type SampleExperience = Omit<ExperienceDetail, 'ratingAverage' | 'ratingCount'>;
+type SampleExperience = Omit<
+  ExperienceDetail,
+  'ratingAverage' | 'ratingCount' | 'heroImage' | 'images'
+>;
 
 function attachRatings(e: SampleExperience): ExperienceDetail {
   const agg = aggregateReviews(getSampleReviews(e.slug));
-  return { ...e, ratingAverage: agg.average, ratingCount: agg.count };
+  return {
+    ...e,
+    ratingAverage: agg.average,
+    ratingCount: agg.count,
+    heroImage: heroFor(e.slug),
+    images: [],
+  };
 }
 
 /**
@@ -40,6 +50,18 @@ export const CATEGORIES: readonly CategoryMeta[] = [
   { key: 'family', labelEn: 'Family', labelAr: 'العائلة' },
 ];
 
+/**
+ * Public hero/avatar URLs for the demo data. They live in the
+ * Supabase Storage `photos` bucket at predictable paths so this
+ * file and the DB rows stay in sync without an extra mapping.
+ *
+ * NOTE: these are AI-generated demo images for the launch-prep
+ * period. BRIEF §3 forbids stock and AI photography in production
+ * once real hosts are onboarded — the partnerships team replaces
+ * these with the real photographer's output via the upload UI.
+ */
+const PHOTOS_BASE = 'https://xjgpflzkpydfpuomqhuq.supabase.co/storage/v1/object/public/photos';
+
 const FAISAL: HostInfo = {
   name: 'Faisal Al Qahtani',
   bioEn:
@@ -47,6 +69,7 @@ const FAISAL: HostInfo = {
   bioAr:
     'مزارع من الجيل الثالث من الحبلة، نشأ بين مدرجات العرعر. يستضيف فيصل مجموعات صغيرة ليشاركهم طعام عسير وموسيقاها وإيقاع الحياة الجبلية الهادئ.',
   verified: true,
+  photoUrl: `${PHOTOS_BASE}/hosts/faisal-al-qahtani/avatar.jpg`,
 };
 
 const ASIR_ADVENTURES: HostInfo = {
@@ -56,7 +79,11 @@ const ASIR_ADVENTURES: HostInfo = {
   bioAr:
     'شركة سياحية مرخصة في أبها متخصصة في الأنشطة الجبلية الموجهة، مع مرشدين معتمدين وتجهيزات سلامة كاملة.',
   verified: true,
+  photoUrl: `${PHOTOS_BASE}/hosts/asir-adventures-co/avatar.jpg`,
 };
+
+/** Hero image URL for a given experience slug. */
+const heroFor = (slug: string): string => `${PHOTOS_BASE}/experiences/${slug}/hero.jpg`;
 
 const EXPERIENCES: readonly SampleExperience[] = [
   {

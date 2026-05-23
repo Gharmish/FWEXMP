@@ -142,6 +142,22 @@ export const experiences = pgTable('experiences', {
   status: experienceStatusEnum().notNull().default('draft'),
   /** Originals premium tier flag (BRIEF §8). */
   featured: boolean().notNull().default(false),
+  /**
+   * Canonical hero used by the catalog card (one image, single URL).
+   * Lives in the Supabase Storage `photos` bucket at
+   * `experiences/{slug}/hero.{ext}`. Nullable so a host can save a
+   * draft before the photography session — the publish action soft-
+   * gates "live" status on having a hero in a future commit.
+   */
+  heroImage: text(),
+  /**
+   * Gallery shown on the detail page after the hero.
+   * Bucket path: `experiences/{slug}/gallery-{n}.{ext}`. BRIEF §3
+   * calls for 4:5 / 16:9 / square crops — Cloudflare Images is the
+   * planned transform layer; until then, hosts upload a 16:9 hero
+   * and 4:5 gallery directly.
+   */
+  images: text().array().notNull().default([]),
   createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
 });

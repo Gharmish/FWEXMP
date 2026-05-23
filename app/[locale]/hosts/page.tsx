@@ -102,7 +102,7 @@ export default async function HostsIndexPage({ params }: { params: Promise<{ loc
                       className="rounded-card border-sarat-black/8 group flex h-full flex-col gap-4 [border-width:0.5px] p-6 transition-transform duration-200 hover:-translate-y-0.5 focus-visible:-translate-y-0.5"
                     >
                       <div className="flex items-center gap-4">
-                        <Avatar name={name} size="lg" />
+                        <Avatar name={name} src={host.photoUrl ?? undefined} size="lg" />
                         <div className="flex flex-col gap-1">
                           <span className="text-lg font-medium">{name}</span>
                           {host.verified && <Badge variant="verified">{th('verified')}</Badge>}

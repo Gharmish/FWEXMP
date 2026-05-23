@@ -27,7 +27,7 @@ export async function HostCard({ host, locale }: HostCardProps) {
   return (
     <div className="flex flex-col gap-4">
       <div className="flex items-center gap-4">
-        <Avatar name={name} size="lg" />
+        <Avatar name={name} src={host.photoUrl ?? undefined} size="lg" />
         <div className="flex flex-col gap-1">
           <span className="text-lg font-medium">{name}</span>
           {host.verified && <Badge variant="verified">{t('verified')}</Badge>}

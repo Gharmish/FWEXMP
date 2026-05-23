@@ -35,6 +35,7 @@ function toProfile(row: Host): HostDashboardData['host'] {
     verified: row.verificationStatus === 'verified',
     languages: row.languages,
     verificationStatus: row.verificationStatus,
+    photoUrl: row.photoUrl,
   };
 }
 

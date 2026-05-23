@@ -83,6 +83,7 @@ function makeExperience(
     featured: overrides.featured ?? false,
     ratingAverage: overrides.ratingAverage ?? null,
     ratingCount: overrides.ratingCount ?? 0,
+    heroImage: overrides.heroImage ?? null,
   };
 }
 
@@ -130,6 +131,7 @@ const SAMPLE_HOST: HostInfo = {
   bioAr:
     'مزارع من الجيل الثالث من الحبلة، نشأ بين مدرجات العرعر. يستضيف فيصل مجموعات صغيرة ليشاركهم طعام عسير وموسيقاها وإيقاع الحياة الجبلية الهادئ.',
   verified: true,
+  photoUrl: null,
 };
 
 const SPACING = [

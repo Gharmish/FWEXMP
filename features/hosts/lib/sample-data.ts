@@ -13,6 +13,8 @@ import { hostSlug } from '@/features/hosts/lib/slug';
  * profile page can show real Arabic copy. If we ever lose confidence
  * in these strings, swap them for TODO(ar): placeholders per BRIEF §4.
  */
+const PHOTOS_BASE = 'https://xjgpflzkpydfpuomqhuq.supabase.co/storage/v1/object/public/photos';
+
 const HOSTS: readonly HostProfile[] = [
   {
     slug: hostSlug('Faisal Al Qahtani'),
@@ -23,6 +25,7 @@ const HOSTS: readonly HostProfile[] = [
       'مزارع من الجيل الثالث من الحبلة، نشأ بين مدرجات العرعر. يستضيف فيصل مجموعات صغيرة ليشاركهم طعام عسير وموسيقاها وإيقاع الحياة الجبلية الهادئ.',
     verified: true,
     languages: ['ar', 'en'],
+    photoUrl: `${PHOTOS_BASE}/hosts/faisal-al-qahtani/avatar.jpg`,
   },
   {
     slug: hostSlug('Asir Adventures Co.'),
@@ -33,6 +36,7 @@ const HOSTS: readonly HostProfile[] = [
       'شركة سياحية مرخصة في أبها متخصصة في الأنشطة الجبلية الموجهة، مع مرشدين معتمدين وتجهيزات سلامة كاملة.',
     verified: true,
     languages: ['ar', 'en'],
+    photoUrl: `${PHOTOS_BASE}/hosts/asir-adventures-co/avatar.jpg`,
   },
 ];
 

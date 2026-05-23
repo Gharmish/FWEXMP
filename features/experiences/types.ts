@@ -27,6 +27,12 @@ export interface ExperienceSummary {
    */
   ratingAverage: number | null;
   ratingCount: number;
+  /**
+   * Canonical hero used by the catalog card. `null` until the
+   * photography session lands. Cards render a tonal placeholder block
+   * in that case.
+   */
+  heroImage: string | null;
 }
 
 export interface CategoryMeta {
@@ -41,6 +47,8 @@ export interface HostInfo {
   bioEn: string;
   bioAr: string;
   verified: boolean;
+  /** Optional avatar URL (Supabase Storage). `null` until the host's portrait session lands. */
+  photoUrl: string | null;
 }
 
 export interface MomentInfo {
@@ -69,4 +77,9 @@ export interface ExperienceDetail extends ExperienceSummary {
   cancellationPolicy: string;
   host: HostInfo;
   moments: MomentInfo[];
+  /**
+   * Gallery shown after the hero on the detail page. Empty array
+   * until photography lands. Order is the order rendered.
+   */
+  images: string[];
 }

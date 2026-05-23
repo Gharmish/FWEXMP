@@ -55,6 +55,7 @@ function toSummary(
     featured: row.featured,
     ratingAverage: agg?.average ?? null,
     ratingCount: agg?.count ?? 0,
+    heroImage: row.heroImage,
   };
 }
 
@@ -64,6 +65,7 @@ function toHostInfo(host: Host): HostInfo {
     bioEn: host.bioEn,
     bioAr: host.bioAr,
     verified: host.verificationStatus === 'verified',
+    photoUrl: host.photoUrl,
   };
 }
 
@@ -93,6 +95,7 @@ function toDetail(
     cancellationPolicy: row.cancellationPolicy,
     host: toHostInfo(row.host),
     moments: [...row.moments].sort((a, b) => a.orderIndex - b.orderIndex).map(toMomentInfo),
+    images: row.images,
   };
 }
 

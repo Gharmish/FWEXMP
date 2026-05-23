@@ -29,6 +29,7 @@ function exp(overrides: Partial<ExperienceSummary> & { slug: string }): Experien
     featured: overrides.featured ?? false,
     ratingAverage: overrides.ratingAverage ?? null,
     ratingCount: overrides.ratingCount ?? 0,
+    heroImage: overrides.heroImage ?? null,
   };
 }
 
