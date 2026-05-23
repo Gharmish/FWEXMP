@@ -88,8 +88,6 @@ export async function requestBooking(
     // Stash the reference + slug so /me can show 'your last request'.
     await writeLastBookingCookie(reference, input.experienceSlug);
     redirect({ href: confirmedPath, locale: input.locale });
-    // unreachable — redirect() throws NEXT_REDIRECT
-    throw new Error('unreachable');
   }
 
   try {
@@ -144,6 +142,4 @@ export async function requestBooking(
 
   await writeLastBookingCookie(reference, input.experienceSlug);
   redirect({ href: confirmedPath, locale: input.locale });
-  // unreachable — redirect() throws NEXT_REDIRECT
-  throw new Error('unreachable');
 }

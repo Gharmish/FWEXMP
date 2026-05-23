@@ -1,7 +1,13 @@
-import { count, eq, inArray, sql } from 'drizzle-orm';
+import { eq, sql } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import { serverEnv } from '@/lib/env';
 import { bookings, experiences, hostApplications, hosts } from '@/db/schema';
+
+/** Hard ceiling on the bookings load — a safety brake so a misconfigured
+ * prod that suddenly grew past the in-memory threshold doesn't render
+ * `/admin/analytics` for minutes. When we cross this, promote the
+ * aggregations into SQL FILTER clauses (see the file docstring). */
+const BOOKINGS_QUERY_LIMIT = 50_000;
 import { reportError } from '@/lib/log';
 import { getCurrentUser } from '@/features/auth/queries';
 import { isAdminUser } from '@/features/admin/auth';
@@ -42,17 +48,30 @@ export async function isAdminAndDbReady(): Promise<AdminGuardFailure | null> {
   return adminGuard();
 }
 
-interface BookingForAggregation {
+export interface BookingForAggregation {
   id: string;
   guestId: string;
   experienceId: string;
   totalAmount: number;
   status: (typeof bookings.$inferSelect)['status'];
   createdAt: Date;
+  /** Set when the admin recorded a refund; null otherwise. */
+  refundedAt: Date | null;
   experienceTitleEn: string;
   experienceSlug: string;
   hostId: string;
   hostName: string;
+}
+
+/**
+ * Which timestamp should this row be windowed by? Refunds use the
+ * refund time so a 60-day-old booking refunded today shows up in
+ * `last7d.refunded`. Legacy rows that were already `refunded` before
+ * the `refundedAt` column existed fall back to `createdAt`.
+ */
+function windowTimestamp(row: BookingForAggregation): Date {
+  if (row.status === 'refunded' && row.refundedAt) return row.refundedAt;
+  return row.createdAt;
 }
 
 type RevenueStatus = 'confirmed' | 'completed';
@@ -73,16 +92,17 @@ function emptyWindow(): AnalyticsWindowStats {
   };
 }
 
-function statsForWindow(
+export function statsForWindow(
   rows: readonly BookingForAggregation[],
   cutoff: Date | null,
 ): AnalyticsWindowStats {
-  const inWindow = cutoff ? rows.filter((r) => r.createdAt.getTime() >= cutoff.getTime()) : rows;
   const out = emptyWindow();
   const guestSet = new Set<string>();
   const experienceSet = new Set<string>();
-  let refundedSar = 0;
-  for (const row of inWindow) {
+  for (const row of rows) {
+    // Window by the right event time — refund time for refunds,
+    // booking-placed time for everything else.
+    if (cutoff && windowTimestamp(row).getTime() < cutoff.getTime()) continue;
     switch (row.status) {
       case 'confirmed':
       case 'completed':
@@ -98,12 +118,15 @@ function statsForWindow(
         out.cancelled++;
         break;
       case 'refunded':
+        // Refund $$ value isn't aggregated into a single field today
+        // because the original revenue is already absent from `gmvSar`
+        // (the confirmed/completed branch skips refunded rows). The
+        // `refunded` count is enough for the dashboard; if we ever
+        // need "money returned", add a `refundedSar` field here.
         out.refunded++;
-        refundedSar += row.totalAmount;
         break;
     }
   }
-  out.gmvSar = Math.max(0, out.gmvSar - refundedSar);
   out.uniqueGuests = guestSet.size;
   out.activeExperiences = experienceSet.size;
   return out;
@@ -129,9 +152,12 @@ function sparkline(rows: readonly BookingForAggregation[], days: number): Sparkl
     if (isRevenue(row.status)) {
       bucket.bookings++;
       bucket.gmvSar += row.totalAmount;
-    } else if (row.status === 'refunded') {
-      bucket.gmvSar = Math.max(0, bucket.gmvSar - row.totalAmount);
     }
+    // Refunds are intentionally not subtracted here — the booking's
+    // `createdAt` is when the booking was placed, not when it was
+    // refunded, so subtracting against that bucket would distort the
+    // sparkline. Track refunds separately once a `refundedAt` column
+    // ships.
   }
   return Array.from(buckets.values());
 }
@@ -192,39 +218,29 @@ function topHosts(
 }
 
 async function catalogTotals(): Promise<CatalogTotals> {
-  const [hostCount, publishedCount, pendingReviewCount, changesCount, pendingAppsCount] =
-    await Promise.all([
-      db
-        .select({ n: count() })
-        .from(hosts)
-        .then((r) => r[0]?.n ?? 0),
-      db
-        .select({ n: count() })
-        .from(experiences)
-        .where(inArray(experiences.status, ['live', 'paused']))
-        .then((r) => r[0]?.n ?? 0),
-      db
-        .select({ n: count() })
-        .from(experiences)
-        .where(eq(experiences.status, 'pending_review'))
-        .then((r) => r[0]?.n ?? 0),
-      db
-        .select({ n: count() })
-        .from(experiences)
-        .where(eq(experiences.status, 'changes_requested'))
-        .then((r) => r[0]?.n ?? 0),
-      db
-        .select({ n: count() })
-        .from(hostApplications)
-        .where(eq(hostApplications.status, 'pending'))
-        .then((r) => r[0]?.n ?? 0),
-    ]);
+  // Three round-trips (down from five) — one per table. The
+  // experiences row collapses three counts behind Postgres `FILTER`
+  // clauses so the planner only scans the table once.
+  const [hostsRow, expRow, appsRow] = await Promise.all([
+    db.select({ n: sql<number>`count(*)::int` }).from(hosts),
+    db
+      .select({
+        published: sql<number>`count(*) filter (where ${experiences.status} in ('live','paused'))::int`,
+        pendingReview: sql<number>`count(*) filter (where ${experiences.status} = 'pending_review')::int`,
+        changesRequested: sql<number>`count(*) filter (where ${experiences.status} = 'changes_requested')::int`,
+      })
+      .from(experiences),
+    db
+      .select({ n: sql<number>`count(*)::int` })
+      .from(hostApplications)
+      .where(eq(hostApplications.status, 'pending')),
+  ]);
   return {
-    hosts: hostCount,
-    publishedExperiences: publishedCount,
-    pendingReview: pendingReviewCount,
-    changesRequested: changesCount,
-    pendingApplications: pendingAppsCount,
+    hosts: hostsRow[0]?.n ?? 0,
+    publishedExperiences: expRow[0]?.published ?? 0,
+    pendingReview: expRow[0]?.pendingReview ?? 0,
+    changesRequested: expRow[0]?.changesRequested ?? 0,
+    pendingApplications: appsRow[0]?.n ?? 0,
   };
 }
 
@@ -249,6 +265,7 @@ export async function getAnalyticsSnapshot(): Promise<AnalyticsSnapshot | null> 
         totalAmount: bookings.totalAmount,
         status: bookings.status,
         createdAt: bookings.createdAt,
+        refundedAt: bookings.refundedAt,
         experienceTitleEn: experiences.titleEn,
         experienceSlug: experiences.slug,
         hostId: hosts.id,
@@ -257,7 +274,8 @@ export async function getAnalyticsSnapshot(): Promise<AnalyticsSnapshot | null> 
       .from(bookings)
       .innerJoin(experiences, eq(experiences.id, bookings.experienceId))
       .innerJoin(hosts, eq(hosts.id, experiences.hostId))
-      .orderBy(sql`${bookings.createdAt} desc`);
+      .orderBy(sql`${bookings.createdAt} desc`)
+      .limit(BOOKINGS_QUERY_LIMIT);
 
     const all = rows as BookingForAggregation[];
     const catalog = await catalogTotals();

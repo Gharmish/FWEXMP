@@ -1,10 +1,10 @@
 'use server';
 
-import { and, eq } from 'drizzle-orm';
+import { and, eq, sql } from 'drizzle-orm';
 import { revalidatePath } from 'next/cache';
 import { db } from '@/lib/db';
 import { serverEnv } from '@/lib/env';
-import { experiences, experienceModerationEvents } from '@/db/schema';
+import { experiences, experienceModerationEvents, hosts } from '@/db/schema';
 import { redirect } from '@/lib/i18n';
 import { reportError } from '@/lib/log';
 import {
@@ -197,7 +197,6 @@ export async function createDraftExperience(
 
   revalidatePath('/[locale]/host', 'page');
   redirect({ href: `/host/experiences/${newId}`, locale: input.locale });
-  throw new Error('unreachable');
 }
 
 // ---------- update ----------
@@ -219,6 +218,11 @@ export async function updateHostExperience(
   // Edits to a `live` listing pull it back into review. Editing a
   // `paused` / `draft` / `pending_review` / `changes_requested` row
   // is a no-op on status (the host can iterate freely).
+  //
+  // The demote branch uses a conditional UPDATE (`where status='live'`)
+  // so a concurrent admin transition can't be silently overwritten:
+  // if the row left `live` between our read and write, the update
+  // matches zero rows and we skip the audit event for that path.
   let demoteFromLive = false;
   try {
     const current = await db.query.experiences.findFirst({
@@ -228,26 +232,50 @@ export async function updateHostExperience(
     if (!current) return { success: false, message: 'not_found' };
     demoteFromLive = current.status === 'live';
 
-    await db
-      .update(experiences)
-      .set({
-        ...payloadForWrite(input),
-        ...(demoteFromLive ? { status: 'pending_review' as const } : {}),
-        updatedAt: new Date(),
-      })
-      .where(and(eq(experiences.id, experienceId), eq(experiences.hostId, guard.hostId)));
-
     if (demoteFromLive) {
-      // Audit row — both the admin queue and the host edit page rely
-      // on this to render the history timeline.
-      await db.insert(experienceModerationEvents).values({
-        experienceId,
-        event: 'submitted',
-        fromStatus: 'live',
-        toStatus: 'pending_review',
-        reviewerUserId: null,
-        reviewerNotes: null,
-      });
+      const updated = await db
+        .update(experiences)
+        .set({
+          ...payloadForWrite(input),
+          status: 'pending_review' as const,
+          updatedAt: new Date(),
+        })
+        .where(
+          and(
+            eq(experiences.id, experienceId),
+            eq(experiences.hostId, guard.hostId),
+            eq(experiences.status, 'live'),
+          ),
+        )
+        .returning({ id: experiences.id });
+
+      if (updated.length === 0) {
+        // Lost the race — another action (admin moderation, bulk-pause
+        // on host suspension, etc.) moved the row out of `live`. Fall
+        // back to a status-preserving update so the host's edits still
+        // land, just without the demote.
+        demoteFromLive = false;
+        await db
+          .update(experiences)
+          .set({ ...payloadForWrite(input), updatedAt: new Date() })
+          .where(and(eq(experiences.id, experienceId), eq(experiences.hostId, guard.hostId)));
+      } else {
+        // Audit row — both the admin queue and the host edit page rely
+        // on this to render the history timeline.
+        await db.insert(experienceModerationEvents).values({
+          experienceId,
+          event: 'submitted',
+          fromStatus: 'live',
+          toStatus: 'pending_review',
+          reviewerUserId: null,
+          reviewerNotes: null,
+        });
+      }
+    } else {
+      await db
+        .update(experiences)
+        .set({ ...payloadForWrite(input), updatedAt: new Date() })
+        .where(and(eq(experiences.id, experienceId), eq(experiences.hostId, guard.hostId)));
     }
   } catch (error) {
     reportError(error, { surface: 'host-experiences:update', experienceId });
@@ -255,7 +283,7 @@ export async function updateHostExperience(
   }
 
   revalidatePath('/[locale]/host', 'page');
-  revalidatePath(`/[locale]/host/experiences/${experienceId}`, 'page');
+  revalidatePath('/[locale]/host/experiences/[id]', 'page');
   // The public detail page renders by slug — invalidate the bucket.
   revalidatePath('/[locale]/experiences/[slug]', 'page');
   if (demoteFromLive) {
@@ -265,7 +293,6 @@ export async function updateHostExperience(
     revalidatePath('/[locale]/admin/experience-moderation', 'page');
   }
   redirect({ href: `/host/experiences/${experienceId}`, locale: input.locale });
-  throw new Error('unreachable');
 }
 
 // ---------- submit for review / pause ----------
@@ -293,6 +320,12 @@ export async function publishHostExperience(
     // cannot submit anything for review or pull it back online. This
     // is enforced here, on the only host action that can change a
     // listing's public visibility.
+    //
+    // The verification check is folded into each UPDATE's WHERE clause
+    // (via `hosts.verificationStatus = 'verified'`) so a concurrent
+    // `suspendHost` running between our read and write can't slip a
+    // listing live. The pre-read still happens so we can return a
+    // clean `suspended` message instead of a generic `wrong_state`.
     const hostRow = await db.query.hosts.findFirst({
       where: (h) => eq(h.id, guard.hostId),
       columns: { verificationStatus: true },
@@ -320,21 +353,61 @@ export async function publishHostExperience(
     // Paused listings have already passed review — toggle back to live
     // without re-entering the queue.
     if (row.status === 'paused') {
-      await db
+      const updated = await db
         .update(experiences)
         .set({ status: 'live', updatedAt: new Date() })
-        .where(and(eq(experiences.id, experienceId), eq(experiences.hostId, guard.hostId)));
+        .where(
+          and(
+            eq(experiences.id, experienceId),
+            eq(experiences.hostId, guard.hostId),
+            eq(experiences.status, 'paused'),
+            sql`exists (select 1 from ${hosts} where ${hosts.id} = ${experiences.hostId} and ${hosts.verificationStatus} = 'verified')`,
+          ),
+        )
+        .returning({ id: experiences.id });
+      if (updated.length === 0) {
+        // Either the host got suspended in flight (bulk-pause already
+        // ran) or the listing changed state. Both surface as
+        // `suspended` first, then `wrong_state` — re-read to decide.
+        const fresh = await db.query.hosts.findFirst({
+          where: (h) => eq(h.id, guard.hostId),
+          columns: { verificationStatus: true },
+        });
+        if (fresh?.verificationStatus === 'suspended') {
+          return { success: false, message: 'suspended' };
+        }
+        return { success: false, message: 'wrong_state' };
+      }
     } else if (row.status === 'draft' || row.status === 'changes_requested') {
-      await db
+      const previousStatus = row.status;
+      const updated = await db
         .update(experiences)
         .set({ status: 'pending_review', updatedAt: new Date() })
-        .where(and(eq(experiences.id, experienceId), eq(experiences.hostId, guard.hostId)));
+        .where(
+          and(
+            eq(experiences.id, experienceId),
+            eq(experiences.hostId, guard.hostId),
+            eq(experiences.status, previousStatus),
+            sql`exists (select 1 from ${hosts} where ${hosts.id} = ${experiences.hostId} and ${hosts.verificationStatus} = 'verified')`,
+          ),
+        )
+        .returning({ id: experiences.id });
+      if (updated.length === 0) {
+        const fresh = await db.query.hosts.findFirst({
+          where: (h) => eq(h.id, guard.hostId),
+          columns: { verificationStatus: true },
+        });
+        if (fresh?.verificationStatus === 'suspended') {
+          return { success: false, message: 'suspended' };
+        }
+        return { success: false, message: 'wrong_state' };
+      }
       // Audit row — reviewer (and the host) see the history on the
       // moderation detail and the host edit page.
       await db.insert(experienceModerationEvents).values({
         experienceId,
         event: 'submitted',
-        fromStatus: row.status,
+        fromStatus: previousStatus,
         toStatus: 'pending_review',
         reviewerUserId: null,
         reviewerNotes: null,
@@ -349,11 +422,10 @@ export async function publishHostExperience(
   }
 
   revalidatePath('/[locale]/host', 'page');
-  revalidatePath(`/[locale]/host/experiences/${experienceId}`, 'page');
+  revalidatePath('/[locale]/host/experiences/[id]', 'page');
   revalidatePath('/[locale]/admin/experience-moderation', 'page');
   revalidatePath('/[locale]/experiences', 'page');
   redirect({ href: `/host/experiences/${experienceId}`, locale });
-  throw new Error('unreachable');
 }
 
 export async function pauseHostExperience(
@@ -376,8 +448,7 @@ export async function pauseHostExperience(
   }
 
   revalidatePath('/[locale]/host', 'page');
-  revalidatePath(`/[locale]/host/experiences/${experienceId}`, 'page');
+  revalidatePath('/[locale]/host/experiences/[id]', 'page');
   revalidatePath('/[locale]/experiences', 'page');
   redirect({ href: `/host/experiences/${experienceId}`, locale });
-  throw new Error('unreachable');
 }

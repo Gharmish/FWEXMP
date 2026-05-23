@@ -210,6 +210,7 @@
       "unsuspendPending": "Restoring",
       "notesLabel": "Reviewer notes",
       "notesHint": "Internal-only. Saved to the status history so future reviewers see why this happened.",
+      "livePauseNotice": "{count, plural, =1 {1 live experience will be paused.} other {# live experiences will be paused.}}",
       "errors": {
         "forbidden": "You're not authorised to do that.",
         "noDb": "Admin actions require a database connection.",
@@ -266,6 +267,19 @@
         "eyebrow": "Nothing yet",
         "title": "No bookings on the platform.",
         "description": "When a guest sends a booking request, it'll show up here."
+      },
+      "refund": {
+        "label": "Refund",
+        "pending": "Refunding",
+        "confirm": "Mark this booking as refunded? Issue the actual reversal in Moyasar first; this only records that it happened.",
+        "errors": {
+          "forbidden": "You're not authorised to do that.",
+          "noDb": "Admin actions require a database connection.",
+          "notFound": "This booking no longer exists.",
+          "wrongState": "This booking can't be refunded from its current status.",
+          "validation": "Something didn't validate. Refresh and try again.",
+          "server": "We couldn't complete that action. Try again in a moment."
+        }
       }
     },
     "bookingStatus": {

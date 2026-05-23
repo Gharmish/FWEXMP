@@ -1,7 +1,6 @@
 'use server';
 
-import { eq } from 'drizzle-orm';
-import { notFound } from 'next/navigation';
+import { and, eq } from 'drizzle-orm';
 import { revalidatePath } from 'next/cache';
 import { db } from '@/lib/db';
 import { serverEnv } from '@/lib/env';
@@ -34,7 +33,7 @@ import {
 
 export interface AdminApplyResult {
   success: false;
-  message?: 'forbidden' | 'no_db' | 'not_found' | 'validation' | 'server';
+  message?: 'forbidden' | 'no_db' | 'not_found' | 'wrong_state' | 'validation' | 'server';
   fieldError?: string;
 }
 
@@ -45,7 +44,8 @@ function formValue(formData: FormData, key: string): string {
 
 async function requireAdmin(): Promise<{ adminUserId: string } | { error: AdminApplyResult }> {
   const admin = await getCurrentUser();
-  if (!isAdminUser(admin) || !admin) {
+  // Null check first so TS narrows `admin` before the role check reads `.id`.
+  if (!admin || !isAdminUser(admin)) {
     return { error: { success: false, message: 'forbidden' } };
   }
   if (!serverEnv.DATABASE_URL) {
@@ -71,62 +71,103 @@ export async function approveApplication(
   }
   const { applicationId, reviewerNotes, locale } = parsed.data;
 
+  // Approve must be atomic: claim the application (conditional UPDATE
+  // gated on `status='pending'`), then mint the host row, then write
+  // the audit event. A second concurrent click finds zero rows in the
+  // claim step and returns `wrong_state` cleanly instead of trying to
+  // insert a duplicate `hosts.userId` (which would fail uniquely and
+  // surface as a generic server error).
+  let raced: 'not_found' | 'wrong_state' | null = null;
   try {
-    const application = await db.query.hostApplications.findFirst({
-      where: (a) => eq(a.id, applicationId),
-    });
-    if (!application) return { success: false, message: 'not_found' };
+    await db.transaction(async (tx) => {
+      // Claim the row. If another admin already moved it out of
+      // `pending`, this matches zero rows.
+      const claimed = await tx
+        .update(hostApplications)
+        .set({
+          status: 'approved',
+          reviewerNotes: reviewerNotes ?? null,
+          reviewedByUserId: guard.adminUserId,
+          reviewedAt: new Date(),
+          updatedAt: new Date(),
+        })
+        .where(and(eq(hostApplications.id, applicationId), eq(hostApplications.status, 'pending')))
+        .returning({
+          id: hostApplications.id,
+          userId: hostApplications.userId,
+          displayName: hostApplications.displayName,
+          bioEn: hostApplications.bioEn,
+          bioAr: hostApplications.bioAr,
+          identityType: hostApplications.identityType,
+          identityNumber: hostApplications.identityNumber,
+          languages: hostApplications.languages,
+          city: hostApplications.city,
+          region: hostApplications.region,
+        });
 
-    // Mint a hosts row from the application. Identity + bio come over;
-    // payout/insurance still gathered out-of-band (BRIEF §10 Sprint 4+).
-    // The application's userId becomes the host's userId so the host
-    // can sign in and land on /host (their dashboard).
-    const [host] = await db
-      .insert(hosts)
-      .values({
-        userId: application.userId,
-        name: application.displayName,
-        bioEn: application.bioEn,
-        // Placeholder so the row is valid — partnership team fills the
-        // real Arabic copy before public listing.
-        bioAr: application.bioAr ?? 'TODO(ar): bio pending translation',
-        nationalId: application.identityType === 'national_id' ? application.identityNumber : null,
-        crNumber: application.identityType === 'cr' ? application.identityNumber : null,
-        verificationStatus: 'verified',
-        languages: [...application.languages],
-      })
-      .returning({ id: hosts.id });
+      if (claimed.length === 0) {
+        // Either the application is gone or it isn't `pending`. Tell
+        // the two apart with a single follow-up read.
+        const exists = await tx.query.hostApplications.findFirst({
+          where: (a) => eq(a.id, applicationId),
+          columns: { id: true },
+        });
+        raced = exists ? 'wrong_state' : 'not_found';
+        return;
+      }
+      const application = claimed[0];
 
-    await db
-      .update(hostApplications)
-      .set({
-        status: 'approved',
+      // Mint a hosts row from the application. Identity + bio come over;
+      // payout/insurance still gathered out-of-band (BRIEF §10 Sprint 4+).
+      // The application's userId becomes the host's userId so the host
+      // can sign in and land on /host (their dashboard).
+      const [host] = await tx
+        .insert(hosts)
+        .values({
+          userId: application.userId,
+          name: application.displayName,
+          bioEn: application.bioEn,
+          // Placeholder so the row is valid — partnership team fills the
+          // real Arabic copy before public listing.
+          bioAr: application.bioAr ?? 'TODO(ar): bio pending translation',
+          nationalId:
+            application.identityType === 'national_id' ? application.identityNumber : null,
+          crNumber: application.identityType === 'cr' ? application.identityNumber : null,
+          verificationStatus: 'verified',
+          languages: [...application.languages],
+          city: application.city,
+          region: application.region,
+        })
+        .returning({ id: hosts.id });
+
+      // Link the freshly-minted host back onto the application row.
+      await tx
+        .update(hostApplications)
+        .set({ hostId: host.id })
+        .where(eq(hostApplications.id, applicationId));
+
+      // Audit row — preserves the decision across any future resubmits.
+      await tx.insert(hostApplicationEvents).values({
+        applicationId,
+        event: 'approved',
+        reviewerUserId: guard.adminUserId,
         reviewerNotes: reviewerNotes ?? null,
-        reviewedByUserId: guard.adminUserId,
-        reviewedAt: new Date(),
-        hostId: host.id,
-        updatedAt: new Date(),
-      })
-      .where(eq(hostApplications.id, applicationId));
-
-    // Audit row — preserves the decision across any future resubmits.
-    await db.insert(hostApplicationEvents).values({
-      applicationId,
-      event: 'approved',
-      reviewerUserId: guard.adminUserId,
-      reviewerNotes: reviewerNotes ?? null,
+      });
     });
   } catch (error) {
     reportError(error, { surface: 'admin:approveApplication', applicationId });
     return { success: false, message: 'server' };
   }
+  if (raced) return { success: false, message: raced };
 
   revalidatePath('/[locale]/admin/host-applications', 'page');
-  revalidatePath(`/[locale]/admin/host-applications/${applicationId}`, 'page');
+  // Use the dynamic-segment template so the cache key matches what
+  // Next.js stored at render time. `/[locale]/admin/host-applications/${id}`
+  // mixes a templated and a concrete segment — Next won't match it.
+  revalidatePath('/[locale]/admin/host-applications/[id]', 'page');
   revalidatePath('/[locale]/host/apply', 'page');
   revalidatePath('/[locale]/hosts', 'page');
   redirect({ href: `/admin/host-applications/${applicationId}`, locale });
-  throw new Error('unreachable');
 }
 
 export async function rejectApplication(
@@ -151,39 +192,51 @@ export async function rejectApplication(
   }
   const { applicationId, reviewerNotes, locale } = parsed.data;
 
+  // Same conditional-claim pattern as approve: only reject rows that
+  // are still `pending`. Already-approved (with a minted host) and
+  // already-rejected rows are not re-decided here.
+  let raced: 'not_found' | 'wrong_state' | null = null;
   try {
-    const application = await db.query.hostApplications.findFirst({
-      where: (a) => eq(a.id, applicationId),
-      columns: { id: true },
-    });
-    if (!application) {
-      notFound();
-    }
-    await db
-      .update(hostApplications)
-      .set({
-        status: 'rejected',
-        reviewerNotes,
-        reviewedByUserId: guard.adminUserId,
-        reviewedAt: new Date(),
-        updatedAt: new Date(),
-      })
-      .where(eq(hostApplications.id, applicationId));
+    await db.transaction(async (tx) => {
+      const claimed = await tx
+        .update(hostApplications)
+        .set({
+          status: 'rejected',
+          reviewerNotes,
+          reviewedByUserId: guard.adminUserId,
+          reviewedAt: new Date(),
+          updatedAt: new Date(),
+        })
+        .where(and(eq(hostApplications.id, applicationId), eq(hostApplications.status, 'pending')))
+        .returning({ id: hostApplications.id });
 
-    await db.insert(hostApplicationEvents).values({
-      applicationId,
-      event: 'rejected',
-      reviewerUserId: guard.adminUserId,
-      reviewerNotes,
+      if (claimed.length === 0) {
+        const exists = await tx.query.hostApplications.findFirst({
+          where: (a) => eq(a.id, applicationId),
+          columns: { id: true },
+        });
+        raced = exists ? 'wrong_state' : 'not_found';
+        return;
+      }
+
+      await tx.insert(hostApplicationEvents).values({
+        applicationId,
+        event: 'rejected',
+        reviewerUserId: guard.adminUserId,
+        reviewerNotes,
+      });
     });
   } catch (error) {
     reportError(error, { surface: 'admin:rejectApplication', applicationId });
     return { success: false, message: 'server' };
   }
+  if (raced) return { success: false, message: raced };
 
   revalidatePath('/[locale]/admin/host-applications', 'page');
-  revalidatePath(`/[locale]/admin/host-applications/${applicationId}`, 'page');
+  // Use the dynamic-segment template so the cache key matches what
+  // Next.js stored at render time. `/[locale]/admin/host-applications/${id}`
+  // mixes a templated and a concrete segment — Next won't match it.
+  revalidatePath('/[locale]/admin/host-applications/[id]', 'page');
   revalidatePath('/[locale]/host/apply', 'page');
   redirect({ href: `/admin/host-applications/${applicationId}`, locale });
-  throw new Error('unreachable');
 }

@@ -18,6 +18,8 @@ interface Copy {
   unsuspendPending: string;
   notesLabel: string;
   notesHint: string;
+  /** Already-translated, ICU-pluralised. Empty string = hide the notice. */
+  livePauseNotice: string;
   errors: Record<ErrorKey, string>;
 }
 
@@ -29,8 +31,6 @@ const TEXTAREA_CLASS = cn(
 export interface HostActionsProps {
   hostId: string;
   status: HostVerificationStatus;
-  /** Number of live experiences that would be paused on suspend. */
-  livePublished: number;
   locale: Locale;
   copy: Copy;
 }
@@ -67,7 +67,7 @@ function errorMessage(result: AdminHostResult, copy: Copy): string | undefined {
   return key in copy.errors ? copy.errors[key] : copy.errors.server;
 }
 
-export function HostActions({ hostId, status, livePublished, locale, copy }: HostActionsProps) {
+export function HostActions({ hostId, status, locale, copy }: HostActionsProps) {
   const [suspendState, suspendAction] = useActionState(suspendHost, initialState);
   const [unsuspendState, unsuspendAction] = useActionState(unsuspendHost, initialState);
   const suspendError = errorMessage(suspendState, copy);
@@ -83,11 +83,8 @@ export function HostActions({ hostId, status, livePublished, locale, copy }: Hos
     return (
       <div className="border-sarat-black/8 rounded-card flex flex-col gap-3 [border-width:0.5px] p-6">
         <p className="text-sarat-black-600 text-sm leading-relaxed">{copy.suspendConfirm}</p>
-        {livePublished > 0 && (
-          <p className="text-sarat-black-600 text-xs">
-            {/* Inline count — kept simple, not pluralised per-locale. */}
-            {`${livePublished} live experience${livePublished === 1 ? '' : 's'} will be paused.`}
-          </p>
+        {copy.livePauseNotice && (
+          <p className="text-sarat-black-600 text-xs">{copy.livePauseNotice}</p>
         )}
         <form action={suspendAction} className="flex flex-col gap-3">
           <input type="hidden" name="hostId" value={hostId} />

@@ -41,20 +41,20 @@
         "description": "راجع طلبات المضيفين الواردة، واعتمدها أو ارفضها. الاعتماد ينشئ ملف مضيف موثّق."
       },
       "experienceModeration": {
-        "title": "TODO(ar): Experience moderation",
-        "description": "TODO(ar): Approve, reject, or request changes on experiences hosts have submitted for review."
+        "title": "مراجعة التجارب",
+        "description": "اعتمد التجارب، ارفضها، أو اطلب تعديلات على ما يرسله المضيفون للمراجعة."
       },
       "bookings": {
-        "title": "TODO(ar): Bookings",
-        "description": "TODO(ar): Every booking across the platform — for support, debugging, and end-of-day sanity checks."
+        "title": "الحجوزات",
+        "description": "كل الحجوزات على المنصّة — للدعم والتشخيص ومراجعة آخر اليوم."
       },
       "analytics": {
-        "title": "TODO(ar): Platform analytics",
-        "description": "TODO(ar): GMV, booking volume, top experiences and hosts — at a glance, over 7 / 30 / 90 days."
+        "title": "تحليلات المنصّة",
+        "description": "إجمالي قيمة الحجوزات، حجم الحجوزات، وأبرز التجارب والمضيفين — لمحة سريعة عبر 7 / 30 / 90 يوماً."
       },
       "hosts": {
-        "title": "TODO(ar): Hosts",
-        "description": "TODO(ar): Verified, pending, or suspended. Suspend a host to pause every one of their live listings in one move."
+        "title": "المضيفون",
+        "description": "موثّقون، قيد المراجعة، أو موقوفون. إيقاف المضيف يوقف كل تجاربه المنشورة دفعة واحدة."
       }
     },
     "hostApplicationsList": {
@@ -96,12 +96,12 @@
       "location": "الموقع",
       "bio": "النبذة (بالإنجليزية)",
       "reviewerNotes": "ملاحظات المراجعة",
-      "historyHeading": "TODO(ar): Decision history"
+      "historyHeading": "سجلّ القرارات"
     },
     "applicationEvent": {
-      "submitted": "TODO(ar): Submitted",
-      "approved": "TODO(ar): Approved",
-      "rejected": "TODO(ar): Rejected"
+      "submitted": "أُرسل",
+      "approved": "معتمد",
+      "rejected": "مرفوض"
     },
     "actions": {
       "approve": "اعتمد وأنشئ ملف المضيف",
@@ -121,179 +121,193 @@
       }
     },
     "experienceModerationList": {
-      "eyebrow": "TODO(ar): Experience moderation",
-      "title": "TODO(ar): Experiences awaiting review.",
-      "intro": "TODO(ar): Pending submissions are at the top, oldest first. Click through to read the listing in full and approve, request changes, or reject.",
-      "submittedOn": "TODO(ar): Submitted {date}",
+      "eyebrow": "مراجعة التجارب",
+      "title": "تجارب بانتظار المراجعة.",
+      "intro": "الطلبات بانتظار المراجعة تظهر في الأعلى، الأقدم أولاً. اضغط على التجربة لقراءة تفاصيلها كاملة، ثم اعتمدها أو اطلب تعديلات أو ارفضها.",
+      "submittedOn": "أُرسلت في {date}",
       "empty": {
-        "eyebrow": "TODO(ar): Inbox zero",
-        "title": "TODO(ar): Nothing waiting on you.",
-        "description": "TODO(ar): When a host submits an experience for review, it'll show up here."
+        "eyebrow": "صندوق فارغ",
+        "title": "لا شيء بانتظارك.",
+        "description": "حين يرسل مضيف تجربة للمراجعة، ستظهر هنا."
       }
     },
     "experienceModerationDetail": {
-      "submittedOn": "TODO(ar): Submitted on {date}",
-      "price": "TODO(ar): Price per guest",
-      "duration": "TODO(ar): Duration",
-      "minutes": "TODO(ar): {count} minutes",
-      "category": "TODO(ar): Category",
-      "groupAndAge": "TODO(ar): Group size · Min age",
-      "groupAndAgeValue": "TODO(ar): Up to {max} · {age}+",
-      "availability": "TODO(ar): Available days",
-      "descriptionEn": "TODO(ar): Description (English)",
-      "descriptionAr": "TODO(ar): Description (Arabic)",
-      "arabicPending": "TODO(ar): Arabic copy hasn't been written yet. The partnerships team adds it before the listing goes live.",
-      "arabicTitlePending": "TODO(ar): Arabic title is a placeholder — partnerships team will add it before the listing goes live.",
-      "inclusions": "TODO(ar): What's included",
-      "whatToBring": "TODO(ar): What to bring",
-      "cancellation": "TODO(ar): Cancellation policy",
-      "history": "TODO(ar): History",
-      "viewPublic": "TODO(ar): View public page"
+      "submittedOn": "أُرسلت في {date}",
+      "price": "السعر للضيف",
+      "duration": "المدّة",
+      "minutes": "{count} دقيقة",
+      "category": "التصنيف",
+      "groupAndAge": "أقصى مجموعة · أدنى عمر",
+      "groupAndAgeValue": "حتى {max} · {age}+",
+      "availability": "أيام التوفّر",
+      "descriptionEn": "الوصف (بالإنجليزية)",
+      "descriptionAr": "الوصف (بالعربية)",
+      "arabicPending": "لم يُكتب الوصف بالعربية بعد. يضيفه فريق الشراكات قبل نشر التجربة.",
+      "arabicTitlePending": "العنوان بالعربية مؤقّت — يضيفه فريق الشراكات قبل نشر التجربة.",
+      "inclusions": "ما الذي يشمله السعر",
+      "whatToBring": "ما الذي تحضره معك",
+      "cancellation": "سياسة الإلغاء",
+      "history": "السجلّ",
+      "viewPublic": "افتح الصفحة العامة"
     },
     "experienceStatus": {
-      "draft": "TODO(ar): Draft",
-      "pending_review": "TODO(ar): Pending review",
-      "changes_requested": "TODO(ar): Changes requested",
-      "live": "TODO(ar): Live",
-      "paused": "TODO(ar): Paused",
-      "archived": "TODO(ar): Archived"
+      "draft": "مسوّدة",
+      "pending_review": "بانتظار المراجعة",
+      "changes_requested": "تعديلات مطلوبة",
+      "live": "منشورة",
+      "paused": "موقوفة",
+      "archived": "مؤرشفة"
     },
     "moderationEvent": {
-      "submitted": "TODO(ar): Submitted for review",
-      "approved": "TODO(ar): Approved",
-      "rejected": "TODO(ar): Rejected",
-      "changes_requested": "TODO(ar): Changes requested"
+      "submitted": "أُرسلت للمراجعة",
+      "approved": "معتمدة",
+      "rejected": "مرفوضة",
+      "changes_requested": "طُلبت تعديلات"
     },
     "hostsList": {
-      "eyebrow": "TODO(ar): Hosts",
-      "title": "TODO(ar): Every host on the platform.",
-      "intro": "TODO(ar): Suspended first (action needed), then pending, then verified. A suspended host's live experiences are paused — the catalog hides them automatically.",
-      "publishedCount": "TODO(ar): {count, plural, =0 {No published experiences} =1 {1 published} other {# published}}",
-      "bookingsCount": "TODO(ar): {count, plural, =0 {No bookings} =1 {1 booking} other {# bookings}}",
-      "joinedOn": "TODO(ar): Joined {date}",
+      "eyebrow": "المضيفون",
+      "title": "كل المضيفين على المنصّة.",
+      "intro": "الموقوفون أولاً (يحتاجون إجراءً)، ثم قيد المراجعة، ثم الموثّقون. تجارب المضيف الموقوف تُوقَف — تختفي من القائمة تلقائياً.",
+      "publishedCount": "{count, plural, =0 {لا تجارب منشورة} one {تجربة واحدة منشورة} two {تجربتان منشورتان} few {# تجارب منشورة} many {# تجربة منشورة} other {# تجربة منشورة}}",
+      "bookingsCount": "{count, plural, =0 {لا حجوزات} one {حجز واحد} two {حجزان} few {# حجوزات} many {# حجزاً} other {# حجز}}",
+      "joinedOn": "انضمّ في {date}",
       "empty": {
-        "eyebrow": "TODO(ar): Empty",
-        "title": "TODO(ar): No hosts on the platform yet.",
-        "description": "TODO(ar): Approved host applications mint a host record — that's when they show up here."
+        "eyebrow": "فارغة",
+        "title": "لا يوجد مضيفون على المنصّة بعد.",
+        "description": "الطلبات المعتمدة تنشئ ملف مضيف — حينها يظهر هنا."
       }
     },
     "hostStatus": {
-      "verified": "TODO(ar): Verified",
-      "pending": "TODO(ar): Pending",
-      "suspended": "TODO(ar): Suspended"
+      "verified": "موثّق",
+      "pending": "قيد المراجعة",
+      "suspended": "موقوف"
     },
     "hostDetail": {
-      "joinedOn": "TODO(ar): Joined {date}",
-      "publishedExperiences": "TODO(ar): Live + paused",
-      "totalExperiences": "TODO(ar): Total experiences",
-      "liveBookings": "TODO(ar): Confirmed bookings",
-      "nationalId": "TODO(ar): National ID",
-      "crNumber": "TODO(ar): CR number",
-      "languages": "TODO(ar): Languages",
-      "bio": "TODO(ar): Bio",
-      "experiencesHeading": "TODO(ar): Experiences",
-      "experiencesEmpty": "TODO(ar): This host hasn't drafted anything yet.",
-      "historyHeading": "TODO(ar): Status history",
-      "pendingEyebrow": "TODO(ar): Pending",
-      "pendingDescription": "TODO(ar): This host's application is still being reviewed.",
-      "pendingCta": "TODO(ar): Go to host applications →"
+      "joinedOn": "انضمّ في {date}",
+      "publishedExperiences": "منشورة + موقوفة",
+      "totalExperiences": "إجمالي التجارب",
+      "liveBookings": "الحجوزات المؤكَّدة",
+      "nationalId": "الهوية الوطنية",
+      "crNumber": "رقم السجل التجاري",
+      "languages": "اللغات",
+      "bio": "النبذة",
+      "experiencesHeading": "التجارب",
+      "experiencesEmpty": "لم يضع هذا المضيف أي مسوّدة بعد.",
+      "historyHeading": "سجلّ الحالة",
+      "pendingEyebrow": "قيد المراجعة",
+      "pendingDescription": "طلب هذا المضيف لا يزال قيد المراجعة.",
+      "pendingCta": "اذهب إلى طلبات المضيفين"
     },
     "hostStatusEvent": {
-      "suspended": "TODO(ar): Suspended",
-      "restored": "TODO(ar): Restored"
+      "suspended": "تم الإيقاف",
+      "restored": "تمت الاستعادة"
     },
     "hostActions": {
-      "suspend": "TODO(ar): Suspend host",
-      "suspendPending": "TODO(ar): Suspending",
-      "suspendConfirm": "TODO(ar): Suspending puts the host's account on hold. Every live experience is paused so it leaves the catalog immediately. Existing bookings are not cancelled.",
-      "unsuspend": "TODO(ar): Restore host",
-      "unsuspendPending": "TODO(ar): Restoring",
-      "notesLabel": "TODO(ar): Reviewer notes",
-      "notesHint": "TODO(ar): Internal-only. Saved to the status history so future reviewers see why this happened.",
+      "suspend": "أوقف المضيف",
+      "suspendPending": "جارٍ الإيقاف",
+      "suspendConfirm": "الإيقاف يعلّق حساب المضيف. تُوقف كل التجارب المنشورة فوراً وتختفي من القائمة. الحجوزات القائمة لا تُلغى.",
+      "unsuspend": "استعد المضيف",
+      "unsuspendPending": "جارٍ الاستعادة",
+      "notesLabel": "ملاحظات المراجعة",
+      "notesHint": "داخلية فقط. تُحفظ في سجلّ الحالة ليرى المراجعون لاحقاً سبب ما حدث.",
+      "livePauseNotice": "TODO(ar): {count, plural, =1 {1 live experience will be paused.} other {# live experiences will be paused.}}",
       "errors": {
-        "forbidden": "TODO(ar): You're not authorised to do that.",
-        "noDb": "TODO(ar): Admin actions require a database connection.",
-        "notFound": "TODO(ar): This host no longer exists.",
-        "validation": "TODO(ar): Something didn't validate. Refresh and try again.",
-        "server": "TODO(ar): We couldn't complete that action. Try again in a moment.",
-        "wrongState": "TODO(ar): This host's status changed — refresh to see the latest."
+        "forbidden": "ليس لديك صلاحية لذلك.",
+        "noDb": "إجراءات الإدارة تتطلّب اتصالاً بقاعدة البيانات.",
+        "notFound": "هذا المضيف لم يعد موجوداً.",
+        "validation": "هناك خطأ في المدخلات. حدّث الصفحة وحاول مرة أخرى.",
+        "server": "لم نتمكّن من إتمام العملية. حاول بعد قليل.",
+        "wrongState": "حالة هذا المضيف تغيّرت — حدّث الصفحة لترى آخر التحديثات."
       }
     },
     "analytics": {
-      "eyebrow": "TODO(ar): Platform analytics",
-      "title": "TODO(ar): How Gharmish is doing.",
-      "intro": "TODO(ar): GMV is gross merchandise value — money moving through the platform on confirmed and completed bookings, net of refunds. Cancellations and pending requests are counted separately.",
-      "generatedOn": "TODO(ar): Snapshot taken {date}",
-      "catalogHeading": "TODO(ar): Catalog",
-      "windowsHeading": "TODO(ar): Activity",
-      "sparkHeading": "TODO(ar): Bookings — last 30 days",
-      "sparkSubtitle": "TODO(ar): One bar per day. Confirmed + completed bookings only.",
-      "topExperiencesHeading": "TODO(ar): Top experiences (last 30 days)",
-      "topHostsHeading": "TODO(ar): Top hosts (last 30 days)",
+      "eyebrow": "تحليلات المنصّة",
+      "title": "كيف يسير غارميش.",
+      "intro": "إجمالي قيمة الحجوزات هو ما يمرّ عبر المنصّة على الحجوزات المؤكَّدة والمكتملة، بعد خصم المرتجعات. الإلغاءات والطلبات قيد الانتظار تُحسب منفصلة.",
+      "generatedOn": "لقطة بتاريخ {date}",
+      "catalogHeading": "القائمة",
+      "windowsHeading": "النشاط",
+      "sparkHeading": "الحجوزات — آخر 30 يوماً",
+      "sparkSubtitle": "عمود لكل يوم. الحجوزات المؤكَّدة والمكتملة فقط.",
+      "topExperiencesHeading": "أبرز التجارب (آخر 30 يوماً)",
+      "topHostsHeading": "أبرز المضيفين (آخر 30 يوماً)",
       "windows": {
-        "7d": "TODO(ar): Last 7 days",
-        "30d": "TODO(ar): Last 30 days",
-        "90d": "TODO(ar): Last 90 days",
-        "allTime": "TODO(ar): All time"
+        "7d": "آخر 7 أيام",
+        "30d": "آخر 30 يوماً",
+        "90d": "آخر 90 يوماً",
+        "allTime": "كل الفترة"
       },
       "catalog": {
-        "hosts": "TODO(ar): Hosts",
-        "publishedExperiences": "TODO(ar): Live + paused",
-        "pendingReview": "TODO(ar): Pending review",
-        "changesRequested": "TODO(ar): Changes requested",
-        "pendingApplications": "TODO(ar): Pending applications"
+        "hosts": "المضيفون",
+        "publishedExperiences": "منشورة + موقوفة",
+        "pendingReview": "بانتظار المراجعة",
+        "changesRequested": "تعديلات مطلوبة",
+        "pendingApplications": "طلبات قيد المراجعة"
       },
-      "gmvLabel": "TODO(ar): GMV",
-      "bookingsLabel": "TODO(ar): {count, plural, =1 {1 booking} other {# bookings}}",
-      "bookingsLabelShort": "TODO(ar): Bookings",
-      "pendingLabel": "TODO(ar): Pending",
-      "guestsLabel": "TODO(ar): Unique guests",
-      "activeExperiencesLabel": "TODO(ar): Experiences booked",
-      "cancelledLabel": "TODO(ar): Cancelled",
-      "refundedLabel": "TODO(ar): Refunded",
-      "empty": "TODO(ar): No bookings in this window yet."
+      "gmvLabel": "إجمالي القيمة",
+      "bookingsLabel": "{count, plural, =0 {لا حجوزات} one {حجز واحد} two {حجزان} few {# حجوزات} many {# حجزاً} other {# حجز}}",
+      "bookingsLabelShort": "الحجوزات",
+      "pendingLabel": "قيد الانتظار",
+      "guestsLabel": "ضيوف مختلفون",
+      "activeExperiencesLabel": "تجارب محجوزة",
+      "cancelledLabel": "ملغاة",
+      "refundedLabel": "مُستردّة",
+      "empty": "لا حجوزات في هذه الفترة بعد."
     },
     "bookingsList": {
-      "eyebrow": "TODO(ar): Bookings",
-      "title": "TODO(ar): Every booking, newest first.",
-      "intro": "TODO(ar): A flat list. No filters, no detail page yet — the data is small enough to scan, and the reference id is right there if you need to dig deeper.",
+      "eyebrow": "الحجوزات",
+      "title": "كل الحجوزات، الأحدث أولاً.",
+      "intro": "قائمة مسطّحة. لا فلاتر ولا صفحة تفاصيل بعد — البيانات صغيرة بحيث يمكن تصفّحها سريعاً، والرقم المرجعي هنا إن احتجت التعمّق.",
       "stats": {
-        "total": "TODO(ar): Total"
+        "total": "الإجمالي"
       },
-      "partyOf": "TODO(ar): {count, plural, =1 {1 guest} other {# guests}}",
-      "requestedOn": "TODO(ar): Requested {date}",
+      "partyOf": "{count, plural, =0 {لا ضيوف} one {ضيف واحد} two {ضيفان} few {# ضيوف} many {# ضيفاً} other {# ضيف}}",
+      "requestedOn": "طُلب في {date}",
       "empty": {
-        "eyebrow": "TODO(ar): Nothing yet",
-        "title": "TODO(ar): No bookings on the platform.",
-        "description": "TODO(ar): When a guest sends a booking request, it'll show up here."
+        "eyebrow": "لا شيء بعد",
+        "title": "لا حجوزات على المنصّة.",
+        "description": "حين يرسل ضيف طلب حجز، سيظهر هنا."
+      },
+      "refund": {
+        "label": "TODO(ar): Refund",
+        "pending": "TODO(ar): Refunding",
+        "confirm": "TODO(ar): Mark this booking as refunded? Issue the actual reversal in Moyasar first; this only records that it happened.",
+        "errors": {
+          "forbidden": "ليس لديك صلاحية لذلك.",
+          "noDb": "إجراءات الإدارة تتطلّب اتصالاً بقاعدة البيانات.",
+          "notFound": "TODO(ar): This booking no longer exists.",
+          "wrongState": "TODO(ar): This booking can't be refunded from its current status.",
+          "validation": "هناك خطأ في المدخلات. حدّث الصفحة وحاول مرة أخرى.",
+          "server": "لم نتمكّن من إتمام العملية. حاول بعد قليل."
+        }
       }
     },
     "bookingStatus": {
-      "pending": "TODO(ar): Pending",
-      "confirmed": "TODO(ar): Confirmed",
-      "completed": "TODO(ar): Completed",
-      "cancelled": "TODO(ar): Cancelled",
-      "refunded": "TODO(ar): Refunded"
+      "pending": "قيد الانتظار",
+      "confirmed": "مؤكَّد",
+      "completed": "مكتمل",
+      "cancelled": "ملغى",
+      "refunded": "مُستردّ"
     },
     "experienceActions": {
-      "approve": "TODO(ar): Approve and publish",
-      "approvePending": "TODO(ar): Publishing",
-      "reject": "TODO(ar): Reject",
-      "rejectPending": "TODO(ar): Rejecting",
-      "requestChanges": "TODO(ar): Request changes",
-      "requestChangesPending": "TODO(ar): Sending",
-      "notesLabel": "TODO(ar): Reviewer notes",
-      "notesApproveHint": "TODO(ar): Optional — internal context, never shown to the host.",
-      "notesRejectHint": "TODO(ar): Required, minimum 10 characters. Shown to the host. Rejected listings return to draft.",
-      "notesRequestChangesHint": "TODO(ar): Required, minimum 10 characters. Shown to the host so they know what to fix before resubmitting.",
+      "approve": "اعتمد وانشر",
+      "approvePending": "جارٍ النشر",
+      "reject": "رفض",
+      "rejectPending": "جارٍ الرفض",
+      "requestChanges": "اطلب تعديلات",
+      "requestChangesPending": "جارٍ الإرسال",
+      "notesLabel": "ملاحظات المراجعة",
+      "notesApproveHint": "اختياري — سياق داخلي لا يراه المضيف.",
+      "notesRejectHint": "إلزامي، 10 أحرف على الأقل. يراها المضيف. التجارب المرفوضة تعود إلى مسوّدة.",
+      "notesRequestChangesHint": "إلزامي، 10 أحرف على الأقل. يراها المضيف ليعرف ما يجب تعديله قبل إعادة الإرسال.",
       "errors": {
-        "forbidden": "TODO(ar): You're not authorised to do that.",
-        "noDb": "TODO(ar): Admin actions require a database connection.",
-        "notFound": "TODO(ar): This experience no longer exists.",
-        "validation": "TODO(ar): Check the form and try again.",
-        "server": "TODO(ar): We couldn't complete that action. Try again in a moment.",
-        "wrongState": "TODO(ar): This experience isn't pending review anymore — refresh to see the latest status.",
-        "reviewerNoteShort": "TODO(ar): Add at least 10 characters of context so the host knows how to respond."
+        "forbidden": "ليس لديك صلاحية لذلك.",
+        "noDb": "إجراءات الإدارة تتطلّب اتصالاً بقاعدة البيانات.",
+        "notFound": "هذه التجربة لم تعد موجودة.",
+        "validation": "راجع النموذج وحاول مرة أخرى.",
+        "server": "لم نتمكّن من إتمام العملية. حاول بعد قليل.",
+        "wrongState": "لم تعد هذه التجربة بانتظار المراجعة — حدّث الصفحة لترى الحالة الحالية.",
+        "reviewerNoteShort": "أضف 10 أحرف على الأقل من السياق ليعرف المضيف كيف يستجيب."
       }
     }
   },
@@ -406,7 +420,7 @@
     "eyebrow": "لوحة المضيف",
     "greeting": "أهلاً مرة أخرى يا {name}.",
     "verifiedBadge": "مضيف موثّق",
-    "suspendedBanner": "TODO(ar): Your host account is currently suspended by the team. Every live experience has been paused. We'll be in touch on WhatsApp to resolve this — for urgent questions, reply to your last message from us.",
+    "suspendedBanner": "حسابك كمضيف موقوف حالياً من قِبل الفريق. أُوقفت كل تجاربك المنشورة. سنتواصل معك على واتساب لحلّ ذلك — للاستفسارات العاجلة، ردّ على آخر رسالة منّا.",
     "publicProfile": "الملف العام:",
     "whatsNext": {
       "eyebrow": "الخطوات التالية",
@@ -424,8 +438,8 @@
       "perPerson": "للضيف",
       "status": {
         "draft": "مسوّدة",
-        "pending_review": "TODO(ar): Pending review",
-        "changes_requested": "TODO(ar): Changes requested",
+        "pending_review": "بانتظار المراجعة",
+        "changes_requested": "تعديلات مطلوبة",
         "live": "منشورة",
         "paused": "موقوفة",
         "archived": "مؤرشفة"
@@ -451,21 +465,21 @@
     "edit": {
       "back": "عودة إلى لوحتك",
       "formHeading": "تعديل",
-      "liveEditWarning": "TODO(ar): Heads up — this listing is live. Saving any changes will pull it off the catalog until we re-approve the updated version."
+      "liveEditWarning": "تنبيه — هذه التجربة منشورة. حفظ أي تغيير سيوقفها مؤقتاً ويُخرجها من القائمة حتى نعتمد النسخة المحدّثة."
     },
-    "suspendedHostBanner": "TODO(ar): Your host account is suspended. You can still see and edit this listing, but submitting it for review is blocked until the team restores your account.",
+    "suspendedHostBanner": "حسابك كمضيف موقوف. لا يزال بإمكانك رؤية هذه التجربة وتعديلها، لكن إرسالها للمراجعة معطّل حتى يستعيد الفريق حسابك.",
     "status": {
       "draft": {
         "eyebrow": "مسوّدة",
         "label": "مسوّدة"
       },
       "pending_review": {
-        "eyebrow": "TODO(ar): Pending review",
-        "label": "TODO(ar): Pending review"
+        "eyebrow": "بانتظار المراجعة",
+        "label": "بانتظار المراجعة"
       },
       "changes_requested": {
-        "eyebrow": "TODO(ar): Changes requested",
-        "label": "TODO(ar): Changes requested"
+        "eyebrow": "تعديلات مطلوبة",
+        "label": "تعديلات مطلوبة"
       },
       "live": {
         "eyebrow": "منشورة",
@@ -481,11 +495,11 @@
       }
     },
     "lifecycle": {
-      "publish": "TODO(ar): Submit for review",
-      "publishPending": "TODO(ar): Submitting",
-      "resubmit": "TODO(ar): Resubmit for review",
+      "publish": "أرسل للمراجعة",
+      "publishPending": "جارٍ الإرسال",
+      "resubmit": "أعد الإرسال للمراجعة",
       "republish": "أعد النشر",
-      "pendingReviewLabel": "TODO(ar): Waiting on the team. We'll let you know once your listing is reviewed.",
+      "pendingReviewLabel": "بانتظار الفريق. سنبلغك حالما تُراجع تجربتك.",
       "pause": "أوقف",
       "pausePending": "جارٍ الإيقاف",
       "viewPublic": "افتح الصفحة العامة",
@@ -496,14 +510,14 @@
         "noDb": "النشر يتطلّب اتصالاً بقاعدة البيانات.",
         "server": "لم نتمكّن من إتمام العملية. حاول بعد قليل.",
         "validation": "راجع النموذج وحاول مرة أخرى.",
-        "wrongState": "TODO(ar): This experience can't be submitted from its current state — refresh to see the latest.",
-        "suspended": "TODO(ar): Your host account is suspended — submitting for review is blocked until the team restores it."
+        "wrongState": "لا يمكن إرسال هذه التجربة من حالتها الحالية — حدّث الصفحة لترى الحالة الأخيرة.",
+        "suspended": "حسابك كمضيف موقوف — الإرسال للمراجعة معطّل حتى يستعيد الفريق حسابك."
       }
     },
     "reviewerFeedback": {
-      "changesRequestedEyebrow": "TODO(ar): Changes requested",
-      "rejectedEyebrow": "TODO(ar): Rejected by the team",
-      "receivedOn": "TODO(ar): Received {date}"
+      "changesRequestedEyebrow": "تعديلات مطلوبة",
+      "rejectedEyebrow": "رفض من الفريق",
+      "receivedOn": "وصلت في {date}"
     },
     "form": {
       "sectionBasics": "الأساسيات",

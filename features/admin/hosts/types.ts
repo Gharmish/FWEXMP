@@ -7,7 +7,7 @@ export interface AdminHostRow {
   name: string;
   bioEn: string;
   status: HostVerificationStatus;
-  city: string | null;
+  city: string;
   /** Live + paused — what's actually in the host's inventory. */
   publishedExperiences: number;
   /** Includes draft / pending_review / changes_requested too. */

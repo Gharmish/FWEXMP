@@ -1,4 +1,4 @@
-import { count, desc, eq, inArray, sql } from 'drizzle-orm';
+import { and, count, desc, eq, inArray } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import { serverEnv } from '@/lib/env';
 import { bookings, experiences, hosts, hostStatusEvents } from '@/db/schema';
@@ -37,7 +37,7 @@ interface RawHost {
   name: string;
   bioEn: string;
   verificationStatus: AdminHostRow['status'];
-  city: string | null;
+  city: string;
   createdAt: Date;
 }
 
@@ -80,10 +80,10 @@ async function liveBookingsByHost(hostIds: readonly string[]): Promise<Map<strin
     .from(bookings)
     .innerJoin(experiences, eq(experiences.id, bookings.experienceId))
     .where(
-      sql`${experiences.hostId} IN (${sql.join(
-        hostIds.map((id) => sql`${id}`),
-        sql`, `,
-      )}) AND ${bookings.status} IN ('confirmed','completed')`,
+      and(
+        inArray(experiences.hostId, hostIds),
+        inArray(bookings.status, ['confirmed', 'completed']),
+      ),
     )
     .groupBy(experiences.hostId);
   const out = new Map<string, number>();
@@ -121,7 +121,7 @@ export async function listHostsForAdmin(): Promise<readonly AdminHostRow[]> {
         name: hosts.name,
         bioEn: hosts.bioEn,
         verificationStatus: hosts.verificationStatus,
-        city: sql<string | null>`null`.as('city'),
+        city: hosts.city,
         createdAt: hosts.createdAt,
       })
       .from(hosts)
@@ -137,6 +137,12 @@ export async function listHostsForAdmin(): Promise<readonly AdminHostRow[]> {
     const rows = rawHosts.map((h) => toAdminHostRow(h, counts, bookingCounts));
 
     // Suspended first (needs attention), then pending, then verified.
+    // `pending` here is `hosts.verificationStatus = 'pending'`, which
+    // is rare in normal operation: most pre-approval review happens on
+    // `host_applications` and the approve flow mints a host as
+    // `verified`. A `pending` host typically means a seeded row or a
+    // manually-inserted host awaiting verification — surface it so it
+    // gets attention rather than buried.
     return rows.sort((a, b) => {
       const score = (s: AdminHostRow['status']) =>
         s === 'suspended' ? 0 : s === 'pending' ? 1 : 2;
@@ -182,7 +188,7 @@ export async function getHostForAdmin(id: string): Promise<AdminHostDetail | nul
         name: host.name,
         bioEn: host.bioEn,
         verificationStatus: host.verificationStatus,
-        city: null,
+        city: host.city,
         createdAt: host.createdAt,
       },
       counts,

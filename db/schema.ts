@@ -146,6 +146,14 @@ export const hosts = pgTable('hosts', {
   verificationStatus: hostVerificationEnum().notNull().default('pending'),
   /** Languages spoken, ISO-ish tags e.g. ['ar','en']. */
   languages: text().array().notNull().default([]),
+  /**
+   * Operating city. At launch we're Abha-only (BRIEF §2: Asir region
+   * first), but the column exists so admin filters and host detail
+   * surfaces can sort/group without a second migration when we open
+   * more cities. Copied from `host_applications.city` on approval.
+   */
+  city: text().notNull().default('Abha'),
+  region: text().notNull().default('Asir'),
   payoutIban: text(),
   createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
 });
@@ -245,6 +253,14 @@ export const bookings = pgTable('bookings', {
   paymentReference: text(),
   /** Safe retries for AI agents (BRIEF §6). */
   idempotencyKey: text().notNull().unique(),
+  /**
+   * When the admin moved this booking to `refunded`. Null for any
+   * booking that was never refunded. Analytics windows refunds by
+   * this column (so a 60-day-old booking refunded today shows up in
+   * `last7d.refunded`); falls back to `createdAt` for legacy rows
+   * that were already `refunded` before this column existed.
+   */
+  refundedAt: timestamp({ withTimezone: true }),
   createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
 });
 

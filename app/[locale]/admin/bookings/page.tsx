@@ -12,6 +12,7 @@ import {
   totalsFromRows,
 } from '@/features/admin/bookings/queries';
 import type { AdminBookingStatus } from '@/features/admin/bookings/types';
+import { RefundButton } from '@/app/[locale]/admin/bookings/refund-button';
 
 export async function generateMetadata({
   params,
@@ -165,10 +166,31 @@ export default async function AdminBookingsPage({
                       </span>
                     </div>
                   </div>
-                  <div className="text-sarat-black-600 shrink-0 text-sm">
-                    {t('bookingsList.requestedOn', {
-                      date: formatDate(new Date(row.createdAt), loc),
-                    })}
+                  <div className="flex shrink-0 flex-col items-end gap-2 sm:items-end">
+                    <span className="text-sarat-black-600 text-sm">
+                      {t('bookingsList.requestedOn', {
+                        date: formatDate(new Date(row.createdAt), loc),
+                      })}
+                    </span>
+                    {(row.status === 'confirmed' || row.status === 'completed') && (
+                      <RefundButton
+                        bookingId={row.id}
+                        locale={loc}
+                        copy={{
+                          label: t('bookingsList.refund.label'),
+                          pending: t('bookingsList.refund.pending'),
+                          confirm: t('bookingsList.refund.confirm'),
+                          errors: {
+                            forbidden: t('bookingsList.refund.errors.forbidden'),
+                            no_db: t('bookingsList.refund.errors.noDb'),
+                            not_found: t('bookingsList.refund.errors.notFound'),
+                            wrong_state: t('bookingsList.refund.errors.wrongState'),
+                            validation: t('bookingsList.refund.errors.validation'),
+                            server: t('bookingsList.refund.errors.server'),
+                          },
+                        }}
+                      />
+                    )}
                   </div>
                 </li>
               ))}

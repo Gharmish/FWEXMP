@@ -173,7 +173,6 @@ export async function verifyOtp(
     });
     revalidatePath('/[locale]', 'layout');
     redirect({ href: next, locale });
-    throw new Error('unreachable');
   }
 
   try {
@@ -197,7 +196,6 @@ export async function verifyOtp(
 
   revalidatePath('/[locale]', 'layout');
   redirect({ href: next, locale });
-  throw new Error('unreachable');
 }
 
 // ---------- sign out ----------

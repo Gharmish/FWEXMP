@@ -8,6 +8,7 @@ import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 import { formatDate } from '@/lib/format';
 import { getHostForAdmin, isAdminAndDbReady } from '@/features/admin/hosts/queries';
+import { maskIdentityNumber } from '@/features/admin/hosts/lib/mask';
 import { HostActions } from '@/app/[locale]/admin/hosts/[id]/host-actions';
 import type {
   AdminHostExperienceRow,
@@ -153,16 +154,20 @@ export default async function AdminHostDetailPage({
         {host.nationalId && (
           <div className="flex flex-col gap-0.5">
             <dt className={eyebrowClassName}>{t('hostDetail.nationalId')}</dt>
-            <dd className="text-base font-medium" dir="ltr">
-              {host.nationalId}
+            {/* Last-4 masked. The verification surface at
+                /admin/host-applications/[id] renders the raw value
+                because matching against the submitted document is its
+                whole job; everywhere post-approval shows the mask. */}
+            <dd className="font-mono text-base font-medium" dir="ltr">
+              {maskIdentityNumber(host.nationalId)}
             </dd>
           </div>
         )}
         {host.crNumber && (
           <div className="flex flex-col gap-0.5">
             <dt className={eyebrowClassName}>{t('hostDetail.crNumber')}</dt>
-            <dd className="text-base font-medium" dir="ltr">
-              {host.crNumber}
+            <dd className="font-mono text-base font-medium" dir="ltr">
+              {maskIdentityNumber(host.crNumber)}
             </dd>
           </div>
         )}
@@ -235,29 +240,37 @@ export default async function AdminHostDetailPage({
       )}
 
       {/* Actions */}
-      <HostActions
-        hostId={host.id}
-        status={host.status}
-        livePublished={host.experiences.filter((e) => e.status === 'live').length}
-        locale={loc}
-        copy={{
-          suspendLabel: t('hostActions.suspend'),
-          suspendPending: t('hostActions.suspendPending'),
-          suspendConfirm: t('hostActions.suspendConfirm'),
-          unsuspendLabel: t('hostActions.unsuspend'),
-          unsuspendPending: t('hostActions.unsuspendPending'),
-          notesLabel: t('hostActions.notesLabel'),
-          notesHint: t('hostActions.notesHint'),
-          errors: {
-            forbidden: t('hostActions.errors.forbidden'),
-            no_db: t('hostActions.errors.noDb'),
-            not_found: t('hostActions.errors.notFound'),
-            validation: t('hostActions.errors.validation'),
-            server: t('hostActions.errors.server'),
-            wrong_state: t('hostActions.errors.wrongState'),
-          },
-        }}
-      />
+      {(() => {
+        const livePublished = host.experiences.filter((e) => e.status === 'live').length;
+        return (
+          <HostActions
+            hostId={host.id}
+            status={host.status}
+            locale={loc}
+            copy={{
+              suspendLabel: t('hostActions.suspend'),
+              suspendPending: t('hostActions.suspendPending'),
+              suspendConfirm: t('hostActions.suspendConfirm'),
+              unsuspendLabel: t('hostActions.unsuspend'),
+              unsuspendPending: t('hostActions.unsuspendPending'),
+              notesLabel: t('hostActions.notesLabel'),
+              notesHint: t('hostActions.notesHint'),
+              // Pre-translated on the server so the client doesn't need
+              // its own i18n hookup — and ICU pluralisation works in AR.
+              livePauseNotice:
+                livePublished > 0 ? t('hostActions.livePauseNotice', { count: livePublished }) : '',
+              errors: {
+                forbidden: t('hostActions.errors.forbidden'),
+                no_db: t('hostActions.errors.noDb'),
+                not_found: t('hostActions.errors.notFound'),
+                validation: t('hostActions.errors.validation'),
+                server: t('hostActions.errors.server'),
+                wrong_state: t('hostActions.errors.wrongState'),
+              },
+            }}
+          />
+        );
+      })()}
     </div>
   );
 }

@@ -1,4 +1,4 @@
-import { desc, eq, inArray } from 'drizzle-orm';
+import { and, desc, eq, inArray } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import { serverEnv } from '@/lib/env';
 import { experienceModerationEvents } from '@/db/schema';
@@ -43,6 +43,9 @@ export async function isAdminAndDbReady(): Promise<AdminGuardFailure | null> {
  */
 async function latestSubmittedAtByExperience(ids: readonly string[]): Promise<Map<string, string>> {
   if (ids.length === 0) return new Map();
+  // Filter by experienceId at the DB layer — earlier this pulled
+  // every `submitted` event in the table and filtered in JS, which
+  // grows with platform lifetime instead of the live queue size.
   const rows = await db
     .select({
       experienceId: experienceModerationEvents.experienceId,
@@ -50,13 +53,13 @@ async function latestSubmittedAtByExperience(ids: readonly string[]): Promise<Ma
     })
     .from(experienceModerationEvents)
     .where(
-      // pull every "submitted" row for the relevant experiences;
-      // we keep the newest per experience in memory below.
-      eq(experienceModerationEvents.event, 'submitted'),
+      and(
+        eq(experienceModerationEvents.event, 'submitted'),
+        inArray(experienceModerationEvents.experienceId, ids),
+      ),
     );
   const out = new Map<string, string>();
   for (const row of rows) {
-    if (!ids.includes(row.experienceId)) continue;
     const prev = out.get(row.experienceId);
     const iso = row.createdAt.toISOString();
     if (!prev || iso > prev) out.set(row.experienceId, iso);

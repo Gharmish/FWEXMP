@@ -42,7 +42,8 @@ function formValue(formData: FormData, key: string): string {
 
 async function requireAdmin(): Promise<{ adminUserId: string } | { error: AdminHostResult }> {
   const admin = await getCurrentUser();
-  if (!isAdminUser(admin) || !admin) {
+  // Null check first so TS narrows `admin` before the role check reads `.id`.
+  if (!admin || !isAdminUser(admin)) {
     return { error: { success: false, message: 'forbidden' } };
   }
   if (!serverEnv.DATABASE_URL) {
@@ -101,13 +102,13 @@ export async function suspendHost(
   }
 
   revalidatePath('/[locale]/admin/hosts', 'page');
-  revalidatePath(`/[locale]/admin/hosts/${hostId}`, 'page');
+  // Use the dynamic-segment template so Next matches the cached entry.
+  revalidatePath('/[locale]/admin/hosts/[id]', 'page');
   revalidatePath('/[locale]/admin/analytics', 'page');
   revalidatePath('/[locale]/experiences', 'page');
   revalidatePath('/[locale]/hosts', 'page');
   revalidatePath('/[locale]/host', 'page');
   redirect({ href: `/admin/hosts/${hostId}`, locale });
-  throw new Error('unreachable');
 }
 
 export async function unsuspendHost(
@@ -154,10 +155,10 @@ export async function unsuspendHost(
   }
 
   revalidatePath('/[locale]/admin/hosts', 'page');
-  revalidatePath(`/[locale]/admin/hosts/${hostId}`, 'page');
+  // Use the dynamic-segment template so Next matches the cached entry.
+  revalidatePath('/[locale]/admin/hosts/[id]', 'page');
   revalidatePath('/[locale]/admin/analytics', 'page');
   revalidatePath('/[locale]/hosts', 'page');
   revalidatePath('/[locale]/host', 'page');
   redirect({ href: `/admin/hosts/${hostId}`, locale });
-  throw new Error('unreachable');
 }

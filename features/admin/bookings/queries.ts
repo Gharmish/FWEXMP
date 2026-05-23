@@ -13,7 +13,17 @@ import type { AdminBookingRow } from '@/features/admin/bookings/types';
  * The list is unfiltered by design at this scale — we have tens of
  * bookings, not tens of thousands. When volume justifies, add a
  * status filter on the route and a server-side WHERE.
+ *
+ * PII note: this surface returns the guest's phone number in
+ * cleartext. The admin layout gate is the only thing protecting it —
+ * do not call `listBookingsForAdmin` from anywhere except a route
+ * that's a child of `app/[locale]/admin/`.
  */
+
+/** Safety cap on the unfiltered list. We assume hundreds at launch;
+ * this is a hard ceiling so a misconfigured page never renders the
+ * entire table. Promote to a filtered/paginated query when we cross it. */
+const BOOKINGS_LIST_LIMIT = 500;
 
 export interface AdminGuardFailure {
   reason: 'not_admin' | 'no_db';
@@ -40,6 +50,7 @@ export async function listBookingsForAdmin(): Promise<readonly AdminBookingRow[]
         guest: { columns: { name: true, phone: true } },
       },
       orderBy: (b) => desc(b.createdAt),
+      limit: BOOKINGS_LIST_LIMIT,
     });
     return rows.map<AdminBookingRow>((row) => ({
       id: row.id,

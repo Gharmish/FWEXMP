@@ -51,13 +51,11 @@ export default async function EditExperiencePage({
   const user = await getCurrentUser();
   if (!user) {
     redirect({ href: `/sign-in?next=/host/experiences/${id}`, locale: loc });
-    throw new Error('unreachable');
   }
 
   const dashboard = await getHostDashboard();
   if (!dashboard) {
     redirect({ href: '/host/apply', locale: loc });
-    throw new Error('unreachable');
   }
 
   const experience = await getMyExperienceById(id);

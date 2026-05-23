@@ -36,7 +36,6 @@ export default async function HostApplyPage({ params }: { params: Promise<{ loca
   const user = await getCurrentUser();
   if (!user) {
     redirect({ href: '/sign-in?next=/host/apply', locale: loc });
-    throw new Error('unreachable');
   }
 
   const [t, existing] = await Promise.all([

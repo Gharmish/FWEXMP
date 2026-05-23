@@ -150,7 +150,6 @@ export async function submitHostApplication(
     });
     revalidatePath('/[locale]/host/apply', 'page');
     redirect({ href: '/host/apply/submitted', locale: input.locale });
-    throw new Error('unreachable');
   }
 
   // DB path: upsert by userId so re-submission after rejection updates
@@ -227,5 +226,4 @@ export async function submitHostApplication(
 
   revalidatePath('/[locale]/host/apply', 'page');
   redirect({ href: '/host/apply/submitted', locale: input.locale });
-  throw new Error('unreachable');
 }

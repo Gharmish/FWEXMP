@@ -32,13 +32,11 @@ export default async function NewExperiencePage({
   const user = await getCurrentUser();
   if (!user) {
     redirect({ href: '/sign-in?next=/host/experiences/new', locale: loc });
-    throw new Error('unreachable');
   }
 
   const dashboard = await getHostDashboard();
   if (!dashboard) {
     redirect({ href: '/host/apply', locale: loc });
-    throw new Error('unreachable');
   }
 
   const [t, tForm] = await Promise.all([

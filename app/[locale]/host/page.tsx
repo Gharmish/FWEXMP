@@ -36,7 +36,6 @@ export default async function HostDashboardPage({
   const user = await getCurrentUser();
   if (!user) {
     redirect({ href: '/sign-in?next=/host', locale: loc });
-    throw new Error('unreachable');
   }
 
   // Three branches:
@@ -47,7 +46,6 @@ export default async function HostDashboardPage({
   const dashboard = await getHostDashboard();
   if (!dashboard) {
     redirect({ href: '/host/apply', locale: loc });
-    throw new Error('unreachable');
   }
 
   const [t, experiences] = await Promise.all([

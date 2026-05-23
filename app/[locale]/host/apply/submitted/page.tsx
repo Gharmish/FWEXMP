@@ -33,7 +33,6 @@ export default async function HostApplySubmittedPage({
   const user = await getCurrentUser();
   if (!user) {
     redirect({ href: '/sign-in?next=/host/apply', locale: loc });
-    throw new Error('unreachable');
   }
 
   const application = await getCurrentUserHostApplication();
@@ -41,7 +40,6 @@ export default async function HostApplySubmittedPage({
   // a confusing dead end.
   if (!application) {
     redirect({ href: '/host/apply', locale: loc });
-    throw new Error('unreachable');
   }
 
   const t = await getTranslations('hostApply.submitted');

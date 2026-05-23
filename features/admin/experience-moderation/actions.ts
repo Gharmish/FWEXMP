@@ -43,7 +43,8 @@ function formValue(formData: FormData, key: string): string {
 
 async function requireAdmin(): Promise<{ adminUserId: string } | { error: AdminModerationResult }> {
   const admin = await getCurrentUser();
-  if (!isAdminUser(admin) || !admin) {
+  // Null check first so TS narrows `admin` before the role check reads `.id`.
+  if (!admin || !isAdminUser(admin)) {
     return { error: { success: false, message: 'forbidden' } };
   }
   if (!serverEnv.DATABASE_URL) {
@@ -93,14 +94,15 @@ export async function approveExperience(
   }
 
   revalidatePath('/[locale]/admin/experience-moderation', 'page');
-  revalidatePath(`/[locale]/admin/experience-moderation/${experienceId}`, 'page');
+  // Dynamic-segment template — mixing a templated `[locale]` with a
+  // concrete id wouldn't match the cached entry.
+  revalidatePath('/[locale]/admin/experience-moderation/[id]', 'page');
   revalidatePath('/[locale]/host', 'page');
-  revalidatePath(`/[locale]/host/experiences/${experienceId}`, 'page');
+  revalidatePath('/[locale]/host/experiences/[id]', 'page');
   // The public detail page renders by slug — invalidate the bucket.
   revalidatePath('/[locale]/experiences', 'page');
   revalidatePath('/[locale]/experiences/[slug]', 'page');
   redirect({ href: `/admin/experience-moderation/${experienceId}`, locale });
-  throw new Error('unreachable');
 }
 
 // ---------- reject ----------
@@ -150,11 +152,12 @@ export async function rejectExperience(
   }
 
   revalidatePath('/[locale]/admin/experience-moderation', 'page');
-  revalidatePath(`/[locale]/admin/experience-moderation/${experienceId}`, 'page');
+  // Dynamic-segment template — mixing a templated `[locale]` with a
+  // concrete id wouldn't match the cached entry.
+  revalidatePath('/[locale]/admin/experience-moderation/[id]', 'page');
   revalidatePath('/[locale]/host', 'page');
-  revalidatePath(`/[locale]/host/experiences/${experienceId}`, 'page');
+  revalidatePath('/[locale]/host/experiences/[id]', 'page');
   redirect({ href: `/admin/experience-moderation/${experienceId}`, locale });
-  throw new Error('unreachable');
 }
 
 // ---------- request changes ----------
@@ -204,9 +207,10 @@ export async function requestExperienceChanges(
   }
 
   revalidatePath('/[locale]/admin/experience-moderation', 'page');
-  revalidatePath(`/[locale]/admin/experience-moderation/${experienceId}`, 'page');
+  // Dynamic-segment template — mixing a templated `[locale]` with a
+  // concrete id wouldn't match the cached entry.
+  revalidatePath('/[locale]/admin/experience-moderation/[id]', 'page');
   revalidatePath('/[locale]/host', 'page');
-  revalidatePath(`/[locale]/host/experiences/${experienceId}`, 'page');
+  revalidatePath('/[locale]/host/experiences/[id]', 'page');
   redirect({ href: `/admin/experience-moderation/${experienceId}`, locale });
-  throw new Error('unreachable');
 }
