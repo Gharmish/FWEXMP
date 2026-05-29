@@ -294,8 +294,7 @@
       "whatToBringHint": "عنصر واحد في كل سطر.",
       "cancellationPolicy": "سياسة الإلغاء",
       "availabilityWeekdays": "الأيام المتاحة",
-      "blackoutDates": "أيام الإغلاق",
-      "blackoutDatesHint": "تاريخ واحد في كل سطر بصيغة YYYY-MM-DD. تكون التجربة مغلقة في هذه الأيام.",
+      "blackoutHint": "أغلق أو أعد فتح تواريخ محدّدة من تقويم التوفّر أدناه.",
       "submit": "حفظ التغييرات",
       "pending": "جارٍ الحفظ",
       "fieldInvalid": "راجع هذا الحقل.",
@@ -936,6 +935,20 @@
     "requestToBook": "اطلب الحجز",
     "bookingSoon": "سيتاح الحجز قريباً.",
     "translationPending": "الترجمة قيد المراجعة."
+  },
+  "availabilityCalendar": {
+    "heading": "تقويم التوفّر",
+    "introView": "جدولك بلمحة — أي الأيام تُقام، وكم مقعداً محجوزاً، وما المغلق.",
+    "introEdit": "جدولك بلمحة. اضغط أي يوم مُقام لإغلاقه (إجازة مثلاً)، واضغط يوماً مغلقاً لإعادة فتحه. تظهر المقاعد المحجوزة بصيغة المحجوز / الإجمالي.",
+    "prev": "الشهر السابق",
+    "next": "الشهر التالي",
+    "closeDay": "أغلق هذا اليوم",
+    "openDay": "أعد فتح هذا اليوم",
+    "spots": "{booked}/{total}",
+    "legendAvailable": "متاح",
+    "legendFull": "مكتمل الحجز",
+    "legendClosed": "مغلق",
+    "legendOff": "غير مجدول"
   },
   "bookingRequest": {
     "title": "اطلب هذه التجربة",

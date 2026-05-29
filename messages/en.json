@@ -294,8 +294,7 @@
       "whatToBringHint": "One item per line.",
       "cancellationPolicy": "Cancellation policy",
       "availabilityWeekdays": "Available days",
-      "blackoutDates": "Blackout dates",
-      "blackoutDatesHint": "One date per line, YYYY-MM-DD. The experience is closed on these days.",
+      "blackoutHint": "Close or reopen specific dates on the availability calendar below.",
       "submit": "Save changes",
       "pending": "Saving",
       "fieldInvalid": "Check this field.",
@@ -936,6 +935,20 @@
     "requestToBook": "Request to book",
     "bookingSoon": "Booking opens soon.",
     "translationPending": "Translation pending."
+  },
+  "availabilityCalendar": {
+    "heading": "Availability calendar",
+    "introView": "Your schedule at a glance — which days run, how many spots are booked, and what's closed.",
+    "introEdit": "Your schedule at a glance. Tap any running day to close it (e.g. a holiday); tap a closed day to reopen it. Booked spots show as booked / total.",
+    "prev": "Previous month",
+    "next": "Next month",
+    "closeDay": "Close this day",
+    "openDay": "Reopen this day",
+    "spots": "{booked}/{total}",
+    "legendAvailable": "Available",
+    "legendFull": "Fully booked",
+    "legendClosed": "Closed",
+    "legendOff": "Not scheduled"
   },
   "bookingRequest": {
     "title": "Request this experience",

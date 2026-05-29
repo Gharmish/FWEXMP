@@ -1,0 +1,72 @@
+import { and, eq, gte, inArray, lte, sql } from 'drizzle-orm';
+import { db } from '@/lib/db';
+import { serverEnv } from '@/lib/env';
+import { reportError } from '@/lib/log';
+import { bookings } from '@/db/schema';
+
+/** Statuses that occupy a spot for capacity display (mirrors the booking action). */
+const ACTIVE_STATUSES = ['pending', 'confirmed', 'completed'] as const;
+
+export interface ScheduleData {
+  availabilityWeekdays: number[];
+  blackoutDates: string[];
+  maxGroupSize: number;
+  startTime: string;
+  /** date `YYYY-MM-DD` → spots already taken by active bookings. */
+  bookedByDate: Record<string, number>;
+}
+
+/**
+ * Availability + per-day booked counts for one experience over a date
+ * range. Pure-read; callers (the host edit page / admin editor) already
+ * gate access, so no extra guard here. Returns null without a DB.
+ */
+export async function getScheduleData(
+  experienceId: string,
+  fromStr: string,
+  toStr: string,
+): Promise<ScheduleData | null> {
+  if (!serverEnv.DATABASE_URL) return null;
+  try {
+    const experience = await db.query.experiences.findFirst({
+      where: (e) => eq(e.id, experienceId),
+      columns: {
+        availabilityWeekdays: true,
+        blackoutDates: true,
+        maxGroupSize: true,
+        startTime: true,
+      },
+    });
+    if (!experience) return null;
+
+    const rows = await db
+      .select({
+        date: bookings.date,
+        booked: sql<number>`coalesce(sum(${bookings.partySize}), 0)::int`,
+      })
+      .from(bookings)
+      .where(
+        and(
+          eq(bookings.experienceId, experienceId),
+          gte(bookings.date, fromStr),
+          lte(bookings.date, toStr),
+          inArray(bookings.status, [...ACTIVE_STATUSES]),
+        ),
+      )
+      .groupBy(bookings.date);
+
+    const bookedByDate: Record<string, number> = {};
+    for (const row of rows) bookedByDate[row.date] = row.booked;
+
+    return {
+      availabilityWeekdays: [...experience.availabilityWeekdays],
+      blackoutDates: [...experience.blackoutDates],
+      maxGroupSize: experience.maxGroupSize,
+      startTime: experience.startTime,
+      bookedByDate,
+    };
+  } catch (error) {
+    reportError(error, { surface: 'availability:getScheduleData', experienceId });
+    return null;
+  }
+}

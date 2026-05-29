@@ -24,13 +24,6 @@ export const BOOKING_MODES = ['request', 'instant'] as const;
 
 /** HH:MM 24-hour. */
 const HHMM_RE = /^([01]\d|2[0-3]):[0-5]\d$/;
-const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
-
-const datesFromTextarea = (raw: string): string[] =>
-  raw
-    .split(/\r?\n/)
-    .map((l) => l.trim())
-    .filter((l) => l.length > 0);
 
 export const adminExperienceSchema = hostExperienceInputSchema.extend({
   // Arabic copy — admins may author/correct it directly (the no-AI-Arabic
@@ -44,10 +37,8 @@ export const adminExperienceSchema = hostExperienceInputSchema.extend({
   status: z.enum(EXPERIENCE_STATUSES),
   // Unchecked checkbox → '' → false; 'on' → true.
   featured: z.coerce.boolean(),
-  blackoutDatesRaw: z
-    .string()
-    .transform(datesFromTextarea)
-    .pipe(z.array(z.string().regex(ISO_DATE_RE, 'blackout_invalid'))),
+  // Blackout dates are managed on the visual calendar (single source of
+  // truth), not this form — see features/availability.
 });
 
 export type AdminExperienceInput = z.infer<typeof adminExperienceSchema>;

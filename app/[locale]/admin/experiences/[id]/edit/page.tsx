@@ -10,6 +10,7 @@ import { BOOKING_MODES, EXPERIENCE_STATUSES } from '@/features/admin/experiences
 import { EXPERIENCE_CATEGORIES } from '@/features/host-experiences/schemas';
 import { AdminExperienceForm } from '@/app/[locale]/admin/experiences/[id]/edit/admin-experience-form';
 import { GalleryManager } from '@/app/[locale]/admin/experiences/[id]/edit/gallery-manager';
+import { ScheduleCalendarSection } from '@/features/availability/components/schedule-calendar-section';
 
 export async function generateMetadata({
   params,
@@ -27,12 +28,16 @@ const WEEKDAY_KEYS = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'] as const;
 
 export default async function AdminExperienceEditPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ locale: string; id: string }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const { locale, id } = await params;
   setRequestLocale(locale);
   const loc = locale as Locale;
+  const sp = await searchParams;
+  const ym = Array.isArray(sp.ym) ? sp.ym[0] : sp.ym;
 
   const block = await isAdminAndDbReady();
   const t = await getTranslations('admin');
@@ -113,8 +118,7 @@ export default async function AdminExperienceEditPage({
     whatToBringHint: tE('whatToBringHint'),
     cancellationPolicy: tE('cancellationPolicy'),
     availabilityWeekdays: tE('availabilityWeekdays'),
-    blackoutDates: tE('blackoutDates'),
-    blackoutDatesHint: tE('blackoutDatesHint'),
+    blackoutHint: tE('blackoutHint'),
     submit: tE('submit'),
     pending: tE('pending'),
     fieldInvalid: tE('fieldInvalid'),
@@ -151,6 +155,14 @@ export default async function AdminExperienceEditPage({
       </div>
 
       <GalleryManager experienceId={experience.id} images={experience.images} copy={galleryCopy} />
+
+      <ScheduleCalendarSection
+        experienceId={experience.id}
+        locale={loc}
+        basePath={`/admin/experiences/${experience.id}/edit`}
+        canEdit
+        ym={ym}
+      />
 
       <AdminExperienceForm locale={loc} experience={experience} copy={copy} />
     </div>

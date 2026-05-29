@@ -50,8 +50,8 @@ export interface AdminExperienceFormCopy {
   whatToBringHint: string;
   cancellationPolicy: string;
   availabilityWeekdays: string;
-  blackoutDates: string;
-  blackoutDatesHint: string;
+  /** Note pointing the operator to the calendar for date exceptions. */
+  blackoutHint: string;
   submit: string;
   pending: string;
   fieldInvalid: string;
@@ -507,22 +507,7 @@ export function AdminExperienceForm({
             ))}
           </div>
         </div>
-        <div className="flex flex-col gap-2">
-          <label htmlFor="ex-blackout" className={labelClass}>
-            {copy.blackoutDates}
-          </label>
-          <textarea
-            id="ex-blackout"
-            name="blackoutDatesRaw"
-            rows={3}
-            dir="ltr"
-            defaultValue={ex.blackoutDates.join('\n')}
-            className={TEXTAREA_CLASS}
-            {...aria('blackoutDatesRaw')}
-          />
-          <p className={hintClass}>{copy.blackoutDatesHint}</p>
-          {err('blackoutDatesRaw')}
-        </div>
+        <p className={hintClass}>{copy.blackoutHint}</p>
       </fieldset>
 
       {formError && (

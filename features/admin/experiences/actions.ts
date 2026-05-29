@@ -86,7 +86,6 @@ export async function adminUpdateExperience(
     commissionPct: formValue(formData, 'commissionPct'),
     status: formValue(formData, 'status'),
     featured: formValue(formData, 'featured'),
-    blackoutDatesRaw: formValue(formData, 'blackoutDatesRaw'),
   });
 
   if (!parsed.success) {
@@ -127,7 +126,6 @@ export async function adminUpdateExperience(
         whatToBring: input.whatToBringRaw,
         cancellationPolicy: input.cancellationPolicy,
         availabilityWeekdays: input.availabilityWeekdays,
-        blackoutDates: input.blackoutDatesRaw,
         startTime: input.startTime,
         bookingMode: input.bookingMode,
         commissionBps,
@@ -195,7 +193,6 @@ export async function adminCreateExperience(
     commissionPct: formValue(formData, 'commissionPct'),
     status: formValue(formData, 'status'),
     featured: formValue(formData, 'featured'),
-    blackoutDatesRaw: formValue(formData, 'blackoutDatesRaw'),
     hostId: formValue(formData, 'hostId'),
   });
 
@@ -239,7 +236,6 @@ export async function adminCreateExperience(
             whatToBring: input.whatToBringRaw,
             cancellationPolicy: input.cancellationPolicy,
             availabilityWeekdays: input.availabilityWeekdays,
-            blackoutDates: input.blackoutDatesRaw,
             startTime: input.startTime,
             bookingMode: input.bookingMode,
             commissionBps,

@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { ArrowLeft } from 'lucide-react';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
+import { ScheduleCalendarSection } from '@/features/availability/components/schedule-calendar-section';
 import { redirect, Link } from '@/lib/i18n';
 import type { Locale } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
@@ -43,12 +44,16 @@ const STATUS_TONE: Record<
 
 export default async function EditExperiencePage({
   params,
+  searchParams,
 }: {
   params: Promise<{ locale: string; id: string }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const { locale, id } = await params;
   setRequestLocale(locale);
   const loc = locale as Locale;
+  const sp = await searchParams;
+  const ym = Array.isArray(sp.ym) ? sp.ym[0] : sp.ym;
 
   const user = await getCurrentUser();
   if (!user) {
@@ -192,6 +197,16 @@ export default async function EditExperiencePage({
                 server: t('photo.errors.server'),
               },
             }}
+          />
+        </div>
+
+        <div className="border-sarat-black/8 mt-10 [border-top-width:0.5px] pt-10">
+          <ScheduleCalendarSection
+            experienceId={experience.id}
+            locale={loc}
+            basePath={`/host/experiences/${experience.id}`}
+            canEdit
+            ym={ym}
           />
         </div>
 
