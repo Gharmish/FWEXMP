@@ -310,6 +310,22 @@
       "createPending": "Creating",
       "editTimeline": "Edit timeline (moments)"
     },
+    "gallery": {
+      "heading": "Gallery",
+      "description": "Photos shown after the hero on the experience page. Natural light, real Asiri colours — no stock.",
+      "imageAlt": "Gallery photo",
+      "choose": "Choose a photo",
+      "hint": "JPG, PNG, WebP or AVIF · up to 5MB",
+      "add": "Add to gallery",
+      "adding": "Uploading",
+      "remove": "Remove photo",
+      "removing": "Removing",
+      "removeConfirm": "Remove this photo from the gallery?",
+      "empty": "No gallery photos yet.",
+      "invalidType": "That file type isn't supported. Use JPG, PNG, WebP or AVIF.",
+      "tooLarge": "That photo is over 5MB. Pick a smaller file.",
+      "error": "We couldn't update the gallery. Try again in a moment."
+    },
     "moments": {
       "heading": "Experience timeline",
       "back": "Back to editor",

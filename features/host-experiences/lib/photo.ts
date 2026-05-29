@@ -44,3 +44,27 @@ export function validatePhoto(input: { size: number; type: string }): PhotoValid
 export function heroObjectKey(slug: string, ext: string): string {
   return `experiences/${slug}/hero.${ext}`;
 }
+
+/**
+ * Object key for a gallery image: `experiences/{slug}/gallery-{token}.{ext}`.
+ * The token (a timestamp) makes each upload unique so multiple gallery
+ * images coexist and replacing one never clobbers another.
+ */
+export function galleryObjectKey(slug: string, token: string | number, ext: string): string {
+  return `experiences/${slug}/gallery-${token}.${ext}`;
+}
+
+/**
+ * Recover the in-bucket object key from a public storage URL, dropping
+ * any `?v=` cache-buster. Returns null if the URL isn't a `photos`
+ * bucket public URL. Used to delete the object when a gallery image is
+ * removed.
+ */
+export function objectKeyFromPublicUrl(url: string): string | null {
+  const marker = '/storage/v1/object/public/photos/';
+  const i = url.indexOf(marker);
+  if (i === -1) return null;
+  const rest = url.slice(i + marker.length);
+  const key = rest.split('?')[0];
+  return key.length > 0 ? key : null;
+}

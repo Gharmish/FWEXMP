@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import {
   MAX_PHOTO_BYTES,
+  galleryObjectKey,
   heroObjectKey,
+  objectKeyFromPublicUrl,
   validatePhoto,
 } from '@/features/host-experiences/lib/photo';
 
@@ -59,5 +61,30 @@ describe('heroObjectKey', () => {
     expect(heroObjectKey('an-evening-with-the-flower-men', 'jpg')).toBe(
       'experiences/an-evening-with-the-flower-men/hero.jpg',
     );
+  });
+});
+
+describe('galleryObjectKey', () => {
+  it('follows the experiences/{slug}/gallery-{token}.{ext} convention', () => {
+    expect(galleryObjectKey('dawn-walk', 1717000000000, 'webp')).toBe(
+      'experiences/dawn-walk/gallery-1717000000000.webp',
+    );
+  });
+});
+
+describe('objectKeyFromPublicUrl', () => {
+  const base = 'https://ref.supabase.co/storage/v1/object/public/photos/';
+  it('extracts the in-bucket key', () => {
+    expect(objectKeyFromPublicUrl(`${base}experiences/x/gallery-1.jpg`)).toBe(
+      'experiences/x/gallery-1.jpg',
+    );
+  });
+  it('drops a cache-buster query', () => {
+    expect(objectKeyFromPublicUrl(`${base}experiences/x/hero.jpg?v=123`)).toBe(
+      'experiences/x/hero.jpg',
+    );
+  });
+  it('returns null for a non-photos URL', () => {
+    expect(objectKeyFromPublicUrl('https://example.com/img.jpg')).toBeNull();
   });
 });

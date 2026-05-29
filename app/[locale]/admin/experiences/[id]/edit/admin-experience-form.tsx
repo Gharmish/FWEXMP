@@ -68,7 +68,7 @@ export interface AdminExperienceFormCopy {
 }
 
 /** Blank defaults for create mode — sensible marketplace starting points. */
-const BLANK: Omit<AdminExperienceEdit, 'id' | 'slug' | 'heroImage'> = {
+const BLANK: Omit<AdminExperienceEdit, 'id' | 'slug' | 'heroImage' | 'images'> = {
   titleEn: '',
   titleAr: '',
   descriptionEn: '',

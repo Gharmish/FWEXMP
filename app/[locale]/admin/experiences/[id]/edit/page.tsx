@@ -9,6 +9,7 @@ import { getAdminExperienceForEdit, isAdminAndDbReady } from '@/features/admin/e
 import { BOOKING_MODES, EXPERIENCE_STATUSES } from '@/features/admin/experiences/schemas';
 import { EXPERIENCE_CATEGORIES } from '@/features/host-experiences/schemas';
 import { AdminExperienceForm } from '@/app/[locale]/admin/experiences/[id]/edit/admin-experience-form';
+import { GalleryManager } from '@/app/[locale]/admin/experiences/[id]/edit/gallery-manager';
 
 export async function generateMetadata({
   params,
@@ -54,13 +55,31 @@ export default async function AdminExperienceEditPage({
   const experience = await getAdminExperienceForEdit(id);
   if (!experience) notFound();
 
-  const [tE, tMode, tStatus, tCat, tWeek] = await Promise.all([
+  const [tE, tMode, tStatus, tCat, tWeek, tG] = await Promise.all([
     getTranslations('admin.experienceEdit'),
     getTranslations('admin.bookingMode'),
     getTranslations('admin.experienceStatus'),
     getTranslations('hostExperiences.form.categories'),
     getTranslations('hostExperiences.form.weekdays'),
+    getTranslations('admin.gallery'),
   ]);
+
+  const galleryCopy = {
+    heading: tG('heading'),
+    description: tG('description'),
+    imageAlt: tG('imageAlt'),
+    choose: tG('choose'),
+    hint: tG('hint'),
+    add: tG('add'),
+    adding: tG('adding'),
+    remove: tG('remove'),
+    removing: tG('removing'),
+    removeConfirm: tG('removeConfirm'),
+    empty: tG('empty'),
+    invalidType: tG('invalidType'),
+    tooLarge: tG('tooLarge'),
+    error: tG('error'),
+  };
 
   const copy = {
     sectionPublishing: tE('sectionPublishing'),
@@ -130,6 +149,8 @@ export default async function AdminExperienceEditPage({
           {tE('editTimeline')}
         </Link>
       </div>
+
+      <GalleryManager experienceId={experience.id} images={experience.images} copy={galleryCopy} />
 
       <AdminExperienceForm locale={loc} experience={experience} copy={copy} />
     </div>

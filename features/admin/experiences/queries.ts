@@ -78,6 +78,7 @@ export interface AdminExperienceEdit {
   status: ExperienceStatus;
   featured: boolean;
   heroImage: string | null;
+  images: string[];
 }
 
 /**
@@ -116,5 +117,6 @@ export async function getAdminExperienceForEdit(
     status: row.status,
     featured: row.featured,
     heroImage: row.heroImage,
+    images: [...row.images],
   };
 }
