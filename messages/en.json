@@ -307,7 +307,32 @@
       "createHeading": "Create experience",
       "createIntro": "Build a listing on a host's behalf. Pick the owning host, fill in the details, and choose a status — set it live now or leave it as a draft.",
       "createSubmit": "Create experience",
-      "createPending": "Creating"
+      "createPending": "Creating",
+      "editTimeline": "Edit timeline (moments)"
+    },
+    "moments": {
+      "heading": "Experience timeline",
+      "back": "Back to editor",
+      "intro": "The moment-by-moment arc guests see on the experience page. Reorder, edit, add, or remove steps.",
+      "timeOfDay": "Time of day",
+      "titleEn": "Title (English)",
+      "descriptionEn": "Description (English)",
+      "titleAr": "Title (Arabic)",
+      "descriptionAr": "Description (Arabic)",
+      "arHint": "Arabic is optional — leave blank and the team translates it later.",
+      "save": "Save",
+      "saving": "Saving",
+      "add": "Add moment",
+      "adding": "Adding",
+      "addHeading": "Add a moment",
+      "moveUp": "Up",
+      "moveDown": "Down",
+      "moving": "Moving",
+      "delete": "Delete",
+      "deleting": "Deleting",
+      "deleteConfirm": "Delete this moment? This can't be undone.",
+      "fieldInvalid": "Check the title and description.",
+      "error": "Something went wrong. Try again."
     },
     "experienceStatus": {
       "draft": "Draft",

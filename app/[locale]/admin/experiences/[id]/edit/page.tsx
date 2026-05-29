@@ -123,6 +123,12 @@ export default async function AdminExperienceEditPage({
           {tE('heading')}
         </h1>
         <p className="text-sarat-black-600 text-base">{experience.titleEn}</p>
+        <Link
+          href={`/admin/experiences/${experience.id}/moments`}
+          className="border-sarat-black/20 rounded-button text-sarat-black inline-flex min-h-11 items-center gap-2 self-start [border-width:0.5px] px-4 text-sm font-medium transition-transform duration-200 hover:-translate-y-px"
+        >
+          {tE('editTimeline')}
+        </Link>
       </div>
 
       <AdminExperienceForm locale={loc} experience={experience} copy={copy} />

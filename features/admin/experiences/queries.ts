@@ -1,6 +1,6 @@
 import { asc, eq } from 'drizzle-orm';
 import { db } from '@/lib/db';
-import { experiences, hosts } from '@/db/schema';
+import { experiences, hosts, moments } from '@/db/schema';
 import { isAdminAndDbReady } from '@/features/admin/experience-moderation/queries';
 import type { AdminGuardFailure } from '@/features/admin/experience-moderation/queries';
 import type { BookingMode } from '@/features/experiences/types';
@@ -8,6 +8,34 @@ import type { ExperienceStatus } from '@/features/admin/experience-moderation/ty
 
 export type { AdminGuardFailure };
 export { isAdminAndDbReady };
+
+export interface AdminMoment {
+  id: string;
+  orderIndex: number;
+  timeOfDay: string | null;
+  titleEn: string;
+  titleAr: string;
+  descriptionEn: string;
+  descriptionAr: string;
+}
+
+/** Ordered timeline for the admin moments editor. */
+export async function getExperienceMoments(experienceId: string): Promise<AdminMoment[]> {
+  const rows = await db
+    .select({
+      id: moments.id,
+      orderIndex: moments.orderIndex,
+      timeOfDay: moments.timeOfDay,
+      titleEn: moments.titleEn,
+      titleAr: moments.titleAr,
+      descriptionEn: moments.descriptionEn,
+      descriptionAr: moments.descriptionAr,
+    })
+    .from(moments)
+    .where(eq(moments.experienceId, experienceId))
+    .orderBy(asc(moments.orderIndex));
+  return rows;
+}
 
 export interface HostOption {
   id: string;
