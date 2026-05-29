@@ -6,7 +6,7 @@ import { requestBooking, type BookingRequestState } from '@/features/bookings/ac
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import type { Locale } from '@/lib/i18n';
-import { formatSaudiPhone } from '@/lib/format';
+import { formatSaudiPhone, formatSAR } from '@/lib/format';
 
 interface BookingRequestCopy {
   title: string;
@@ -28,12 +28,29 @@ interface BookingRequestCopy {
   dateUnavailable: string;
   dateFull: string;
   partySizeTooLarge: string;
+  /** Empty-option label for the date picker. */
+  datePlaceholder: string;
+  /** Template "{count} spots left" — {count} replaced at render. */
+  spotsLeft: string;
+  /** Template "Total {amount}" — {amount} replaced at render. */
+  total: string;
+  /** Shown when there are no bookable dates in the window. */
+  noDates: string;
+}
+
+export interface BookableOption {
+  value: string;
+  label: string;
+  remaining: number;
 }
 
 export interface BookingRequestFormProps {
   experienceSlug: string;
   locale: Locale;
   maxGroupSize: string;
+  priceSar: number;
+  /** Pre-computed bookable dates (open + with capacity) for the picker. */
+  availableDates: readonly BookableOption[];
   /** Short note under the title: instant-confirmation vs request-to-book. */
   modeNote?: string;
   copy: BookingRequestCopy;
@@ -47,11 +64,20 @@ const FIELDS_WITH_HINTS = new Set<FieldName>(['phone', 'preferredDate', 'partySi
 
 const initialState: BookingRequestState = { success: false, values: {} };
 
-function SubmitButton({ copy }: { copy: BookingRequestCopy }) {
+const SELECT_CLASS =
+  'rounded-input border-sarat-black/20 bg-fog-white text-sarat-black h-11 w-full [border-width:0.5px] px-3 text-base';
+
+function SubmitButton({ copy, disabled }: { copy: BookingRequestCopy; disabled?: boolean }) {
   const { pending } = useFormStatus();
 
   return (
-    <Button type="submit" variant="primary" size="lg" className="w-full" disabled={pending}>
+    <Button
+      type="submit"
+      variant="primary"
+      size="lg"
+      className="w-full"
+      disabled={pending || disabled}
+    >
       {pending ? copy.pending : copy.submit}
     </Button>
   );
@@ -96,12 +122,29 @@ export function BookingRequestForm({
   experienceSlug,
   locale,
   maxGroupSize,
+  priceSar,
+  availableDates,
   modeNote,
   copy,
 }: BookingRequestFormProps) {
   const [state, formAction] = useActionState(requestBooking, initialState);
   const values = state.values ?? {};
   const formRef = useRef<HTMLFormElement>(null);
+  const noDates = availableDates.length === 0;
+
+  // Date + guests are controlled so we can show a live total + remaining
+  // capacity and cap the party size to what the chosen day actually has.
+  const [selectedDate, setSelectedDate] = useState<string>(
+    values.preferredDate ?? availableDates[0]?.value ?? '',
+  );
+  const [partySize, setPartySize] = useState<number>(Number(values.partySize) || 1);
+  const selectedOption = availableDates.find((d) => d.value === selectedDate);
+  const maxGuests = Math.min(
+    Number(maxGroupSize) || 1,
+    selectedOption ? selectedOption.remaining : Number(maxGroupSize) || 1,
+  );
+  const effectiveParty = Math.min(Math.max(1, partySize), maxGuests);
+  const totalSar = priceSar * effectiveParty;
   // Phone field is controlled so we can canonicalise on blur via
   // formatSaudiPhone (e.g. "0512345678" -> "+966 51 234 5678"). All
   // other fields stay uncontrolled — they don't need keystroke-level
@@ -183,110 +226,141 @@ export function BookingRequestForm({
         </p>
       )}
 
-      <div className="flex flex-col gap-2">
-        <label htmlFor="booking-name" className="text-sm font-medium">
-          {copy.name}
-        </label>
-        <Input
-          id="booking-name"
-          name="name"
-          autoComplete="name"
-          required
-          defaultValue={values.name}
-          {...fieldProps('name')}
-        />
-        <FieldError id={errorId('name')} message={state.fields?.name && copy.required} />
-      </div>
-
-      <div className="flex flex-col gap-2">
-        <label htmlFor="booking-phone" className="text-sm font-medium">
-          {copy.phone}
-        </label>
-        <Input
-          id="booking-phone"
-          name="phone"
-          type="tel"
-          autoComplete="tel"
-          required
-          dir="ltr"
-          value={phone}
-          onChange={(event) => setPhone(event.target.value)}
-          onBlur={() => {
-            // Canonicalise on blur, not on every keystroke — formatting
-            // mid-typing fights the caret. formatSaudiPhone returns the
-            // input untouched when the value isn't a recognisable Saudi
-            // mobile, so this is a no-op for partial / non-Saudi input.
-            const formatted = formatSaudiPhone(phone);
-            if (formatted !== phone) setPhone(formatted);
-          }}
-          placeholder="+966 5X XXX XXXX"
-          {...fieldProps('phone')}
-        />
-        <p id={hintId('phone')} className="text-sarat-black-600 text-sm">
-          {copy.phoneHint}
+      {noDates ? (
+        <p className="text-sarat-black-600 rounded-input bg-sarat-black/5 px-3 py-3 text-sm">
+          {copy.noDates}
         </p>
-        <FieldError id={errorId('phone')} message={state.fields?.phone && copy.required} />
-      </div>
+      ) : (
+        <>
+          <div className="flex flex-col gap-2">
+            <label htmlFor="booking-name" className="text-sm font-medium">
+              {copy.name}
+            </label>
+            <Input
+              id="booking-name"
+              name="name"
+              autoComplete="name"
+              required
+              defaultValue={values.name}
+              {...fieldProps('name')}
+            />
+            <FieldError id={errorId('name')} message={state.fields?.name && copy.required} />
+          </div>
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-1">
-        <div className="flex flex-col gap-2">
-          <label htmlFor="booking-date" className="text-sm font-medium">
-            {copy.preferredDate}
-          </label>
-          <Input
-            id="booking-date"
-            name="preferredDate"
-            type="date"
-            required
-            defaultValue={values.preferredDate}
-            {...fieldProps('preferredDate')}
-          />
-          <p id={hintId('preferredDate')} className="text-sarat-black-600 text-sm">
-            {copy.preferredDateHint}
+          <div className="flex flex-col gap-2">
+            <label htmlFor="booking-phone" className="text-sm font-medium">
+              {copy.phone}
+            </label>
+            <Input
+              id="booking-phone"
+              name="phone"
+              type="tel"
+              autoComplete="tel"
+              required
+              dir="ltr"
+              value={phone}
+              onChange={(event) => setPhone(event.target.value)}
+              onBlur={() => {
+                // Canonicalise on blur, not on every keystroke — formatting
+                // mid-typing fights the caret. formatSaudiPhone returns the
+                // input untouched when the value isn't a recognisable Saudi
+                // mobile, so this is a no-op for partial / non-Saudi input.
+                const formatted = formatSaudiPhone(phone);
+                if (formatted !== phone) setPhone(formatted);
+              }}
+              placeholder="+966 5X XXX XXXX"
+              {...fieldProps('phone')}
+            />
+            <p id={hintId('phone')} className="text-sarat-black-600 text-sm">
+              {copy.phoneHint}
+            </p>
+            <FieldError id={errorId('phone')} message={state.fields?.phone && copy.required} />
+          </div>
+
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-1">
+            <div className="flex flex-col gap-2">
+              <label htmlFor="booking-date" className="text-sm font-medium">
+                {copy.preferredDate}
+              </label>
+              <select
+                id="booking-date"
+                name="preferredDate"
+                required
+                value={selectedDate}
+                onChange={(e) => setSelectedDate(e.target.value)}
+                className={SELECT_CLASS}
+                {...fieldProps('preferredDate')}
+              >
+                <option value="" disabled>
+                  {copy.datePlaceholder}
+                </option>
+                {availableDates.map((d) => (
+                  <option key={d.value} value={d.value}>
+                    {d.label}
+                  </option>
+                ))}
+              </select>
+              {selectedOption ? (
+                <p id={hintId('preferredDate')} className="text-sarat-black-600 text-sm">
+                  {copy.spotsLeft.replace('{count}', String(selectedOption.remaining))}
+                </p>
+              ) : (
+                <p id={hintId('preferredDate')} className="text-sarat-black-600 text-sm">
+                  {copy.preferredDateHint}
+                </p>
+              )}
+              <FieldError
+                id={errorId('preferredDate')}
+                message={messageForField('preferredDate', state.fields?.preferredDate, copy)}
+              />
+            </div>
+
+            <div className="flex flex-col gap-2">
+              <label htmlFor="booking-party-size" className="text-sm font-medium">
+                {copy.partySize}
+              </label>
+              <Input
+                id="booking-party-size"
+                name="partySize"
+                type="number"
+                min={1}
+                max={maxGuests}
+                required
+                value={String(effectiveParty)}
+                onChange={(e) => setPartySize(Number(e.target.value) || 1)}
+                {...fieldProps('partySize')}
+              />
+              <p id={hintId('partySize')} className="text-sarat-black-600 text-sm">
+                {copy.partySizeHint}
+              </p>
+              <FieldError
+                id={errorId('partySize')}
+                message={messageForField('partySize', state.fields?.partySize, copy)}
+              />
+            </div>
+          </div>
+
+          {/* Live total */}
+          <p className="border-sarat-black/8 flex items-baseline justify-between [border-top-width:0.5px] pt-4 text-base font-medium">
+            <span>{copy.total}</span>
+            <span>{formatSAR(totalSar, locale)}</span>
           </p>
-          <FieldError
-            id={errorId('preferredDate')}
-            message={messageForField('preferredDate', state.fields?.preferredDate, copy)}
-          />
-        </div>
 
-        <div className="flex flex-col gap-2">
-          <label htmlFor="booking-party-size" className="text-sm font-medium">
-            {copy.partySize}
-          </label>
-          <Input
-            id="booking-party-size"
-            name="partySize"
-            type="number"
-            min={1}
-            max={maxGroupSize}
-            required
-            defaultValue={values.partySize ?? '1'}
-            {...fieldProps('partySize')}
-          />
-          <p id={hintId('partySize')} className="text-sarat-black-600 text-sm">
-            {copy.partySizeHint}
-          </p>
-          <FieldError
-            id={errorId('partySize')}
-            message={messageForField('partySize', state.fields?.partySize, copy)}
-          />
-        </div>
-      </div>
+          {formMessage && (
+            <p
+              id={formErrorId}
+              data-form-error
+              role="alert"
+              tabIndex={-1}
+              className="text-al-qatt-red-800 text-sm focus:outline-none"
+            >
+              {formMessage}
+            </p>
+          )}
 
-      {formMessage && (
-        <p
-          id={formErrorId}
-          data-form-error
-          role="alert"
-          tabIndex={-1}
-          className="text-al-qatt-red-800 text-sm focus:outline-none"
-        >
-          {formMessage}
-        </p>
+          <SubmitButton copy={copy} />
+        </>
       )}
-
-      <SubmitButton copy={copy} />
     </form>
   );
 }

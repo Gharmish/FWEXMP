@@ -4,7 +4,7 @@ import { ArrowLeft } from 'lucide-react';
 import { notFound } from 'next/navigation';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { cn } from '@/lib/utils';
-import { formatSAR, durationHours, formatInteger } from '@/lib/format';
+import { formatSAR, durationHours, formatInteger, formatDate } from '@/lib/format';
 import { Link } from '@/lib/i18n';
 import type { Locale } from '@/lib/i18n';
 import { routing } from '@/lib/i18n';
@@ -15,6 +15,8 @@ import { HostCard } from '@/features/hosts/components/host-card';
 import { toArabicText } from '@/features/experiences/lib/arabic-content';
 import { CATEGORIES } from '@/features/experiences/lib/sample-data';
 import { getAllSlugs, getExperienceBySlug } from '@/features/experiences/queries';
+import { getScheduleDataBySlug } from '@/features/availability/queries';
+import { addDays, bookableDates } from '@/features/bookings/lib/availability';
 import { ReviewsSection } from '@/features/reviews/components/reviews-section';
 import { getReviewAggregateForExperience } from '@/features/reviews/queries';
 
@@ -65,6 +67,41 @@ export default async function ExperienceDetailPage({
   // section (which re-fetches the full list itself, also cached).
   const ratingAggregate = await getReviewAggregateForExperience(slug);
 
+  // Build the guest date picker: only dates that are actually bookable
+  // (open weekday, not blackout/stop-sell/past, with capacity) over the
+  // next ~8 weeks, each with its remaining-spots count.
+  const BOOKING_HORIZON_DAYS = 60;
+  const todayRiyadh = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Riyadh' }).format(
+    new Date(),
+  );
+  const schedule = await getScheduleDataBySlug(
+    slug,
+    todayRiyadh,
+    addDays(todayRiyadh, BOOKING_HORIZON_DAYS),
+  );
+  const availableDates = (
+    schedule
+      ? bookableDates({
+          fromStr: todayRiyadh,
+          days: BOOKING_HORIZON_DAYS + 1,
+          availabilityWeekdays: schedule.availabilityWeekdays,
+          blackoutDates: schedule.blackoutDates,
+          stopSellDates: schedule.stopSellDates,
+          maxGroupSize: schedule.maxGroupSize,
+          bookedByDate: schedule.bookedByDate,
+        })
+      : []
+  ).map((d) => ({
+    value: d.date,
+    label: formatDate(new Date(`${d.date}T12:00:00Z`), loc, 'gregory', {
+      weekday: 'short',
+      day: 'numeric',
+      month: 'long',
+      timeZone: 'UTC',
+    }),
+    remaining: d.remaining,
+  }));
+
   const t = await getTranslations('experienceDetail');
   const te = await getTranslations('experience');
   const tb = await getTranslations('bookingRequest');
@@ -100,6 +137,10 @@ export default async function ExperienceDetailPage({
     dateUnavailable: tb('dateUnavailable'),
     dateFull: tb('dateFull'),
     partySizeTooLarge: tb('partySizeTooLarge'),
+    datePlaceholder: tb('datePlaceholder'),
+    spotsLeft: tb('spotsLeft'),
+    total: tb('total'),
+    noDates: tb('noDates'),
   };
   const modeNote = exp.bookingMode === 'instant' ? tb('modeInstant') : tb('modeRequest');
   const eyebrowClassName = cn(
@@ -298,6 +339,8 @@ export default async function ExperienceDetailPage({
               experienceSlug={exp.slug}
               locale={loc}
               maxGroupSize={String(exp.maxGroupSize)}
+              priceSar={exp.priceSar}
+              availableDates={availableDates}
               modeNote={modeNote}
               copy={bookingCopy}
             />

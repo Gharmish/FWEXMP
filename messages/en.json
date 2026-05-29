@@ -985,6 +985,10 @@
     "dateUnavailable": "This experience doesn't run on that day. Pick another date.",
     "dateFull": "That date is fully booked. Try another day.",
     "partySizeTooLarge": "That's more guests than this experience can host.",
+    "datePlaceholder": "Select a date",
+    "spotsLeft": "{count} spots left on this date",
+    "total": "Total",
+    "noDates": "No open dates in the next 8 weeks. Check back soon, or message the host.",
     "modeInstant": "Instant confirmation — your spot is booked the moment you submit, subject to availability.",
     "modeRequest": "Request to book — the host confirms availability within 24 hours."
   },

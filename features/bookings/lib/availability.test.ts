@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
+  addDays,
+  bookableDates,
   isDateBookable,
   remainingCapacity,
   splitCommission,
@@ -74,6 +76,49 @@ describe('isDateBookable', () => {
     expect(
       isDateBookable({ ...base, dateStr: '2026-05-30', stopSellDates: ['2026-06-06'] }),
     ).toEqual({ ok: true });
+  });
+});
+
+describe('addDays', () => {
+  it('adds days across month boundaries (UTC-safe)', () => {
+    expect(addDays('2026-05-30', 2)).toBe('2026-06-01');
+    expect(addDays('2026-06-05', 0)).toBe('2026-06-05');
+    expect(addDays('2026-12-31', 1)).toBe('2027-01-01');
+  });
+});
+
+describe('bookableDates', () => {
+  // From Fri 2026-05-29, Fri/Sat experience, 8 spots.
+  const base = {
+    fromStr: '2026-05-29',
+    days: 14,
+    availabilityWeekdays: [5, 6] as number[],
+    blackoutDates: [] as string[],
+    maxGroupSize: 8,
+    bookedByDate: {} as Record<string, number>,
+  };
+
+  it('lists only open weekdays with capacity, in order', () => {
+    const out = bookableDates(base);
+    // 2026-05-29 Fri, 05-30 Sat, 06-05 Fri, 06-06 Sat, 06-12 Fri (within 14d window)
+    expect(out.map((d) => d.date)).toEqual([
+      '2026-05-29',
+      '2026-05-30',
+      '2026-06-05',
+      '2026-06-06',
+    ]);
+    expect(out.every((d) => d.remaining === 8)).toBe(true);
+  });
+
+  it('excludes blackout, stop-sell, and full days; reflects remaining', () => {
+    const out = bookableDates({
+      ...base,
+      blackoutDates: ['2026-05-30'],
+      stopSellDates: ['2026-06-05'],
+      bookedByDate: { '2026-05-29': 8, '2026-06-06': 5 },
+    });
+    // 05-29 full (8/8 → excluded), 05-30 blackout, 06-05 stop-sell → only 06-06 (3 left)
+    expect(out).toEqual([{ date: '2026-06-06', remaining: 3 }]);
   });
 });
 

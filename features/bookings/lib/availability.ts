@@ -70,6 +70,50 @@ export function remainingCapacity(maxGroupSize: number, bookedPartyTotal: number
   return Math.max(0, maxGroupSize - bookedPartyTotal);
 }
 
+/** Add `n` whole days to a `YYYY-MM-DD` string (UTC-safe). */
+export function addDays(dateStr: string, n: number): string {
+  const d = new Date(`${dateStr}T12:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + n);
+  return d.toISOString().slice(0, 10);
+}
+
+export interface BookableDate {
+  date: string;
+  remaining: number;
+}
+
+/**
+ * The bookable dates in the next `days` days for the guest-facing date
+ * picker: each date that is open on the calendar (weekday / not blackout
+ * / not stop-sell / not past) AND still has capacity. Pure — the caller
+ * supplies today + the schedule + per-date booked totals.
+ */
+export function bookableDates(input: {
+  fromStr: string;
+  days: number;
+  availabilityWeekdays: readonly number[];
+  blackoutDates: readonly string[];
+  stopSellDates?: readonly string[];
+  maxGroupSize: number;
+  bookedByDate: Readonly<Record<string, number>>;
+}): BookableDate[] {
+  const out: BookableDate[] = [];
+  for (let i = 0; i < input.days; i++) {
+    const date = addDays(input.fromStr, i);
+    const open = isDateBookable({
+      dateStr: date,
+      todayStr: input.fromStr,
+      availabilityWeekdays: input.availabilityWeekdays,
+      blackoutDates: input.blackoutDates,
+      stopSellDates: input.stopSellDates,
+    });
+    if (!open.ok) continue;
+    const remaining = remainingCapacity(input.maxGroupSize, input.bookedByDate[date] ?? 0);
+    if (remaining > 0) out.push({ date, remaining });
+  }
+  return out;
+}
+
 /** Whole-SAR split of a booking total into platform commission + host payout. */
 export function splitCommission(
   totalAmountSar: number,

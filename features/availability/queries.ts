@@ -28,6 +28,34 @@ export async function getScheduleData(
   toStr: string,
 ): Promise<ScheduleData | null> {
   if (!serverEnv.DATABASE_URL) return null;
+  return scheduleDataById(experienceId, fromStr, toStr);
+}
+
+/** Schedule by public slug — for the guest-facing date picker on the detail page. */
+export async function getScheduleDataBySlug(
+  slug: string,
+  fromStr: string,
+  toStr: string,
+): Promise<ScheduleData | null> {
+  if (!serverEnv.DATABASE_URL) return null;
+  try {
+    const exp = await db.query.experiences.findFirst({
+      where: (e) => eq(e.slug, slug),
+      columns: { id: true },
+    });
+    if (!exp) return null;
+    return scheduleDataById(exp.id, fromStr, toStr);
+  } catch (error) {
+    reportError(error, { surface: 'availability:getScheduleDataBySlug', slug });
+    return null;
+  }
+}
+
+async function scheduleDataById(
+  experienceId: string,
+  fromStr: string,
+  toStr: string,
+): Promise<ScheduleData | null> {
   try {
     const experience = await db.query.experiences.findFirst({
       where: (e) => eq(e.id, experienceId),
