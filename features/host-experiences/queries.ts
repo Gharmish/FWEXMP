@@ -37,6 +37,7 @@ export interface HostExperienceRow {
   availabilityWeekdays: number[];
   status: (typeof experiences.$inferSelect)['status'];
   featured: boolean;
+  heroImage: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -63,6 +64,7 @@ function rowToView(row: typeof experiences.$inferSelect): HostExperienceRow {
     availabilityWeekdays: [...row.availabilityWeekdays],
     status: row.status,
     featured: row.featured,
+    heroImage: row.heroImage,
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
   };

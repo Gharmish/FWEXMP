@@ -482,6 +482,28 @@
       "formHeading": "تعديل",
       "liveEditWarning": "تنبيه — هذه التجربة منشورة. حفظ أي تغيير سيوقفها مؤقتاً ويُخرجها من القائمة حتى نعتمد النسخة المحدّثة."
     },
+    "photo": {
+      "heading": "TODO(ar): Hero photo",
+      "description": "TODO(ar): The first image guests see on your listing and in the catalog. Use a real, natural-light shot — landscape works best.",
+      "currentAlt": "TODO(ar): Current hero photo for this experience",
+      "noPhoto": "TODO(ar): No photo yet",
+      "choose": "TODO(ar): Choose a photo",
+      "replace": "TODO(ar): Replace photo",
+      "hint": "TODO(ar): JPG, PNG, WebP or AVIF · up to 5MB",
+      "submit": "TODO(ar): Upload photo",
+      "submitting": "TODO(ar): Uploading",
+      "errors": {
+        "missing": "TODO(ar): Choose a photo to upload.",
+        "invalidType": "TODO(ar): That file type isn't supported. Use JPG, PNG, WebP or AVIF.",
+        "tooLarge": "TODO(ar): That photo is over 5MB. Pick a smaller file.",
+        "noSupabase": "TODO(ar): Photo uploads aren't available in this environment.",
+        "noDb": "TODO(ar): Photo uploads require a database connection.",
+        "forbidden": "TODO(ar): You're not authorised to edit this listing.",
+        "notFound": "TODO(ar): We couldn't find that listing.",
+        "uploadFailed": "TODO(ar): The upload didn't go through. Try again in a moment.",
+        "server": "TODO(ar): We couldn't save that photo. Try again in a moment."
+      }
+    },
     "suspendedHostBanner": "حسابك كمضيف موقوف. لا يزال بإمكانك رؤية هذه التجربة وتعديلها، لكن إرسالها للمراجعة معطّل حتى يستعيد الفريق حسابك.",
     "status": {
       "draft": {

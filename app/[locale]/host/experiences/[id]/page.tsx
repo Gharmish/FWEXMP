@@ -13,6 +13,7 @@ import { getLatestModerationDecision } from '@/features/admin/experience-moderat
 import { ExperienceForm } from '@/app/[locale]/host/experiences/[id]/experience-form';
 import { buildExperienceFormCopy } from '@/app/[locale]/host/experiences/[id]/build-form-copy';
 import { LifecycleActions } from '@/app/[locale]/host/experiences/[id]/lifecycle-actions';
+import { PhotoUpload } from '@/features/host-experiences/components/photo-upload';
 import { formatDate } from '@/lib/format';
 
 export async function generateMetadata({
@@ -157,6 +158,36 @@ export default async function EditExperiencePage({
                 validation: t('lifecycle.errors.validation'),
                 wrong_state: t('lifecycle.errors.wrongState'),
                 suspended: t('lifecycle.errors.suspended'),
+              },
+            }}
+          />
+        </div>
+
+        <div className="border-sarat-black/8 mt-10 [border-top-width:0.5px] pt-10">
+          <PhotoUpload
+            experienceId={experience.id}
+            locale={loc}
+            currentUrl={experience.heroImage}
+            copy={{
+              heading: t('photo.heading'),
+              description: t('photo.description'),
+              currentAlt: t('photo.currentAlt'),
+              noPhoto: t('photo.noPhoto'),
+              choose: t('photo.choose'),
+              replace: t('photo.replace'),
+              hint: t('photo.hint'),
+              submit: t('photo.submit'),
+              submitting: t('photo.submitting'),
+              errors: {
+                missing: t('photo.errors.missing'),
+                invalid_type: t('photo.errors.invalidType'),
+                too_large: t('photo.errors.tooLarge'),
+                no_supabase: t('photo.errors.noSupabase'),
+                no_db: t('photo.errors.noDb'),
+                forbidden: t('photo.errors.forbidden'),
+                not_found: t('photo.errors.notFound'),
+                upload_failed: t('photo.errors.uploadFailed'),
+                server: t('photo.errors.server'),
               },
             }}
           />
