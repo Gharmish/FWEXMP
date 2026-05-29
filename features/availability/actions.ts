@@ -1,16 +1,19 @@
 'use server';
 
-import { eq } from 'drizzle-orm';
+import { and, eq, inArray, sql } from 'drizzle-orm';
 import { revalidatePath } from 'next/cache';
 import { db } from '@/lib/db';
 import { serverEnv } from '@/lib/env';
-import { experiences } from '@/db/schema';
+import { bookings, experiences } from '@/db/schema';
 import { reportError } from '@/lib/log';
 import { getCurrentUser } from '@/features/auth/queries';
 import { isAdminUser } from '@/features/admin/auth';
 import { getCurrentHostIdForWrite } from '@/features/host-experiences/queries';
 
 const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+
+/** A date can't be closed while these bookings sit on it. */
+const BLOCKING_BOOKING_STATUSES = ['pending', 'confirmed'] as const;
 
 /**
  * Toggle a single date's blackout (closed) state for an experience.
@@ -46,6 +49,25 @@ export async function toggleBlackoutDate(formData: FormData): Promise<void> {
     }
 
     const set = new Set(experience.blackoutDates);
+    const closing = !set.has(date);
+
+    // Guard: never close a day that has live bookings — that would strand
+    // confirmed guests. The UI already hides the toggle on booked days;
+    // this is the authoritative server-side check (defence in depth).
+    if (closing) {
+      const [{ booked }] = await db
+        .select({ booked: sql<number>`count(*)::int` })
+        .from(bookings)
+        .where(
+          and(
+            eq(bookings.experienceId, experienceId),
+            eq(bookings.date, date),
+            inArray(bookings.status, [...BLOCKING_BOOKING_STATUSES]),
+          ),
+        );
+      if (booked > 0) return; // refuse to close; leave the day open
+    }
+
     if (set.has(date)) set.delete(date);
     else set.add(date);
     const next = [...set].sort();

@@ -955,6 +955,7 @@
     "next": "Next month",
     "closeDay": "Close this day",
     "openDay": "Reopen this day",
+    "hasBookings": "This day has bookings and can't be closed. Cancel or reschedule them first.",
     "spots": "{booked}/{total}",
     "legendAvailable": "Available",
     "legendFull": "Fully booked",

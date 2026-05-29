@@ -70,6 +70,7 @@ export async function ScheduleCalendarSection({
         next: t('next'),
         closeDay: t('closeDay'),
         openDay: t('openDay'),
+        hasBookings: t('hasBookings'),
         spots: t('spots'),
         legendAvailable: t('legendAvailable'),
         legendFull: t('legendFull'),

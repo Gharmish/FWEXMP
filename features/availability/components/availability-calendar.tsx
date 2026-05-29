@@ -18,6 +18,8 @@ export interface AvailabilityCalendarCopy {
   closeDay: string;
   /** aria-label for a day that is closed → clicking reopens it. */
   openDay: string;
+  /** Tooltip on a day that has bookings and therefore can't be closed. */
+  hasBookings: string;
   spots: string; // e.g. "{booked}/{total}"
   legendAvailable: string;
   legendFull: string;
@@ -117,9 +119,12 @@ export function AvailabilityCalendar({
             </>
           );
 
+          // A day with active bookings can't be closed — that would strand
+          // confirmed guests. It stays open (bookable) but isn't a toggle.
+          const hasBookings = cell.isOperating && !cell.isPast && cell.spotsBooked > 0;
           // Editable future operating days become toggle buttons; everything
-          // else (past, off-schedule) is static.
-          const editable = canEdit && cell.isOperating && !cell.isPast;
+          // else (past, off-schedule, or already booked) is static.
+          const editable = canEdit && cell.isOperating && !cell.isPast && cell.spotsBooked === 0;
           const cellClass = cn(
             'flex aspect-square flex-col items-center justify-center gap-0.5 rounded-[10px] [border-width:0.5px] border-transparent',
             tone,
@@ -127,7 +132,11 @@ export function AvailabilityCalendar({
 
           if (!editable) {
             return (
-              <div key={cell.dateStr} className={cellClass}>
+              <div
+                key={cell.dateStr}
+                className={cn(cellClass, hasBookings && 'ring-saffron-gold/40 ring-1')}
+                title={canEdit && hasBookings ? copy.hasBookings : undefined}
+              >
                 {body}
               </div>
             );
