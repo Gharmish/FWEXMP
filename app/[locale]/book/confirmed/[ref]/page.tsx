@@ -51,6 +51,9 @@ export default async function BookingConfirmedPage({ params, searchParams }: Pag
   const experience = experienceSlug ? await getExperienceBySlug(experienceSlug) : undefined;
 
   const t = await getTranslations('bookingConfirmed');
+  // Instant bookings land here already `confirmed`; request bookings are
+  // `pending` until the operator confirms. Drive the copy off that.
+  const isConfirmed = booking?.status === 'confirmed';
   const title = experience ? (loc === 'ar' ? experience.titleAr : experience.titleEn) : null;
   const placeName = experience
     ? loc === 'ar'
@@ -86,13 +89,17 @@ export default async function BookingConfirmedPage({ params, searchParams }: Pag
       <header className="flex flex-col gap-6">
         <div className="flex items-center gap-3">
           <CheckCircle2 className="text-juniper-green size-7 shrink-0" aria-hidden />
-          <p className={eyebrowClassName}>{t('eyebrow')}</p>
+          <p className={eyebrowClassName}>{isConfirmed ? t('eyebrowConfirmed') : t('eyebrow')}</p>
         </div>
         <h1 className="font-display text-4xl font-medium tracking-[-0.035em] text-balance sm:text-5xl">
-          {t('title')}
+          {isConfirmed ? t('titleConfirmed') : t('title')}
         </h1>
         <p className="text-sarat-black-600 max-w-2xl text-lg leading-relaxed">
-          {booking ? t('descriptionStored') : t('descriptionPreview')}
+          {!booking
+            ? t('descriptionPreview')
+            : isConfirmed
+              ? t('descriptionConfirmed')
+              : t('descriptionStored')}
         </p>
       </header>
 
@@ -122,9 +129,9 @@ export default async function BookingConfirmedPage({ params, searchParams }: Pag
           {t('nextStepsHeading')}
         </h2>
         <ol className="text-sarat-black-600 flex flex-col gap-2 text-base">
-          <li>{t('nextStep1')}</li>
-          <li>{t('nextStep2')}</li>
-          <li>{t('nextStep3')}</li>
+          <li>{isConfirmed ? t('nextStepConfirmed1') : t('nextStep1')}</li>
+          <li>{isConfirmed ? t('nextStepConfirmed2') : t('nextStep2')}</li>
+          <li>{isConfirmed ? t('nextStepConfirmed3') : t('nextStep3')}</li>
         </ol>
       </section>
 

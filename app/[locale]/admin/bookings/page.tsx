@@ -178,6 +178,18 @@ export default async function AdminBookingsPage({
                         {row.reference}
                       </span>
                     </div>
+                    <div className="text-sarat-black-600 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
+                      <span>
+                        {t('bookingsList.commission', {
+                          pct: row.commissionBps / 100,
+                          amount: formatSAR(row.commissionSar, loc),
+                        })}
+                      </span>
+                      <span aria-hidden>·</span>
+                      <span>
+                        {t('bookingsList.payout', { amount: formatSAR(row.payoutSar, loc) })}
+                      </span>
+                    </div>
                   </div>
                   <div className="flex shrink-0 flex-col items-end gap-2 sm:items-end">
                     <span className="text-sarat-black-600 text-sm">

@@ -85,7 +85,22 @@ export const moderationEventEnum = pgEnum('experience_moderation_event', [
   // Admin replaced the hero photo. No status change (fromStatus ===
   // toStatus); logged here so the swap is visible in the audit history.
   'photo_updated',
+  // Admin edited experience details (price, commission, availability,
+  // booking mode, copy, …) from the admin editor. fromStatus may differ
+  // from toStatus when the edit also changes status.
+  'edited',
 ]);
+
+/**
+ * How a booking is confirmed for an experience:
+ *   - `request`: the guest submits a request; the operator/host confirms
+ *     it manually (the default — safest for new hosts).
+ *   - `instant`: the booking auto-confirms at request time if the chosen
+ *     date is on the availability calendar and still has capacity.
+ * BRIEF positions Gharmish as a curated marketplace; hosts opt into
+ * instant confirmation once their calendar is trustworthy.
+ */
+export const bookingModeEnum = pgEnum('booking_mode', ['request', 'instant']);
 
 /**
  * Lifecycle events on a host record. Today: suspend / restore. If we
@@ -200,6 +215,20 @@ export const experiences = pgTable('experiences', {
   /** Recurring weekly availability: weekday indexes 0=Sun..6=Sat. */
   availabilityWeekdays: integer().array().notNull().default([]),
   blackoutDates: date().array().notNull().default([]),
+  /** Local start time for every occurrence, HH:MM (24h). */
+  startTime: text().notNull().default('09:00'),
+  /**
+   * How bookings are confirmed (BRIEF: curated marketplace). `request`
+   * (default) → operator confirms manually; `instant` → auto-confirms
+   * against the availability calendar + remaining capacity.
+   */
+  bookingMode: bookingModeEnum().notNull().default('request'),
+  /**
+   * Platform commission in basis points (1500 = 15%). The host payout
+   * is `totalAmount * (1 - commissionBps/10000)`. Stored as an integer
+   * to avoid floating-point money; admin edits it as a percentage.
+   */
+  commissionBps: integer().notNull().default(1500),
   status: experienceStatusEnum().notNull().default('draft'),
   /** Originals premium tier flag (BRIEF §8). */
   featured: boolean().notNull().default(false),

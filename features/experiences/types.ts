@@ -82,4 +82,11 @@ export interface ExperienceDetail extends ExperienceSummary {
    * until photography lands. Order is the order rendered.
    */
   images: string[];
+  /** `instant` auto-confirms against the calendar; `request` is operator-confirmed. */
+  bookingMode: BookingMode;
+  /** Recurring weekly availability: weekday indexes 0=Sun..6=Sat. */
+  availabilityWeekdays: number[];
 }
+
+/** How a booking is confirmed (mirrors db `booking_mode`). */
+export type BookingMode = 'request' | 'instant';

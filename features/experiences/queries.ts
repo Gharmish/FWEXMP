@@ -96,6 +96,8 @@ function toDetail(
     host: toHostInfo(row.host),
     moments: [...row.moments].sort((a, b) => a.orderIndex - b.orderIndex).map(toMomentInfo),
     images: row.images,
+    bookingMode: row.bookingMode,
+    availabilityWeekdays: [...row.availabilityWeekdays],
   };
 }
 

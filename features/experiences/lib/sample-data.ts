@@ -15,7 +15,7 @@ import { getReviewsForExperience as getSampleReviews } from '@/features/reviews/
  */
 type SampleExperience = Omit<
   ExperienceDetail,
-  'ratingAverage' | 'ratingCount' | 'heroImage' | 'images'
+  'ratingAverage' | 'ratingCount' | 'heroImage' | 'images' | 'bookingMode' | 'availabilityWeekdays'
 >;
 
 function attachRatings(e: SampleExperience): ExperienceDetail {
@@ -26,6 +26,9 @@ function attachRatings(e: SampleExperience): ExperienceDetail {
     ratingCount: agg.count,
     heroImage: heroFor(e.slug),
     images: [],
+    // Offline demo defaults — the live DB path carries the real values.
+    bookingMode: 'request',
+    availabilityWeekdays: [4, 5, 6], // Thu–Sat
   };
 }
 

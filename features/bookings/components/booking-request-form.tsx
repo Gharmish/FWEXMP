@@ -23,12 +23,19 @@ interface BookingRequestCopy {
   server: string;
   notFound: string;
   required: string;
+  /** Specific, actionable field messages. */
+  datePast: string;
+  dateUnavailable: string;
+  dateFull: string;
+  partySizeTooLarge: string;
 }
 
 export interface BookingRequestFormProps {
   experienceSlug: string;
   locale: Locale;
   maxGroupSize: string;
+  /** Short note under the title: instant-confirmation vs request-to-book. */
+  modeNote?: string;
   copy: BookingRequestCopy;
 }
 
@@ -59,10 +66,32 @@ function FieldError({ id, message }: { id: string; message?: string }) {
   );
 }
 
+/** Map a server field-error code to its user-facing message. */
+function messageForField(
+  field: FieldName,
+  code: string | undefined,
+  copy: BookingRequestCopy,
+): string | undefined {
+  if (!code) return undefined;
+  if (field === 'preferredDate') {
+    if (code === 'date_past') return copy.datePast;
+    if (code === 'date_full') return copy.dateFull;
+    if (code === 'date_closed_weekday' || code === 'date_blackout' || code === 'date_malformed') {
+      return copy.dateUnavailable;
+    }
+    return copy.required;
+  }
+  if (field === 'partySize') {
+    return code === 'too_large' ? copy.partySizeTooLarge : copy.required;
+  }
+  return copy.required;
+}
+
 export function BookingRequestForm({
   experienceSlug,
   locale,
   maxGroupSize,
+  modeNote,
   copy,
 }: BookingRequestFormProps) {
   const [state, formAction] = useActionState(requestBooking, initialState);
@@ -143,6 +172,12 @@ export function BookingRequestForm({
       <input type="hidden" name="experienceSlug" value={experienceSlug} />
       <input type="hidden" name="locale" value={locale} />
 
+      {modeNote && (
+        <p className="bg-juniper-green/8 text-juniper-green-800 rounded-input px-3 py-2 text-sm">
+          {modeNote}
+        </p>
+      )}
+
       <div className="flex flex-col gap-2">
         <label htmlFor="booking-name" className="text-sm font-medium">
           {copy.name}
@@ -206,7 +241,7 @@ export function BookingRequestForm({
           </p>
           <FieldError
             id={errorId('preferredDate')}
-            message={state.fields?.preferredDate && copy.required}
+            message={messageForField('preferredDate', state.fields?.preferredDate, copy)}
           />
         </div>
 
@@ -229,7 +264,7 @@ export function BookingRequestForm({
           </p>
           <FieldError
             id={errorId('partySize')}
-            message={state.fields?.partySize && copy.required}
+            message={messageForField('partySize', state.fields?.partySize, copy)}
           />
         </div>
       </div>

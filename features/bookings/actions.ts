@@ -1,6 +1,6 @@
 'use server';
 
-import { eq } from 'drizzle-orm';
+import { and, eq, inArray, sql } from 'drizzle-orm';
 import { cookies } from 'next/headers';
 import { db } from '@/lib/db';
 import { serverEnv } from '@/lib/env';
@@ -8,7 +8,17 @@ import { bookings, guests } from '@/db/schema';
 import { redirect } from '@/lib/i18n';
 import { reportError } from '@/lib/log';
 import { bookingRequestSchema } from '@/features/bookings/schemas';
+import { isDateBookable, remainingCapacity } from '@/features/bookings/lib/availability';
 import { LAST_BOOKING_COOKIE, serializeLastBookingCookie } from '@/features/account/cookie';
+
+/** Statuses that occupy a spot on a date for capacity purposes. */
+const ACTIVE_BOOKING_STATUSES = ['pending', 'confirmed', 'completed'] as const;
+
+/** Today as `YYYY-MM-DD` in the experience's local day (KSA at launch). */
+function todayInRiyadh(): string {
+  // en-CA renders ISO `YYYY-MM-DD`; the time zone pins it to the KSA day.
+  return new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Riyadh' }).format(new Date());
+}
 
 const LAST_BOOKING_COOKIE_MAX_AGE_SECONDS = 60 * 60 * 24 * 90; // 90 days
 
@@ -93,7 +103,15 @@ export async function requestBooking(
   try {
     const experience = await db.query.experiences.findFirst({
       where: (e) => eq(e.slug, input.experienceSlug),
-      columns: { id: true, priceSar: true, maxGroupSize: true },
+      columns: {
+        id: true,
+        priceSar: true,
+        maxGroupSize: true,
+        startTime: true,
+        bookingMode: true,
+        availabilityWeekdays: true,
+        blackoutDates: true,
+      },
     });
 
     if (!experience) {
@@ -107,6 +125,51 @@ export async function requestBooking(
         fields: { partySize: 'too_large' },
         values: currentValues(formData),
       };
+    }
+
+    // The requested day must be open on the calendar for both modes — a
+    // request for a day the experience never runs is not actionable.
+    const bookable = isDateBookable({
+      dateStr: input.preferredDate,
+      todayStr: todayInRiyadh(),
+      availabilityWeekdays: experience.availabilityWeekdays,
+      blackoutDates: experience.blackoutDates,
+    });
+    if (!bookable.ok) {
+      return {
+        success: false,
+        message: 'validation',
+        fields: { preferredDate: `date_${bookable.reason}` },
+        values: currentValues(formData),
+      };
+    }
+
+    // Instant experiences auto-confirm, but only if the date still has
+    // room. Sum active party sizes on that date and compare to the cap.
+    // The check + insert run in one transaction to narrow (not fully
+    // close) the concurrent-overbook window; a slots table with row
+    // locks would close it entirely — tracked for when volume warrants.
+    let status: (typeof ACTIVE_BOOKING_STATUSES)[number] = 'pending';
+    if (experience.bookingMode === 'instant') {
+      const [{ booked }] = await db
+        .select({ booked: sql<number>`coalesce(sum(${bookings.partySize}), 0)::int` })
+        .from(bookings)
+        .where(
+          and(
+            eq(bookings.experienceId, experience.id),
+            eq(bookings.date, input.preferredDate),
+            inArray(bookings.status, [...ACTIVE_BOOKING_STATUSES]),
+          ),
+        );
+      if (remainingCapacity(experience.maxGroupSize, booked) < input.partySize) {
+        return {
+          success: false,
+          message: 'date_full',
+          fields: { preferredDate: 'date_full' },
+          values: currentValues(formData),
+        };
+      }
+      status = 'confirmed';
     }
 
     let guest = await db.query.guests.findFirst({
@@ -129,11 +192,11 @@ export async function requestBooking(
       guestId: guest.id,
       experienceId: experience.id,
       date: input.preferredDate,
-      startTime: '09:00',
+      startTime: experience.startTime,
       partySize: input.partySize,
       totalAmount: experience.priceSar * input.partySize,
       idempotencyKey: reference,
-      status: 'pending',
+      status,
     });
   } catch (error) {
     reportError(error, { surface: 'booking-request', experienceSlug: input.experienceSlug });

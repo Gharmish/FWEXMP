@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import Image from 'next/image';
-import { ArrowLeft, ExternalLink } from 'lucide-react';
+import { ArrowLeft, ExternalLink, Pencil } from 'lucide-react';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { Link } from '@/lib/i18n';
 import type { Locale } from '@/lib/i18n';
@@ -47,6 +47,7 @@ const EVENT_TONE: Record<ModerationEventType, string> = {
   rejected: 'bg-al-qatt-red/15 text-al-qatt-red',
   changes_requested: 'bg-rijal-clay/15 text-rijal-clay',
   photo_updated: 'bg-sarawat-blue/15 text-sarawat-blue',
+  edited: 'bg-sarawat-blue/15 text-sarawat-blue',
 };
 
 const WEEKDAY_LABELS = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'] as const;
@@ -123,6 +124,14 @@ export default async function AdminExperienceModerationDetailPage({
             {t(`experienceStatus.${detail.status}`)}
           </Badge>
         </div>
+
+        <Link
+          href={`/admin/experiences/${detail.id}/edit`}
+          className="border-sarat-black/20 rounded-button text-sarat-black inline-flex min-h-11 items-center gap-2 self-start [border-width:0.5px] px-4 text-sm font-medium transition-transform duration-200 hover:-translate-y-px"
+        >
+          <Pencil className="size-4 shrink-0" aria-hidden />
+          {t('experienceModerationDetail.editDetails')}
+        </Link>
         <div className="text-sarat-black-600 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
           <span>{detail.hostName}</span>
           <span aria-hidden>·</span>

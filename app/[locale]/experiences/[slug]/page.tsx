@@ -90,13 +90,18 @@ export default async function ExperienceDetailPage({
     phoneHint: tb('phoneHint'),
     preferredDateHint: tb('preferredDateHint'),
     partySizeHint: tb('partySizeHint', { max: exp.maxGroupSize }),
-    submit: tb('submit'),
+    submit: exp.bookingMode === 'instant' ? tb('submitInstant') : tb('submit'),
     pending: tb('pending'),
     validation: tb('validation'),
     server: tb('server'),
     notFound: tb('notFound'),
     required: tb('required'),
+    datePast: tb('datePast'),
+    dateUnavailable: tb('dateUnavailable'),
+    dateFull: tb('dateFull'),
+    partySizeTooLarge: tb('partySizeTooLarge'),
   };
+  const modeNote = exp.bookingMode === 'instant' ? tb('modeInstant') : tb('modeRequest');
   const eyebrowClassName = cn(
     'text-sarat-black-600 text-[11px]',
     loc === 'en' && 'tracking-[0.2em] uppercase',
@@ -293,6 +298,7 @@ export default async function ExperienceDetailPage({
               experienceSlug={exp.slug}
               locale={loc}
               maxGroupSize={String(exp.maxGroupSize)}
+              modeNote={modeNote}
               copy={bookingCopy}
             />
           </div>

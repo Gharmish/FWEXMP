@@ -4,6 +4,7 @@ import { serverEnv } from '@/lib/env';
 import { reportError } from '@/lib/log';
 import { getCurrentUser } from '@/features/auth/queries';
 import { isAdminUser } from '@/features/admin/auth';
+import { splitCommission } from '@/features/bookings/lib/availability';
 import type { AdminBookingRow } from '@/features/admin/bookings/types';
 
 /**
@@ -46,28 +47,37 @@ export async function listBookingsForAdmin(): Promise<readonly AdminBookingRow[]
   try {
     const rows = await db.query.bookings.findMany({
       with: {
-        experience: { columns: { slug: true, titleEn: true } },
+        experience: { columns: { slug: true, titleEn: true, commissionBps: true } },
         guest: { columns: { name: true, phone: true } },
       },
       orderBy: (b) => desc(b.createdAt),
       limit: BOOKINGS_LIST_LIMIT,
     });
-    return rows.map<AdminBookingRow>((row) => ({
-      id: row.id,
-      reference: row.idempotencyKey,
-      status: row.status,
-      date: row.date,
-      startTime: row.startTime,
-      partySize: row.partySize,
-      totalAmountSar: row.totalAmount,
-      currency: row.currency,
-      paymentReference: row.paymentReference,
-      createdAt: row.createdAt.toISOString(),
-      experienceSlug: row.experience.slug,
-      experienceTitleEn: row.experience.titleEn,
-      guestName: row.guest.name,
-      guestPhone: row.guest.phone,
-    }));
+    return rows.map<AdminBookingRow>((row) => {
+      const { commissionSar, payoutSar } = splitCommission(
+        row.totalAmount,
+        row.experience.commissionBps,
+      );
+      return {
+        id: row.id,
+        reference: row.idempotencyKey,
+        status: row.status,
+        date: row.date,
+        startTime: row.startTime,
+        partySize: row.partySize,
+        totalAmountSar: row.totalAmount,
+        commissionSar,
+        payoutSar,
+        commissionBps: row.experience.commissionBps,
+        currency: row.currency,
+        paymentReference: row.paymentReference,
+        createdAt: row.createdAt.toISOString(),
+        experienceSlug: row.experience.slug,
+        experienceTitleEn: row.experience.titleEn,
+        guestName: row.guest.name,
+        guestPhone: row.guest.phone,
+      };
+    });
   } catch (error) {
     reportError(error, { surface: 'admin:listBookings' });
     return [];

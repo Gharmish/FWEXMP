@@ -15,6 +15,12 @@ export interface AdminBookingRow {
   startTime: string;
   partySize: number;
   totalAmountSar: number;
+  /** Platform commission on this booking (whole SAR). */
+  commissionSar: number;
+  /** Host payout after commission (whole SAR). */
+  payoutSar: number;
+  /** Commission rate applied, basis points (1500 = 15%). */
+  commissionBps: number;
   currency: string;
   paymentReference: string | null;
   createdAt: string;
