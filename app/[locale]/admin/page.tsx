@@ -110,6 +110,11 @@ export default async function AdminIndexPage({ params }: { params: Promise<{ loc
       title: t('sections.hosts.title'),
       description: t('sections.hosts.description'),
     },
+    {
+      href: '/admin/guests',
+      title: t('sections.guests.title'),
+      description: t('sections.guests.description'),
+    },
   ];
 
   return (

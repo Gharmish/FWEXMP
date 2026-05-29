@@ -115,7 +115,34 @@
       "hosts": {
         "title": "Hosts",
         "description": "Verified, pending, or suspended. Suspend a host to pause every one of their live listings in one move."
+      },
+      "guests": {
+        "title": "Guests",
+        "description": "Look up a guest by name, phone, or email and see their full booking history."
       }
+    },
+    "guestsList": {
+      "eyebrow": "Guests",
+      "title": "Guest directory",
+      "intro": "Everyone who's booked or requested an experience. Search by name, phone, or email; click through for the full history.",
+      "search": "Search",
+      "searchPlaceholder": "Name, phone, or email",
+      "searchSubmit": "Search",
+      "bookingsCount": "{count, plural, =1 {1 booking} other {# bookings}}",
+      "lastBooking": "Last: {date}",
+      "shownCount": "Showing {count}",
+      "empty": "No guests match that search."
+    },
+    "guestDetail": {
+      "eyebrow": "Guest",
+      "back": "All guests",
+      "phone": "Phone",
+      "email": "Email",
+      "language": "Preferred language",
+      "totalSpent": "Total spent (net of refunds)",
+      "joined": "First seen",
+      "bookingsHeading": "Booking history",
+      "noBookings": "No bookings yet."
     },
     "hostApplicationsList": {
       "eyebrow": "Host applications",
