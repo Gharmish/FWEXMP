@@ -28,12 +28,12 @@ export async function Navbar() {
 
   return (
     <header className="border-sarat-black/8 bg-fog-white/80 sticky top-0 z-50 [border-bottom-width:0.5px] backdrop-blur-md">
-      <nav className="mx-auto flex h-16 max-w-6xl items-center justify-between px-6">
+      <nav className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-3 px-4 sm:px-6">
         <Wordmark locale={locale} />
-        <div className="flex items-center gap-6">
+        <div className="flex items-center gap-1 sm:gap-5">
           <Link
             href="/experiences"
-            className="text-sarat-black inline-flex min-h-11 items-center px-2 text-sm font-medium transition-opacity duration-200 hover:opacity-60"
+            className="text-sarat-black inline-flex min-h-11 items-center px-1 text-sm font-medium whitespace-nowrap transition-opacity duration-200 hover:opacity-60 sm:px-2"
           >
             {t('discover')}
           </Link>
@@ -42,18 +42,18 @@ export async function Navbar() {
               {isHost && (
                 <Link
                   href="/host"
-                  className="text-sarat-black inline-flex min-h-11 items-center px-2 text-sm font-medium transition-opacity duration-200 hover:opacity-60"
+                  className="text-sarat-black inline-flex min-h-11 items-center px-1 text-sm font-medium whitespace-nowrap transition-opacity duration-200 hover:opacity-60 sm:px-2"
                 >
                   {t('hostDashboard')}
                 </Link>
               )}
               <Link
                 href="/me"
-                className="text-sarat-black inline-flex min-h-11 items-center gap-2 px-2 text-sm font-medium transition-opacity duration-200 hover:opacity-60"
+                className="text-sarat-black inline-flex min-h-11 items-center gap-2 px-1 text-sm font-medium whitespace-nowrap transition-opacity duration-200 hover:opacity-60 sm:px-2"
                 aria-label={t('account')}
               >
                 <span aria-hidden>{t('account')}</span>
-                <span className="text-sarat-black-600 text-xs" dir="ltr">
+                <span className="text-sarat-black-600 hidden text-xs sm:inline" dir="ltr">
                   {phoneTail(user.phone)}
                 </span>
               </Link>
@@ -62,7 +62,7 @@ export async function Navbar() {
           ) : (
             <Link
               href="/sign-in"
-              className="text-sarat-black inline-flex min-h-11 items-center px-2 text-sm font-medium transition-opacity duration-200 hover:opacity-60"
+              className="text-sarat-black inline-flex min-h-11 items-center px-1 text-sm font-medium whitespace-nowrap transition-opacity duration-200 hover:opacity-60 sm:px-2"
             >
               {t('signIn')}
             </Link>
