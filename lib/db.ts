@@ -12,10 +12,29 @@ import * as schema from '@/db/schema';
  * DB yet in Sprint 1). The connection is created on first use and a
  * clear error is thrown if DATABASE_URL is unset.
  *
- * `prepare: false` keeps us safe behind Supabase's transaction-mode
- * pgbouncer pooler.
+ * Connection options, all required to stay healthy behind Supabase's
+ * transaction-mode pgbouncer pooler (port 6543):
+ *   - `prepare: false` — pgbouncer transaction mode can't keep named
+ *     prepared statements across pooled backends.
+ *   - `idle_timeout` — postgres.js defaults to keeping idle connections
+ *     forever, but the pooler silently recycles idle server backends.
+ *     Reusing one the pooler already dropped surfaces as
+ *     `CONNECTION_CLOSED` / `invalid frontend message type 101`. Closing
+ *     our side first (20s) avoids stale-connection reuse. This is
+ *     invisible on Vercel — serverless invocations are too short-lived
+ *     to go idle — but it breaks a long-lived dev server hard.
+ *   - `max_lifetime` — recycle connections well before any upstream cap.
+ *   - `connect_timeout` — fail fast instead of hanging a render.
+ *
+ * The client is cached on `globalThis` so Next.js dev HMR reuses one
+ * pool instead of leaking a fresh pool (and its connections) on every
+ * module re-evaluation.
  */
 type Database = PostgresJsDatabase<typeof schema>;
+
+const globalForDb = globalThis as unknown as {
+  __gharmishPgClient?: ReturnType<typeof postgres>;
+};
 
 let instance: Database | undefined;
 
@@ -26,7 +45,17 @@ export function getDb(): Database {
         'DATABASE_URL is not set. Copy .env.example to .env and add your Supabase connection string before using the database.',
       );
     }
-    const client = postgres(serverEnv.DATABASE_URL, { prepare: false });
+    const client =
+      globalForDb.__gharmishPgClient ??
+      postgres(serverEnv.DATABASE_URL, {
+        prepare: false,
+        idle_timeout: 20,
+        max_lifetime: 60 * 30,
+        connect_timeout: 15,
+      });
+    if (process.env.NODE_ENV !== 'production') {
+      globalForDb.__gharmishPgClient = client;
+    }
     instance = drizzle(client, { schema, casing: 'snake_case' });
   }
   return instance;
