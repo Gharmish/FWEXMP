@@ -1,0 +1,52 @@
+'use server';
+
+import { eq } from 'drizzle-orm';
+import { revalidatePath } from 'next/cache';
+import { db } from '@/lib/db';
+import { serverEnv } from '@/lib/env';
+import { reviews } from '@/db/schema';
+import { reportError } from '@/lib/log';
+import { getCurrentUser } from '@/features/auth/queries';
+import { isAdminUser } from '@/features/admin/auth';
+
+/**
+ * Hide or unhide a review. Hidden reviews are excluded from the public
+ * catalog rating and the detail-page list (see features/reviews/queries
+ * — both filter `hidden_at IS NULL`). Toggling stamps/clears
+ * `reviews.hidden_at`.
+ */
+export interface ModerateReviewState {
+  success: boolean;
+  message?: 'forbidden' | 'no_db' | 'server';
+}
+
+export async function setReviewHidden(
+  _previous: ModerateReviewState,
+  formData: FormData,
+): Promise<ModerateReviewState> {
+  const admin = await getCurrentUser();
+  if (!admin || !isAdminUser(admin)) return { success: false, message: 'forbidden' };
+  if (!serverEnv.DATABASE_URL) return { success: false, message: 'no_db' };
+
+  const reviewId = formData.get('reviewId');
+  const hide = formData.get('hide') === 'true';
+  if (typeof reviewId !== 'string' || reviewId.length === 0) {
+    return { success: false, message: 'server' };
+  }
+
+  try {
+    await db
+      .update(reviews)
+      .set({ hiddenAt: hide ? new Date() : null })
+      .where(eq(reviews.id, reviewId));
+  } catch (error) {
+    reportError(error, { surface: 'admin:setReviewHidden', reviewId });
+    return { success: false, message: 'server' };
+  }
+
+  revalidatePath('/[locale]/admin/reviews', 'page');
+  // The experience detail + catalog rating change when visibility flips.
+  revalidatePath('/[locale]/experiences', 'page');
+  revalidatePath('/[locale]/experiences/[slug]', 'page');
+  return { success: true };
+}

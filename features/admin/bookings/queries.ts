@@ -1,4 +1,4 @@
-import { desc } from 'drizzle-orm';
+import { desc, eq } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import { serverEnv } from '@/lib/env';
 import { reportError } from '@/lib/log';
@@ -81,6 +81,48 @@ export async function listBookingsForAdmin(): Promise<readonly AdminBookingRow[]
   } catch (error) {
     reportError(error, { surface: 'admin:listBookings' });
     return [];
+  }
+}
+
+/** Single booking by id for the admin detail page. */
+export async function getAdminBookingById(id: string): Promise<AdminBookingRow | undefined> {
+  const block = await adminGuard();
+  if (block) return undefined;
+  try {
+    const row = await db.query.bookings.findFirst({
+      where: (b) => eq(b.id, id),
+      with: {
+        experience: { columns: { slug: true, titleEn: true, commissionBps: true } },
+        guest: { columns: { name: true, phone: true } },
+      },
+    });
+    if (!row) return undefined;
+    const { commissionSar, payoutSar } = splitCommission(
+      row.totalAmount,
+      row.experience.commissionBps,
+    );
+    return {
+      id: row.id,
+      reference: row.idempotencyKey,
+      status: row.status,
+      date: row.date,
+      startTime: row.startTime,
+      partySize: row.partySize,
+      totalAmountSar: row.totalAmount,
+      commissionSar,
+      payoutSar,
+      commissionBps: row.experience.commissionBps,
+      currency: row.currency,
+      paymentReference: row.paymentReference,
+      createdAt: row.createdAt.toISOString(),
+      experienceSlug: row.experience.slug,
+      experienceTitleEn: row.experience.titleEn,
+      guestName: row.guest.name,
+      guestPhone: row.guest.phone,
+    };
+  } catch (error) {
+    reportError(error, { surface: 'admin:getBookingById', id });
+    return undefined;
   }
 }
 

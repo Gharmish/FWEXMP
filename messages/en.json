@@ -35,6 +35,58 @@
     "intro": "Internal tools — keep things sharp, kind, and quick.",
     "open": "Open",
     "backToAdmin": "Admin home",
+    "dashboard": {
+      "queueHeading": "Needs your attention",
+      "queueEmpty": "All clear — nothing waiting on you right now.",
+      "manageHeading": "Manage",
+      "kpi": {
+        "gmv": "GMV (all time)",
+        "bookings": "Total bookings",
+        "activeExperiences": "Live experiences",
+        "guests": "Guests"
+      },
+      "queue": {
+        "applications": "Host applications to review",
+        "pendingReview": "Experiences pending review",
+        "changesRequested": "Experiences awaiting host changes",
+        "pendingBookings": "Bookings to confirm",
+        "upcoming": "Upcoming bookings"
+      }
+    },
+    "payoutsList": {
+      "eyebrow": "Payouts",
+      "title": "Host payouts",
+      "intro": "What each host has earned from completed bookings. Pay them out-of-band (bank transfer), then mark it here so the owed figure resets.",
+      "totalOwed": "Total owed across all hosts: {amount}",
+      "owed": "{count, plural, =1 {1 completed booking} other {# completed bookings}} · {amount} owed",
+      "settled": "All caught up",
+      "paidToDate": "Paid to date: {amount} ({count, plural, =1 {1 booking} other {# bookings}})",
+      "markPaid": "Mark as paid",
+      "marking": "Recording",
+      "markError": "Couldn't record the payout. Try again.",
+      "empty": {
+        "eyebrow": "Nothing owed",
+        "title": "No payouts due yet",
+        "description": "Once bookings are marked completed, the host's earnings appear here."
+      }
+    },
+    "reviewsList": {
+      "eyebrow": "Reviews",
+      "title": "Review moderation",
+      "intro": "Every guest review, newest first. Hide anything abusive or off-policy — hidden reviews drop out of the public rating and the experience page immediately.",
+      "ratingValue": "{rating, plural, =1 {1 star} other {# stars}}",
+      "hiddenBadge": "Hidden",
+      "hide": "Hide",
+      "unhide": "Unhide",
+      "moderating": "Saving",
+      "moderateError": "Couldn't update. Try again.",
+      "noText": "No written review.",
+      "empty": {
+        "eyebrow": "No reviews",
+        "title": "Nothing to moderate yet",
+        "description": "Guest reviews appear here once bookings are completed and reviewed."
+      }
+    },
     "sections": {
       "hostApplications": {
         "title": "Host applications",
@@ -47,6 +99,14 @@
       "bookings": {
         "title": "Bookings",
         "description": "Every booking across the platform — for support, debugging, and end-of-day sanity checks."
+      },
+      "payouts": {
+        "title": "Payouts",
+        "description": "What each host is owed from completed bookings, and a record of what's been paid."
+      },
+      "reviews": {
+        "title": "Reviews",
+        "description": "Moderate guest reviews — hide anything abusive or off-policy from the public listings."
       },
       "analytics": {
         "title": "Platform analytics",
@@ -318,6 +378,18 @@
       "requestedOn": "Requested {date}",
       "commission": "Commission {pct, number}% · {amount}",
       "payout": "Host payout {amount}",
+      "viewDetail": "Details",
+      "filter": {
+        "search": "Search",
+        "searchPlaceholder": "Reference, phone, guest, experience",
+        "status": "Status",
+        "allStatuses": "All statuses",
+        "view": "View",
+        "viewAll": "All bookings",
+        "viewUpcoming": "Upcoming",
+        "apply": "Apply",
+        "noMatches": "No bookings match these filters."
+      },
       "empty": {
         "eyebrow": "Nothing yet",
         "title": "No bookings on the platform.",
@@ -351,6 +423,22 @@
         "validation": "Something didn't validate. Refresh and try again.",
         "server": "We couldn't complete that action. Try again in a moment."
       }
+    },
+    "bookingDetail": {
+      "back": "All bookings",
+      "viewExperience": "View public experience",
+      "guest": "Guest",
+      "phone": "Phone",
+      "date": "Date & time",
+      "party": "Guests",
+      "total": "Total",
+      "commission": "Platform commission",
+      "payout": "Host payout",
+      "payment": "Payment reference",
+      "noPayment": "Not paid online",
+      "created": "Requested",
+      "reference": "Reference",
+      "actions": "Actions"
     },
     "bookingStatus": {
       "pending": "Pending",

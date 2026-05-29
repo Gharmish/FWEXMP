@@ -293,6 +293,12 @@ export const bookings = pgTable('bookings', {
    * that were already `refunded` before this column existed.
    */
   refundedAt: timestamp({ withTimezone: true }),
+  /**
+   * When the host was paid out for this booking. Null = still owed.
+   * The payout amount is derived from the experience commission split
+   * (see features/bookings/lib/availability.ts `splitCommission`).
+   */
+  hostPaidAt: timestamp({ withTimezone: true }),
   createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
 });
 
@@ -317,6 +323,11 @@ export const reviews = pgTable('reviews', {
   hostReply: text(),
   /** 24h edit cooldown window (BRIEF §8). */
   editableUntil: timestamp({ withTimezone: true }).notNull(),
+  /**
+   * When an admin hid this review (abuse / off-policy). Null = visible.
+   * Public queries (catalog rating + detail) must exclude hidden rows.
+   */
+  hiddenAt: timestamp({ withTimezone: true }),
   createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
 });
 

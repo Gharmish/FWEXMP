@@ -1,4 +1,4 @@
-import { avg, count, desc, eq } from 'drizzle-orm';
+import { and, avg, count, desc, eq, isNull } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import { serverEnv } from '@/lib/env';
 import { experiences, reviews as reviewsTable } from '@/db/schema';
@@ -53,7 +53,8 @@ export async function getReviewsForExperience(slug: string): Promise<readonly Re
   });
   if (!exp) return [];
   const rows = await db.query.reviews.findMany({
-    where: (r) => eq(r.experienceId, exp.id),
+    // Hidden (admin-moderated) reviews never reach the public listing.
+    where: (r) => and(eq(r.experienceId, exp.id), isNull(r.hiddenAt)),
     with: { guest: true },
     orderBy: (r) => desc(r.createdAt),
   });
@@ -115,6 +116,7 @@ export async function getRatingsBySlug(): Promise<Map<string, ReviewAggregate>> 
     })
     .from(reviewsTable)
     .innerJoin(experiences, eq(reviewsTable.experienceId, experiences.id))
+    .where(isNull(reviewsTable.hiddenAt))
     .groupBy(experiences.slug);
 
   const map = new Map<string, ReviewAggregate>();
