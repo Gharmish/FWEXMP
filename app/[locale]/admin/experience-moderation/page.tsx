@@ -9,8 +9,17 @@ import { formatDate, formatSAR } from '@/lib/format';
 import {
   isAdminAndDbReady,
   listModerationQueue,
+  type ModerationListFilter,
 } from '@/features/admin/experience-moderation/queries';
 import type { ExperienceStatus } from '@/features/admin/experience-moderation/types';
+
+/** Filter chips shown above the list, in order. */
+const FILTERS: ModerationListFilter[] = ['review', 'all', 'live', 'paused', 'draft', 'archived'];
+
+function parseFilter(raw: string | string[] | undefined): ModerationListFilter {
+  const v = Array.isArray(raw) ? raw[0] : raw;
+  return v && (FILTERS as string[]).includes(v) ? (v as ModerationListFilter) : 'review';
+}
 
 export async function generateMetadata({
   params,
@@ -27,22 +36,38 @@ export async function generateMetadata({
 const STATUS_TONE: Partial<Record<ExperienceStatus, string>> = {
   pending_review: 'bg-saffron-gold/20 text-sarat-black',
   changes_requested: 'bg-rijal-clay/15 text-rijal-clay',
+  live: 'bg-juniper-green/15 text-juniper-green',
+  paused: 'bg-saffron-gold/20 text-sarat-black',
+  draft: 'bg-sarat-black/8 text-sarat-black',
+  archived: 'bg-sarat-black/8 text-sarat-black',
 };
 
 export default async function AdminExperienceModerationPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ locale: string }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const { locale } = await params;
   setRequestLocale(locale);
   const loc = locale as Locale;
 
+  const sp = await searchParams;
+  const filter = parseFilter(sp.status);
+
   const [block, queue, t] = await Promise.all([
     isAdminAndDbReady(),
-    listModerationQueue(),
+    listModerationQueue(filter),
     getTranslations('admin'),
   ]);
+
+  const filterLabel = (f: ModerationListFilter): string =>
+    f === 'review'
+      ? t('experienceModerationList.filter.review')
+      : f === 'all'
+        ? t('experienceModerationList.filter.all')
+        : t(`experienceStatus.${f}`);
 
   const eyebrowClassName = cn(
     'text-sarat-black-600 text-[11px]',
@@ -74,6 +99,32 @@ export default async function AdminExperienceModerationPage({
           {t('experienceModerationList.create')}
         </Link>
       </div>
+
+      {block?.reason !== 'no_db' && (
+        <nav
+          aria-label={t('experienceModerationList.filterLabel')}
+          className="flex flex-wrap gap-2"
+        >
+          {FILTERS.map((f) => {
+            const active = f === filter;
+            return (
+              <Link
+                key={f}
+                href={`/admin/experience-moderation?status=${f}`}
+                aria-current={active ? 'page' : undefined}
+                className={cn(
+                  'rounded-button min-h-9 px-4 py-1.5 text-sm font-medium transition-colors duration-200',
+                  active
+                    ? 'bg-sarat-black text-fog-white'
+                    : 'border-sarat-black/20 text-sarat-black [border-width:0.5px] hover:-translate-y-px',
+                )}
+              >
+                {filterLabel(f)}
+              </Link>
+            );
+          })}
+        </nav>
+      )}
 
       {block?.reason === 'no_db' ? (
         <div className="border-sarat-black/8 rounded-card flex flex-col items-start gap-4 [border-width:0.5px] p-10">

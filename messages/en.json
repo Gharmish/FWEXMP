@@ -225,8 +225,13 @@
     "experienceModerationList": {
       "eyebrow": "Experience moderation",
       "title": "Experiences awaiting review.",
-      "intro": "Pending submissions are at the top, oldest first. Click through to read the listing in full and approve, request changes, or reject.",
+      "intro": "Pending submissions are at the top, oldest first. Filter to browse live, paused, or draft listings and open any one to edit it.",
       "create": "Create experience",
+      "filterLabel": "Filter by status",
+      "filter": {
+        "review": "Needs review",
+        "all": "All"
+      },
       "submittedOn": "Submitted {date}",
       "empty": {
         "eyebrow": "Inbox zero",

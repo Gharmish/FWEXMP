@@ -35,12 +35,21 @@ export default async function AdminIndexPage({ params }: { params: Promise<{ loc
   const kpis = dashboard
     ? [
         { label: t('dashboard.kpi.gmv'), value: formatSAR(dashboard.gmvAllTimeSar, loc) },
-        { label: t('dashboard.kpi.bookings'), value: formatInteger(dashboard.bookingsTotal, loc) },
+        {
+          label: t('dashboard.kpi.bookings'),
+          value: formatInteger(dashboard.bookingsTotal, loc),
+          href: '/admin/bookings',
+        },
         {
           label: t('dashboard.kpi.activeExperiences'),
           value: formatInteger(dashboard.activeExperiences, loc),
+          href: '/admin/experience-moderation?status=live',
         },
-        { label: t('dashboard.kpi.guests'), value: formatInteger(dashboard.guests, loc) },
+        {
+          label: t('dashboard.kpi.guests'),
+          value: formatInteger(dashboard.guests, loc),
+          href: '/admin/guests',
+        },
       ]
     : [];
 
@@ -135,15 +144,34 @@ export default async function AdminIndexPage({ params }: { params: Promise<{ loc
       {/* KPIs */}
       {kpis.length > 0 && (
         <dl className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          {kpis.map((kpi) => (
-            <div
-              key={kpi.label}
-              className="border-sarat-black/8 rounded-card flex flex-col gap-1 [border-width:0.5px] p-6"
-            >
-              <dt className={eyebrowClassName}>{kpi.label}</dt>
-              <dd className="font-display text-3xl font-medium tracking-[-0.03em]">{kpi.value}</dd>
-            </div>
-          ))}
+          {kpis.map((kpi) => {
+            const cardClass =
+              'border-sarat-black/8 rounded-card flex flex-col gap-1 [border-width:0.5px] p-6';
+            const inner = (
+              <>
+                <dt className={eyebrowClassName}>{kpi.label}</dt>
+                <dd className="font-display text-3xl font-medium tracking-[-0.03em]">
+                  {kpi.value}
+                </dd>
+              </>
+            );
+            return 'href' in kpi && kpi.href ? (
+              <Link
+                key={kpi.label}
+                href={kpi.href}
+                className={cn(
+                  cardClass,
+                  'hover:border-sarat-black/20 transition-colors duration-200',
+                )}
+              >
+                {inner}
+              </Link>
+            ) : (
+              <div key={kpi.label} className={cardClass}>
+                {inner}
+              </div>
+            );
+          })}
         </dl>
       )}
 

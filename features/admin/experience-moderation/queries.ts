@@ -7,6 +7,7 @@ import { getCurrentUser } from '@/features/auth/queries';
 import { isAdminUser } from '@/features/admin/auth';
 import { hostSlug } from '@/features/hosts/lib/slug';
 import type {
+  ExperienceStatus,
   ModerationDetail,
   ModerationEventView,
   ModerationQueueRow,
@@ -68,16 +69,33 @@ async function latestSubmittedAtByExperience(ids: readonly string[]): Promise<Ma
 }
 
 /**
- * Queue view: pending review first (oldest at the top so they don't
- * get stuck), then a small tail of `changes_requested` / `live` rows
- * for context. Non-admins / no-DB → empty list.
+ * Filter for the moderation list. `review` (default) is the work queue —
+ * pending_review + changes_requested. `all` lists every experience; a
+ * specific status (e.g. `live`) narrows to just those — so an admin can
+ * browse and edit published listings, not only the review queue.
  */
-export async function listModerationQueue(): Promise<readonly ModerationQueueRow[]> {
+export type ModerationListFilter = 'review' | 'all' | ExperienceStatus;
+
+const REVIEW_STATUSES: ExperienceStatus[] = ['pending_review', 'changes_requested'];
+
+/**
+ * Queue/list view. `review` shows pending review first (oldest at the
+ * top so nothing gets stuck), then changes_requested. Other filters list
+ * the matching experiences newest-first. Non-admins / no-DB → empty.
+ */
+export async function listModerationQueue(
+  filter: ModerationListFilter = 'review',
+): Promise<readonly ModerationQueueRow[]> {
   const block = await adminGuard();
   if (block) return [];
   try {
     const rows = await db.query.experiences.findMany({
-      where: (e) => inArray(e.status, ['pending_review', 'changes_requested']),
+      where:
+        filter === 'all'
+          ? undefined
+          : filter === 'review'
+            ? (e) => inArray(e.status, REVIEW_STATUSES)
+            : (e) => eq(e.status, filter),
       with: { host: { columns: { name: true } } },
       orderBy: (e) => desc(e.updatedAt),
     });
