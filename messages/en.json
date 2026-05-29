@@ -684,7 +684,7 @@
       "eyebrow": "What's next",
       "title": "Get ready to host.",
       "step1Title": "Draft your first experience",
-      "step1Description": "Tools for hosts to draft and submit experiences open soon. Until then, share your idea with the partnerships team and we'll co-produce it with you.",
+      "step1Description": "Use \"New experience\" below to draft your listing — add the details, set your weekly availability, and submit it for review.",
       "step2Title": "Photography session",
       "step2Description": "We bring the camera. Our photographer captures the place, the moments, and you — natural light, no filters.",
       "step3Title": "Go live",
@@ -827,7 +827,7 @@
       "cancellationLabel": "Cancellation policy",
       "cancellationPlaceholder": "Free cancellation up to 24 hours before the experience. 50% refund if cancelled within 24 hours.",
       "weekdaysLabel": "Available days (recurring)",
-      "weekdaysHint": "Weekdays this experience runs. Blackout dates are managed separately (coming soon).",
+      "weekdaysHint": "Weekdays this experience runs. Close or reopen specific dates on the availability calendar.",
       "weekdays": {
         "sun": "Sun",
         "mon": "Mon",
@@ -945,7 +945,6 @@
     "groupSizeUpTo": "Up to {count} guests",
     "minAge": "Minimum age {age}",
     "requestToBook": "Request to book",
-    "bookingSoon": "Booking opens soon.",
     "translationPending": "Translation pending."
   },
   "availabilityCalendar": {
