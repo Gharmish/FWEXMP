@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import { ArrowRight } from 'lucide-react';
+import { ArrowRight, Star } from 'lucide-react';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { Link } from '@/lib/i18n';
 import type { Locale } from '@/lib/i18n';
@@ -9,6 +9,7 @@ import { ExperienceCard } from '@/features/experiences/components/experience-car
 import { WishlistButton } from '@/features/wishlist/components/wishlist-button';
 import { getWishlistExperiences } from '@/features/wishlist/queries';
 import { getLastBookingView } from '@/features/account/queries';
+import { ReviewForm } from '@/features/reviews/components/review-form';
 import { getCurrentUser } from '@/features/auth/queries';
 import { toArabicText } from '@/features/experiences/lib/arabic-content';
 import { formatDate, formatInteger, formatSAR } from '@/lib/format';
@@ -171,6 +172,64 @@ export default async function MePage({ params }: { params: Promise<{ locale: str
                 )}
               </div>
             </div>
+
+            {lastBooking.booking?.status === 'completed' && (
+              <div className="border-sarat-black/8 rounded-card mt-6 flex flex-col gap-4 [border-width:0.5px] p-6">
+                {lastBooking.review ? (
+                  <div className="flex flex-col gap-3">
+                    <p className={eyebrowClassName}>{t('review.reviewedEyebrow')}</p>
+                    <div
+                      className="flex gap-1"
+                      aria-label={t('review.ratingValue', { rating: lastBooking.review.rating })}
+                    >
+                      {[1, 2, 3, 4, 5].map((value) => (
+                        <Star
+                          key={value}
+                          className={cn(
+                            'size-5',
+                            value <= lastBooking.review!.rating
+                              ? 'text-saffron-gold'
+                              : 'text-sarat-black/20',
+                          )}
+                          aria-hidden
+                        />
+                      ))}
+                    </div>
+                    {(loc === 'ar' ? lastBooking.review.textAr : lastBooking.review.textEn) && (
+                      <p className="text-sarat-black-600 text-base leading-relaxed">
+                        {loc === 'ar' ? lastBooking.review.textAr : lastBooking.review.textEn}
+                      </p>
+                    )}
+                  </div>
+                ) : (
+                  <ReviewForm
+                    bookingReference={lastBooking.hint.reference}
+                    locale={loc}
+                    copy={{
+                      heading: t('review.heading'),
+                      ratingLabel: t('review.ratingLabel'),
+                      ratingValueLabels: [1, 2, 3, 4, 5].map((n) =>
+                        t('review.ratingValue', { rating: n }),
+                      ) as [string, string, string, string, string],
+                      ratingRequired: t('review.ratingRequired'),
+                      commentLabel: t('review.commentLabel'),
+                      commentOptional: t('review.commentOptional'),
+                      commentPlaceholder: t('review.commentPlaceholder'),
+                      submit: t('review.submit'),
+                      submitting: t('review.submitting'),
+                      errors: {
+                        no_db: t('review.errors.noDb'),
+                        not_found: t('review.errors.notFound'),
+                        wrong_state: t('review.errors.wrongState'),
+                        already_reviewed: t('review.errors.alreadyReviewed'),
+                        validation: t('review.errors.validation'),
+                        server: t('review.errors.server'),
+                      },
+                    }}
+                  />
+                )}
+              </div>
+            )}
           </div>
         </section>
       )}

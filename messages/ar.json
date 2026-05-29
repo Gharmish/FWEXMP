@@ -800,6 +800,26 @@
     },
     "viewConfirmation": "افتح التأكيد",
     "viewExperience": "افتح التجربة",
+    "review": {
+      "reviewedEyebrow": "TODO(ar): Your review",
+      "heading": "TODO(ar): How was it?",
+      "ratingLabel": "TODO(ar): Your rating",
+      "ratingValue": "TODO(ar): {rating, plural, =1 {1 star} other {# stars}}",
+      "ratingRequired": "TODO(ar): Choose a rating from one to five stars.",
+      "commentLabel": "TODO(ar): Tell others about it",
+      "commentOptional": "TODO(ar): optional",
+      "commentPlaceholder": "TODO(ar): What stood out? What should the next guest know?",
+      "submit": "TODO(ar): Submit review",
+      "submitting": "TODO(ar): Submitting",
+      "errors": {
+        "noDb": "TODO(ar): Reviews need a database connection.",
+        "notFound": "TODO(ar): We couldn't find that booking.",
+        "wrongState": "TODO(ar): You can review an experience once your booking is complete.",
+        "alreadyReviewed": "TODO(ar): You've already reviewed this booking.",
+        "validation": "TODO(ar): Something didn't validate. Check the form and try again.",
+        "server": "TODO(ar): We couldn't save your review. Try again in a moment."
+      }
+    },
     "wishlistTitle": "تجاربك المحفوظة",
     "wishlistViewAll": "عرض الكل"
   },

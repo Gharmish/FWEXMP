@@ -18,6 +18,7 @@ import type { Booking } from '@/db/schema';
 const hasDb = (): boolean => Boolean(serverEnv.DATABASE_URL);
 
 export interface BookingDetail {
+  id: string;
   reference: string;
   status: Booking['status'];
   partySize: number;
@@ -36,6 +37,7 @@ export async function getBookingByReference(reference: string): Promise<BookingD
   });
   if (!row) return undefined;
   return {
+    id: row.id,
     reference: row.idempotencyKey,
     status: row.status,
     partySize: row.partySize,

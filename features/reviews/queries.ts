@@ -66,6 +66,26 @@ export async function getReviewAggregateForExperience(slug: string): Promise<Rev
 }
 
 /**
+ * The review left for a given booking, if any. Drives the /me "leave a
+ * review" prompt: present → show the rating, absent → show the form.
+ * Returns null without a DB (no persisted bookings to review in the
+ * sample-data path).
+ */
+export async function getReviewForBooking(bookingId: string): Promise<{
+  rating: ReviewSummary['rating'];
+  textEn: string | null;
+  textAr: string | null;
+} | null> {
+  if (!hasDb()) return null;
+  const row = await db.query.reviews.findFirst({
+    where: (r) => eq(r.bookingId, bookingId),
+    columns: { rating: true, textEn: true, textAr: true },
+  });
+  if (!row) return null;
+  return { rating: clampRating(row.rating), textEn: row.textEn, textAr: row.textAr };
+}
+
+/**
  * Bulk rating accessor used by the catalog grid — one round-trip per
  * page rather than N (one per card). Returns a Map keyed by experience
  * slug so callers can merge without an extra join.

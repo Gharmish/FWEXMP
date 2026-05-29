@@ -800,6 +800,26 @@
     },
     "viewConfirmation": "Open confirmation",
     "viewExperience": "Open experience",
+    "review": {
+      "reviewedEyebrow": "Your review",
+      "heading": "How was it?",
+      "ratingLabel": "Your rating",
+      "ratingValue": "{rating, plural, =1 {1 star} other {# stars}}",
+      "ratingRequired": "Choose a rating from one to five stars.",
+      "commentLabel": "Tell others about it",
+      "commentOptional": "optional",
+      "commentPlaceholder": "What stood out? What should the next guest know?",
+      "submit": "Submit review",
+      "submitting": "Submitting",
+      "errors": {
+        "noDb": "Reviews need a database connection.",
+        "notFound": "We couldn't find that booking.",
+        "wrongState": "You can review an experience once your booking is complete.",
+        "alreadyReviewed": "You've already reviewed this booking.",
+        "validation": "Something didn't validate. Check the form and try again.",
+        "server": "We couldn't save your review. Try again in a moment."
+      }
+    },
     "wishlistTitle": "Saved experiences",
     "wishlistViewAll": "View all"
   },

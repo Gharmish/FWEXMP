@@ -2,6 +2,7 @@ import { cookies } from 'next/headers';
 import { LAST_BOOKING_COOKIE, parseLastBookingCookie } from '@/features/account/cookie';
 import type { LastBookingHint } from '@/features/account/cookie';
 import { getBookingByReference, type BookingDetail } from '@/features/bookings/queries';
+import { getReviewForBooking } from '@/features/reviews/queries';
 import { getExperienceBySlug } from '@/features/experiences/queries';
 import type { ExperienceSummary } from '@/features/experiences/types';
 
@@ -10,12 +11,19 @@ import type { ExperienceSummary } from '@/features/experiences/types';
  * the richer shape /me needs to render: the booking row when DB is
  * connected, plus the experience the booking is against (sample-data
  * fallback). Either piece may be missing — /me handles all cases.
+ *
+ * `review` is the review already left for this booking (or null) — only
+ * looked up once the booking is completed, so /me can show the rating
+ * instead of the "leave a review" form.
  */
+
+export type LastBookingReview = NonNullable<Awaited<ReturnType<typeof getReviewForBooking>>>;
 
 export interface LastBookingView {
   hint: LastBookingHint;
   booking: BookingDetail | undefined;
   experience: ExperienceSummary | undefined;
+  review: LastBookingReview | null;
 }
 
 export async function getLastBookingView(): Promise<LastBookingView | null> {
@@ -26,5 +34,7 @@ export async function getLastBookingView(): Promise<LastBookingView | null> {
     getBookingByReference(hint.reference),
     getExperienceBySlug(hint.experienceSlug),
   ]);
-  return { hint, booking, experience };
+  const review =
+    booking && booking.status === 'completed' ? await getReviewForBooking(booking.id) : null;
+  return { hint, booking, experience, review };
 }
