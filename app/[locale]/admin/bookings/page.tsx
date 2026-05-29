@@ -12,7 +12,9 @@ import {
   totalsFromRows,
 } from '@/features/admin/bookings/queries';
 import type { AdminBookingStatus } from '@/features/admin/bookings/types';
+import { availableTransitions } from '@/features/admin/bookings/lib/transitions';
 import { RefundButton } from '@/app/[locale]/admin/bookings/refund-button';
+import { TransitionButton } from '@/app/[locale]/admin/bookings/transition-button';
 
 export async function generateMetadata({
   params,
@@ -49,6 +51,17 @@ export default async function AdminBookingsPage({
     getTranslations('admin'),
   ]);
   const totals = totalsFromRows(rows);
+
+  // Shared across every row action (transitions + refund). Keyed by the
+  // action result's `message` code.
+  const actionErrors = {
+    forbidden: t('bookingsList.actionErrors.forbidden'),
+    no_db: t('bookingsList.actionErrors.noDb'),
+    not_found: t('bookingsList.actionErrors.notFound'),
+    wrong_state: t('bookingsList.actionErrors.wrongState'),
+    validation: t('bookingsList.actionErrors.validation'),
+    server: t('bookingsList.actionErrors.server'),
+  };
 
   const eyebrowClassName = cn(
     'text-sarat-black-600 text-[11px]',
@@ -172,25 +185,38 @@ export default async function AdminBookingsPage({
                         date: formatDate(new Date(row.createdAt), loc),
                       })}
                     </span>
-                    {(row.status === 'confirmed' || row.status === 'completed') && (
-                      <RefundButton
-                        bookingId={row.id}
-                        locale={loc}
-                        copy={{
-                          label: t('bookingsList.refund.label'),
-                          pending: t('bookingsList.refund.pending'),
-                          confirm: t('bookingsList.refund.confirm'),
-                          errors: {
-                            forbidden: t('bookingsList.refund.errors.forbidden'),
-                            no_db: t('bookingsList.refund.errors.noDb'),
-                            not_found: t('bookingsList.refund.errors.notFound'),
-                            wrong_state: t('bookingsList.refund.errors.wrongState'),
-                            validation: t('bookingsList.refund.errors.validation'),
-                            server: t('bookingsList.refund.errors.server'),
-                          },
-                        }}
-                      />
-                    )}
+                    <div className="flex flex-wrap items-start justify-end gap-2">
+                      {availableTransitions(row.status).map((to) => (
+                        <TransitionButton
+                          key={to}
+                          bookingId={row.id}
+                          to={to}
+                          locale={loc}
+                          copy={{
+                            label: t(`bookingsList.transition.${to}.label`),
+                            pending: t(`bookingsList.transition.${to}.pending`),
+                            // Only the destructive (cancel) transition prompts.
+                            confirm:
+                              to === 'cancelled'
+                                ? t('bookingsList.transition.cancelled.confirm')
+                                : undefined,
+                            errors: actionErrors,
+                          }}
+                        />
+                      ))}
+                      {(row.status === 'confirmed' || row.status === 'completed') && (
+                        <RefundButton
+                          bookingId={row.id}
+                          locale={loc}
+                          copy={{
+                            label: t('bookingsList.refund.label'),
+                            pending: t('bookingsList.refund.pending'),
+                            confirm: t('bookingsList.refund.confirm'),
+                            errors: actionErrors,
+                          }}
+                        />
+                      )}
+                    </div>
                   </div>
                 </li>
               ))}

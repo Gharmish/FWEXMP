@@ -271,15 +271,30 @@
       "refund": {
         "label": "Refund",
         "pending": "Refunding",
-        "confirm": "Mark this booking as refunded? Issue the actual reversal in Moyasar first; this only records that it happened.",
-        "errors": {
-          "forbidden": "You're not authorised to do that.",
-          "noDb": "Admin actions require a database connection.",
-          "notFound": "This booking no longer exists.",
-          "wrongState": "This booking can't be refunded from its current status.",
-          "validation": "Something didn't validate. Refresh and try again.",
-          "server": "We couldn't complete that action. Try again in a moment."
+        "confirm": "Mark this booking as refunded? Issue the actual reversal in Moyasar first; this only records that it happened."
+      },
+      "transition": {
+        "confirmed": {
+          "label": "Confirm",
+          "pending": "Confirming"
+        },
+        "completed": {
+          "label": "Mark completed",
+          "pending": "Updating"
+        },
+        "cancelled": {
+          "label": "Cancel",
+          "pending": "Cancelling",
+          "confirm": "Cancel this booking? The guest's request will be turned down."
         }
+      },
+      "actionErrors": {
+        "forbidden": "You're not authorised to do that.",
+        "noDb": "Admin actions require a database connection.",
+        "notFound": "This booking no longer exists.",
+        "wrongState": "This booking can't move to that status from where it is now.",
+        "validation": "Something didn't validate. Refresh and try again.",
+        "server": "We couldn't complete that action. Try again in a moment."
       }
     },
     "bookingStatus": {

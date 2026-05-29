@@ -9,7 +9,8 @@ import { redirect } from '@/lib/i18n';
 import { reportError } from '@/lib/log';
 import { getCurrentUser } from '@/features/auth/queries';
 import { isAdminUser } from '@/features/admin/auth';
-import { refundBookingSchema } from '@/features/admin/bookings/schemas';
+import { refundBookingSchema, transitionBookingSchema } from '@/features/admin/bookings/schemas';
+import { sourcesFor } from '@/features/admin/bookings/lib/transitions';
 
 /**
  * Admin booking actions.
@@ -80,6 +81,51 @@ export async function refundBooking(
     }
   } catch (error) {
     reportError(error, { surface: 'admin:refundBooking', bookingId });
+    return { success: false, message: 'server' };
+  }
+
+  revalidatePath('/[locale]/admin/bookings', 'page');
+  revalidatePath('/[locale]/admin/analytics', 'page');
+  redirect({ href: '/admin/bookings', locale });
+}
+
+/**
+ * Move a booking along its lifecycle: confirm (pending → confirmed),
+ * complete (confirmed → completed), or cancel (pending/confirmed →
+ * cancelled). The allowed `from` states come from the transition map,
+ * applied as a conditional UPDATE WHERE so a stale page or a double
+ * click can't drive an illegal transition.
+ */
+export async function transitionBooking(
+  _previous: AdminBookingActionResult,
+  formData: FormData,
+): Promise<AdminBookingActionResult> {
+  const guard = await requireAdmin();
+  if ('error' in guard) return guard.error;
+
+  const parsed = transitionBookingSchema.safeParse({
+    bookingId: formValue(formData, 'bookingId'),
+    to: formValue(formData, 'to'),
+    locale: formValue(formData, 'locale'),
+  });
+  if (!parsed.success) return { success: false, message: 'validation' };
+  const { bookingId, to, locale } = parsed.data;
+
+  try {
+    const updated = await db
+      .update(bookings)
+      .set({ status: to })
+      .where(and(eq(bookings.id, bookingId), inArray(bookings.status, [...sourcesFor(to)])))
+      .returning({ id: bookings.id });
+    if (updated.length === 0) {
+      const exists = await db.query.bookings.findFirst({
+        where: (b) => eq(b.id, bookingId),
+        columns: { id: true },
+      });
+      return { success: false, message: exists ? 'wrong_state' : 'not_found' };
+    }
+  } catch (error) {
+    reportError(error, { surface: 'admin:transitionBooking', bookingId, to });
     return { success: false, message: 'server' };
   }
 

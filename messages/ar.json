@@ -210,7 +210,7 @@
       "unsuspendPending": "جارٍ الاستعادة",
       "notesLabel": "ملاحظات المراجعة",
       "notesHint": "داخلية فقط. تُحفظ في سجلّ الحالة ليرى المراجعون لاحقاً سبب ما حدث.",
-      "livePauseNotice": "TODO(ar): {count, plural, =1 {1 live experience will be paused.} other {# live experiences will be paused.}}",
+      "livePauseNotice": "{count, plural, =0 {لا تجارب منشورة ستُوقَف} one {ستُوقَف تجربة منشورة واحدة} two {ستُوقَف تجربتان منشورتان} few {ستُوقَف # تجارب منشورة} many {ستُوقَف # تجربة منشورة} other {ستُوقَف # تجربة منشورة}}",
       "errors": {
         "forbidden": "ليس لديك صلاحية لذلك.",
         "noDb": "إجراءات الإدارة تتطلّب اتصالاً بقاعدة البيانات.",
@@ -269,17 +269,32 @@
         "description": "حين يرسل ضيف طلب حجز، سيظهر هنا."
       },
       "refund": {
-        "label": "TODO(ar): Refund",
-        "pending": "TODO(ar): Refunding",
-        "confirm": "TODO(ar): Mark this booking as refunded? Issue the actual reversal in Moyasar first; this only records that it happened.",
-        "errors": {
-          "forbidden": "ليس لديك صلاحية لذلك.",
-          "noDb": "إجراءات الإدارة تتطلّب اتصالاً بقاعدة البيانات.",
-          "notFound": "TODO(ar): This booking no longer exists.",
-          "wrongState": "TODO(ar): This booking can't be refunded from its current status.",
-          "validation": "هناك خطأ في المدخلات. حدّث الصفحة وحاول مرة أخرى.",
-          "server": "لم نتمكّن من إتمام العملية. حاول بعد قليل."
+        "label": "استرداد",
+        "pending": "جارٍ الاسترداد",
+        "confirm": "تسجيل هذا الحجز كمسترَد؟ أصدر الاسترداد الفعلي في ميسر أولاً؛ هذا يسجّل حدوثه فقط."
+      },
+      "transition": {
+        "confirmed": {
+          "label": "تأكيد",
+          "pending": "جارٍ التأكيد"
+        },
+        "completed": {
+          "label": "تحديد كمكتمل",
+          "pending": "جارٍ التحديث"
+        },
+        "cancelled": {
+          "label": "إلغاء",
+          "pending": "جارٍ الإلغاء",
+          "confirm": "إلغاء هذا الحجز؟ سيُرفض طلب الضيف."
         }
+      },
+      "actionErrors": {
+        "forbidden": "ليس لديك صلاحية لذلك.",
+        "noDb": "إجراءات الإدارة تتطلّب اتصالاً بقاعدة البيانات.",
+        "notFound": "هذا الحجز لم يعد موجوداً.",
+        "wrongState": "لا يمكن نقل هذا الحجز إلى تلك الحالة من وضعه الحالي.",
+        "validation": "هناك خطأ في المدخلات. حدّث الصفحة وحاول مرة أخرى.",
+        "server": "لم نتمكّن من إتمام العملية. حاول بعد قليل."
       }
     },
     "bookingStatus": {
