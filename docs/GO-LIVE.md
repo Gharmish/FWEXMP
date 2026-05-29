@@ -90,21 +90,31 @@ When ready to take payment online:
 
 ---
 
-## 4. Custom domain
+## 4. Custom domain — `gharmish.com` (owner-confirmed)
 
-`gharmish.com` is **not available for purchase** (registered to someone —
-confirm whether that's you).
+The owner holds `gharmish.com`. **No code change is required**: `SITE_URL`
+in `lib/site.ts` already defaults to `https://gharmish.com`, and
+production already emits that origin for canonical, OpenGraph, sitemap,
+and `llms.txt` (verified). Do **not** set `NEXT_PUBLIC_SITE_URL` in Vercel
+— leaving it unset keeps the correct default.
 
-- **If you own `gharmish.com`:** Vercel → project `gharmish` → Settings →
-  Domains → add `gharmish.com` + `www`, then point DNS (A/ALIAS or
-  Vercel nameservers) per the instructions Vercel shows. Add `ar`/`en`
-  are path-based, so no extra domains needed.
-- **If you don't:** alternatives checked available — `gharmish.app`
-  ($9.99/yr), `gharmish.co` ($17.99/yr). Decide the brand domain before
-  buying.
-- After the domain is live, update `NEXT_PUBLIC_SITE_URL` (if introduced)
-  / canonical URLs, the sitemap base, and Supabase Auth's allowed redirect
-  URLs.
+Remaining steps (Vercel + DNS only):
+
+1. Vercel → project `gharmish` → **Settings → Domains** → add
+   `gharmish.com` and `www.gharmish.com`. `/ar` and `/en` are path-based,
+   so no extra domains are needed.
+2. At your DNS host, add the records Vercel shows. Standard Vercel values:
+   - Apex `gharmish.com` → **A** record to `76.76.21.21`
+     (or an `ALIAS`/`ANAME` to `cname.vercel-dns.com` if your host
+     supports it).
+   - `www` → **CNAME** to `cname.vercel-dns.com`.
+     Use whatever Vercel's dashboard prints — it's authoritative.
+3. Wait for verification (HTTPS cert is issued automatically).
+4. Once §2 (SMS) is on, add `https://gharmish.com` to Supabase Auth's
+   **Redirect URLs** allow-list.
+
+> Cannot be done from here: changing your DNS records requires access to
+> your registrar/DNS host.
 
 ### Recommended while configuring infra
 
@@ -129,15 +139,25 @@ confirm whether that's you).
 
 ---
 
-## Decision needed (blocks a _full_ launch, not a soft launch)
+## Decisions made (2026-05-29)
 
-1. **Domain:** do you own `gharmish.com`, or should we go with
-   `gharmish.app` / `gharmish.co` / another name?
-2. **Payments:** build the Moyasar **sandbox** integration now (real,
-   env-gated code), or soft-launch with request-to-book and add payments
-   later?
-3. **SMS provider:** Twilio or Messagebird? (Drives the dashboard steps in
-   §2; the provider account itself is yours to create.)
+1. **Launch model: soft launch.** Ship as a request-to-book marketplace —
+   no online payment for now. Moyasar deferred; revisit when card payment
+   is wanted. **No payment code to build.**
+2. **Domain: owner holds `gharmish.com`.** Code is already correct (§4);
+   only the Vercel domain add + DNS records remain (owner task).
+3. **SMS provider: TBD.** Both Twilio and Messagebird paths are documented
+   in §2; choose at provisioning time.
 
-The first two are the only remaining _engineering_ levers; SMS and the
-domain purchase are account tasks only the owner can perform.
+### Therefore: no remaining engineering work for the soft launch.
+
+The app is **soft-launch ready** now. The only steps left are owner
+account actions:
+
+- [ ] Point `gharmish.com` DNS at Vercel (§4).
+- [ ] (When self-service sign-in is wanted) configure an SMS provider (§2).
+- [ ] (Optional) move Functions region to `fra1` (§4); rotate DB password;
+      swap demo photos for real ones.
+
+Guests can already browse and **request bookings without an account**; the
+operator manages confirmations from the admin panel via Test-OTP sign-in.
