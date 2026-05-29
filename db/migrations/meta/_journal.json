@@ -43,6 +43,13 @@
       "when": 1779555580818,
       "tag": "0005_new_korath",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1780079192834,
+      "tag": "0006_vengeful_prima",
+      "breakpoints": true
     }
   ]
 }

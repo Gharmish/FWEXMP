@@ -7,11 +7,14 @@ import { ImageUp } from 'lucide-react';
 import type { Locale } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
-import {
-  uploadExperienceHero,
-  type UploadHeroState,
-} from '@/features/host-experiences/photo-actions';
+import type { UploadHeroState } from '@/features/host-experiences/photo-actions';
 import { ACCEPTED_PHOTO_ATTR, validatePhoto } from '@/features/host-experiences/lib/photo';
+
+/** Server action signature shared by the host and admin upload paths. */
+export type UploadHeroAction = (
+  state: UploadHeroState,
+  formData: FormData,
+) => Promise<UploadHeroState>;
 
 type ErrorKey = NonNullable<UploadHeroState['message']>;
 
@@ -34,6 +37,8 @@ export interface PhotoUploadProps {
   /** Current hero image URL (Supabase public URL), or null if none yet. */
   currentUrl: string | null;
   copy: PhotoUploadCopy;
+  /** The upload server action — host-scoped or admin-scoped. */
+  action: UploadHeroAction;
 }
 
 const initialState: UploadHeroState = { success: false };
@@ -47,8 +52,14 @@ function Submit({ copy, disabled }: { copy: PhotoUploadCopy; disabled: boolean }
   );
 }
 
-export function PhotoUpload({ experienceId, locale, currentUrl, copy }: PhotoUploadProps) {
-  const [state, action] = useActionState(uploadExperienceHero, initialState);
+export function PhotoUpload({
+  experienceId,
+  locale,
+  currentUrl,
+  copy,
+  action: uploadAction,
+}: PhotoUploadProps) {
+  const [state, action] = useActionState(uploadAction, initialState);
   const [fileName, setFileName] = useState<string | null>(null);
   const [clientError, setClientError] = useState<ErrorKey | null>(null);
   const inputId = useId();

@@ -13,6 +13,8 @@ import {
   isAdminAndDbReady,
 } from '@/features/admin/experience-moderation/queries';
 import { ReviewerActions } from '@/app/[locale]/admin/experience-moderation/[id]/reviewer-actions';
+import { PhotoUpload } from '@/features/host-experiences/components/photo-upload';
+import { uploadModerationHero } from '@/features/admin/experience-moderation/photo-actions';
 import type {
   ExperienceStatus,
   ModerationEventType,
@@ -44,6 +46,7 @@ const EVENT_TONE: Record<ModerationEventType, string> = {
   approved: 'bg-juniper-green/15 text-juniper-green',
   rejected: 'bg-al-qatt-red/15 text-al-qatt-red',
   changes_requested: 'bg-rijal-clay/15 text-rijal-clay',
+  photo_updated: 'bg-sarawat-blue/15 text-sarawat-blue',
 };
 
 const WEEKDAY_LABELS = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'] as const;
@@ -87,10 +90,11 @@ export default async function AdminExperienceModerationDetailPage({
   const detail = await getModerationDetail(id);
   if (!detail) notFound();
 
-  const [t, tCat, tWeek] = await Promise.all([
+  const [t, tCat, tWeek, tPhoto] = await Promise.all([
     getTranslations('admin'),
     getTranslations('hostExperiences.form.categories'),
     getTranslations('hostExperiences.form.weekdays'),
+    getTranslations('hostExperiences.photo'),
   ]);
   const eyebrowClassName = cn(
     'text-sarat-black-600 text-[11px]',
@@ -150,6 +154,38 @@ export default async function AdminExperienceModerationDetailPage({
           />
         </div>
       )}
+
+      {/* Hero photo — admin can replace it on any listing */}
+      <section className="border-sarat-black/8 rounded-card [border-width:0.5px] p-6">
+        <PhotoUpload
+          experienceId={detail.id}
+          locale={loc}
+          currentUrl={detail.heroImage}
+          action={uploadModerationHero}
+          copy={{
+            heading: t('experienceModerationDetail.photoHeading'),
+            description: t('experienceModerationDetail.photoDescription'),
+            currentAlt: tPhoto('currentAlt'),
+            noPhoto: tPhoto('noPhoto'),
+            choose: tPhoto('choose'),
+            replace: tPhoto('replace'),
+            hint: tPhoto('hint'),
+            submit: tPhoto('submit'),
+            submitting: tPhoto('submitting'),
+            errors: {
+              missing: tPhoto('errors.missing'),
+              invalid_type: tPhoto('errors.invalidType'),
+              too_large: tPhoto('errors.tooLarge'),
+              no_supabase: tPhoto('errors.noSupabase'),
+              no_db: tPhoto('errors.noDb'),
+              forbidden: tPhoto('errors.forbidden'),
+              not_found: tPhoto('errors.notFound'),
+              upload_failed: tPhoto('errors.uploadFailed'),
+              server: tPhoto('errors.server'),
+            },
+          }}
+        />
+      </section>
 
       {/* Quick facts */}
       <dl className="border-sarat-black/8 rounded-card grid gap-5 [border-width:0.5px] p-6 sm:grid-cols-2">

@@ -148,7 +148,9 @@
       "whatToBring": "ما الذي تحضره معك",
       "cancellation": "سياسة الإلغاء",
       "history": "السجلّ",
-      "viewPublic": "افتح الصفحة العامة"
+      "viewPublic": "افتح الصفحة العامة",
+      "photoHeading": "الصورة الرئيسية",
+      "photoDescription": "أول صورة يراها الضيوف لهذه التجربة. استبدالها يحدّث التجربة والقائمة فوراً، ويُسجّل تغيير الصورة في السجلّ أدناه."
     },
     "experienceStatus": {
       "draft": "مسوّدة",
@@ -162,7 +164,8 @@
       "submitted": "أُرسلت للمراجعة",
       "approved": "معتمدة",
       "rejected": "مرفوضة",
-      "changes_requested": "طُلبت تعديلات"
+      "changes_requested": "طُلبت تعديلات",
+      "photo_updated": "حُدّثت الصورة"
     },
     "hostsList": {
       "eyebrow": "المضيفون",

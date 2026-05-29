@@ -148,7 +148,9 @@
       "whatToBring": "What to bring",
       "cancellation": "Cancellation policy",
       "history": "History",
-      "viewPublic": "View public page"
+      "viewPublic": "View public page",
+      "photoHeading": "Hero photo",
+      "photoDescription": "The first image guests see for this experience. Replacing it updates the listing and the catalog immediately, and records a photo change in the history below."
     },
     "experienceStatus": {
       "draft": "Draft",
@@ -162,7 +164,8 @@
       "submitted": "Submitted for review",
       "approved": "Approved",
       "rejected": "Rejected",
-      "changes_requested": "Changes requested"
+      "changes_requested": "Changes requested",
+      "photo_updated": "Photo updated"
     },
     "hostsList": {
       "eyebrow": "Hosts",

@@ -82,6 +82,9 @@ export const moderationEventEnum = pgEnum('experience_moderation_event', [
   'approved',
   'rejected',
   'changes_requested',
+  // Admin replaced the hero photo. No status change (fromStatus ===
+  // toStatus); logged here so the swap is visible in the audit history.
+  'photo_updated',
 ]);
 
 /**

@@ -14,6 +14,7 @@ import { ExperienceForm } from '@/app/[locale]/host/experiences/[id]/experience-
 import { buildExperienceFormCopy } from '@/app/[locale]/host/experiences/[id]/build-form-copy';
 import { LifecycleActions } from '@/app/[locale]/host/experiences/[id]/lifecycle-actions';
 import { PhotoUpload } from '@/features/host-experiences/components/photo-upload';
+import { uploadExperienceHero } from '@/features/host-experiences/photo-actions';
 import { formatDate } from '@/lib/format';
 
 export async function generateMetadata({
@@ -168,6 +169,7 @@ export default async function EditExperiencePage({
             experienceId={experience.id}
             locale={loc}
             currentUrl={experience.heroImage}
+            action={uploadExperienceHero}
             copy={{
               heading: t('photo.heading'),
               description: t('photo.description'),

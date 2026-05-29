@@ -1,0 +1,1 @@
+ALTER TYPE "public"."experience_moderation_event" ADD VALUE 'photo_updated';
