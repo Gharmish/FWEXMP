@@ -12,24 +12,44 @@ import { getCurrentHostIdForWrite } from '@/features/host-experiences/queries';
 
 const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
-/** A date can't be closed while these bookings sit on it. */
+/** Bookings that block fully closing (blackout) a day. */
 const BLOCKING_BOOKING_STATUSES = ['pending', 'confirmed'] as const;
 
+type DayOp = 'open' | 'blackout' | 'stop_sell';
+
+function parseOp(value: FormDataEntryValue | null): DayOp | null {
+  if (value === 'open' || value === 'blackout' || value === 'stop_sell') return value;
+  return null;
+}
+
 /**
- * Toggle a single date's blackout (closed) state for an experience.
+ * Set a single date's availability state for an experience. A plain
+ * progressive-enhancement form action — clicking a calendar day posts
+ * here and the page revalidates.
  *
- * A plain progressive-enhancement form action — clicking a calendar day
- * posts here and the page revalidates. Authorisation: an admin may edit
- * any experience; a host may edit only their own. Anyone else is a
- * silent no-op (no information leak). The calendar is the single source
- * of truth for date exceptions on both the host and admin surfaces.
+ *   - `open`       → remove the date from both exception lists.
+ *   - `blackout`   → fully close the day. REFUSED if the day has active
+ *                    (pending/confirmed) bookings — that would strand
+ *                    guests; use `stop_sell` instead.
+ *   - `stop_sell`  → close the day to NEW bookings while honoring the
+ *                    ones already on it. Always allowed.
+ *
+ * Authorisation: an admin may edit any experience; a host only their
+ * own. Anyone else is a silent no-op (no information leak). The calendar
+ * is the single source of truth for date exceptions on both surfaces.
  */
-export async function toggleBlackoutDate(formData: FormData): Promise<void> {
+export async function setDayAvailability(formData: FormData): Promise<void> {
   if (!serverEnv.DATABASE_URL) return;
 
   const experienceId = formData.get('experienceId');
   const date = formData.get('date');
-  if (typeof experienceId !== 'string' || typeof date !== 'string' || !ISO_DATE_RE.test(date)) {
+  const op = parseOp(formData.get('op'));
+  if (
+    typeof experienceId !== 'string' ||
+    typeof date !== 'string' ||
+    !ISO_DATE_RE.test(date) ||
+    !op
+  ) {
     return;
   }
 
@@ -39,7 +59,7 @@ export async function toggleBlackoutDate(formData: FormData): Promise<void> {
 
     const experience = await db.query.experiences.findFirst({
       where: (e) => eq(e.id, experienceId),
-      columns: { id: true, hostId: true, blackoutDates: true },
+      columns: { id: true, hostId: true, blackoutDates: true, stopSellDates: true },
     });
     if (!experience) return;
 
@@ -48,13 +68,13 @@ export async function toggleBlackoutDate(formData: FormData): Promise<void> {
       if (!hostId || hostId !== experience.hostId) return; // not owner, not admin
     }
 
-    const set = new Set(experience.blackoutDates);
-    const closing = !set.has(date);
+    const blackout = new Set(experience.blackoutDates);
+    const stopSell = new Set(experience.stopSellDates);
 
-    // Guard: never close a day that has live bookings — that would strand
-    // confirmed guests. The UI already hides the toggle on booked days;
-    // this is the authoritative server-side check (defence in depth).
-    if (closing) {
+    if (op === 'blackout') {
+      // Never fully close a day that has live bookings — that would
+      // strand confirmed guests. The UI offers stop-sell instead; this
+      // is the authoritative server-side guard (defence in depth).
       const [{ booked }] = await db
         .select({ booked: sql<number>`count(*)::int` })
         .from(bookings)
@@ -65,20 +85,25 @@ export async function toggleBlackoutDate(formData: FormData): Promise<void> {
             inArray(bookings.status, [...BLOCKING_BOOKING_STATUSES]),
           ),
         );
-      if (booked > 0) return; // refuse to close; leave the day open
+      if (booked > 0) return; // refuse
+      blackout.add(date);
+      stopSell.delete(date);
+    } else if (op === 'stop_sell') {
+      stopSell.add(date);
+      blackout.delete(date);
+    } else {
+      // open
+      blackout.delete(date);
+      stopSell.delete(date);
     }
-
-    if (set.has(date)) set.delete(date);
-    else set.add(date);
-    const next = [...set].sort();
 
     await db
       .update(experiences)
-      .set({ blackoutDates: next })
+      .set({ blackoutDates: [...blackout].sort(), stopSellDates: [...stopSell].sort() })
       .where(eq(experiences.id, experienceId));
   } catch (error) {
     reportError(error, {
-      surface: 'availability:toggleBlackout',
+      surface: 'availability:setDayAvailability',
       experienceId: String(experienceId),
     });
     return;

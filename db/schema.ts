@@ -215,6 +215,12 @@ export const experiences = pgTable('experiences', {
   /** Recurring weekly availability: weekday indexes 0=Sun..6=Sat. */
   availabilityWeekdays: integer().array().notNull().default([]),
   blackoutDates: date().array().notNull().default([]),
+  /**
+   * Dates closed to NEW bookings while existing ones are still honored
+   * ("stop-sell"). Distinct from blackoutDates (which fully closes a
+   * day). A date in here is unbookable but the experience still runs.
+   */
+  stopSellDates: date().array().notNull().default([]),
   /** Local start time for every occurrence, HH:MM (24h). */
   startTime: text().notNull().default('09:00'),
   /**

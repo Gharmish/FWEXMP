@@ -955,10 +955,12 @@
     "next": "Next month",
     "closeDay": "Close this day",
     "openDay": "Reopen this day",
-    "hasBookings": "This day has bookings and can't be closed. Cancel or reschedule them first.",
+    "closeToNew": "Close to new bookings (keep existing guests)",
+    "reopenToNew": "Reopen to new bookings",
     "spots": "{booked}/{total}",
     "legendAvailable": "Available",
     "legendFull": "Fully booked",
+    "legendStopSell": "Closed to new (existing kept)",
     "legendClosed": "Closed",
     "legendOff": "Not scheduled"
   },

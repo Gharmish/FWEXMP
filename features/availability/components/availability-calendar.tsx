@@ -2,7 +2,7 @@ import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { Link } from '@/lib/i18n';
 import type { Locale } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
-import { toggleBlackoutDate } from '@/features/availability/actions';
+import { setDayAvailability } from '@/features/availability/actions';
 import {
   formatYearMonth,
   shiftMonth,
@@ -18,11 +18,14 @@ export interface AvailabilityCalendarCopy {
   closeDay: string;
   /** aria-label for a day that is closed → clicking reopens it. */
   openDay: string;
-  /** Tooltip on a day that has bookings and therefore can't be closed. */
-  hasBookings: string;
+  /** aria-label: close a booked day to NEW bookings (keep existing). */
+  closeToNew: string;
+  /** aria-label: reopen a stop-sell day to new bookings. */
+  reopenToNew: string;
   spots: string; // e.g. "{booked}/{total}"
   legendAvailable: string;
   legendFull: string;
+  legendStopSell: string;
   legendClosed: string;
   legendOff: string;
   weekdays: string[]; // 7, Sunday-first
@@ -100,11 +103,13 @@ export function AvailabilityCalendar({
             ? 'bg-transparent text-sarat-black/30'
             : cell.isBlackout
               ? 'bg-sarat-black/5 text-sarat-black-600 line-through'
-              : !cell.isOperating
-                ? 'bg-sarat-black/5 text-sarat-black/40'
-                : full
-                  ? 'bg-rijal-clay/15 text-rijal-clay'
-                  : 'bg-juniper-green/12 text-juniper-green-800';
+              : cell.isStopSell
+                ? 'bg-saffron-gold/20 text-sarat-black'
+                : !cell.isOperating
+                  ? 'bg-sarat-black/5 text-sarat-black/40'
+                  : full
+                    ? 'bg-rijal-clay/15 text-rijal-clay'
+                    : 'bg-juniper-green/12 text-juniper-green-800';
 
           const body = (
             <>
@@ -119,37 +124,47 @@ export function AvailabilityCalendar({
             </>
           );
 
-          // A day with active bookings can't be closed — that would strand
-          // confirmed guests. It stays open (bookable) but isn't a toggle.
-          const hasBookings = cell.isOperating && !cell.isPast && cell.spotsBooked > 0;
-          // Editable future operating days become toggle buttons; everything
-          // else (past, off-schedule, or already booked) is static.
-          const editable = canEdit && cell.isOperating && !cell.isPast && cell.spotsBooked === 0;
           const cellClass = cn(
             'flex aspect-square flex-col items-center justify-center gap-0.5 rounded-[10px] [border-width:0.5px] border-transparent',
             tone,
           );
 
-          if (!editable) {
+          // Only operating, future days are interactive. The click's meaning
+          // is derived from the day's current state:
+          //   blackout / stop-sell → reopen ; booked → stop-sell ; empty → close.
+          const interactive = canEdit && cell.isOperating && !cell.isPast;
+          if (!interactive) {
             return (
-              <div
-                key={cell.dateStr}
-                className={cn(cellClass, hasBookings && 'ring-saffron-gold/40 ring-1')}
-                title={canEdit && hasBookings ? copy.hasBookings : undefined}
-              >
+              <div key={cell.dateStr} className={cellClass}>
                 {body}
               </div>
             );
           }
 
+          const op: 'open' | 'blackout' | 'stop_sell' =
+            cell.isBlackout || cell.isStopSell
+              ? 'open'
+              : cell.spotsBooked > 0
+                ? 'stop_sell'
+                : 'blackout';
+          const label =
+            op === 'open'
+              ? cell.isStopSell
+                ? copy.reopenToNew
+                : copy.openDay
+              : op === 'stop_sell'
+                ? copy.closeToNew
+                : copy.closeDay;
+
           return (
-            <form key={cell.dateStr} action={toggleBlackoutDate} className="contents">
+            <form key={cell.dateStr} action={setDayAvailability} className="contents">
               <input type="hidden" name="experienceId" value={experienceId} />
               <input type="hidden" name="date" value={cell.dateStr} />
+              <input type="hidden" name="op" value={op} />
               <button
                 type="submit"
-                aria-label={cell.isBlackout ? copy.openDay : copy.closeDay}
-                title={cell.isBlackout ? copy.openDay : copy.closeDay}
+                aria-label={label}
+                title={label}
                 className={cn(cellClass, 'hover:border-sarat-black/30 cursor-pointer')}
               >
                 {body}
@@ -167,6 +182,10 @@ export function AvailabilityCalendar({
         <li className="flex items-center gap-1.5">
           <span className="bg-rijal-clay/15 inline-block size-3 rounded-full" aria-hidden />
           {copy.legendFull}
+        </li>
+        <li className="flex items-center gap-1.5">
+          <span className="bg-saffron-gold/20 inline-block size-3 rounded-full" aria-hidden />
+          {copy.legendStopSell}
         </li>
         <li className="flex items-center gap-1.5">
           <span className="bg-sarat-black/5 inline-block size-3 rounded-full" aria-hidden />

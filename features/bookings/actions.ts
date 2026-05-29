@@ -111,6 +111,7 @@ export async function requestBooking(
         bookingMode: true,
         availabilityWeekdays: true,
         blackoutDates: true,
+        stopSellDates: true,
       },
     });
 
@@ -134,6 +135,7 @@ export async function requestBooking(
       todayStr: todayInRiyadh(),
       availabilityWeekdays: experience.availabilityWeekdays,
       blackoutDates: experience.blackoutDates,
+      stopSellDates: experience.stopSellDates,
     });
     if (!bookable.ok) {
       return {

@@ -63,6 +63,18 @@ describe('isDateBookable', () => {
   it('rejects malformed dates', () => {
     expect(isDateBookable({ ...base, dateStr: 'bad' })).toEqual({ ok: false, reason: 'malformed' });
   });
+
+  it('rejects stop-sell dates (closed to new bookings)', () => {
+    expect(
+      isDateBookable({ ...base, dateStr: '2026-05-30', stopSellDates: ['2026-05-30'] }),
+    ).toEqual({ ok: false, reason: 'stop_sell' });
+  });
+
+  it('an open weekday with no stop-sell is still bookable', () => {
+    expect(
+      isDateBookable({ ...base, dateStr: '2026-05-30', stopSellDates: ['2026-06-06'] }),
+    ).toEqual({ ok: true });
+  });
 });
 
 describe('remainingCapacity', () => {

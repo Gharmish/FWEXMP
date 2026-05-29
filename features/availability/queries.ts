@@ -10,6 +10,7 @@ const ACTIVE_STATUSES = ['pending', 'confirmed', 'completed'] as const;
 export interface ScheduleData {
   availabilityWeekdays: number[];
   blackoutDates: string[];
+  stopSellDates: string[];
   maxGroupSize: number;
   startTime: string;
   /** date `YYYY-MM-DD` → spots already taken by active bookings. */
@@ -33,6 +34,7 @@ export async function getScheduleData(
       columns: {
         availabilityWeekdays: true,
         blackoutDates: true,
+        stopSellDates: true,
         maxGroupSize: true,
         startTime: true,
       },
@@ -61,6 +63,7 @@ export async function getScheduleData(
     return {
       availabilityWeekdays: [...experience.availabilityWeekdays],
       blackoutDates: [...experience.blackoutDates],
+      stopSellDates: [...experience.stopSellDates],
       maxGroupSize: experience.maxGroupSize,
       startTime: experience.startTime,
       bookedByDate,

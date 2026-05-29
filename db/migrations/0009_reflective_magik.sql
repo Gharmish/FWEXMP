@@ -1,0 +1,1 @@
+ALTER TABLE "experiences" ADD COLUMN "stop_sell_dates" date[] DEFAULT '{}' NOT NULL;

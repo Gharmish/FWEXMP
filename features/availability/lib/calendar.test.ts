@@ -55,6 +55,14 @@ describe('buildCalendarMonth', () => {
     const c = cal.weeks.flat().find((x) => x?.day === 13)!;
     expect(c.remaining).toBe(0);
   });
+
+  it('marks stop-sell dates (closed to new, not blackout)', () => {
+    const cal = buildCalendarMonth({ ...base, stopSellDates: ['2026-06-13'] });
+    const c = cal.weeks.flat().find((x) => x?.day === 13)!;
+    expect(c.isStopSell).toBe(true);
+    expect(c.isBlackout).toBe(false);
+    expect(c.isOperating).toBe(true);
+  });
 });
 
 describe('parseYearMonth / formatYearMonth', () => {

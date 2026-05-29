@@ -28,16 +28,19 @@ export interface BookableInput {
   availabilityWeekdays: readonly number[];
   /** Exception dates, `YYYY-MM-DD`. */
   blackoutDates: readonly string[];
+  /** Dates closed to new bookings (existing honored). `YYYY-MM-DD`. */
+  stopSellDates?: readonly string[];
 }
 
-export type BookableReason = 'malformed' | 'past' | 'closed_weekday' | 'blackout';
+export type BookableReason = 'malformed' | 'past' | 'closed_weekday' | 'blackout' | 'stop_sell';
 
 export type BookableResult = { ok: true } | { ok: false; reason: BookableReason };
 
 /**
- * Is a date open on the calendar? A date is bookable when it is well
- * formed, not in the past, falls on an available weekday, and is not a
- * blackout date. Capacity is checked separately (it needs the DB).
+ * Is a date open for a NEW booking? A date is bookable when it is well
+ * formed, not in the past, falls on an available weekday, is not a
+ * blackout date, and is not closed to new bookings (stop-sell). Capacity
+ * is checked separately (it needs the DB).
  */
 export function isDateBookable(input: BookableInput): BookableResult {
   const weekday = weekdayOf(input.dateStr);
@@ -51,6 +54,9 @@ export function isDateBookable(input: BookableInput): BookableResult {
   }
   if (input.blackoutDates.includes(input.dateStr)) {
     return { ok: false, reason: 'blackout' };
+  }
+  if (input.stopSellDates?.includes(input.dateStr)) {
+    return { ok: false, reason: 'stop_sell' };
   }
   return { ok: true };
 }

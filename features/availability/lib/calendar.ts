@@ -21,6 +21,8 @@ export interface DayCell {
   isOperating: boolean;
   /** Explicitly closed (blackout) date. */
   isBlackout: boolean;
+  /** Closed to NEW bookings, existing honored (stop-sell). */
+  isStopSell: boolean;
   /** Before today. */
   isPast: boolean;
   spotsTotal: number;
@@ -41,6 +43,7 @@ export interface BuildCalendarInput {
   month: number; // 1..12
   availabilityWeekdays: readonly number[];
   blackoutDates: readonly string[];
+  stopSellDates?: readonly string[];
   maxGroupSize: number;
   bookedByDate: Readonly<Record<string, number>>;
   todayStr: string;
@@ -50,6 +53,7 @@ export function buildCalendarMonth(input: BuildCalendarInput): CalendarMonth {
   const { year, month } = input;
   const weekdays = new Set(input.availabilityWeekdays);
   const blackout = new Set(input.blackoutDates);
+  const stopSell = new Set(input.stopSellDates ?? []);
   // Day 0 of the next month === last day of this month.
   const daysInMonth = new Date(Date.UTC(year, month, 0)).getUTCDate();
   const firstWeekday = new Date(Date.UTC(year, month - 1, 1)).getUTCDay();
@@ -67,6 +71,7 @@ export function buildCalendarMonth(input: BuildCalendarInput): CalendarMonth {
       day,
       isOperating: weekdays.has(weekday),
       isBlackout: blackout.has(dateStr),
+      isStopSell: stopSell.has(dateStr),
       isPast: dateStr < input.todayStr,
       spotsTotal,
       spotsBooked,

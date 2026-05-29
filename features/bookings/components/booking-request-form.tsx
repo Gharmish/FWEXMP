@@ -76,7 +76,12 @@ function messageForField(
   if (field === 'preferredDate') {
     if (code === 'date_past') return copy.datePast;
     if (code === 'date_full') return copy.dateFull;
-    if (code === 'date_closed_weekday' || code === 'date_blackout' || code === 'date_malformed') {
+    if (
+      code === 'date_closed_weekday' ||
+      code === 'date_blackout' ||
+      code === 'date_malformed' ||
+      code === 'date_stop_sell'
+    ) {
       return copy.dateUnavailable;
     }
     return copy.required;
