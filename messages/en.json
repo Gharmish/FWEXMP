@@ -119,6 +119,21 @@
       "guests": {
         "title": "Guests",
         "description": "Look up a guest by name, phone, or email and see their full booking history."
+      },
+      "activity": {
+        "title": "Activity log",
+        "description": "One reverse-chronological feed of every moderation, application, and host action across the platform."
+      }
+    },
+    "activityLog": {
+      "eyebrow": "Activity",
+      "title": "Activity log",
+      "intro": "Who did what, most recent first — experience moderation, host applications, and host status changes in one place.",
+      "empty": "No activity recorded yet.",
+      "kind": {
+        "experience": "Experience",
+        "application": "Application",
+        "host": "Host"
       }
     },
     "guestsList": {
