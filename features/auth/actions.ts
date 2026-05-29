@@ -6,11 +6,17 @@ import { hasSupabaseAuth } from '@/lib/env';
 import { getSupabaseServerClient } from '@/lib/supabase/server';
 import { redirect } from '@/lib/i18n';
 import { reportError } from '@/lib/log';
-import { requestOtpSchema, verifyOtpSchema } from '@/features/auth/schemas';
+import {
+  requestOtpSchema,
+  verifyOtpSchema,
+  requestEmailOtpSchema,
+  verifyEmailOtpSchema,
+} from '@/features/auth/schemas';
 import {
   STUB_OTP,
   STUB_SESSION_COOKIE,
   STUB_SESSION_MAX_AGE_SECONDS,
+  stubEmailCookieValue,
 } from '@/features/auth/lib/stub-session';
 
 /**
@@ -34,19 +40,29 @@ import {
  * so observable state is always failure.
  */
 
-export type AuthFieldName = 'phone' | 'code';
+export type AuthFieldName = 'phone' | 'email' | 'code';
+export type AuthMethod = 'phone' | 'email';
 
 interface AuthFailure {
   success: false;
   stage: 'phone' | 'code';
+  /** Which identifier the user is signing in with. */
+  method: AuthMethod;
   message?: 'validation' | 'rate_limited' | 'invalid_code' | 'expired' | 'server';
   fields?: Partial<Record<AuthFieldName, string>>;
-  /** Echoed back so the form can preserve the entered phone across the step transition. */
+  /** Echoed back so the form can preserve the entered identifier across the step transition. */
   phone?: string;
+  email?: string;
 }
 
-export type RequestOtpState = AuthFailure | { success: true; stage: 'code'; phone: string };
+export type RequestOtpState =
+  | AuthFailure
+  | { success: true; stage: 'code'; method: AuthMethod; phone?: string; email?: string };
 export type VerifyOtpState = AuthFailure;
+
+function methodFrom(formData: FormData): AuthMethod {
+  return formValue(formData, 'method') === 'email' ? 'email' : 'phone';
+}
 
 function formValue(formData: FormData, key: string): string {
   const value = formData.get(key);
@@ -59,6 +75,60 @@ export async function requestOtp(
   _previous: RequestOtpState,
   formData: FormData,
 ): Promise<RequestOtpState> {
+  const method = methodFrom(formData);
+
+  // ----- email branch (BRIEF §5; no paid SMS provider needed) -----
+  if (method === 'email') {
+    const parsed = requestEmailOtpSchema.safeParse({
+      email: formValue(formData, 'email'),
+      locale: formValue(formData, 'locale'),
+      next: formValue(formData, 'next') || '/me',
+    });
+    if (!parsed.success) {
+      return {
+        success: false,
+        stage: 'phone',
+        method,
+        message: 'validation',
+        fields: { email: 'invalid_email' },
+        email: formValue(formData, 'email'),
+      };
+    }
+    const { email } = parsed.data;
+
+    if (!hasSupabaseAuth()) {
+      reportError(new Error(`[auth:stub] OTP requested for ${email} — use ${STUB_OTP}`), {
+        surface: 'auth:stub:requestOtp',
+        email,
+      });
+      return { success: true, stage: 'code', method, email };
+    }
+
+    try {
+      const supabase = await getSupabaseServerClient();
+      const { error } = await supabase.auth.signInWithOtp({
+        email,
+        options: { shouldCreateUser: true },
+      });
+      if (error) {
+        reportError(error, {
+          surface: 'auth:requestOtp:supabaseError',
+          email,
+          status: error.status,
+          code: error.code,
+          name: error.name,
+        });
+        const message: AuthFailure['message'] = error.status === 429 ? 'rate_limited' : 'server';
+        return { success: false, stage: 'phone', method, message, email };
+      }
+    } catch (error) {
+      reportError(error, { surface: 'auth:requestOtp', email });
+      return { success: false, stage: 'phone', method, message: 'server', email };
+    }
+    return { success: true, stage: 'code', method, email };
+  }
+
+  // ----- phone branch (default) -----
   const parsed = requestOtpSchema.safeParse({
     phone: formValue(formData, 'phone'),
     locale: formValue(formData, 'locale'),
@@ -73,6 +143,7 @@ export async function requestOtp(
     return {
       success: false,
       stage: 'phone',
+      method,
       message: 'validation',
       fields,
       phone: formValue(formData, 'phone'),
@@ -90,7 +161,7 @@ export async function requestOtp(
       surface: 'auth:stub:requestOtp',
       phone,
     });
-    return { success: true, stage: 'code', phone };
+    return { success: true, stage: 'code', method, phone };
   }
 
   try {
@@ -111,14 +182,14 @@ export async function requestOtp(
       // Supabase returns a friendly status code for rate limiting; surface
       // it so the UI can show the right copy.
       const message: AuthFailure['message'] = error.status === 429 ? 'rate_limited' : 'server';
-      return { success: false, stage: 'phone', message, phone };
+      return { success: false, stage: 'phone', method, message, phone };
     }
   } catch (error) {
     reportError(error, { surface: 'auth:requestOtp', phone });
-    return { success: false, stage: 'phone', message: 'server', phone };
+    return { success: false, stage: 'phone', method, message: 'server', phone };
   }
 
-  return { success: true, stage: 'code', phone };
+  return { success: true, stage: 'code', method, phone };
 }
 
 // ---------- step 2: verify OTP ----------
@@ -127,6 +198,81 @@ export async function verifyOtp(
   _previous: VerifyOtpState,
   formData: FormData,
 ): Promise<VerifyOtpState> {
+  const method = methodFrom(formData);
+
+  // ----- email branch -----
+  if (method === 'email') {
+    const parsed = verifyEmailOtpSchema.safeParse({
+      email: formValue(formData, 'email'),
+      code: formValue(formData, 'code'),
+      locale: formValue(formData, 'locale'),
+      next: formValue(formData, 'next') || '/me',
+    });
+    if (!parsed.success) {
+      const fields: AuthFailure['fields'] = {};
+      for (const issue of parsed.error.issues) {
+        if (issue.path[0] === 'code') fields.code = 'invalid_code';
+        if (issue.path[0] === 'email') fields.email = 'invalid_email';
+      }
+      return {
+        success: false,
+        stage: 'code',
+        method,
+        message: 'validation',
+        fields,
+        email: formValue(formData, 'email'),
+      };
+    }
+    const { email, code, locale, next } = parsed.data;
+
+    if (!hasSupabaseAuth()) {
+      if (code !== STUB_OTP) {
+        return {
+          success: false,
+          stage: 'code',
+          method,
+          message: 'invalid_code',
+          fields: { code: 'invalid_code' },
+          email,
+        };
+      }
+      const store = await cookies();
+      store.set(STUB_SESSION_COOKIE, stubEmailCookieValue(email), {
+        httpOnly: true,
+        sameSite: 'lax',
+        secure: process.env.NODE_ENV === 'production',
+        path: '/',
+        maxAge: STUB_SESSION_MAX_AGE_SECONDS,
+      });
+      revalidatePath('/[locale]', 'layout');
+      redirect({ href: next, locale });
+    }
+
+    try {
+      const supabase = await getSupabaseServerClient();
+      const { data, error } = await supabase.auth.verifyOtp({ email, token: code, type: 'email' });
+      if (error || !data.session) {
+        const message: AuthFailure['message'] =
+          error?.status === 410 || error?.status === 401 ? 'invalid_code' : 'server';
+        return {
+          success: false,
+          stage: 'code',
+          method,
+          message,
+          fields: message === 'invalid_code' ? { code: 'invalid_code' } : undefined,
+          email,
+        };
+      }
+    } catch (error) {
+      reportError(error, { surface: 'auth:verifyOtp', email });
+      return { success: false, stage: 'code', method, message: 'server', email };
+    }
+
+    revalidatePath('/[locale]', 'layout');
+    redirect({ href: next, locale });
+  }
+
+  // ----- phone branch (default) -----
   const parsed = verifyOtpSchema.safeParse({
     phone: formValue(formData, 'phone'),
     code: formValue(formData, 'code'),
@@ -143,6 +289,7 @@ export async function verifyOtp(
     return {
       success: false,
       stage: 'code',
+      method,
       message: 'validation',
       fields,
       phone: formValue(formData, 'phone'),
@@ -156,6 +303,7 @@ export async function verifyOtp(
       return {
         success: false,
         stage: 'code',
+        method,
         message: 'invalid_code',
         fields: { code: 'invalid_code' },
         phone,
@@ -184,6 +332,7 @@ export async function verifyOtp(
       return {
         success: false,
         stage: 'code',
+        method,
         message,
         fields: message === 'invalid_code' ? { code: 'invalid_code' } : undefined,
         phone,
@@ -191,7 +340,7 @@ export async function verifyOtp(
     }
   } catch (error) {
     reportError(error, { surface: 'auth:verifyOtp', phone });
-    return { success: false, stage: 'code', message: 'server', phone };
+    return { success: false, stage: 'code', method, message: 'server', phone };
   }
 
   revalidatePath('/[locale]', 'layout');

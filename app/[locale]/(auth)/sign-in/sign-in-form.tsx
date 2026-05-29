@@ -3,6 +3,7 @@
 import { useActionState, useEffect, useId, useState } from 'react';
 import { useFormStatus } from 'react-dom';
 import { ArrowLeft } from 'lucide-react';
+import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import type { Locale } from '@/lib/i18n';
@@ -10,25 +11,33 @@ import { formatSaudiPhone } from '@/lib/format';
 import {
   requestOtp,
   verifyOtp,
+  type AuthMethod,
   type RequestOtpState,
   type VerifyOtpState,
 } from '@/features/auth/actions';
 
 interface SignInCopy {
+  methodPhone: string;
+  methodEmail: string;
   phoneLabel: string;
   phoneHint: string;
   phonePlaceholder: string;
+  emailLabel: string;
+  emailHint: string;
+  emailPlaceholder: string;
   requestSubmit: string;
   requestPending: string;
   codeLabel: string;
   codeHint: string;
+  codeHintEmail: string;
   codeHintStub: string;
   verifySubmit: string;
   verifyPending: string;
-  changePhone: string;
+  changeIdentifier: string;
   errors: {
     validation: string;
     invalidPhone: string;
+    invalidEmail: string;
     invalidCode: string;
     rateLimited: string;
     server: string;
@@ -42,8 +51,8 @@ export interface SignInFormProps {
   copy: SignInCopy;
 }
 
-const initialRequestState: RequestOtpState = { success: false, stage: 'phone' };
-const initialVerifyState: VerifyOtpState = { success: false, stage: 'code' };
+const initialRequestState: RequestOtpState = { success: false, stage: 'phone', method: 'phone' };
+const initialVerifyState: VerifyOtpState = { success: false, stage: 'code', method: 'phone' };
 
 function SubmitButton({ pendingCopy, submitCopy }: { pendingCopy: string; submitCopy: string }) {
   const { pending } = useFormStatus();
@@ -64,60 +73,48 @@ function FieldError({ id, message }: { id: string; message?: string }) {
 }
 
 /**
- * Two-step OTP form. Stage 1 collects the phone number and asks the
- * server action to mint an OTP. On success the server returns
- * `stage: 'code'`, which swaps the UI to the code step. Stage 2 sends
- * the code for verification; the success path redirects server-side so
- * we never see it here — observable client state is always failure.
+ * Two-step OTP form supporting two channels — phone (SMS) and email.
+ * Stage 1 collects the chosen identifier and asks the server action to
+ * mint an OTP; on success the server returns `stage: 'code'`, swapping
+ * the UI to the code step. Stage 2 verifies the code; success redirects
+ * server-side, so observable client state is always failure.
  *
- * Both stages live in a single client component so we can keep the
- * canonical phone in React state across the transition without a
- * navigation. The phone is also passed as a hidden field on the second
- * form so the server can re-validate independently.
- *
- * `showPhoneStep` overrides the auto-derived stage when the user clicks
- * "Use a different number" — useActionState retains its success state,
- * so we'd otherwise need to clear it via navigation.
+ * Both stages live in one client component so the method + identifier
+ * persist across the transition without a navigation; they're also sent
+ * as hidden fields so the server re-validates independently.
  */
 export function SignInForm({ locale, next, isStubMode, copy }: SignInFormProps) {
   const [requestState, requestAction] = useActionState(requestOtp, initialRequestState);
   const [verifyState, verifyAction] = useActionState(verifyOtp, initialVerifyState);
 
-  // Controlled phone field — same canonicalise-on-blur trick the
-  // booking form uses (features/bookings/components/booking-request-form.tsx).
+  const [method, setMethod] = useState<AuthMethod>('phone');
   const [phone, setPhone] = useState<string>('');
+  const [email, setEmail] = useState<string>('');
   const [showPhoneStep, setShowPhoneStep] = useState<boolean>(false);
 
-  // Server-side narrow access — useActionState's RequestOtpState is a
-  // discriminated union, so we pluck `fields` only on the failure arm.
   const requestFields = requestState.success ? undefined : requestState.fields;
   const requestMessage = requestState.success ? undefined : requestState.message;
-  // Once stage 1 returns success, persist the canonical phone for stage 2.
-  // On the failure arm we may also have the input echoed back.
-  const canonicalPhone = requestState.success ? requestState.phone : (requestState.phone ?? '');
+  const canonicalPhone = requestState.phone ?? '';
+  const serverEmail = requestState.email ?? '';
+  const identifier = method === 'email' ? serverEmail || email : canonicalPhone;
 
   const stage: 'phone' | 'code' = requestState.success && !showPhoneStep ? 'code' : 'phone';
 
   const errorPrefix = useId();
   const phoneErrorId = `${errorPrefix}-phone-error`;
   const phoneHintId = `${errorPrefix}-phone-hint`;
+  const emailErrorId = `${errorPrefix}-email-error`;
+  const emailHintId = `${errorPrefix}-email-hint`;
   const codeErrorId = `${errorPrefix}-code-error`;
   const codeHintId = `${errorPrefix}-code-hint`;
 
-  // When we swap to the code step, move focus to the code input so
-  // typing the SMS code "just works" without a tab.
   useEffect(() => {
     if (stage === 'code') {
       document.getElementById('auth-code')?.focus();
     } else if (showPhoneStep) {
-      document.getElementById('auth-phone')?.focus();
+      document.getElementById(method === 'email' ? 'auth-email' : 'auth-phone')?.focus();
     }
-  }, [stage, showPhoneStep]);
-
-  // Clearing the manual phone-step override happens at form-submit
-  // time (`onSubmit` on the phone form) rather than in an effect — the
-  // next render then derives `stage` purely from `requestState`. This
-  // avoids the setState-in-effect anti-pattern (eslint:react-hooks).
+  }, [stage, showPhoneStep, method]);
 
   if (stage === 'phone') {
     const formMessage =
@@ -126,6 +123,14 @@ export function SignInForm({ locale, next, isStubMode, copy }: SignInFormProps) 
         : requestMessage === 'server'
           ? copy.errors.server
           : undefined;
+
+    const tabClass = (active: boolean) =>
+      cn(
+        'min-h-11 flex-1 rounded-button text-sm font-medium transition-colors duration-200',
+        active
+          ? 'bg-sarat-black text-fog-white'
+          : 'border-sarat-black/20 text-sarat-black [border-width:0.5px]',
+      );
 
     return (
       <form
@@ -136,38 +141,91 @@ export function SignInForm({ locale, next, isStubMode, copy }: SignInFormProps) 
       >
         <input type="hidden" name="locale" value={locale} />
         <input type="hidden" name="next" value={next} />
+        <input type="hidden" name="method" value={method} />
 
-        <div className="flex flex-col gap-2">
-          <label htmlFor="auth-phone" className="text-sm font-medium">
-            {copy.phoneLabel}
-          </label>
-          <Input
-            id="auth-phone"
-            name="phone"
-            type="tel"
-            autoComplete="tel"
-            required
-            dir="ltr"
-            value={phone}
-            onChange={(e) => setPhone(e.target.value)}
-            onBlur={() => {
-              const formatted = formatSaudiPhone(phone);
-              if (formatted !== phone) setPhone(formatted);
-            }}
-            placeholder={copy.phonePlaceholder}
-            aria-invalid={requestFields?.phone ? 'true' : undefined}
-            aria-describedby={
-              `${phoneHintId} ${requestFields?.phone ? phoneErrorId : ''}`.trim() || undefined
-            }
-          />
-          <p id={phoneHintId} className="text-sarat-black-600 text-sm">
-            {copy.phoneHint}
-          </p>
-          <FieldError
-            id={phoneErrorId}
-            message={requestFields?.phone ? copy.errors.invalidPhone : undefined}
-          />
+        {/* Channel toggle */}
+        <div
+          className="flex gap-2"
+          role="group"
+          aria-label={`${copy.methodPhone} / ${copy.methodEmail}`}
+        >
+          <button
+            type="button"
+            onClick={() => setMethod('phone')}
+            className={tabClass(method === 'phone')}
+          >
+            {copy.methodPhone}
+          </button>
+          <button
+            type="button"
+            onClick={() => setMethod('email')}
+            className={tabClass(method === 'email')}
+          >
+            {copy.methodEmail}
+          </button>
         </div>
+
+        {method === 'phone' ? (
+          <div className="flex flex-col gap-2">
+            <label htmlFor="auth-phone" className="text-sm font-medium">
+              {copy.phoneLabel}
+            </label>
+            <Input
+              id="auth-phone"
+              name="phone"
+              type="tel"
+              autoComplete="tel"
+              required
+              dir="ltr"
+              value={phone}
+              onChange={(e) => setPhone(e.target.value)}
+              onBlur={() => {
+                const formatted = formatSaudiPhone(phone);
+                if (formatted !== phone) setPhone(formatted);
+              }}
+              placeholder={copy.phonePlaceholder}
+              aria-invalid={requestFields?.phone ? 'true' : undefined}
+              aria-describedby={
+                `${phoneHintId} ${requestFields?.phone ? phoneErrorId : ''}`.trim() || undefined
+              }
+            />
+            <p id={phoneHintId} className="text-sarat-black-600 text-sm">
+              {copy.phoneHint}
+            </p>
+            <FieldError
+              id={phoneErrorId}
+              message={requestFields?.phone ? copy.errors.invalidPhone : undefined}
+            />
+          </div>
+        ) : (
+          <div className="flex flex-col gap-2">
+            <label htmlFor="auth-email" className="text-sm font-medium">
+              {copy.emailLabel}
+            </label>
+            <Input
+              id="auth-email"
+              name="email"
+              type="email"
+              autoComplete="email"
+              required
+              dir="ltr"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder={copy.emailPlaceholder}
+              aria-invalid={requestFields?.email ? 'true' : undefined}
+              aria-describedby={
+                `${emailHintId} ${requestFields?.email ? emailErrorId : ''}`.trim() || undefined
+              }
+            />
+            <p id={emailHintId} className="text-sarat-black-600 text-sm">
+              {copy.emailHint}
+            </p>
+            <FieldError
+              id={emailErrorId}
+              message={requestFields?.email ? copy.errors.invalidEmail : undefined}
+            />
+          </div>
+        )}
 
         {formMessage && (
           <p role="alert" tabIndex={-1} className="text-al-qatt-red-800 text-sm focus:outline-none">
@@ -187,11 +245,16 @@ export function SignInForm({ locale, next, isStubMode, copy }: SignInFormProps) 
     <form action={verifyAction} noValidate className="flex flex-col gap-5">
       <input type="hidden" name="locale" value={locale} />
       <input type="hidden" name="next" value={next} />
-      <input type="hidden" name="phone" value={canonicalPhone} />
+      <input type="hidden" name="method" value={method} />
+      {method === 'email' ? (
+        <input type="hidden" name="email" value={identifier} />
+      ) : (
+        <input type="hidden" name="phone" value={identifier} />
+      )}
 
       <div className="flex flex-col gap-2">
         <p className="text-sarat-black-600 text-sm" dir="ltr" aria-live="polite">
-          {canonicalPhone}
+          {identifier}
         </p>
         <button
           type="button"
@@ -199,7 +262,7 @@ export function SignInForm({ locale, next, isStubMode, copy }: SignInFormProps) 
           className="text-sarat-black inline-flex min-h-11 items-center gap-1 self-start text-sm font-medium transition-opacity duration-200 hover:opacity-60"
         >
           <ArrowLeft className="size-4 shrink-0 rtl:rotate-180" aria-hidden />
-          {copy.changePhone}
+          {copy.changeIdentifier}
         </button>
       </div>
 
@@ -223,7 +286,7 @@ export function SignInForm({ locale, next, isStubMode, copy }: SignInFormProps) 
           }
         />
         <p id={codeHintId} className="text-sarat-black-600 text-sm">
-          {isStubMode ? copy.codeHintStub : copy.codeHint}
+          {isStubMode ? copy.codeHintStub : method === 'email' ? copy.codeHintEmail : copy.codeHint}
         </p>
         <FieldError
           id={codeErrorId}

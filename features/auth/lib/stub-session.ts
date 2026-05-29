@@ -28,12 +28,30 @@ export function stubUserFromPhone(phone: string): AuthUser {
   return { id, phone, email: undefined, isStub: true };
 }
 
+/** Derive a stable AuthUser from an email. Cookie value is `email:<addr>`. */
+export function stubUserFromEmail(email: string): AuthUser {
+  const id = createHash('sha256').update(`email:${email}`).digest('hex').slice(0, 32);
+  return { id, phone: '', email, isStub: true };
+}
+
+/** Cookie value for an email stub session. */
+export function stubEmailCookieValue(email: string): string {
+  return `email:${email}`;
+}
+
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
 /**
- * Permissive parse: only accept exact canonical E.164 KSA phones so
- * a malformed cookie can never inject a weird identity.
+ * Permissive parse: accept either a canonical E.164 KSA phone or an
+ * `email:<addr>` value, so a malformed cookie can never inject a weird
+ * identity.
  */
 export function parseStubSessionCookie(value: string | undefined): AuthUser | null {
   if (!value) return null;
-  if (!/^\+9665\d{8}$/.test(value)) return null;
-  return stubUserFromPhone(value);
+  if (/^\+9665\d{8}$/.test(value)) return stubUserFromPhone(value);
+  if (value.startsWith('email:')) {
+    const email = value.slice('email:'.length).toLowerCase();
+    if (EMAIL_RE.test(email)) return stubUserFromEmail(email);
+  }
+  return null;
 }

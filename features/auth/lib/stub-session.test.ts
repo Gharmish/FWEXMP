@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { parseStubSessionCookie, stubUserFromPhone } from './stub-session';
+import {
+  parseStubSessionCookie,
+  stubEmailCookieValue,
+  stubUserFromEmail,
+  stubUserFromPhone,
+} from './stub-session';
 
 describe('stubUserFromPhone', () => {
   it('returns a deterministic id for the same phone', () => {
@@ -44,5 +49,28 @@ describe('parseStubSessionCookie', () => {
     expect(user).not.toBeNull();
     expect(user?.phone).toBe('+966512345678');
     expect(user?.isStub).toBe(true);
+  });
+
+  it('round-trips an email cookie into a user', () => {
+    const user = parseStubSessionCookie(stubEmailCookieValue('Sara@Example.com'));
+    expect(user).not.toBeNull();
+    expect(user?.email).toBe('sara@example.com'); // lower-cased
+    expect(user?.phone).toBe(''); // email users have no phone
+    expect(user?.isStub).toBe(true);
+  });
+
+  it('rejects a malformed email cookie', () => {
+    expect(parseStubSessionCookie('email:not-an-email')).toBeNull();
+    expect(parseStubSessionCookie('email:')).toBeNull();
+  });
+});
+
+describe('stubUserFromEmail', () => {
+  it('is deterministic and distinct from a phone-derived id', () => {
+    const a = stubUserFromEmail('sara@example.com');
+    const b = stubUserFromEmail('sara@example.com');
+    expect(a.id).toBe(b.id);
+    expect(a.id).toHaveLength(32);
+    expect(a.id).not.toBe(stubUserFromPhone('+966512345678').id);
   });
 });

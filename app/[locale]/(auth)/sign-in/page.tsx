@@ -73,20 +73,27 @@ export default async function SignInPage({
         // rather than re-read on the client.
         isStubMode={!hasSupabaseAuth()}
         copy={{
+          methodPhone: t('methodPhone'),
+          methodEmail: t('methodEmail'),
           phoneLabel: t('phoneLabel'),
           phoneHint: t('phoneHint'),
           phonePlaceholder: t('phonePlaceholder'),
+          emailLabel: t('emailLabel'),
+          emailHint: t('emailHint'),
+          emailPlaceholder: t('emailPlaceholder'),
           requestSubmit: t('requestSubmit'),
           requestPending: t('requestPending'),
           codeLabel: t('codeLabel'),
           codeHint: t('codeHint'),
+          codeHintEmail: t('codeHintEmail'),
           codeHintStub: t('codeHintStub'),
           verifySubmit: t('verifySubmit'),
           verifyPending: t('verifyPending'),
-          changePhone: t('changePhone'),
+          changeIdentifier: t('changeIdentifier'),
           errors: {
             validation: t('errors.validation'),
             invalidPhone: t('errors.invalidPhone'),
+            invalidEmail: t('errors.invalidEmail'),
             invalidCode: t('errors.invalidCode'),
             rateLimited: t('errors.rateLimited'),
             server: t('errors.server'),

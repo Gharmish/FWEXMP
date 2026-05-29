@@ -43,3 +43,27 @@ export const verifyOtpSchema = z.object({
 });
 
 export type VerifyOtpInput = z.infer<typeof verifyOtpSchema>;
+
+/**
+ * Email sign-in (BRIEF §5: "email + phone OTP"). A no-cost alternative
+ * to phone OTP — Supabase's built-in email sender needs no paid SMS
+ * provider. Delivers a 6-digit code (the Supabase email template must
+ * expose `{{ .Token }}`; a free dashboard setting).
+ */
+export const emailSchema = z.string().trim().toLowerCase().email('invalid_email');
+
+export const requestEmailOtpSchema = z.object({
+  email: emailSchema,
+  locale: z.enum(['en', 'ar']),
+  next: z.string().default('/me'),
+});
+
+export const verifyEmailOtpSchema = z.object({
+  email: emailSchema,
+  code: z
+    .string()
+    .trim()
+    .regex(/^\d{6}$/, 'invalid_code'),
+  locale: z.enum(['en', 'ar']),
+  next: z.string().default('/me'),
+});
