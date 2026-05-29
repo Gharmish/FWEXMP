@@ -931,6 +931,7 @@
   },
   "experience": {
     "originals": "Originals",
+    "instant": "Instant",
     "perPerson": "/ person",
     "hours": "hr"
   },

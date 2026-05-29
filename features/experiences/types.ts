@@ -20,6 +20,8 @@ export interface ExperienceSummary {
   placeName: string;
   hostName: string;
   featured: boolean;
+  /** `instant` auto-confirms against the calendar; `request` is operator-confirmed. */
+  bookingMode: BookingMode;
   /**
    * Aggregate rating for this experience — populated by the queries
    * layer (sample-data or Drizzle path). `null` average + `0` count is

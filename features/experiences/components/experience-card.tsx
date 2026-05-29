@@ -1,5 +1,5 @@
 import Image from 'next/image';
-import { Star } from 'lucide-react';
+import { Star, Zap } from 'lucide-react';
 import { getTranslations } from 'next-intl/server';
 import { Card } from '@/components/ui/card';
 import { formatSAR, durationHours, formatInteger } from '@/lib/format';
@@ -121,6 +121,19 @@ export async function ExperienceCard({ experience, locale, actions }: Experience
               <span className={labelClassName}>
                 {experience.featured ? t('originals') : categoryLabel}
               </span>
+              {experience.bookingMode === 'instant' && (
+                <span
+                  className={cn(
+                    'inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium',
+                    experience.featured
+                      ? 'bg-fog-white/15 text-fog-white'
+                      : 'bg-saffron-gold/20 text-sarat-black',
+                  )}
+                >
+                  <Zap className="size-3 shrink-0" aria-hidden />
+                  {t('instant')}
+                </span>
+              )}
             </div>
 
             <div className="flex flex-col gap-2">

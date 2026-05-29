@@ -53,6 +53,7 @@ function toSummary(
     placeName: row.placeName,
     hostName: row.host.name,
     featured: row.featured,
+    bookingMode: row.bookingMode,
     ratingAverage: agg?.average ?? null,
     ratingCount: agg?.count ?? 0,
     heroImage: row.heroImage,

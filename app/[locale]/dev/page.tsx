@@ -81,6 +81,7 @@ function makeExperience(
     placeName: overrides.placeName ?? 'Jabal Sawda',
     hostName: overrides.hostName ?? 'Faisal Al Qahtani',
     featured: overrides.featured ?? false,
+    bookingMode: overrides.bookingMode ?? 'request',
     ratingAverage: overrides.ratingAverage ?? null,
     ratingCount: overrides.ratingCount ?? 0,
     heroImage: overrides.heroImage ?? null,
