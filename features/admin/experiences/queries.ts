@@ -1,6 +1,6 @@
-import { eq } from 'drizzle-orm';
+import { asc, eq } from 'drizzle-orm';
 import { db } from '@/lib/db';
-import { experiences } from '@/db/schema';
+import { experiences, hosts } from '@/db/schema';
 import { isAdminAndDbReady } from '@/features/admin/experience-moderation/queries';
 import type { AdminGuardFailure } from '@/features/admin/experience-moderation/queries';
 import type { BookingMode } from '@/features/experiences/types';
@@ -8,6 +8,20 @@ import type { ExperienceStatus } from '@/features/admin/experience-moderation/ty
 
 export type { AdminGuardFailure };
 export { isAdminAndDbReady };
+
+export interface HostOption {
+  id: string;
+  name: string;
+}
+
+/** Hosts for the "create experience" owner dropdown (verified first). */
+export async function listHostsForSelect(): Promise<readonly HostOption[]> {
+  const rows = await db
+    .select({ id: hosts.id, name: hosts.name })
+    .from(hosts)
+    .orderBy(asc(hosts.name));
+  return rows;
+}
 
 /** Full editable shape for the admin experience editor. */
 export interface AdminExperienceEdit {

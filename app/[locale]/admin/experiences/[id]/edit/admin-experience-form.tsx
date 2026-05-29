@@ -7,10 +7,11 @@ import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
+  adminCreateExperience,
   adminUpdateExperience,
   type AdminExperienceEditState,
 } from '@/features/admin/experiences/actions';
-import type { AdminExperienceEdit } from '@/features/admin/experiences/queries';
+import type { AdminExperienceEdit, HostOption } from '@/features/admin/experiences/queries';
 
 interface Option {
   value: string;
@@ -58,15 +59,46 @@ export interface AdminExperienceFormCopy {
   formServer: string;
   formNotFound: string;
   formForbidden: string;
+  /** Create mode only: the owner-host selector label. */
+  host?: string;
   weekdays: string[];
   categories: Option[];
   statuses: Option[];
   modes: Option[];
 }
 
+/** Blank defaults for create mode — sensible marketplace starting points. */
+const BLANK: Omit<AdminExperienceEdit, 'id' | 'slug' | 'heroImage'> = {
+  titleEn: '',
+  titleAr: '',
+  descriptionEn: '',
+  descriptionAr: '',
+  category: 'nature',
+  durationMinutes: 120,
+  maxGroupSize: 8,
+  minAge: 0,
+  priceSar: 0,
+  placeName: '',
+  city: 'Abha',
+  region: 'Asir',
+  inclusions: [],
+  whatToBring: [],
+  cancellationPolicy: '',
+  availabilityWeekdays: [],
+  blackoutDates: [],
+  startTime: '09:00',
+  bookingMode: 'request',
+  commissionBps: 1500,
+  status: 'draft',
+  featured: false,
+};
+
 export interface AdminExperienceFormProps {
   locale: Locale;
-  experience: AdminExperienceEdit;
+  /** 'edit' (default) requires `experience`; 'create' requires `hosts`. */
+  mode?: 'create' | 'edit';
+  experience?: AdminExperienceEdit;
+  hosts?: readonly HostOption[];
   copy: AdminExperienceFormCopy;
 }
 
@@ -89,8 +121,19 @@ function SubmitButton({ label, pending: pendingLabel }: { label: string; pending
   );
 }
 
-export function AdminExperienceForm({ locale, experience, copy }: AdminExperienceFormProps) {
-  const [state, formAction] = useActionState(adminUpdateExperience, initialState);
+export function AdminExperienceForm({
+  locale,
+  mode = 'edit',
+  experience,
+  hosts = [],
+  copy,
+}: AdminExperienceFormProps) {
+  const isCreate = mode === 'create';
+  const ex = experience ?? BLANK;
+  const [state, formAction] = useActionState(
+    isCreate ? adminCreateExperience : adminUpdateExperience,
+    initialState,
+  );
   const fields = state.fields ?? {};
   const errorPrefix = useId();
   const eid = (k: string) => `${errorPrefix}-${k}`;
@@ -106,8 +149,8 @@ export function AdminExperienceForm({ locale, experience, copy }: AdminExperienc
     'aria-describedby': fields[name] ? eid(name) : undefined,
   });
 
-  const weekdaySet = new Set(experience.availabilityWeekdays);
-  const commissionPct = (experience.commissionBps / 100).toString();
+  const weekdaySet = new Set(ex.availabilityWeekdays);
+  const commissionPct = (ex.commissionBps / 100).toString();
 
   const formError =
     state.message === 'server'
@@ -126,24 +169,43 @@ export function AdminExperienceForm({ locale, experience, copy }: AdminExperienc
   return (
     <form action={formAction} noValidate className="flex flex-col gap-10">
       <input type="hidden" name="locale" value={locale} />
-      <input type="hidden" name="experienceId" value={experience.id} />
+      {!isCreate && experience && <input type="hidden" name="experienceId" value={experience.id} />}
 
       {/* Publishing & commercial */}
       <fieldset className="flex flex-col gap-6">
         <legend className="font-display text-xl font-medium tracking-[-0.02em]">
           {copy.sectionPublishing}
         </legend>
+        {isCreate && (
+          <div className="flex flex-col gap-2">
+            <label htmlFor="ex-host" className={labelClass}>
+              {copy.host}
+            </label>
+            <select
+              id="ex-host"
+              name="hostId"
+              defaultValue=""
+              className={SELECT_CLASS}
+              {...aria('hostId')}
+            >
+              <option value="" disabled>
+                —
+              </option>
+              {hosts.map((h) => (
+                <option key={h.id} value={h.id}>
+                  {h.name}
+                </option>
+              ))}
+            </select>
+            {err('hostId')}
+          </div>
+        )}
         <div className="grid gap-6 sm:grid-cols-2">
           <div className="flex flex-col gap-2">
             <label htmlFor="ex-status" className={labelClass}>
               {copy.status}
             </label>
-            <select
-              id="ex-status"
-              name="status"
-              defaultValue={experience.status}
-              className={SELECT_CLASS}
-            >
+            <select id="ex-status" name="status" defaultValue={ex.status} className={SELECT_CLASS}>
               {copy.statuses.map((o) => (
                 <option key={o.value} value={o.value}>
                   {o.label}
@@ -158,7 +220,7 @@ export function AdminExperienceForm({ locale, experience, copy }: AdminExperienc
             <select
               id="ex-mode"
               name="bookingMode"
-              defaultValue={experience.bookingMode}
+              defaultValue={ex.bookingMode}
               className={SELECT_CLASS}
             >
               {copy.modes.map((o) => (
@@ -194,19 +256,14 @@ export function AdminExperienceForm({ locale, experience, copy }: AdminExperienc
               id="ex-startTime"
               name="startTime"
               type="time"
-              defaultValue={experience.startTime}
+              defaultValue={ex.startTime}
               {...aria('startTime')}
             />
             {err('startTime')}
           </div>
         </div>
         <label className="flex items-center gap-3 text-sm font-medium">
-          <input
-            type="checkbox"
-            name="featured"
-            defaultChecked={experience.featured}
-            className="size-5"
-          />
+          <input type="checkbox" name="featured" defaultChecked={ex.featured} className="size-5" />
           {copy.featured}
         </label>
         <p className={hintClass}>{copy.featuredHint}</p>
@@ -222,12 +279,7 @@ export function AdminExperienceForm({ locale, experience, copy }: AdminExperienc
             <label htmlFor="ex-titleEn" className={labelClass}>
               {copy.titleEn}
             </label>
-            <Input
-              id="ex-titleEn"
-              name="titleEn"
-              defaultValue={experience.titleEn}
-              {...aria('titleEn')}
-            />
+            <Input id="ex-titleEn" name="titleEn" defaultValue={ex.titleEn} {...aria('titleEn')} />
             {err('titleEn')}
           </div>
           <div className="flex flex-col gap-2">
@@ -238,7 +290,7 @@ export function AdminExperienceForm({ locale, experience, copy }: AdminExperienc
               id="ex-titleAr"
               name="titleAr"
               dir="rtl"
-              defaultValue={experience.titleAr}
+              defaultValue={ex.titleAr}
               {...aria('titleAr')}
             />
             {err('titleAr')}
@@ -252,7 +304,7 @@ export function AdminExperienceForm({ locale, experience, copy }: AdminExperienc
             id="ex-descEn"
             name="descriptionEn"
             rows={5}
-            defaultValue={experience.descriptionEn}
+            defaultValue={ex.descriptionEn}
             className={TEXTAREA_CLASS}
             {...aria('descriptionEn')}
           />
@@ -267,7 +319,7 @@ export function AdminExperienceForm({ locale, experience, copy }: AdminExperienc
             name="descriptionAr"
             rows={5}
             dir="rtl"
-            defaultValue={experience.descriptionAr}
+            defaultValue={ex.descriptionAr}
             className={TEXTAREA_CLASS}
             {...aria('descriptionAr')}
           />
@@ -280,7 +332,7 @@ export function AdminExperienceForm({ locale, experience, copy }: AdminExperienc
           <select
             id="ex-category"
             name="category"
-            defaultValue={experience.category}
+            defaultValue={ex.category}
             className={SELECT_CLASS}
           >
             {copy.categories.map((o) => (
@@ -307,7 +359,7 @@ export function AdminExperienceForm({ locale, experience, copy }: AdminExperienc
               name="durationMinutes"
               type="number"
               min={30}
-              defaultValue={experience.durationMinutes}
+              defaultValue={ex.durationMinutes}
               {...aria('durationMinutes')}
             />
             {err('durationMinutes')}
@@ -321,7 +373,7 @@ export function AdminExperienceForm({ locale, experience, copy }: AdminExperienc
               name="maxGroupSize"
               type="number"
               min={1}
-              defaultValue={experience.maxGroupSize}
+              defaultValue={ex.maxGroupSize}
               {...aria('maxGroupSize')}
             />
             {err('maxGroupSize')}
@@ -335,7 +387,7 @@ export function AdminExperienceForm({ locale, experience, copy }: AdminExperienc
               name="minAge"
               type="number"
               min={0}
-              defaultValue={experience.minAge}
+              defaultValue={ex.minAge}
               {...aria('minAge')}
             />
             {err('minAge')}
@@ -349,7 +401,7 @@ export function AdminExperienceForm({ locale, experience, copy }: AdminExperienc
               name="priceSar"
               type="number"
               min={0}
-              defaultValue={experience.priceSar}
+              defaultValue={ex.priceSar}
               {...aria('priceSar')}
             />
             {err('priceSar')}
@@ -363,7 +415,7 @@ export function AdminExperienceForm({ locale, experience, copy }: AdminExperienc
             <Input
               id="ex-place"
               name="placeName"
-              defaultValue={experience.placeName}
+              defaultValue={ex.placeName}
               {...aria('placeName')}
             />
             {err('placeName')}
@@ -372,18 +424,13 @@ export function AdminExperienceForm({ locale, experience, copy }: AdminExperienc
             <label htmlFor="ex-city" className={labelClass}>
               {copy.city}
             </label>
-            <Input id="ex-city" name="city" defaultValue={experience.city} {...aria('city')} />
+            <Input id="ex-city" name="city" defaultValue={ex.city} {...aria('city')} />
           </div>
           <div className="flex flex-col gap-2">
             <label htmlFor="ex-region" className={labelClass}>
               {copy.region}
             </label>
-            <Input
-              id="ex-region"
-              name="region"
-              defaultValue={experience.region}
-              {...aria('region')}
-            />
+            <Input id="ex-region" name="region" defaultValue={ex.region} {...aria('region')} />
           </div>
         </div>
       </fieldset>
@@ -401,7 +448,7 @@ export function AdminExperienceForm({ locale, experience, copy }: AdminExperienc
             id="ex-inclusions"
             name="inclusionsRaw"
             rows={4}
-            defaultValue={experience.inclusions.join('\n')}
+            defaultValue={ex.inclusions.join('\n')}
             className={TEXTAREA_CLASS}
           />
           <p className={hintClass}>{copy.inclusionsHint}</p>
@@ -414,7 +461,7 @@ export function AdminExperienceForm({ locale, experience, copy }: AdminExperienc
             id="ex-bring"
             name="whatToBringRaw"
             rows={4}
-            defaultValue={experience.whatToBring.join('\n')}
+            defaultValue={ex.whatToBring.join('\n')}
             className={TEXTAREA_CLASS}
           />
           <p className={hintClass}>{copy.whatToBringHint}</p>
@@ -427,7 +474,7 @@ export function AdminExperienceForm({ locale, experience, copy }: AdminExperienc
             id="ex-cancel"
             name="cancellationPolicy"
             rows={3}
-            defaultValue={experience.cancellationPolicy}
+            defaultValue={ex.cancellationPolicy}
             className={TEXTAREA_CLASS}
             {...aria('cancellationPolicy')}
           />
@@ -469,7 +516,7 @@ export function AdminExperienceForm({ locale, experience, copy }: AdminExperienc
             name="blackoutDatesRaw"
             rows={3}
             dir="ltr"
-            defaultValue={experience.blackoutDates.join('\n')}
+            defaultValue={ex.blackoutDates.join('\n')}
             className={TEXTAREA_CLASS}
             {...aria('blackoutDatesRaw')}
           />

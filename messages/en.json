@@ -184,6 +184,7 @@
       "eyebrow": "Experience moderation",
       "title": "Experiences awaiting review.",
       "intro": "Pending submissions are at the top, oldest first. Click through to read the listing in full and approve, request changes, or reject.",
+      "create": "Create experience",
       "submittedOn": "Submitted {date}",
       "empty": {
         "eyebrow": "Inbox zero",
@@ -259,7 +260,12 @@
       "formValidation": "Some fields need attention — see the highlighted ones.",
       "formServer": "We couldn't save the changes. Try again in a moment.",
       "formNotFound": "This experience no longer exists.",
-      "formForbidden": "You're not authorised to edit this experience."
+      "formForbidden": "You're not authorised to edit this experience.",
+      "host": "Owner (host)",
+      "createHeading": "Create experience",
+      "createIntro": "Build a listing on a host's behalf. Pick the owning host, fill in the details, and choose a status — set it live now or leave it as a draft.",
+      "createSubmit": "Create experience",
+      "createPending": "Creating"
     },
     "experienceStatus": {
       "draft": "Draft",

@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import { ArrowRight, ArrowLeft } from 'lucide-react';
+import { ArrowRight, ArrowLeft, Plus } from 'lucide-react';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { Link } from '@/lib/i18n';
 import type { Locale } from '@/lib/i18n';
@@ -66,6 +66,13 @@ export default async function AdminExperienceModerationPage({
         <p className="text-sarat-black-600 max-w-2xl text-base leading-relaxed">
           {t('experienceModerationList.intro')}
         </p>
+        <Link
+          href="/admin/experiences/new"
+          className="bg-sarat-black text-fog-white rounded-button inline-flex min-h-11 items-center gap-2 self-start px-5 text-sm font-medium transition-transform duration-200 hover:-translate-y-px"
+        >
+          <Plus className="size-4 shrink-0" aria-hidden />
+          {t('experienceModerationList.create')}
+        </Link>
       </div>
 
       {block?.reason === 'no_db' ? (
