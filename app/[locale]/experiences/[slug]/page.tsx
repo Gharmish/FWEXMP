@@ -67,6 +67,10 @@ export default async function ExperienceDetailPage({
   // section (which re-fetches the full list itself, also cached).
   const ratingAggregate = await getReviewAggregateForExperience(slug);
 
+  const t = await getTranslations('experienceDetail');
+  const te = await getTranslations('experience');
+  const tb = await getTranslations('bookingRequest');
+
   // Build the guest date picker: only dates that are actually bookable
   // (open weekday, not blackout/stop-sell/past, with capacity) over the
   // next ~8 weeks, each with its remaining-spots count.
@@ -100,11 +104,10 @@ export default async function ExperienceDetailPage({
       timeZone: 'UTC',
     }),
     remaining: d.remaining,
+    // ICU-format the count server-side; passing the raw template to the
+    // client and formatting there breaks next-intl's placeholder handling.
+    spotsLabel: tb('spotsLeft', { count: d.remaining }),
   }));
-
-  const t = await getTranslations('experienceDetail');
-  const te = await getTranslations('experience');
-  const tb = await getTranslations('bookingRequest');
 
   const title = loc === 'ar' ? exp.titleAr : exp.titleEn;
   const description = loc === 'ar' ? exp.descriptionAr : exp.descriptionEn;
@@ -138,8 +141,9 @@ export default async function ExperienceDetailPage({
     dateFull: tb('dateFull'),
     partySizeTooLarge: tb('partySizeTooLarge'),
     datePlaceholder: tb('datePlaceholder'),
-    spotsLeft: tb('spotsLeft'),
     total: tb('total'),
+    decrease: tb('decrease'),
+    increase: tb('increase'),
     noDates: tb('noDates'),
   };
   const modeNote = exp.bookingMode === 'instant' ? tb('modeInstant') : tb('modeRequest');

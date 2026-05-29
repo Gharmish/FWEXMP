@@ -2,6 +2,7 @@
 
 import { useActionState, useEffect, useId, useRef, useState } from 'react';
 import { useFormStatus } from 'react-dom';
+import { Minus, Plus } from 'lucide-react';
 import { requestBooking, type BookingRequestState } from '@/features/bookings/actions';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -30,10 +31,11 @@ interface BookingRequestCopy {
   partySizeTooLarge: string;
   /** Empty-option label for the date picker. */
   datePlaceholder: string;
-  /** Template "{count} spots left" — {count} replaced at render. */
-  spotsLeft: string;
-  /** Template "Total {amount}" — {amount} replaced at render. */
+  /** Total row label. */
   total: string;
+  /** Guests stepper aria-labels. */
+  decrease: string;
+  increase: string;
   /** Shown when there are no bookable dates in the window. */
   noDates: string;
 }
@@ -42,6 +44,8 @@ export interface BookableOption {
   value: string;
   label: string;
   remaining: number;
+  /** Pre-formatted "N spots left" (ICU formatted server-side). */
+  spotsLabel: string;
 }
 
 export interface BookingRequestFormProps {
@@ -301,8 +305,12 @@ export function BookingRequestForm({
                 ))}
               </select>
               {selectedOption ? (
-                <p id={hintId('preferredDate')} className="text-sarat-black-600 text-sm">
-                  {copy.spotsLeft.replace('{count}', String(selectedOption.remaining))}
+                <p
+                  id={hintId('preferredDate')}
+                  className="text-juniper-green-800 inline-flex items-center gap-1.5 text-sm"
+                >
+                  <span className="bg-juniper-green size-1.5 rounded-full" aria-hidden />
+                  {selectedOption.spotsLabel}
                 </p>
               ) : (
                 <p id={hintId('preferredDate')} className="text-sarat-black-600 text-sm">
@@ -319,17 +327,31 @@ export function BookingRequestForm({
               <label htmlFor="booking-party-size" className="text-sm font-medium">
                 {copy.partySize}
               </label>
-              <Input
-                id="booking-party-size"
-                name="partySize"
-                type="number"
-                min={1}
-                max={maxGuests}
-                required
-                value={String(effectiveParty)}
-                onChange={(e) => setPartySize(Number(e.target.value) || 1)}
-                {...fieldProps('partySize')}
-              />
+              {/* Stepper — keeps the value within [1, capacity] without a keyboard. */}
+              <div className="border-sarat-black/20 rounded-input flex h-11 items-center justify-between [border-width:0.5px] px-1">
+                <button
+                  type="button"
+                  aria-label={copy.decrease}
+                  disabled={effectiveParty <= 1}
+                  onClick={() => setPartySize(Math.max(1, effectiveParty - 1))}
+                  className="text-sarat-black hover:bg-sarat-black/5 inline-flex size-9 items-center justify-center rounded-full transition-colors duration-200 disabled:opacity-30"
+                >
+                  <Minus className="size-4" aria-hidden />
+                </button>
+                <span id="booking-party-size" className="text-base font-medium tabular-nums">
+                  {effectiveParty}
+                </span>
+                <button
+                  type="button"
+                  aria-label={copy.increase}
+                  disabled={effectiveParty >= maxGuests}
+                  onClick={() => setPartySize(Math.min(maxGuests, effectiveParty + 1))}
+                  className="text-sarat-black hover:bg-sarat-black/5 inline-flex size-9 items-center justify-center rounded-full transition-colors duration-200 disabled:opacity-30"
+                >
+                  <Plus className="size-4" aria-hidden />
+                </button>
+              </div>
+              <input type="hidden" name="partySize" value={String(effectiveParty)} />
               <p id={hintId('partySize')} className="text-sarat-black-600 text-sm">
                 {copy.partySizeHint}
               </p>
@@ -340,11 +362,18 @@ export function BookingRequestForm({
             </div>
           </div>
 
-          {/* Live total */}
-          <p className="border-sarat-black/8 flex items-baseline justify-between [border-top-width:0.5px] pt-4 text-base font-medium">
-            <span>{copy.total}</span>
-            <span>{formatSAR(totalSar, locale)}</span>
-          </p>
+          {/* Live total + breakdown */}
+          <div className="border-sarat-black/8 flex flex-col gap-1 [border-top-width:0.5px] pt-4">
+            <p className="text-sarat-black-600 flex items-baseline justify-between text-sm">
+              <span dir="ltr">
+                {formatSAR(priceSar, locale)} × {effectiveParty}
+              </span>
+            </p>
+            <p className="flex items-baseline justify-between text-base font-medium">
+              <span>{copy.total}</span>
+              <span>{formatSAR(totalSar, locale)}</span>
+            </p>
+          </div>
 
           {formMessage && (
             <p
