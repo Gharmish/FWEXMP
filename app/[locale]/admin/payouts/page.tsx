@@ -5,7 +5,7 @@ import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { Link } from '@/lib/i18n';
 import type { Locale } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
-import { formatSAR } from '@/lib/format';
+import { Price } from '@/components/ui/price';
 import { isAdminAndDbReady, listPayouts } from '@/features/admin/payouts/queries';
 import { MarkPaidButton } from '@/app/[locale]/admin/payouts/mark-paid-button';
 
@@ -78,7 +78,9 @@ export default async function AdminPayoutsPage({
         </p>
         {rows.length > 0 && (
           <p className="text-base font-medium">
-            {t('payoutsList.totalOwed', { amount: formatSAR(totalOwed, loc) })}
+            {t.rich('payoutsList.totalOwed', {
+              amount: () => <Price amount={totalOwed} locale={loc} />,
+            })}
           </p>
         )}
       </div>
@@ -104,24 +106,24 @@ export default async function AdminPayoutsPage({
                 <span className="text-base font-medium">{row.hostName}</span>
                 <span className="text-sarat-black-600 text-sm">
                   {row.owedSar > 0
-                    ? t('payoutsList.owed', {
-                        amount: formatSAR(row.owedSar, loc),
+                    ? t.rich('payoutsList.owed', {
                         count: row.owedCount,
+                        amount: () => <Price amount={row.owedSar} locale={loc} />,
                       })
                     : t('payoutsList.settled')}
                 </span>
                 {row.paidSar > 0 && (
                   <span className="text-sarat-black-600 text-sm">
-                    {t('payoutsList.paidToDate', {
-                      amount: formatSAR(row.paidSar, loc),
+                    {t.rich('payoutsList.paidToDate', {
                       count: row.paidCount,
+                      amount: () => <Price amount={row.paidSar} locale={loc} />,
                     })}
                   </span>
                 )}
               </div>
               <div className="flex items-center gap-4">
                 <span className="font-display text-2xl font-medium tracking-[-0.025em]">
-                  {formatSAR(row.owedSar, loc)}
+                  <Price amount={row.owedSar} locale={loc} />
                 </span>
                 {row.owedCount > 0 && (
                   <MarkPaidButton

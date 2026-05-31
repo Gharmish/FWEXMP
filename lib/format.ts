@@ -22,6 +22,20 @@ export function formatSAR(amount: number, locale: Locale): string {
 }
 
 /**
+ * Format an amount as a localized number only — no currency word or symbol.
+ * `480` in English, `٤٨٠` (Arabic-Indic digits) in Arabic. Whole amounts drop
+ * the decimals; fractional amounts keep two. Pair with `<Price>` / `<RiyalSymbol>`
+ * to render the Saudi Riyal glyph alongside; use `formatSAR` for plain text.
+ */
+export function formatRiyalAmount(amount: number, locale: Locale): string {
+  const fractionDigits = Number.isInteger(amount) ? 0 : 2;
+  return new Intl.NumberFormat(intlLocale[locale], {
+    minimumFractionDigits: fractionDigits,
+    maximumFractionDigits: fractionDigits,
+  }).format(amount);
+}
+
+/**
  * Normalize a Saudi mobile number to `+966 5X XXX XXXX`.
  * Accepts `05XXXXXXXX`, `5XXXXXXXX`, `9665XXXXXXXX`, `+9665XXXXXXXX`.
  * Returns the input untouched if it is not a recognizable Saudi mobile.

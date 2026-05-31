@@ -7,7 +7,8 @@ import { Link } from '@/lib/i18n';
 import type { Locale } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
-import { formatDate, formatSAR } from '@/lib/format';
+import { formatDate } from '@/lib/format';
+import { Price } from '@/components/ui/price';
 import {
   getModerationDetail,
   isAdminAndDbReady,
@@ -200,7 +201,9 @@ export default async function AdminExperienceModerationDetailPage({
       <dl className="border-sarat-black/8 rounded-card grid gap-5 [border-width:0.5px] p-6 sm:grid-cols-2">
         <div className="flex flex-col gap-0.5">
           <dt className={eyebrowClassName}>{t('experienceModerationDetail.price')}</dt>
-          <dd className="text-base font-medium">{formatSAR(detail.priceSar, loc)}</dd>
+          <dd className="text-base font-medium">
+            <Price amount={detail.priceSar} locale={loc} />
+          </dd>
         </div>
         <div className="flex flex-col gap-0.5">
           <dt className={eyebrowClassName}>{t('experienceModerationDetail.duration')}</dt>

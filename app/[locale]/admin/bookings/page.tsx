@@ -5,7 +5,8 @@ import { Link } from '@/lib/i18n';
 import type { Locale } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
-import { formatDate, formatSAR } from '@/lib/format';
+import { formatDate } from '@/lib/format';
+import { Price } from '@/components/ui/price';
 import {
   isAdminAndDbReady,
   listBookingsForAdmin,
@@ -260,7 +261,9 @@ export default async function AdminBookingsPage({
                           <span aria-hidden>·</span>
                           <span dir="ltr">{row.startTime}</span>
                           <span aria-hidden>·</span>
-                          <span>{formatSAR(row.totalAmountSar, loc)}</span>
+                          <span>
+                            <Price amount={row.totalAmountSar} locale={loc} />
+                          </span>
                           <span aria-hidden>·</span>
                           <span className="font-mono text-[11px]" dir="ltr">
                             {row.reference}
@@ -268,14 +271,16 @@ export default async function AdminBookingsPage({
                         </div>
                         <div className="text-sarat-black-600 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
                           <span>
-                            {t('bookingsList.commission', {
+                            {t.rich('bookingsList.commission', {
                               pct: row.commissionBps / 100,
-                              amount: formatSAR(row.commissionSar, loc),
+                              amount: () => <Price amount={row.commissionSar} locale={loc} />,
                             })}
                           </span>
                           <span aria-hidden>·</span>
                           <span>
-                            {t('bookingsList.payout', { amount: formatSAR(row.payoutSar, loc) })}
+                            {t.rich('bookingsList.payout', {
+                              amount: () => <Price amount={row.payoutSar} locale={loc} />,
+                            })}
                           </span>
                         </div>
                       </div>

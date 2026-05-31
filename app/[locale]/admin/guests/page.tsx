@@ -5,7 +5,8 @@ import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { Link } from '@/lib/i18n';
 import type { Locale } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
-import { formatDate, formatInteger, formatSAR } from '@/lib/format';
+import { formatDate, formatInteger } from '@/lib/format';
+import { Price } from '@/components/ui/price';
 import { isAdminAndDbReady, listGuestsForAdmin } from '@/features/admin/guests/queries';
 
 export async function generateMetadata({
@@ -129,7 +130,9 @@ export default async function AdminGuestsPage({
                     <span className="font-medium">
                       {t('guestsList.bookingsCount', { count: row.bookings })}
                     </span>
-                    <span className="text-sarat-black-600">{formatSAR(row.spentSar, loc)}</span>
+                    <span className="text-sarat-black-600">
+                      <Price amount={row.spentSar} locale={loc} />
+                    </span>
                     {row.lastBookingAt && (
                       <span className="text-sarat-black-600">
                         {t('guestsList.lastBooking', {

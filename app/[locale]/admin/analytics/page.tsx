@@ -4,7 +4,8 @@ import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { Link } from '@/lib/i18n';
 import type { Locale } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
-import { formatDate, formatSAR } from '@/lib/format';
+import { formatDate } from '@/lib/format';
+import { Price } from '@/components/ui/price';
 import { getAnalyticsSnapshot, isAdminAndDbReady } from '@/features/admin/analytics/queries';
 import type { AnalyticsWindowStats, SparklinePoint } from '@/features/admin/analytics/types';
 
@@ -190,7 +191,7 @@ export default async function AdminAnalyticsPage({
                     <span>{t('analytics.bookingsLabel', { count: row.bookings })}</span>
                     <span aria-hidden>·</span>
                     <span className="text-sarat-black font-medium">
-                      {formatSAR(row.gmvSar, loc)}
+                      <Price amount={row.gmvSar} locale={loc} />
                     </span>
                   </div>
                 </li>
@@ -217,7 +218,7 @@ export default async function AdminAnalyticsPage({
                     <span>{t('analytics.bookingsLabel', { count: row.bookings })}</span>
                     <span aria-hidden>·</span>
                     <span className="text-sarat-black font-medium">
-                      {formatSAR(row.gmvSar, loc)}
+                      <Price amount={row.gmvSar} locale={loc} />
                     </span>
                   </div>
                 </li>
@@ -286,7 +287,7 @@ function WindowCard({
       <div className="flex flex-col gap-0.5">
         <p className="text-sarat-black-600 text-[11px]">{t('analytics.gmvLabel')}</p>
         <p className="font-display text-3xl font-medium tracking-[-0.025em] tabular-nums">
-          {formatSAR(stats.gmvSar, locale)}
+          <Price amount={stats.gmvSar} locale={locale} />
         </p>
       </div>
       <dl className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">

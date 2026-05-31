@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import type { ReactNode } from 'react';
 import { notFound } from 'next/navigation';
 import { ArrowLeft, ExternalLink } from 'lucide-react';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
@@ -6,7 +7,8 @@ import { Link } from '@/lib/i18n';
 import type { Locale } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
-import { formatDate, formatInteger, formatSAR } from '@/lib/format';
+import { formatDate, formatInteger } from '@/lib/format';
+import { Price } from '@/components/ui/price';
 import { getAdminBookingById, isAdminAndDbReady } from '@/features/admin/bookings/queries';
 import type { AdminBookingStatus } from '@/features/admin/bookings/types';
 import { availableTransitions } from '@/features/admin/bookings/lib/transitions';
@@ -62,7 +64,7 @@ export default async function AdminBookingDetailPage({
     server: t('bookingsList.actionErrors.server'),
   };
 
-  const rows: Array<{ label: string; value: string; dir?: 'ltr' }> = [
+  const rows: Array<{ label: string; value: ReactNode; dir?: 'ltr' }> = [
     { label: t('bookingDetail.guest'), value: booking.guestName },
     { label: t('bookingDetail.phone'), value: booking.guestPhone, dir: 'ltr' },
     {
@@ -70,12 +72,19 @@ export default async function AdminBookingDetailPage({
       value: `${formatDate(new Date(booking.date), loc)} · ${booking.startTime}`,
     },
     { label: t('bookingDetail.party'), value: formatInteger(booking.partySize, loc) },
-    { label: t('bookingDetail.total'), value: formatSAR(booking.totalAmountSar, loc) },
+    {
+      label: t('bookingDetail.total'),
+      value: <Price amount={booking.totalAmountSar} locale={loc} />,
+    },
     {
       label: t('bookingDetail.commission'),
-      value: `${formatSAR(booking.commissionSar, loc)} (${booking.commissionBps / 100}%)`,
+      value: (
+        <>
+          <Price amount={booking.commissionSar} locale={loc} /> ({booking.commissionBps / 100}%)
+        </>
+      ),
     },
-    { label: t('bookingDetail.payout'), value: formatSAR(booking.payoutSar, loc) },
+    { label: t('bookingDetail.payout'), value: <Price amount={booking.payoutSar} locale={loc} /> },
     {
       label: t('bookingDetail.payment'),
       value: booking.paymentReference ?? t('bookingDetail.noPayment'),

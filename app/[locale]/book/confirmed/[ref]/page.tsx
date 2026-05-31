@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import type { ReactNode } from 'react';
 import { ArrowRight, CheckCircle2 } from 'lucide-react';
 import { notFound } from 'next/navigation';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
@@ -6,7 +7,8 @@ import { cn } from '@/lib/utils';
 import { Link } from '@/lib/i18n';
 import type { Locale } from '@/lib/i18n';
 import { buttonVariants } from '@/components/ui/button';
-import { formatDate, formatInteger, formatSAR } from '@/lib/format';
+import { formatDate, formatInteger } from '@/lib/format';
+import { Price } from '@/components/ui/price';
 import { getExperienceBySlug } from '@/features/experiences/queries';
 import { getBookingByReference } from '@/features/bookings/queries';
 import { toArabicText } from '@/features/experiences/lib/arabic-content';
@@ -67,7 +69,7 @@ export default async function BookingConfirmedPage({ params, searchParams }: Pag
     loc === 'en' && 'tracking-[0.2em] uppercase',
   );
 
-  const detailRows: Array<{ label: string; value: string }> = [];
+  const detailRows: Array<{ label: string; value: ReactNode }> = [];
   if (title) detailRows.push({ label: t('experienceLabel'), value: title });
   if (placeName) detailRows.push({ label: t('placeLabel'), value: placeName });
   if (booking) {
@@ -81,7 +83,7 @@ export default async function BookingConfirmedPage({ params, searchParams }: Pag
     });
     detailRows.push({
       label: t('totalLabel'),
-      value: formatSAR(booking.totalAmountSar, loc),
+      value: <Price amount={booking.totalAmountSar} locale={loc} />,
     });
   }
 

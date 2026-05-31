@@ -5,7 +5,8 @@ import { Link } from '@/lib/i18n';
 import type { Locale } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
-import { formatDate, formatSAR } from '@/lib/format';
+import { formatDate } from '@/lib/format';
+import { Price } from '@/components/ui/price';
 import {
   isAdminAndDbReady,
   listModerationQueue,
@@ -166,7 +167,9 @@ export default async function AdminExperienceModerationPage({
                     <span aria-hidden>·</span>
                     <span>{row.city}</span>
                     <span aria-hidden>·</span>
-                    <span>{formatSAR(row.priceSar, loc)}</span>
+                    <span>
+                      <Price amount={row.priceSar} locale={loc} />
+                    </span>
                     {row.submittedAt && (
                       <>
                         <span aria-hidden>·</span>

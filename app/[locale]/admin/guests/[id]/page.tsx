@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import type { ReactNode } from 'react';
 import { notFound } from 'next/navigation';
 import { ArrowLeft } from 'lucide-react';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
@@ -6,7 +7,8 @@ import { Link } from '@/lib/i18n';
 import type { Locale } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
-import { formatDate, formatSAR } from '@/lib/format';
+import { formatDate } from '@/lib/format';
+import { Price } from '@/components/ui/price';
 import { getGuestDetail, isAdminAndDbReady } from '@/features/admin/guests/queries';
 import type { AdminBookingStatus } from '@/features/admin/bookings/types';
 
@@ -50,11 +52,11 @@ export default async function AdminGuestDetailPage({
   const guest = block?.reason === 'no_db' ? undefined : await getGuestDetail(id);
   if (!guest) notFound();
 
-  const facts: Array<{ label: string; value: string; dir?: 'ltr' }> = [
+  const facts: Array<{ label: string; value: ReactNode; dir?: 'ltr' }> = [
     { label: t('guestDetail.phone'), value: guest.phone, dir: 'ltr' },
     { label: t('guestDetail.email'), value: guest.email ?? '—', dir: 'ltr' },
     { label: t('guestDetail.language'), value: guest.preferredLanguage.toUpperCase() },
-    { label: t('guestDetail.totalSpent'), value: formatSAR(guest.spentSar, loc) },
+    { label: t('guestDetail.totalSpent'), value: <Price amount={guest.spentSar} locale={loc} /> },
     { label: t('guestDetail.joined'), value: formatDate(new Date(guest.createdAt), loc) },
   ];
 
@@ -112,7 +114,9 @@ export default async function AdminGuestDetailPage({
                     {formatDate(new Date(b.date), loc)}
                   </span>
                 </div>
-                <span className="text-base font-medium">{formatSAR(b.totalAmountSar, loc)}</span>
+                <span className="text-base font-medium">
+                  <Price amount={b.totalAmountSar} locale={loc} />
+                </span>
               </li>
             ))}
           </ul>

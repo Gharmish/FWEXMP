@@ -3,6 +3,7 @@ import {
   durationHours,
   formatDate,
   formatInteger,
+  formatRiyalAmount,
   formatSAR,
   formatSaudiPhone,
   formatTime,
@@ -47,6 +48,27 @@ describe('formatSAR', () => {
 
   it('handles zero', () => {
     expect(formatSAR(0, 'en')).toContain('0');
+  });
+});
+
+describe('formatRiyalAmount', () => {
+  it('English: renders the bare integer with western digits and no currency token', () => {
+    const result = formatRiyalAmount(480, 'en');
+    expect(result).toMatch(WESTERN_DIGITS);
+    expect(result).toContain('480');
+    expect(result).not.toContain('SAR');
+    expect(result).not.toContain('﷼');
+  });
+
+  it('Arabic: renders eastern-Arabic digits and no SAR symbol (the glyph is drawn separately)', () => {
+    const result = formatRiyalAmount(480, 'ar');
+    expect(result).toMatch(EASTERN_ARABIC_DIGITS);
+    expect(result).not.toContain('ر');
+  });
+
+  it('drops fraction digits for integers, keeps two for fractional amounts', () => {
+    expect(formatRiyalAmount(300, 'en')).not.toContain('.00');
+    expect(formatRiyalAmount(199.5, 'en')).toContain('.50');
   });
 });
 

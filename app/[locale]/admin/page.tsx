@@ -4,7 +4,8 @@ import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { Link } from '@/lib/i18n';
 import type { Locale } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
-import { formatInteger, formatSAR } from '@/lib/format';
+import { formatInteger } from '@/lib/format';
+import { Price } from '@/components/ui/price';
 import { getAdminDashboard } from '@/features/admin/dashboard/queries';
 
 export async function generateMetadata({
@@ -34,7 +35,10 @@ export default async function AdminIndexPage({ params }: { params: Promise<{ loc
 
   const kpis = dashboard
     ? [
-        { label: t('dashboard.kpi.gmv'), value: formatSAR(dashboard.gmvAllTimeSar, loc) },
+        {
+          label: t('dashboard.kpi.gmv'),
+          value: <Price amount={dashboard.gmvAllTimeSar} locale={loc} />,
+        },
         {
           label: t('dashboard.kpi.bookings'),
           value: formatInteger(dashboard.bookingsTotal, loc),

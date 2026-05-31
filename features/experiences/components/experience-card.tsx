@@ -2,7 +2,8 @@ import Image from 'next/image';
 import { Star, Zap } from 'lucide-react';
 import { getTranslations } from 'next-intl/server';
 import { Card } from '@/components/ui/card';
-import { formatSAR, durationHours, formatInteger } from '@/lib/format';
+import { durationHours, formatInteger } from '@/lib/format';
+import { Price } from '@/components/ui/price';
 import { Link } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
 import type { Locale } from '@/lib/i18n';
@@ -157,7 +158,7 @@ export async function ExperienceCard({ experience, locale, actions }: Experience
 
               <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-2">
                 <p className="text-base font-medium">
-                  {formatSAR(experience.priceSar, locale)}
+                  <Price amount={experience.priceSar} locale={locale} />
                   <span className={`text-sm font-normal ${muted}`}> {t('perPerson')}</span>
                 </p>
 

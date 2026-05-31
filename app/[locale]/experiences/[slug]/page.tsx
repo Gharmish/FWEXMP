@@ -4,7 +4,8 @@ import { ArrowLeft } from 'lucide-react';
 import { notFound } from 'next/navigation';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { cn } from '@/lib/utils';
-import { formatSAR, durationHours, formatInteger, formatDate } from '@/lib/format';
+import { durationHours, formatInteger, formatDate } from '@/lib/format';
+import { Price } from '@/components/ui/price';
 import { Link } from '@/lib/i18n';
 import type { Locale } from '@/lib/i18n';
 import { routing } from '@/lib/i18n';
@@ -337,7 +338,7 @@ export default async function ExperienceDetailPage({
           <div className="rounded-card border-sarat-black/8 flex flex-col gap-5 [border-width:0.5px] p-6">
             <h2 className="font-display text-2xl font-medium tracking-[-0.025em]">{tb('title')}</h2>
             <p className="text-2xl font-medium">
-              {formatSAR(exp.priceSar, loc)}
+              <Price amount={exp.priceSar} locale={loc} />
               <span className="text-sarat-black-600 text-base font-normal"> {te('perPerson')}</span>
             </p>
             <div className="text-sarat-black-600 flex flex-col gap-1 text-sm">

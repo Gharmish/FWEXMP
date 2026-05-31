@@ -10,7 +10,8 @@ import { Input } from '@/components/ui/input';
 import { Pop, SPRING } from '@/components/ui/motion';
 import type { Locale } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
-import { formatSaudiPhone, formatSAR } from '@/lib/format';
+import { formatSaudiPhone } from '@/lib/format';
+import { Price } from '@/components/ui/price';
 import { BookingCalendar } from './booking-calendar';
 
 interface BookingRequestCopy {
@@ -353,13 +354,13 @@ export function BookingRequestForm({
           <div className="border-sarat-black/8 flex flex-col gap-1 [border-top-width:0.5px] pt-4">
             <p className="text-sarat-black-600 flex items-baseline justify-between text-sm">
               <span dir="ltr">
-                {formatSAR(priceSar, locale)} × {effectiveParty}
+                <Price amount={priceSar} locale={locale} /> × {effectiveParty}
               </span>
             </p>
             <div className="flex items-baseline justify-between text-base font-medium">
               <span>{copy.total}</span>
               <Pop key={totalSar}>
-                <span>{formatSAR(totalSar, locale)}</span>
+                <Price amount={totalSar} locale={locale} />
               </Pop>
             </div>
           </div>
@@ -445,7 +446,9 @@ export function BookingRequestForm({
             <div className="flex items-center justify-between gap-4">
               <span className="flex min-w-0 flex-col leading-tight">
                 <span className="text-sarat-black-600 text-sm">{copy.total}</span>
-                <span className="truncate text-lg font-medium">{formatSAR(totalSar, locale)}</span>
+                <span className="truncate text-lg font-medium">
+                  <Price amount={totalSar} locale={locale} />
+                </span>
               </span>
               <SubmitButton copy={copy} fullWidth={false} />
             </div>

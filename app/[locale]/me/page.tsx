@@ -15,7 +15,8 @@ import { getLastBookingView } from '@/features/account/queries';
 import { ReviewForm } from '@/features/reviews/components/review-form';
 import { getCurrentUser } from '@/features/auth/queries';
 import { toArabicText } from '@/features/experiences/lib/arabic-content';
-import { formatDate, formatInteger, formatSAR } from '@/lib/format';
+import { formatDate, formatInteger } from '@/lib/format';
+import { Price } from '@/components/ui/price';
 
 export async function generateMetadata({
   params,
@@ -149,7 +150,7 @@ export default async function MePage({ params }: { params: Promise<{ locale: str
                   <div className="flex flex-col gap-0.5">
                     <dt className="text-sarat-black-600 text-sm">{t('totalLabel')}</dt>
                     <dd className="text-base font-medium">
-                      {formatSAR(lastBooking.booking.totalAmountSar, loc)}
+                      <Price amount={lastBooking.booking.totalAmountSar} locale={loc} />
                     </dd>
                   </div>
                 </dl>

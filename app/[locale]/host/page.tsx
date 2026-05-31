@@ -8,7 +8,7 @@ import { buttonVariants } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { EmptyState } from '@/components/ui/empty-state';
 import { Compass } from 'lucide-react';
-import { formatSAR } from '@/lib/format';
+import { Price } from '@/components/ui/price';
 import { getCurrentUser } from '@/features/auth/queries';
 import { getHostDashboard } from '@/features/host-dashboard/queries';
 import { listMyExperiences } from '@/features/host-experiences/queries';
@@ -243,7 +243,9 @@ function ExperienceListRow({
           <div className="text-sarat-black-600 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
             <span>{experience.placeName}</span>
             <span aria-hidden>·</span>
-            <span>{`${formatSAR(experience.priceSar, locale)} ${copy.perPerson}`}</span>
+            <span>
+              <Price amount={experience.priceSar} locale={locale} /> {copy.perPerson}
+            </span>
             <span aria-hidden>·</span>
             <span>
               {experience.availabilityWeekdays.length === 0
