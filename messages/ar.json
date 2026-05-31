@@ -732,21 +732,21 @@
       "noPhoto": "لا توجد صورة بعد",
       "choose": "اختر صورة",
       "replace": "استبدل الصورة",
-      "hint": "TODO(ar): JPG, PNG, WebP or AVIF. We'll crop it to a 16:9 frame and optimise it for you.",
+      "hint": "JPG أو PNG أو WebP أو AVIF. سنقتطعها بإطار 16:9 ونحسّنها لك.",
       "submit": "ارفع الصورة",
       "submitting": "جارٍ الرفع",
       "crop": {
-        "title": "TODO(ar): Frame your photo",
-        "instruction": "TODO(ar): Drag to reposition and zoom to fit. This 16:9 frame is what guests see across the catalog and listing.",
-        "zoom": "TODO(ar): Zoom",
-        "cancel": "TODO(ar): Cancel",
-        "apply": "TODO(ar): Use this frame",
-        "applying": "TODO(ar): Preparing"
+        "title": "أطّر صورتك",
+        "instruction": "اسحب لإعادة التموضع وقرّب لضبط الإطار. هذا الإطار بنسبة 16:9 هو ما يراه الضيوف في القائمة وصفحة التجربة.",
+        "zoom": "تقريب",
+        "cancel": "إلغاء",
+        "apply": "استخدم هذا الإطار",
+        "applying": "جارٍ التحضير"
       },
       "errors": {
         "missing": "اختر صورة لرفعها.",
         "invalidType": "نوع الملف غير مدعوم. استخدم JPG أو PNG أو WebP أو AVIF.",
-        "tooLarge": "TODO(ar): That photo is too large. Pick one under 30MB.",
+        "tooLarge": "حجم الصورة كبير جداً. اختر صورة أقل من 30 ميجابايت.",
         "noSupabase": "رفع الصور غير متاح في هذه البيئة.",
         "noDb": "رفع الصور يتطلّب اتصالاً بقاعدة البيانات.",
         "forbidden": "ليست لديك صلاحية تعديل هذه التجربة.",
@@ -946,11 +946,11 @@
   "experienceDetail": {
     "back": "العودة إلى التجارب",
     "gallery": {
-      "open": "TODO(ar): View photos",
-      "count": "TODO(ar): photos",
-      "close": "TODO(ar): Close",
-      "prev": "TODO(ar): Previous photo",
-      "next": "TODO(ar): Next photo"
+      "open": "عرض الصور",
+      "count": "صور",
+      "close": "إغلاق",
+      "prev": "الصورة السابقة",
+      "next": "الصورة التالية"
     },
     "about": "عن هذه التجربة",
     "timeline": "مسار التجربة",
@@ -1006,8 +1006,8 @@
     "decrease": "ضيوف أقل",
     "increase": "ضيوف أكثر",
     "noDates": "لا تواريخ متاحة خلال الأسابيع الثمانية القادمة. تحقّق لاحقاً أو راسِل المضيف.",
-    "prevMonth": "TODO(ar): Previous month",
-    "nextMonth": "TODO(ar): Next month",
+    "prevMonth": "الشهر السابق",
+    "nextMonth": "الشهر التالي",
     "modeInstant": "تأكيد فوري — يُحجز مكانك لحظة الإرسال، وفق التوفّر.",
     "modeRequest": "حجز بالطلب — يؤكّد المضيف التوفّر خلال 24 ساعة."
   },
