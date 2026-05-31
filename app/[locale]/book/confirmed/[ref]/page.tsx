@@ -10,6 +10,7 @@ import { formatDate, formatInteger, formatSAR } from '@/lib/format';
 import { getExperienceBySlug } from '@/features/experiences/queries';
 import { getBookingByReference } from '@/features/bookings/queries';
 import { toArabicText } from '@/features/experiences/lib/arabic-content';
+import { Pop } from '@/components/ui/motion';
 
 /** UUID v4 shape — the only thing we accept as a public reference. */
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -88,7 +89,9 @@ export default async function BookingConfirmedPage({ params, searchParams }: Pag
     <article className="mx-auto w-full max-w-3xl px-6 py-20">
       <header className="flex flex-col gap-6">
         <div className="flex items-center gap-3">
-          <CheckCircle2 className="text-juniper-green size-7 shrink-0" aria-hidden />
+          <Pop>
+            <CheckCircle2 className="text-juniper-green size-7 shrink-0" aria-hidden />
+          </Pop>
           <p className={eyebrowClassName}>{isConfirmed ? t('eyebrowConfirmed') : t('eyebrow')}</p>
         </div>
         <h1 className="font-display text-4xl font-medium tracking-[-0.035em] text-balance sm:text-5xl">

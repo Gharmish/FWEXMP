@@ -80,7 +80,8 @@ function SubmitButton({ copy, disabled }: { copy: BookingRequestCopy; disabled?:
       variant="primary"
       size="lg"
       className="w-full"
-      disabled={pending || disabled}
+      pending={pending}
+      disabled={disabled}
     >
       {pending ? copy.pending : copy.submit}
     </Button>

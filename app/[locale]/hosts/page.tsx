@@ -11,6 +11,9 @@ import { routing } from '@/lib/i18n';
 import { SITE_DESCRIPTION, SITE_NAME, SITE_URL } from '@/lib/site';
 import { toArabicText } from '@/features/experiences/lib/arabic-content';
 import { getAllHosts } from '@/features/hosts/queries';
+import { EmptyState } from '@/components/ui/empty-state';
+import { HoverLift, Stagger, StaggerItem } from '@/components/ui/motion';
+import { Users } from 'lucide-react';
 
 const languagesAlternates = Object.fromEntries(
   routing.locales.map((l) => [l, `${SITE_URL}/${l}/hosts`]),
@@ -87,37 +90,37 @@ export default async function HostsIndexPage({ params }: { params: Promise<{ loc
       <section className="border-sarat-black/8 [border-top-width:0.5px]">
         <div className="mx-auto w-full max-w-6xl px-6 py-16 sm:py-20">
           {hosts.length === 0 ? (
-            <div className="border-sarat-black/8 rounded-card [border-width:0.5px] p-10">
-              <p className="text-sarat-black-600 text-base">{t('empty')}</p>
-            </div>
+            <EmptyState icon={Users} title={t('empty')} />
           ) : (
-            <ul className="grid gap-4 sm:grid-cols-2">
+            <Stagger className="grid gap-4 sm:grid-cols-2">
               {hosts.map((host) => {
                 const name = loc === 'ar' ? toArabicText(host.name) : host.name;
                 const bio = loc === 'ar' ? host.bioAr : host.bioEn;
                 return (
-                  <li key={host.slug}>
-                    <Link
-                      href={`/hosts/${host.slug}`}
-                      className="rounded-card border-sarat-black/8 group flex h-full flex-col gap-4 [border-width:0.5px] p-6 transition-transform duration-200 hover:-translate-y-0.5 focus-visible:-translate-y-0.5"
-                    >
-                      <div className="flex items-center gap-4">
-                        <Avatar name={name} src={host.photoUrl ?? undefined} size="lg" />
-                        <div className="flex flex-col gap-1">
-                          <span className="text-lg font-medium">{name}</span>
-                          {host.verified && <Badge variant="verified">{th('verified')}</Badge>}
+                  <StaggerItem key={host.slug}>
+                    <HoverLift className="h-full">
+                      <Link
+                        href={`/hosts/${host.slug}`}
+                        className="rounded-card border-sarat-black/8 group flex h-full flex-col gap-4 [border-width:0.5px] p-6"
+                      >
+                        <div className="flex items-center gap-4">
+                          <Avatar name={name} src={host.photoUrl ?? undefined} size="lg" />
+                          <div className="flex flex-col gap-1">
+                            <span className="text-lg font-medium">{name}</span>
+                            {host.verified && <Badge variant="verified">{th('verified')}</Badge>}
+                          </div>
                         </div>
-                      </div>
-                      <p className="text-sarat-black-600 line-clamp-3 text-base">{bio}</p>
-                      <span className="text-sarat-black mt-auto inline-flex items-center gap-1 text-sm font-medium opacity-0 transition-opacity duration-200 group-hover:opacity-100 group-focus-visible:opacity-100">
-                        {th('viewProfile')}
-                        <ArrowRight className="size-4 shrink-0 rtl:rotate-180" aria-hidden />
-                      </span>
-                    </Link>
-                  </li>
+                        <p className="text-sarat-black-600 line-clamp-3 text-base">{bio}</p>
+                        <span className="text-sarat-black mt-auto inline-flex items-center gap-1 text-sm font-medium opacity-0 transition-opacity duration-200 group-hover:opacity-100 group-focus-visible:opacity-100">
+                          {th('viewProfile')}
+                          <ArrowRight className="size-4 shrink-0 rtl:rotate-180" aria-hidden />
+                        </span>
+                      </Link>
+                    </HoverLift>
+                  </StaggerItem>
                 );
               })}
-            </ul>
+            </Stagger>
           )}
         </div>
       </section>

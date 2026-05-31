@@ -10,12 +10,14 @@ import type { Category } from '@/lib/colors';
 import type { ExperienceSummary } from '@/features/experiences/types';
 import { toArabicText } from '@/features/experiences/lib/arabic-content';
 import { CATEGORIES } from '@/features/experiences/lib/sample-data';
+import { HoverLift } from '@/components/ui/motion';
 
 /**
  * Presentational experience card. Restraint-first (BRIEF §3): hairline
  * border, no shadow. Featured ("Originals") uses the dark Sarat Black
  * surface with a Saffron Gold category accent. Wraps the whole card
- * in a Link to /experiences/[slug] with a 2px hover lift.
+ * in a Link to /experiences/[slug] with a 2px spring hover lift
+ * (BRIEF §3 motion — disabled under prefers-reduced-motion).
  */
 
 const CATEGORY_DOT: Record<Category, string> = {
@@ -81,107 +83,106 @@ export async function ExperienceCard({ experience, locale, actions }: Experience
 
   return (
     <div className="relative">
-      <Link
-        href={`/experiences/${experience.slug}`}
-        className="block transition-transform duration-200 hover:-translate-y-0.5"
-      >
-        <Card
-          variant={experience.featured ? 'dark' : 'default'}
-          className="flex h-full flex-col overflow-hidden p-0"
-        >
-          {/* Hero — 16:10-ish to match the upstream crops Pollinations
+      <HoverLift>
+        <Link href={`/experiences/${experience.slug}`} className="block">
+          <Card
+            variant={experience.featured ? 'dark' : 'default'}
+            className="flex h-full flex-col overflow-hidden p-0"
+          >
+            {/* Hero — 16:10-ish to match the upstream crops Pollinations
               + Cloudflare Images deliver. Falls back to a tonal block
               in the category colour when no photo is uploaded yet, so
               cards stay visually consistent before the photography
               session lands. */}
-          <div
-            className={cn(
-              'relative aspect-[16/10] w-full overflow-hidden',
-              !experience.heroImage && CATEGORY_PLACEHOLDER[experience.category],
-            )}
-          >
-            {experience.heroImage && (
-              <Image
-                src={experience.heroImage}
-                alt={title}
-                fill
-                sizes="(min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw"
-                className="object-cover"
-                priority={experience.featured}
-              />
-            )}
-          </div>
-
-          <div className="flex flex-1 flex-col gap-4 p-6">
-            <div className="flex items-center gap-2">
-              <span
-                className={`size-2 rounded-full ${experience.featured ? 'bg-saffron-gold' : CATEGORY_DOT[experience.category]}`}
-                aria-hidden
-              />
-              <span className={labelClassName}>
-                {experience.featured ? t('originals') : categoryLabel}
-              </span>
-              {experience.bookingMode === 'instant' && (
-                <span
-                  className={cn(
-                    'inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium',
-                    experience.featured
-                      ? 'bg-fog-white/15 text-fog-white'
-                      : 'bg-saffron-gold/20 text-sarat-black',
-                  )}
-                >
-                  <Zap className="size-3 shrink-0" aria-hidden />
-                  {t('instant')}
-                </span>
+            <div
+              className={cn(
+                'relative aspect-[16/10] w-full overflow-hidden',
+                !experience.heroImage && CATEGORY_PLACEHOLDER[experience.category],
+              )}
+            >
+              {experience.heroImage && (
+                <Image
+                  src={experience.heroImage}
+                  alt={title}
+                  fill
+                  sizes="(min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw"
+                  className="object-cover"
+                  priority={experience.featured}
+                />
               )}
             </div>
 
-            <div className="flex flex-col gap-2">
-              <h3 className="font-display text-2xl font-medium tracking-[-0.025em] text-balance">
-                {title}
-              </h3>
-              <p className={`text-base ${muted}`}>{description}</p>
-            </div>
-
-            <div
-              className={`mt-auto flex flex-wrap items-baseline gap-x-3 gap-y-1 text-sm ${muted}`}
-            >
-              <span>{placeName}</span>
-              <span aria-hidden>·</span>
-              <span>
-                {durationHours(experience.durationMinutes, locale)} {t('hours')}
-              </span>
-              <span aria-hidden>·</span>
-              <span>{hostName}</span>
-            </div>
-
-            <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-2">
-              <p className="text-base font-medium">
-                {formatSAR(experience.priceSar, locale)}
-                <span className={`text-sm font-normal ${muted}`}> {t('perPerson')}</span>
-              </p>
-
-              {ratingDisplay && (
-                <p
-                  className={cn('flex items-center gap-1.5 text-sm', muted)}
-                  aria-label={tr('ratingLabel', { rating: experience.ratingAverage ?? 0 })}
-                >
-                  <Star className="text-saffron-gold size-3.5 shrink-0" aria-hidden />
+            <div className="flex flex-1 flex-col gap-4 p-6">
+              <div className="flex items-center gap-2">
+                <span
+                  className={`size-2 rounded-full ${experience.featured ? 'bg-saffron-gold' : CATEGORY_DOT[experience.category]}`}
+                  aria-hidden
+                />
+                <span className={labelClassName}>
+                  {experience.featured ? t('originals') : categoryLabel}
+                </span>
+                {experience.bookingMode === 'instant' && (
                   <span
                     className={cn(
-                      'font-medium',
-                      experience.featured ? 'text-fog-white' : 'text-sarat-black',
+                      'inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium',
+                      experience.featured
+                        ? 'bg-fog-white/15 text-fog-white'
+                        : 'bg-saffron-gold/20 text-sarat-black',
                     )}
                   >
-                    {ratingDisplay}
+                    <Zap className="size-3 shrink-0" aria-hidden />
+                    {t('instant')}
                   </span>
-                  <span>({ratingCountDisplay})</span>
+                )}
+              </div>
+
+              <div className="flex flex-col gap-2">
+                <h3 className="font-display text-2xl font-medium tracking-[-0.025em] text-balance">
+                  {title}
+                </h3>
+                <p className={`text-base ${muted}`}>{description}</p>
+              </div>
+
+              <div
+                className={`mt-auto flex flex-wrap items-baseline gap-x-3 gap-y-1 text-sm ${muted}`}
+              >
+                <span>{placeName}</span>
+                <span aria-hidden>·</span>
+                <span>
+                  {durationHours(experience.durationMinutes, locale)} {t('hours')}
+                </span>
+                <span aria-hidden>·</span>
+                <span>{hostName}</span>
+              </div>
+
+              <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-2">
+                <p className="text-base font-medium">
+                  {formatSAR(experience.priceSar, locale)}
+                  <span className={`text-sm font-normal ${muted}`}> {t('perPerson')}</span>
                 </p>
-              )}
+
+                {ratingDisplay && (
+                  <p
+                    className={cn('flex items-center gap-1.5 text-sm', muted)}
+                    aria-label={tr('ratingLabel', { rating: experience.ratingAverage ?? 0 })}
+                  >
+                    <Star className="text-saffron-gold size-3.5 shrink-0" aria-hidden />
+                    <span
+                      className={cn(
+                        'font-medium',
+                        experience.featured ? 'text-fog-white' : 'text-sarat-black',
+                      )}
+                    >
+                      {ratingDisplay}
+                    </span>
+                    <span>({ratingCountDisplay})</span>
+                  </p>
+                )}
+              </div>
             </div>
-          </div>
-        </Card>
-      </Link>
+          </Card>
+        </Link>
+      </HoverLift>
       {actions && <div className="absolute end-4 top-4 z-10">{actions}</div>}
     </div>
   );

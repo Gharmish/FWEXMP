@@ -9,6 +9,7 @@ import { FilterBar } from '@/features/experiences/components/filter-bar';
 import { SortSelect } from '@/features/experiences/components/sort-select';
 import { SearchInput } from '@/features/experiences/components/search-input';
 import { EmptyState } from '@/features/experiences/components/empty-state';
+import { Stagger, StaggerItem } from '@/components/ui/motion';
 import { CATEGORIES } from '@/features/experiences/lib/sample-data';
 import { getExperiencesFiltered, getFeaturedExperiences } from '@/features/experiences/queries';
 import { parseSearchParams } from '@/features/experiences/lib/search';
@@ -126,22 +127,23 @@ export default async function ExperiencesIndexPage({
             <h2 className="font-display mb-8 text-3xl font-medium tracking-[-0.03em]">
               {t('featured')}
             </h2>
-            <div className="grid gap-4 sm:grid-cols-2">
+            <Stagger className="grid gap-4 sm:grid-cols-2">
               {featured.map((experience) => (
-                <ExperienceCard
-                  key={experience.slug}
-                  experience={experience}
-                  locale={loc}
-                  actions={
-                    <WishlistButton
-                      slug={experience.slug}
-                      isSaved={savedSlugs.has(experience.slug)}
-                      surface={experience.featured ? 'dark' : 'light'}
-                    />
-                  }
-                />
+                <StaggerItem key={experience.slug}>
+                  <ExperienceCard
+                    experience={experience}
+                    locale={loc}
+                    actions={
+                      <WishlistButton
+                        slug={experience.slug}
+                        isSaved={savedSlugs.has(experience.slug)}
+                        surface={experience.featured ? 'dark' : 'light'}
+                      />
+                    }
+                  />
+                </StaggerItem>
               ))}
-            </div>
+            </Stagger>
           </div>
         </section>
       )}
@@ -164,22 +166,23 @@ export default async function ExperiencesIndexPage({
           {results.length === 0 ? (
             <EmptyState locale={loc} />
           ) : (
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            <Stagger className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {results.map((experience) => (
-                <ExperienceCard
-                  key={experience.slug}
-                  experience={experience}
-                  locale={loc}
-                  actions={
-                    <WishlistButton
-                      slug={experience.slug}
-                      isSaved={savedSlugs.has(experience.slug)}
-                      surface={experience.featured ? 'dark' : 'light'}
-                    />
-                  }
-                />
+                <StaggerItem key={experience.slug}>
+                  <ExperienceCard
+                    experience={experience}
+                    locale={loc}
+                    actions={
+                      <WishlistButton
+                        slug={experience.slug}
+                        isSaved={savedSlugs.has(experience.slug)}
+                        surface={experience.featured ? 'dark' : 'light'}
+                      />
+                    }
+                  />
+                </StaggerItem>
               ))}
-            </div>
+            </Stagger>
           )}
         </div>
       </section>

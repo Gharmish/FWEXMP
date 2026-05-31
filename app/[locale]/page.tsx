@@ -11,6 +11,7 @@ import { SITE_URL, SITE_NAME, SITE_DESCRIPTION } from '@/lib/site';
 import { buttonVariants } from '@/components/ui/button';
 import { JsonLd } from '@/components/seo/json-ld';
 import { ExperienceCard } from '@/features/experiences/components/experience-card';
+import { Stagger, StaggerItem } from '@/components/ui/motion';
 import { CATEGORIES } from '@/features/experiences/lib/sample-data';
 import { getExperiences, getFeaturedExperiences } from '@/features/experiences/queries';
 import { getAllHosts } from '@/features/hosts/queries';
@@ -140,22 +141,23 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
           </h2>
           <p className="text-sarat-black-600 text-base">{t('originalsSub')}</p>
         </div>
-        <div className="grid gap-4 sm:grid-cols-2">
+        <Stagger className="grid gap-4 sm:grid-cols-2">
           {featured.map((e) => (
-            <ExperienceCard
-              key={e.slug}
-              experience={e}
-              locale={loc}
-              actions={
-                <WishlistButton
-                  slug={e.slug}
-                  isSaved={savedSlugs.has(e.slug)}
-                  surface={e.featured ? 'dark' : 'light'}
-                />
-              }
-            />
+            <StaggerItem key={e.slug}>
+              <ExperienceCard
+                experience={e}
+                locale={loc}
+                actions={
+                  <WishlistButton
+                    slug={e.slug}
+                    isSaved={savedSlugs.has(e.slug)}
+                    surface={e.featured ? 'dark' : 'light'}
+                  />
+                }
+              />
+            </StaggerItem>
           ))}
-        </div>
+        </Stagger>
       </section>
 
       {/* All experiences */}
@@ -170,22 +172,23 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
             <ArrowRight className="size-4 shrink-0 rtl:rotate-180" aria-hidden />
           </Link>
         </div>
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <Stagger className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {experiences.map((e) => (
-            <ExperienceCard
-              key={e.slug}
-              experience={e}
-              locale={loc}
-              actions={
-                <WishlistButton
-                  slug={e.slug}
-                  isSaved={savedSlugs.has(e.slug)}
-                  surface={e.featured ? 'dark' : 'light'}
-                />
-              }
-            />
+            <StaggerItem key={e.slug}>
+              <ExperienceCard
+                experience={e}
+                locale={loc}
+                actions={
+                  <WishlistButton
+                    slug={e.slug}
+                    isSaved={savedSlugs.has(e.slug)}
+                    surface={e.featured ? 'dark' : 'light'}
+                  />
+                }
+              />
+            </StaggerItem>
           ))}
-        </div>
+        </Stagger>
       </section>
 
       {/* Hosts row — surfaces /hosts/[slug] from the home page. */}

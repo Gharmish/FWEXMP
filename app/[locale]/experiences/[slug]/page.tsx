@@ -19,6 +19,7 @@ import { getScheduleDataBySlug } from '@/features/availability/queries';
 import { addDays, bookableDates } from '@/features/bookings/lib/availability';
 import { ReviewsSection } from '@/features/reviews/components/reviews-section';
 import { getReviewAggregateForExperience } from '@/features/reviews/queries';
+import { FadeIn } from '@/components/ui/motion';
 
 export async function generateStaticParams() {
   const slugs = await getAllSlugs();
@@ -263,26 +264,28 @@ export default async function ExperienceDetailPage({
             <p className="text-sarat-black-600 text-lg">{description}</p>
           </section>
 
-          <section className="flex flex-col gap-5">
-            <h2 className="font-display text-2xl font-medium tracking-[-0.025em]">
-              {t('timeline')}
-            </h2>
-            <ol className="flex flex-col gap-5">
-              {exp.moments.map((m) => (
-                <li key={m.orderIndex} className="flex flex-col gap-1">
-                  <span className={eyebrowClassName}>
-                    {loc === 'ar' ? toArabicText(m.timeOfDay) : m.timeOfDay}
-                  </span>
-                  <span className="text-lg font-medium">
-                    {loc === 'ar' ? m.titleAr : m.titleEn}
-                  </span>
-                  <span className="text-sarat-black-600 text-base">
-                    {loc === 'ar' ? m.descriptionAr : m.descriptionEn}
-                  </span>
-                </li>
-              ))}
-            </ol>
-          </section>
+          <FadeIn>
+            <section className="flex flex-col gap-5">
+              <h2 className="font-display text-2xl font-medium tracking-[-0.025em]">
+                {t('timeline')}
+              </h2>
+              <ol className="flex flex-col gap-5">
+                {exp.moments.map((m) => (
+                  <li key={m.orderIndex} className="flex flex-col gap-1">
+                    <span className={eyebrowClassName}>
+                      {loc === 'ar' ? toArabicText(m.timeOfDay) : m.timeOfDay}
+                    </span>
+                    <span className="text-lg font-medium">
+                      {loc === 'ar' ? m.titleAr : m.titleEn}
+                    </span>
+                    <span className="text-sarat-black-600 text-base">
+                      {loc === 'ar' ? m.descriptionAr : m.descriptionEn}
+                    </span>
+                  </li>
+                ))}
+              </ol>
+            </section>
+          </FadeIn>
 
           {inclusions.length > 0 && (
             <section className="flex flex-col gap-3">
