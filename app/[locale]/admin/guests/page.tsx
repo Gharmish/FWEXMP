@@ -116,7 +116,7 @@ export default async function AdminGuestsPage({
                 <div className="flex min-w-0 flex-col gap-1">
                   <span className="text-base font-medium">{row.name}</span>
                   <div className="text-sarat-black-600 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
-                    <span dir="ltr">{row.phone}</span>
+                    <span dir="ltr">{row.phone ?? '—'}</span>
                     {row.email && (
                       <>
                         <span aria-hidden>·</span>

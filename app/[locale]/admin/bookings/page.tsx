@@ -248,7 +248,7 @@ export default async function AdminBookingsPage({
                         <div className="text-sarat-black-600 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
                           <span>{row.guestName}</span>
                           <span aria-hidden>·</span>
-                          <span dir="ltr">{row.guestPhone}</span>
+                          <span dir="ltr">{row.guestPhone ?? '—'}</span>
                           <span aria-hidden>·</span>
                           <span>{t('bookingsList.partyOf', { count: row.partySize })}</span>
                         </div>

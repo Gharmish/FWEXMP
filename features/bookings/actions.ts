@@ -175,15 +175,24 @@ export async function requestBooking(
       status = 'confirmed';
     }
 
-    // Claim the guest record for the signed-in account when we have one, so
-    // the profile page can later resolve it by auth id (see
-    // features/account/profile/queries.ts). Anonymous bookings leave it null.
+    // Resolve the guest for this booking. For a signed-in account, the row
+    // is keyed by auth id first — an email-OTP user may already have a
+    // phone-less profile row, and `authUserId` is UNIQUE, so we must reuse it
+    // (and backfill the phone) rather than insert a colliding second row.
+    // Anonymous bookings fall back to phone match, then create.
     const authUserId = (await getCurrentUser())?.id ?? null;
 
-    let guest = await db.query.guests.findFirst({
-      where: (g) => eq(g.phone, input.phone),
-      columns: { id: true, authUserId: true },
-    });
+    let guest =
+      (authUserId
+        ? await db.query.guests.findFirst({
+            where: (g) => eq(g.authUserId, authUserId),
+            columns: { id: true, authUserId: true, phone: true },
+          })
+        : undefined) ??
+      (await db.query.guests.findFirst({
+        where: (g) => eq(g.phone, input.phone),
+        columns: { id: true, authUserId: true, phone: true },
+      }));
 
     if (!guest) {
       [guest] = await db
@@ -194,9 +203,15 @@ export async function requestBooking(
           preferredLanguage: input.locale,
           authUserId,
         })
-        .returning({ id: guests.id, authUserId: guests.authUserId });
-    } else if (authUserId && !guest.authUserId) {
-      await db.update(guests).set({ authUserId }).where(eq(guests.id, guest.id));
+        .returning({ id: guests.id, authUserId: guests.authUserId, phone: guests.phone });
+    } else {
+      // Backfill the auth link and/or the phone on an existing row.
+      const patch: Partial<{ authUserId: string; phone: string }> = {};
+      if (authUserId && !guest.authUserId) patch.authUserId = authUserId;
+      if (!guest.phone) patch.phone = input.phone;
+      if (Object.keys(patch).length > 0) {
+        await db.update(guests).set(patch).where(eq(guests.id, guest.id));
+      }
     }
 
     await db.insert(bookings).values({

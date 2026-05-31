@@ -50,7 +50,7 @@ function matchesQuery(row: AdminBookingRow, q: string): boolean {
   ];
   if (haystacks.some((h) => h.includes(needle))) return true;
   if (digits.length > 0) {
-    const phoneDigits = row.guestPhone.replace(/\D/g, '');
+    const phoneDigits = (row.guestPhone ?? '').replace(/\D/g, '');
     // Match the E.164 store against a locally-typed number too: a guest
     // saved as +966 51… should be found by "0512…" (strip the leading 0).
     const localized = digits.replace(/^0+/, '');

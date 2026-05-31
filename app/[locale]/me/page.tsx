@@ -68,10 +68,12 @@ export default async function MePage({ params }: { params: Promise<{ locale: str
               <Avatar name={profile.name} src={profile.avatarUrl ?? undefined} size="md" />
               <div className="flex min-w-0 flex-col">
                 <span className="truncate font-medium">{profile.name}</span>
-                {/* Phone stays LTR-isolated so +966 reads correctly in RTL. */}
-                <span className="text-sarat-black-600 truncate text-sm" dir="ltr">
-                  {profile.phone}
-                </span>
+                {/* Phone (or email) stays LTR-isolated so it reads correctly in RTL. */}
+                {(profile.phone || profile.email) && (
+                  <span className="text-sarat-black-600 truncate text-sm" dir="ltr">
+                    {profile.phone ?? profile.email}
+                  </span>
+                )}
               </div>
               <Link
                 href="/me/profile"

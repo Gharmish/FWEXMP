@@ -8,7 +8,8 @@ import type { Locale } from '@/lib/i18n';
 export interface GuestProfile {
   id: string;
   name: string;
-  phone: string;
+  /** Null for guests who signed in with email and haven't booked yet. */
+  phone: string | null;
   email: string | null;
   avatarUrl: string | null;
   preferredLanguage: Locale;

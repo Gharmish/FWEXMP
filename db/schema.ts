@@ -178,8 +178,13 @@ export const hosts = pgTable('hosts', {
 
 export const guests = pgTable('guests', {
   id: uuid().defaultRandom().primaryKey(),
-  /** Phone is the primary identifier in KSA (BRIEF §8). */
-  phone: text().notNull().unique(),
+  /**
+   * Phone is the primary identifier in KSA (BRIEF §8), but nullable: a
+   * guest who signs in with email OTP has no phone until they make a
+   * booking (the booking form collects one). UNIQUE still holds — Postgres
+   * treats NULLs as distinct, so many email-only guests can coexist.
+   */
+  phone: text().unique(),
   /**
    * Links this guest to the signed-in account (Supabase auth user id, or
    * the stub-session id in dev). Nullable + unique: guests are first

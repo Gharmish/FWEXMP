@@ -82,10 +82,13 @@ export default async function ProfilePage({ params }: { params: Promise<{ locale
               <p className="font-display text-2xl font-medium tracking-[-0.025em]">
                 {profile.name}
               </p>
-              {/* Phone stays LTR-isolated so +966 reads correctly in RTL. */}
-              <p className="text-sarat-black-600 text-sm" dir="ltr">
-                {profile.phone}
-              </p>
+              {/* Phone (or email for email-OTP users) — LTR-isolated so +966
+                  and addresses read correctly inside an RTL layout. */}
+              {(profile.phone || profile.email) && (
+                <p className="text-sarat-black-600 text-sm" dir="ltr">
+                  {profile.phone ?? profile.email}
+                </p>
+              )}
             </div>
             <AvatarUpload
               avatarUrl={profile.avatarUrl}

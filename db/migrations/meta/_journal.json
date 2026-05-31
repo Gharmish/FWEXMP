@@ -78,6 +78,13 @@
       "when": 1780237060242,
       "tag": "0010_even_matthew_murdock",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1780249939759,
+      "tag": "0011_spotty_talisman",
+      "breakpoints": true
     }
   ]
 }

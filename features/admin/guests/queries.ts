@@ -31,7 +31,8 @@ export async function isAdminAndDbReady(): Promise<AdminGuardFailure | null> {
 export interface AdminGuestRow {
   id: string;
   name: string;
-  phone: string;
+  /** Null for email-OTP guests who haven't booked yet. */
+  phone: string | null;
   email: string | null;
   bookings: number;
   spentSar: number;

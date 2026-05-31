@@ -29,5 +29,6 @@ export interface AdminBookingRow {
   experienceTitleEn: string;
 
   guestName: string;
-  guestPhone: string;
+  /** Null for email-OTP guests (the column is nullable); booked guests usually have one. */
+  guestPhone: string | null;
 }

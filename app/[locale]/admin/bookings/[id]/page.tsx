@@ -66,7 +66,7 @@ export default async function AdminBookingDetailPage({
 
   const rows: Array<{ label: string; value: ReactNode; dir?: 'ltr' }> = [
     { label: t('bookingDetail.guest'), value: booking.guestName },
-    { label: t('bookingDetail.phone'), value: booking.guestPhone, dir: 'ltr' },
+    { label: t('bookingDetail.phone'), value: booking.guestPhone ?? '—', dir: 'ltr' },
     {
       label: t('bookingDetail.date'),
       value: `${formatDate(new Date(booking.date), loc)} · ${booking.startTime}`,

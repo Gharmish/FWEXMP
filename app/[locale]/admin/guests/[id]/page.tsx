@@ -53,7 +53,7 @@ export default async function AdminGuestDetailPage({
   if (!guest) notFound();
 
   const facts: Array<{ label: string; value: ReactNode; dir?: 'ltr' }> = [
-    { label: t('guestDetail.phone'), value: guest.phone, dir: 'ltr' },
+    { label: t('guestDetail.phone'), value: guest.phone ?? '—', dir: 'ltr' },
     { label: t('guestDetail.email'), value: guest.email ?? '—', dir: 'ltr' },
     { label: t('guestDetail.language'), value: guest.preferredLanguage.toUpperCase() },
     { label: t('guestDetail.totalSpent'), value: <Price amount={guest.spentSar} locale={loc} /> },
