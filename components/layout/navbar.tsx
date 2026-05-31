@@ -53,7 +53,7 @@ export async function Navbar() {
                   <span className="hidden sm:inline">{t('hostDashboard')}</span>
                 </Link>
               )}
-              <Link href="/me" className={navLinkClass} aria-label={t('account')}>
+              <Link href="/me/profile" className={navLinkClass} aria-label={t('account')}>
                 <User className="size-5 shrink-0" strokeWidth={1.5} aria-hidden />
                 <span className="hidden sm:inline">{t('account')}</span>
                 <span className="text-sarat-black-600 hidden text-xs sm:inline" dir="ltr">
