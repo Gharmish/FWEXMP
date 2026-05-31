@@ -15,6 +15,7 @@ export function Input({ className, type = 'text', ...props }: InputProps) {
       className={cn(
         'rounded-input border-sarat-black/20 bg-fog-white text-sarat-black h-11 w-full [border-width:0.5px] px-4 text-base',
         'placeholder:text-sarat-black-600 disabled:pointer-events-none disabled:opacity-50',
+        'aria-invalid:border-al-qatt-red',
         className,
       )}
       {...props}

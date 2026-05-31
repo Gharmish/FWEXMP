@@ -15,7 +15,7 @@ import type { Category } from '@/lib/colors';
  * touch-target minimum (BRIEF §6).
  */
 const pillVariants = cva(
-  'inline-flex h-11 shrink-0 items-center gap-2 rounded-button px-4 text-sm font-medium whitespace-nowrap transition-transform duration-200 select-none hover:-translate-y-px disabled:pointer-events-none disabled:opacity-50 [&_svg]:size-4 [&_svg]:shrink-0',
+  'inline-flex h-11 shrink-0 items-center gap-2 rounded-button px-4 text-sm font-medium whitespace-nowrap transition-transform duration-200 select-none hover:-translate-y-px active:translate-y-0 disabled:pointer-events-none disabled:opacity-50 [&_svg]:size-4 [&_svg]:shrink-0',
   {
     variants: {
       category: {
