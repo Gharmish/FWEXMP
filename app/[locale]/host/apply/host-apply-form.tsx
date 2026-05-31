@@ -82,7 +82,7 @@ const FIELDS_WITH_HINTS: ReadonlySet<HostApplyFieldName> = new Set([
 function SubmitButton({ pending: pendingCopy, submit }: { pending: string; submit: string }) {
   const { pending } = useFormStatus();
   return (
-    <Button type="submit" variant="primary" size="lg" disabled={pending}>
+    <Button type="submit" variant="primary" size="lg" pending={pending}>
       {pending ? pendingCopy : submit}
     </Button>
   );

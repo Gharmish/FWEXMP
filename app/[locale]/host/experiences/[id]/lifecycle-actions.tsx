@@ -51,7 +51,7 @@ const initialState: HostExperienceState = { success: false };
 function PublishSubmit({ label, pendingLabel }: { label: string; pendingLabel: string }) {
   const { pending } = useFormStatus();
   return (
-    <Button type="submit" variant="primary" size="md" disabled={pending}>
+    <Button type="submit" variant="primary" size="md" pending={pending}>
       {pending ? pendingLabel : label}
     </Button>
   );
@@ -60,7 +60,7 @@ function PublishSubmit({ label, pendingLabel }: { label: string; pendingLabel: s
 function PauseSubmit({ label, pendingLabel }: { label: string; pendingLabel: string }) {
   const { pending } = useFormStatus();
   return (
-    <Button type="submit" variant="secondary" size="md" disabled={pending}>
+    <Button type="submit" variant="secondary" size="md" pending={pending}>
       {pending ? pendingLabel : label}
     </Button>
   );

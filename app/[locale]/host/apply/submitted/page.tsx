@@ -5,6 +5,7 @@ import { redirect, Link } from '@/lib/i18n';
 import type { Locale } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
 import { buttonVariants } from '@/components/ui/button';
+import { Pop } from '@/components/ui/motion';
 import { getCurrentUser } from '@/features/auth/queries';
 import { getCurrentUserHostApplication } from '@/features/host-applications/queries';
 
@@ -52,7 +53,9 @@ export default async function HostApplySubmittedPage({
     <div className="flex flex-col">
       <section className="mx-auto w-full max-w-2xl px-6 py-20 sm:py-24">
         <div className="flex flex-col items-start gap-5">
-          <CheckCircle2 className="text-juniper-green size-10" aria-hidden strokeWidth={1.5} />
+          <Pop>
+            <CheckCircle2 className="text-juniper-green size-10" aria-hidden strokeWidth={1.5} />
+          </Pop>
           <p className={eyebrowClassName}>{t('eyebrow')}</p>
           <h1 className="font-display text-4xl font-medium tracking-[-0.035em] text-balance sm:text-5xl">
             {t('title')}

@@ -6,6 +6,8 @@ import type { Locale } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
 import { buttonVariants } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { EmptyState } from '@/components/ui/empty-state';
+import { Compass } from 'lucide-react';
 import { formatSAR } from '@/lib/format';
 import { getCurrentUser } from '@/features/auth/queries';
 import { getHostDashboard } from '@/features/host-dashboard/queries';
@@ -154,21 +156,20 @@ export default async function HostDashboardPage({
           </div>
 
           {experiences.length === 0 ? (
-            <div className="border-sarat-black/8 rounded-card flex flex-col items-start gap-6 [border-width:0.5px] p-10">
-              <p className={eyebrowClassName}>{t('experiences.empty.eyebrow')}</p>
-              <h3 className="font-display text-2xl font-medium tracking-[-0.025em]">
-                {t('experiences.empty.title')}
-              </h3>
-              <p className="text-sarat-black-600 max-w-xl text-base">
-                {t('experiences.empty.description')}
-              </p>
-              <Link
-                href="/host/experiences/new"
-                className={cn(buttonVariants({ variant: 'primary', size: 'lg' }))}
-              >
-                {t('experiences.newCta')}
-              </Link>
-            </div>
+            <EmptyState
+              icon={Compass}
+              eyebrow={t('experiences.empty.eyebrow')}
+              title={t('experiences.empty.title')}
+              description={t('experiences.empty.description')}
+              action={
+                <Link
+                  href="/host/experiences/new"
+                  className={cn(buttonVariants({ variant: 'primary', size: 'lg' }))}
+                >
+                  {t('experiences.newCta')}
+                </Link>
+              }
+            />
           ) : (
             <ul className="border-sarat-black/8 rounded-card flex flex-col divide-y divide-[var(--color-sarat-black)]/8 [border-width:0.5px]">
               {experiences.map((experience) => (
