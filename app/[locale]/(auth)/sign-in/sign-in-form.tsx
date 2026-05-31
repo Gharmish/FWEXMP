@@ -3,9 +3,11 @@
 import { useActionState, useEffect, useId, useState } from 'react';
 import { useFormStatus } from 'react-dom';
 import { ArrowLeft } from 'lucide-react';
+import { motion, useReducedMotion } from 'framer-motion';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { SPRING } from '@/components/ui/motion';
 import type { Locale } from '@/lib/i18n';
 import { formatSaudiPhone } from '@/lib/format';
 import {
@@ -57,9 +59,29 @@ const initialVerifyState: VerifyOtpState = { success: false, stage: 'code', meth
 function SubmitButton({ pendingCopy, submitCopy }: { pendingCopy: string; submitCopy: string }) {
   const { pending } = useFormStatus();
   return (
-    <Button type="submit" variant="primary" size="lg" className="w-full" disabled={pending}>
+    <Button type="submit" variant="primary" size="lg" className="w-full" pending={pending}>
       {pending ? pendingCopy : submitCopy}
     </Button>
+  );
+}
+
+/**
+ * Spring step wrapper for the two OTP stages. Each stage slides up + fades on
+ * mount (keyed by stage so React remounts on transition). Static under
+ * prefers-reduced-motion (BRIEF §3).
+ */
+function StepTransition({ stepKey, children }: { stepKey: string; children: React.ReactNode }) {
+  const reduce = useReducedMotion();
+  if (reduce) return <>{children}</>;
+  return (
+    <motion.div
+      key={stepKey}
+      initial={{ opacity: 0, y: 12 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={SPRING}
+    >
+      {children}
+    </motion.div>
   );
 }
 
@@ -126,115 +148,121 @@ export function SignInForm({ locale, next, isStubMode, copy }: SignInFormProps) 
 
     const tabClass = (active: boolean) =>
       cn(
-        'min-h-11 flex-1 rounded-button text-sm font-medium transition-colors duration-200',
+        'min-h-11 flex-1 rounded-button text-sm font-medium transition-[colors,transform] duration-200 active:translate-y-0',
         active
           ? 'bg-sarat-black text-fog-white'
-          : 'border-sarat-black/20 text-sarat-black [border-width:0.5px]',
+          : 'border-sarat-black/20 text-sarat-black [border-width:0.5px] hover:border-sarat-black/40',
       );
 
     return (
-      <form
-        action={requestAction}
-        onSubmit={() => setShowPhoneStep(false)}
-        noValidate
-        className="flex flex-col gap-5"
-      >
-        <input type="hidden" name="locale" value={locale} />
-        <input type="hidden" name="next" value={next} />
-        <input type="hidden" name="method" value={method} />
-
-        {/* Channel toggle */}
-        <div
-          className="flex gap-2"
-          role="group"
-          aria-label={`${copy.methodPhone} / ${copy.methodEmail}`}
+      <StepTransition stepKey="phone">
+        <form
+          action={requestAction}
+          onSubmit={() => setShowPhoneStep(false)}
+          noValidate
+          className="flex flex-col gap-5"
         >
-          <button
-            type="button"
-            onClick={() => setMethod('phone')}
-            className={tabClass(method === 'phone')}
+          <input type="hidden" name="locale" value={locale} />
+          <input type="hidden" name="next" value={next} />
+          <input type="hidden" name="method" value={method} />
+
+          {/* Channel toggle */}
+          <div
+            className="flex gap-2"
+            role="group"
+            aria-label={`${copy.methodPhone} / ${copy.methodEmail}`}
           >
-            {copy.methodPhone}
-          </button>
-          <button
-            type="button"
-            onClick={() => setMethod('email')}
-            className={tabClass(method === 'email')}
-          >
-            {copy.methodEmail}
-          </button>
-        </div>
-
-        {method === 'phone' ? (
-          <div className="flex flex-col gap-2">
-            <label htmlFor="auth-phone" className="text-sm font-medium">
-              {copy.phoneLabel}
-            </label>
-            <Input
-              id="auth-phone"
-              name="phone"
-              type="tel"
-              autoComplete="tel"
-              required
-              dir="ltr"
-              value={phone}
-              onChange={(e) => setPhone(e.target.value)}
-              onBlur={() => {
-                const formatted = formatSaudiPhone(phone);
-                if (formatted !== phone) setPhone(formatted);
-              }}
-              placeholder={copy.phonePlaceholder}
-              aria-invalid={requestFields?.phone ? 'true' : undefined}
-              aria-describedby={
-                `${phoneHintId} ${requestFields?.phone ? phoneErrorId : ''}`.trim() || undefined
-              }
-            />
-            <p id={phoneHintId} className="text-sarat-black-600 text-sm">
-              {copy.phoneHint}
-            </p>
-            <FieldError
-              id={phoneErrorId}
-              message={requestFields?.phone ? copy.errors.invalidPhone : undefined}
-            />
+            <button
+              type="button"
+              onClick={() => setMethod('phone')}
+              className={tabClass(method === 'phone')}
+            >
+              {copy.methodPhone}
+            </button>
+            <button
+              type="button"
+              onClick={() => setMethod('email')}
+              className={tabClass(method === 'email')}
+            >
+              {copy.methodEmail}
+            </button>
           </div>
-        ) : (
-          <div className="flex flex-col gap-2">
-            <label htmlFor="auth-email" className="text-sm font-medium">
-              {copy.emailLabel}
-            </label>
-            <Input
-              id="auth-email"
-              name="email"
-              type="email"
-              autoComplete="email"
-              required
-              dir="ltr"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder={copy.emailPlaceholder}
-              aria-invalid={requestFields?.email ? 'true' : undefined}
-              aria-describedby={
-                `${emailHintId} ${requestFields?.email ? emailErrorId : ''}`.trim() || undefined
-              }
-            />
-            <p id={emailHintId} className="text-sarat-black-600 text-sm">
-              {copy.emailHint}
+
+          {method === 'phone' ? (
+            <div className="flex flex-col gap-2">
+              <label htmlFor="auth-phone" className="text-sm font-medium">
+                {copy.phoneLabel}
+              </label>
+              <Input
+                id="auth-phone"
+                name="phone"
+                type="tel"
+                autoComplete="tel"
+                required
+                dir="ltr"
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
+                onBlur={() => {
+                  const formatted = formatSaudiPhone(phone);
+                  if (formatted !== phone) setPhone(formatted);
+                }}
+                placeholder={copy.phonePlaceholder}
+                aria-invalid={requestFields?.phone ? 'true' : undefined}
+                aria-describedby={
+                  `${phoneHintId} ${requestFields?.phone ? phoneErrorId : ''}`.trim() || undefined
+                }
+              />
+              <p id={phoneHintId} className="text-sarat-black-600 text-sm">
+                {copy.phoneHint}
+              </p>
+              <FieldError
+                id={phoneErrorId}
+                message={requestFields?.phone ? copy.errors.invalidPhone : undefined}
+              />
+            </div>
+          ) : (
+            <div className="flex flex-col gap-2">
+              <label htmlFor="auth-email" className="text-sm font-medium">
+                {copy.emailLabel}
+              </label>
+              <Input
+                id="auth-email"
+                name="email"
+                type="email"
+                autoComplete="email"
+                required
+                dir="ltr"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder={copy.emailPlaceholder}
+                aria-invalid={requestFields?.email ? 'true' : undefined}
+                aria-describedby={
+                  `${emailHintId} ${requestFields?.email ? emailErrorId : ''}`.trim() || undefined
+                }
+              />
+              <p id={emailHintId} className="text-sarat-black-600 text-sm">
+                {copy.emailHint}
+              </p>
+              <FieldError
+                id={emailErrorId}
+                message={requestFields?.email ? copy.errors.invalidEmail : undefined}
+              />
+            </div>
+          )}
+
+          {formMessage && (
+            <p
+              role="alert"
+              tabIndex={-1}
+              className="text-al-qatt-red-800 text-sm focus:outline-none"
+            >
+              {formMessage}
             </p>
-            <FieldError
-              id={emailErrorId}
-              message={requestFields?.email ? copy.errors.invalidEmail : undefined}
-            />
-          </div>
-        )}
+          )}
 
-        {formMessage && (
-          <p role="alert" tabIndex={-1} className="text-al-qatt-red-800 text-sm focus:outline-none">
-            {formMessage}
-          </p>
-        )}
-
-        <SubmitButton pendingCopy={copy.requestPending} submitCopy={copy.requestSubmit} />
-      </form>
+          <SubmitButton pendingCopy={copy.requestPending} submitCopy={copy.requestSubmit} />
+        </form>
+      </StepTransition>
     );
   }
 
@@ -242,65 +270,71 @@ export function SignInForm({ locale, next, isStubMode, copy }: SignInFormProps) 
   const verifyMessage = verifyState.message === 'server' ? copy.errors.server : undefined;
 
   return (
-    <form action={verifyAction} noValidate className="flex flex-col gap-5">
-      <input type="hidden" name="locale" value={locale} />
-      <input type="hidden" name="next" value={next} />
-      <input type="hidden" name="method" value={method} />
-      {method === 'email' ? (
-        <input type="hidden" name="email" value={identifier} />
-      ) : (
-        <input type="hidden" name="phone" value={identifier} />
-      )}
+    <StepTransition stepKey="code">
+      <form action={verifyAction} noValidate className="flex flex-col gap-5">
+        <input type="hidden" name="locale" value={locale} />
+        <input type="hidden" name="next" value={next} />
+        <input type="hidden" name="method" value={method} />
+        {method === 'email' ? (
+          <input type="hidden" name="email" value={identifier} />
+        ) : (
+          <input type="hidden" name="phone" value={identifier} />
+        )}
 
-      <div className="flex flex-col gap-2">
-        <p className="text-sarat-black-600 text-sm" dir="ltr" aria-live="polite">
-          {identifier}
-        </p>
-        <button
-          type="button"
-          onClick={() => setShowPhoneStep(true)}
-          className="text-sarat-black inline-flex min-h-11 items-center gap-1 self-start text-sm font-medium transition-opacity duration-200 hover:opacity-60"
-        >
-          <ArrowLeft className="size-4 shrink-0 rtl:rotate-180" aria-hidden />
-          {copy.changeIdentifier}
-        </button>
-      </div>
+        <div className="flex flex-col gap-2">
+          <p className="text-sarat-black-600 text-sm" dir="ltr" aria-live="polite">
+            {identifier}
+          </p>
+          <button
+            type="button"
+            onClick={() => setShowPhoneStep(true)}
+            className="text-sarat-black inline-flex min-h-11 items-center gap-1 self-start text-sm font-medium transition-opacity duration-200 hover:opacity-60"
+          >
+            <ArrowLeft className="size-4 shrink-0 rtl:rotate-180" aria-hidden />
+            {copy.changeIdentifier}
+          </button>
+        </div>
 
-      <div className="flex flex-col gap-2">
-        <label htmlFor="auth-code" className="text-sm font-medium">
-          {copy.codeLabel}
-        </label>
-        <Input
-          id="auth-code"
-          name="code"
-          type="text"
-          inputMode="numeric"
-          autoComplete="one-time-code"
-          pattern="\d{6}"
-          maxLength={6}
-          required
-          dir="ltr"
-          aria-invalid={verifyState.fields?.code ? 'true' : undefined}
-          aria-describedby={
-            `${codeHintId} ${verifyState.fields?.code ? codeErrorId : ''}`.trim() || undefined
-          }
-        />
-        <p id={codeHintId} className="text-sarat-black-600 text-sm">
-          {isStubMode ? copy.codeHintStub : method === 'email' ? copy.codeHintEmail : copy.codeHint}
-        </p>
-        <FieldError
-          id={codeErrorId}
-          message={verifyState.fields?.code ? copy.errors.invalidCode : undefined}
-        />
-      </div>
+        <div className="flex flex-col gap-2">
+          <label htmlFor="auth-code" className="text-sm font-medium">
+            {copy.codeLabel}
+          </label>
+          <Input
+            id="auth-code"
+            name="code"
+            type="text"
+            inputMode="numeric"
+            autoComplete="one-time-code"
+            pattern="\d{6}"
+            maxLength={6}
+            required
+            dir="ltr"
+            aria-invalid={verifyState.fields?.code ? 'true' : undefined}
+            aria-describedby={
+              `${codeHintId} ${verifyState.fields?.code ? codeErrorId : ''}`.trim() || undefined
+            }
+          />
+          <p id={codeHintId} className="text-sarat-black-600 text-sm">
+            {isStubMode
+              ? copy.codeHintStub
+              : method === 'email'
+                ? copy.codeHintEmail
+                : copy.codeHint}
+          </p>
+          <FieldError
+            id={codeErrorId}
+            message={verifyState.fields?.code ? copy.errors.invalidCode : undefined}
+          />
+        </div>
 
-      {verifyMessage && (
-        <p role="alert" tabIndex={-1} className="text-al-qatt-red-800 text-sm focus:outline-none">
-          {verifyMessage}
-        </p>
-      )}
+        {verifyMessage && (
+          <p role="alert" tabIndex={-1} className="text-al-qatt-red-800 text-sm focus:outline-none">
+            {verifyMessage}
+          </p>
+        )}
 
-      <SubmitButton pendingCopy={copy.verifyPending} submitCopy={copy.verifySubmit} />
-    </form>
+        <SubmitButton pendingCopy={copy.verifyPending} submitCopy={copy.verifySubmit} />
+      </form>
+    </StepTransition>
   );
 }

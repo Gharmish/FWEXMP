@@ -2,8 +2,10 @@
 
 import { useOptimistic, useTransition } from 'react';
 import { Heart } from 'lucide-react';
+import { motion, useReducedMotion } from 'framer-motion';
 import { useTranslations } from 'next-intl';
 import { cn } from '@/lib/utils';
+import { SPRING } from '@/components/ui/motion';
 import { toggleWishlist } from '@/features/wishlist/actions';
 
 interface WishlistButtonProps {
@@ -31,6 +33,7 @@ export function WishlistButton({ slug, isSaved, surface = 'light' }: WishlistBut
   const t = useTranslations('wishlistButton');
   const [optimisticSaved, setOptimisticSaved] = useOptimistic(isSaved);
   const [isPending, startTransition] = useTransition();
+  const reduce = useReducedMotion();
 
   function handleClick() {
     startTransition(async () => {
@@ -45,34 +48,56 @@ export function WishlistButton({ slug, isSaved, surface = 'light' }: WishlistBut
       : 'bg-fog-white/85 hover:bg-fog-white';
   const savedBg = 'bg-saffron-gold/15 hover:bg-saffron-gold/20';
 
-  return (
-    <button
-      type="button"
-      onClick={handleClick}
-      aria-pressed={optimisticSaved}
-      aria-label={optimisticSaved ? t('remove') : t('save')}
-      // Disabling-while-pending would block double-tap retries; we
-      // leave the button live but de-emphasise it via opacity so it
-      // doesn't *look* tappable mid-flight.
-      data-pending={isPending ? 'true' : undefined}
+  // Quiet "alive" cue: a spring scale-pop on the heart each time the saved
+  // state flips on (keyed re-mount drives the keyframe). Tap gives a small
+  // press. Both disabled under prefers-reduced-motion (BRIEF §3).
+  const Icon = (
+    <Heart
       className={cn(
-        'inline-flex size-11 items-center justify-center rounded-full transition-transform duration-200 hover:-translate-y-px',
-        'border-sarat-black/10 [border-width:0.5px]',
-        optimisticSaved ? savedBg : baseBg,
-        isPending && 'opacity-80',
+        'size-5 shrink-0',
+        optimisticSaved
+          ? 'text-saffron-gold'
+          : surface === 'dark'
+            ? 'text-fog-white'
+            : 'text-sarat-black-600',
       )}
-    >
-      <Heart
-        className={cn(
-          'size-5 shrink-0',
-          optimisticSaved
-            ? 'text-saffron-gold'
-            : surface === 'dark'
-              ? 'text-fog-white'
-              : 'text-sarat-black-600',
-        )}
-        aria-hidden
-      />
-    </button>
+      aria-hidden
+    />
+  );
+
+  const buttonClassName = cn(
+    'inline-flex size-11 items-center justify-center rounded-full transition-transform duration-200 hover:-translate-y-px active:translate-y-0',
+    'border-sarat-black/10 [border-width:0.5px]',
+    optimisticSaved ? savedBg : baseBg,
+    isPending && 'opacity-80',
+  );
+
+  const sharedProps = {
+    type: 'button' as const,
+    onClick: handleClick,
+    'aria-pressed': optimisticSaved,
+    'aria-label': optimisticSaved ? t('remove') : t('save'),
+    // Disabling-while-pending would block double-tap retries; we leave the
+    // button live but de-emphasise it via opacity so it doesn't *look*
+    // tappable mid-flight.
+    'data-pending': isPending ? ('true' as const) : undefined,
+    className: buttonClassName,
+  };
+
+  if (reduce) {
+    return <button {...sharedProps}>{Icon}</button>;
+  }
+
+  return (
+    <motion.button {...sharedProps} whileTap={{ scale: 0.88 }}>
+      <motion.span
+        key={optimisticSaved ? 'saved' : 'unsaved'}
+        initial={false}
+        animate={optimisticSaved ? { scale: [1, 1.3, 1] } : { scale: 1 }}
+        transition={SPRING}
+      >
+        {Icon}
+      </motion.span>
+    </motion.button>
   );
 }

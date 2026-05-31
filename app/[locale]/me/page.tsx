@@ -5,6 +5,9 @@ import { Link } from '@/lib/i18n';
 import type { Locale } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
 import { buttonVariants } from '@/components/ui/button';
+import { EmptyState } from '@/components/ui/empty-state';
+import { Stagger, StaggerItem } from '@/components/ui/motion';
+import { Compass } from 'lucide-react';
 import { ExperienceCard } from '@/features/experiences/components/experience-card';
 import { WishlistButton } from '@/features/wishlist/components/wishlist-button';
 import { getWishlistExperiences } from '@/features/wishlist/queries';
@@ -75,19 +78,20 @@ export default async function MePage({ params }: { params: Promise<{ locale: str
       {!hasAnything && (
         <section className="border-sarat-black/8 [border-top-width:0.5px]">
           <div className="mx-auto w-full max-w-6xl px-6 py-16 sm:py-20">
-            <div className="border-sarat-black/8 rounded-card flex flex-col items-start gap-6 [border-width:0.5px] p-10">
-              <p className={eyebrowClassName}>{t('emptyEyebrow')}</p>
-              <h2 className="font-display text-2xl font-medium tracking-[-0.025em]">
-                {t('emptyTitle')}
-              </h2>
-              <p className="text-sarat-black-600 max-w-xl text-base">{t('emptyDescription')}</p>
-              <Link
-                href="/experiences"
-                className={cn(buttonVariants({ variant: 'primary', size: 'lg' }))}
-              >
-                {t('emptyCta')}
-              </Link>
-            </div>
+            <EmptyState
+              icon={Compass}
+              eyebrow={t('emptyEyebrow')}
+              title={t('emptyTitle')}
+              description={t('emptyDescription')}
+              action={
+                <Link
+                  href="/experiences"
+                  className={cn(buttonVariants({ variant: 'primary', size: 'lg' }))}
+                >
+                  {t('emptyCta')}
+                </Link>
+              }
+            />
           </div>
         </section>
       )}
@@ -249,22 +253,23 @@ export default async function MePage({ params }: { params: Promise<{ locale: str
                 <ArrowRight className="size-4 shrink-0 rtl:rotate-180" aria-hidden />
               </Link>
             </div>
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            <Stagger className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {wishlist.slice(0, 6).map((experience) => (
-                <ExperienceCard
-                  key={experience.slug}
-                  experience={experience}
-                  locale={loc}
-                  actions={
-                    <WishlistButton
-                      slug={experience.slug}
-                      isSaved
-                      surface={experience.featured ? 'dark' : 'light'}
-                    />
-                  }
-                />
+                <StaggerItem key={experience.slug}>
+                  <ExperienceCard
+                    experience={experience}
+                    locale={loc}
+                    actions={
+                      <WishlistButton
+                        slug={experience.slug}
+                        isSaved
+                        surface={experience.featured ? 'dark' : 'light'}
+                      />
+                    }
+                  />
+                </StaggerItem>
               ))}
-            </div>
+            </Stagger>
           </div>
         </section>
       )}

@@ -1,9 +1,12 @@
 import type { Metadata } from 'next';
+import { Heart } from 'lucide-react';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { cn } from '@/lib/utils';
 import { Link } from '@/lib/i18n';
 import type { Locale } from '@/lib/i18n';
 import { buttonVariants } from '@/components/ui/button';
+import { EmptyState } from '@/components/ui/empty-state';
+import { Stagger, StaggerItem } from '@/components/ui/motion';
 import { ExperienceCard } from '@/features/experiences/components/experience-card';
 import { getWishlistExperiences } from '@/features/wishlist/queries';
 import { WishlistButton } from '@/features/wishlist/components/wishlist-button';
@@ -51,36 +54,38 @@ export default async function WishlistPage({ params }: { params: Promise<{ local
       <section className="border-sarat-black/8 [border-top-width:0.5px]">
         <div className="mx-auto w-full max-w-6xl px-6 py-16 sm:py-20">
           {experiences.length === 0 ? (
-            <div className="border-sarat-black/8 rounded-card flex flex-col items-start gap-6 [border-width:0.5px] p-10">
-              <p className={eyebrowClassName}>{t('emptyEyebrow')}</p>
-              <h2 className="font-display text-2xl font-medium tracking-[-0.025em]">
-                {t('emptyTitle')}
-              </h2>
-              <p className="text-sarat-black-600 max-w-xl text-base">{t('emptyDescription')}</p>
-              <Link
-                href="/experiences"
-                className={cn(buttonVariants({ variant: 'primary', size: 'lg' }))}
-              >
-                {t('emptyCta')}
-              </Link>
-            </div>
+            <EmptyState
+              icon={Heart}
+              eyebrow={t('emptyEyebrow')}
+              title={t('emptyTitle')}
+              description={t('emptyDescription')}
+              action={
+                <Link
+                  href="/experiences"
+                  className={cn(buttonVariants({ variant: 'primary', size: 'lg' }))}
+                >
+                  {t('emptyCta')}
+                </Link>
+              }
+            />
           ) : (
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            <Stagger className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {experiences.map((experience) => (
-                <ExperienceCard
-                  key={experience.slug}
-                  experience={experience}
-                  locale={loc}
-                  actions={
-                    <WishlistButton
-                      slug={experience.slug}
-                      isSaved
-                      surface={experience.featured ? 'dark' : 'light'}
-                    />
-                  }
-                />
+                <StaggerItem key={experience.slug}>
+                  <ExperienceCard
+                    experience={experience}
+                    locale={loc}
+                    actions={
+                      <WishlistButton
+                        slug={experience.slug}
+                        isSaved
+                        surface={experience.featured ? 'dark' : 'light'}
+                      />
+                    }
+                  />
+                </StaggerItem>
               ))}
-            </div>
+            </Stagger>
           )}
         </div>
       </section>
