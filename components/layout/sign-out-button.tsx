@@ -1,3 +1,4 @@
+import { LogOut } from 'lucide-react';
 import { signOut } from '@/features/auth/actions';
 import type { Locale } from '@/lib/i18n';
 
@@ -17,9 +18,11 @@ export function SignOutButton({ locale, label }: SignOutButtonProps) {
       <input type="hidden" name="locale" value={locale} />
       <button
         type="submit"
-        className="text-sarat-black-600 inline-flex min-h-11 items-center px-2 text-sm font-medium transition-opacity duration-200 hover:opacity-60"
+        aria-label={label}
+        className="text-sarat-black-600 inline-flex min-h-11 items-center gap-2 px-2 text-sm font-medium transition-opacity duration-200 hover:opacity-60"
       >
-        {label}
+        <LogOut className="size-5 shrink-0 rtl:rotate-180" strokeWidth={1.5} aria-hidden />
+        <span className="hidden sm:inline">{label}</span>
       </button>
     </form>
   );

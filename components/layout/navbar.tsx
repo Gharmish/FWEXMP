@@ -1,4 +1,5 @@
 import { getLocale, getTranslations } from 'next-intl/server';
+import { Compass, LogIn, Store, User } from 'lucide-react';
 import { Link } from '@/lib/i18n';
 import type { Locale } from '@/lib/i18n';
 import { Wordmark } from '@/components/layout/wordmark';
@@ -11,6 +12,15 @@ import { currentUserIsHost } from '@/features/host-dashboard/queries';
 function phoneTail(phone: string): string {
   return phone.length >= 4 ? `·· ${phone.slice(-4)}` : phone;
 }
+
+/**
+ * Shared styling for nav links: icon + label, with the label collapsing
+ * to icon-only below `sm` to keep the bar uncrowded on mobile. The icon
+ * carries the accessible name via the link's `aria-label`, so hiding the
+ * label visually is safe.
+ */
+const navLinkClass =
+  'text-sarat-black inline-flex min-h-11 items-center gap-2 px-1 text-sm font-medium whitespace-nowrap transition-opacity duration-200 hover:opacity-60 sm:px-2';
 
 /**
  * Sticky, blurred top nav. Restraint-first (BRIEF §3): no shadow, a
@@ -31,28 +41,21 @@ export async function Navbar() {
       <nav className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-3 px-4 sm:px-6">
         <Wordmark locale={locale} />
         <div className="flex items-center gap-1 sm:gap-5">
-          <Link
-            href="/experiences"
-            className="text-sarat-black inline-flex min-h-11 items-center px-1 text-sm font-medium whitespace-nowrap transition-opacity duration-200 hover:opacity-60 sm:px-2"
-          >
-            {t('discover')}
+          <Link href="/experiences" className={navLinkClass} aria-label={t('discover')}>
+            <Compass className="size-5 shrink-0" strokeWidth={1.5} aria-hidden />
+            <span className="hidden sm:inline">{t('discover')}</span>
           </Link>
           {user ? (
             <>
               {isHost && (
-                <Link
-                  href="/host"
-                  className="text-sarat-black inline-flex min-h-11 items-center px-1 text-sm font-medium whitespace-nowrap transition-opacity duration-200 hover:opacity-60 sm:px-2"
-                >
-                  {t('hostDashboard')}
+                <Link href="/host" className={navLinkClass} aria-label={t('hostDashboard')}>
+                  <Store className="size-5 shrink-0" strokeWidth={1.5} aria-hidden />
+                  <span className="hidden sm:inline">{t('hostDashboard')}</span>
                 </Link>
               )}
-              <Link
-                href="/me"
-                className="text-sarat-black inline-flex min-h-11 items-center gap-2 px-1 text-sm font-medium whitespace-nowrap transition-opacity duration-200 hover:opacity-60 sm:px-2"
-                aria-label={t('account')}
-              >
-                <span aria-hidden>{t('account')}</span>
+              <Link href="/me" className={navLinkClass} aria-label={t('account')}>
+                <User className="size-5 shrink-0" strokeWidth={1.5} aria-hidden />
+                <span className="hidden sm:inline">{t('account')}</span>
                 <span className="text-sarat-black-600 hidden text-xs sm:inline" dir="ltr">
                   {phoneTail(user.phone)}
                 </span>
@@ -60,11 +63,9 @@ export async function Navbar() {
               <SignOutButton locale={locale} label={t('signOut')} />
             </>
           ) : (
-            <Link
-              href="/sign-in"
-              className="text-sarat-black inline-flex min-h-11 items-center px-1 text-sm font-medium whitespace-nowrap transition-opacity duration-200 hover:opacity-60 sm:px-2"
-            >
-              {t('signIn')}
+            <Link href="/sign-in" className={navLinkClass} aria-label={t('signIn')}>
+              <LogIn className="size-5 shrink-0 rtl:rotate-180" strokeWidth={1.5} aria-hidden />
+              <span className="hidden sm:inline">{t('signIn')}</span>
             </Link>
           )}
           <LanguageSwitcher />
