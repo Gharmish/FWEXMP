@@ -6,6 +6,7 @@ import { useTranslations } from 'next-intl';
 import { usePathname, useRouter } from '@/lib/i18n';
 import type { Locale } from '@/lib/i18n';
 import { Pill } from '@/components/ui/pill';
+import { RiyalSymbol } from '@/components/ui/riyal-symbol';
 import { cn } from '@/lib/utils';
 import type { CategoryMeta } from '@/features/experiences/types';
 import {
@@ -136,7 +137,9 @@ export function FilterBar({ locale, categories, resultCount }: FilterBarProps) {
 
       <div className="flex flex-col gap-3 sm:flex-row sm:gap-8">
         <fieldset className="flex flex-col gap-2">
-          <legend className={eyebrowClassName}>{t('priceLegend')}</legend>
+          <legend className={eyebrowClassName}>
+            {t('priceLegend')} (<RiyalSymbol className="h-[0.9em] align-[-0.1em]" />)
+          </legend>
           <div className="-mx-1 flex flex-wrap gap-2 px-1">
             {PRICE_BUCKETS.map((bucket) => (
               <Pill

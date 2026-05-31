@@ -4,6 +4,7 @@ import { useActionState, useId } from 'react';
 import { useFormStatus } from 'react-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { RiyalSymbol } from '@/components/ui/riyal-symbol';
 import { cn } from '@/lib/utils';
 import type { Locale } from '@/lib/i18n';
 import {
@@ -290,7 +291,7 @@ export function ExperienceForm({ mode, locale, copy, experience }: ExperienceFor
 
         <div className="flex flex-col gap-2">
           <label htmlFor="ex-priceSar" className="text-sm font-medium">
-            {copy.priceLabel}
+            {copy.priceLabel} (<RiyalSymbol className="h-[0.9em] align-[-0.1em]" />)
           </label>
           <Input
             id="ex-priceSar"

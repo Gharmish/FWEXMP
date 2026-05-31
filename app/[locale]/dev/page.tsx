@@ -14,6 +14,7 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Avatar } from '@/components/ui/avatar';
 import { Pill } from '@/components/ui/pill';
+import { RiyalSymbol } from '@/components/ui/riyal-symbol';
 import { IconButton } from '@/components/ui/icon-button';
 import { ExperienceCard } from '@/features/experiences/components/experience-card';
 import type { ExperienceSummary } from '@/features/experiences/types';
@@ -46,8 +47,16 @@ const TYPE_SCALE = [
   {
     role: 'Caption',
     cls: 'text-[13px] tracking-[0.02em] uppercase',
-    en: 'From SAR 480',
-    ar: 'من ٤٨٠ ر.س',
+    en: (
+      <>
+        From <RiyalSymbol className="h-[0.9em] align-[-0.1em]" /> 480
+      </>
+    ),
+    ar: (
+      <>
+        من ٤٨٠ <RiyalSymbol className="h-[0.9em] align-[-0.1em]" />
+      </>
+    ),
   },
   {
     role: 'Eyebrow',
@@ -378,7 +387,10 @@ export default async function StyleGuidePage({ params }: { params: Promise<{ loc
             <Pill selected>All</Pill>
             <Pill>Abha</Pill>
             <Pill>This weekend</Pill>
-            <Pill>Under SAR 300</Pill>
+            <Pill>
+              Under <RiyalSymbol className="h-[0.9em] align-[-0.1em]" />
+              300
+            </Pill>
           </div>
           <div className="flex flex-wrap items-center gap-3">
             {(Object.keys(CATEGORY_COLOR) as Category[]).map((category) => (

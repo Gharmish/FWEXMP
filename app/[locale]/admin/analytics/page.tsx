@@ -162,7 +162,7 @@ export default async function AdminAnalyticsPage({
           <p className="text-sarat-black-600 text-xs">{t('analytics.sparkSubtitle')}</p>
         </div>
         <div className="border-sarat-black/8 rounded-card [border-width:0.5px] p-6">
-          <Sparkline points={snapshot.sparkline} />
+          <Sparkline points={snapshot.sparkline} locale={loc} />
         </div>
       </section>
 
@@ -327,7 +327,7 @@ function Row({ label, value, muted }: { label: string; value: number; muted?: bo
  * bookings count. Deliberately tiny: a chart library is overkill for
  * 30 numbers, and Tailwind+SVG ages better than a third-party dep.
  */
-function Sparkline({ points }: { points: readonly SparklinePoint[] }) {
+function Sparkline({ points, locale }: { points: readonly SparklinePoint[]; locale: Locale }) {
   const max = Math.max(1, ...points.map((p) => p.bookings));
   const width = 100;
   const height = 24;
@@ -363,8 +363,8 @@ function Sparkline({ points }: { points: readonly SparklinePoint[] }) {
       </svg>
       <div className="text-sarat-black-600 flex justify-between text-xs">
         <span dir="ltr">{points[0]?.date ?? '—'}</span>
-        <span>
-          {totalBookings} · {totalGmv.toLocaleString('en-US')} SAR
+        <span className="inline-flex items-baseline gap-1">
+          {totalBookings} · <Price amount={totalGmv} locale={locale} />
         </span>
         <span dir="ltr">{points[points.length - 1]?.date ?? '—'}</span>
       </div>
