@@ -19,6 +19,12 @@ const nextConfig: NextConfig = {
         hostname: 'xjgpflzkpydfpuomqhuq.supabase.co',
         pathname: '/storage/v1/object/public/photos/**',
       },
+      {
+        // Guest profile photos (public bucket `avatars`).
+        protocol: 'https',
+        hostname: 'xjgpflzkpydfpuomqhuq.supabase.co',
+        pathname: '/storage/v1/object/public/avatars/**',
+      },
     ],
     // BRIEF §3 prefers AVIF + WebP; next/image already negotiates
     // both via Accept headers, no extra config needed here.

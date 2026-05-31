@@ -180,8 +180,17 @@ export const guests = pgTable('guests', {
   id: uuid().defaultRandom().primaryKey(),
   /** Phone is the primary identifier in KSA (BRIEF §8). */
   phone: text().notNull().unique(),
+  /**
+   * Links this guest to the signed-in account (Supabase auth user id, or
+   * the stub-session id in dev). Nullable + unique: guests are first
+   * created lazily at booking time by phone, then claimed by the account
+   * on first profile visit (see features/account/profile/queries.ts).
+   */
+  authUserId: text().unique(),
   email: text(),
   name: text().notNull(),
+  /** Public URL of the profile photo in the Supabase Storage `avatars` bucket. */
+  avatarUrl: text(),
   preferredLanguage: localeEnum().notNull().default('ar'),
   createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
 });

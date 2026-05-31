@@ -16,6 +16,8 @@
     "db:studio": "drizzle-kit studio",
     "db:seed": "node --env-file-if-exists=.env --import tsx db/seed.ts",
     "db:check": "node --env-file-if-exists=.env --import tsx scripts/db-check.ts",
+    "auth:emails:install": "node --env-file-if-exists=.env --import tsx scripts/install-auth-emails.ts",
+    "auth:emails:doctor": "node --import tsx scripts/check-email-dns.ts",
     "prepare": "husky"
   },
   "lint-staged": {

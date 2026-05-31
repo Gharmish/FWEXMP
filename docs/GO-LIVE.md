@@ -6,8 +6,9 @@
 > relevant accounts. The codebase is built so each integration **flips on
 > when its environment variables arrive — no code change required.**
 
-Live URL: https://gharmish-weld.vercel.app · Vercel project `gharmish` ·
-Supabase `gharmish-experiences` (`xjgpflzkpydfpuomqhuq`, eu-central-1).
+Live URL: https://gharmish.com (primary; `gharmish-weld.vercel.app` still
+works) · Vercel project `gharmish` · Supabase `gharmish-experiences`
+(`xjgpflzkpydfpuomqhuq`, eu-central-1).
 
 ---
 
@@ -27,17 +28,21 @@ Supabase `gharmish-experiences` (`xjgpflzkpydfpuomqhuq`, eu-central-1).
   full key parity with `en.json`.
 - Quality gates: `pnpm typecheck`, `pnpm lint`, **177 unit tests**, and
   `pnpm build` all green. Sentry wired (no-op until DSN set).
+- DB security: RLS deny-by-default across all `public` tables. (2026-05-31:
+  closed three audit tables — `experience_moderation_events`,
+  `host_status_events`, `host_application_events` — that were reachable by
+  the anon key; Supabase security advisor now clean of `rls_disabled` errors.)
 
 ### What works **without** any further credentials (soft-launch surface)
 
-| Journey                                             | Needs login?     | Status           |
-| --------------------------------------------------- | ---------------- | ---------------- |
-| Browse / search / experience detail / host profiles | No               | ✅ Live          |
-| **Guest requests a booking** (name + phone)         | **No**           | ✅ Live          |
-| Operator confirms/cancels/refunds bookings          | Admin (Test OTP) | ✅ Live          |
-| Guest account (`/me`, wishlist, leave review)       | Yes → §2         | ⛔ Needs SMS     |
-| Host self-service (apply, manage listings, upload)  | Yes → §2         | ⛔ Needs SMS     |
-| Online card/Mada payment                            | — → §3           | ⛔ Needs Moyasar |
+| Journey                                             | Needs login?     | Status                                         |
+| --------------------------------------------------- | ---------------- | ---------------------------------------------- |
+| Browse / search / experience detail / host profiles | No               | ✅ Live                                        |
+| **Guest requests a booking** (name + phone)         | **No**           | ✅ Live                                        |
+| Operator confirms/cancels/refunds bookings          | Admin (Test OTP) | ✅ Live                                        |
+| Guest account (`/me`, wishlist, leave review)       | Yes (email OTP)  | ✅ Live via email OTP (§2b); SMS optional (§2) |
+| Host self-service (apply, manage listings, upload)  | Yes (email OTP)  | ✅ Live via email OTP (§2b); SMS optional (§2) |
+| Online card/Mada payment                            | — → §3           | ⛔ Needs Moyasar                               |
 
 **Implication:** Gharmish can soft-launch today as a _request-to-book_
 marketplace — guests request, the operator confirms and arranges payment
@@ -67,6 +72,35 @@ No code change: the app already runs real Supabase Auth in production
 
 ---
 
+## 2b. Email sign-in (email OTP) — Resend + Supabase Auth
+
+The app ships a **fully-built email OTP** path alongside phone OTP
+(`features/auth/actions.ts`, email branch). This unlocks guest + host
+**self-service sign-in without an SMS provider** — the cheaper alternative
+to §2. Email is delivered via **Resend → Supabase custom SMTP** (already
+wired: sender `hello@gharmish.com`, domain `gharmish.com`).
+
+**Status: ✅ LIVE & verified (2026-05-31).** Email OTP sign-in is production-
+ready and was wired end-to-end:
+
+- Branded templates installed — both render the **6-digit `{{ .Token }}`** the
+  UI requires (verified by reading the live Supabase config back).
+- Custom SMTP confirmed pointing at `smtp.resend.com` (`hello@gharmish.com`).
+- Email OTP length pinned to **6** (Supabase was defaulting to 8 — would have
+  broken the 6-digit UI).
+- Duplicate **SPF record removed** — a single `v=spf1 include:amazonses.com`
+  is live at the authoritative NS and Cloudflare (no more RFC 7208 permerror).
+- A real OTP send returned **HTTP 200**, logged status 200, **no SMTP errors**.
+
+This unlocks guest + host self-service sign-in **without an SMS provider**.
+Re-check DNS anytime with `pnpm auth:emails:doctor`. Full runbook + how it was
+done: **`docs/auth-emails/README.md`**.
+
+Remaining (optional): point DMARC `rua` at a monitored inbox (README §2b);
+localize emails to AR/EN via a Send Email Hook (needs human Arabic copy).
+
+---
+
 ## 3. Real payments — Moyasar
 
 The booking flow is currently **request-to-book** (no card is charged).
@@ -90,31 +124,28 @@ When ready to take payment online:
 
 ---
 
-## 4. Custom domain — `gharmish.com` (owner-confirmed)
+## 4. Custom domain — `gharmish.com` (✅ LIVE 2026-05-31)
 
-The owner holds `gharmish.com`. **No code change is required**: `SITE_URL`
-in `lib/site.ts` already defaults to `https://gharmish.com`, and
-production already emits that origin for canonical, OpenGraph, sitemap,
-and `llms.txt` (verified). Do **not** set `NEXT_PUBLIC_SITE_URL` in Vercel
-— leaving it unset keeps the correct default.
+`gharmish.com` is now the **primary domain** for the Vercel `gharmish`
+project. No code change was needed — `SITE_URL` in `lib/site.ts` already
+defaults to `https://gharmish.com`; `NEXT_PUBLIC_SITE_URL` stays unset.
 
-Remaining steps (Vercel + DNS only):
+What was done (Vercel + GoDaddy + Supabase APIs):
 
-1. Vercel → project `gharmish` → **Settings → Domains** → add
-   `gharmish.com` and `www.gharmish.com`. `/ar` and `/en` are path-based,
-   so no extra domains are needed.
-2. At your DNS host, add the records Vercel shows. Standard Vercel values:
-   - Apex `gharmish.com` → **A** record to `76.76.21.21`
-     (or an `ALIAS`/`ANAME` to `cname.vercel-dns.com` if your host
-     supports it).
-   - `www` → **CNAME** to `cname.vercel-dns.com`.
-     Use whatever Vercel's dashboard prints — it's authoritative.
-3. Wait for verification (HTTPS cert is issued automatically).
-4. Once §2 (SMS) is on, add `https://gharmish.com` to Supabase Auth's
-   **Redirect URLs** allow-list.
+1. **Vercel** — `gharmish.com` and `www.gharmish.com` attached to the
+   `gharmish` project and verified. `www` → **308 redirect** to the apex, so
+   `gharmish.com` is canonical.
+2. **GoDaddy DNS** — apex `A @` set to Vercel's pair **`216.198.79.1` +
+   `64.29.17.1`**; removed the stale **GoDaddy WebsiteBuilder** A record that
+   was hijacking ~2/3 of apex hits. `www` CNAME → apex. MX (`send`), SPF,
+   DKIM, DMARC, and the Apple verification TXT were left untouched. Vercel
+   now reports `conflicts: []`, `misconfigured: false`; HTTPS cert auto-issues.
+3. **Supabase Auth** — `site_url` set to `https://gharmish.com` (was the dev
+   default `http://localhost:3000`, which would have broken the magic-link
+   fallback in auth emails); `uri_allow_list` =
+   `https://gharmish.com/**, https://www.gharmish.com/**, http://localhost:3000/**`.
 
-> Cannot be done from here: changing your DNS records requires access to
-> your registrar/DNS host.
+The old `gharmish-weld.vercel.app` URL still works as a fallback.
 
 ### Recommended while configuring infra
 

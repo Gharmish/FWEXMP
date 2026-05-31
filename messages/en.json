@@ -1098,6 +1098,7 @@
     "intro": "Your last request and the experiences you've saved — private to this device until accounts land.",
     "introEmpty": "Nothing here yet. Once you save an experience or make a request, it'll show up on this page.",
     "signedInAs": "Signed in as {phone}",
+    "viewProfile": "View profile",
     "emptyEyebrow": "Empty",
     "emptyTitle": "Start exploring.",
     "emptyDescription": "Save experiences with the heart icon, or send a booking request from any experience page. We'll keep track here.",
@@ -1139,7 +1140,73 @@
       }
     },
     "wishlistTitle": "Saved experiences",
-    "wishlistViewAll": "View all"
+    "wishlistViewAll": "View all",
+    "profile": {
+      "eyebrow": "Your profile",
+      "title": "Your account.",
+      "photo": {
+        "alt": "{name}'s profile photo",
+        "change": "Change photo",
+        "uploading": "Uploading",
+        "remove": "Remove",
+        "removing": "Removing",
+        "hint": "PNG, JPG or WebP, up to 2 MB.",
+        "errors": {
+          "noDb": "Photos need a database connection.",
+          "noAuth": "Sign in to change your photo.",
+          "noStorage": "Photo uploads aren't available in this environment.",
+          "noFile": "Choose an image file to upload.",
+          "invalidType": "Use a PNG, JPG or WebP image.",
+          "tooLarge": "That image is over 2 MB. Choose a smaller one.",
+          "server": "We couldn't update your photo. Try again in a moment."
+        }
+      },
+      "details": {
+        "title": "Personal details",
+        "nameLabel": "Name",
+        "emailLabel": "Email",
+        "emailOptional": "optional",
+        "phoneLabel": "Phone",
+        "phoneHint": "Your phone is how you sign in and can't be changed here.",
+        "languageLabel": "Preferred language",
+        "submit": "Save changes",
+        "submitting": "Saving",
+        "saved": "Saved",
+        "nameError": "Enter your name (at least two characters).",
+        "emailError": "Enter a valid email address.",
+        "errors": {
+          "noDb": "Saving needs a database connection.",
+          "noAuth": "Sign in to edit your profile.",
+          "validation": "Something didn't validate. Check the form and try again.",
+          "server": "We couldn't save your changes. Try again in a moment."
+        }
+      },
+      "wallet": {
+        "title": "Wallet",
+        "balanceLabel": "Balance",
+        "note": "Your Gharmish wallet is coming soon. There's nothing to top up or spend yet."
+      },
+      "payment": {
+        "title": "Payment methods",
+        "eyebrow": "Cards",
+        "emptyTitle": "No saved cards yet",
+        "emptyDescription": "Saved cards arrive when online payments go live. We never store card details ourselves — they're held securely by our payment provider."
+      },
+      "history": {
+        "title": "Booking history",
+        "partyLabel": "Guests:",
+        "view": "View",
+        "emptyTitle": "No bookings yet",
+        "emptyDescription": "Once you book an experience, it'll show up here.",
+        "status": {
+          "pending": "Awaiting host confirmation",
+          "confirmed": "Confirmed",
+          "completed": "Completed",
+          "cancelled": "Cancelled",
+          "refunded": "Refunded"
+        }
+      }
+    }
   },
   "wishlist": {
     "eyebrow": "Your wishlist",

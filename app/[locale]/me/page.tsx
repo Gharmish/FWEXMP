@@ -6,14 +6,15 @@ import type { Locale } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
 import { buttonVariants } from '@/components/ui/button';
 import { EmptyState } from '@/components/ui/empty-state';
+import { Avatar } from '@/components/ui/avatar';
 import { Stagger, StaggerItem } from '@/components/ui/motion';
 import { Compass } from 'lucide-react';
 import { ExperienceCard } from '@/features/experiences/components/experience-card';
 import { WishlistButton } from '@/features/wishlist/components/wishlist-button';
 import { getWishlistExperiences } from '@/features/wishlist/queries';
 import { getLastBookingView } from '@/features/account/queries';
+import { getMyProfile } from '@/features/account/profile/queries';
 import { ReviewForm } from '@/features/reviews/components/review-form';
-import { getCurrentUser } from '@/features/auth/queries';
 import { toArabicText } from '@/features/experiences/lib/arabic-content';
 import { formatDate, formatInteger } from '@/lib/format';
 import { Price } from '@/components/ui/price';
@@ -37,10 +38,10 @@ export default async function MePage({ params }: { params: Promise<{ locale: str
   setRequestLocale(locale);
   const loc = locale as Locale;
 
-  const [wishlist, lastBooking, user, t] = await Promise.all([
+  const [wishlist, lastBooking, profile, t] = await Promise.all([
     getWishlistExperiences(),
     getLastBookingView(),
-    getCurrentUser(),
+    getMyProfile(),
     getTranslations('me'),
   ]);
 
@@ -62,16 +63,23 @@ export default async function MePage({ params }: { params: Promise<{ locale: str
           <p className="text-sarat-black-600 max-w-2xl text-lg leading-relaxed">
             {hasAnything ? t('intro') : t('introEmpty')}
           </p>
-          {user && (
-            <p
-              className="text-sarat-black-600 inline-flex items-center gap-2 text-sm"
-              dir={loc === 'ar' ? 'rtl' : 'ltr'}
-            >
-              <span className="bg-juniper-green inline-block size-2 rounded-full" aria-hidden />
-              {/* Phone stays LTR-isolated so the +966 sign reads
-                  correctly inside an RTL paragraph. */}
-              {t('signedInAs', { phone: user.phone })}
-            </p>
+          {profile && (
+            <div className="border-sarat-black/8 rounded-card mt-2 flex items-center gap-4 [border-width:0.5px] p-4">
+              <Avatar name={profile.name} src={profile.avatarUrl ?? undefined} size="md" />
+              <div className="flex min-w-0 flex-col">
+                <span className="truncate font-medium">{profile.name}</span>
+                {/* Phone stays LTR-isolated so +966 reads correctly in RTL. */}
+                <span className="text-sarat-black-600 truncate text-sm" dir="ltr">
+                  {profile.phone}
+                </span>
+              </div>
+              <Link
+                href="/me/profile"
+                className="ms-auto inline-flex min-h-11 items-center text-sm font-medium whitespace-nowrap transition-opacity duration-200 hover:opacity-60"
+              >
+                {t('viewProfile')}
+              </Link>
+            </div>
           )}
         </div>
       </section>

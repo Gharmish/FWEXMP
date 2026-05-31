@@ -1098,6 +1098,7 @@
     "intro": "آخر طلب لك والتجارب التي حفظتها — خاصة بجهازك حتى تكتمل الحسابات.",
     "introEmpty": "لا شيء هنا بعد. حالما تحفظ تجربة أو ترسل طلباً، سيظهر في هذه الصفحة.",
     "signedInAs": "مسجّل دخولك برقم {phone}",
+    "viewProfile": "TODO(ar): View profile",
     "emptyEyebrow": "فارغة",
     "emptyTitle": "ابدأ الاكتشاف.",
     "emptyDescription": "احفظ التجارب بزرّ القلب، أو أرسل طلب حجز من أي صفحة تجربة. سنحتفظ بها لك هنا.",
@@ -1139,7 +1140,73 @@
       }
     },
     "wishlistTitle": "تجاربك المحفوظة",
-    "wishlistViewAll": "عرض الكل"
+    "wishlistViewAll": "عرض الكل",
+    "profile": {
+      "eyebrow": "TODO(ar): Your profile",
+      "title": "TODO(ar): Your account.",
+      "photo": {
+        "alt": "TODO(ar): {name}'s profile photo",
+        "change": "TODO(ar): Change photo",
+        "uploading": "TODO(ar): Uploading",
+        "remove": "TODO(ar): Remove",
+        "removing": "TODO(ar): Removing",
+        "hint": "TODO(ar): PNG, JPG or WebP, up to 2 MB.",
+        "errors": {
+          "noDb": "TODO(ar): Photos need a database connection.",
+          "noAuth": "TODO(ar): Sign in to change your photo.",
+          "noStorage": "TODO(ar): Photo uploads aren't available in this environment.",
+          "noFile": "TODO(ar): Choose an image file to upload.",
+          "invalidType": "TODO(ar): Use a PNG, JPG or WebP image.",
+          "tooLarge": "TODO(ar): That image is over 2 MB. Choose a smaller one.",
+          "server": "TODO(ar): We couldn't update your photo. Try again in a moment."
+        }
+      },
+      "details": {
+        "title": "TODO(ar): Personal details",
+        "nameLabel": "TODO(ar): Name",
+        "emailLabel": "TODO(ar): Email",
+        "emailOptional": "TODO(ar): optional",
+        "phoneLabel": "TODO(ar): Phone",
+        "phoneHint": "TODO(ar): Your phone is how you sign in and can't be changed here.",
+        "languageLabel": "TODO(ar): Preferred language",
+        "submit": "TODO(ar): Save changes",
+        "submitting": "TODO(ar): Saving",
+        "saved": "TODO(ar): Saved",
+        "nameError": "TODO(ar): Enter your name (at least two characters).",
+        "emailError": "TODO(ar): Enter a valid email address.",
+        "errors": {
+          "noDb": "TODO(ar): Saving needs a database connection.",
+          "noAuth": "TODO(ar): Sign in to edit your profile.",
+          "validation": "TODO(ar): Something didn't validate. Check the form and try again.",
+          "server": "TODO(ar): We couldn't save your changes. Try again in a moment."
+        }
+      },
+      "wallet": {
+        "title": "TODO(ar): Wallet",
+        "balanceLabel": "TODO(ar): Balance",
+        "note": "TODO(ar): Your Gharmish wallet is coming soon. There's nothing to top up or spend yet."
+      },
+      "payment": {
+        "title": "TODO(ar): Payment methods",
+        "eyebrow": "TODO(ar): Cards",
+        "emptyTitle": "TODO(ar): No saved cards yet",
+        "emptyDescription": "TODO(ar): Saved cards arrive when online payments go live. We never store card details ourselves — they're held securely by our payment provider."
+      },
+      "history": {
+        "title": "TODO(ar): Booking history",
+        "partyLabel": "TODO(ar): Guests:",
+        "view": "TODO(ar): View",
+        "emptyTitle": "TODO(ar): No bookings yet",
+        "emptyDescription": "TODO(ar): Once you book an experience, it'll show up here.",
+        "status": {
+          "pending": "TODO(ar): Awaiting host confirmation",
+          "confirmed": "TODO(ar): Confirmed",
+          "completed": "TODO(ar): Completed",
+          "cancelled": "TODO(ar): Cancelled",
+          "refunded": "TODO(ar): Refunded"
+        }
+      }
+    }
   },
   "wishlist": {
     "eyebrow": "المفضّلة",

@@ -1,4 +1,4 @@
-import { eq } from 'drizzle-orm';
+import { desc, eq } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import { serverEnv } from '@/lib/env';
 import { bookings } from '@/db/schema';
@@ -47,4 +47,36 @@ export async function getBookingByReference(reference: string): Promise<BookingD
     experienceSlug: row.experience.slug,
     createdAt: row.createdAt.toISOString(),
   };
+}
+
+/** A booking as the profile history list renders it — carries the bilingual experience title. */
+export interface GuestBookingSummary extends BookingDetail {
+  experienceTitleEn: string;
+  experienceTitleAr: string;
+}
+
+/**
+ * Every booking for a guest, newest first. Drives the booking-history
+ * section on the profile page; empty when the DB isn't configured.
+ */
+export async function getBookingsForGuest(guestId: string): Promise<GuestBookingSummary[]> {
+  if (!hasDb()) return [];
+  const rows = await db.query.bookings.findMany({
+    where: eq(bookings.guestId, guestId),
+    orderBy: [desc(bookings.date), desc(bookings.createdAt)],
+    with: { experience: { columns: { slug: true, titleEn: true, titleAr: true } } },
+  });
+  return rows.map((row) => ({
+    id: row.id,
+    reference: row.idempotencyKey,
+    status: row.status,
+    partySize: row.partySize,
+    totalAmountSar: row.totalAmount,
+    date: row.date,
+    startTime: row.startTime,
+    experienceSlug: row.experience.slug,
+    experienceTitleEn: row.experience.titleEn,
+    experienceTitleAr: row.experience.titleAr,
+    createdAt: row.createdAt.toISOString(),
+  }));
 }

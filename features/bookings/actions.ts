@@ -8,6 +8,7 @@ import { bookings, guests } from '@/db/schema';
 import { redirect } from '@/lib/i18n';
 import { reportError } from '@/lib/log';
 import { bookingRequestSchema } from '@/features/bookings/schemas';
+import { getCurrentUser } from '@/features/auth/queries';
 import { isDateBookable, remainingCapacity } from '@/features/bookings/lib/availability';
 import { LAST_BOOKING_COOKIE, serializeLastBookingCookie } from '@/features/account/cookie';
 
@@ -174,9 +175,14 @@ export async function requestBooking(
       status = 'confirmed';
     }
 
+    // Claim the guest record for the signed-in account when we have one, so
+    // the profile page can later resolve it by auth id (see
+    // features/account/profile/queries.ts). Anonymous bookings leave it null.
+    const authUserId = (await getCurrentUser())?.id ?? null;
+
     let guest = await db.query.guests.findFirst({
       where: (g) => eq(g.phone, input.phone),
-      columns: { id: true },
+      columns: { id: true, authUserId: true },
     });
 
     if (!guest) {
@@ -186,8 +192,11 @@ export async function requestBooking(
           name: input.name,
           phone: input.phone,
           preferredLanguage: input.locale,
+          authUserId,
         })
-        .returning({ id: guests.id });
+        .returning({ id: guests.id, authUserId: guests.authUserId });
+    } else if (authUserId && !guest.authUserId) {
+      await db.update(guests).set({ authUserId }).where(eq(guests.id, guest.id));
     }
 
     await db.insert(bookings).values({
