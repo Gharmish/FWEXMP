@@ -104,7 +104,7 @@ export default async function AdminReviewsPage({
                   <div className="flex flex-col gap-1">
                     <div className="flex items-center gap-2">
                       <span
-                        className="text-saffron-gold inline-flex items-center gap-0.5"
+                        className="text-saffron-gold inline-flex items-center gap-1"
                         aria-label={t('reviewsList.ratingValue', { rating: row.rating })}
                       >
                         {Array.from({ length: row.rating }).map((_, i) => (

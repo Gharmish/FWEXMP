@@ -14,10 +14,10 @@ interface RatingSummaryProps {
  * Aggregate rating block: large average + 1-5 distribution bars.
  * Server component — pure data in, no interactivity.
  *
- * Stars are Lucide outlines per BRIEF §3 ("outline style only. Never
- * filled icons."). The filled half is rendered by clipping the same
- * outline icon to a width — preserves the outline aesthetic while
- * still communicating the rating fill.
+ * Rating stars are solid saffron-gold (`fill-current`). The partial fill is
+ * rendered by stacking two rows of the same icon — a muted row underneath and
+ * a gold row clipped to the fill width on top — so a fractional average reads
+ * as a partially-filled star. Direction-aware: the clip anchors to the start.
  */
 export function RatingSummary({ aggregate, locale }: RatingSummaryProps) {
   const t = useTranslations('reviews');
@@ -32,6 +32,7 @@ export function RatingSummary({ aggregate, locale }: RatingSummaryProps) {
   }
 
   const averageDisplay = new Intl.NumberFormat(locale === 'ar' ? 'ar-SA' : 'en-SA', {
+    numberingSystem: 'latn',
     minimumFractionDigits: 1,
     maximumFractionDigits: 1,
   }).format(average);
@@ -55,7 +56,7 @@ export function RatingSummary({ aggregate, locale }: RatingSummaryProps) {
         <div className="relative w-fit" aria-hidden>
           <div className="text-sarat-black/20 flex gap-1">
             {[0, 1, 2, 3, 4].map((i) => (
-              <Star key={i} className="size-5" />
+              <Star key={i} className="size-5 fill-current" />
             ))}
           </div>
           <div
@@ -63,7 +64,7 @@ export function RatingSummary({ aggregate, locale }: RatingSummaryProps) {
             style={{ width: `${fillPercent}%` }}
           >
             {[0, 1, 2, 3, 4].map((i) => (
-              <Star key={i} className="size-5 shrink-0" />
+              <Star key={i} className="size-5 shrink-0 fill-current" />
             ))}
           </div>
         </div>
@@ -73,14 +74,14 @@ export function RatingSummary({ aggregate, locale }: RatingSummaryProps) {
         </p>
       </div>
 
-      <ul className="flex w-full max-w-sm flex-col gap-1.5">
+      <ul className="flex w-full max-w-sm flex-col gap-2">
         {buckets.map((bucket) => {
           const n = distribution[bucket];
           const pct = count === 0 ? 0 : (n / count) * 100;
           return (
             <li key={bucket} className="flex items-center gap-3 text-sm">
               <span className="text-sarat-black-600 w-3 text-end tabular-nums">{bucket}</span>
-              <Star className="text-sarat-black-600 size-3.5 shrink-0" aria-hidden />
+              <Star className="text-saffron-gold size-3.5 shrink-0 fill-current" aria-hidden />
               <span
                 className="bg-sarat-black/8 relative h-1.5 flex-1 overflow-hidden rounded-full"
                 aria-hidden

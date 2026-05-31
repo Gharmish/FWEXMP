@@ -17,7 +17,7 @@ interface PriceProps {
  * Render a Saudi Riyal price as `<symbol> <number>` (English) or
  * `<number> <symbol>` (Arabic), matching local convention. The glyph scales
  * with the text and inherits its color. The visible parts are decorative;
- * an `aria-label` carries the spoken form (`SAR 480` / `٤٨٠ ر.س`) for AT.
+ * an `aria-label` carries the spoken form (`SAR 480` / `480 ر.س`) for AT.
  */
 export function Price({ amount, locale, className, symbolClassName }: PriceProps) {
   const number = formatRiyalAmount(amount, locale);

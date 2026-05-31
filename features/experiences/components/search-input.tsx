@@ -94,7 +94,7 @@ export function SearchInput() {
           type="button"
           onClick={clear}
           aria-label={t('clear')}
-          className="text-sarat-black-600 hover:text-sarat-black rounded-button inline-flex size-9 shrink-0 items-center justify-center transition-opacity duration-200 hover:opacity-60"
+          className="text-sarat-black-600 hover:text-sarat-black rounded-button inline-flex size-11 shrink-0 items-center justify-center transition-opacity duration-200 hover:opacity-60"
         >
           <X className="size-4" aria-hidden />
         </button>

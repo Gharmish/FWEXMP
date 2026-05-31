@@ -126,7 +126,7 @@ export default async function AdminGuestsPage({
                   </div>
                 </div>
                 <div className="flex shrink-0 items-center gap-4">
-                  <div className="flex flex-col items-end gap-0.5 text-sm">
+                  <div className="flex flex-col items-end gap-1 text-sm">
                     <span className="font-medium">
                       {t('guestsList.bookingsCount', { count: row.bookings })}
                     </span>

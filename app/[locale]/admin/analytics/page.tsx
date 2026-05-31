@@ -259,7 +259,7 @@ function Stat({
     return (
       <Link
         href={href}
-        className="hover:bg-sarat-black/[0.02] -m-2 flex flex-col gap-1 rounded-md p-2 transition-colors duration-200"
+        className="hover:bg-sarat-black/[0.02] rounded-input -m-2 flex flex-col gap-1 p-2 transition-colors duration-200"
       >
         {body}
       </Link>
@@ -284,7 +284,7 @@ function WindowCard({
   return (
     <div className="border-sarat-black/8 rounded-card flex flex-col gap-4 [border-width:0.5px] p-5">
       <p className={eyebrowClassName}>{label}</p>
-      <div className="flex flex-col gap-0.5">
+      <div className="flex flex-col gap-1">
         <p className="text-sarat-black-600 text-[11px]">{t('analytics.gmvLabel')}</p>
         <p className="font-display text-3xl font-medium tracking-[-0.025em] tabular-nums">
           <Price amount={stats.gmvSar} locale={locale} />

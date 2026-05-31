@@ -131,19 +131,19 @@ export default async function AdminHostDetailPage({
 
       {/* Quick stats */}
       <dl className="border-sarat-black/8 rounded-card grid grid-cols-2 gap-5 [border-width:0.5px] p-6 sm:grid-cols-3">
-        <div className="flex flex-col gap-0.5">
+        <div className="flex flex-col gap-1">
           <dt className={eyebrowClassName}>{t('hostDetail.publishedExperiences')}</dt>
           <dd className="font-display text-3xl font-medium tabular-nums">
             {host.publishedExperiences}
           </dd>
         </div>
-        <div className="flex flex-col gap-0.5">
+        <div className="flex flex-col gap-1">
           <dt className={eyebrowClassName}>{t('hostDetail.totalExperiences')}</dt>
           <dd className="font-display text-3xl font-medium tabular-nums">
             {host.totalExperiences}
           </dd>
         </div>
-        <div className="flex flex-col gap-0.5">
+        <div className="flex flex-col gap-1">
           <dt className={eyebrowClassName}>{t('hostDetail.liveBookings')}</dt>
           <dd className="font-display text-3xl font-medium tabular-nums">{host.liveBookings}</dd>
         </div>
@@ -152,7 +152,7 @@ export default async function AdminHostDetailPage({
       {/* Identity */}
       <dl className="border-sarat-black/8 rounded-card grid gap-5 [border-width:0.5px] p-6 sm:grid-cols-2">
         {host.nationalId && (
-          <div className="flex flex-col gap-0.5">
+          <div className="flex flex-col gap-1">
             <dt className={eyebrowClassName}>{t('hostDetail.nationalId')}</dt>
             {/* Last-4 masked. The verification surface at
                 /admin/host-applications/[id] renders the raw value
@@ -164,7 +164,7 @@ export default async function AdminHostDetailPage({
           </div>
         )}
         {host.crNumber && (
-          <div className="flex flex-col gap-0.5">
+          <div className="flex flex-col gap-1">
             <dt className={eyebrowClassName}>{t('hostDetail.crNumber')}</dt>
             <dd className="font-mono text-base font-medium" dir="ltr">
               {maskIdentityNumber(host.crNumber)}
@@ -172,7 +172,7 @@ export default async function AdminHostDetailPage({
           </div>
         )}
         {host.languages.length > 0 && (
-          <div className="flex flex-col gap-0.5">
+          <div className="flex flex-col gap-1">
             <dt className={eyebrowClassName}>{t('hostDetail.languages')}</dt>
             <dd className="text-base font-medium">{host.languages.join(' · ')}</dd>
           </div>
@@ -219,7 +219,7 @@ export default async function AdminHostDetailPage({
           <h2 className={eyebrowClassName}>{t('hostDetail.historyHeading')}</h2>
           <ol className="flex flex-col gap-4">
             {host.statusEvents.map((event) => (
-              <li key={event.id} className="flex flex-col gap-1.5">
+              <li key={event.id} className="flex flex-col gap-2">
                 <div className="flex flex-wrap items-center gap-3">
                   <Badge className={EVENT_TONE[event.event]}>
                     {t(`hostStatusEvent.${event.event}`)}

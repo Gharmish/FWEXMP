@@ -44,6 +44,7 @@ export interface AvailabilityCalendarProps {
 
 function monthLabel(year: number, month: number, locale: Locale): string {
   return new Intl.DateTimeFormat(locale === 'ar' ? 'ar-SA' : 'en-GB', {
+    numberingSystem: 'latn',
     month: 'long',
     year: 'numeric',
     timeZone: 'UTC',
@@ -74,7 +75,7 @@ export function AvailabilityCalendar({
         <Link
           href={href(prev.year, prev.month)}
           aria-label={copy.prev}
-          className="border-sarat-black/20 inline-flex size-9 items-center justify-center rounded-full [border-width:0.5px] transition-opacity hover:opacity-60"
+          className="border-sarat-black/20 inline-flex size-11 items-center justify-center rounded-full [border-width:0.5px] transition-opacity hover:opacity-60"
         >
           <ChevronLeft className="size-4 rtl:rotate-180" aria-hidden />
         </Link>
@@ -82,13 +83,13 @@ export function AvailabilityCalendar({
         <Link
           href={href(next.year, next.month)}
           aria-label={copy.next}
-          className="border-sarat-black/20 inline-flex size-9 items-center justify-center rounded-full [border-width:0.5px] transition-opacity hover:opacity-60"
+          className="border-sarat-black/20 inline-flex size-11 items-center justify-center rounded-full [border-width:0.5px] transition-opacity hover:opacity-60"
         >
           <ChevronRight className="size-4 rtl:rotate-180" aria-hidden />
         </Link>
       </div>
 
-      <div className="grid grid-cols-7 gap-1.5">
+      <div className="grid grid-cols-7 gap-2">
         {copy.weekdays.map((label, i) => (
           <div key={i} className="text-sarat-black-600 pb-1 text-center text-xs font-medium">
             {label}
@@ -125,7 +126,7 @@ export function AvailabilityCalendar({
           );
 
           const cellClass = cn(
-            'flex aspect-square flex-col items-center justify-center gap-0.5 rounded-[10px] [border-width:0.5px] border-transparent',
+            'rounded-input flex aspect-square flex-col items-center justify-center gap-1 [border-width:0.5px] border-transparent',
             tone,
           );
 
@@ -175,23 +176,23 @@ export function AvailabilityCalendar({
       </div>
 
       <ul className="text-sarat-black-600 flex flex-wrap gap-x-4 gap-y-1 text-xs">
-        <li className="flex items-center gap-1.5">
+        <li className="flex items-center gap-2">
           <span className="bg-juniper-green/12 inline-block size-3 rounded-full" aria-hidden />
           {copy.legendAvailable}
         </li>
-        <li className="flex items-center gap-1.5">
+        <li className="flex items-center gap-2">
           <span className="bg-rijal-clay/15 inline-block size-3 rounded-full" aria-hidden />
           {copy.legendFull}
         </li>
-        <li className="flex items-center gap-1.5">
+        <li className="flex items-center gap-2">
           <span className="bg-saffron-gold/20 inline-block size-3 rounded-full" aria-hidden />
           {copy.legendStopSell}
         </li>
-        <li className="flex items-center gap-1.5">
+        <li className="flex items-center gap-2">
           <span className="bg-sarat-black/5 inline-block size-3 rounded-full" aria-hidden />
           {copy.legendClosed}
         </li>
-        <li className="flex items-center gap-1.5">
+        <li className="flex items-center gap-2">
           <span className="bg-sarat-black/5 inline-block size-3 rounded-full" aria-hidden />
           {copy.legendOff}
         </li>

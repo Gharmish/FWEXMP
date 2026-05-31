@@ -203,10 +203,10 @@ export function BookingCalendar({
   );
 
   const navButton =
-    'text-sarat-black hover:bg-sarat-black/5 inline-flex size-9 items-center justify-center rounded-full transition-colors duration-200 disabled:pointer-events-none disabled:opacity-30';
+    'text-sarat-black hover:bg-sarat-black/5 inline-flex size-11 items-center justify-center rounded-full transition-colors duration-200 disabled:pointer-events-none disabled:opacity-30';
 
   return (
-    <div className="flex flex-col gap-3">
+    <div className="mx-auto flex w-full max-w-xs flex-col gap-3">
       <div className="flex items-center justify-between">
         <button
           type="button"
@@ -249,7 +249,8 @@ export function BookingCalendar({
         className="grid grid-cols-7 gap-1"
       >
         {cells.map((cell, i) => {
-          if (!cell) return <span key={`blank-${i}`} aria-hidden className="size-10" />;
+          if (!cell)
+            return <span key={`blank-${i}`} aria-hidden className="aspect-square w-full" />;
           const { dateStr, day, inWindow, isOpen } = cell;
           const dayLabel = formatInteger(day, locale);
 
@@ -258,7 +259,7 @@ export function BookingCalendar({
               <span
                 key={dateStr}
                 aria-hidden
-                className="text-sarat-black/15 flex size-10 items-center justify-center text-sm tabular-nums"
+                className="text-sarat-black/15 flex aspect-square w-full items-center justify-center text-sm tabular-nums"
               >
                 {dayLabel}
               </span>
@@ -293,7 +294,7 @@ export function BookingCalendar({
                 onSelect(dateStr);
               }}
               className={cn(
-                'relative flex size-10 items-center justify-center rounded-full text-sm tabular-nums transition-colors duration-200',
+                'relative flex aspect-square w-full items-center justify-center rounded-full text-sm tabular-nums transition-colors duration-200',
                 isOpen
                   ? 'text-sarat-black hover:bg-sarat-black/5 cursor-pointer'
                   : 'text-sarat-black/30 cursor-default',

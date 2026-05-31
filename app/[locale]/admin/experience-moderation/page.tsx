@@ -114,7 +114,7 @@ export default async function AdminExperienceModerationPage({
                 href={`/admin/experience-moderation?status=${f}`}
                 aria-current={active ? 'page' : undefined}
                 className={cn(
-                  'rounded-button min-h-9 px-4 py-1.5 text-sm font-medium transition-colors duration-200',
+                  'rounded-button min-h-11 px-4 py-2 text-sm font-medium transition-colors duration-200',
                   active
                     ? 'bg-sarat-black text-fog-white'
                     : 'border-sarat-black/20 text-sarat-black [border-width:0.5px] hover:-translate-y-px',

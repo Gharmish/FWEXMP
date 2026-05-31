@@ -87,7 +87,7 @@ export function ReviewForm({ bookingReference, locale, copy }: ReviewFormProps) 
               />
               <Star
                 className={cn(
-                  'size-7 transition-colors duration-150',
+                  'size-7 fill-current transition-colors duration-150',
                   value <= shown ? 'text-saffron-gold' : 'text-sarat-black/20',
                 )}
                 aria-hidden
@@ -102,7 +102,7 @@ export function ReviewForm({ bookingReference, locale, copy }: ReviewFormProps) 
         )}
       </fieldset>
 
-      <div className="flex flex-col gap-1.5">
+      <div className="flex flex-col gap-2">
         <label htmlFor={`${groupId}-text`} className="text-sarat-black-600 text-sm">
           {copy.commentLabel} <span className="text-sarat-black/40">{copy.commentOptional}</span>
         </label>

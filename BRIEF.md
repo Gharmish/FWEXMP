@@ -135,7 +135,7 @@ Use the 8-point grid exclusively: `4, 8, 12, 16, 24, 32, 48, 64, 80, 120` (pixel
 
 ### Iconography
 
-**Lucide React** (outline style only). Never filled icons. Never emojis. Standard size 20px for inline, 24px for prominent, 16px for compact contexts.
+**Lucide React** (outline style only). Never filled icons — **except rating stars, which are solid-filled in Saffron Gold** (`fill-current`), with unrated stars muted. Never emojis. Standard size 20px for inline, 24px for prominent, 16px for compact contexts.
 
 ### Photography rules (for content team)
 
@@ -167,7 +167,8 @@ Every page exists at `/ar/*` and `/en/*`. Middleware detects locale on first vis
 
 ### Number, date, currency
 
-- Currency: `SAR` (Saudi Riyal). Always show as `SAR 480` in English, `٤٨٠ ر.س` in Arabic — use `Intl.NumberFormat` with `currency: 'SAR'`.
+- Currency: `SAR` (Saudi Riyal). Always show as `SAR 480` in English, `480 ر.س` in Arabic — use `Intl.NumberFormat` with `currency: 'SAR'`.
+- Digits: **always Western/Latin (`0123456789`) in both locales — never Arabic-Indic numerals (`٠١٢٣٤٥٦٧٨٩`)**, including inside Arabic translation strings. Pass `numberingSystem: 'latn'` to every `Intl.NumberFormat`/`Intl.DateTimeFormat`. Arabic month names and ص/م meridiems stay Arabic; only the digits are Latin.
 - Dates: Gregorian by default, with optional Hijri toggle in user settings. Use `Intl.DateTimeFormat` with `ar-SA-u-ca-islamic` for Hijri.
 - Phone format: Saudi numbers as `+966 5X XXX XXXX`.
 - Time: 12-hour with AM/PM in English, 12-hour with ص/م in Arabic.

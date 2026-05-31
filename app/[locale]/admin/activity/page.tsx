@@ -96,7 +96,7 @@ export default async function AdminActivityPage({
       ) : (
         <ol className="border-sarat-black/8 rounded-card flex flex-col divide-y divide-[var(--color-sarat-black)]/8 [border-width:0.5px]">
           {items.map((item) => (
-            <li key={`${item.kind}-${item.id}`} className="flex flex-col gap-1.5 p-5">
+            <li key={`${item.kind}-${item.id}`} className="flex flex-col gap-2 p-5">
               <div className="flex flex-wrap items-center gap-3">
                 <Badge className={KIND_TONE[item.kind]}>{t(`activityLog.kind.${item.kind}`)}</Badge>
                 <span className="text-base font-medium">

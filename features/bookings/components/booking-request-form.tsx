@@ -295,7 +295,7 @@ export function BookingRequestForm({
             {selectedOption ? (
               <p
                 id={hintId('preferredDate')}
-                className="text-juniper-green-800 inline-flex items-center gap-1.5 text-sm"
+                className="text-juniper-green-800 inline-flex items-center gap-2 text-sm"
               >
                 <span className="bg-juniper-green size-1.5 rounded-full" aria-hidden />
                 {selectedOption.spotsLabel}
@@ -323,7 +323,7 @@ export function BookingRequestForm({
                 aria-label={copy.decrease}
                 disabled={effectiveParty <= 1}
                 onClick={() => setPartySize(Math.max(1, effectiveParty - 1))}
-                className="text-sarat-black hover:bg-sarat-black/5 inline-flex size-9 items-center justify-center rounded-full transition-colors duration-200 disabled:opacity-30"
+                className="text-sarat-black hover:bg-sarat-black/5 inline-flex size-11 items-center justify-center rounded-full transition-colors duration-200 disabled:opacity-30"
               >
                 <Minus className="size-4" aria-hidden />
               </button>
@@ -335,7 +335,7 @@ export function BookingRequestForm({
                 aria-label={copy.increase}
                 disabled={effectiveParty >= maxGuests}
                 onClick={() => setPartySize(Math.min(maxGuests, effectiveParty + 1))}
-                className="text-sarat-black hover:bg-sarat-black/5 inline-flex size-9 items-center justify-center rounded-full transition-colors duration-200 disabled:opacity-30"
+                className="text-sarat-black hover:bg-sarat-black/5 inline-flex size-11 items-center justify-center rounded-full transition-colors duration-200 disabled:opacity-30"
               >
                 <Plus className="size-4" aria-hidden />
               </button>

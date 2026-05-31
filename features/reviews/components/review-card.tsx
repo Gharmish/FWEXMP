@@ -13,8 +13,8 @@ interface ReviewCardProps {
 /**
  * Single review card. Server component — read-only.
  *
- * Rating renders five outline stars with the filled ones in
- * saffron-gold. The host's reply (if any) is nested as a secondary
+ * Rating renders five solid stars, the rated ones in saffron-gold and the
+ * remainder muted. The host's reply (if any) is nested as a secondary
  * block beneath the review body, visually offset by a hairline border
  * on the inline-start side.
  */
@@ -43,7 +43,7 @@ export function ReviewCard({ review, locale }: ReviewCardProps) {
             <Star
               key={i}
               className={cn(
-                'size-4',
+                'size-4 fill-current',
                 i <= review.rating ? 'text-saffron-gold' : 'text-sarat-black/20',
               )}
               aria-hidden

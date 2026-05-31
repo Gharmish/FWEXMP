@@ -120,7 +120,7 @@ export default async function BookingConfirmedPage({ params, searchParams }: Pag
         {detailRows.length > 0 && (
           <dl className="mt-2 grid gap-3 sm:grid-cols-2">
             {detailRows.map((row) => (
-              <div key={row.label} className="flex flex-col gap-0.5">
+              <div key={row.label} className="flex flex-col gap-1">
                 <dt className="text-sarat-black-600 text-sm">{row.label}</dt>
                 <dd className="text-base font-medium">{row.value}</dd>
               </div>

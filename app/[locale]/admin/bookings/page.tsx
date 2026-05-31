@@ -5,6 +5,8 @@ import { Link } from '@/lib/i18n';
 import type { Locale } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { formatDate } from '@/lib/format';
 import { Price } from '@/components/ui/price';
 import {
@@ -180,12 +182,11 @@ export default async function AdminBookingsPage({
                   <span className="text-sarat-black-600 text-sm">
                     {t('bookingsList.filter.search')}
                   </span>
-                  <input
+                  <Input
                     type="search"
                     name="q"
                     defaultValue={q}
                     placeholder={t('bookingsList.filter.searchPlaceholder')}
-                    className="rounded-input border-sarat-black/20 bg-fog-white text-sarat-black h-11 w-full [border-width:0.5px] px-3 text-base"
                   />
                 </label>
                 <label className="flex flex-col gap-1">
@@ -218,12 +219,7 @@ export default async function AdminBookingsPage({
                     <option value="upcoming">{t('bookingsList.filter.viewUpcoming')}</option>
                   </select>
                 </label>
-                <button
-                  type="submit"
-                  className="rounded-button bg-sarat-black text-fog-white h-11 px-5 text-sm font-medium"
-                >
-                  {t('bookingsList.filter.apply')}
-                </button>
+                <Button type="submit">{t('bookingsList.filter.apply')}</Button>
               </form>
 
               {filtered.length === 0 ? (

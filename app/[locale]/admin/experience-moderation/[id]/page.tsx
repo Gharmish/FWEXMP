@@ -199,23 +199,23 @@ export default async function AdminExperienceModerationDetailPage({
 
       {/* Quick facts */}
       <dl className="border-sarat-black/8 rounded-card grid gap-5 [border-width:0.5px] p-6 sm:grid-cols-2">
-        <div className="flex flex-col gap-0.5">
+        <div className="flex flex-col gap-1">
           <dt className={eyebrowClassName}>{t('experienceModerationDetail.price')}</dt>
           <dd className="text-base font-medium">
             <Price amount={detail.priceSar} locale={loc} />
           </dd>
         </div>
-        <div className="flex flex-col gap-0.5">
+        <div className="flex flex-col gap-1">
           <dt className={eyebrowClassName}>{t('experienceModerationDetail.duration')}</dt>
           <dd className="text-base font-medium">
             {t('experienceModerationDetail.minutes', { count: detail.durationMinutes })}
           </dd>
         </div>
-        <div className="flex flex-col gap-0.5">
+        <div className="flex flex-col gap-1">
           <dt className={eyebrowClassName}>{t('experienceModerationDetail.category')}</dt>
           <dd className="text-base font-medium">{tCat(detail.category)}</dd>
         </div>
-        <div className="flex flex-col gap-0.5">
+        <div className="flex flex-col gap-1">
           <dt className={eyebrowClassName}>{t('experienceModerationDetail.groupAndAge')}</dt>
           <dd className="text-base font-medium">
             {t('experienceModerationDetail.groupAndAgeValue', {
@@ -224,7 +224,7 @@ export default async function AdminExperienceModerationDetailPage({
             })}
           </dd>
         </div>
-        <div className="flex flex-col gap-0.5 sm:col-span-2">
+        <div className="flex flex-col gap-1 sm:col-span-2">
           <dt className={eyebrowClassName}>{t('experienceModerationDetail.availability')}</dt>
           <dd className="text-base font-medium">
             {detail.availabilityWeekdays.length === 0
@@ -299,7 +299,7 @@ export default async function AdminExperienceModerationDetailPage({
           <h2 className={eyebrowClassName}>{t('experienceModerationDetail.history')}</h2>
           <ol className="flex flex-col gap-4">
             {detail.events.map((event) => (
-              <li key={event.id} className="flex flex-col gap-1.5">
+              <li key={event.id} className="flex flex-col gap-2">
                 <div className="flex flex-wrap items-center gap-3">
                   <Badge className={EVENT_TONE[event.event]}>
                     {t(`moderationEvent.${event.event}`)}

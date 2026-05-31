@@ -126,13 +126,13 @@ export default async function MePage({ params }: { params: Promise<{ locale: str
 
               {lastBooking.booking && (
                 <dl className="mt-2 grid gap-3 sm:grid-cols-2">
-                  <div className="flex flex-col gap-0.5">
+                  <div className="flex flex-col gap-1">
                     <dt className="text-sarat-black-600 text-sm">{t('statusLabel')}</dt>
                     <dd className="text-base font-medium">
                       {t(`status.${lastBooking.booking.status}`)}
                     </dd>
                   </div>
-                  <div className="flex flex-col gap-0.5">
+                  <div className="flex flex-col gap-1">
                     <dt className="text-sarat-black-600 text-sm">{t('dateLabel')}</dt>
                     <dd className="text-base font-medium">
                       {formatDate(
@@ -141,13 +141,13 @@ export default async function MePage({ params }: { params: Promise<{ locale: str
                       )}
                     </dd>
                   </div>
-                  <div className="flex flex-col gap-0.5">
+                  <div className="flex flex-col gap-1">
                     <dt className="text-sarat-black-600 text-sm">{t('partyLabel')}</dt>
                     <dd className="text-base font-medium">
                       {formatInteger(lastBooking.booking.partySize, loc)}
                     </dd>
                   </div>
-                  <div className="flex flex-col gap-0.5">
+                  <div className="flex flex-col gap-1">
                     <dt className="text-sarat-black-600 text-sm">{t('totalLabel')}</dt>
                     <dd className="text-base font-medium">
                       <Price amount={lastBooking.booking.totalAmountSar} locale={loc} />
@@ -191,7 +191,7 @@ export default async function MePage({ params }: { params: Promise<{ locale: str
                         <Star
                           key={value}
                           className={cn(
-                            'size-5',
+                            'size-5 fill-current',
                             value <= lastBooking.review!.rating
                               ? 'text-saffron-gold'
                               : 'text-sarat-black/20',

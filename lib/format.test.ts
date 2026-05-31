@@ -12,10 +12,11 @@ import {
 /**
  * These tests pin behavior — not exact strings. Intl output can shift
  * across Node ICU versions (en-SA / ar-SA renderings have changed in
- * past CLDR updates) so we assert on stable invariants: locale switches
- * the digit script, integers drop fractions, Saudi-phone canonicalises
- * to +966, etc. Where we *do* assert exact output it's only on simple,
- * stable forms (e.g. durationHours which is just a number formatted).
+ * past CLDR updates) so we assert on stable invariants: digits are always
+ * Western/Latin in BOTH locales (never Arabic-Indic — BRIEF §4), Arabic
+ * still keeps its symbols/month names/meridiems, integers drop fractions,
+ * Saudi-phone canonicalises to +966, etc. Where we *do* assert exact
+ * output it's only on simple, stable forms (e.g. durationHours).
  */
 
 const EASTERN_ARABIC_DIGITS = /[٠-٩]/;
@@ -28,10 +29,11 @@ describe('formatSAR', () => {
     expect(result).toContain('SAR');
   });
 
-  it('Arabic: renders eastern-Arabic digits and the SAR symbol (ر.س)', () => {
+  it('Arabic: renders Western digits and keeps the SAR symbol (ر.س)', () => {
     const result = formatSAR(480, 'ar');
-    // Eastern-Arabic 480 = ٤٨٠
-    expect(result).toMatch(EASTERN_ARABIC_DIGITS);
+    // Digits are always Western/Latin, never Arabic-Indic (BRIEF §4).
+    expect(result).toContain('480');
+    expect(result).not.toMatch(EASTERN_ARABIC_DIGITS);
     // The Arabic symbol for Saudi Riyal contains ر.س — assert on a
     // substring to be resilient to surrounding whitespace.
     expect(result).toContain('ر');
@@ -60,9 +62,10 @@ describe('formatRiyalAmount', () => {
     expect(result).not.toContain('﷼');
   });
 
-  it('Arabic: renders eastern-Arabic digits and no SAR symbol (the glyph is drawn separately)', () => {
+  it('Arabic: renders Western digits and no SAR symbol (the glyph is drawn separately)', () => {
     const result = formatRiyalAmount(480, 'ar');
-    expect(result).toMatch(EASTERN_ARABIC_DIGITS);
+    expect(result).toContain('480');
+    expect(result).not.toMatch(EASTERN_ARABIC_DIGITS);
     expect(result).not.toContain('ر');
   });
 
@@ -111,8 +114,10 @@ describe('durationHours', () => {
     expect(durationHours(90, 'en')).toBe('1.5');
   });
 
-  it('renders Arabic with eastern-Arabic digits', () => {
-    expect(durationHours(180, 'ar')).toMatch(EASTERN_ARABIC_DIGITS);
+  it('renders Arabic with Western digits', () => {
+    const result = durationHours(180, 'ar');
+    expect(result).toContain('3');
+    expect(result).not.toMatch(EASTERN_ARABIC_DIGITS);
   });
 
   it('zero minutes is zero hours', () => {
@@ -127,8 +132,10 @@ describe('formatInteger', () => {
     expect(result).not.toContain('.');
   });
 
-  it('Arabic: renders with eastern-Arabic digits', () => {
-    expect(formatInteger(2026, 'ar')).toMatch(EASTERN_ARABIC_DIGITS);
+  it('Arabic: renders with Western digits', () => {
+    const result = formatInteger(2026, 'ar');
+    expect(result).toMatch(WESTERN_DIGITS);
+    expect(result).not.toMatch(EASTERN_ARABIC_DIGITS);
   });
 
   it('rounds away any fractional part', () => {
@@ -150,8 +157,12 @@ describe('formatDate', () => {
     expect(result).toMatch(/[A-Za-z]{3,}/);
   });
 
-  it('Arabic Gregorian uses eastern-Arabic digits', () => {
-    expect(formatDate(date, 'ar')).toMatch(EASTERN_ARABIC_DIGITS);
+  it('Arabic Gregorian uses Western digits with an Arabic month name', () => {
+    const result = formatDate(date, 'ar');
+    expect(result).toContain('2026');
+    expect(result).not.toMatch(EASTERN_ARABIC_DIGITS);
+    // Month name stays Arabic (Arabic-script letters present).
+    expect(result).toMatch(/[؀-ۿ]/);
   });
 
   it('Hijri calendar in Arabic produces a different year than Gregorian', () => {
@@ -176,9 +187,10 @@ describe('formatTime', () => {
     expect(result).toMatch(/AM|PM/i);
   });
 
-  it('Arabic: uses eastern-Arabic digits with ص/م marker', () => {
+  it('Arabic: uses Western digits with ص/م marker', () => {
     const result = formatTime(date, 'ar');
-    expect(result).toMatch(EASTERN_ARABIC_DIGITS);
+    expect(result).toMatch(WESTERN_DIGITS);
+    expect(result).not.toMatch(EASTERN_ARABIC_DIGITS);
     expect(result).toMatch(/ص|م/);
   });
 });

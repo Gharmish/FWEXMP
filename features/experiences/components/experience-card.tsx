@@ -76,6 +76,7 @@ export async function ExperienceCard({ experience, locale, actions }: Experience
   const ratingDisplay =
     experience.ratingAverage !== null
       ? new Intl.NumberFormat(locale === 'ar' ? 'ar-SA' : 'en-SA', {
+          numberingSystem: 'latn',
           minimumFractionDigits: 1,
           maximumFractionDigits: 1,
         }).format(experience.ratingAverage)
@@ -125,7 +126,7 @@ export async function ExperienceCard({ experience, locale, actions }: Experience
                 {experience.bookingMode === 'instant' && (
                   <span
                     className={cn(
-                      'inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium',
+                      'inline-flex items-center gap-1 rounded-full px-2 py-1 text-[10px] font-medium',
                       experience.featured
                         ? 'bg-fog-white/15 text-fog-white'
                         : 'bg-saffron-gold/20 text-sarat-black',
@@ -164,10 +165,13 @@ export async function ExperienceCard({ experience, locale, actions }: Experience
 
                 {ratingDisplay && (
                   <p
-                    className={cn('flex items-center gap-1.5 text-sm', muted)}
+                    className={cn('flex items-center gap-2 text-sm', muted)}
                     aria-label={tr('ratingLabel', { rating: experience.ratingAverage ?? 0 })}
                   >
-                    <Star className="text-saffron-gold size-3.5 shrink-0" aria-hidden />
+                    <Star
+                      className="text-saffron-gold size-3.5 shrink-0 fill-current"
+                      aria-hidden
+                    />
                     <span
                       className={cn(
                         'font-medium',

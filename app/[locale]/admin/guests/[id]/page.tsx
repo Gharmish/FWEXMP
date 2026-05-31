@@ -79,7 +79,7 @@ export default async function AdminGuestDetailPage({
 
       <dl className="border-sarat-black/8 rounded-card grid gap-5 [border-width:0.5px] p-6 sm:grid-cols-2">
         {facts.map((f) => (
-          <div key={f.label} className="flex flex-col gap-0.5">
+          <div key={f.label} className="flex flex-col gap-1">
             <dt className={eyebrowClassName}>{f.label}</dt>
             <dd className="text-base font-medium" dir={f.dir}>
               {f.value}

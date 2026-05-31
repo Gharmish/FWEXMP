@@ -7,7 +7,8 @@ const intlLocale: Record<Locale, string> = {
 
 /**
  * Format an amount as Saudi Riyal.
- * `SAR 480` in English, `٤٨٠ ر.س` (Arabic-Indic digits) in Arabic.
+ * `SAR 480` in English, `480 ر.س` in Arabic. Digits are always Western
+ * (Latin) — `numberingSystem: 'latn'` — never Arabic-Indic, in both locales.
  * Whole amounts drop the decimals; fractional amounts keep two.
  */
 export function formatSAR(amount: number, locale: Locale): string {
@@ -16,6 +17,7 @@ export function formatSAR(amount: number, locale: Locale): string {
     style: 'currency',
     currency: 'SAR',
     currencyDisplay: locale === 'ar' ? 'symbol' : 'code',
+    numberingSystem: 'latn',
     minimumFractionDigits: fractionDigits,
     maximumFractionDigits: fractionDigits,
   }).format(amount);
@@ -23,13 +25,15 @@ export function formatSAR(amount: number, locale: Locale): string {
 
 /**
  * Format an amount as a localized number only — no currency word or symbol.
- * `480` in English, `٤٨٠` (Arabic-Indic digits) in Arabic. Whole amounts drop
- * the decimals; fractional amounts keep two. Pair with `<Price>` / `<RiyalSymbol>`
- * to render the Saudi Riyal glyph alongside; use `formatSAR` for plain text.
+ * `480` in both locales — digits are always Western (Latin), never Arabic-Indic.
+ * Whole amounts drop the decimals; fractional amounts keep two. Pair with
+ * `<Price>` / `<RiyalSymbol>` to render the Saudi Riyal glyph alongside; use
+ * `formatSAR` for plain text.
  */
 export function formatRiyalAmount(amount: number, locale: Locale): string {
   const fractionDigits = Number.isInteger(amount) ? 0 : 2;
   return new Intl.NumberFormat(intlLocale[locale], {
+    numberingSystem: 'latn',
     minimumFractionDigits: fractionDigits,
     maximumFractionDigits: fractionDigits,
   }).format(amount);
@@ -70,7 +74,11 @@ export function formatDate(
   calendar: CalendarSystem = 'gregory',
   options: Intl.DateTimeFormatOptions = { day: 'numeric', month: 'long', year: 'numeric' },
 ): string {
-  return new Intl.DateTimeFormat(`${intlLocale[locale]}-u-ca-${calendar}`, options).format(date);
+  return new Intl.DateTimeFormat(intlLocale[locale], {
+    calendar,
+    numberingSystem: 'latn',
+    ...options,
+  }).format(date);
 }
 
 /**
@@ -80,21 +88,25 @@ export function formatDate(
 export function durationHours(minutes: number, locale: Locale): string {
   const hours = minutes / 60;
   return new Intl.NumberFormat(intlLocale[locale], {
+    numberingSystem: 'latn',
     maximumFractionDigits: 1,
   }).format(hours);
 }
 
 export function formatInteger(value: number, locale: Locale): string {
   return new Intl.NumberFormat(intlLocale[locale], {
+    numberingSystem: 'latn',
     maximumFractionDigits: 0,
   }).format(value);
 }
 
 /**
  * Format a time as 12-hour with AM/PM (English) or ص/م (Arabic).
+ * Digits are always Western (Latin), never Arabic-Indic.
  */
 export function formatTime(date: Date, locale: Locale): string {
   return new Intl.DateTimeFormat(intlLocale[locale], {
+    numberingSystem: 'latn',
     hour: 'numeric',
     minute: '2-digit',
     hour12: true,

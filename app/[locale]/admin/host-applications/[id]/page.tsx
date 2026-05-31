@@ -116,14 +116,14 @@ export default async function AdminHostApplicationDetailPage({
       </div>
 
       <dl className="border-sarat-black/8 rounded-card grid gap-5 [border-width:0.5px] p-6 sm:grid-cols-2">
-        <div className="flex flex-col gap-0.5">
+        <div className="flex flex-col gap-1">
           <dt className={eyebrowClassName}>{t('detail.identity')}</dt>
           <dd className="text-base font-medium">{t(`identityType.${application.identityType}`)}</dd>
           <dd className="text-sarat-black-600 text-sm" dir="ltr">
             {application.identityNumber}
           </dd>
         </div>
-        <div className="flex flex-col gap-0.5">
+        <div className="flex flex-col gap-1">
           <dt className={eyebrowClassName}>{t('detail.contact')}</dt>
           <dd className="text-base font-medium" dir="ltr">
             {application.contactPhone}
@@ -134,13 +134,13 @@ export default async function AdminHostApplicationDetailPage({
             </dd>
           )}
         </div>
-        <div className="flex flex-col gap-0.5">
+        <div className="flex flex-col gap-1">
           <dt className={eyebrowClassName}>{t('detail.languages')}</dt>
           <dd className="text-base font-medium">
             {application.languages.map((l) => t(`languages.${l}`)).join(' · ')}
           </dd>
         </div>
-        <div className="flex flex-col gap-0.5">
+        <div className="flex flex-col gap-1">
           <dt className={eyebrowClassName}>{t('detail.location')}</dt>
           <dd className="text-base font-medium">
             {application.city} · {application.region}
@@ -174,7 +174,7 @@ export default async function AdminHostApplicationDetailPage({
           <h2 className={eyebrowClassName}>{t('detail.historyHeading')}</h2>
           <ol className="flex flex-col gap-4">
             {events.map((event) => (
-              <li key={event.id} className="flex flex-col gap-1.5">
+              <li key={event.id} className="flex flex-col gap-2">
                 <div className="flex flex-wrap items-center gap-3">
                   <Badge className={EVENT_TONE[event.event]}>
                     {t(`applicationEvent.${event.event}`)}

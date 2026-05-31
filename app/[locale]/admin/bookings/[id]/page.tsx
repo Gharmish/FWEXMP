@@ -126,7 +126,7 @@ export default async function AdminBookingDetailPage({
 
       <dl className="border-sarat-black/8 rounded-card grid gap-5 [border-width:0.5px] p-6 sm:grid-cols-2">
         {rows.map((r) => (
-          <div key={r.label} className="flex flex-col gap-0.5">
+          <div key={r.label} className="flex flex-col gap-1">
             <dt className={eyebrowClassName}>{r.label}</dt>
             <dd className="text-base font-medium" dir={r.dir}>
               {r.value}

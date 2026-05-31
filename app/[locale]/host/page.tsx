@@ -106,7 +106,7 @@ export default async function HostDashboardPage({
           </div>
           <ol className="grid gap-3">
             <li className="border-sarat-black/8 rounded-card flex items-start gap-4 [border-width:0.5px] p-5">
-              <span className="text-sarat-black-600 mt-0.5 text-sm tabular-nums">01</span>
+              <span className="text-sarat-black-600 mt-1 text-sm tabular-nums">01</span>
               <div className="flex flex-col gap-1">
                 <p className="text-base font-medium">{t('whatsNext.step1Title')}</p>
                 <p className="text-sarat-black-600 text-sm leading-relaxed">
@@ -115,7 +115,7 @@ export default async function HostDashboardPage({
               </div>
             </li>
             <li className="border-sarat-black/8 rounded-card flex items-start gap-4 [border-width:0.5px] p-5">
-              <span className="text-sarat-black-600 mt-0.5 text-sm tabular-nums">02</span>
+              <span className="text-sarat-black-600 mt-1 text-sm tabular-nums">02</span>
               <div className="flex flex-col gap-1">
                 <p className="text-base font-medium">{t('whatsNext.step2Title')}</p>
                 <p className="text-sarat-black-600 text-sm leading-relaxed">
@@ -124,7 +124,7 @@ export default async function HostDashboardPage({
               </div>
             </li>
             <li className="border-sarat-black/8 rounded-card flex items-start gap-4 [border-width:0.5px] p-5">
-              <span className="text-sarat-black-600 mt-0.5 text-sm tabular-nums">03</span>
+              <span className="text-sarat-black-600 mt-1 text-sm tabular-nums">03</span>
               <div className="flex flex-col gap-1">
                 <p className="text-base font-medium">{t('whatsNext.step3Title')}</p>
                 <p className="text-sarat-black-600 text-sm leading-relaxed">

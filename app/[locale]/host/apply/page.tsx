@@ -66,23 +66,23 @@ export default async function HostApplyPage({ params }: { params: Promise<{ loca
           </div>
 
           <dl className="border-sarat-black/8 rounded-card mt-12 grid gap-5 [border-width:0.5px] p-6 sm:grid-cols-2">
-            <div className="flex flex-col gap-0.5">
+            <div className="flex flex-col gap-1">
               <dt className={eyebrowClassName}>{t('summary.displayName')}</dt>
               <dd className="text-base font-medium">{existing.displayName}</dd>
             </div>
-            <div className="flex flex-col gap-0.5">
+            <div className="flex flex-col gap-1">
               <dt className={eyebrowClassName}>{t('summary.languages')}</dt>
               <dd className="text-base font-medium">
                 {existing.languages.map((l) => t(`languages.${l}`)).join(' · ')}
               </dd>
             </div>
-            <div className="flex flex-col gap-0.5">
+            <div className="flex flex-col gap-1">
               <dt className={eyebrowClassName}>{t('summary.identity')}</dt>
               <dd className="text-base font-medium">
                 {t(`identityType.${existing.identityType}`)}
               </dd>
             </div>
-            <div className="flex flex-col gap-0.5">
+            <div className="flex flex-col gap-1">
               <dt className={eyebrowClassName}>{t('summary.contact')}</dt>
               <dd className="text-base font-medium" dir="ltr">
                 {existing.contactPhone}

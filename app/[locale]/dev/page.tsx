@@ -54,7 +54,7 @@ const TYPE_SCALE = [
     ),
     ar: (
       <>
-        من ٤٨٠ <RiyalSymbol className="h-[0.9em] align-[-0.1em]" />
+        من 480 <RiyalSymbol className="h-[0.9em] align-[-0.1em]" />
       </>
     ),
   },
