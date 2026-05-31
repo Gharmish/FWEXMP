@@ -2,12 +2,16 @@
 
 import { useActionState, useEffect, useId, useRef, useState } from 'react';
 import { useFormStatus } from 'react-dom';
+import { motion, useReducedMotion } from 'framer-motion';
 import { Minus, Plus } from 'lucide-react';
 import { requestBooking, type BookingRequestState } from '@/features/bookings/actions';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Pop, SPRING } from '@/components/ui/motion';
 import type { Locale } from '@/lib/i18n';
+import { cn } from '@/lib/utils';
 import { formatSaudiPhone, formatSAR } from '@/lib/format';
+import { BookingCalendar } from './booking-calendar';
 
 interface BookingRequestCopy {
   title: string;
@@ -38,6 +42,9 @@ interface BookingRequestCopy {
   increase: string;
   /** Shown when there are no bookable dates in the window. */
   noDates: string;
+  /** Calendar month-navigation aria-labels. */
+  prevMonth: string;
+  nextMonth: string;
 }
 
 export interface BookableOption {
@@ -53,6 +60,9 @@ export interface BookingRequestFormProps {
   locale: Locale;
   maxGroupSize: string;
   priceSar: number;
+  /** Inclusive booking window bounds, `YYYY-MM-DD` (today Riyadh → horizon). */
+  minDate: string;
+  maxDate: string;
   /** Pre-computed bookable dates (open + with capacity) for the picker. */
   availableDates: readonly BookableOption[];
   /** Short note under the title: instant-confirmation vs request-to-book. */
@@ -68,10 +78,16 @@ const FIELDS_WITH_HINTS = new Set<FieldName>(['phone', 'preferredDate', 'partySi
 
 const initialState: BookingRequestState = { success: false, values: {} };
 
-const SELECT_CLASS =
-  'rounded-input border-sarat-black/20 bg-fog-white text-sarat-black h-11 w-full [border-width:0.5px] px-3 text-base';
-
-function SubmitButton({ copy, disabled }: { copy: BookingRequestCopy; disabled?: boolean }) {
+function SubmitButton({
+  copy,
+  disabled,
+  fullWidth = true,
+}: {
+  copy: BookingRequestCopy;
+  disabled?: boolean;
+  /** Inline form CTA fills its column; the sticky bar CTA sizes to content. */
+  fullWidth?: boolean;
+}) {
   const { pending } = useFormStatus();
 
   return (
@@ -79,7 +95,7 @@ function SubmitButton({ copy, disabled }: { copy: BookingRequestCopy; disabled?:
       type="submit"
       variant="primary"
       size="lg"
-      className="w-full"
+      className={fullWidth ? 'w-full' : 'shrink-0'}
       pending={pending}
       disabled={disabled}
     >
@@ -128,6 +144,8 @@ export function BookingRequestForm({
   locale,
   maxGroupSize,
   priceSar,
+  minDate,
+  maxDate,
   availableDates,
   modeNote,
   copy,
@@ -136,6 +154,26 @@ export function BookingRequestForm({
   const values = state.values ?? {};
   const formRef = useRef<HTMLFormElement>(null);
   const noDates = availableDates.length === 0;
+  const reduce = useReducedMotion();
+
+  // Mobile sticky CTA bar: visible only while the inline submit is scrolled
+  // out of view. A sentinel at the inline button drives an Intersection
+  // Observer — when it's on screen the user can book inline, so the bar
+  // retracts (and stops covering the footer at the bottom of the page).
+  const inlineSubmitRef = useRef<HTMLDivElement>(null);
+  const [stickyBarVisible, setStickyBarVisible] = useState(false);
+  useEffect(() => {
+    const el = inlineSubmitRef.current;
+    if (!el) return;
+    const observer = new IntersectionObserver(
+      ([entry]) => setStickyBarVisible(!entry.isIntersecting),
+      // Trigger a touch early so the details fields aren't covered as they
+      // scroll into reach.
+      { rootMargin: '0px 0px -96px 0px' },
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [noDates]);
 
   // Date + guests are controlled so we can show a live total + remaining
   // capacity and cap the party size to what the chosen day actually has.
@@ -193,7 +231,10 @@ export function BookingRequestForm({
     for (const field of FIELD_NAMES) {
       if (state.fields?.[field]) {
         const el = form.elements.namedItem(field);
-        if (el instanceof HTMLElement) {
+        // `preferredDate` is a hidden input fed by the calendar — focusing it
+        // is a no-op, so skip hidden fields and let focus fall through to the
+        // form-level alert below.
+        if (el instanceof HTMLElement && el.getAttribute('type') !== 'hidden') {
           el.focus();
           return;
         }
@@ -237,143 +278,138 @@ export function BookingRequestForm({
         </p>
       ) : (
         <>
-          <div className="flex flex-col gap-2">
-            <label htmlFor="booking-name" className="text-sm font-medium">
-              {copy.name}
-            </label>
-            <Input
-              id="booking-name"
-              name="name"
-              autoComplete="name"
-              required
-              defaultValue={values.name}
-              {...fieldProps('name')}
+          {/* 1 — Pick a date. Calendar drives the hidden `preferredDate`. */}
+          <div className="flex flex-col gap-3">
+            <span className="text-sm font-medium">{copy.preferredDate}</span>
+            <BookingCalendar
+              locale={locale}
+              minDate={minDate}
+              maxDate={maxDate}
+              options={availableDates}
+              value={selectedDate}
+              onSelect={setSelectedDate}
+              copy={{ prevMonth: copy.prevMonth, nextMonth: copy.nextMonth }}
             />
-            <FieldError id={errorId('name')} message={state.fields?.name && copy.required} />
-          </div>
-
-          <div className="flex flex-col gap-2">
-            <label htmlFor="booking-phone" className="text-sm font-medium">
-              {copy.phone}
-            </label>
-            <Input
-              id="booking-phone"
-              name="phone"
-              type="tel"
-              autoComplete="tel"
-              required
-              dir="ltr"
-              value={phone}
-              onChange={(event) => setPhone(event.target.value)}
-              onBlur={() => {
-                // Canonicalise on blur, not on every keystroke — formatting
-                // mid-typing fights the caret. formatSaudiPhone returns the
-                // input untouched when the value isn't a recognisable Saudi
-                // mobile, so this is a no-op for partial / non-Saudi input.
-                const formatted = formatSaudiPhone(phone);
-                if (formatted !== phone) setPhone(formatted);
-              }}
-              placeholder="+966 5X XXX XXXX"
-              {...fieldProps('phone')}
-            />
-            <p id={hintId('phone')} className="text-sarat-black-600 text-sm">
-              {copy.phoneHint}
-            </p>
-            <FieldError id={errorId('phone')} message={state.fields?.phone && copy.required} />
-          </div>
-
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-1">
-            <div className="flex flex-col gap-2">
-              <label htmlFor="booking-date" className="text-sm font-medium">
-                {copy.preferredDate}
-              </label>
-              <select
-                id="booking-date"
-                name="preferredDate"
-                required
-                value={selectedDate}
-                onChange={(e) => setSelectedDate(e.target.value)}
-                className={SELECT_CLASS}
-                {...fieldProps('preferredDate')}
+            <input type="hidden" name="preferredDate" value={selectedDate} />
+            {selectedOption ? (
+              <p
+                id={hintId('preferredDate')}
+                className="text-juniper-green-800 inline-flex items-center gap-1.5 text-sm"
               >
-                <option value="" disabled>
-                  {copy.datePlaceholder}
-                </option>
-                {availableDates.map((d) => (
-                  <option key={d.value} value={d.value}>
-                    {d.label}
-                  </option>
-                ))}
-              </select>
-              {selectedOption ? (
-                <p
-                  id={hintId('preferredDate')}
-                  className="text-juniper-green-800 inline-flex items-center gap-1.5 text-sm"
-                >
-                  <span className="bg-juniper-green size-1.5 rounded-full" aria-hidden />
-                  {selectedOption.spotsLabel}
-                </p>
-              ) : (
-                <p id={hintId('preferredDate')} className="text-sarat-black-600 text-sm">
-                  {copy.preferredDateHint}
-                </p>
-              )}
-              <FieldError
-                id={errorId('preferredDate')}
-                message={messageForField('preferredDate', state.fields?.preferredDate, copy)}
-              />
-            </div>
-
-            <div className="flex flex-col gap-2">
-              <label htmlFor="booking-party-size" className="text-sm font-medium">
-                {copy.partySize}
-              </label>
-              {/* Stepper — keeps the value within [1, capacity] without a keyboard. */}
-              <div className="border-sarat-black/20 rounded-input flex h-11 items-center justify-between [border-width:0.5px] px-1">
-                <button
-                  type="button"
-                  aria-label={copy.decrease}
-                  disabled={effectiveParty <= 1}
-                  onClick={() => setPartySize(Math.max(1, effectiveParty - 1))}
-                  className="text-sarat-black hover:bg-sarat-black/5 inline-flex size-9 items-center justify-center rounded-full transition-colors duration-200 disabled:opacity-30"
-                >
-                  <Minus className="size-4" aria-hidden />
-                </button>
-                <span id="booking-party-size" className="text-base font-medium tabular-nums">
-                  {effectiveParty}
-                </span>
-                <button
-                  type="button"
-                  aria-label={copy.increase}
-                  disabled={effectiveParty >= maxGuests}
-                  onClick={() => setPartySize(Math.min(maxGuests, effectiveParty + 1))}
-                  className="text-sarat-black hover:bg-sarat-black/5 inline-flex size-9 items-center justify-center rounded-full transition-colors duration-200 disabled:opacity-30"
-                >
-                  <Plus className="size-4" aria-hidden />
-                </button>
-              </div>
-              <input type="hidden" name="partySize" value={String(effectiveParty)} />
-              <p id={hintId('partySize')} className="text-sarat-black-600 text-sm">
-                {copy.partySizeHint}
+                <span className="bg-juniper-green size-1.5 rounded-full" aria-hidden />
+                {selectedOption.spotsLabel}
               </p>
-              <FieldError
-                id={errorId('partySize')}
-                message={messageForField('partySize', state.fields?.partySize, copy)}
-              />
-            </div>
+            ) : (
+              <p id={hintId('preferredDate')} className="text-sarat-black-600 text-sm">
+                {copy.preferredDateHint}
+              </p>
+            )}
+            <FieldError
+              id={errorId('preferredDate')}
+              message={messageForField('preferredDate', state.fields?.preferredDate, copy)}
+            />
           </div>
 
-          {/* Live total + breakdown */}
+          {/* 2 — Choose party size. */}
+          <div className="border-sarat-black/8 flex flex-col gap-2 [border-top-width:0.5px] pt-4">
+            <label htmlFor="booking-party-size" className="text-sm font-medium">
+              {copy.partySize}
+            </label>
+            {/* Stepper — keeps the value within [1, capacity] without a keyboard. */}
+            <div className="border-sarat-black/20 rounded-input flex h-11 items-center justify-between [border-width:0.5px] px-1">
+              <button
+                type="button"
+                aria-label={copy.decrease}
+                disabled={effectiveParty <= 1}
+                onClick={() => setPartySize(Math.max(1, effectiveParty - 1))}
+                className="text-sarat-black hover:bg-sarat-black/5 inline-flex size-9 items-center justify-center rounded-full transition-colors duration-200 disabled:opacity-30"
+              >
+                <Minus className="size-4" aria-hidden />
+              </button>
+              <span id="booking-party-size" className="text-base font-medium tabular-nums">
+                {effectiveParty}
+              </span>
+              <button
+                type="button"
+                aria-label={copy.increase}
+                disabled={effectiveParty >= maxGuests}
+                onClick={() => setPartySize(Math.min(maxGuests, effectiveParty + 1))}
+                className="text-sarat-black hover:bg-sarat-black/5 inline-flex size-9 items-center justify-center rounded-full transition-colors duration-200 disabled:opacity-30"
+              >
+                <Plus className="size-4" aria-hidden />
+              </button>
+            </div>
+            <input type="hidden" name="partySize" value={String(effectiveParty)} />
+            <p id={hintId('partySize')} className="text-sarat-black-600 text-sm">
+              {copy.partySizeHint}
+            </p>
+            <FieldError
+              id={errorId('partySize')}
+              message={messageForField('partySize', state.fields?.partySize, copy)}
+            />
+          </div>
+
+          {/* 3 — Live total + breakdown. The amount pops on change. */}
           <div className="border-sarat-black/8 flex flex-col gap-1 [border-top-width:0.5px] pt-4">
             <p className="text-sarat-black-600 flex items-baseline justify-between text-sm">
               <span dir="ltr">
                 {formatSAR(priceSar, locale)} × {effectiveParty}
               </span>
             </p>
-            <p className="flex items-baseline justify-between text-base font-medium">
+            <div className="flex items-baseline justify-between text-base font-medium">
               <span>{copy.total}</span>
-              <span>{formatSAR(totalSar, locale)}</span>
-            </p>
+              <Pop key={totalSar}>
+                <span>{formatSAR(totalSar, locale)}</span>
+              </Pop>
+            </div>
+          </div>
+
+          {/* 4 — Your details. */}
+          <div className="border-sarat-black/8 flex flex-col gap-4 [border-top-width:0.5px] pt-4">
+            <div className="flex flex-col gap-2">
+              <label htmlFor="booking-name" className="text-sm font-medium">
+                {copy.name}
+              </label>
+              <Input
+                id="booking-name"
+                name="name"
+                autoComplete="name"
+                required
+                defaultValue={values.name}
+                {...fieldProps('name')}
+              />
+              <FieldError id={errorId('name')} message={state.fields?.name && copy.required} />
+            </div>
+
+            <div className="flex flex-col gap-2">
+              <label htmlFor="booking-phone" className="text-sm font-medium">
+                {copy.phone}
+              </label>
+              <Input
+                id="booking-phone"
+                name="phone"
+                type="tel"
+                autoComplete="tel"
+                required
+                dir="ltr"
+                value={phone}
+                onChange={(event) => setPhone(event.target.value)}
+                onBlur={() => {
+                  // Canonicalise on blur, not on every keystroke — formatting
+                  // mid-typing fights the caret. formatSaudiPhone returns the
+                  // input untouched when the value isn't a recognisable Saudi
+                  // mobile, so this is a no-op for partial / non-Saudi input.
+                  const formatted = formatSaudiPhone(phone);
+                  if (formatted !== phone) setPhone(formatted);
+                }}
+                placeholder="+966 5X XXX XXXX"
+                {...fieldProps('phone')}
+              />
+              <p id={hintId('phone')} className="text-sarat-black-600 text-sm">
+                {copy.phoneHint}
+              </p>
+              <FieldError id={errorId('phone')} message={state.fields?.phone && copy.required} />
+            </div>
           </div>
 
           {formMessage && (
@@ -388,7 +424,32 @@ export function BookingRequestForm({
             </p>
           )}
 
-          <SubmitButton copy={copy} />
+          <div ref={inlineSubmitRef}>
+            <SubmitButton copy={copy} />
+          </div>
+
+          {/* Mobile-only sticky CTA. Lives inside the form so its button
+              submits natively; springs up from the bottom edge while the
+              inline submit is off-screen. `inert` keeps it out of the tab
+              order and a11y tree while retracted. */}
+          <motion.div
+            inert={!stickyBarVisible}
+            initial={false}
+            animate={{ y: reduce ? 0 : stickyBarVisible ? 0 : '110%' }}
+            transition={SPRING}
+            className={cn(
+              'border-sarat-black/8 bg-fog-white/95 fixed inset-x-0 bottom-0 z-40 [border-top-width:0.5px] px-6 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] backdrop-blur lg:hidden',
+              !stickyBarVisible && 'pointer-events-none',
+            )}
+          >
+            <div className="flex items-center justify-between gap-4">
+              <span className="flex min-w-0 flex-col leading-tight">
+                <span className="text-sarat-black-600 text-sm">{copy.total}</span>
+                <span className="truncate text-lg font-medium">{formatSAR(totalSar, locale)}</span>
+              </span>
+              <SubmitButton copy={copy} fullWidth={false} />
+            </div>
+          </motion.div>
         </>
       )}
     </form>

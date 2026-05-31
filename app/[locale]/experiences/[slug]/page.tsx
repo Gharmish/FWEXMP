@@ -146,6 +146,8 @@ export default async function ExperienceDetailPage({
     decrease: tb('decrease'),
     increase: tb('increase'),
     noDates: tb('noDates'),
+    prevMonth: tb('prevMonth'),
+    nextMonth: tb('nextMonth'),
   };
   const modeNote = exp.bookingMode === 'instant' ? tb('modeInstant') : tb('modeRequest');
   const eyebrowClassName = cn(
@@ -347,6 +349,8 @@ export default async function ExperienceDetailPage({
               locale={loc}
               maxGroupSize={String(exp.maxGroupSize)}
               priceSar={exp.priceSar}
+              minDate={todayRiyadh}
+              maxDate={addDays(todayRiyadh, BOOKING_HORIZON_DAYS)}
               availableDates={availableDates}
               modeNote={modeNote}
               copy={bookingCopy}

@@ -991,6 +991,8 @@
     "decrease": "Fewer guests",
     "increase": "More guests",
     "noDates": "No open dates in the next 8 weeks. Check back soon, or message the host.",
+    "prevMonth": "Previous month",
+    "nextMonth": "Next month",
     "modeInstant": "Instant confirmation — your spot is booked the moment you submit, subject to availability.",
     "modeRequest": "Request to book — the host confirms availability within 24 hours."
   },
