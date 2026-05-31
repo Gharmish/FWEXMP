@@ -115,7 +115,7 @@ const SELECT_CLASS = cn(
 function SubmitButton({ label, pending: pendingLabel }: { label: string; pending: string }) {
   const { pending } = useFormStatus();
   return (
-    <Button type="submit" variant="primary" size="lg" disabled={pending}>
+    <Button type="submit" variant="primary" size="lg" pending={pending}>
       {pending ? pendingLabel : label}
     </Button>
   );

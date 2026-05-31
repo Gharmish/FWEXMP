@@ -46,7 +46,7 @@ const initialState: MomentActionState = { success: false };
 function Saver({ label, pendingLabel }: { label: string; pendingLabel: string }) {
   const { pending } = useFormStatus();
   return (
-    <Button type="submit" variant="primary" size="sm" disabled={pending}>
+    <Button type="submit" variant="primary" size="sm" pending={pending}>
       {pending ? pendingLabel : label}
     </Button>
   );

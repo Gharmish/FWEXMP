@@ -44,7 +44,7 @@ function SuspendSubmit({ copy }: { copy: Copy }) {
       type="submit"
       variant="secondary"
       size="md"
-      disabled={pending}
+      pending={pending}
       className="border-al-qatt-red/40 text-al-qatt-red-800"
     >
       {pending ? copy.suspendPending : copy.suspendLabel}
@@ -55,7 +55,7 @@ function SuspendSubmit({ copy }: { copy: Copy }) {
 function UnsuspendSubmit({ copy }: { copy: Copy }) {
   const { pending } = useFormStatus();
   return (
-    <Button type="submit" variant="primary" size="md" disabled={pending}>
+    <Button type="submit" variant="primary" size="md" pending={pending}>
       {pending ? copy.unsuspendPending : copy.unsuspendLabel}
     </Button>
   );

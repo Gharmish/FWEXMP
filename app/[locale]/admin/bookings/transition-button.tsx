@@ -37,7 +37,7 @@ function Submit({ to, copy }: { to: BookingTransitionTarget; copy: Copy }) {
       type="submit"
       variant={to === 'confirmed' ? 'primary' : 'secondary'}
       size="sm"
-      disabled={pending}
+      pending={pending}
       className={cn(to === 'cancelled' && 'border-al-qatt-red/40 text-al-qatt-red-800')}
       onClick={(e) => {
         // Native confirm for destructive transitions only. A modal can

@@ -46,7 +46,7 @@ const initialState: AdminModerationResult = { success: false };
 function PrimarySubmit({ label, pendingLabel }: { label: string; pendingLabel: string }) {
   const { pending } = useFormStatus();
   return (
-    <Button type="submit" variant="primary" size="md" disabled={pending}>
+    <Button type="submit" variant="primary" size="md" pending={pending}>
       {pending ? pendingLabel : label}
     </Button>
   );
@@ -55,7 +55,7 @@ function PrimarySubmit({ label, pendingLabel }: { label: string; pendingLabel: s
 function SecondarySubmit({ label, pendingLabel }: { label: string; pendingLabel: string }) {
   const { pending } = useFormStatus();
   return (
-    <Button type="submit" variant="secondary" size="md" disabled={pending}>
+    <Button type="submit" variant="secondary" size="md" pending={pending}>
       {pending ? pendingLabel : label}
     </Button>
   );

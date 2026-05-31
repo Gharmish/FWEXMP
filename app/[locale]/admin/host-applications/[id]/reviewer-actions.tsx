@@ -41,7 +41,7 @@ const initialState: AdminApplyResult = { success: false };
 function ApproveSubmit({ copy }: { copy: ReviewerActionsCopy }) {
   const { pending } = useFormStatus();
   return (
-    <Button type="submit" variant="primary" size="md" disabled={pending}>
+    <Button type="submit" variant="primary" size="md" pending={pending}>
       {pending ? copy.approvePending : copy.approveLabel}
     </Button>
   );
@@ -50,7 +50,7 @@ function ApproveSubmit({ copy }: { copy: ReviewerActionsCopy }) {
 function RejectSubmit({ copy }: { copy: ReviewerActionsCopy }) {
   const { pending } = useFormStatus();
   return (
-    <Button type="submit" variant="secondary" size="md" disabled={pending}>
+    <Button type="submit" variant="secondary" size="md" pending={pending}>
       {pending ? copy.rejectPending : copy.rejectLabel}
     </Button>
   );

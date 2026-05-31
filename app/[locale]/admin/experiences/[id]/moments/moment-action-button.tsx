@@ -38,7 +38,8 @@ function Submit({
       type="submit"
       variant={variant}
       size="sm"
-      disabled={pending || disabled}
+      pending={pending}
+      disabled={disabled}
       onClick={(e) => {
         if (confirm && !window.confirm(confirm)) e.preventDefault();
       }}

@@ -43,7 +43,7 @@ function UploadSubmit({
 }) {
   const { pending } = useFormStatus();
   return (
-    <Button type="submit" variant="primary" size="md" disabled={pending || disabled}>
+    <Button type="submit" variant="primary" size="md" pending={pending} disabled={disabled}>
       {pending ? pendingLabel : label}
     </Button>
   );

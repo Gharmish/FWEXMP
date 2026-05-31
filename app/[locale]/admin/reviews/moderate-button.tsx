@@ -29,7 +29,7 @@ function Submit({
 }) {
   const { pending } = useFormStatus();
   return (
-    <Button type="submit" variant={hidden ? 'primary' : 'secondary'} size="md" disabled={pending}>
+    <Button type="submit" variant={hidden ? 'primary' : 'secondary'} size="md" pending={pending}>
       {pending ? pendingLabel : hidden ? unhideLabel : hideLabel}
     </Button>
   );

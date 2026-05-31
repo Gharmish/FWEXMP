@@ -30,7 +30,7 @@ function Submit({ copy }: { copy: Copy }) {
       type="submit"
       variant="secondary"
       size="sm"
-      disabled={pending}
+      pending={pending}
       className="border-al-qatt-red/40 text-al-qatt-red-800"
       // Native confirm — keeps the dependency surface flat. A modal
       // can replace this when the design system grows a dialog.
