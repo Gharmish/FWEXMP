@@ -1,6 +1,6 @@
 'use client';
 
-import { useActionState, useId, useState } from 'react';
+import { useActionState, useEffect, useId, useRef, useState } from 'react';
 import { useFormStatus } from 'react-dom';
 import Image from 'next/image';
 import { ImageUp } from 'lucide-react';
@@ -8,7 +8,12 @@ import type { Locale } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import type { UploadHeroState } from '@/features/host-experiences/photo-actions';
-import { ACCEPTED_PHOTO_ATTR, validatePhoto } from '@/features/host-experiences/lib/photo';
+import { ACCEPTED_PHOTO_ATTR, validateSelectedPhoto } from '@/features/host-experiences/lib/photo';
+import { readFileAsDataUrl } from '@/features/host-experiences/lib/image-process';
+import {
+  HeroCropper,
+  type HeroCropperCopy,
+} from '@/features/host-experiences/components/hero-cropper';
 
 /** Server action signature shared by the host and admin upload paths. */
 export type UploadHeroAction = (
@@ -29,6 +34,7 @@ export interface PhotoUploadCopy {
   submit: string;
   submitting: string;
   errors: Record<ErrorKey, string>;
+  crop: HeroCropperCopy;
 }
 
 export interface PhotoUploadProps {
@@ -60,86 +66,133 @@ export function PhotoUpload({
   action: uploadAction,
 }: PhotoUploadProps) {
   const [state, action] = useActionState(uploadAction, initialState);
-  const [fileName, setFileName] = useState<string | null>(null);
   const [clientError, setClientError] = useState<ErrorKey | null>(null);
+  /** Data URL of the freshly picked file, while the crop sheet is open. */
+  const [cropSrc, setCropSrc] = useState<string | null>(null);
+  /** Object URL of the cropped result shown in the preview box. */
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  /** Whether a processed file is staged in the hidden input, ready to submit. */
+  const [ready, setReady] = useState(false);
   const inputId = useId();
+  const photoInputRef = useRef<HTMLInputElement>(null);
+
+  // The cropped preview is an object URL we own — revoke it when it changes
+  // or the component unmounts so we don't leak blobs.
+  useEffect(() => {
+    if (!previewUrl) return;
+    return () => URL.revokeObjectURL(previewUrl);
+  }, [previewUrl]);
 
   const serverError = state.message
     ? (copy.errors[state.message] ?? copy.errors.server)
     : undefined;
   const error = clientError ? copy.errors[clientError] : serverError;
+  const shownUrl = previewUrl ?? currentUrl;
+
+  async function handlePick(file: File | undefined) {
+    if (!file) return;
+    const result = validateSelectedPhoto({ size: file.size, type: file.type });
+    if (!result.ok) {
+      setClientError(result.reason === 'type' ? 'invalid_type' : 'too_large');
+      return;
+    }
+    setClientError(null);
+    setCropSrc(await readFileAsDataUrl(file));
+  }
+
+  /** Stage the cropped WebP into the hidden file input so the form submits it. */
+  function handleCropApply(file: File) {
+    const input = photoInputRef.current;
+    if (input) {
+      const transfer = new DataTransfer();
+      transfer.items.add(file);
+      input.files = transfer.files;
+    }
+    setPreviewUrl(URL.createObjectURL(file));
+    setReady(true);
+    setCropSrc(null);
+  }
 
   return (
-    <form action={action} className="flex flex-col gap-4">
-      <input type="hidden" name="experienceId" value={experienceId} />
-      <input type="hidden" name="locale" value={locale} />
-
-      <div className="flex flex-col gap-1">
-        <h2 className="font-display text-xl font-medium tracking-[-0.02em]">{copy.heading}</h2>
-        <p className="text-sarat-black-600 text-sm leading-relaxed">{copy.description}</p>
-      </div>
-
-      <div className="bg-sarat-black/5 rounded-image relative aspect-[16/10] w-full max-w-md overflow-hidden">
-        {currentUrl ? (
-          <Image
-            src={currentUrl}
-            alt={copy.currentAlt}
-            fill
-            sizes="(max-width: 768px) 100vw, 28rem"
-            className="object-cover"
-          />
-        ) : (
-          <div className="text-sarat-black-600 flex h-full flex-col items-center justify-center gap-2">
-            <ImageUp className="size-6" aria-hidden />
-            <span className="text-sm">{copy.noPhoto}</span>
-          </div>
-        )}
-      </div>
-
-      <div className="flex flex-col gap-2">
-        <label
-          htmlFor={inputId}
-          className={cn(
-            'border-sarat-black/20 hover:border-sarat-black/40 text-sarat-black rounded-button inline-flex min-h-11 w-fit cursor-pointer items-center gap-2 [border-width:0.5px] px-4 text-sm font-medium transition-transform duration-200 hover:-translate-y-px active:translate-y-0',
-          )}
-        >
-          <ImageUp className="size-4" aria-hidden />
-          {currentUrl ? copy.replace : copy.choose}
-        </label>
+    <>
+      <form action={action} className="flex flex-col gap-4">
+        <input type="hidden" name="experienceId" value={experienceId} />
+        <input type="hidden" name="locale" value={locale} />
+        {/* Holds the cropped WebP staged via DataTransfer; this is what posts. */}
         <input
-          id={inputId}
+          ref={photoInputRef}
           type="file"
           name="photo"
           accept={ACCEPTED_PHOTO_ATTR}
           className="sr-only"
-          onChange={(e) => {
-            const file = e.target.files?.[0];
-            if (!file) {
-              setFileName(null);
-              setClientError(null);
-              return;
-            }
-            const result = validatePhoto({ size: file.size, type: file.type });
-            if (!result.ok) {
-              setClientError(result.reason === 'type' ? 'invalid_type' : 'too_large');
-              setFileName(null);
-            } else {
-              setClientError(null);
-              setFileName(file.name);
-            }
-          }}
+          tabIndex={-1}
+          aria-hidden
         />
-        {fileName && <span className="text-sarat-black-600 truncate text-sm">{fileName}</span>}
-        <p className="text-sarat-black/40 text-xs">{copy.hint}</p>
-      </div>
 
-      <Submit copy={copy} disabled={clientError !== null} />
+        <div className="flex flex-col gap-1">
+          <h2 className="font-display text-xl font-medium tracking-[-0.02em]">{copy.heading}</h2>
+          <p className="text-sarat-black-600 text-sm leading-relaxed">{copy.description}</p>
+        </div>
 
-      {error && (
-        <p role="alert" className="text-al-qatt-red-800 text-sm">
-          {error}
-        </p>
+        <div className="bg-sarat-black/5 rounded-image relative aspect-[16/9] w-full max-w-md overflow-hidden">
+          {shownUrl ? (
+            <Image
+              src={shownUrl}
+              alt={copy.currentAlt}
+              fill
+              sizes="(max-width: 768px) 100vw, 28rem"
+              className="object-cover"
+              unoptimized={previewUrl !== null}
+            />
+          ) : (
+            <div className="text-sarat-black-600 flex h-full flex-col items-center justify-center gap-2">
+              <ImageUp className="size-6" aria-hidden />
+              <span className="text-sm">{copy.noPhoto}</span>
+            </div>
+          )}
+        </div>
+
+        <div className="flex flex-col gap-2">
+          <label
+            htmlFor={inputId}
+            className={cn(
+              'border-sarat-black/20 hover:border-sarat-black/40 text-sarat-black rounded-button inline-flex min-h-11 w-fit cursor-pointer items-center gap-2 [border-width:0.5px] px-4 text-sm font-medium transition-transform duration-200 hover:-translate-y-px active:translate-y-0',
+            )}
+          >
+            <ImageUp className="size-4" aria-hidden />
+            {shownUrl ? copy.replace : copy.choose}
+          </label>
+          <input
+            id={inputId}
+            type="file"
+            accept={ACCEPTED_PHOTO_ATTR}
+            className="sr-only"
+            onChange={(e) => {
+              void handlePick(e.target.files?.[0]);
+              // Allow re-picking the same file (onChange wouldn't fire again).
+              e.target.value = '';
+            }}
+          />
+          <p className="text-sarat-black/40 text-xs">{copy.hint}</p>
+        </div>
+
+        <Submit copy={copy} disabled={!ready} />
+
+        {error && (
+          <p role="alert" className="text-al-qatt-red-800 text-sm">
+            {error}
+          </p>
+        )}
+      </form>
+
+      {cropSrc && (
+        <HeroCropper
+          imageSrc={cropSrc}
+          copy={copy.crop}
+          onCancel={() => setCropSrc(null)}
+          onApply={handleCropApply}
+        />
       )}
-    </form>
+    </>
   );
 }

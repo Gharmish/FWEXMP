@@ -1,5 +1,4 @@
 import type { Metadata } from 'next';
-import Image from 'next/image';
 import { ArrowLeft } from 'lucide-react';
 import { notFound } from 'next/navigation';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
@@ -16,6 +15,7 @@ import { HostCard } from '@/features/hosts/components/host-card';
 import { toArabicText } from '@/features/experiences/lib/arabic-content';
 import { CATEGORIES } from '@/features/experiences/lib/sample-data';
 import { getAllSlugs, getExperienceBySlug } from '@/features/experiences/queries';
+import { PhotoGallery } from '@/features/experiences/components/photo-gallery';
 import { getScheduleDataBySlug } from '@/features/availability/queries';
 import { addDays, bookableDates } from '@/features/bookings/lib/availability';
 import { ReviewsSection } from '@/features/reviews/components/reviews-section';
@@ -219,27 +219,22 @@ export default async function ExperienceDetailPage({
         {t('back')}
       </Link>
 
-      {/* Hero — full-bleed-ish, sits between the back link and the
-          eyebrow/title block. `priority` because LCP almost always
-          falls on this image. Tonal placeholder mirrors the catalog
-          card's empty state so listings without a photo stay clean. */}
-      <div
-        className={cn(
-          'rounded-image relative mt-8 aspect-[16/9] w-full overflow-hidden',
-          !exp.heroImage && 'bg-honey-amber/30',
-        )}
-      >
-        {exp.heroImage && (
-          <Image
-            src={exp.heroImage}
-            alt={title}
-            fill
-            sizes="(min-width: 1024px) 1024px, 100vw"
-            className="object-cover"
-            priority
-          />
-        )}
-      </div>
+      {/* Hero + gallery. The hero stays the LCP 16:9 frame; the lightbox
+          shows every photo (hero + gallery) in full via object-contain,
+          which is where mixed portrait/landscape orientation belongs. */}
+      <PhotoGallery
+        heroImage={exp.heroImage}
+        images={exp.images}
+        alt={title}
+        locale={loc}
+        copy={{
+          open: t('gallery.open'),
+          count: t('gallery.count'),
+          close: t('gallery.close'),
+          prev: t('gallery.prev'),
+          next: t('gallery.next'),
+        }}
+      />
 
       <header className="border-sarat-black/8 mt-10 flex flex-col gap-3 [border-bottom-width:0.5px] pb-10">
         <span className={eyebrowClassName}>{exp.featured ? te('originals') : categoryLabel}</span>

@@ -185,6 +185,14 @@ export default async function EditExperiencePage({
               hint: t('photo.hint'),
               submit: t('photo.submit'),
               submitting: t('photo.submitting'),
+              crop: {
+                title: t('photo.crop.title'),
+                instruction: t('photo.crop.instruction'),
+                zoom: t('photo.crop.zoom'),
+                cancel: t('photo.crop.cancel'),
+                apply: t('photo.crop.apply'),
+                applying: t('photo.crop.applying'),
+              },
               errors: {
                 missing: t('photo.errors.missing'),
                 invalid_type: t('photo.errors.invalidType'),

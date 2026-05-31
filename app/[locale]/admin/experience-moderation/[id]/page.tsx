@@ -182,6 +182,14 @@ export default async function AdminExperienceModerationDetailPage({
             hint: tPhoto('hint'),
             submit: tPhoto('submit'),
             submitting: tPhoto('submitting'),
+            crop: {
+              title: tPhoto('crop.title'),
+              instruction: tPhoto('crop.instruction'),
+              zoom: tPhoto('crop.zoom'),
+              cancel: tPhoto('crop.cancel'),
+              apply: tPhoto('crop.apply'),
+              applying: tPhoto('crop.applying'),
+            },
             errors: {
               missing: tPhoto('errors.missing'),
               invalid_type: tPhoto('errors.invalidType'),

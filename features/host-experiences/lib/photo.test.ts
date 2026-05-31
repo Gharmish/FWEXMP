@@ -1,10 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import {
+  MAX_INPUT_BYTES,
   MAX_PHOTO_BYTES,
   galleryObjectKey,
   heroObjectKey,
   objectKeyFromPublicUrl,
   validatePhoto,
+  validateSelectedPhoto,
 } from '@/features/host-experiences/lib/photo';
 
 describe('validatePhoto', () => {
@@ -53,6 +55,28 @@ describe('validatePhoto', () => {
       reason: 'size',
     });
     expect(validatePhoto({ size: MAX_PHOTO_BYTES, type: 'image/png' })).toMatchObject({ ok: true });
+  });
+});
+
+describe('validateSelectedPhoto', () => {
+  it('still gates on the MIME allow-list', () => {
+    expect(validateSelectedPhoto({ size: 1000, type: 'image/gif' })).toEqual({
+      ok: false,
+      reason: 'type',
+    });
+  });
+
+  it('accepts a large original over the 5MB stored cap (it gets downscaled)', () => {
+    expect(validateSelectedPhoto({ size: MAX_PHOTO_BYTES * 4, type: 'image/jpeg' })).toMatchObject({
+      ok: true,
+    });
+  });
+
+  it('rejects a file over the 30MB input ceiling', () => {
+    expect(validateSelectedPhoto({ size: MAX_INPUT_BYTES + 1, type: 'image/jpeg' })).toEqual({
+      ok: false,
+      reason: 'size',
+    });
   });
 });
 

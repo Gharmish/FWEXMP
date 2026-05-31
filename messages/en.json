@@ -732,13 +732,21 @@
       "noPhoto": "No photo yet",
       "choose": "Choose a photo",
       "replace": "Replace photo",
-      "hint": "JPG, PNG, WebP or AVIF · up to 5MB",
+      "hint": "JPG, PNG, WebP or AVIF. We'll crop it to a 16:9 frame and optimise it for you.",
       "submit": "Upload photo",
       "submitting": "Uploading",
+      "crop": {
+        "title": "Frame your photo",
+        "instruction": "Drag to reposition and zoom to fit. This 16:9 frame is what guests see across the catalog and listing.",
+        "zoom": "Zoom",
+        "cancel": "Cancel",
+        "apply": "Use this frame",
+        "applying": "Preparing"
+      },
       "errors": {
         "missing": "Choose a photo to upload.",
         "invalidType": "That file type isn't supported. Use JPG, PNG, WebP or AVIF.",
-        "tooLarge": "That photo is over 5MB. Pick a smaller file.",
+        "tooLarge": "That photo is too large. Pick one under 30MB.",
         "noSupabase": "Photo uploads aren't available in this environment.",
         "noDb": "Photo uploads require a database connection.",
         "forbidden": "You're not authorised to edit this listing.",
@@ -937,6 +945,13 @@
   },
   "experienceDetail": {
     "back": "Back to experiences",
+    "gallery": {
+      "open": "View photos",
+      "count": "photos",
+      "close": "Close",
+      "prev": "Previous photo",
+      "next": "Next photo"
+    },
     "about": "About this experience",
     "timeline": "The timeline",
     "included": "What's included",

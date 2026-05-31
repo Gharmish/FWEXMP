@@ -732,13 +732,21 @@
       "noPhoto": "لا توجد صورة بعد",
       "choose": "اختر صورة",
       "replace": "استبدل الصورة",
-      "hint": "JPG أو PNG أو WebP أو AVIF · حتى 5 ميجابايت",
+      "hint": "TODO(ar): JPG, PNG, WebP or AVIF. We'll crop it to a 16:9 frame and optimise it for you.",
       "submit": "ارفع الصورة",
       "submitting": "جارٍ الرفع",
+      "crop": {
+        "title": "TODO(ar): Frame your photo",
+        "instruction": "TODO(ar): Drag to reposition and zoom to fit. This 16:9 frame is what guests see across the catalog and listing.",
+        "zoom": "TODO(ar): Zoom",
+        "cancel": "TODO(ar): Cancel",
+        "apply": "TODO(ar): Use this frame",
+        "applying": "TODO(ar): Preparing"
+      },
       "errors": {
         "missing": "اختر صورة لرفعها.",
         "invalidType": "نوع الملف غير مدعوم. استخدم JPG أو PNG أو WebP أو AVIF.",
-        "tooLarge": "حجم الصورة يتجاوز 5 ميجابايت. اختر ملفاً أصغر.",
+        "tooLarge": "TODO(ar): That photo is too large. Pick one under 30MB.",
         "noSupabase": "رفع الصور غير متاح في هذه البيئة.",
         "noDb": "رفع الصور يتطلّب اتصالاً بقاعدة البيانات.",
         "forbidden": "ليست لديك صلاحية تعديل هذه التجربة.",
@@ -937,6 +945,13 @@
   },
   "experienceDetail": {
     "back": "العودة إلى التجارب",
+    "gallery": {
+      "open": "TODO(ar): View photos",
+      "count": "TODO(ar): photos",
+      "close": "TODO(ar): Close",
+      "prev": "TODO(ar): Previous photo",
+      "next": "TODO(ar): Next photo"
+    },
     "about": "عن هذه التجربة",
     "timeline": "مسار التجربة",
     "included": "ما الذي يشمله السعر",

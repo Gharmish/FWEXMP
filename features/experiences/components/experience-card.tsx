@@ -91,14 +91,14 @@ export async function ExperienceCard({ experience, locale, actions }: Experience
             variant={experience.featured ? 'dark' : 'default'}
             className="flex h-full flex-col overflow-hidden p-0"
           >
-            {/* Hero — 16:10-ish to match the upstream crops Pollinations
-              + Cloudflare Images deliver. Falls back to a tonal block
-              in the category colour when no photo is uploaded yet, so
-              cards stay visually consistent before the photography
-              session lands. */}
+            {/* Hero — 16:9 to match the canonical crop hosts now frame at
+              upload, so the stored image fills the card with no trim.
+              Falls back to a tonal block in the category colour when no
+              photo is uploaded yet, so cards stay visually consistent
+              before the photography session lands. */}
             <div
               className={cn(
-                'relative aspect-[16/10] w-full overflow-hidden',
+                'relative aspect-[16/9] w-full overflow-hidden',
                 !experience.heroImage && CATEGORY_PLACEHOLDER[experience.category],
               )}
             >
