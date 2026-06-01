@@ -1,11 +1,10 @@
-import { eq } from 'drizzle-orm';
+import { eq, sql } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import { serverEnv } from '@/lib/env';
 import { reportError } from '@/lib/log';
 import { getCurrentUser } from '@/features/auth/queries';
 import { isAdminUser } from '@/features/admin/auth';
 import { bookings, experiences, hosts } from '@/db/schema';
-import { splitCommission } from '@/features/bookings/lib/availability';
 
 /**
  * Host payouts. A host earns a payout once a booking is `completed`
@@ -46,46 +45,31 @@ export async function listPayouts(): Promise<readonly PayoutRow[]> {
   const block = await adminGuard();
   if (block) return [];
   try {
+    // Aggregate per host in SQL — one GROUP BY row per host instead of
+    // hydrating every completed booking into JS (the set only grows as
+    // the platform succeeds). The per-booking payout is
+    // `total - round(total * clamp(bps,0..10000) / 10000)`, rounded
+    // per booking then summed — identical math to `splitCommission`, so
+    // payouts agrees with the dashboard and bookings list to the riyal.
+    const payout = sql<number>`${bookings.totalAmount} - round(${bookings.totalAmount} * least(10000, greatest(0, ${experiences.commissionBps}))::numeric / 10000)`;
     const rows = await db
       .select({
         hostId: hosts.id,
         hostName: hosts.name,
-        totalAmount: bookings.totalAmount,
-        commissionBps: experiences.commissionBps,
-        hostPaidAt: bookings.hostPaidAt,
+        owedSar: sql<number>`coalesce(sum(${payout}) filter (where ${bookings.hostPaidAt} is null), 0)::int`,
+        owedCount: sql<number>`coalesce(count(*) filter (where ${bookings.hostPaidAt} is null), 0)::int`,
+        paidSar: sql<number>`coalesce(sum(${payout}) filter (where ${bookings.hostPaidAt} is not null), 0)::int`,
+        paidCount: sql<number>`coalesce(count(*) filter (where ${bookings.hostPaidAt} is not null), 0)::int`,
       })
       .from(bookings)
       .innerJoin(experiences, eq(experiences.id, bookings.experienceId))
       .innerJoin(hosts, eq(hosts.id, experiences.hostId))
-      .where(eq(bookings.status, 'completed'));
+      .where(eq(bookings.status, 'completed'))
+      .groupBy(hosts.id, hosts.name);
 
-    const byHost = new Map<string, PayoutRow>();
-    for (const row of rows) {
-      const { payoutSar } = splitCommission(row.totalAmount, row.commissionBps);
-      const existing =
-        byHost.get(row.hostId) ??
-        ({
-          hostId: row.hostId,
-          hostName: row.hostName,
-          owedSar: 0,
-          owedCount: 0,
-          paidSar: 0,
-          paidCount: 0,
-        } satisfies PayoutRow);
-      if (row.hostPaidAt) {
-        existing.paidSar += payoutSar;
-        existing.paidCount += 1;
-      } else {
-        existing.owedSar += payoutSar;
-        existing.owedCount += 1;
-      }
-      byHost.set(row.hostId, existing);
-    }
-
+    // One row per host — bounded by host count, so sorting in JS is cheap.
     // Owed-first (most pressing), then by name for stable ordering.
-    return [...byHost.values()].sort(
-      (a, b) => b.owedSar - a.owedSar || a.hostName.localeCompare(b.hostName),
-    );
+    return [...rows].sort((a, b) => b.owedSar - a.owedSar || a.hostName.localeCompare(b.hostName));
   } catch (error) {
     reportError(error, { surface: 'admin:listPayouts' });
     return [];

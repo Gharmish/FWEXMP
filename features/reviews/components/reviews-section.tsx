@@ -20,21 +20,20 @@ const INITIAL_VISIBLE = 4;
  * Reviews section for the experience detail page. Server component —
  * fetches reviews + aggregate in parallel.
  *
- * Pagination strategy: at launch each experience has 2-3 reviews, so
- * the full list fits without paging. We still cap at INITIAL_VISIBLE
- * and surface a count of hidden reviews as a forward-looking affordance
- * — a future PR will swap this for a "show more" button or a dedicated
- * /reviews route per host once the dataset grows.
+ * Pagination strategy: we fetch only the first INITIAL_VISIBLE reviews
+ * for display and read the total count from the aggregate (a bounded
+ * GROUP BY), so neither query scales with an experience's review count.
+ * A future PR swaps the "N more not shown" line for a "show more" button
+ * or a dedicated /reviews route once the dataset grows.
  */
 export async function ReviewsSection({ experienceSlug, locale }: ReviewsSectionProps) {
   const t = await getTranslations('reviews');
-  const [reviews, aggregate] = await Promise.all([
-    getReviewsForExperience(experienceSlug),
+  const [visible, aggregate] = await Promise.all([
+    getReviewsForExperience(experienceSlug, INITIAL_VISIBLE),
     getReviewAggregateForExperience(experienceSlug),
   ]);
 
-  const visible = reviews.slice(0, INITIAL_VISIBLE);
-  const hidden = reviews.length - visible.length;
+  const hidden = Math.max(0, aggregate.count - visible.length);
   const eyebrowClassName = cn(
     'text-sarat-black-600 text-[11px]',
     locale === 'en' && 'tracking-[0.2em] uppercase',
@@ -52,7 +51,7 @@ export async function ReviewsSection({ experienceSlug, locale }: ReviewsSectionP
 
       <RatingSummary aggregate={aggregate} locale={locale} />
 
-      {reviews.length > 0 && (
+      {visible.length > 0 && (
         <ul className="grid gap-4 sm:grid-cols-2">
           {visible.map((review) => (
             <li key={review.id}>

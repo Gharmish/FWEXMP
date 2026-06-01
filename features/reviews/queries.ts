@@ -41,11 +41,14 @@ function toSummary(row: ReviewWithGuest, experienceSlug: string): ReviewSummary 
   };
 }
 
-export async function getReviewsForExperience(slug: string): Promise<readonly ReviewSummary[]> {
+export async function getReviewsForExperience(
+  slug: string,
+  limit?: number,
+): Promise<readonly ReviewSummary[]> {
   if (!hasDb()) {
     const rows = [...sample.getReviewsForExperience(slug)];
     rows.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
-    return rows;
+    return typeof limit === 'number' ? rows.slice(0, limit) : rows;
   }
   const exp = await db.query.experiences.findFirst({
     where: (e) => eq(e.slug, slug),
@@ -57,13 +60,45 @@ export async function getReviewsForExperience(slug: string): Promise<readonly Re
     where: (r) => and(eq(r.experienceId, exp.id), isNull(r.hiddenAt)),
     with: { guest: true },
     orderBy: (r) => desc(r.createdAt),
+    // Bound the listing — the page renders only the first page of reviews
+    // (the full count/average comes from the aggregate query below, not
+    // from hydrating every row). Omitted limit = all (sample path only).
+    ...(typeof limit === 'number' ? { limit } : {}),
   });
   return rows.map((row) => toSummary(row, slug));
 }
 
+const EMPTY_DISTRIBUTION: ReviewAggregate['distribution'] = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
+
 export async function getReviewAggregateForExperience(slug: string): Promise<ReviewAggregate> {
-  const reviews = await getReviewsForExperience(slug);
-  return aggregateReviews(reviews);
+  if (!hasDb()) {
+    return aggregateReviews(sample.getReviewsForExperience(slug));
+  }
+  const exp = await db.query.experiences.findFirst({
+    where: (e) => eq(e.slug, slug),
+    columns: { id: true },
+  });
+  if (!exp) return { count: 0, average: null, distribution: { ...EMPTY_DISTRIBUTION } };
+
+  // One bounded GROUP BY rating query (≤5 rows) for count + average +
+  // distribution, rather than loading every review row to aggregate in JS.
+  const rows = await db
+    .select({ rating: reviewsTable.rating, n: count(reviewsTable.id) })
+    .from(reviewsTable)
+    .where(and(eq(reviewsTable.experienceId, exp.id), isNull(reviewsTable.hiddenAt)))
+    .groupBy(reviewsTable.rating);
+
+  const distribution = { ...EMPTY_DISTRIBUTION };
+  let total = 0;
+  let weighted = 0;
+  for (const row of rows) {
+    const rating = clampRating(row.rating);
+    const n = Number(row.n);
+    distribution[rating] += n;
+    total += n;
+    weighted += rating * n;
+  }
+  return { count: total, average: total > 0 ? weighted / total : null, distribution };
 }
 
 /**
