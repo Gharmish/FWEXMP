@@ -11,7 +11,7 @@ import { cn } from '@/lib/utils';
  * 44×44px touch-target minimum — that is why there is no `sm`.
  */
 const iconButtonVariants = cva(
-  'inline-flex shrink-0 items-center justify-center rounded-button transition-transform duration-200 select-none hover:-translate-y-px active:translate-y-0 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-5 [&_svg]:shrink-0',
+  'inline-flex shrink-0 items-center justify-center rounded-button transition-transform duration-200 select-none hover:-translate-y-px active:translate-y-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-saffron-gold focus-visible:ring-offset-2 focus-visible:ring-offset-fog-white disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-5 [&_svg]:shrink-0',
   {
     variants: {
       variant: {

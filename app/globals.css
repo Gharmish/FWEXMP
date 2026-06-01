@@ -180,7 +180,9 @@ body {
 
 :focus-visible {
   outline: none;
-  box-shadow: 0 0 0 2px var(--color-fog-white), 0 0 0 4px rgb(10 10 10 / 0.4);
+  box-shadow:
+    0 0 0 2px var(--color-fog-white),
+    0 0 0 4px rgb(10 10 10 / 0.4);
   border-radius: 4px;
 }
 

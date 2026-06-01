@@ -3,10 +3,14 @@ import { cn } from '@/lib/utils';
 
 /**
  * Gharmish Button — pill shaped, restraint-first. No shadows (BRIEF §3).
- * Variants: primary / secondary / premium. Sizes: sm 32 / md 44 / lg 52.
+ * Variants: primary / secondary / premium. Sizes: sm 44 / md 44 / lg 52.
+ *
+ * A visible keyboard focus ring is mandatory (BRIEF §6: "Focus rings
+ * visible, never removed"). `sm` keeps the 44px touch-target floor — it
+ * differs from `md` only in horizontal padding and type size.
  */
 const buttonVariants = cva(
-  'inline-flex shrink-0 items-center justify-center gap-2 rounded-button font-medium whitespace-nowrap transition-transform duration-200 select-none hover:-translate-y-px active:translate-y-0 disabled:pointer-events-none disabled:opacity-50 aria-busy:pointer-events-none aria-busy:opacity-70 aria-busy:cursor-progress [&_svg]:pointer-events-none [&_svg]:size-5 [&_svg]:shrink-0',
+  'inline-flex shrink-0 items-center justify-center gap-2 rounded-button font-medium whitespace-nowrap transition-transform duration-200 select-none hover:-translate-y-px active:translate-y-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-saffron-gold focus-visible:ring-offset-2 focus-visible:ring-offset-fog-white disabled:pointer-events-none disabled:opacity-50 aria-busy:pointer-events-none aria-busy:opacity-70 aria-busy:cursor-progress [&_svg]:pointer-events-none [&_svg]:size-5 [&_svg]:shrink-0',
   {
     variants: {
       variant: {
@@ -15,7 +19,7 @@ const buttonVariants = cva(
         premium: 'bg-saffron-gold text-sarat-black',
       },
       size: {
-        sm: 'h-8 px-4 text-sm',
+        sm: 'h-11 px-4 text-sm',
         md: 'h-11 px-6 text-base',
         lg: 'h-13 px-8 text-base',
       },
