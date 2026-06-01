@@ -89,6 +89,7 @@ function makeExperience(
     durationMinutes: overrides.durationMinutes ?? 180,
     placeName: overrides.placeName ?? 'Jabal Sawda',
     hostName: overrides.hostName ?? 'Faisal Al Qahtani',
+    hostSlug: overrides.hostSlug ?? 'faisal-al-qahtani',
     featured: overrides.featured ?? false,
     bookingMode: overrides.bookingMode ?? 'request',
     ratingAverage: overrides.ratingAverage ?? null,
@@ -136,6 +137,7 @@ const EMPTY_AGGREGATE: ReviewAggregate = {
 
 const SAMPLE_HOST: HostInfo = {
   name: 'Faisal Al Qahtani',
+  slug: 'faisal-al-qahtani',
   bioEn:
     'A third-generation farmer from Habala who grew up among the juniper terraces. Faisal hosts small groups to share Asiri food, music, and the slow rhythm of mountain life.',
   bioAr:

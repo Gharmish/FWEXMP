@@ -5,7 +5,6 @@ import { experienceModerationEvents } from '@/db/schema';
 import { reportError } from '@/lib/log';
 import { getCurrentUser } from '@/features/auth/queries';
 import { isAdminUser } from '@/features/admin/auth';
-import { hostSlug } from '@/features/hosts/lib/slug';
 import type {
   ExperienceStatus,
   ModerationDetail,
@@ -152,7 +151,7 @@ export async function getModerationDetail(id: string): Promise<ModerationDetail 
     const row = await db.query.experiences.findFirst({
       where: (e) => eq(e.id, id),
       with: {
-        host: { columns: { name: true } },
+        host: { columns: { name: true, slug: true } },
         moderationEvents: true,
       },
     });
@@ -186,7 +185,7 @@ export async function getModerationDetail(id: string): Promise<ModerationDetail 
       heroImage: row.heroImage,
       images: row.images,
       hostName: row.host.name,
-      hostSlug: hostSlug(row.host.name),
+      hostSlug: row.host.slug,
       events,
       submittedAt,
     };

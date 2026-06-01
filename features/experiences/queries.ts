@@ -52,6 +52,7 @@ function toSummary(
     durationMinutes: row.durationMinutes,
     placeName: row.placeName,
     hostName: row.host.name,
+    hostSlug: row.host.slug,
     featured: row.featured,
     bookingMode: row.bookingMode,
     ratingAverage: agg?.average ?? null,
@@ -63,6 +64,7 @@ function toSummary(
 function toHostInfo(host: Host): HostInfo {
   return {
     name: host.name,
+    slug: host.slug,
     bioEn: host.bioEn,
     bioAr: host.bioAr,
     verified: host.verificationStatus === 'verified',

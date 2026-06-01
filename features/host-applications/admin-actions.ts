@@ -13,6 +13,7 @@ import {
   approveApplicationSchema,
   rejectApplicationSchema,
 } from '@/features/host-applications/admin-schemas';
+import { hostBaseSlug, hostSlugSuffix } from '@/features/hosts/lib/slug';
 
 /**
  * Approve / reject server actions for host applications.
@@ -117,6 +118,18 @@ export async function approveApplication(
       }
       const application = claimed[0];
 
+      // Mint a unique host slug from the display name. Check the base
+      // first and append a random suffix only on collision, so the
+      // common case keeps a clean name-derived slug. The `hosts.slug`
+      // UNIQUE constraint is the backstop if two approvals of same-named
+      // hosts race (the loser's txn rolls back and surfaces as 'server').
+      const baseSlug = hostBaseSlug(application.displayName);
+      const slugTaken = await tx.query.hosts.findFirst({
+        where: (h) => eq(h.slug, baseSlug),
+        columns: { id: true },
+      });
+      const slug = slugTaken ? `${baseSlug}-${hostSlugSuffix()}` : baseSlug;
+
       // Mint a hosts row from the application. Identity + bio come over;
       // payout/insurance still gathered out-of-band (BRIEF §10 Sprint 4+).
       // The application's userId becomes the host's userId so the host
@@ -126,6 +139,7 @@ export async function approveApplication(
         .values({
           userId: application.userId,
           name: application.displayName,
+          slug,
           bioEn: application.bioEn,
           // Placeholder so the row is valid — partnership team fills the
           // real Arabic copy before public listing.

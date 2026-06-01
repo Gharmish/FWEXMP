@@ -3,7 +3,6 @@ import { getExperiences } from '@/features/experiences/queries';
 import { getAllHosts } from '@/features/hosts/queries';
 import { CATEGORIES } from '@/features/experiences/lib/sample-data';
 import { durationHours, formatSAR } from '@/lib/format';
-import { hostSlug } from '@/features/hosts/lib/slug';
 
 /**
  * /llms.txt — AI-readable site map (BRIEF §6), llmstxt.org style.
@@ -25,8 +24,7 @@ export async function GET(): Promise<Response> {
 
   const experiencesPerHost = new Map<string, number>();
   for (const exp of experiences) {
-    const slug = hostSlug(exp.hostName);
-    experiencesPerHost.set(slug, (experiencesPerHost.get(slug) ?? 0) + 1);
+    experiencesPerHost.set(exp.hostSlug, (experiencesPerHost.get(exp.hostSlug) ?? 0) + 1);
   }
 
   const lines: string[] = [

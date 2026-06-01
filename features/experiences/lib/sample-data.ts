@@ -4,6 +4,7 @@ import type {
   CategoryMeta,
   HostInfo,
 } from '@/features/experiences/types';
+import { hostSlug } from '@/features/hosts/lib/slug';
 import { aggregateReviews } from '@/features/reviews/lib/aggregate';
 import { getReviewsForExperience as getSampleReviews } from '@/features/reviews/lib/sample-data';
 
@@ -15,13 +16,20 @@ import { getReviewsForExperience as getSampleReviews } from '@/features/reviews/
  */
 type SampleExperience = Omit<
   ExperienceDetail,
-  'ratingAverage' | 'ratingCount' | 'heroImage' | 'images' | 'bookingMode' | 'availabilityWeekdays'
+  | 'ratingAverage'
+  | 'ratingCount'
+  | 'heroImage'
+  | 'images'
+  | 'bookingMode'
+  | 'availabilityWeekdays'
+  | 'hostSlug'
 >;
 
 function attachRatings(e: SampleExperience): ExperienceDetail {
   const agg = aggregateReviews(getSampleReviews(e.slug));
   return {
     ...e,
+    hostSlug: e.host.slug,
     ratingAverage: agg.average,
     ratingCount: agg.count,
     heroImage: heroFor(e.slug),
@@ -67,6 +75,7 @@ const PHOTOS_BASE = 'https://xjgpflzkpydfpuomqhuq.supabase.co/storage/v1/object/
 
 const FAISAL: HostInfo = {
   name: 'Faisal Al Qahtani',
+  slug: hostSlug('Faisal Al Qahtani'),
   bioEn:
     'A third-generation farmer from Habala who grew up among the juniper terraces. Faisal hosts small groups to share Asiri food, music, and the slow rhythm of mountain life.',
   bioAr:
@@ -77,6 +86,7 @@ const FAISAL: HostInfo = {
 
 const ASIR_ADVENTURES: HostInfo = {
   name: 'Asir Adventures Co.',
+  slug: hostSlug('Asir Adventures Co.'),
   bioEn:
     'A licensed Abha tourism operator specialising in guided mountain activities, with certified guides and full safety equipment.',
   bioAr:

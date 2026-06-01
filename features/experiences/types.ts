@@ -19,6 +19,8 @@ export interface ExperienceSummary {
   durationMinutes: number;
   placeName: string;
   hostName: string;
+  /** Stable URL slug of the host, for linking to /hosts/[slug]. */
+  hostSlug: string;
   featured: boolean;
   /** `instant` auto-confirms against the calendar; `request` is operator-confirmed. */
   bookingMode: BookingMode;
@@ -46,6 +48,8 @@ export interface CategoryMeta {
 
 export interface HostInfo {
   name: string;
+  /** Stable URL slug for /hosts/[slug]. */
+  slug: string;
   bioEn: string;
   bioAr: string;
   verified: boolean;

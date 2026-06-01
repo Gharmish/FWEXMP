@@ -6,7 +6,6 @@ import { Link } from '@/lib/i18n';
 import type { Locale } from '@/lib/i18n';
 import type { HostInfo } from '@/features/experiences/types';
 import { toArabicText } from '@/features/experiences/lib/arabic-content';
-import { hostSlug } from '@/features/hosts/lib/slug';
 
 /**
  * Host card — Avatar (initials fallback), name, verified badge, bio,
@@ -22,7 +21,7 @@ export async function HostCard({ host, locale }: HostCardProps) {
   const t = await getTranslations('host');
   const bio = locale === 'ar' ? host.bioAr : host.bioEn;
   const name = locale === 'ar' ? toArabicText(host.name) : host.name;
-  const slug = hostSlug(host.name);
+  const slug = host.slug;
 
   return (
     <div className="flex flex-col gap-4">

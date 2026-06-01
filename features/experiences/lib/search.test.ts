@@ -26,6 +26,7 @@ function exp(overrides: Partial<ExperienceSummary> & { slug: string }): Experien
     durationMinutes: overrides.durationMinutes ?? 120,
     placeName: overrides.placeName ?? 'Place',
     hostName: overrides.hostName ?? 'Host',
+    hostSlug: overrides.hostSlug ?? 'host',
     featured: overrides.featured ?? false,
     bookingMode: overrides.bookingMode ?? 'request',
     ratingAverage: overrides.ratingAverage ?? null,

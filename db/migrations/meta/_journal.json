@@ -85,6 +85,20 @@
       "when": 1780249939759,
       "tag": "0011_spotty_talisman",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1780293341878,
+      "tag": "0012_naive_shotgun",
+      "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1780294718525,
+      "tag": "0013_pale_puma",
+      "breakpoints": true
     }
   ]
 }

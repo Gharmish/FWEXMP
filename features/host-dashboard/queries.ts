@@ -4,7 +4,6 @@ import { serverEnv } from '@/lib/env';
 import type { Host } from '@/db/schema';
 import { reportError } from '@/lib/log';
 import { getCurrentUser } from '@/features/auth/queries';
-import { hostSlug } from '@/features/hosts/lib/slug';
 import type { HostProfile } from '@/features/hosts/types';
 
 /**
@@ -28,7 +27,7 @@ export interface HostDashboardData {
 function toProfile(row: Host): HostDashboardData['host'] {
   return {
     id: row.id,
-    slug: hostSlug(row.name),
+    slug: row.slug,
     name: row.name,
     bioEn: row.bioEn,
     bioAr: row.bioAr,
