@@ -237,6 +237,7 @@ export default async function MePage({ params }: { params: Promise<{ locale: str
                         not_found: t('review.errors.notFound'),
                         wrong_state: t('review.errors.wrongState'),
                         already_reviewed: t('review.errors.alreadyReviewed'),
+                        forbidden: t('review.errors.forbidden'),
                         validation: t('review.errors.validation'),
                         server: t('review.errors.server'),
                       },

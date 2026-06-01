@@ -520,6 +520,7 @@
         "noDb": "Admin actions require a database connection.",
         "notFound": "This booking no longer exists.",
         "wrongState": "This booking can't move to that status from where it is now.",
+        "overCapacity": "Confirming this would put the date over its group-size limit.",
         "validation": "Something didn't validate. Refresh and try again.",
         "server": "We couldn't complete that action. Try again in a moment."
       }
@@ -1135,6 +1136,7 @@
         "notFound": "We couldn't find that booking.",
         "wrongState": "You can review an experience once your booking is complete.",
         "alreadyReviewed": "You've already reviewed this booking.",
+        "forbidden": "This booking belongs to a different account.",
         "validation": "Something didn't validate. Check the form and try again.",
         "server": "We couldn't save your review. Try again in a moment."
       }

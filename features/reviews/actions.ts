@@ -3,9 +3,10 @@
 import { eq } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import { serverEnv } from '@/lib/env';
-import { bookings, reviews } from '@/db/schema';
+import { bookings, guests, reviews } from '@/db/schema';
 import { redirect } from '@/lib/i18n';
 import { reportError } from '@/lib/log';
+import { getCurrentUser } from '@/features/auth/queries';
 import { createReviewSchema } from '@/features/reviews/schemas';
 
 /** 24h edit cooldown (BRIEF §8). */
@@ -19,7 +20,14 @@ const EDIT_WINDOW_MS = 24 * 60 * 60 * 1000;
  */
 export interface SubmitReviewState {
   success: false;
-  message?: 'no_db' | 'not_found' | 'wrong_state' | 'already_reviewed' | 'validation' | 'server';
+  message?:
+    | 'no_db'
+    | 'not_found'
+    | 'wrong_state'
+    | 'already_reviewed'
+    | 'forbidden'
+    | 'validation'
+    | 'server';
   fields?: Partial<Record<'rating' | 'text', string>>;
   values?: { rating?: string; text?: string };
 }
@@ -62,6 +70,24 @@ export async function submitReview(
       columns: { id: true, guestId: true, experienceId: true, status: true },
     });
     if (!booking) return { success: false, message: 'not_found', values };
+
+    // Ownership: the booking reference is a capability that anonymous
+    // guests legitimately hold (they book without an account). But a
+    // *signed-in* caller must own the booking — otherwise anyone who
+    // sees someone else's reference (shared link, screenshot) could post
+    // a review under that guest's identity. So if there's a session,
+    // require the caller's guest row to be the one on the booking.
+    const authUserId = (await getCurrentUser())?.id ?? null;
+    if (authUserId) {
+      const caller = await db.query.guests.findFirst({
+        where: eq(guests.authUserId, authUserId),
+        columns: { id: true },
+      });
+      if (!caller || caller.id !== booking.guestId) {
+        return { success: false, message: 'forbidden', values };
+      }
+    }
+
     // A review is gated by a *completed* booking (BRIEF §8).
     if (booking.status !== 'completed') {
       return { success: false, message: 'wrong_state', values };

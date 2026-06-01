@@ -4,16 +4,17 @@ import { and, eq, inArray, sql } from 'drizzle-orm';
 import { cookies } from 'next/headers';
 import { db } from '@/lib/db';
 import { serverEnv } from '@/lib/env';
-import { bookings, guests } from '@/db/schema';
+import { bookings, experiences, guests } from '@/db/schema';
 import { redirect } from '@/lib/i18n';
 import { reportError } from '@/lib/log';
 import { bookingRequestSchema } from '@/features/bookings/schemas';
 import { getCurrentUser } from '@/features/auth/queries';
-import { isDateBookable, remainingCapacity } from '@/features/bookings/lib/availability';
+import {
+  ACTIVE_BOOKING_STATUSES,
+  isDateBookable,
+  remainingCapacity,
+} from '@/features/bookings/lib/availability';
 import { LAST_BOOKING_COOKIE, serializeLastBookingCookie } from '@/features/account/cookie';
-
-/** Statuses that occupy a spot on a date for capacity purposes. */
-const ACTIVE_BOOKING_STATUSES = ['pending', 'confirmed', 'completed'] as const;
 
 /** Today as `YYYY-MM-DD` in the experience's local day (KSA at launch). */
 function todayInRiyadh(): string {
@@ -147,34 +148,6 @@ export async function requestBooking(
       };
     }
 
-    // Instant experiences auto-confirm, but only if the date still has
-    // room. Sum active party sizes on that date and compare to the cap.
-    // The check + insert run in one transaction to narrow (not fully
-    // close) the concurrent-overbook window; a slots table with row
-    // locks would close it entirely — tracked for when volume warrants.
-    let status: (typeof ACTIVE_BOOKING_STATUSES)[number] = 'pending';
-    if (experience.bookingMode === 'instant') {
-      const [{ booked }] = await db
-        .select({ booked: sql<number>`coalesce(sum(${bookings.partySize}), 0)::int` })
-        .from(bookings)
-        .where(
-          and(
-            eq(bookings.experienceId, experience.id),
-            eq(bookings.date, input.preferredDate),
-            inArray(bookings.status, [...ACTIVE_BOOKING_STATUSES]),
-          ),
-        );
-      if (remainingCapacity(experience.maxGroupSize, booked) < input.partySize) {
-        return {
-          success: false,
-          message: 'date_full',
-          fields: { preferredDate: 'date_full' },
-          values: currentValues(formData),
-        };
-      }
-      status = 'confirmed';
-    }
-
     // Resolve the guest for this booking. For a signed-in account, the row
     // is keyed by auth id first — an email-OTP user may already have a
     // phone-less profile row, and `authUserId` is UNIQUE, so we must reuse it
@@ -214,7 +187,7 @@ export async function requestBooking(
       }
     }
 
-    await db.insert(bookings).values({
+    const bookingValues = {
       guestId: guest.id,
       experienceId: experience.id,
       date: input.preferredDate,
@@ -222,8 +195,49 @@ export async function requestBooking(
       partySize: input.partySize,
       totalAmount: experience.priceSar * input.partySize,
       idempotencyKey: reference,
-      status,
-    });
+    } as const;
+
+    if (experience.bookingMode === 'instant') {
+      // Instant experiences auto-confirm, but only if the date still has
+      // room. Lock the experience row for the duration of the transaction
+      // so concurrent bookings for the same experience serialize: each
+      // re-sums active party sizes on the date and inserts only if there
+      // is room. This *closes* the overbook window (a read-then-write
+      // TOCTOU otherwise) rather than merely narrowing it. Capacity is
+      // derived from bookings, so the experience row is the lock anchor.
+      const outcome = await db.transaction(async (tx) => {
+        await tx.execute(
+          sql`select 1 from ${experiences} where ${experiences.id} = ${experience.id} for update`,
+        );
+        const [{ booked }] = await tx
+          .select({ booked: sql<number>`coalesce(sum(${bookings.partySize}), 0)::int` })
+          .from(bookings)
+          .where(
+            and(
+              eq(bookings.experienceId, experience.id),
+              eq(bookings.date, input.preferredDate),
+              inArray(bookings.status, [...ACTIVE_BOOKING_STATUSES]),
+            ),
+          );
+        if (remainingCapacity(experience.maxGroupSize, booked) < input.partySize) {
+          return 'full' as const;
+        }
+        await tx.insert(bookings).values({ ...bookingValues, status: 'confirmed' });
+        return 'ok' as const;
+      });
+      if (outcome === 'full') {
+        return {
+          success: false,
+          message: 'date_full',
+          fields: { preferredDate: 'date_full' },
+          values: currentValues(formData),
+        };
+      }
+    } else {
+      // Request mode: no capacity gate at request time — an admin
+      // confirms each request, and capacity is enforced there.
+      await db.insert(bookings).values({ ...bookingValues, status: 'pending' });
+    }
   } catch (error) {
     reportError(error, { surface: 'booking-request', experienceSlug: input.experienceSlug });
     return { success: false, message: 'server', values: currentValues(formData) };

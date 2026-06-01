@@ -11,7 +11,14 @@ import {
 } from '@/features/admin/bookings/actions';
 import type { BookingTransitionTarget } from '@/features/admin/bookings/lib/transitions';
 
-type ErrorKey = 'forbidden' | 'no_db' | 'not_found' | 'wrong_state' | 'validation' | 'server';
+type ErrorKey =
+  | 'forbidden'
+  | 'no_db'
+  | 'not_found'
+  | 'wrong_state'
+  | 'over_capacity'
+  | 'validation'
+  | 'server';
 
 interface Copy {
   label: string;

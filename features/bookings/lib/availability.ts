@@ -11,6 +11,13 @@
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
+/**
+ * Booking statuses that occupy a spot on a date for capacity purposes.
+ * The single source of truth, shared by the guest booking action and the
+ * admin confirm path so both compute "is there room?" identically.
+ */
+export const ACTIVE_BOOKING_STATUSES = ['pending', 'confirmed', 'completed'] as const;
+
 /** 0=Sun..6=Sat for a `YYYY-MM-DD` string, or null if malformed. */
 export function weekdayOf(dateStr: string): number | null {
   if (!DATE_RE.test(dateStr)) return null;
