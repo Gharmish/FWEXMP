@@ -520,6 +520,7 @@
         "noDb": "إجراءات الإدارة تتطلّب اتصالاً بقاعدة البيانات.",
         "notFound": "هذا الحجز لم يعد موجوداً.",
         "wrongState": "لا يمكن نقل هذا الحجز إلى تلك الحالة من وضعه الحالي.",
+        "overCapacity": "تأكيد هذا الحجز سيتجاوز الحدّ الأقصى لحجم المجموعة في هذا التاريخ.",
         "validation": "هناك خطأ في المدخلات. حدّث الصفحة وحاول مرة أخرى.",
         "server": "لم نتمكّن من إتمام العملية. حاول بعد قليل."
       }
@@ -1098,7 +1099,7 @@
     "intro": "آخر طلب لك والتجارب التي حفظتها — خاصة بجهازك حتى تكتمل الحسابات.",
     "introEmpty": "لا شيء هنا بعد. حالما تحفظ تجربة أو ترسل طلباً، سيظهر في هذه الصفحة.",
     "signedInAs": "مسجّل دخولك برقم {phone}",
-    "viewProfile": "TODO(ar): View profile",
+    "viewProfile": "عرض الملف الشخصي",
     "emptyEyebrow": "فارغة",
     "emptyTitle": "ابدأ الاكتشاف.",
     "emptyDescription": "احفظ التجارب بزرّ القلب، أو أرسل طلب حجز من أي صفحة تجربة. سنحتفظ بها لك هنا.",
@@ -1135,6 +1136,7 @@
         "notFound": "لم نتمكّن من العثور على هذا الحجز.",
         "wrongState": "يمكنك تقييم التجربة بعد اكتمال حجزك.",
         "alreadyReviewed": "سبق أن قيّمت هذا الحجز.",
+        "forbidden": "هذا الحجز يخصّ حساباً آخر.",
         "validation": "هناك خطأ في المدخلات. راجع النموذج وحاول مرة أخرى.",
         "server": "لم نتمكّن من حفظ تقييمك. حاول بعد قليل."
       }
@@ -1142,68 +1144,68 @@
     "wishlistTitle": "تجاربك المحفوظة",
     "wishlistViewAll": "عرض الكل",
     "profile": {
-      "eyebrow": "TODO(ar): Your profile",
-      "title": "TODO(ar): Your account.",
+      "eyebrow": "ملفك الشخصي",
+      "title": "حسابك.",
       "photo": {
-        "alt": "TODO(ar): {name}'s profile photo",
-        "change": "TODO(ar): Change photo",
-        "uploading": "TODO(ar): Uploading",
-        "remove": "TODO(ar): Remove",
-        "removing": "TODO(ar): Removing",
-        "hint": "TODO(ar): PNG, JPG or WebP, up to 2 MB.",
+        "alt": "الصورة الشخصية لـ {name}",
+        "change": "تغيير الصورة",
+        "uploading": "جارٍ الرفع",
+        "remove": "إزالة",
+        "removing": "جارٍ الإزالة",
+        "hint": "PNG أو JPG أو WebP، بحجم أقصى 2 ميجابايت.",
         "errors": {
-          "noDb": "TODO(ar): Photos need a database connection.",
-          "noAuth": "TODO(ar): Sign in to change your photo.",
-          "noStorage": "TODO(ar): Photo uploads aren't available in this environment.",
-          "noFile": "TODO(ar): Choose an image file to upload.",
-          "invalidType": "TODO(ar): Use a PNG, JPG or WebP image.",
-          "tooLarge": "TODO(ar): That image is over 2 MB. Choose a smaller one.",
-          "server": "TODO(ar): We couldn't update your photo. Try again in a moment."
+          "noDb": "تتطلّب الصور اتصالاً بقاعدة البيانات.",
+          "noAuth": "سجّل الدخول لتغيير صورتك.",
+          "noStorage": "رفع الصور غير متاح في هذه البيئة.",
+          "noFile": "اختر ملف صورة لرفعه.",
+          "invalidType": "استخدم صورة بصيغة PNG أو JPG أو WebP.",
+          "tooLarge": "حجم الصورة يتجاوز 2 ميجابايت. اختر صورة أصغر.",
+          "server": "لم نتمكّن من تحديث صورتك. حاول بعد قليل."
         }
       },
       "details": {
-        "title": "TODO(ar): Personal details",
-        "nameLabel": "TODO(ar): Name",
-        "emailLabel": "TODO(ar): Email",
-        "emailOptional": "TODO(ar): optional",
-        "phoneLabel": "TODO(ar): Phone",
-        "phoneHint": "TODO(ar): Your phone is how you sign in and can't be changed here.",
-        "languageLabel": "TODO(ar): Preferred language",
-        "submit": "TODO(ar): Save changes",
-        "submitting": "TODO(ar): Saving",
-        "saved": "TODO(ar): Saved",
-        "nameError": "TODO(ar): Enter your name (at least two characters).",
-        "emailError": "TODO(ar): Enter a valid email address.",
+        "title": "البيانات الشخصية",
+        "nameLabel": "الاسم",
+        "emailLabel": "البريد الإلكتروني",
+        "emailOptional": "اختياري",
+        "phoneLabel": "رقم الجوال",
+        "phoneHint": "رقم جوالك هو وسيلة تسجيل دخولك، ولا يمكن تغييره من هنا.",
+        "languageLabel": "اللغة المفضّلة",
+        "submit": "حفظ التغييرات",
+        "submitting": "جارٍ الحفظ",
+        "saved": "تم الحفظ",
+        "nameError": "أدخل اسمك (حرفين على الأقل).",
+        "emailError": "أدخل بريداً إلكترونياً صحيحاً.",
         "errors": {
-          "noDb": "TODO(ar): Saving needs a database connection.",
-          "noAuth": "TODO(ar): Sign in to edit your profile.",
-          "validation": "TODO(ar): Something didn't validate. Check the form and try again.",
-          "server": "TODO(ar): We couldn't save your changes. Try again in a moment."
+          "noDb": "يتطلّب الحفظ اتصالاً بقاعدة البيانات.",
+          "noAuth": "سجّل الدخول لتعديل ملفك الشخصي.",
+          "validation": "هناك خطأ في المدخلات. راجع النموذج وحاول مرة أخرى.",
+          "server": "لم نتمكّن من حفظ تغييراتك. حاول بعد قليل."
         }
       },
       "wallet": {
-        "title": "TODO(ar): Wallet",
-        "balanceLabel": "TODO(ar): Balance",
-        "note": "TODO(ar): Your Gharmish wallet is coming soon. There's nothing to top up or spend yet."
+        "title": "المحفظة",
+        "balanceLabel": "الرصيد",
+        "note": "محفظة غارميش قادمة قريباً. لا يوجد ما يمكن شحنه أو إنفاقه بعد."
       },
       "payment": {
-        "title": "TODO(ar): Payment methods",
-        "eyebrow": "TODO(ar): Cards",
-        "emptyTitle": "TODO(ar): No saved cards yet",
-        "emptyDescription": "TODO(ar): Saved cards arrive when online payments go live. We never store card details ourselves — they're held securely by our payment provider."
+        "title": "طرق الدفع",
+        "eyebrow": "البطاقات",
+        "emptyTitle": "لا توجد بطاقات محفوظة بعد",
+        "emptyDescription": "ستتوفّر البطاقات المحفوظة عند تفعيل الدفع الإلكتروني. نحن لا نخزّن بيانات البطاقات إطلاقاً — يحفظها مزوّد الدفع لدينا بشكل آمن."
       },
       "history": {
-        "title": "TODO(ar): Booking history",
-        "partyLabel": "TODO(ar): Guests:",
-        "view": "TODO(ar): View",
-        "emptyTitle": "TODO(ar): No bookings yet",
-        "emptyDescription": "TODO(ar): Once you book an experience, it'll show up here.",
+        "title": "سجلّ الحجوزات",
+        "partyLabel": "الضيوف:",
+        "view": "عرض",
+        "emptyTitle": "لا توجد حجوزات بعد",
+        "emptyDescription": "حالما تحجز تجربة، ستظهر هنا.",
         "status": {
-          "pending": "TODO(ar): Awaiting host confirmation",
-          "confirmed": "TODO(ar): Confirmed",
-          "completed": "TODO(ar): Completed",
-          "cancelled": "TODO(ar): Cancelled",
-          "refunded": "TODO(ar): Refunded"
+          "pending": "بانتظار تأكيد المضيف",
+          "confirmed": "مؤكَّد",
+          "completed": "مكتمل",
+          "cancelled": "ملغى",
+          "refunded": "مُستردّ"
         }
       }
     }
