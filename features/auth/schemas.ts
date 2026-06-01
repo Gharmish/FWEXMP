@@ -9,6 +9,19 @@ import { toE164Saudi } from '@/features/auth/lib/phone';
  * and transforms to canonical E.164 so downstream code never branches
  * on format.
  */
+/**
+ * Post-sign-in redirect target. Only an app-relative path is allowed:
+ * anything that isn't a single leading `/` (so not an absolute URL like
+ * `https://evil.com`, nor a protocol-relative `//evil.com`, nor a
+ * backslash trick `/\evil.com`) collapses to `/me`. This closes the
+ * open-redirect surface — `next` flows straight into `redirect()`.
+ */
+const nextPath = z
+  .string()
+  .trim()
+  .default('/me')
+  .transform((value) => (/^\/(?![/\\])/.test(value) ? value : '/me'));
+
 export const requestOtpSchema = z.object({
   phone: z
     .string()
@@ -24,7 +37,7 @@ export const requestOtpSchema = z.object({
     }),
   locale: z.enum(['en', 'ar']),
   /** Where to send the user after sign-in. Relative path, locale-scoped. */
-  next: z.string().default('/me'),
+  next: nextPath,
 });
 
 export type RequestOtpInput = z.infer<typeof requestOtpSchema>;
@@ -39,7 +52,7 @@ export const verifyOtpSchema = z.object({
     .trim()
     .regex(/^\d{6}$/, 'invalid_code'),
   locale: z.enum(['en', 'ar']),
-  next: z.string().default('/me'),
+  next: nextPath,
 });
 
 export type VerifyOtpInput = z.infer<typeof verifyOtpSchema>;
@@ -55,7 +68,7 @@ export const emailSchema = z.string().trim().toLowerCase().email('invalid_email'
 export const requestEmailOtpSchema = z.object({
   email: emailSchema,
   locale: z.enum(['en', 'ar']),
-  next: z.string().default('/me'),
+  next: nextPath,
 });
 
 export const verifyEmailOtpSchema = z.object({
@@ -65,5 +78,5 @@ export const verifyEmailOtpSchema = z.object({
     .trim()
     .regex(/^\d{6}$/, 'invalid_code'),
   locale: z.enum(['en', 'ar']),
-  next: z.string().default('/me'),
+  next: nextPath,
 });
