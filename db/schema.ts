@@ -131,6 +131,21 @@ export const bookingStatusEnum = pgEnum('booking_status', [
 ]);
 
 /**
+ * Payment lifecycle for a booking, independent of `bookingStatusEnum`.
+ * `unpaid` is the default (and the only value for request-to-book bookings
+ * when HyperPay is not configured). `processing` = a HyperPay checkout was
+ * created and we're awaiting the result; `paid`/`failed` are set after the
+ * server-side status check. Refunds remain tracked via `status=refunded` +
+ * `refundedAt`, so there is no `refunded` payment-status value here.
+ */
+export const paymentStatusEnum = pgEnum('payment_status', [
+  'unpaid',
+  'processing',
+  'paid',
+  'failed',
+]);
+
+/**
  * Host-application workflow. Distinct from `hosts.verificationStatus`:
  * an application is the user-submitted artifact (one per auth user, may
  * be rejected and re-submitted by updating the existing row). When an
@@ -325,8 +340,19 @@ export const bookings = pgTable(
     totalAmount: integer().notNull(),
     currency: text().notNull().default('SAR'),
     status: bookingStatusEnum().notNull().default('pending'),
-    /** Moyasar transaction id, set after payment. */
+    /**
+     * Payment state for online card/Mada payment via HyperPay. `unpaid`
+     * for request-to-book bookings (and whenever HyperPay is unconfigured).
+     */
+    paymentStatus: paymentStatusEnum().notNull().default('unpaid'),
+    /** HyperPay payment id (`ndc`), set after a successful status check. */
     paymentReference: text(),
+    /** HyperPay COPYandPAY checkout id, set when the checkout is prepared. */
+    checkoutId: text(),
+    /** Card scheme returned by HyperPay (e.g. `MADA`, `VISA`, `MASTER`). */
+    paymentBrand: text(),
+    /** When payment was confirmed paid. Null until settled. */
+    paidAt: timestamp({ withTimezone: true }),
     /** Safe retries for AI agents (BRIEF §6). */
     idempotencyKey: text().notNull().unique(),
     /**

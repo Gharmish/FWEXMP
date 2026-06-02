@@ -21,6 +21,7 @@ export interface BookingDetail {
   id: string;
   reference: string;
   status: Booking['status'];
+  paymentStatus: Booking['paymentStatus'];
   partySize: number;
   totalAmountSar: number;
   date: string;
@@ -40,6 +41,7 @@ export async function getBookingByReference(reference: string): Promise<BookingD
     id: row.id,
     reference: row.idempotencyKey,
     status: row.status,
+    paymentStatus: row.paymentStatus,
     partySize: row.partySize,
     totalAmountSar: row.totalAmount,
     date: row.date,
@@ -70,6 +72,7 @@ export async function getBookingsForGuest(guestId: string): Promise<GuestBooking
     id: row.id,
     reference: row.idempotencyKey,
     status: row.status,
+    paymentStatus: row.paymentStatus,
     partySize: row.partySize,
     totalAmountSar: row.totalAmount,
     date: row.date,

@@ -1,0 +1,104 @@
+import { describe, expect, it } from 'vitest';
+import {
+  baseUrlFor,
+  buildCheckoutBody,
+  classifyResult,
+  formatAmount,
+  isSuccessfulResult,
+  LIVE_BASE_URL,
+  TEST_BASE_URL,
+} from '@/features/payments/lib/hyperpay-core';
+import type { HyperpayConfig, PrepareCheckoutInput } from '@/features/payments/types';
+
+const input: PrepareCheckoutInput = {
+  merchantTransactionId: 'b1f9c0de-0000-4000-8000-000000000001',
+  amountSar: 480,
+  customer: { email: 'guest@example.com', givenName: 'Sara', surname: 'Al Qahtani' },
+  billing: {
+    street1: '12 King Fahd Rd',
+    city: 'Abha',
+    state: 'Asir',
+    country: 'SA',
+    postcode: '62521',
+  },
+};
+
+const testCfg: HyperpayConfig = { entityId: 'ent_test', mode: 'test' };
+const liveCfg: HyperpayConfig = { entityId: 'ent_live', mode: 'live' };
+
+describe('classifyResult', () => {
+  it('treats the standard success groups as success', () => {
+    for (const code of ['000.000.000', '000.100.110', '000.300.000', '000.600.000']) {
+      expect(classifyResult(code)).toBe('success');
+      expect(isSuccessfulResult(code)).toBe(true);
+    }
+  });
+
+  it('treats risk manual-review codes as success (funds captured)', () => {
+    expect(classifyResult('000.400.000')).toBe('success');
+    expect(classifyResult('000.400.010')).toBe('success');
+  });
+
+  it('treats async result codes as pending', () => {
+    expect(classifyResult('000.200.000')).toBe('pending');
+    expect(isSuccessfulResult('000.200.000')).toBe(false);
+  });
+
+  it('treats rejections and errors as rejected', () => {
+    for (const code of ['100.396.101', '800.100.151', '200.300.404', '800.400.103']) {
+      expect(classifyResult(code)).toBe('rejected');
+      expect(isSuccessfulResult(code)).toBe(false);
+    }
+  });
+});
+
+describe('formatAmount', () => {
+  it('renders whole SAR with a .00 fractional part (test-server requirement)', () => {
+    expect(formatAmount(480)).toBe('480.00');
+    expect(formatAmount(0)).toBe('0.00');
+    expect(formatAmount(1500)).toBe('1500.00');
+  });
+});
+
+describe('baseUrlFor', () => {
+  it('derives the test/live base from the mode', () => {
+    expect(baseUrlFor('test', '')).toBe(TEST_BASE_URL);
+    expect(baseUrlFor('live', '')).toBe(LIVE_BASE_URL);
+  });
+
+  it('honours an explicit override and normalises the trailing slash', () => {
+    expect(baseUrlFor('test', 'https://example.test')).toBe('https://example.test/');
+    expect(baseUrlFor('live', 'https://example.test/')).toBe('https://example.test/');
+  });
+});
+
+describe('buildCheckoutBody', () => {
+  it('includes all required customer + billing parameters', () => {
+    const body = buildCheckoutBody(input, testCfg);
+    expect(body.get('entityId')).toBe('ent_test');
+    expect(body.get('amount')).toBe('480.00');
+    expect(body.get('currency')).toBe('SAR');
+    expect(body.get('paymentType')).toBe('DB');
+    expect(body.get('merchantTransactionId')).toBe(input.merchantTransactionId);
+    expect(body.get('customer.email')).toBe('guest@example.com');
+    expect(body.get('customer.givenName')).toBe('Sara');
+    expect(body.get('customer.surname')).toBe('Al Qahtani');
+    expect(body.get('billing.street1')).toBe('12 King Fahd Rd');
+    expect(body.get('billing.city')).toBe('Abha');
+    expect(body.get('billing.state')).toBe('Asir');
+    expect(body.get('billing.country')).toBe('SA');
+    expect(body.get('billing.postcode')).toBe('62521');
+  });
+
+  it('adds the test-only flags in test mode', () => {
+    const body = buildCheckoutBody(input, testCfg);
+    expect(body.get('testMode')).toBe('EXTERNAL');
+    expect(body.get('customParameters[3DS2_enrolled]')).toBe('true');
+  });
+
+  it('NEVER adds the test-only flags in live mode', () => {
+    const body = buildCheckoutBody(input, liveCfg);
+    expect(body.get('testMode')).toBeNull();
+    expect(body.get('customParameters[3DS2_enrolled]')).toBeNull();
+  });
+});

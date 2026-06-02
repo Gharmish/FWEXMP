@@ -21,6 +21,23 @@ const serverSchema = z.object({
   // client. Empty → nobody is admin. Promote to a `user_roles` table
   // when richer admin management is needed.
   ADMIN_PHONES: z.string().default(''),
+  // HyperPay / OPPWA (COPYandPAY widget). All optional so the app boots
+  // without them — `hasHyperpay()` gates every payment code path and the
+  // booking flow stays request-to-book when unset (same boundary pattern
+  // as `hasSupabaseAuth()` / `hasDb()`). The access token is a server-only
+  // secret (Vercel Sensitive); the entity id is config.
+  HYPERPAY_ACCESS_TOKEN: z.string().default(''),
+  HYPERPAY_ENTITY_ID: z.string().default(''),
+  // `test` → eu-test.oppwa.com + the test-only request flags
+  // (testMode=EXTERNAL, customParameters[3DS2_enrolled]). `live` → eu-prod,
+  // no test flags. Hard default to `test` so an accidental empty value can
+  // never silently send live-server flags.
+  HYPERPAY_MODE: z.enum(['test', 'live']).default('test'),
+  // Optional explicit base URL override; derived from HYPERPAY_MODE when empty.
+  HYPERPAY_BASE_URL: z.string().default(''),
+  // Shared secret for verifying HyperPay webhook notifications. Empty → the
+  // webhook route rejects and we rely on the synchronous status check.
+  HYPERPAY_WEBHOOK_SECRET: z.string().default(''),
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
 });
 
@@ -51,6 +68,11 @@ export const serverEnv = parse(
     DATABASE_URL: process.env.DATABASE_URL,
     SENTRY_DSN: process.env.SENTRY_DSN,
     ADMIN_PHONES: process.env.ADMIN_PHONES,
+    HYPERPAY_ACCESS_TOKEN: process.env.HYPERPAY_ACCESS_TOKEN,
+    HYPERPAY_ENTITY_ID: process.env.HYPERPAY_ENTITY_ID,
+    HYPERPAY_MODE: process.env.HYPERPAY_MODE,
+    HYPERPAY_BASE_URL: process.env.HYPERPAY_BASE_URL,
+    HYPERPAY_WEBHOOK_SECRET: process.env.HYPERPAY_WEBHOOK_SECRET,
     NODE_ENV: process.env.NODE_ENV,
   },
   'server',
@@ -74,4 +96,15 @@ export const clientEnv = parse(
  */
 export function hasSupabaseAuth(): boolean {
   return Boolean(clientEnv.NEXT_PUBLIC_SUPABASE_URL && clientEnv.NEXT_PUBLIC_SUPABASE_ANON_KEY);
+}
+
+/**
+ * Is HyperPay configured for online card/Mada payment? Same boundary as
+ * `hasSupabaseAuth()`: every payment code path checks this first, and the
+ * booking flow stays request-to-book (no card charged) when false. Flips
+ * the moment the access token + entity id arrive in the environment — no
+ * code change. The mode (`test`/`live`) is independent and always set.
+ */
+export function hasHyperpay(): boolean {
+  return Boolean(serverEnv.HYPERPAY_ACCESS_TOKEN && serverEnv.HYPERPAY_ENTITY_ID);
 }

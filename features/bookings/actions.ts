@@ -3,7 +3,7 @@
 import { and, eq, inArray, sql } from 'drizzle-orm';
 import { cookies } from 'next/headers';
 import { db } from '@/lib/db';
-import { serverEnv } from '@/lib/env';
+import { serverEnv, hasHyperpay } from '@/lib/env';
 import { bookings, experiences, guests } from '@/db/schema';
 import { redirect } from '@/lib/i18n';
 import { reportError } from '@/lib/log';
@@ -90,8 +90,14 @@ export async function requestBooking(
 
   const input = parsed.data;
   const reference = crypto.randomUUID();
-  const confirmedPath =
-    `/book/confirmed/${reference}?slug=${encodeURIComponent(input.experienceSlug)}` as const;
+  const slugParam = `slug=${encodeURIComponent(input.experienceSlug)}`;
+  const confirmedPath = `/book/confirmed/${reference}?${slugParam}` as const;
+  // When online payment is configured the booking is created as today, then
+  // the guest is routed to the payment step (3DS details → HyperPay widget)
+  // instead of straight to the confirmation page. `hasHyperpay()` is false
+  // until the credentials arrive, so the live request-to-book flow is
+  // unchanged until then.
+  const nextPath = hasHyperpay() ? (`/book/${reference}/pay?${slugParam}` as const) : confirmedPath;
 
   if (!serverEnv.DATABASE_URL) {
     // Preview mode: nothing is persisted, but we still navigate to the
@@ -244,5 +250,5 @@ export async function requestBooking(
   }
 
   await writeLastBookingCookie(reference, input.experienceSlug);
-  redirect({ href: confirmedPath, locale: input.locale });
+  redirect({ href: nextPath, locale: input.locale });
 }

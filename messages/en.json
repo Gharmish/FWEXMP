@@ -499,7 +499,7 @@
       "refund": {
         "label": "Refund",
         "pending": "Refunding",
-        "confirm": "Mark this booking as refunded? Issue the actual reversal in Moyasar first; this only records that it happened."
+        "confirm": "Mark this booking as refunded? Issue the actual reversal in HyperPay first; this only records that it happened."
       },
       "transition": {
         "confirmed": {
@@ -1032,13 +1032,43 @@
     "totalLabel": "Estimated total",
     "nextStepsHeading": "What happens next",
     "nextStep1": "Your host reviews the request and confirms availability.",
-    "nextStep2": "Once confirmed, we share a secure Moyasar payment link to complete the booking.",
+    "nextStep2": "Once confirmed, we share a secure payment link to complete the booking.",
     "nextStep3": "You'll get full details — meeting point, what to bring, host contact — by WhatsApp the day before.",
     "nextStepConfirmed1": "Your booking is confirmed — no further action needed now.",
     "nextStepConfirmed2": "Save your reference; you'll need it for any changes.",
     "nextStepConfirmed3": "We'll send the meeting point, what to bring, and host contact by WhatsApp the day before.",
     "backToExperience": "Back to the experience",
     "keepExploring": "Keep exploring"
+  },
+  "payment": {
+    "eyebrow": "Secure payment",
+    "title": "Complete your booking",
+    "intro": "Enter your details to pay securely. Your card is processed by HyperPay — we never see or store your card number.",
+    "summaryLabel": "Booking summary",
+    "experienceLabel": "Experience",
+    "dateLabel": "Date",
+    "partyLabel": "Guests",
+    "totalLabel": "Total",
+    "madaFirst": "mada, Visa, and Mastercard accepted — mada shown first.",
+    "detailsHeading": "Billing details",
+    "givenName": "First name",
+    "surname": "Last name",
+    "email": "Email",
+    "street1": "Street address",
+    "city": "City",
+    "state": "Region",
+    "postcode": "Postal code",
+    "country": "Country (2-letter code)",
+    "submit": "Continue to payment",
+    "pending": "Preparing payment",
+    "invalid": "Enter a valid value.",
+    "errorValidation": "Check the highlighted fields and try again.",
+    "errorServer": "We couldn't start the payment. Try again in a moment.",
+    "errorUnavailable": "Online payment isn't available right now.",
+    "errorNotFound": "We couldn't find this booking.",
+    "errorAlreadyPaid": "This booking is already paid.",
+    "payHeading": "Pay securely",
+    "widgetLoading": "Loading secure payment…"
   },
   "notFound": {
     "eyebrow": "404",
