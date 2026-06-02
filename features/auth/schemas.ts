@@ -1,13 +1,13 @@
 import { z } from 'zod';
-import { toE164Saudi } from '@/features/auth/lib/phone';
+import { isValidE164, normalizeToE164 } from '@/lib/phone';
 
 /**
  * Zod schemas for the sign-in flow. The two steps are separate forms,
  * each with its own action — so they each get their own schema.
  *
- * `phoneSchema` accepts any of the four input shapes (see `toE164Saudi`)
- * and transforms to canonical E.164 so downstream code never branches
- * on format.
+ * The phone field accepts any country except Israel and transforms to
+ * canonical E.164 (`+<country><national>`, no leading zero) via
+ * `normalizeToE164` so downstream code never branches on format.
  */
 /**
  * Post-sign-in redirect target. Only an app-relative path is allowed:
@@ -28,7 +28,7 @@ export const requestOtpSchema = z.object({
     .trim()
     .min(1)
     .transform((raw, ctx) => {
-      const e164 = toE164Saudi(raw);
+      const e164 = normalizeToE164(raw);
       if (!e164) {
         ctx.addIssue({ code: 'custom', message: 'invalid_phone' });
         return z.NEVER;
@@ -45,7 +45,7 @@ export type RequestOtpInput = z.infer<typeof requestOtpSchema>;
 export const verifyOtpSchema = z.object({
   // Pre-canonicalised by the requestOtp step and round-tripped via a
   // hidden field — we re-validate the shape here defensively.
-  phone: z.string().regex(/^\+9665\d{8}$/),
+  phone: z.string().refine(isValidE164, 'invalid_phone'),
   // KSA SMS providers send 6-digit numeric OTPs (Supabase default).
   code: z
     .string()

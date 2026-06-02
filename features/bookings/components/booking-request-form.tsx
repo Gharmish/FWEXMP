@@ -10,7 +10,7 @@ import { Input } from '@/components/ui/input';
 import { Pop, SPRING } from '@/components/ui/motion';
 import type { Locale } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
-import { formatSaudiPhone } from '@/lib/format';
+import { PhoneInput } from '@/components/ui/phone-input';
 import { Price } from '@/components/ui/price';
 import { BookingCalendar } from './booking-calendar';
 
@@ -21,6 +21,12 @@ interface BookingRequestCopy {
   preferredDate: string;
   partySize: string;
   phoneHint: string;
+  /** Accessible label for the dialling-code selector. */
+  countryLabel: string;
+  /** Placeholder for the national-number input (no leading zero). */
+  phonePlaceholder: string;
+  /** Shown when a non-empty number isn't valid for the chosen country. */
+  phoneInvalid: string;
   preferredDateHint: string;
   partySizeHint: string;
   submit: string;
@@ -137,6 +143,9 @@ function messageForField(
   if (field === 'partySize') {
     return code === 'too_large' ? copy.partySizeTooLarge : copy.required;
   }
+  if (field === 'phone') {
+    return code === 'invalid_phone' ? copy.phoneInvalid : copy.required;
+  }
   return copy.required;
 }
 
@@ -189,17 +198,10 @@ export function BookingRequestForm({
   );
   const effectiveParty = Math.min(Math.max(1, partySize), maxGuests);
   const totalSar = priceSar * effectiveParty;
-  // Phone field is controlled so we can canonicalise on blur via
-  // formatSaudiPhone (e.g. "0512345678" -> "+966 51 234 5678"). All
-  // other fields stay uncontrolled — they don't need keystroke-level
-  // handling and `defaultValue` is enough to echo server-validation
-  // errors back to the user.
-  //
-  // We don't sync `phone` from state.values.phone on server-side
-  // errors: useActionState preserves the component across re-renders,
-  // so whatever the user just typed (and submitted) is still in
-  // `phone`. The server echo is informational — they match.
-  const [phone, setPhone] = useState<string>(values.phone ?? '');
+  // The phone field is its own component (PhoneInput): a dialling-code
+  // selector + national-number input that posts one canonical E.164 value
+  // via a hidden `phone` input. It re-hydrates from `values.phone` (the
+  // server echo) after a validation error.
   // Deterministic IDs for each field's error message — fed into
   // aria-describedby so screen readers associate the error with the
   // input it belongs to.
@@ -386,30 +388,24 @@ export function BookingRequestForm({
               <label htmlFor="booking-phone" className="text-sm font-medium">
                 {copy.phone}
               </label>
-              <Input
+              <PhoneInput
                 id="booking-phone"
                 name="phone"
-                type="tel"
-                autoComplete="tel"
+                locale={locale}
+                defaultValue={values.phone}
                 required
-                dir="ltr"
-                value={phone}
-                onChange={(event) => setPhone(event.target.value)}
-                onBlur={() => {
-                  // Canonicalise on blur, not on every keystroke — formatting
-                  // mid-typing fights the caret. formatSaudiPhone returns the
-                  // input untouched when the value isn't a recognisable Saudi
-                  // mobile, so this is a no-op for partial / non-Saudi input.
-                  const formatted = formatSaudiPhone(phone);
-                  if (formatted !== phone) setPhone(formatted);
-                }}
-                placeholder="+966 5X XXX XXXX"
-                {...fieldProps('phone')}
+                placeholder={copy.phonePlaceholder}
+                countryLabel={copy.countryLabel}
+                invalid={Boolean(state.fields?.phone)}
+                aria-describedby={fieldProps('phone')['aria-describedby']}
               />
               <p id={hintId('phone')} className="text-sarat-black-600 text-sm">
                 {copy.phoneHint}
               </p>
-              <FieldError id={errorId('phone')} message={state.fields?.phone && copy.required} />
+              <FieldError
+                id={errorId('phone')}
+                message={messageForField('phone', state.fields?.phone, copy)}
+              />
             </div>
           </div>
 

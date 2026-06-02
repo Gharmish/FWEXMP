@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { SPRING } from '@/components/ui/motion';
 import type { Locale } from '@/lib/i18n';
-import { formatSaudiPhone } from '@/lib/format';
+import { PhoneInput } from '@/components/ui/phone-input';
 import {
   requestOtp,
   verifyOtp,
@@ -24,6 +24,8 @@ interface SignInCopy {
   phoneLabel: string;
   phoneHint: string;
   phonePlaceholder: string;
+  /** Accessible label for the dialling-code selector. */
+  countryLabel: string;
   emailLabel: string;
   emailHint: string;
   emailPlaceholder: string;
@@ -110,7 +112,6 @@ export function SignInForm({ locale, next, isStubMode, copy }: SignInFormProps) 
   const [verifyState, verifyAction] = useActionState(verifyOtp, initialVerifyState);
 
   const [method, setMethod] = useState<AuthMethod>('phone');
-  const [phone, setPhone] = useState<string>('');
   const [email, setEmail] = useState<string>('');
   const [showPhoneStep, setShowPhoneStep] = useState<boolean>(false);
 
@@ -193,21 +194,15 @@ export function SignInForm({ locale, next, isStubMode, copy }: SignInFormProps) 
               <label htmlFor="auth-phone" className="text-sm font-medium">
                 {copy.phoneLabel}
               </label>
-              <Input
+              <PhoneInput
                 id="auth-phone"
                 name="phone"
-                type="tel"
-                autoComplete="tel"
+                locale={locale}
+                defaultValue={canonicalPhone || undefined}
                 required
-                dir="ltr"
-                value={phone}
-                onChange={(e) => setPhone(e.target.value)}
-                onBlur={() => {
-                  const formatted = formatSaudiPhone(phone);
-                  if (formatted !== phone) setPhone(formatted);
-                }}
                 placeholder={copy.phonePlaceholder}
-                aria-invalid={requestFields?.phone ? 'true' : undefined}
+                countryLabel={copy.countryLabel}
+                invalid={Boolean(requestFields?.phone)}
                 aria-describedby={
                   `${phoneHintId} ${requestFields?.phone ? phoneErrorId : ''}`.trim() || undefined
                 }
