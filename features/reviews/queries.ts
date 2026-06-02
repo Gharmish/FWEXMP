@@ -5,6 +5,7 @@ import { experiences, reviews as reviewsTable } from '@/db/schema';
 import type { Guest, Review } from '@/db/schema';
 import type { ReviewAggregate, ReviewSummary } from '@/features/reviews/types';
 import { aggregateReviews } from '@/features/reviews/lib/aggregate';
+import { reportError } from '@/lib/log';
 import * as sample from '@/features/reviews/lib/sample-data';
 
 /**
@@ -141,18 +142,28 @@ export async function getRatingsBySlug(): Promise<Map<string, ReviewAggregate>> 
     }
     return map;
   }
-  const rows = await db
-    .select({
-      slug: experiences.slug,
-      count: count(reviewsTable.id),
-      // avg() returns a string in Drizzle (PG numeric), so we coerce
-      // to a number after the query.
-      avg: avg(reviewsTable.rating),
-    })
-    .from(reviewsTable)
-    .innerJoin(experiences, eq(reviewsTable.experienceId, experiences.id))
-    .where(isNull(reviewsTable.hiddenAt))
-    .groupBy(experiences.slug);
+  // Ratings are decorative metadata on the catalog cards. If this
+  // aggregate fails (e.g. a transient DB/pooler hiccup), degrade to "no
+  // ratings" rather than throwing — a broken reviews query must never take
+  // down the entire experience catalog, which depends on this accessor.
+  let rows: { slug: string; count: number; avg: string | null }[];
+  try {
+    rows = await db
+      .select({
+        slug: experiences.slug,
+        count: count(reviewsTable.id),
+        // avg() returns a string in Drizzle (PG numeric), so we coerce
+        // to a number after the query.
+        avg: avg(reviewsTable.rating),
+      })
+      .from(reviewsTable)
+      .innerJoin(experiences, eq(reviewsTable.experienceId, experiences.id))
+      .where(isNull(reviewsTable.hiddenAt))
+      .groupBy(experiences.slug);
+  } catch (error) {
+    reportError(error, { surface: 'reviews:getRatingsBySlug' });
+    return new Map();
+  }
 
   const map = new Map<string, ReviewAggregate>();
   for (const row of rows) {

@@ -1,6 +1,7 @@
 import { asc, eq } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import { serverEnv } from '@/lib/env';
+import { reportError } from '@/lib/log';
 import type { Host } from '@/db/schema';
 import type { ExperienceSummary } from '@/features/experiences/types';
 import type { HostProfile } from '@/features/hosts/types';
@@ -47,10 +48,19 @@ export async function getAllHostSlugs(): Promise<readonly string[]> {
 
 export async function getAllHosts(): Promise<readonly HostProfile[]> {
   if (!hasDb()) return sample.getAllHosts();
-  const rows = await db.query.hosts.findMany({
-    orderBy: (h) => asc(h.createdAt),
-  });
-  return rows.map(toProfile);
+  // The host directory is non-critical marketing content on the home page —
+  // a transient DB/pooler failure here must not 500 the landing page, so
+  // degrade to an empty list and report. (`?? []` also guards the rare case
+  // where an interrupted pooled connection resolves without rows.)
+  try {
+    const rows = await db.query.hosts.findMany({
+      orderBy: (h) => asc(h.createdAt),
+    });
+    return (rows ?? []).map(toProfile);
+  } catch (error) {
+    reportError(error, { surface: 'hosts:getAllHosts' });
+    return [];
+  }
 }
 
 /**
