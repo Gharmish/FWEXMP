@@ -6,7 +6,10 @@ import { bookings } from '@/db/schema';
 import { reportError } from '@/lib/log';
 
 /**
- * Scheduled release of expired payment holds (Vercel Cron — see vercel.json).
+ * Scheduled release of expired payment holds (Vercel Cron — see vercel.json;
+ * runs daily on the Hobby plan, which caps crons at once/day — tighten to a
+ * sub-daily schedule on Pro, or trigger this endpoint from an external
+ * scheduler).
  *
  * Cancels bookings whose payment window has passed **and are still `unpaid`**
  * (no checkout was ever prepared → no payment can be in flight). This frees
