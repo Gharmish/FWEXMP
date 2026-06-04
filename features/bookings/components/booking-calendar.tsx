@@ -124,6 +124,16 @@ export function BookingCalendar({
     return out;
   }, [view, minDate, maxDate, bookable]);
 
+  // Chunk the flat cell list into 7-day rows for the ARIA grid (the leading
+  // blanks already align day 1; pad the tail so every row has 7 columns).
+  const weeks = useMemo(() => {
+    const padded = [...cells];
+    while (padded.length % 7 !== 0) padded.push(null);
+    const rows: (typeof padded)[] = [];
+    for (let i = 0; i < padded.length; i += 7) rows.push(padded.slice(i, i + 7));
+    return rows;
+  }, [cells]);
+
   // After keyboard navigation moved the target, focus that day's button.
   useEffect(() => {
     if (!shouldFocus.current) return;
@@ -231,91 +241,109 @@ export function BookingCalendar({
         </button>
       </div>
 
-      <div aria-hidden className="grid grid-cols-7 gap-1">
-        {weekdays.map((w, i) => (
-          <span
-            key={i}
-            className="text-sarat-black-600 flex h-8 items-center justify-center text-[11px]"
-          >
-            {w}
-          </span>
-        ))}
-      </div>
-
       <div
-        role="group"
+        role="grid"
         aria-label={monthTitle}
         onKeyDown={onKeyDown}
         className="grid grid-cols-7 gap-1"
       >
-        {cells.map((cell, i) => {
-          if (!cell)
-            return <span key={`blank-${i}`} aria-hidden className="aspect-square w-full" />;
-          const { dateStr, day, inWindow, isOpen } = cell;
-          const dayLabel = formatInteger(day, locale);
-
-          if (!inWindow) {
-            return (
-              <span
-                key={dateStr}
-                aria-hidden
-                className="text-sarat-black/15 flex aspect-square w-full items-center justify-center text-sm tabular-nums"
-              >
-                {dayLabel}
-              </span>
-            );
-          }
-
-          const isSelected = dateStr === value;
-          const isToday = dateStr === minDate;
-          const opt = bookable.get(dateStr);
-          const fullDate = formatDate(parse(dateStr), locale, 'gregory', {
-            weekday: 'long',
-            day: 'numeric',
-            month: 'long',
-          });
-          const ariaLabel = opt ? `${fullDate} — ${opt.spotsLabel}` : fullDate;
-
-          return (
-            <button
-              key={dateStr}
-              ref={(el) => {
-                if (el) dayRefs.current.set(dateStr, el);
-                else dayRefs.current.delete(dateStr);
-              }}
-              type="button"
-              aria-label={ariaLabel}
-              aria-pressed={isSelected}
-              aria-disabled={isOpen ? undefined : true}
-              tabIndex={dateStr === focusedDate ? 0 : -1}
-              onClick={() => {
-                if (!isOpen) return;
-                setFocusedDate(dateStr);
-                onSelect(dateStr);
-              }}
-              className={cn(
-                'relative flex aspect-square w-full items-center justify-center rounded-full text-sm tabular-nums transition-colors duration-200',
-                isOpen
-                  ? 'text-sarat-black hover:bg-sarat-black/5 cursor-pointer'
-                  : 'text-sarat-black/30 cursor-default',
-                isToday && !isSelected && 'border-sarat-black/25 [border-width:0.5px]',
-                isSelected && 'text-fog-white',
-              )}
+        {/* Weekday header row. `contents` keeps the columnheaders as direct
+            grid items so the 7-column layout is unaffected. */}
+        <div role="row" className="contents">
+          {weekdays.map((w, i) => (
+            <span
+              key={i}
+              role="columnheader"
+              className="text-sarat-black-600 flex h-8 items-center justify-center text-[11px]"
             >
-              {isSelected &&
-                (reduce ? (
-                  <span className="bg-sarat-black absolute inset-0 rounded-full" />
-                ) : (
-                  <motion.span
-                    layoutId={layoutId}
-                    transition={SPRING}
-                    className="bg-sarat-black absolute inset-0 rounded-full"
+              {w}
+            </span>
+          ))}
+        </div>
+
+        {weeks.map((week, wi) => (
+          <div key={wi} role="row" className="contents">
+            {week.map((cell, ci) => {
+              if (!cell)
+                return (
+                  <span
+                    key={`blank-${wi}-${ci}`}
+                    role="gridcell"
+                    aria-hidden
+                    className="aspect-square w-full"
                   />
-                ))}
-              <span className="relative">{dayLabel}</span>
-            </button>
-          );
-        })}
+                );
+              const { dateStr, day, inWindow, isOpen } = cell;
+              const dayLabel = formatInteger(day, locale);
+
+              if (!inWindow) {
+                return (
+                  <span
+                    key={dateStr}
+                    role="gridcell"
+                    aria-hidden
+                    className="text-sarat-black/15 flex aspect-square w-full items-center justify-center text-sm tabular-nums"
+                  >
+                    {dayLabel}
+                  </span>
+                );
+              }
+
+              const isSelected = dateStr === value;
+              const isToday = dateStr === minDate;
+              const opt = bookable.get(dateStr);
+              const fullDate = formatDate(parse(dateStr), locale, 'gregory', {
+                weekday: 'long',
+                day: 'numeric',
+                month: 'long',
+              });
+              const ariaLabel = opt ? `${fullDate} — ${opt.spotsLabel}` : fullDate;
+
+              // `contents` collapses the gridcell wrapper so the button stays
+              // the grid item (preserving sizing + the selected-day motion).
+              return (
+                <span key={dateStr} role="gridcell" className="contents">
+                  <button
+                    ref={(el) => {
+                      if (el) dayRefs.current.set(dateStr, el);
+                      else dayRefs.current.delete(dateStr);
+                    }}
+                    type="button"
+                    aria-label={ariaLabel}
+                    aria-pressed={isSelected}
+                    aria-disabled={isOpen ? undefined : true}
+                    tabIndex={dateStr === focusedDate ? 0 : -1}
+                    onClick={() => {
+                      if (!isOpen) return;
+                      setFocusedDate(dateStr);
+                      onSelect(dateStr);
+                    }}
+                    className={cn(
+                      'relative flex aspect-square w-full items-center justify-center rounded-full text-sm tabular-nums transition-colors duration-200',
+                      isOpen
+                        ? 'text-sarat-black hover:bg-sarat-black/5 cursor-pointer'
+                        : 'text-sarat-black/30 cursor-default',
+                      isToday && !isSelected && 'border-sarat-black/25 [border-width:0.5px]',
+                      isSelected && 'text-fog-white',
+                    )}
+                  >
+                    {isSelected &&
+                      (reduce ? (
+                        <span className="bg-sarat-black absolute inset-0 rounded-full" />
+                      ) : (
+                        <motion.span
+                          layoutId={layoutId}
+                          transition={SPRING}
+                          className="bg-sarat-black absolute inset-0 rounded-full"
+                        />
+                      ))}
+                    <span className="relative">{dayLabel}</span>
+                  </button>
+                </span>
+              );
+            })}
+          </div>
+        ))}
       </div>
     </div>
   );

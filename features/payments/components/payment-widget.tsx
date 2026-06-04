@@ -1,6 +1,8 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import { Button } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
 import type { CheckoutReady } from '@/features/payments/actions';
 
 declare global {
@@ -13,6 +15,10 @@ export interface PaymentWidgetProps {
   checkout: CheckoutReady;
   /** Loading copy shown until the widget script renders. */
   loadingLabel: string;
+  /** Shown if the widget script fails to load (e.g. flaky network). */
+  errorLabel: string;
+  /** Retry action label. */
+  retryLabel: string;
 }
 
 /**
@@ -25,15 +31,25 @@ export interface PaymentWidgetProps {
  * `window.wpwlOptions` is set with `paymentTarget: "_top"` (full-page 3DS
  * redirect, per the HyperPay onboarding email) *before* the script loads.
  * Brand order is Mada-first, as required by Saudi Payments.
+ *
+ * If the script fails to load we surface a retry rather than leaving the
+ * shopper stuck on a loading label forever — `attempt` re-runs the effect.
  */
-export function PaymentWidget({ checkout, loadingLabel }: PaymentWidgetProps) {
+export function PaymentWidget({
+  checkout,
+  loadingLabel,
+  errorLabel,
+  retryLabel,
+}: PaymentWidgetProps) {
   const mountRef = useRef<HTMLDivElement>(null);
-  const [ready, setReady] = useState(false);
+  const [status, setStatus] = useState<'loading' | 'ready' | 'error'>('loading');
+  const [attempt, setAttempt] = useState(0);
 
   useEffect(() => {
     const mount = mountRef.current;
     if (!mount) return;
 
+    setStatus('loading');
     window.wpwlOptions = { paymentTarget: '_top' };
 
     // Build the widget form imperatively so React doesn't manage it.
@@ -47,7 +63,8 @@ export function PaymentWidget({ checkout, loadingLabel }: PaymentWidgetProps) {
     script.src = `${checkout.scriptBaseUrl}v1/paymentWidgets.js?checkoutId=${encodeURIComponent(checkout.checkoutId)}`;
     script.async = true;
     script.crossOrigin = 'anonymous';
-    script.onload = () => setReady(true);
+    script.onload = () => setStatus('ready');
+    script.onerror = () => setStatus('error');
     document.body.appendChild(script);
 
     return () => {
@@ -55,18 +72,37 @@ export function PaymentWidget({ checkout, loadingLabel }: PaymentWidgetProps) {
       mount.replaceChildren();
       delete window.wpwlOptions;
     };
-  }, [checkout.checkoutId, checkout.scriptBaseUrl, checkout.brands, checkout.returnUrl]);
+  }, [checkout.checkoutId, checkout.scriptBaseUrl, checkout.brands, checkout.returnUrl, attempt]);
 
   return (
     <div className="flex flex-col gap-4">
-      {!ready && (
-        <p className="text-sarat-black-600 text-sm" role="status">
-          {loadingLabel}
-        </p>
+      {status === 'loading' && (
+        <div className="flex flex-col gap-3" role="status" aria-live="polite">
+          <p className="text-sarat-black-600 text-sm">{loadingLabel}</p>
+          {/* Field-shaped placeholders so the panel reads as "loading a form"
+              rather than looking broken on a slow connection. */}
+          <div className="bg-sarat-black/5 rounded-input h-11 w-full animate-pulse motion-reduce:animate-none" />
+          <div className="bg-sarat-black/5 rounded-input h-11 w-full animate-pulse motion-reduce:animate-none" />
+        </div>
       )}
+
+      {status === 'error' && (
+        <div role="alert" className="flex flex-col items-start gap-3">
+          <p className="text-al-qatt-red-800 text-sm">{errorLabel}</p>
+          <Button
+            type="button"
+            variant="secondary"
+            size="lg"
+            onClick={() => setAttempt((a) => a + 1)}
+          >
+            {retryLabel}
+          </Button>
+        </div>
+      )}
+
       {/* COPYandPAY mounts its fields into the form we append here. React
           owns this div but never its children — see the comment above. */}
-      <div ref={mountRef} />
+      <div ref={mountRef} className={cn(status === 'error' && 'hidden')} />
     </div>
   );
 }

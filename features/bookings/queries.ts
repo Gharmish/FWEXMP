@@ -27,6 +27,14 @@ export interface BookingDetail {
   date: string;
   startTime: string;
   experienceSlug: string;
+  /** Guest's name — used to prefill the payment-details step. */
+  guestName: string;
+  /** Guest's email if known — prefills the payment-details step. */
+  guestEmail: string | null;
+  /** Card scheme once settled (e.g. `MADA`, `VISA`, `MASTER`); null otherwise. */
+  paymentBrand: string | null;
+  /** When payment settled, ISO string; null until paid. */
+  paidAt: string | null;
   createdAt: string;
 }
 
@@ -34,7 +42,10 @@ export async function getBookingByReference(reference: string): Promise<BookingD
   if (!hasDb()) return undefined;
   const row = await db.query.bookings.findFirst({
     where: eq(bookings.idempotencyKey, reference),
-    with: { experience: { columns: { slug: true } } },
+    with: {
+      experience: { columns: { slug: true } },
+      guest: { columns: { name: true, email: true } },
+    },
   });
   if (!row) return undefined;
   return {
@@ -47,6 +58,10 @@ export async function getBookingByReference(reference: string): Promise<BookingD
     date: row.date,
     startTime: row.startTime,
     experienceSlug: row.experience.slug,
+    guestName: row.guest.name,
+    guestEmail: row.guest.email,
+    paymentBrand: row.paymentBrand,
+    paidAt: row.paidAt?.toISOString() ?? null,
     createdAt: row.createdAt.toISOString(),
   };
 }
@@ -66,7 +81,10 @@ export async function getBookingsForGuest(guestId: string): Promise<GuestBooking
   const rows = await db.query.bookings.findMany({
     where: eq(bookings.guestId, guestId),
     orderBy: [desc(bookings.date), desc(bookings.createdAt)],
-    with: { experience: { columns: { slug: true, titleEn: true, titleAr: true } } },
+    with: {
+      experience: { columns: { slug: true, titleEn: true, titleAr: true } },
+      guest: { columns: { name: true, email: true } },
+    },
   });
   return rows.map((row) => ({
     id: row.id,
@@ -78,6 +96,10 @@ export async function getBookingsForGuest(guestId: string): Promise<GuestBooking
     date: row.date,
     startTime: row.startTime,
     experienceSlug: row.experience.slug,
+    guestName: row.guest.name,
+    guestEmail: row.guest.email,
+    paymentBrand: row.paymentBrand,
+    paidAt: row.paidAt?.toISOString() ?? null,
     experienceTitleEn: row.experience.titleEn,
     experienceTitleAr: row.experience.titleAr,
     createdAt: row.createdAt.toISOString(),

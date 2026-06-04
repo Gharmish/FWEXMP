@@ -154,6 +154,26 @@ export default async function ExperienceDetailPage({
     nextMonth: tb('nextMonth'),
   };
   const modeNote = exp.bookingMode === 'instant' ? tb('modeInstant') : tb('modeRequest');
+
+  // Set date expectations up front: when an experience runs only on certain
+  // weekdays, name them so the mostly-greyed calendar reads as intentional.
+  // 2024-01-07 is a Sunday (UTC); weekday index 0=Sun..6=Sat.
+  const weekdaySet = schedule?.availabilityWeekdays ?? [];
+  const scheduleNote =
+    availableDates.length > 0 && weekdaySet.length > 0 && weekdaySet.length < 7
+      ? tb('runsOn', {
+          days: new Intl.ListFormat(loc, { style: 'long', type: 'conjunction' }).format(
+            [...weekdaySet]
+              .sort((a, b) => a - b)
+              .map((wd) =>
+                formatDate(new Date(Date.UTC(2024, 0, 7 + wd, 12)), loc, 'gregory', {
+                  weekday: 'long',
+                  timeZone: 'UTC',
+                }),
+              ),
+          ),
+        })
+      : undefined;
   const eyebrowClassName = cn(
     'text-sarat-black-600 text-[11px]',
     loc === 'en' && 'tracking-[0.2em] uppercase',
@@ -331,8 +351,10 @@ export default async function ExperienceDetailPage({
           <ReviewsSection experienceSlug={exp.slug} locale={loc} />
         </div>
 
-        {/* Right: sticky price / booking panel */}
-        <aside className="lg:sticky lg:top-20 lg:self-start">
+        {/* Right: sticky price / booking panel. On short viewports the panel
+            can be taller than the screen, so it scrolls within itself —
+            keeping the submit button reachable without scrolling the page. */}
+        <aside className="lg:sticky lg:top-20 lg:max-h-[calc(100vh-6rem)] lg:self-start lg:overflow-y-auto">
           <div className="rounded-card border-sarat-black/8 flex flex-col gap-5 [border-width:0.5px] p-6">
             <h2 className="font-display text-2xl font-medium tracking-[-0.025em]">{tb('title')}</h2>
             <p className="text-2xl font-medium">
@@ -352,6 +374,7 @@ export default async function ExperienceDetailPage({
               maxDate={addDays(todayRiyadh, BOOKING_HORIZON_DAYS)}
               availableDates={availableDates}
               modeNote={modeNote}
+              scheduleNote={scheduleNote}
               copy={bookingCopy}
             />
           </div>

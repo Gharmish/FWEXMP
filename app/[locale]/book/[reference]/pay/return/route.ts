@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { settleBooking } from '@/features/payments/settle';
+import { sendBookingReceiptEmail } from '@/features/bookings/lib/booking-email';
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -24,6 +25,12 @@ export async function GET(
   if (UUID_RE.test(reference)) {
     const outcome = await settleBooking(reference);
     confirmed.searchParams.set('payment', outcome);
+    // On a confirmed payment, send the booking receipt. Best-effort and
+    // gated (no-op without email configured / no guest email) — it must never
+    // delay or fail the redirect to the confirmation page.
+    if (outcome === 'success') {
+      await sendBookingReceiptEmail(reference, loc).catch(() => {});
+    }
   }
 
   return NextResponse.redirect(confirmed);

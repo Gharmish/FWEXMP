@@ -1,11 +1,12 @@
 'use server';
 
-import { eq } from 'drizzle-orm';
+import { and, eq, isNull } from 'drizzle-orm';
 import { headers } from 'next/headers';
 import { z } from 'zod';
 import { db } from '@/lib/db';
 import { serverEnv, hasHyperpay } from '@/lib/env';
-import { bookings } from '@/db/schema';
+import { bookings, guests } from '@/db/schema';
+import { isHoldExpired } from '@/features/bookings/lib/availability';
 import { reportError } from '@/lib/log';
 import { paymentDetailsSchema } from '@/features/payments/schemas';
 import { hyperpayBaseUrl, prepareCheckout } from '@/features/payments/lib/hyperpay';
@@ -114,7 +115,14 @@ export async function createCheckout(
   try {
     const booking = await db.query.bookings.findFirst({
       where: eq(bookings.idempotencyKey, input.reference),
-      columns: { id: true, totalAmount: true, paymentStatus: true },
+      columns: {
+        id: true,
+        guestId: true,
+        totalAmount: true,
+        paymentStatus: true,
+        status: true,
+        paymentDeadline: true,
+      },
     });
 
     if (!booking) {
@@ -123,6 +131,23 @@ export async function createCheckout(
     if (booking.paymentStatus === 'paid') {
       return { status: 'error', error: 'alreadyPaid', values: echoValues(formData) };
     }
+    // Never prepare a checkout for a hold that's been released (cancelled) or
+    // has expired — this is what makes auto-release safe: a freed spot can
+    // never be paid for, so there's no charge-for-a-given-away-seat race.
+    if (
+      booking.status === 'cancelled' ||
+      (booking.paymentStatus === 'unpaid' && isHoldExpired(booking.paymentDeadline, new Date()))
+    ) {
+      return { status: 'error', error: 'expired', values: echoValues(formData) };
+    }
+
+    // Persist the payment-step email onto the guest if we don't have one yet,
+    // so the confirmation receipt can reach them (the booking form only
+    // collects name + phone). Set-if-empty — never overwrite an existing one.
+    await db
+      .update(guests)
+      .set({ email: input.email })
+      .where(and(eq(guests.id, booking.guestId), isNull(guests.email)));
 
     const checkout = await prepareCheckout({
       merchantTransactionId: input.reference,

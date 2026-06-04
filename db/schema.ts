@@ -353,6 +353,15 @@ export const bookings = pgTable(
     paymentBrand: text(),
     /** When payment was confirmed paid. Null until settled. */
     paidAt: timestamp({ withTimezone: true }),
+    /**
+     * For payment-required bookings, when the unpaid hold expires. Set only
+     * when the booking is created and routed to online payment; null for
+     * request-to-book and payment-off bookings (which never auto-expire). The
+     * release job cancels an `unpaid` booking past this — never a `processing`
+     * one (a checkout exists → payment may be in flight), so there is no
+     * late-settlement race.
+     */
+    paymentDeadline: timestamp({ withTimezone: true }),
     /** Safe retries for AI agents (BRIEF §6). */
     idempotencyKey: text().notNull().unique(),
     /**

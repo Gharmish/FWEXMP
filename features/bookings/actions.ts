@@ -11,6 +11,7 @@ import { bookingRequestSchema } from '@/features/bookings/schemas';
 import { getCurrentUser } from '@/features/auth/queries';
 import {
   ACTIVE_BOOKING_STATUSES,
+  PAYMENT_HOLD_MINUTES,
   isDateBookable,
   remainingCapacity,
 } from '@/features/bookings/lib/availability';
@@ -228,7 +229,16 @@ export async function requestBooking(
         if (remainingCapacity(experience.maxGroupSize, booked) < input.partySize) {
           return 'full' as const;
         }
-        await tx.insert(bookings).values({ ...bookingValues, status: 'confirmed' });
+        // When online payment is required, stamp a hold deadline: the booking
+        // is created `confirmed` (so it holds the spot during payment) but the
+        // release job frees it if payment never completes. Null when payment is
+        // off — the booking is final on insert and never expires.
+        const paymentDeadline = hasHyperpay()
+          ? new Date(Date.now() + PAYMENT_HOLD_MINUTES * 60_000)
+          : null;
+        await tx
+          .insert(bookings)
+          .values({ ...bookingValues, status: 'confirmed', paymentDeadline });
         return 'ok' as const;
       });
       if (outcome === 'full') {

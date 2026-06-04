@@ -1,11 +1,13 @@
 'use client';
 
-import { useActionState, useId } from 'react';
+import { useActionState, useId, useMemo } from 'react';
 import { useFormStatus } from 'react-dom';
 import { createCheckout, type CreateCheckoutState } from '@/features/payments/actions';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import type { Locale } from '@/lib/i18n';
+import { COUNTRIES, countryName } from '@/lib/phone';
+import { cn } from '@/lib/utils';
 import { PaymentWidget } from './payment-widget';
 
 export interface PaymentDetailsCopy {
@@ -27,8 +29,14 @@ export interface PaymentDetailsCopy {
   errorUnavailable: string;
   errorNotFound: string;
   errorAlreadyPaid: string;
+  /** Hold released / expired before payment completed. */
+  errorExpired: string;
   payHeading: string;
   widgetLoading: string;
+  /** Shown if the HyperPay widget script fails to load. */
+  widgetError: string;
+  /** Retry action for the failed widget. */
+  widgetRetry: string;
 }
 
 type DetailField = keyof Pick<
@@ -62,18 +70,46 @@ export interface PaymentDetailsFormProps {
   locale: Locale;
   slug: string;
   copy: PaymentDetailsCopy;
+  /**
+   * Server-derived prefill (e.g. the booking's guest name). A failed-submit
+   * server echo (`state.values`) always wins over these so the user never
+   * loses what they typed.
+   */
+  defaults?: Partial<Record<DetailField, string>>;
 }
 
-export function PaymentDetailsForm({ reference, locale, slug, copy }: PaymentDetailsFormProps) {
+export function PaymentDetailsForm({
+  reference,
+  locale,
+  slug,
+  copy,
+  defaults,
+}: PaymentDetailsFormProps) {
   const [state, formAction] = useActionState(createCheckout, initialState);
   const values = state.values ?? {};
   const errorId = useId();
+
+  // Full, localized country list (Israel already excluded upstream in
+  // lib/phone), sorted by display name in the active locale. Codes are the
+  // stable alpha-2 the schema validates; names are presentation only.
+  const countryOptions = useMemo(
+    () =>
+      [...COUNTRIES]
+        .map((c) => ({ iso: c.iso, name: countryName(c.iso, locale) }))
+        .sort((a, b) => a.name.localeCompare(b.name, locale)),
+    [locale],
+  );
 
   if (state.status === 'ready' && state.data) {
     return (
       <div className="flex flex-col gap-4">
         <h2 className="font-display text-2xl font-medium tracking-[-0.025em]">{copy.payHeading}</h2>
-        <PaymentWidget checkout={state.data} loadingLabel={copy.widgetLoading} />
+        <PaymentWidget
+          checkout={state.data}
+          loadingLabel={copy.widgetLoading}
+          errorLabel={copy.widgetError}
+          retryLabel={copy.widgetRetry}
+        />
       </div>
     );
   }
@@ -86,6 +122,7 @@ export function PaymentDetailsForm({ reference, locale, slug, copy }: PaymentDet
           unavailable: copy.errorUnavailable,
           notFound: copy.errorNotFound,
           alreadyPaid: copy.errorAlreadyPaid,
+          expired: copy.errorExpired,
         }[state.error ?? 'server']
       : undefined;
 
@@ -119,7 +156,7 @@ export function PaymentDetailsForm({ reference, locale, slug, copy }: PaymentDet
                 autoComplete={field.autoComplete}
                 required
                 dir={field.name === 'email' ? 'ltr' : undefined}
-                defaultValue={values[field.name]}
+                defaultValue={values[field.name] ?? defaults?.[field.name]}
                 aria-invalid={hasError ? true : undefined}
               />
               {hasError && <p className="text-al-qatt-red-800 text-sm">{copy.invalid}</p>}
@@ -131,16 +168,26 @@ export function PaymentDetailsForm({ reference, locale, slug, copy }: PaymentDet
           <label htmlFor="pay-country" className="text-sm font-medium">
             {copy.country}
           </label>
-          <Input
+          <select
             id="pay-country"
             name="country"
             autoComplete="country"
             required
-            maxLength={2}
-            defaultValue={values.country ?? 'SA'}
+            defaultValue={values.country ?? defaults?.country ?? 'SA'}
             aria-invalid={state.fields?.country ? true : undefined}
-            className="uppercase"
-          />
+            className={cn(
+              'rounded-input border-sarat-black/20 bg-fog-white text-sarat-black h-11 w-full [border-width:0.5px] px-4 text-base',
+              'aria-invalid:border-al-qatt-red',
+            )}
+          >
+            {countryOptions.map((c) => (
+              // The localized name can differ between server and browser ICU
+              // builds; the value (alpha-2) is stable, so suppress the warning.
+              <option key={c.iso} value={c.iso} suppressHydrationWarning>
+                {c.name}
+              </option>
+            ))}
+          </select>
           {state.fields?.country && <p className="text-al-qatt-red-800 text-sm">{copy.invalid}</p>}
         </div>
       </div>

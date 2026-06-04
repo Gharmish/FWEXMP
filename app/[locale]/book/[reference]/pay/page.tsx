@@ -1,10 +1,12 @@
 import type { Metadata } from 'next';
 import type { ReactNode } from 'react';
 import { notFound, redirect } from 'next/navigation';
+import { ArrowLeft } from 'lucide-react';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
+import { Link } from '@/lib/i18n';
 import type { Locale } from '@/lib/i18n';
 import { hasHyperpay } from '@/lib/env';
-import { formatDate, formatInteger } from '@/lib/format';
+import { formatDate, formatInteger, formatTime } from '@/lib/format';
 import { Price } from '@/components/ui/price';
 import { getBookingByReference } from '@/features/bookings/queries';
 import { getExperienceBySlug } from '@/features/experiences/queries';
@@ -75,16 +77,36 @@ export default async function PaymentPage({ params, searchParams }: PageParams) 
     errorUnavailable: t('errorUnavailable'),
     errorNotFound: t('errorNotFound'),
     errorAlreadyPaid: t('errorAlreadyPaid'),
+    errorExpired: t('errorExpired'),
     payHeading: t('payHeading'),
     widgetLoading: t('widgetLoading'),
+    widgetError: t('widgetError'),
+    widgetRetry: t('widgetRetry'),
+  };
+
+  // Split the booking's guest name into given/surname to prefill the form
+  // (the server echo still wins on a failed submit). Most names have a final
+  // token as the surname; a single token prefills the given name only.
+  const fullName = booking.guestName.trim();
+  const lastSpace = fullName.lastIndexOf(' ');
+  const nameDefaults =
+    lastSpace === -1
+      ? { givenName: fullName }
+      : {
+          givenName: fullName.slice(0, lastSpace).trim(),
+          surname: fullName.slice(lastSpace + 1).trim(),
+        };
+  const defaults = {
+    ...nameDefaults,
+    ...(booking.guestEmail ? { email: booking.guestEmail } : {}),
+    country: 'SA',
   };
 
   const summary: Array<{ label: string; value: ReactNode }> = [];
   if (title) summary.push({ label: t('experienceLabel'), value: title });
-  summary.push({
-    label: t('dateLabel'),
-    value: formatDate(new Date(`${booking.date}T${booking.startTime}:00`), loc),
-  });
+  const startsAt = new Date(`${booking.date}T${booking.startTime}:00`);
+  summary.push({ label: t('dateLabel'), value: formatDate(startsAt, loc) });
+  summary.push({ label: t('timeLabel'), value: formatTime(startsAt, loc) });
   summary.push({ label: t('partyLabel'), value: formatInteger(booking.partySize, loc) });
   summary.push({
     label: t('totalLabel'),
@@ -117,6 +139,16 @@ export default async function PaymentPage({ params, searchParams }: PageParams) 
         </dl>
       </section>
 
+      {experienceSlug && (
+        <Link
+          href={`/experiences/${experienceSlug}`}
+          className="text-sarat-black-600 hover:text-sarat-black mt-4 inline-flex items-center gap-2 text-sm transition-colors duration-200"
+        >
+          <ArrowLeft className="size-4 shrink-0 rtl:rotate-180" aria-hidden />
+          {t('editBooking')}
+        </Link>
+      )}
+
       <p className="text-sarat-black-600 mt-6 text-sm">{t('madaFirst')}</p>
 
       <section className="mt-4">
@@ -125,6 +157,7 @@ export default async function PaymentPage({ params, searchParams }: PageParams) 
           locale={loc}
           slug={experienceSlug ?? ''}
           copy={copy}
+          defaults={defaults}
         />
       </section>
     </article>

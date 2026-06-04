@@ -38,6 +38,17 @@ const serverSchema = z.object({
   // Shared secret for verifying HyperPay webhook notifications. Empty → the
   // webhook route rejects and we rely on the synchronous status check.
   HYPERPAY_WEBHOOK_SECRET: z.string().default(''),
+  // Resend transactional email (booking confirmations / receipts). Optional,
+  // same boundary pattern as HyperPay: `hasEmail()` gates every send and the
+  // flow is silent (no email) until both arrive — no code change. The API key
+  // is a server-only secret; `RESEND_FROM` is the verified sender, e.g.
+  // "Gharmish <hello@send.gharmish.com>".
+  RESEND_API_KEY: z.string().default(''),
+  RESEND_FROM: z.string().default(''),
+  // Shared secret for the scheduled release-holds job. Vercel Cron sends it as
+  // `Authorization: Bearer <CRON_SECRET>`. Empty → the route rejects every
+  // request (the job is inert until configured).
+  CRON_SECRET: z.string().default(''),
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
 });
 
@@ -73,6 +84,9 @@ export const serverEnv = parse(
     HYPERPAY_MODE: process.env.HYPERPAY_MODE,
     HYPERPAY_BASE_URL: process.env.HYPERPAY_BASE_URL,
     HYPERPAY_WEBHOOK_SECRET: process.env.HYPERPAY_WEBHOOK_SECRET,
+    RESEND_API_KEY: process.env.RESEND_API_KEY,
+    RESEND_FROM: process.env.RESEND_FROM,
+    CRON_SECRET: process.env.CRON_SECRET,
     NODE_ENV: process.env.NODE_ENV,
   },
   'server',
@@ -107,4 +121,14 @@ export function hasSupabaseAuth(): boolean {
  */
 export function hasHyperpay(): boolean {
   return Boolean(serverEnv.HYPERPAY_ACCESS_TOKEN && serverEnv.HYPERPAY_ENTITY_ID);
+}
+
+/**
+ * Is transactional email (Resend) configured? Same boundary as
+ * `hasHyperpay()`: every email send checks this first and is a silent no-op
+ * when false, so the booking flow works without it. Flips the moment the API
+ * key + verified sender arrive — no code change.
+ */
+export function hasEmail(): boolean {
+  return Boolean(serverEnv.RESEND_API_KEY && serverEnv.RESEND_FROM);
 }

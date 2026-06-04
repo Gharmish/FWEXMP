@@ -1,0 +1,1 @@
+ALTER TABLE "bookings" ADD COLUMN "payment_deadline" timestamp with time zone;

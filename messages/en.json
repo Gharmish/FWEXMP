@@ -1014,7 +1014,8 @@
     "prevMonth": "Previous month",
     "nextMonth": "Next month",
     "modeInstant": "Instant confirmation — your spot is booked the moment you submit, subject to availability.",
-    "modeRequest": "Request to book — the host confirms availability within 24 hours."
+    "modeRequest": "Request to book — the host confirms availability within 24 hours.",
+    "runsOn": "Runs on {days}."
   },
   "bookingConfirmed": {
     "eyebrow": "Request received",
@@ -1030,6 +1031,10 @@
     "dateLabel": "Date",
     "partyLabel": "Guests",
     "totalLabel": "Estimated total",
+    "totalPaidLabel": "Total paid",
+    "paymentLabel": "Payment",
+    "paid": "Paid",
+    "paymentChecking": "Checking for an update…",
     "nextStepsHeading": "What happens next",
     "nextStep1": "Your host reviews the request and confirms availability.",
     "nextStep2": "Once confirmed, we share a secure payment link to complete the booking.",
@@ -1038,7 +1043,14 @@
     "nextStepConfirmed2": "Save your reference; you'll need it for any changes.",
     "nextStepConfirmed3": "We'll send the meeting point, what to bring, and host contact by WhatsApp the day before.",
     "backToExperience": "Back to the experience",
-    "keepExploring": "Keep exploring"
+    "keepExploring": "Keep exploring",
+    "paymentFailedEyebrow": "Payment not completed",
+    "paymentFailedTitle": "Your payment didn't go through.",
+    "paymentFailedDescription": "Your card wasn't charged and your booking isn't confirmed yet — you can try the payment again.",
+    "paymentPendingEyebrow": "Payment processing",
+    "paymentPendingTitle": "We're confirming your payment.",
+    "paymentPendingDescription": "This can take a moment. We'll confirm by WhatsApp as soon as it clears — there's no need to pay again. This page updates on its own.",
+    "tryPaymentAgain": "Try payment again"
   },
   "payment": {
     "eyebrow": "Secure payment",
@@ -1047,6 +1059,7 @@
     "summaryLabel": "Booking summary",
     "experienceLabel": "Experience",
     "dateLabel": "Date",
+    "timeLabel": "Time",
     "partyLabel": "Guests",
     "totalLabel": "Total",
     "madaFirst": "mada, Visa, and Mastercard accepted — mada shown first.",
@@ -1058,7 +1071,8 @@
     "city": "City",
     "state": "Region",
     "postcode": "Postal code",
-    "country": "Country (2-letter code)",
+    "country": "Country",
+    "editBooking": "Change date or guests",
     "submit": "Continue to payment",
     "pending": "Preparing payment",
     "invalid": "Enter a valid value.",
@@ -1067,8 +1081,25 @@
     "errorUnavailable": "Online payment isn't available right now.",
     "errorNotFound": "We couldn't find this booking.",
     "errorAlreadyPaid": "This booking is already paid.",
+    "errorExpired": "This booking's payment window has passed and the spot was released. Please book again.",
     "payHeading": "Pay securely",
-    "widgetLoading": "Loading secure payment…"
+    "widgetLoading": "Loading secure payment…",
+    "widgetError": "The secure payment form couldn't load. Check your connection and try again.",
+    "widgetRetry": "Reload payment form"
+  },
+  "bookingEmail": {
+    "subject": "Your Gharmish booking is confirmed",
+    "greeting": "Hi {name},",
+    "intro": "We've received your payment — your booking is confirmed. Here are the details:",
+    "experienceLabel": "Experience",
+    "placeLabel": "Where",
+    "dateLabel": "Date",
+    "timeLabel": "Time",
+    "partyLabel": "Guests",
+    "totalLabel": "Total paid",
+    "referenceLabel": "Reference",
+    "closing": "We'll send the meeting point and what to bring before the day. See you in Asir.",
+    "footer": "Gharmish — experiences hosted by the people who know Asir best."
   },
   "notFound": {
     "eyebrow": "404",
