@@ -37,7 +37,7 @@ export async function Navbar() {
   ]);
 
   return (
-    <header className="border-sarat-black/8 bg-fog-white/80 sticky top-0 z-50 [border-bottom-width:0.5px] backdrop-blur-md">
+    <header className="border-sarat-black/8 bg-fog-white/80 sticky top-0 z-50 [border-bottom-width:0.5px] backdrop-blur-md print:hidden">
       <nav className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-3 px-4 sm:px-6">
         <Wordmark locale={locale} />
         <div className="flex items-center gap-1 sm:gap-5">

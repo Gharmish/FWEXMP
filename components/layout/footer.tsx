@@ -24,7 +24,7 @@ export async function Footer() {
   ];
 
   return (
-    <footer className="border-sarat-black/8 [border-top-width:0.5px]">
+    <footer className="border-sarat-black/8 [border-top-width:0.5px] print:hidden">
       <div className="mx-auto flex max-w-6xl flex-col gap-10 px-6 py-12">
         <div className="flex flex-col gap-8 sm:flex-row sm:justify-between">
           <div className="flex flex-col gap-3">

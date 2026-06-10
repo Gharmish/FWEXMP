@@ -10,6 +10,7 @@ import { Badge } from '@/components/ui/badge';
 import { formatDate } from '@/lib/format';
 import { Price } from '@/components/ui/price';
 import { getGuestDetail, isAdminAndDbReady } from '@/features/admin/guests/queries';
+import { GuestSuspendButton } from '@/app/[locale]/admin/guests/[id]/suspend-button';
 import type { AdminBookingStatus } from '@/features/admin/bookings/types';
 
 export async function generateMetadata({
@@ -70,11 +71,36 @@ export default async function AdminGuestDetailPage({
         {t('guestDetail.back')}
       </Link>
 
-      <div className="flex flex-col gap-2">
+      <div className="flex flex-col gap-3">
         <p className={eyebrowClassName}>{t('guestDetail.eyebrow')}</p>
-        <h1 className="font-display text-4xl font-medium tracking-[-0.035em] text-balance sm:text-5xl">
-          {guest.name}
-        </h1>
+        <div className="flex flex-wrap items-center gap-4">
+          <h1 className="font-display text-4xl font-medium tracking-[-0.035em] text-balance sm:text-5xl">
+            {guest.name}
+          </h1>
+          {guest.suspendedAt && (
+            <Badge className="bg-al-qatt-red/15 text-al-qatt-red">
+              {t('guestDetail.suspendedBadge')}
+            </Badge>
+          )}
+        </div>
+        <GuestSuspendButton
+          guestId={guest.id}
+          suspended={guest.suspendedAt !== null}
+          copy={{
+            suspend: t('guestDetail.suspend'),
+            suspendPending: t('guestDetail.suspendPending'),
+            suspendConfirm: t('guestDetail.suspendConfirm'),
+            restore: t('guestDetail.restore'),
+            restorePending: t('guestDetail.restorePending'),
+            errors: {
+              forbidden: t('guestDetail.errors.forbidden'),
+              no_db: t('guestDetail.errors.noDb'),
+              not_found: t('guestDetail.errors.notFound'),
+              wrong_state: t('guestDetail.errors.wrongState'),
+              server: t('guestDetail.errors.server'),
+            },
+          }}
+        />
       </div>
 
       <dl className="border-sarat-black/8 rounded-card grid gap-5 [border-width:0.5px] p-6 sm:grid-cols-2">
