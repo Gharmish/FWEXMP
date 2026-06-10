@@ -1,4 +1,4 @@
-import { relations } from 'drizzle-orm';
+import { relations, sql } from 'drizzle-orm';
 import {
   boolean,
   date,
@@ -160,6 +160,13 @@ export const hostApplicationStatusEnum = pgEnum('host_application_status', [
 /** Individual vs. registered tourism company (BRIEF §8). */
 export const hostIdentityTypeEnum = pgEnum('host_identity_type', ['national_id', 'cr']);
 
+/**
+ * Dispute lifecycle. Deliberately two-state: a dispute is either
+ * waiting on the team or it isn't. Outcome detail lives in
+ * `disputes.adminNotes`, refunds in the booking's own money fields.
+ */
+export const disputeStatusEnum = pgEnum('dispute_status', ['open', 'resolved']);
+
 /* ----------------------------- Tables ---------------------------- */
 
 export const hosts = pgTable('hosts', {
@@ -220,6 +227,12 @@ export const guests = pgTable('guests', {
   /** Public URL of the profile photo in the Supabase Storage `avatars` bucket. */
   avatarUrl: text(),
   preferredLanguage: localeEnum().notNull().default('ar'),
+  /**
+   * When an admin suspended this guest (abuse, chargebacks, no-shows).
+   * Null = active. A suspended guest can still sign in and browse, but
+   * the booking action refuses new bookings.
+   */
+  suspendedAt: timestamp({ withTimezone: true }),
   createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
 });
 
@@ -372,6 +385,21 @@ export const bookings = pgTable(
      * that were already `refunded` before this column existed.
      */
     refundedAt: timestamp({ withTimezone: true }),
+    /**
+     * Whole-SAR amount we still owe back to the guest after a
+     * cancellation whose automatic gateway refund failed (or wasn't
+     * possible). Null = nothing owed. The admin reverses the charge
+     * manually in the HyperPay console, then records it with the
+     * refund action (which moves the booking to `refunded` and clears
+     * this marker's relevance).
+     */
+    refundDueSar: integer(),
+    /**
+     * When the day-before reminder email went out. Null = not sent
+     * (or guest has no email). The cron stamps it so re-runs in the
+     * same day never double-send.
+     */
+    reminderSentAt: timestamp({ withTimezone: true }),
     /**
      * When the host was paid out for this booking. Null = still owed.
      * The payout amount is derived from the experience commission split
@@ -559,6 +587,40 @@ export const hostStatusEvents = pgTable(
   ],
 );
 
+/**
+ * Guest-filed disputes ("report a problem"). One row per report,
+ * always anchored to a booking — the booking carries the who/what/
+ * when context, so the dispute itself is just the guest's message
+ * plus the team's resolution trail.
+ */
+export const disputes = pgTable(
+  'disputes',
+  {
+    id: uuid().defaultRandom().primaryKey(),
+    bookingId: uuid()
+      .notNull()
+      .references(() => bookings.id, { onDelete: 'cascade' }),
+    guestId: uuid()
+      .notNull()
+      .references(() => guests.id, { onDelete: 'cascade' }),
+    /** The guest's own words. Free text, length-capped in the action. */
+    message: text().notNull(),
+    status: disputeStatusEnum().notNull().default('open'),
+    /** Internal resolution notes — never shown to the guest. */
+    adminNotes: text(),
+    /** Supabase auth id of the admin who resolved. */
+    resolvedByUserId: uuid(),
+    resolvedAt: timestamp({ withTimezone: true }),
+    createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    // The admin queue lists open disputes newest-first.
+    index('disputes_status_created_idx').on(t.status, t.createdAt),
+    // "Has this booking been reported already?" on the guest page.
+    index('disputes_booking_idx').on(t.bookingId),
+  ],
+);
+
 /** Guest wishlist (BRIEF §8: "Saved experiences"). */
 export const savedExperiences = pgTable(
   'saved_experiences',
@@ -573,6 +635,42 @@ export const savedExperiences = pgTable(
   },
   (t) => [unique('saved_experiences_guest_experience_unique').on(t.guestId, t.experienceId)],
 );
+
+/**
+ * Platform-wide settings — a single row (`id = 'platform'`) holding the
+ * runtime-configurable knobs an admin owns: the default commission applied
+ * to newly created experiences and which categories are bookable. Kept as a
+ * fixed-PK singleton so reads/writes are trivial (`where id='platform'` /
+ * upsert). Absent row → callers fall back to code defaults, so the app never
+ * depends on this row existing.
+ */
+export const platformSettings = pgTable('platform_settings', {
+  id: text().primaryKey().default('platform'),
+  /** Default platform commission for NEW experiences, in basis points. */
+  defaultCommissionBps: integer().notNull().default(1500),
+  /**
+   * Free-cancellation window: a guest cancelling at least this many
+   * hours before the experience start gets a full refund; closer than
+   * this, the booking can still be cancelled but nothing is refunded.
+   * Platform-wide (per-experience policies stay prose for now).
+   */
+  cancellationWindowHours: integer().notNull().default(48),
+  /**
+   * Optional announcement band on the home page (per locale). Null/
+   * empty = no band. Plain text — the band is for "Eid hours" /
+   * "Soudah road closed" notices, not rich content.
+   */
+  announcementEn: text(),
+  announcementAr: text(),
+  /** Categories currently bookable/visible. Subset of the `category` enum. */
+  enabledCategories: categoryEnum()
+    .array()
+    .notNull()
+    .default(sql`ARRAY['nature','heritage','food','wellness','adventure','family']::category[]`),
+  updatedAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
+  /** Admin user id of the last editor (auth user id, not a FK). */
+  updatedByAdminId: text(),
+});
 
 /* --------------------------- Relations --------------------------- */
 
@@ -643,6 +741,11 @@ export const reviewsRelations = relations(reviews, ({ one }) => ({
     fields: [reviews.experienceId],
     references: [experiences.id],
   }),
+}));
+
+export const disputesRelations = relations(disputes, ({ one }) => ({
+  booking: one(bookings, { fields: [disputes.bookingId], references: [bookings.id] }),
+  guest: one(guests, { fields: [disputes.guestId], references: [guests.id] }),
 }));
 
 export const savedExperiencesRelations = relations(savedExperiences, ({ one }) => ({
