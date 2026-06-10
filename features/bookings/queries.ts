@@ -3,6 +3,8 @@ import { db } from '@/lib/db';
 import { serverEnv } from '@/lib/env';
 import { bookings } from '@/db/schema';
 import type { Booking } from '@/db/schema';
+import { bookingViewerCanAccess } from '@/features/bookings/lib/access';
+import { reportError } from '@/lib/log';
 
 /**
  * Read-side for bookings — currently just a lookup by the
@@ -66,6 +68,27 @@ export async function getBookingByReference(reference: string): Promise<BookingD
   };
 }
 
+/**
+ * Like {@link getBookingByReference}, but authorizes the *viewer* first —
+ * returns the detail only when the caller owns the booking or holds it in
+ * their last-booking cookie (see {@link bookingViewerCanAccess}). Use this
+ * for any page that renders guest PII keyed off a URL reference; returns
+ * undefined for an unauthorized viewer, which the pages render as the
+ * generic / preview state (no PII leak).
+ */
+export async function getBookingByReferenceForViewer(
+  reference: string,
+): Promise<BookingDetail | undefined> {
+  if (!hasDb()) return undefined;
+  const owner = await db.query.bookings.findFirst({
+    where: eq(bookings.idempotencyKey, reference),
+    columns: { guestId: true },
+  });
+  if (!owner) return undefined;
+  if (!(await bookingViewerCanAccess(reference, owner.guestId))) return undefined;
+  return getBookingByReference(reference);
+}
+
 /** A booking as the profile history list renders it — carries the bilingual experience title. */
 export interface GuestBookingSummary extends BookingDetail {
   experienceTitleEn: string;
@@ -104,4 +127,31 @@ export async function getBookingsForGuest(guestId: string): Promise<GuestBooking
     experienceTitleAr: row.experience.titleAr,
     createdAt: row.createdAt.toISOString(),
   }));
+}
+
+/**
+ * The host's WhatsApp-able contact phone for a booking — only for
+ * bookings the host has accepted (confirmed/completed): a declined or
+ * pending request must not leak the host's personal number. The phone
+ * comes from the approved application (`host_applications.contact_phone`);
+ * seeded demo hosts have no application and yield null.
+ */
+export async function getHostContactPhoneForBooking(reference: string): Promise<string | null> {
+  if (!hasDb()) return null;
+  try {
+    const row = await db.query.bookings.findFirst({
+      where: eq(bookings.idempotencyKey, reference),
+      columns: { status: true },
+      with: { experience: { columns: { hostId: true } } },
+    });
+    if (!row || (row.status !== 'confirmed' && row.status !== 'completed')) return null;
+    const application = await db.query.hostApplications.findFirst({
+      where: (a) => eq(a.hostId, row.experience.hostId),
+      columns: { contactPhone: true },
+    });
+    return application?.contactPhone ?? null;
+  } catch (error) {
+    reportError(error, { surface: 'bookings:getHostContact', reference });
+    return null;
+  }
 }

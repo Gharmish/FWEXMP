@@ -16,6 +16,7 @@ import {
   remainingCapacity,
 } from '@/features/bookings/lib/availability';
 import { LAST_BOOKING_COOKIE, serializeLastBookingCookie } from '@/features/account/cookie';
+import { sendHostNewBookingEmail } from '@/features/bookings/lib/booking-email';
 
 /** Today as `YYYY-MM-DD` in the experience's local day (KSA at launch). */
 function todayInRiyadh(): string {
@@ -166,13 +167,20 @@ export async function requestBooking(
       (authUserId
         ? await db.query.guests.findFirst({
             where: (g) => eq(g.authUserId, authUserId),
-            columns: { id: true, authUserId: true, phone: true },
+            columns: { id: true, authUserId: true, phone: true, suspendedAt: true },
           })
         : undefined) ??
       (await db.query.guests.findFirst({
         where: (g) => eq(g.phone, input.phone),
-        columns: { id: true, authUserId: true, phone: true },
+        columns: { id: true, authUserId: true, phone: true, suspendedAt: true },
       }));
+
+    // Suspended guests can browse but not book (admin decision trail
+    // lives on the guest row). Checked before any insert so a banned
+    // phone can't route around the block by signing out.
+    if (guest?.suspendedAt) {
+      return { success: false, message: 'suspended', values: currentValues(formData) };
+    }
 
     if (!guest) {
       [guest] = await db
@@ -183,7 +191,12 @@ export async function requestBooking(
           preferredLanguage: input.locale,
           authUserId,
         })
-        .returning({ id: guests.id, authUserId: guests.authUserId, phone: guests.phone });
+        .returning({
+          id: guests.id,
+          authUserId: guests.authUserId,
+          phone: guests.phone,
+          suspendedAt: guests.suspendedAt,
+        });
     } else {
       // Backfill the auth link and/or the phone on an existing row.
       const patch: Partial<{ authUserId: string; phone: string }> = {};
@@ -257,6 +270,13 @@ export async function requestBooking(
   } catch (error) {
     reportError(error, { surface: 'booking-request', experienceSlug: input.experienceSlug });
     return { success: false, message: 'server', values: currentValues(formData) };
+  }
+
+  // Tell the host — best-effort: a mail hiccup must never fail a booking.
+  try {
+    await sendHostNewBookingEmail(reference);
+  } catch (error) {
+    reportError(error, { surface: 'booking-request:hostEmail', reference });
   }
 
   await writeLastBookingCookie(reference, input.experienceSlug);
