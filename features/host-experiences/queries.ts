@@ -129,3 +129,38 @@ export async function getMyExperienceById(id: string): Promise<HostExperienceRow
 export async function getCurrentHostIdForWrite(): Promise<string | null> {
   return resolveHostIdForCurrentUser();
 }
+
+/**
+ * Ordered timeline for the host's own experience — same row shape the
+ * shared moments editor consumes. Foreign/missing experiences return
+ * [] (the page 404s before rendering the editor anyway).
+ */
+export async function getMyExperienceMoments(
+  experienceId: string,
+): Promise<import('@/features/admin/experiences/queries').AdminMoment[]> {
+  const hostId = await resolveHostIdForCurrentUser();
+  if (!hostId) return [];
+  try {
+    const owned = await db.query.experiences.findFirst({
+      where: (e) => and(eq(e.id, experienceId), eq(e.hostId, hostId)),
+      columns: { id: true },
+    });
+    if (!owned) return [];
+    const rows = await db.query.moments.findMany({
+      where: (m) => eq(m.experienceId, experienceId),
+      orderBy: (m) => [m.orderIndex],
+    });
+    return rows.map((m) => ({
+      id: m.id,
+      orderIndex: m.orderIndex,
+      timeOfDay: m.timeOfDay,
+      titleEn: m.titleEn,
+      titleAr: m.titleAr,
+      descriptionEn: m.descriptionEn,
+      descriptionAr: m.descriptionAr,
+    }));
+  } catch (error) {
+    reportError(error, { surface: 'host-experiences:getMoments', experienceId });
+    return [];
+  }
+}

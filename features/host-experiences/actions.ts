@@ -4,7 +4,7 @@ import { and, eq, sql } from 'drizzle-orm';
 import { revalidatePath } from 'next/cache';
 import { db } from '@/lib/db';
 import { serverEnv } from '@/lib/env';
-import { experiences, experienceModerationEvents, hosts } from '@/db/schema';
+import { experiences, experienceModerationEvents, hosts, moments } from '@/db/schema';
 import { redirect } from '@/lib/i18n';
 import { reportError } from '@/lib/log';
 import {
@@ -13,6 +13,7 @@ import {
 } from '@/features/host-experiences/schemas';
 import { experienceSlugFromTitle } from '@/features/host-experiences/lib/slug';
 import { getCurrentHostIdForWrite } from '@/features/host-experiences/queries';
+import { getPlatformSettings } from '@/features/admin/settings/queries';
 
 /**
  * Host-side experience CRUD.
@@ -163,6 +164,8 @@ export async function createDraftExperience(
   }
   const input = parsed.data;
   const writePayload = payloadForWrite(input);
+  // New host listings inherit the platform default commission (admin-set).
+  const { defaultCommissionBps } = await getPlatformSettings();
 
   let newId: string | undefined;
   for (let attempt = 0; attempt < SLUG_INSERT_MAX_RETRIES; attempt++) {
@@ -177,6 +180,7 @@ export async function createDraftExperience(
           lat: DEFAULT_LAT,
           lng: DEFAULT_LNG,
           status: 'draft',
+          commissionBps: defaultCommissionBps,
         })
         .returning({ id: experiences.id });
       newId = inserted.id;
@@ -451,4 +455,104 @@ export async function pauseHostExperience(
   revalidatePath('/[locale]/host/experiences/[id]', 'page');
   revalidatePath('/[locale]/experiences', 'page');
   redirect({ href: `/host/experiences/${experienceId}`, locale });
+}
+
+// ---------- duplicate ----------
+
+/**
+ * Copy one of the host's experiences into a fresh draft — content,
+ * schedule pattern, and timeline travel; date-specific exceptions
+ * (blackouts, stop-sell), photos (storage paths are keyed by slug),
+ * and status do not. The copy lands in `draft` and goes through review
+ * like any new listing. The title gets a "(copy)" suffix so two
+ * near-identical drafts are tellable apart in the dashboard.
+ */
+export async function duplicateHostExperience(
+  _previous: HostExperienceState,
+  formData: FormData,
+): Promise<HostExperienceState> {
+  const experienceId = formValue(formData, 'experienceId');
+  const locale = formValue(formData, 'locale') === 'ar' ? ('ar' as const) : ('en' as const);
+  if (!experienceId) return { success: false, message: 'not_found' };
+
+  const guard = await requireOwnership(experienceId);
+  if ('error' in guard) return guard.error;
+
+  let newId: string | undefined;
+  try {
+    const source = await db.query.experiences.findFirst({
+      where: (e) => eq(e.id, experienceId),
+      with: { moments: true },
+    });
+    if (!source) return { success: false, message: 'not_found' };
+
+    const copyTitleEn = `${source.titleEn} (copy)`.slice(0, 120);
+
+    for (let attempt = 0; attempt < SLUG_INSERT_MAX_RETRIES; attempt++) {
+      const slug = experienceSlugFromTitle(copyTitleEn);
+      try {
+        newId = await db.transaction(async (tx) => {
+          const [inserted] = await tx
+            .insert(experiences)
+            .values({
+              slug,
+              titleEn: copyTitleEn,
+              titleAr: source.titleAr,
+              descriptionEn: source.descriptionEn,
+              descriptionAr: source.descriptionAr,
+              category: source.category,
+              hostId: source.hostId,
+              durationMinutes: source.durationMinutes,
+              maxGroupSize: source.maxGroupSize,
+              minAge: source.minAge,
+              priceSar: source.priceSar,
+              lat: source.lat,
+              lng: source.lng,
+              city: source.city,
+              region: source.region,
+              placeName: source.placeName,
+              inclusions: [...source.inclusions],
+              whatToBring: [...source.whatToBring],
+              cancellationPolicy: source.cancellationPolicy,
+              availabilityWeekdays: [...source.availabilityWeekdays],
+              startTime: source.startTime,
+              bookingMode: source.bookingMode,
+              // Same host, same partnership agreement — the rate carries over.
+              commissionBps: source.commissionBps,
+              status: 'draft',
+            })
+            .returning({ id: experiences.id });
+          if (source.moments.length > 0) {
+            await tx.insert(moments).values(
+              source.moments.map((m) => ({
+                experienceId: inserted.id,
+                orderIndex: m.orderIndex,
+                timeOfDay: m.timeOfDay,
+                titleEn: m.titleEn,
+                titleAr: m.titleAr,
+                descriptionEn: m.descriptionEn,
+                descriptionAr: m.descriptionAr,
+              })),
+            );
+          }
+          return inserted.id;
+        });
+        break;
+      } catch (error) {
+        const code = (error as { code?: string })?.code;
+        if (code === '23505') continue; // slug collision — fresh suffix
+        throw error;
+      }
+    }
+  } catch (error) {
+    reportError(error, { surface: 'host-experiences:duplicate', experienceId });
+    return { success: false, message: 'server' };
+  }
+  if (!newId) {
+    reportError(new Error('exhausted slug retries'), { surface: 'host-experiences:duplicate' });
+    return { success: false, message: 'server' };
+  }
+
+  revalidatePath('/[locale]/host', 'page');
+  redirect({ href: `/host/experiences/${newId}`, locale });
 }

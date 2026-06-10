@@ -22,7 +22,8 @@ import { isAdminUser } from '@/features/admin/auth';
 
 export interface MomentActionState {
   success: boolean;
-  message?: 'forbidden' | 'no_db' | 'not_found' | 'validation' | 'server';
+  /** `locked_live` is host-only: live listings need a (re-review) edit first. */
+  message?: 'forbidden' | 'no_db' | 'not_found' | 'locked_live' | 'validation' | 'server';
   fields?: Record<string, string>;
 }
 
