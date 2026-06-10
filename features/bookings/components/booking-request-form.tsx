@@ -6,6 +6,7 @@ import { motion, useReducedMotion } from 'framer-motion';
 import { Minus, Plus } from 'lucide-react';
 import { requestBooking, type BookingRequestState } from '@/features/bookings/actions';
 import { bookingRequestSchema } from '@/features/bookings/schemas';
+import { vatPortionSar } from '@/features/bookings/lib/vat';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Pop, SPRING } from '@/components/ui/motion';
@@ -35,6 +36,8 @@ interface BookingRequestCopy {
   validation: string;
   server: string;
   notFound: string;
+  /** Account blocked from booking by the team. */
+  suspended: string;
   required: string;
   /** Specific, actionable field messages. */
   datePast: string;
@@ -45,6 +48,8 @@ interface BookingRequestCopy {
   datePlaceholder: string;
   /** Total row label. */
   total: string;
+  /** "Includes VAT (15%)" disclosure label — prices are VAT-inclusive. */
+  vatIncluded: string;
   /** Guests stepper aria-labels. */
   decrease: string;
   increase: string;
@@ -237,9 +242,11 @@ export function BookingRequestForm({
       ? copy.server
       : state.message === 'notFound'
         ? copy.notFound
-        : state.message === 'validation'
-          ? copy.validation
-          : undefined;
+        : state.message === 'suspended'
+          ? copy.suspended
+          : state.message === 'validation'
+            ? copy.validation
+            : undefined;
 
   // After a failed submit (client or server), move focus to the first invalid
   // field — or, failing that, to the form-level error region. WCAG 3.3.1 (Error
@@ -425,6 +432,10 @@ export function BookingRequestForm({
                 <Price amount={totalSar} locale={locale} />
               </Pop>
             </div>
+            <p className="text-sarat-black-600 flex items-baseline justify-between text-sm">
+              <span>{copy.vatIncluded}</span>
+              <Price amount={vatPortionSar(totalSar)} locale={locale} />
+            </p>
           </div>
 
           {/* 4 — Your details. */}

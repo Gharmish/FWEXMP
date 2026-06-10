@@ -8,7 +8,8 @@ import type { Locale } from '@/lib/i18n';
 import { hasHyperpay } from '@/lib/env';
 import { formatDate, formatInteger, formatTime } from '@/lib/format';
 import { Price } from '@/components/ui/price';
-import { getBookingByReference } from '@/features/bookings/queries';
+import { getBookingByReferenceForViewer } from '@/features/bookings/queries';
+import { vatPortionSar, vatRatePercent } from '@/features/bookings/lib/vat';
 import { getExperienceBySlug } from '@/features/experiences/queries';
 import {
   PaymentDetailsForm,
@@ -50,7 +51,7 @@ export default async function PaymentPage({ params, searchParams }: PageParams) 
   // request-to-book confirmation page.
   if (!hasHyperpay()) redirect(confirmedHref);
 
-  const booking = await getBookingByReference(reference);
+  const booking = await getBookingByReferenceForViewer(reference);
   if (!booking) redirect(confirmedHref);
   if (booking.paymentStatus === 'paid') redirect(confirmedHref);
 
@@ -111,6 +112,11 @@ export default async function PaymentPage({ params, searchParams }: PageParams) 
   summary.push({
     label: t('totalLabel'),
     value: <Price amount={booking.totalAmountSar} locale={loc} />,
+  });
+  // Prices are VAT-inclusive — disclose the portion, never add on top.
+  summary.push({
+    label: t('vatIncludedLabel', { pct: vatRatePercent() }),
+    value: <Price amount={vatPortionSar(booking.totalAmountSar)} locale={loc} />,
   });
 
   return (
