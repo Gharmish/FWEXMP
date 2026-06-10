@@ -11,6 +11,7 @@ import { Compass } from 'lucide-react';
 import { Price } from '@/components/ui/price';
 import { getCurrentUser } from '@/features/auth/queries';
 import { getHostDashboard } from '@/features/host-dashboard/queries';
+import { countPendingRequestsForHost } from '@/features/host-bookings/queries';
 import { listMyExperiences } from '@/features/host-experiences/queries';
 import type { HostExperienceRow } from '@/features/host-experiences/queries';
 
@@ -50,9 +51,10 @@ export default async function HostDashboardPage({
     redirect({ href: '/host/apply', locale: loc });
   }
 
-  const [t, experiences] = await Promise.all([
+  const [t, experiences, pendingRequests] = await Promise.all([
     getTranslations('hostDashboard'),
     listMyExperiences(),
+    countPendingRequestsForHost(),
   ]);
   const { host } = dashboard;
 
@@ -69,6 +71,15 @@ export default async function HostDashboardPage({
           <h1 className="font-display text-4xl font-medium tracking-[-0.035em] text-balance sm:text-6xl">
             {t('greeting', { name: host.name })}
           </h1>
+          {pendingRequests > 0 && (
+            <Link
+              href="/host/bookings"
+              className="border-saffron-gold/50 bg-saffron-gold/10 text-sarat-black rounded-card flex items-center justify-between gap-4 [border-width:0.5px] p-4 text-sm leading-relaxed transition-opacity duration-200 hover:opacity-80"
+            >
+              <span>{t('pendingRequestsBanner', { count: pendingRequests })}</span>
+              <ArrowRight className="size-4 shrink-0 rtl:rotate-180" aria-hidden />
+            </Link>
+          )}
           {host.verificationStatus === 'suspended' && (
             <p
               role="status"
@@ -193,8 +204,26 @@ export default async function HostDashboardPage({
         <div className="mx-auto w-full max-w-6xl px-6 py-12">
           <div className="flex flex-wrap gap-3">
             <Link
-              href={`/hosts/${host.slug}`}
+              href="/host/bookings"
               className={cn(buttonVariants({ variant: 'primary', size: 'md' }))}
+            >
+              {t('actions.viewBookings')}
+            </Link>
+            <Link
+              href="/host/earnings"
+              className={cn(buttonVariants({ variant: 'secondary', size: 'md' }))}
+            >
+              {t('actions.viewEarnings')}
+            </Link>
+            <Link
+              href="/host/reviews"
+              className={cn(buttonVariants({ variant: 'secondary', size: 'md' }))}
+            >
+              {t('actions.viewReviews')}
+            </Link>
+            <Link
+              href={`/hosts/${host.slug}`}
+              className={cn(buttonVariants({ variant: 'secondary', size: 'md' }))}
             >
               {t('actions.viewPublicProfile')}
             </Link>
