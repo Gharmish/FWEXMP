@@ -35,8 +35,11 @@ const serverSchema = z.object({
   HYPERPAY_MODE: z.enum(['test', 'live']).default('test'),
   // Optional explicit base URL override; derived from HYPERPAY_MODE when empty.
   HYPERPAY_BASE_URL: z.string().default(''),
-  // Shared secret for verifying HyperPay webhook notifications. Empty → the
-  // webhook route rejects and we rely on the synchronous status check.
+  // Shared secret for verifying HyperPay webhook notifications. No webhook
+  // route is implemented yet; settlement is the synchronous `/pay/return`
+  // status check, backed by the reconciliation pass in the release-holds
+  // cron (re-settles holds stuck in `processing`). Reserved for when the
+  // OPPWA webhook route is added.
   HYPERPAY_WEBHOOK_SECRET: z.string().default(''),
   // Resend transactional email (booking confirmations / receipts). Optional,
   // same boundary pattern as HyperPay: `hasEmail()` gates every send and the
@@ -110,6 +113,20 @@ export const clientEnv = parse(
  */
 export function hasSupabaseAuth(): boolean {
   return Boolean(clientEnv.NEXT_PUBLIC_SUPABASE_URL && clientEnv.NEXT_PUBLIC_SUPABASE_ANON_KEY);
+}
+
+/**
+ * May the dev-only stub auth (cookie session + `STUB_OTP`) activate?
+ *
+ * The stub is the fallback when Supabase isn't configured — convenient in
+ * dev, dangerous in prod: if the Supabase vars were ever missing in a
+ * production deploy, the app would otherwise silently accept `000000` as a
+ * valid OTP for any phone/email. So we fail **closed** — the stub is allowed
+ * only outside production. In production with Supabase unset, auth simply
+ * doesn't work (no session, OTP refused) rather than minting fake sessions.
+ */
+export function stubAuthAllowed(): boolean {
+  return !hasSupabaseAuth() && serverEnv.NODE_ENV !== 'production';
 }
 
 /**

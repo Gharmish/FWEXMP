@@ -1,4 +1,4 @@
-import { sql } from 'drizzle-orm';
+import { eq, sql } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import { serverEnv } from '@/lib/env';
 import { reportError } from '@/lib/log';
@@ -33,6 +33,14 @@ export interface AdminDashboard {
   bookingsTotal: number;
   guests: number;
   activeExperiences: number;
+  /** Live experiences flagged as featured (Originals tier). */
+  featuredLive: number;
+  /**
+   * Platform net revenue (commission) on confirmed + completed bookings
+   * placed in the last 30 days — `sum(totalAmount * commissionBps/10000)`.
+   * The honest "take" figure: GMV is what flows through, this is what we keep.
+   */
+  netRevenue30dSar: number;
   queue: {
     pendingApplications: number;
     pendingReview: number;
@@ -46,7 +54,7 @@ export async function getAdminDashboard(): Promise<AdminDashboard | null> {
   const block = await adminGuard();
   if (block) return null;
   try {
-    const [bookingRow, guestRow, expRow, appRow] = await Promise.all([
+    const [bookingRow, guestRow, expRow, appRow, netRow] = await Promise.all([
       db
         .select({
           total: sql<number>`count(*)::int`,
@@ -60,6 +68,7 @@ export async function getAdminDashboard(): Promise<AdminDashboard | null> {
       db
         .select({
           active: sql<number>`count(*) filter (where ${experiences.status} = 'live')::int`,
+          featured: sql<number>`count(*) filter (where ${experiences.status} = 'live' and ${experiences.featured})::int`,
           pendingReview: sql<number>`count(*) filter (where ${experiences.status} = 'pending_review')::int`,
           changesRequested: sql<number>`count(*) filter (where ${experiences.status} = 'changes_requested')::int`,
         })
@@ -69,6 +78,14 @@ export async function getAdminDashboard(): Promise<AdminDashboard | null> {
           n: sql<number>`count(*) filter (where ${hostApplications.status} = 'pending')::int`,
         })
         .from(hostApplications),
+      // Net commission on revenue bookings in the trailing 30 days. Commission
+      // lives on the experience, so this single round-trip joins through it.
+      db
+        .select({
+          net: sql<number>`coalesce(sum(${bookings.totalAmount} * ${experiences.commissionBps} / 10000.0) filter (where ${bookings.status} in ('confirmed','completed') and ${bookings.createdAt} >= now() - interval '30 days'), 0)::int`,
+        })
+        .from(bookings)
+        .innerJoin(experiences, eq(experiences.id, bookings.experienceId)),
     ]);
 
     return {
@@ -76,6 +93,8 @@ export async function getAdminDashboard(): Promise<AdminDashboard | null> {
       bookingsTotal: bookingRow[0]?.total ?? 0,
       guests: guestRow[0]?.n ?? 0,
       activeExperiences: expRow[0]?.active ?? 0,
+      featuredLive: expRow[0]?.featured ?? 0,
+      netRevenue30dSar: netRow[0]?.net ?? 0,
       queue: {
         pendingApplications: appRow[0]?.n ?? 0,
         pendingReview: expRow[0]?.pendingReview ?? 0,

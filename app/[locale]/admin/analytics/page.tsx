@@ -7,7 +7,8 @@ import { cn } from '@/lib/utils';
 import { formatDate } from '@/lib/format';
 import { Price } from '@/components/ui/price';
 import { getAnalyticsSnapshot, isAdminAndDbReady } from '@/features/admin/analytics/queries';
-import type { AnalyticsWindowStats, SparklinePoint } from '@/features/admin/analytics/types';
+import type { AnalyticsWindowStats } from '@/features/admin/analytics/types';
+import { SummaryChart } from '@/features/admin/dashboard/components/summary-chart';
 
 export async function generateMetadata({
   params,
@@ -162,7 +163,7 @@ export default async function AdminAnalyticsPage({
           <p className="text-sarat-black-600 text-xs">{t('analytics.sparkSubtitle')}</p>
         </div>
         <div className="border-sarat-black/8 rounded-card [border-width:0.5px] p-6">
-          <Sparkline points={snapshot.sparkline} locale={loc} />
+          <SummaryChart points={snapshot.sparkline} locale={loc} />
         </div>
       </section>
 
@@ -319,55 +320,5 @@ function Row({ label, value, muted }: { label: string; value: number; muted?: bo
         {value}
       </dd>
     </>
-  );
-}
-
-/**
- * Inline SVG bar sparkline — one bar per day, height scaled to peak
- * bookings count. Deliberately tiny: a chart library is overkill for
- * 30 numbers, and Tailwind+SVG ages better than a third-party dep.
- */
-function Sparkline({ points, locale }: { points: readonly SparklinePoint[]; locale: Locale }) {
-  const max = Math.max(1, ...points.map((p) => p.bookings));
-  const width = 100;
-  const height = 24;
-  const barWidth = width / points.length;
-  const totalGmv = points.reduce((sum, p) => sum + p.gmvSar, 0);
-  const totalBookings = points.reduce((sum, p) => sum + p.bookings, 0);
-
-  return (
-    <div className="flex flex-col gap-3">
-      <svg
-        viewBox={`0 0 ${width} ${height}`}
-        preserveAspectRatio="none"
-        role="img"
-        aria-label={`Sparkline of ${totalBookings} bookings over ${points.length} days`}
-        className="text-juniper-green h-20 w-full"
-      >
-        {points.map((p, i) => {
-          const h = (p.bookings / max) * height;
-          return (
-            <rect
-              key={p.date}
-              x={i * barWidth + 0.5}
-              y={height - h}
-              width={Math.max(0.5, barWidth - 1)}
-              height={h}
-              fill="currentColor"
-              opacity={p.bookings === 0 ? 0.15 : 0.85}
-            >
-              <title>{`${p.date}: ${p.bookings} booking${p.bookings === 1 ? '' : 's'}`}</title>
-            </rect>
-          );
-        })}
-      </svg>
-      <div className="text-sarat-black-600 flex justify-between text-xs">
-        <span dir="ltr">{points[0]?.date ?? '—'}</span>
-        <span className="inline-flex items-baseline gap-1">
-          {totalBookings} · <Price amount={totalGmv} locale={locale} />
-        </span>
-        <span dir="ltr">{points[points.length - 1]?.date ?? '—'}</span>
-      </div>
-    </div>
   );
 }
