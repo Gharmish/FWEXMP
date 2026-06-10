@@ -23,7 +23,7 @@ const intlMiddleware = createMiddleware(routing);
 const AUTH_REQUIRED_PREFIXES = ['/host', '/admin'];
 const AUTH_REQUIRED_EXCEPTIONS = ['/host/apply', '/host/apply/submitted'];
 
-function pathRequiresAuth(localeRelative: string): boolean {
+export function pathRequiresAuth(localeRelative: string): boolean {
   // Exact-match the exceptions first so they take precedence.
   if (
     AUTH_REQUIRED_EXCEPTIONS.some((p) => localeRelative === p || localeRelative.startsWith(`${p}/`))

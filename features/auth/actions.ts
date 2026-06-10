@@ -2,7 +2,7 @@
 
 import { cookies } from 'next/headers';
 import { revalidatePath } from 'next/cache';
-import { hasSupabaseAuth } from '@/lib/env';
+import { hasSupabaseAuth, stubAuthAllowed } from '@/lib/env';
 import { getSupabaseServerClient } from '@/lib/supabase/server';
 import { redirect } from '@/lib/i18n';
 import { reportError } from '@/lib/log';
@@ -18,6 +18,11 @@ import {
   STUB_SESSION_MAX_AGE_SECONDS,
   stubEmailCookieValue,
 } from '@/features/auth/lib/stub-session';
+import {
+  OTP_COOLDOWN_COOKIE,
+  OTP_COOLDOWN_SECONDS,
+  cooldownRemainingSeconds,
+} from '@/features/auth/lib/otp-cooldown';
 
 /**
  * Sign-in flow. Two server actions, one per form step.
@@ -71,6 +76,27 @@ function formValue(formData: FormData, key: string): string {
 
 // ---------- step 1: request OTP ----------
 
+/**
+ * App-layer send cooldown (30s per browser). Supabase's provider rate
+ * limits stay the real backstop; this stops double-clicks and naive
+ * scripted abuse before they reach the provider at all.
+ */
+async function otpCooldownActive(): Promise<boolean> {
+  const store = await cookies();
+  return cooldownRemainingSeconds(store.get(OTP_COOLDOWN_COOKIE)?.value, Date.now()) > 0;
+}
+
+async function stampOtpCooldown(): Promise<void> {
+  const store = await cookies();
+  store.set(OTP_COOLDOWN_COOKIE, String(Date.now()), {
+    httpOnly: true,
+    sameSite: 'lax',
+    secure: process.env.NODE_ENV === 'production',
+    path: '/',
+    maxAge: OTP_COOLDOWN_SECONDS,
+  });
+}
+
 export async function requestOtp(
   _previous: RequestOtpState,
   formData: FormData,
@@ -96,11 +122,16 @@ export async function requestOtp(
     }
     const { email } = parsed.data;
 
-    if (!hasSupabaseAuth()) {
+    if (await otpCooldownActive()) {
+      return { success: false, stage: 'phone', method, message: 'rate_limited', email };
+    }
+
+    if (stubAuthAllowed()) {
       reportError(new Error(`[auth:stub] OTP requested for ${email} — use ${STUB_OTP}`), {
         surface: 'auth:stub:requestOtp',
         email,
       });
+      await stampOtpCooldown();
       return { success: true, stage: 'code', method, email };
     }
 
@@ -125,6 +156,7 @@ export async function requestOtp(
       reportError(error, { surface: 'auth:requestOtp', email });
       return { success: false, stage: 'phone', method, message: 'server', email };
     }
+    await stampOtpCooldown();
     return { success: true, stage: 'code', method, email };
   }
 
@@ -152,7 +184,11 @@ export async function requestOtp(
 
   const { phone } = parsed.data;
 
-  if (!hasSupabaseAuth()) {
+  if (await otpCooldownActive()) {
+    return { success: false, stage: 'phone', method, message: 'rate_limited', phone };
+  }
+
+  if (stubAuthAllowed()) {
     // Stub path: pretend we sent an SMS. The verify step accepts
     // STUB_OTP. We deliberately leave a console trace via reportError
     // so anyone driving the flow can see the code that "would have"
@@ -161,6 +197,7 @@ export async function requestOtp(
       surface: 'auth:stub:requestOtp',
       phone,
     });
+    await stampOtpCooldown();
     return { success: true, stage: 'code', method, phone };
   }
 
@@ -189,6 +226,7 @@ export async function requestOtp(
     return { success: false, stage: 'phone', method, message: 'server', phone };
   }
 
+  await stampOtpCooldown();
   return { success: true, stage: 'code', method, phone };
 }
 
@@ -225,7 +263,7 @@ export async function verifyOtp(
     }
     const { email, code, locale, next } = parsed.data;
 
-    if (!hasSupabaseAuth()) {
+    if (stubAuthAllowed()) {
       if (code !== STUB_OTP) {
         return {
           success: false,
@@ -298,7 +336,7 @@ export async function verifyOtp(
 
   const { phone, code, locale, next } = parsed.data;
 
-  if (!hasSupabaseAuth()) {
+  if (stubAuthAllowed()) {
     if (code !== STUB_OTP) {
       return {
         success: false,
