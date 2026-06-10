@@ -17,7 +17,10 @@ import type { ExperienceSummary } from '@/features/experiences/types';
  * instead of the "leave a review" form.
  */
 
-export type LastBookingReview = NonNullable<Awaited<ReturnType<typeof getReviewForBooking>>>;
+export type LastBookingReview = NonNullable<Awaited<ReturnType<typeof getReviewForBooking>>> & {
+  /** True while the 24h edit window is open — computed here, not in render. */
+  editable: boolean;
+};
 
 export interface LastBookingView {
   hint: LastBookingHint;
@@ -34,7 +37,10 @@ export async function getLastBookingView(): Promise<LastBookingView | null> {
     getBookingByReference(hint.reference),
     getExperienceBySlug(hint.experienceSlug),
   ]);
-  const review =
+  const raw =
     booking && booking.status === 'completed' ? await getReviewForBooking(booking.id) : null;
+  const review = raw
+    ? { ...raw, editable: new Date(raw.editableUntil).getTime() > Date.now() }
+    : null;
   return { hint, booking, experience, review };
 }

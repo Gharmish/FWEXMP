@@ -28,3 +28,17 @@ export const createReviewSchema = z.object({
 });
 
 export type CreateReviewInput = z.infer<typeof createReviewSchema>;
+
+/**
+ * Host reply to a guest review — one reply per review (BRIEF §8), so
+ * the action only writes when `hostReply` is still null. The reply is
+ * written in whichever language the host writes; it renders as-is in
+ * both locales (host voice, not translated copy).
+ */
+export const hostReplySchema = z.object({
+  reviewId: z.string().uuid(),
+  reply: z.string().trim().min(2).max(REVIEW_TEXT_MAX),
+  locale: z.enum(['en', 'ar']),
+});
+
+export type HostReplyInput = z.infer<typeof hostReplySchema>;

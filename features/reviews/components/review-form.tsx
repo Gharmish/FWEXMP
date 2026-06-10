@@ -6,7 +6,7 @@ import { Star } from 'lucide-react';
 import type { Locale } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
-import { submitReview, type SubmitReviewState } from '@/features/reviews/actions';
+import { submitReview, updateReview, type SubmitReviewState } from '@/features/reviews/actions';
 import { REVIEW_TEXT_MAX } from '@/features/reviews/schemas';
 
 type ErrorKey = NonNullable<SubmitReviewState['message']>;
@@ -29,6 +29,10 @@ export interface ReviewFormProps {
   bookingReference: string;
   locale: Locale;
   copy: ReviewFormCopy;
+  /** `edit` re-submits to updateReview, prefilled with the current review. */
+  mode?: 'create' | 'edit';
+  initialRating?: number;
+  initialText?: string;
 }
 
 const initialState: SubmitReviewState = { success: false };
@@ -42,9 +46,19 @@ function Submit({ copy }: { copy: ReviewFormCopy }) {
   );
 }
 
-export function ReviewForm({ bookingReference, locale, copy }: ReviewFormProps) {
-  const [state, action] = useActionState(submitReview, initialState);
-  const [rating, setRating] = useState(0);
+export function ReviewForm({
+  bookingReference,
+  locale,
+  copy,
+  mode = 'create',
+  initialRating = 0,
+  initialText = '',
+}: ReviewFormProps) {
+  const [state, action] = useActionState(
+    mode === 'edit' ? updateReview : submitReview,
+    initialState,
+  );
+  const [rating, setRating] = useState(initialRating);
   const [hovered, setHovered] = useState(0);
   const groupId = useId();
 
@@ -111,7 +125,7 @@ export function ReviewForm({ bookingReference, locale, copy }: ReviewFormProps) 
           name="text"
           rows={4}
           maxLength={REVIEW_TEXT_MAX}
-          defaultValue={state.values?.text ?? ''}
+          defaultValue={state.values?.text ?? initialText}
           placeholder={copy.commentPlaceholder}
           className="rounded-input border-sarat-black/12 placeholder:text-sarat-black-600 focus:border-sarat-black/30 w-full resize-y [border-width:0.5px] bg-transparent p-3 text-base focus:outline-none"
         />
