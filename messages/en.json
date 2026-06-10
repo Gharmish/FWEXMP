@@ -4,7 +4,9 @@
     "signIn": "Sign in",
     "signOut": "Sign out",
     "account": "Your activity",
-    "hostDashboard": "Host"
+    "hostDashboard": "Host",
+    "switchLanguage": "Switch language to {lang}",
+    "skipToContent": "Skip to content"
   },
   "auth": {
     "eyebrow": "Sign in",
@@ -44,14 +46,60 @@
     "open": "Open",
     "backToAdmin": "Admin home",
     "dashboard": {
+      "greeting": {
+        "morning": "Good morning.",
+        "afternoon": "Good afternoon.",
+        "evening": "Good evening."
+      },
+      "search": {
+        "placeholder": "Find a guest — name, phone, email",
+        "submit": "Search guests"
+      },
+      "actions": {
+        "newExperience": "New experience",
+        "settings": "Settings",
+        "export": "Export"
+      },
+      "chart": {
+        "title": "Summary",
+        "subtitle": "Daily bookings, last 30 days",
+        "empty": "No bookings in the last 30 days yet."
+      },
+      "timeline": {
+        "title": "Recent activity",
+        "viewAll": "View all"
+      },
+      "leaderboard": {
+        "experiences": "Top experiences",
+        "hosts": "Top hosts"
+      },
+      "catalogNote": "{live} live · {featured} Originals",
+      "comingNext": {
+        "heading": "Coming next",
+        "soon": "Soon",
+        "featured": {
+          "title": "Originals curation",
+          "description": "Pick and order the featured experiences that headline the home page."
+        },
+        "broadcast": {
+          "title": "Broadcast & exports",
+          "description": "Message hosts or guests, and export bookings and payouts to CSV for finance."
+        }
+      },
       "queueHeading": "Needs your attention",
       "queueEmpty": "All clear — nothing waiting on you right now.",
       "manageHeading": "Manage",
       "kpi": {
         "gmv": "GMV (all time)",
+        "gmv30d": "GMV (30 days)",
         "bookings": "Total bookings",
+        "bookings30d": "Bookings (30 days)",
+        "netRevenue": "Net revenue (30 days)",
+        "newGuests": "New guests (30 days)",
         "activeExperiences": "Live experiences",
-        "guests": "Guests"
+        "guests": "Guests",
+        "trendNote": "vs previous 7 days",
+        "new": "New"
       },
       "queue": {
         "applications": "Host applications to review",
@@ -128,10 +176,42 @@
         "title": "Guests",
         "description": "Look up a guest by name, phone, or email and see their full booking history."
       },
+      "settings": {
+        "title": "Settings & commission",
+        "description": "Set the default platform commission and which categories are bookable across the marketplace."
+      },
       "activity": {
         "title": "Activity log",
         "description": "One reverse-chronological feed of every moderation, application, and host action across the platform."
+      },
+      "disputes": {
+        "title": "Disputes",
+        "description": "Guest-reported problems, open first."
       }
+    },
+    "settings": {
+      "eyebrow": "Settings",
+      "title": "Platform settings.",
+      "intro": "The commercial defaults that govern the marketplace. Changes apply to newly created experiences and the public catalogue — existing listings keep their own commission.",
+      "commissionLabel": "Default commission",
+      "commissionHint": "Applied to new experiences created by you and by hosts. Existing experiences are unchanged.",
+      "commissionSuffix": "% per booking",
+      "categoriesLabel": "Bookable categories",
+      "categoriesHint": "Turn a category off to hide it from the home page and search. At least one must stay on.",
+      "save": "Save settings",
+      "saving": "Saving",
+      "success": "Settings saved.",
+      "fieldInvalid": "Check this field and try again.",
+      "formServer": "We couldn't save your settings. Try again in a moment.",
+      "formForbidden": "You don't have permission to change settings.",
+      "formValidation": "Some fields need attention.",
+      "cancellationLabel": "Free-cancellation window",
+      "cancellationHint": "Guests cancelling at least this many hours before the start get a full refund. Closer than this, cancelling forfeits the payment.",
+      "cancellationSuffix": "hours before start",
+      "announcementLabel": "Home announcement",
+      "announcementHint": "A short notice band at the top of the home page — Eid hours, road closures. Leave empty to hide.",
+      "announcementEnLabel": "English",
+      "announcementArLabel": "Arabic"
     },
     "activityLog": {
       "eyebrow": "Activity",
@@ -165,7 +245,20 @@
       "totalSpent": "Total spent (net of refunds)",
       "joined": "First seen",
       "bookingsHeading": "Booking history",
-      "noBookings": "No bookings yet."
+      "noBookings": "No bookings yet.",
+      "suspendedBadge": "Suspended",
+      "suspend": "Suspend guest",
+      "suspendPending": "Suspending…",
+      "suspendConfirm": "Suspend this guest? They can still sign in and browse, but new bookings are refused until restored.",
+      "restore": "Restore guest",
+      "restorePending": "Restoring…",
+      "errors": {
+        "forbidden": "You don't have permission to do that.",
+        "noDb": "The database isn't configured in this environment.",
+        "notFound": "We couldn't find that guest.",
+        "wrongState": "This guest changed in another tab. Refresh to see their current state.",
+        "server": "Something went wrong on our side. Try again."
+      }
     },
     "hostApplicationsList": {
       "eyebrow": "Host applications",
@@ -524,7 +617,8 @@
         "overCapacity": "Confirming this would put the date over its group-size limit.",
         "validation": "Something didn't validate. Refresh and try again.",
         "server": "We couldn't complete that action. Try again in a moment."
-      }
+      },
+      "refundDue": "Refund due"
     },
     "bookingDetail": {
       "back": "All bookings",
@@ -568,6 +662,36 @@
         "server": "We couldn't complete that action. Try again in a moment.",
         "wrongState": "This experience isn't pending review anymore — refresh to see the latest status.",
         "reviewerNoteShort": "Add at least 10 characters of context so the host knows how to respond."
+      }
+    },
+    "disputes": {
+      "eyebrow": "Disputes",
+      "title": "Guest reports.",
+      "intro": "Problems guests reported on their bookings. Resolve with a note once handled — refunds go through the bookings page.",
+      "filedOn": "Filed {date}",
+      "openHeading": "Open",
+      "openEmpty": "Nothing waiting on you.",
+      "resolvedHeading": "Resolved",
+      "resolutionNotes": "Resolution notes",
+      "notesLabel": "Resolution notes (internal)",
+      "notesPlaceholder": "What was done — refund issued, host contacted…",
+      "resolve": "Mark resolved",
+      "resolvePending": "Resolving…",
+      "status": {
+        "open": "Open",
+        "resolved": "Resolved"
+      },
+      "empty": {
+        "eyebrow": "All clear",
+        "title": "No reports yet.",
+        "description": "When a guest reports a problem with a booking, it lands here."
+      },
+      "errors": {
+        "forbidden": "You don't have permission to do that.",
+        "noDb": "The database isn't configured in this environment.",
+        "notFound": "We couldn't find that report.",
+        "wrongState": "This report changed in another tab. Refresh to see its current state.",
+        "server": "Something went wrong on our side. Try again."
       }
     }
   },
@@ -712,7 +836,145 @@
     },
     "actions": {
       "viewPublicProfile": "View public profile",
-      "browseCatalog": "Browse the catalog"
+      "browseCatalog": "Browse the catalog",
+      "viewBookings": "Manage bookings",
+      "viewEarnings": "Earnings",
+      "viewReviews": "Reviews"
+    },
+    "pendingRequestsBanner": "{count, plural, one {# booking request is waiting for your reply} other {# booking requests are waiting for your reply}}"
+  },
+  "hostBookings": {
+    "eyebrow": "Bookings",
+    "title": "Your bookings.",
+    "intro": "Requests wait for your decision, upcoming bookings show who's coming, and past ones keep the record. Payments and payouts are confirmed on our side.",
+    "backToDashboard": "Back to dashboard",
+    "suspendedBanner": "Your host account is suspended, so booking actions are disabled. You can still see everything here.",
+    "paidBadge": "Paid",
+    "partyOf": "Party of {count}",
+    "payout": "Your payout: <amount></amount>",
+    "requestedOn": "Requested {date}",
+    "empty": {
+      "eyebrow": "No bookings yet",
+      "title": "Nothing booked yet.",
+      "description": "When a guest requests or books one of your experiences, it shows up here. Make sure your listing is live and your weekly availability is set."
+    },
+    "requests": {
+      "title": "Requests",
+      "empty": "No requests waiting on you."
+    },
+    "upcoming": {
+      "title": "Upcoming",
+      "empty": "No upcoming bookings."
+    },
+    "past": {
+      "title": "Past",
+      "empty": "No past bookings yet."
+    },
+    "status": {
+      "pending": "New request",
+      "confirmed": "Confirmed",
+      "completed": "Completed",
+      "cancelled": "Cancelled",
+      "refunded": "Refunded"
+    },
+    "transition": {
+      "confirmed": {
+        "label": "Accept",
+        "pending": "Accepting…"
+      },
+      "completed": {
+        "label": "Mark completed",
+        "pending": "Saving…"
+      },
+      "cancelled": {
+        "label": "Decline",
+        "pending": "Declining…",
+        "confirm": "Decline this booking? The guest will see it as cancelled. This can't be undone.",
+        "labelConfirmed": "Cancel booking",
+        "confirmConfirmed": "Cancel this confirmed booking? The guest will see it as cancelled. This can't be undone."
+      }
+    },
+    "actionErrors": {
+      "forbidden": "You don't have permission to do that.",
+      "suspended": "Your host account is suspended — booking actions are disabled.",
+      "noDb": "The database isn't configured in this environment.",
+      "notFound": "We couldn't find that booking.",
+      "wrongState": "This booking changed in another tab. Refresh to see its current state.",
+      "overCapacity": "Accepting this request would exceed the group size for that date.",
+      "validation": "Something about this request was invalid. Refresh and try again.",
+      "server": "Something went wrong on our side. Try again."
+    },
+    "whatsapp": "WhatsApp"
+  },
+  "hostEarnings": {
+    "eyebrow": "Earnings",
+    "title": "Your earnings.",
+    "intro": "A payout is earned when a booking is completed. We transfer owed amounts to your IBAN and mark each booking as paid — this page is your ledger.",
+    "backToDashboard": "Back to dashboard",
+    "empty": {
+      "eyebrow": "Nothing here yet",
+      "title": "No earnings yet.",
+      "description": "Once your first booking is completed, your payout appears here."
+    },
+    "stats": {
+      "owed": "Owed to you",
+      "owedCount": "{count, plural, one {# completed booking} other {# completed bookings}}",
+      "paid": "Paid out",
+      "paidCount": "{count, plural, one {# booking settled} other {# bookings settled}}",
+      "upcoming": "On the calendar",
+      "upcomingCount": "{count, plural, one {# confirmed booking} other {# confirmed bookings}}"
+    },
+    "payoutMethod": {
+      "title": "Payout method",
+      "description": "Transfers go to this Saudi IBAN. Update it any time — the change applies to your next payout.",
+      "label": "Saudi IBAN",
+      "hint": "24 characters, starting with SA. Spaces are fine — we tidy it up.",
+      "currentLabel": "Current IBAN:",
+      "save": "Save IBAN",
+      "saving": "Saving…",
+      "success": "IBAN saved.",
+      "errors": {
+        "forbidden": "You don't have permission to do that.",
+        "noDb": "The database isn't configured in this environment.",
+        "validation": "That doesn't look like a Saudi IBAN — 24 characters starting with SA.",
+        "server": "Something went wrong on our side. Try again."
+      }
+    },
+    "history": {
+      "title": "Payout ledger",
+      "empty": "Completed bookings and their payouts will be listed here.",
+      "paidBadge": "Paid out",
+      "owedBadge": "Owed",
+      "partyOf": "Party of {count}",
+      "paidOn": "Paid {date}"
+    }
+  },
+  "hostReviews": {
+    "eyebrow": "Reviews",
+    "title": "What guests are saying.",
+    "intro": "Reviews from completed bookings across your experiences. You can reply once to each review — your reply shows publicly under it.",
+    "backToDashboard": "Back to dashboard",
+    "yourReply": "Your reply",
+    "ratingLabel": "Rated {rating} out of 5",
+    "empty": {
+      "eyebrow": "No reviews yet",
+      "title": "No reviews yet.",
+      "description": "When a guest completes an experience and leaves a review, it appears here."
+    },
+    "reply": {
+      "label": "Reply to this review",
+      "placeholder": "Thank your guest, or add context…",
+      "submit": "Post reply",
+      "pending": "Posting…",
+      "success": "Reply posted. It now shows under the review.",
+      "errors": {
+        "forbidden": "You don't have permission to do that.",
+        "noDb": "The database isn't configured in this environment.",
+        "notFound": "We couldn't find that review.",
+        "alreadyReplied": "This review already has a reply.",
+        "validation": "Write a reply between 2 and 1000 characters.",
+        "server": "Something went wrong on our side. Try again."
+      }
     }
   },
   "hostExperiences": {
@@ -802,7 +1064,9 @@
         "validation": "Check the form and try again.",
         "wrongState": "This experience can't be submitted from its current state — refresh to see the latest.",
         "suspended": "Your host account is suspended — submitting for review is blocked until the team restores it."
-      }
+      },
+      "duplicate": "Duplicate",
+      "duplicatePending": "Duplicating…"
     },
     "reviewerFeedback": {
       "changesRequestedEyebrow": "Changes requested",
@@ -880,6 +1144,27 @@
           "required": "Check this field."
         }
       }
+    },
+    "moments": {
+      "heading": "Experience timeline",
+      "intro": "The moments of your experience, in order — what guests do from arrival to goodbye. Write in English; our team adds the Arabic.",
+      "lockedLive": "The timeline is locked while your listing is live or under review. Pause the listing (or submit an edit) to change it.",
+      "timeOfDay": "Time of day (optional)",
+      "titleEn": "Title",
+      "descriptionEn": "What happens",
+      "addHeading": "Add a moment",
+      "add": "Add moment",
+      "adding": "Adding…",
+      "save": "Save",
+      "saving": "Saving…",
+      "moveUp": "Move up",
+      "moveDown": "Move down",
+      "moving": "Moving…",
+      "deleteLabel": "Delete",
+      "deleting": "Deleting…",
+      "deleteConfirm": "Delete this moment? This can't be undone.",
+      "fieldInvalid": "Check the highlighted fields — title 2–120 characters, description 2–2000.",
+      "error": "Something went wrong on our side. Try again."
     }
   },
   "experiencesIndex": {
@@ -923,7 +1208,12 @@
       "eyebrow": "No matches",
       "title": "Nothing fits those filters yet.",
       "description": "Try removing a filter, clearing the search, or browsing every experience."
-    }
+    },
+    "dateLegend": "Date",
+    "groupLegend": "Group size",
+    "groupPlaceholder": "Any",
+    "cityLegend": "City",
+    "cityAll": "All cities"
   },
   "home": {
     "eyebrow": "Abha · Asir",
@@ -1015,7 +1305,9 @@
     "nextMonth": "Next month",
     "modeInstant": "Instant confirmation — your spot is booked the moment you submit, subject to availability.",
     "modeRequest": "Request to book — the host confirms availability within 24 hours.",
-    "runsOn": "Runs on {days}."
+    "runsOn": "Runs on {days}.",
+    "vatIncluded": "Includes VAT ({pct}%)",
+    "suspended": "Bookings are currently unavailable for this account. Contact us if you think this is a mistake."
   },
   "bookingConfirmed": {
     "eyebrow": "Request received",
@@ -1050,7 +1342,58 @@
     "paymentPendingEyebrow": "Payment processing",
     "paymentPendingTitle": "We're confirming your payment.",
     "paymentPendingDescription": "This can take a moment. We'll confirm by WhatsApp as soon as it clears — there's no need to pay again. This page updates on its own.",
-    "tryPaymentAgain": "Try payment again"
+    "tryPaymentAgain": "Try payment again",
+    "cancel": {
+      "heading": "Need to cancel?",
+      "policyUnpaid": "You can cancel this request free of charge — nothing has been paid yet.",
+      "policyRefundable": "Free cancellation with a full refund until {deadline}. After that, the payment is not refunded.",
+      "policyForfeited": "The free-cancellation window has passed. You can still cancel, but the payment will not be refunded.",
+      "label": "Cancel booking",
+      "pending": "Cancelling…",
+      "confirm": "Cancel this booking? This can't be undone.",
+      "confirmForfeited": "Cancel this booking? The free-cancellation window has passed, so the payment will NOT be refunded. This can't be undone.",
+      "doneUnpaid": "Your booking is cancelled. Nothing was charged.",
+      "doneRefunded": "Your booking is cancelled and the refund has been issued to your card. Depending on your bank, it can take a few business days to appear.",
+      "doneRefundPending": "Your booking is cancelled. Your refund is on its way — our team processes it manually and you'll see it on your card within a few business days.",
+      "doneForfeited": "Your booking is cancelled. As the cancellation was inside the free-cancellation window, the payment was not refunded.",
+      "errors": {
+        "forbidden": "You don't have permission to cancel this booking.",
+        "noDb": "The database isn't configured in this environment.",
+        "notFound": "We couldn't find that booking.",
+        "wrongState": "This booking changed in the meantime. Refresh to see its current state.",
+        "alreadyStarted": "This experience has already started, so it can no longer be cancelled.",
+        "validation": "Something about this request was invalid. Refresh and try again.",
+        "server": "Something went wrong on our side. Try again."
+      }
+    },
+    "cancelledEyebrow": "Booking cancelled",
+    "cancelledTitle": "This booking is cancelled.",
+    "cancelledDescription": "This booking was cancelled. If a refund is due, our team processes it within a few business days.",
+    "cancelledDescriptionRefunded": "This booking was cancelled and the payment was refunded to the card used. Depending on your bank, it can take a few business days to appear.",
+    "vatIncludedLabel": "Includes VAT ({pct}%)",
+    "whatsapp": {
+      "heading": "Questions for your host?",
+      "description": "Message your host directly on WhatsApp — meeting point, parking, what to wear, anything.",
+      "cta": "Message on WhatsApp",
+      "prefill": "Hi! I have a Gharmish booking (ref {reference}) and a quick question."
+    },
+    "printTicket": "Print or save as PDF",
+    "dispute": {
+      "summary": "Something not right? Report a problem",
+      "label": "Tell us what happened",
+      "placeholder": "Describe the issue — we read every report.",
+      "submit": "Send report",
+      "pending": "Sending…",
+      "success": "Thank you — your report is with our team. We'll be in touch.",
+      "openNote": "You've reported a problem with this booking. Our team is on it and will be in touch.",
+      "errors": {
+        "noDb": "The database isn't configured in this environment.",
+        "notFound": "We couldn't find that booking.",
+        "alreadyOpen": "There's already an open report on this booking — our team is on it.",
+        "validation": "Write at least 10 characters so we can understand the issue.",
+        "server": "Something went wrong on our side. Try again."
+      }
+    }
   },
   "payment": {
     "eyebrow": "Secure payment",
@@ -1085,7 +1428,8 @@
     "payHeading": "Pay securely",
     "widgetLoading": "Loading secure payment…",
     "widgetError": "The secure payment form couldn't load. Check your connection and try again.",
-    "widgetRetry": "Reload payment form"
+    "widgetRetry": "Reload payment form",
+    "vatIncludedLabel": "Includes VAT ({pct}%)"
   },
   "bookingEmail": {
     "subject": "Your Gharmish booking is confirmed",
@@ -1099,7 +1443,25 @@
     "totalLabel": "Total paid",
     "referenceLabel": "Reference",
     "closing": "We'll send the meeting point and what to bring before the day. See you in Asir.",
-    "footer": "Gharmish — experiences hosted by the people who know Asir best."
+    "footer": "Gharmish — experiences hosted by the people who know Asir best.",
+    "cancelSubject": "Your Gharmish booking is cancelled",
+    "cancelIntroRefunded": "Your booking has been cancelled and your refund has been issued to your card. Depending on your bank, it can take a few business days to appear.",
+    "cancelIntroRefundPending": "Your booking has been cancelled. Your refund is being processed by our team and will reach your card within a few business days.",
+    "cancelIntroForfeited": "Your booking has been cancelled. As the cancellation was inside the free-cancellation window, the payment was not refunded.",
+    "cancelIntroUnpaid": "Your booking has been cancelled. Nothing was charged.",
+    "cancelClosing": "We hope to host you another time.",
+    "refundLabel": "Refund amount",
+    "vatIncludedLabel": "Includes VAT ({pct}%)",
+    "reminderSubject": "Tomorrow: your Gharmish experience",
+    "reminderIntro": "A quick reminder — your experience is tomorrow. Here are the details:",
+    "reminderClosing": "See you there. If your plans changed, you can manage the booking from your confirmation page.",
+    "hostNewRequestSubject": "New booking request on Gharmish",
+    "hostNewBookingSubject": "New confirmed booking on Gharmish",
+    "hostNewGreeting": "Good news,",
+    "hostNewRequestIntro": "A guest has requested one of your experiences. Review and accept or decline it in your dashboard: {url}",
+    "hostNewBookingIntro": "A guest has booked one of your experiences. See the details in your dashboard: {url}",
+    "hostNewPayoutLabel": "Your payout",
+    "hostNewClosing": "Thank you for hosting with Gharmish."
   },
   "notFound": {
     "eyebrow": "404",
@@ -1131,7 +1493,8 @@
     "languages": "Languages spoken",
     "experiencesHeading": "Experiences hosted by {name}",
     "experiencesCount": "{count, plural, =0 {No experiences yet} =1 {1 experience} other {# experiences}}",
-    "noExperiences": "No experiences are live for this host yet."
+    "noExperiences": "No experiences are live for this host yet.",
+    "ratingCount": "· {count, plural, one {# review} other {# reviews}}"
   },
   "reviews": {
     "eyebrow": "From guests",
@@ -1203,8 +1566,12 @@
         "alreadyReviewed": "You've already reviewed this booking.",
         "forbidden": "This booking belongs to a different account.",
         "validation": "Something didn't validate. Check the form and try again.",
-        "server": "We couldn't save your review. Try again in a moment."
-      }
+        "server": "We couldn't save your review. Try again in a moment.",
+        "expired": "The edit window has closed — reviews can be changed for 24 hours after submission."
+      },
+      "editHeading": "Edit your review",
+      "update": "Save changes",
+      "updating": "Saving…"
     },
     "wishlistTitle": "Saved experiences",
     "wishlistViewAll": "View all",

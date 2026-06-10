@@ -130,8 +130,14 @@ Use the 8-point grid exclusively: `4, 8, 12, 16, 24, 32, 48, 64, 80, 120` (pixel
 - Never `linear` or `ease-*` curves.
 - Card hovers: lift `2px`, `200ms` spring.
 - Sheets/modals: spring slide-up from bottom.
-- Page transitions: subtle 200ms crossfade only.
+- Page transitions: subtle spring crossfade (opacity only).
 - Always respect `prefers-reduced-motion: reduce` — disable all springs and parallax.
+- **Exception — cheap affordances**: hover/press feedback on buttons, icon-buttons,
+  and nav links may use a short CSS `transition` (≤200ms) on `transform`/`opacity`/`color`.
+  This keeps those controls usable as Server Components without shipping JS. The
+  spring requirement is binding for every other motion (entrance/reveal, card lift,
+  modal/sheet, page transition) — route those through `components/ui/motion.tsx`,
+  never a raw `linear`/`ease-*` curve.
 
 ### Iconography
 
@@ -185,18 +191,19 @@ Every page exists at `/ar/*` and `/en/*`. Middleware detects locale on first vis
 
 ### Frontend
 
-| Layer      | Choice                 | Version                                                                                                                                     |
-| ---------- | ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
-| Framework  | Next.js                | 16 (App Router, RSC, PPR) — scaffolded 2026-05-15; create-next-app@latest resolves to 16.x, decision approved over the original 15.x target |
-| Language   | TypeScript             | 5.x strict mode                                                                                                                             |
-| Styling    | Tailwind CSS           | v4                                                                                                                                          |
-| Components | shadcn/ui              | latest (restyled to Gharmish)                                                                                                               |
-| Animation  | Framer Motion          | latest                                                                                                                                      |
-| Forms      | react-hook-form + zod  | latest                                                                                                                                      |
-| Tables     | TanStack Table         | latest (when needed)                                                                                                                        |
-| Icons      | lucide-react           | latest                                                                                                                                      |
-| i18n       | next-intl              | latest                                                                                                                                      |
-| Date       | date-fns + date-fns-tz | latest                                                                                                                                      |
+| Layer      | Choice                     | Version                                                                                                                                     |
+| ---------- | -------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| Framework  | Next.js                    | 16 (App Router, RSC, PPR) — scaffolded 2026-05-15; create-next-app@latest resolves to 16.x, decision approved over the original 15.x target |
+| Language   | TypeScript                 | 5.x strict mode                                                                                                                             |
+| Styling    | Tailwind CSS               | v4                                                                                                                                          |
+| Components | Base UI (`@base-ui/react`) | shadcn-style primitives restyled to Gharmish, built on Base UI                                                                              |
+| Animation  | Framer Motion              | latest                                                                                                                                      |
+| Image crop | react-easy-crop            | latest (avatar / photo cropper)                                                                                                             |
+| Forms      | react-hook-form + zod      | latest                                                                                                                                      |
+| Tables     | TanStack Table             | latest (when needed)                                                                                                                        |
+| Icons      | lucide-react               | latest                                                                                                                                      |
+| i18n       | next-intl                  | latest                                                                                                                                      |
+| Date       | date-fns + date-fns-tz     | latest                                                                                                                                      |
 
 ### Backend & data
 
@@ -221,8 +228,14 @@ Every page exists at `/ar/*` and `/en/*`. Middleware detects locale on first vis
 
 ### Payments
 
-- **Primary**: Moyasar (Mada, Apple Pay, STC Pay, Visa, Mastercard).
-- **Backup**: Tap Payments.
+- **Live gateway (implemented)**: HyperPay / OPPWA COPYandPAY widget (Mada-first,
+  then Visa/Mastercard). This supersedes the original Moyasar plan below.
+- Settlement is verified server-side against HyperPay (never the browser redirect),
+  with a reconciliation pass in the release-holds cron for holds stuck in
+  `processing`. An OPPWA webhook route is reserved (`HYPERPAY_WEBHOOK_SECRET`) but
+  not yet built.
+- **Original plan (superseded)**: Moyasar primary, Tap Payments backup. Retained
+  as future options.
 - Never store card data. PCI scope minimal.
 
 ### Infrastructure
@@ -261,8 +274,12 @@ This is non-negotiable and most platforms in 2026 will miss it.
 
 - WCAG 2.2 AA minimum, AAA where reasonable.
 - Keyboard navigation works for every interactive element.
-- Focus rings visible, never removed.
-- All images have alt text in both languages.
+- Focus rings visible, never removed. A single global `:focus-visible` ring is the
+  source of truth (`app/globals.css`); components must not add their own.
+- A skip-to-content link precedes the nav on every page (WCAG 2.4.1).
+- All content images have descriptive alt text in the **active locale** (resolved
+  per-locale via next-intl), never empty. (We render one locale at a time, so alt
+  is the current-locale string, not both languages concatenated.)
 - Color contrast checked at build time.
 - `prefers-reduced-motion` honored everywhere.
 - 44×44px minimum touch targets.
@@ -460,9 +477,34 @@ End user. Has:
 - Visible after a 24h cooldown for editing
 - Host can reply once
 
+### Marketplace policies (owner decisions, 2026-06-10)
+
+- **Host self-service**: hosts manage their own booking requests
+  (accept / decline / complete / cancel at `/host/bookings`) and see
+  earnings + payout history at `/host/earnings` (IBAN self-managed).
+  Admin keeps full override powers. This supersedes the earlier
+  admin-operated-only booking flow.
+- **Guest cancellation**: a guest may cancel any booking before it
+  starts. A _paid_ booking refunds in full only when cancelled at
+  least `platform_settings.cancellation_window_hours` (default 48,
+  admin-tunable) before the start; inside the window the payment is
+  forfeited. Refunds go through the HyperPay refund API first; if the
+  gateway refuses, the booking is stamped `refund_due_sar` and the
+  admin reverses manually, then records it via the admin refund action.
+- **VAT**: listed prices are **VAT-inclusive** (15% KSA VAT). Checkout,
+  confirmation, and receipt emails disclose the contained portion as
+  "Includes VAT (15%)" — `total × 15/115` — and VAT is never added on
+  top of a listed price.
+
 ---
 
 ## 9. Sprint 1 scope (first 2 weeks)
+
+> **Status (current):** the build has progressed through Sprints 1–4 — real
+> Supabase Auth (phone + email OTP), the full booking + HyperPay payment flow,
+> reviews, host dashboards, and the admin panel are live. §9 and §10 below
+> describe the _original_ Sprint-1 plan and the early out-of-scope list; they
+> are kept for history, not as a description of current state.
 
 Build these in order:
 
