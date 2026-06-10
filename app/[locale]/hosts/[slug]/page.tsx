@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, Star } from 'lucide-react';
 import { notFound } from 'next/navigation';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { Link } from '@/lib/i18n';
@@ -73,6 +73,24 @@ export default async function HostProfilePage({
     loc === 'en' && 'tracking-[0.2em] uppercase',
   );
 
+  // One decimal, Latin digits in both locales (BRIEF §4) — same
+  // treatment as the experience cards.
+  const formatRating = (value: number, l: Locale): string =>
+    new Intl.NumberFormat(l === 'ar' ? 'ar-SA' : 'en-SA', {
+      numberingSystem: 'latn',
+      minimumFractionDigits: 1,
+      maximumFractionDigits: 1,
+    }).format(value);
+
+  // Host-level rating: the count-weighted merge of each experience's
+  // aggregate (already loaded for the cards) — no extra query.
+  const ratingCount = experiences.reduce((sum, e) => sum + e.ratingCount, 0);
+  const ratingAverage =
+    ratingCount > 0
+      ? experiences.reduce((sum, e) => sum + (e.ratingAverage ?? 0) * e.ratingCount, 0) /
+        ratingCount
+      : null;
+
   const languageDisplay = new Intl.DisplayNames([loc === 'ar' ? 'ar-SA' : 'en-SA'], {
     type: 'language',
   });
@@ -129,11 +147,20 @@ export default async function HostProfilePage({
             <h1 className="font-display text-4xl font-medium tracking-[-0.035em] text-balance sm:text-5xl">
               {name}
             </h1>
-            {host.verified && (
-              <div>
-                <Badge variant="verified">{th('verified')}</Badge>
-              </div>
-            )}
+            <div className="flex flex-wrap items-center gap-3">
+              {host.verified && <Badge variant="verified">{th('verified')}</Badge>}
+              {ratingAverage !== null && (
+                <span className="inline-flex items-center gap-1.5 text-sm">
+                  <Star className="text-saffron-gold size-4 fill-current" aria-hidden />
+                  <span className="font-medium tabular-nums">
+                    {formatRating(ratingAverage, loc)}
+                  </span>
+                  <span className="text-sarat-black-600">
+                    {t('ratingCount', { count: ratingCount })}
+                  </span>
+                </span>
+              )}
+            </div>
           </div>
         </div>
         <p className="text-sarat-black-600 max-w-2xl text-lg leading-relaxed">{bio}</p>

@@ -1,5 +1,6 @@
 import type { Category } from '@/lib/colors';
 import type { ExperienceSummary } from '@/features/experiences/types';
+import { weekdayOf } from '@/features/bookings/lib/availability';
 
 /**
  * Pure filter / sort helpers for the experiences catalog.
@@ -50,6 +51,16 @@ export interface ExperienceCriteria {
   priceBucket: PriceBucket | null;
   /** Single-select duration bucket, or null when no duration filter is active. */
   durationBucket: DurationBucket | null;
+  /** Operating city, lower-cased ('' = all cities). Abha-only at launch. */
+  city: string;
+  /**
+   * Desired date `YYYY-MM-DD`, or null. Filters to experiences whose
+   * weekly schedule runs that weekday — blackouts/capacity stay a
+   * detail-page concern (they need the DB).
+   */
+  date: string | null;
+  /** Minimum group capacity, or null. Keeps experiences with room for N. */
+  groupSize: number | null;
   sort: SortKey;
 }
 
@@ -59,8 +70,15 @@ export const EMPTY_CRITERIA: ExperienceCriteria = {
   originalsOnly: false,
   priceBucket: null,
   durationBucket: null,
+  city: '',
+  date: null,
+  groupSize: null,
   sort: DEFAULT_SORT,
 };
+
+const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+/** Group-size filter ceiling — mirrors the largest maxGroupSize we allow. */
+const GROUP_SIZE_MAX = 50;
 
 /** Brand-fixed category keys — keep in sync with the schema enum. */
 const VALID_CATEGORIES: readonly Category[] = [
@@ -106,12 +124,22 @@ export function parseSearchParams(searchParams: SearchParamsObject): ExperienceC
   const durationRaw = asString(searchParams.duration).trim() as DurationBucket;
   const durationBucket = VALID_DURATION_BUCKETS.has(durationRaw) ? durationRaw : null;
 
+  const dateRaw = asString(searchParams.date).trim();
+  const date = DATE_RE.test(dateRaw) && weekdayOf(dateRaw) !== null ? dateRaw : null;
+
+  const groupRaw = Number.parseInt(asString(searchParams.group).trim(), 10);
+  const groupSize =
+    Number.isFinite(groupRaw) && groupRaw >= 1 ? Math.min(groupRaw, GROUP_SIZE_MAX) : null;
+
   return {
     q: asString(searchParams.q).trim().toLowerCase(),
     categories,
     originalsOnly: asString(searchParams.originals) === '1',
     priceBucket,
     durationBucket,
+    city: asString(searchParams.city).trim().toLowerCase(),
+    date,
+    groupSize,
     sort,
   };
 }
@@ -127,6 +155,9 @@ export function toSearchParams(criteria: ExperienceCriteria): URLSearchParams {
   if (criteria.originalsOnly) params.set('originals', '1');
   if (criteria.priceBucket) params.set('price', criteria.priceBucket);
   if (criteria.durationBucket) params.set('duration', criteria.durationBucket);
+  if (criteria.city) params.set('city', criteria.city);
+  if (criteria.date) params.set('date', criteria.date);
+  if (criteria.groupSize !== null) params.set('group', String(criteria.groupSize));
   if (criteria.sort !== DEFAULT_SORT) params.set('sort', criteria.sort);
   return params;
 }
@@ -138,6 +169,9 @@ export function hasActiveFilters(criteria: ExperienceCriteria): boolean {
     criteria.originalsOnly ||
     criteria.priceBucket !== null ||
     criteria.durationBucket !== null ||
+    criteria.city.length > 0 ||
+    criteria.date !== null ||
+    criteria.groupSize !== null ||
     criteria.sort !== DEFAULT_SORT
   );
 }
@@ -208,6 +242,12 @@ export function filterExperiences(
       !inDurationBucket(experience.durationMinutes, criteria.durationBucket)
     ) {
       return false;
+    }
+    if (criteria.city && experience.city.toLowerCase() !== criteria.city) return false;
+    if (criteria.groupSize !== null && experience.maxGroupSize < criteria.groupSize) return false;
+    if (criteria.date) {
+      const weekday = weekdayOf(criteria.date);
+      if (weekday === null || !experience.availabilityWeekdays.includes(weekday)) return false;
     }
     if (!matchesQuery(experience, criteria.q)) return false;
     return true;

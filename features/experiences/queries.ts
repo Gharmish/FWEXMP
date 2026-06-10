@@ -51,6 +51,9 @@ function toSummary(
     priceSar: row.priceSar,
     durationMinutes: row.durationMinutes,
     placeName: row.placeName,
+    city: row.city,
+    maxGroupSize: row.maxGroupSize,
+    availabilityWeekdays: [...row.availabilityWeekdays],
     hostName: row.host.name,
     hostSlug: row.host.slug,
     featured: row.featured,
@@ -89,18 +92,14 @@ function toDetail(
 ): ExperienceDetail {
   return {
     ...toSummary(row, ratings),
-    city: row.city,
     region: row.region,
     minAge: row.minAge,
-    maxGroupSize: row.maxGroupSize,
     inclusions: row.inclusions,
     whatToBring: row.whatToBring,
     cancellationPolicy: row.cancellationPolicy,
     host: toHostInfo(row.host),
     moments: [...row.moments].sort((a, b) => a.orderIndex - b.orderIndex).map(toMomentInfo),
     images: row.images,
-    bookingMode: row.bookingMode,
-    availabilityWeekdays: [...row.availabilityWeekdays],
   };
 }
 

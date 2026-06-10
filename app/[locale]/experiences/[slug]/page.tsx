@@ -18,6 +18,7 @@ import { getAllSlugs, getExperienceBySlug } from '@/features/experiences/queries
 import { PhotoGallery } from '@/features/experiences/components/photo-gallery';
 import { getScheduleDataBySlug } from '@/features/availability/queries';
 import { addDays, bookableDates } from '@/features/bookings/lib/availability';
+import { vatRatePercent } from '@/features/bookings/lib/vat';
 import { ReviewsSection } from '@/features/reviews/components/reviews-section';
 import { getReviewAggregateForExperience } from '@/features/reviews/queries';
 import { FadeIn } from '@/components/ui/motion';
@@ -140,6 +141,7 @@ export default async function ExperienceDetailPage({
     validation: tb('validation'),
     server: tb('server'),
     notFound: tb('notFound'),
+    suspended: tb('suspended'),
     required: tb('required'),
     datePast: tb('datePast'),
     dateUnavailable: tb('dateUnavailable'),
@@ -147,6 +149,7 @@ export default async function ExperienceDetailPage({
     partySizeTooLarge: tb('partySizeTooLarge'),
     datePlaceholder: tb('datePlaceholder'),
     total: tb('total'),
+    vatIncluded: tb('vatIncluded', { pct: vatRatePercent() }),
     decrease: tb('decrease'),
     increase: tb('increase'),
     noDates: tb('noDates'),
