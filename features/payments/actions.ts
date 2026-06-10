@@ -7,6 +7,7 @@ import { db } from '@/lib/db';
 import { serverEnv, hasHyperpay } from '@/lib/env';
 import { bookings, guests } from '@/db/schema';
 import { isHoldExpired } from '@/features/bookings/lib/availability';
+import { bookingViewerCanAccess } from '@/features/bookings/lib/access';
 import { reportError } from '@/lib/log';
 import { paymentDetailsSchema } from '@/features/payments/schemas';
 import { hyperpayBaseUrl, prepareCheckout } from '@/features/payments/lib/hyperpay';
@@ -126,6 +127,12 @@ export async function createCheckout(
     });
 
     if (!booking) {
+      return { status: 'error', error: 'notFound', values: echoValues(formData) };
+    }
+    // Authorize the caller before touching the booking (set-email, checkout).
+    // The reference alone must not let a stranger drive someone's payment or
+    // set their email — require ownership or the browser's booking cookie.
+    if (!(await bookingViewerCanAccess(input.reference, booking.guestId))) {
       return { status: 'error', error: 'notFound', values: echoValues(formData) };
     }
     if (booking.paymentStatus === 'paid') {

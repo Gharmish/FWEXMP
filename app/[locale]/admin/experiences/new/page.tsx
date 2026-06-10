@@ -6,6 +6,7 @@ import { Link } from '@/lib/i18n';
 import type { Locale } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
 import { isAdminAndDbReady, listHostsForSelect } from '@/features/admin/experiences/queries';
+import { getPlatformSettings } from '@/features/admin/settings/queries';
 import { BOOKING_MODES, EXPERIENCE_STATUSES } from '@/features/admin/experiences/schemas';
 import { EXPERIENCE_CATEGORIES } from '@/features/host-experiences/schemas';
 import { AdminExperienceForm } from '@/app/[locale]/admin/experiences/[id]/edit/admin-experience-form';
@@ -51,8 +52,9 @@ export default async function AdminExperienceNewPage({
   }
   if (block?.reason === 'not_admin') notFound();
 
-  const [hosts, tE, tMode, tStatus, tCat, tWeek] = await Promise.all([
+  const [hosts, settings, tE, tMode, tStatus, tCat, tWeek] = await Promise.all([
     listHostsForSelect(),
+    getPlatformSettings(),
     getTranslations('admin.experienceEdit'),
     getTranslations('admin.bookingMode'),
     getTranslations('admin.experienceStatus'),
@@ -102,7 +104,9 @@ export default async function AdminExperienceNewPage({
     formForbidden: tE('formForbidden'),
     host: tE('host'),
     weekdays: WEEKDAY_KEYS.map((k) => tWeek(k)),
-    categories: EXPERIENCE_CATEGORIES.map((c) => ({ value: c, label: tCat(c) })),
+    categories: EXPERIENCE_CATEGORIES.filter((c) => settings.enabledCategories.includes(c)).map(
+      (c) => ({ value: c, label: tCat(c) }),
+    ),
     statuses: EXPERIENCE_STATUSES.map((s) => ({ value: s, label: tStatus(s) })),
     modes: BOOKING_MODES.map((m) => ({ value: m, label: tMode(m) })),
   };
@@ -125,7 +129,13 @@ export default async function AdminExperienceNewPage({
         </p>
       </div>
 
-      <AdminExperienceForm locale={loc} mode="create" hosts={hosts} copy={copy} />
+      <AdminExperienceForm
+        locale={loc}
+        mode="create"
+        hosts={hosts}
+        defaultCommissionBps={settings.defaultCommissionBps}
+        copy={copy}
+      />
     </div>
   );
 }
