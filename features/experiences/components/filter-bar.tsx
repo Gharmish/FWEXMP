@@ -29,6 +29,14 @@ interface FilterBarProps {
    * filter row doubles as a result counter.
    */
   resultCount: number;
+  /**
+   * Distinct operating cities in the catalog (display casing). The city
+   * select renders only when there's more than one — Abha-only at
+   * launch means it stays hidden until expansion.
+   */
+  cities: readonly string[];
+  /** Today in Riyadh, `YYYY-MM-DD` — the date input's minimum. */
+  todayStr: string;
 }
 
 /**
@@ -37,7 +45,7 @@ interface FilterBarProps {
  * changes back to the URL with router.replace (so back/forward and
  * deep-links work without client state).
  */
-export function FilterBar({ locale, categories, resultCount }: FilterBarProps) {
+export function FilterBar({ locale, categories, resultCount, cities, todayStr }: FilterBarProps) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -167,6 +175,55 @@ export function FilterBar({ locale, categories, resultCount }: FilterBarProps) {
             ))}
           </div>
         </fieldset>
+      </div>
+
+      {/* Trip shape — when, how many, where. */}
+      <div className="flex flex-wrap items-end gap-4">
+        <label className="flex flex-col gap-2">
+          <span className={eyebrowClassName}>{t('dateLegend')}</span>
+          <input
+            type="date"
+            value={criteria.date ?? ''}
+            min={todayStr}
+            onChange={(e) => push({ ...criteria, date: e.target.value || null })}
+            className="rounded-input border-sarat-black/20 bg-fog-white text-sarat-black h-11 [border-width:0.5px] px-3 text-base"
+            dir="ltr"
+          />
+        </label>
+        <label className="flex flex-col gap-2">
+          <span className={eyebrowClassName}>{t('groupLegend')}</span>
+          <input
+            type="number"
+            inputMode="numeric"
+            min={1}
+            max={50}
+            value={criteria.groupSize ?? ''}
+            placeholder={t('groupPlaceholder')}
+            onChange={(e) => {
+              const n = Number.parseInt(e.target.value, 10);
+              push({ ...criteria, groupSize: Number.isFinite(n) && n >= 1 ? n : null });
+            }}
+            className="rounded-input border-sarat-black/20 bg-fog-white text-sarat-black h-11 w-28 [border-width:0.5px] px-3 text-base"
+            dir="ltr"
+          />
+        </label>
+        {cities.length > 1 && (
+          <label className="flex flex-col gap-2">
+            <span className={eyebrowClassName}>{t('cityLegend')}</span>
+            <select
+              value={criteria.city}
+              onChange={(e) => push({ ...criteria, city: e.target.value })}
+              className="rounded-input border-sarat-black/20 bg-fog-white text-sarat-black h-11 [border-width:0.5px] px-3 text-base"
+            >
+              <option value="">{t('cityAll')}</option>
+              {cities.map((city) => (
+                <option key={city} value={city.toLowerCase()}>
+                  {city}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
       </div>
     </div>
   );

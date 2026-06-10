@@ -100,6 +100,8 @@ export interface AdminExperienceFormProps {
   mode?: 'create' | 'edit';
   experience?: AdminExperienceEdit;
   hosts?: readonly HostOption[];
+  /** Commission (bps) prefilled in create mode — from platform settings. */
+  defaultCommissionBps?: number;
   copy: AdminExperienceFormCopy;
 }
 
@@ -127,10 +129,14 @@ export function AdminExperienceForm({
   mode = 'edit',
   experience,
   hosts = [],
+  defaultCommissionBps,
   copy,
 }: AdminExperienceFormProps) {
   const isCreate = mode === 'create';
-  const ex = experience ?? BLANK;
+  const ex = experience ?? {
+    ...BLANK,
+    commissionBps: defaultCommissionBps ?? BLANK.commissionBps,
+  };
   const [state, formAction] = useActionState(
     isCreate ? adminCreateExperience : adminUpdateExperience,
     initialState,

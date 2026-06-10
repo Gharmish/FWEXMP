@@ -15,6 +15,21 @@ import {
 import type { AdminMoment } from '@/features/admin/experiences/queries';
 import { MomentActionButton } from '@/app/[locale]/admin/experiences/[id]/moments/moment-action-button';
 
+/** Server actions the editor drives — admin's by default, host's when passed in. */
+export interface MomentActions {
+  add: typeof addMoment;
+  update: typeof updateMoment;
+  remove: typeof deleteMoment;
+  move: typeof moveMoment;
+}
+
+const ADMIN_ACTIONS: MomentActions = {
+  add: addMoment,
+  update: updateMoment,
+  remove: deleteMoment,
+  move: moveMoment,
+};
+
 export interface MomentsCopy {
   timeOfDay: string;
   titleEn: string;
@@ -22,6 +37,8 @@ export interface MomentsCopy {
   titleAr: string;
   descriptionAr: string;
   arHint: string;
+  /** Shown when a live/pending listing's timeline is locked (host editor). */
+  lockedLive?: string;
   save: string;
   saving: string;
   add: string;
@@ -52,14 +69,23 @@ function Saver({ label, pendingLabel }: { label: string; pendingLabel: string })
   );
 }
 
+function actionError(state: MomentActionState, copy: MomentsCopy): string | undefined {
+  if (state.success || !state.message) return undefined;
+  if (state.message === 'validation') return copy.fieldInvalid;
+  if (state.message === 'locked_live') return copy.lockedLive ?? copy.error;
+  return copy.error;
+}
+
 function Fields({
   moment,
   copy,
   fields,
+  hideArabic,
 }: {
   moment?: AdminMoment;
   copy: MomentsCopy;
   fields: Record<string, string>;
+  hideArabic?: boolean;
 }) {
   const invalid = (name: string) => (fields[name] ? 'true' : undefined);
   return (
@@ -88,23 +114,27 @@ function Fields({
           aria-invalid={invalid('descriptionEn')}
         />
       </label>
-      <div className="grid gap-4 sm:grid-cols-2">
-        <label className="flex flex-col gap-1 text-sm font-medium">
-          {copy.titleAr}
-          <Input name="titleAr" dir="rtl" defaultValue={momentArTitle(moment)} />
-        </label>
-        <label className="flex flex-col gap-1 text-sm font-medium">
-          {copy.descriptionAr}
-          <textarea
-            name="descriptionAr"
-            rows={2}
-            dir="rtl"
-            defaultValue={momentArDesc(moment)}
-            className={TEXTAREA_CLASS}
-          />
-        </label>
-      </div>
-      <p className="text-sarat-black/40 text-xs">{copy.arHint}</p>
+      {!hideArabic && (
+        <>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <label className="flex flex-col gap-1 text-sm font-medium">
+              {copy.titleAr}
+              <Input name="titleAr" dir="rtl" defaultValue={momentArTitle(moment)} />
+            </label>
+            <label className="flex flex-col gap-1 text-sm font-medium">
+              {copy.descriptionAr}
+              <textarea
+                name="descriptionAr"
+                rows={2}
+                dir="rtl"
+                defaultValue={momentArDesc(moment)}
+                className={TEXTAREA_CLASS}
+              />
+            </label>
+          </div>
+          <p className="text-sarat-black/40 text-xs">{copy.arHint}</p>
+        </>
+      )}
     </>
   );
 }
@@ -126,6 +156,8 @@ export function MomentCard({
   isFirst,
   isLast,
   copy,
+  actions = ADMIN_ACTIONS,
+  hideArabic,
 }: {
   moment: AdminMoment;
   experienceId: string;
@@ -133,30 +165,33 @@ export function MomentCard({
   isFirst: boolean;
   isLast: boolean;
   copy: MomentsCopy;
+  actions?: MomentActions;
+  hideArabic?: boolean;
 }) {
-  const [state, action] = useActionState(updateMoment, initialState);
+  const [state, action] = useActionState(actions.update, initialState);
   const fields = state.fields ?? {};
+  const error = actionError(state, copy);
   return (
     <li className="border-sarat-black/8 rounded-card flex flex-col gap-4 [border-width:0.5px] p-6">
       <div className="flex items-center justify-between gap-3">
         <span className="text-sarat-black-600 text-sm font-medium">{index + 1}</span>
         <div className="flex items-center gap-2">
           <MomentActionButton
-            action={moveMoment}
+            action={actions.move}
             hidden={{ momentId: moment.id, experienceId, direction: 'up' }}
             label={copy.moveUp}
             pendingLabel={copy.moving}
             disabled={isFirst}
           />
           <MomentActionButton
-            action={moveMoment}
+            action={actions.move}
             hidden={{ momentId: moment.id, experienceId, direction: 'down' }}
             label={copy.moveDown}
             pendingLabel={copy.moving}
             disabled={isLast}
           />
           <MomentActionButton
-            action={deleteMoment}
+            action={actions.remove}
             hidden={{ momentId: moment.id, experienceId }}
             label={copy.deleteLabel}
             pendingLabel={copy.deleting}
@@ -167,12 +202,12 @@ export function MomentCard({
       <form action={action} className="flex flex-col gap-4">
         <input type="hidden" name="momentId" value={moment.id} />
         <input type="hidden" name="experienceId" value={experienceId} />
-        <Fields moment={moment} copy={copy} fields={fields} />
+        <Fields moment={moment} copy={copy} fields={fields} hideArabic={hideArabic} />
         <div className="flex items-center gap-3">
           <Saver label={copy.save} pendingLabel={copy.saving} />
-          {!state.success && state.message && (
+          {error && (
             <span role="alert" className="text-al-qatt-red-800 text-sm">
-              {state.message === 'validation' ? copy.fieldInvalid : copy.error}
+              {error}
             </span>
           )}
         </div>
@@ -181,10 +216,21 @@ export function MomentCard({
   );
 }
 
-export function AddMomentForm({ experienceId, copy }: { experienceId: string; copy: MomentsCopy }) {
-  const [state, action] = useActionState(addMoment, initialState);
+export function AddMomentForm({
+  experienceId,
+  copy,
+  actions = ADMIN_ACTIONS,
+  hideArabic,
+}: {
+  experienceId: string;
+  copy: MomentsCopy;
+  actions?: MomentActions;
+  hideArabic?: boolean;
+}) {
+  const [state, action] = useActionState(actions.add, initialState);
   const fields = state.fields ?? {};
   const formRef = useRef<HTMLFormElement>(null);
+  const error = actionError(state, copy);
 
   // Clear the inputs after a successful add so the next moment starts blank.
   useEffect(() => {
@@ -199,12 +245,12 @@ export function AddMomentForm({ experienceId, copy }: { experienceId: string; co
     >
       <h2 className="font-display text-xl font-medium tracking-[-0.02em]">{copy.addHeading}</h2>
       <input type="hidden" name="experienceId" value={experienceId} />
-      <Fields copy={copy} fields={fields} />
+      <Fields copy={copy} fields={fields} hideArabic={hideArabic} />
       <div className="flex items-center gap-3">
         <Saver label={copy.add} pendingLabel={copy.adding} />
-        {!state.success && state.message && (
+        {error && (
           <span role="alert" className="text-al-qatt-red-800 text-sm">
-            {state.message === 'validation' ? copy.fieldInvalid : copy.error}
+            {error}
           </span>
         )}
       </div>

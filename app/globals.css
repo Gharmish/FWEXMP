@@ -14,7 +14,7 @@
   --color-sarat-black-100: #e8e8e8;
   --color-sarat-black-200: #d4d4d4;
   --color-sarat-black-400: #a3a3a3;
-  --color-sarat-black-600: #737373;
+  --color-sarat-black-600: #686868; /* muted-text role: 5.0:1 on fog-white (WCAG AA) */
   --color-sarat-black-800: #4a4a4a;
   --color-sarat-black-900: #363636;
 

@@ -3,7 +3,7 @@
 import { and, eq, inArray, sql } from 'drizzle-orm';
 import { cookies } from 'next/headers';
 import { db } from '@/lib/db';
-import { serverEnv } from '@/lib/env';
+import { serverEnv, hasHyperpay } from '@/lib/env';
 import { bookings, experiences, guests } from '@/db/schema';
 import { redirect } from '@/lib/i18n';
 import { reportError } from '@/lib/log';
@@ -11,10 +11,12 @@ import { bookingRequestSchema } from '@/features/bookings/schemas';
 import { getCurrentUser } from '@/features/auth/queries';
 import {
   ACTIVE_BOOKING_STATUSES,
+  PAYMENT_HOLD_MINUTES,
   isDateBookable,
   remainingCapacity,
 } from '@/features/bookings/lib/availability';
 import { LAST_BOOKING_COOKIE, serializeLastBookingCookie } from '@/features/account/cookie';
+import { sendHostNewBookingEmail } from '@/features/bookings/lib/booking-email';
 
 /** Today as `YYYY-MM-DD` in the experience's local day (KSA at launch). */
 function todayInRiyadh(): string {
@@ -90,8 +92,14 @@ export async function requestBooking(
 
   const input = parsed.data;
   const reference = crypto.randomUUID();
-  const confirmedPath =
-    `/book/confirmed/${reference}?slug=${encodeURIComponent(input.experienceSlug)}` as const;
+  const slugParam = `slug=${encodeURIComponent(input.experienceSlug)}`;
+  const confirmedPath = `/book/confirmed/${reference}?${slugParam}` as const;
+  // When online payment is configured the booking is created as today, then
+  // the guest is routed to the payment step (3DS details → HyperPay widget)
+  // instead of straight to the confirmation page. `hasHyperpay()` is false
+  // until the credentials arrive, so the live request-to-book flow is
+  // unchanged until then.
+  const nextPath = hasHyperpay() ? (`/book/${reference}/pay?${slugParam}` as const) : confirmedPath;
 
   if (!serverEnv.DATABASE_URL) {
     // Preview mode: nothing is persisted, but we still navigate to the
@@ -159,13 +167,20 @@ export async function requestBooking(
       (authUserId
         ? await db.query.guests.findFirst({
             where: (g) => eq(g.authUserId, authUserId),
-            columns: { id: true, authUserId: true, phone: true },
+            columns: { id: true, authUserId: true, phone: true, suspendedAt: true },
           })
         : undefined) ??
       (await db.query.guests.findFirst({
         where: (g) => eq(g.phone, input.phone),
-        columns: { id: true, authUserId: true, phone: true },
+        columns: { id: true, authUserId: true, phone: true, suspendedAt: true },
       }));
+
+    // Suspended guests can browse but not book (admin decision trail
+    // lives on the guest row). Checked before any insert so a banned
+    // phone can't route around the block by signing out.
+    if (guest?.suspendedAt) {
+      return { success: false, message: 'suspended', values: currentValues(formData) };
+    }
 
     if (!guest) {
       [guest] = await db
@@ -176,7 +191,12 @@ export async function requestBooking(
           preferredLanguage: input.locale,
           authUserId,
         })
-        .returning({ id: guests.id, authUserId: guests.authUserId, phone: guests.phone });
+        .returning({
+          id: guests.id,
+          authUserId: guests.authUserId,
+          phone: guests.phone,
+          suspendedAt: guests.suspendedAt,
+        });
     } else {
       // Backfill the auth link and/or the phone on an existing row.
       const patch: Partial<{ authUserId: string; phone: string }> = {};
@@ -222,7 +242,16 @@ export async function requestBooking(
         if (remainingCapacity(experience.maxGroupSize, booked) < input.partySize) {
           return 'full' as const;
         }
-        await tx.insert(bookings).values({ ...bookingValues, status: 'confirmed' });
+        // When online payment is required, stamp a hold deadline: the booking
+        // is created `confirmed` (so it holds the spot during payment) but the
+        // release job frees it if payment never completes. Null when payment is
+        // off — the booking is final on insert and never expires.
+        const paymentDeadline = hasHyperpay()
+          ? new Date(Date.now() + PAYMENT_HOLD_MINUTES * 60_000)
+          : null;
+        await tx
+          .insert(bookings)
+          .values({ ...bookingValues, status: 'confirmed', paymentDeadline });
         return 'ok' as const;
       });
       if (outcome === 'full') {
@@ -243,6 +272,13 @@ export async function requestBooking(
     return { success: false, message: 'server', values: currentValues(formData) };
   }
 
+  // Tell the host — best-effort: a mail hiccup must never fail a booking.
+  try {
+    await sendHostNewBookingEmail(reference);
+  } catch (error) {
+    reportError(error, { surface: 'booking-request:hostEmail', reference });
+  }
+
   await writeLastBookingCookie(reference, input.experienceSlug);
-  redirect({ href: confirmedPath, locale: input.locale });
+  redirect({ href: nextPath, locale: input.locale });
 }

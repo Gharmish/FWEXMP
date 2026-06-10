@@ -44,7 +44,7 @@ export const COLORS: Readonly<Record<ColorToken, ColorEntry>> = {
       100: '#E8E8E8',
       200: '#D4D4D4',
       400: '#A3A3A3',
-      600: '#737373',
+      600: '#686868',
       800: '#4A4A4A',
       900: '#363636',
     },

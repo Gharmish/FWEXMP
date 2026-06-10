@@ -101,6 +101,8 @@ export interface AdminGuestBooking {
 
 export interface AdminGuestDetail extends AdminGuestRow {
   preferredLanguage: string;
+  /** ISO timestamp of an active admin suspension, or null. */
+  suspendedAt: string | null;
   bookingList: AdminGuestBooking[];
 }
 
@@ -138,6 +140,7 @@ export async function getGuestDetail(id: string): Promise<AdminGuestDetail | und
       phone: guest.phone,
       email: guest.email,
       preferredLanguage: guest.preferredLanguage,
+      suspendedAt: guest.suspendedAt ? guest.suspendedAt.toISOString() : null,
       bookings: rows.length,
       spentSar: spent,
       lastBookingAt: lastBookingAt ? new Date(lastBookingAt).toISOString() : null,

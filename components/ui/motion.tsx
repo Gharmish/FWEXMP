@@ -22,8 +22,11 @@ import type { ReactNode } from 'react';
 /** The one spring. damping 25 / stiffness 280 (BRIEF §3). */
 export const SPRING = { type: 'spring', damping: 25, stiffness: 280 } satisfies Transition;
 
-/** 200ms crossfade for route/page transitions (BRIEF §3). */
-const CROSSFADE: Transition = { duration: 0.2, ease: 'linear' };
+/**
+ * Crossfade for route/page transitions (BRIEF §3). Spring-driven opacity —
+ * the brief bans `linear`/`ease-*` curves, so the fade rides the one spring.
+ */
+const CROSSFADE: Transition = SPRING;
 
 interface MotionPrimitiveProps {
   children: ReactNode;

@@ -6,11 +6,13 @@ import { cn } from '@/lib/utils';
  * Variants: primary / secondary / premium. Sizes: sm 44 / md 44 / lg 52.
  *
  * A visible keyboard focus ring is mandatory (BRIEF §6: "Focus rings
- * visible, never removed"). `sm` keeps the 44px touch-target floor — it
- * differs from `md` only in horizontal padding and type size.
+ * visible, never removed"); it comes from the single global `:focus-visible`
+ * ring in globals.css — components must not add their own (avoids a doubled
+ * ring). `sm` keeps the 44px touch-target floor — it differs from `md` only
+ * in horizontal padding and type size.
  */
 const buttonVariants = cva(
-  'inline-flex shrink-0 items-center justify-center gap-2 rounded-button font-medium whitespace-nowrap transition-transform duration-200 select-none hover:-translate-y-px active:translate-y-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-saffron-gold focus-visible:ring-offset-2 focus-visible:ring-offset-fog-white disabled:pointer-events-none disabled:opacity-50 aria-busy:pointer-events-none aria-busy:opacity-70 aria-busy:cursor-progress [&_svg]:pointer-events-none [&_svg]:size-5 [&_svg]:shrink-0',
+  'inline-flex shrink-0 items-center justify-center gap-2 rounded-button font-medium whitespace-nowrap transition-transform duration-200 select-none hover:-translate-y-px active:translate-y-0 disabled:pointer-events-none disabled:opacity-50 aria-busy:pointer-events-none aria-busy:opacity-70 aria-busy:cursor-progress [&_svg]:pointer-events-none [&_svg]:size-5 [&_svg]:shrink-0',
   {
     variants: {
       variant: {

@@ -5,12 +5,14 @@ import { useFormStatus } from 'react-dom';
 import { motion, useReducedMotion } from 'framer-motion';
 import { Minus, Plus } from 'lucide-react';
 import { requestBooking, type BookingRequestState } from '@/features/bookings/actions';
+import { bookingRequestSchema } from '@/features/bookings/schemas';
+import { vatPortionSar } from '@/features/bookings/lib/vat';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Pop, SPRING } from '@/components/ui/motion';
 import type { Locale } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
-import { formatSaudiPhone } from '@/lib/format';
+import { PhoneInput } from '@/components/ui/phone-input';
 import { Price } from '@/components/ui/price';
 import { BookingCalendar } from './booking-calendar';
 
@@ -21,6 +23,12 @@ interface BookingRequestCopy {
   preferredDate: string;
   partySize: string;
   phoneHint: string;
+  /** Accessible label for the dialling-code selector. */
+  countryLabel: string;
+  /** Placeholder for the national-number input (no leading zero). */
+  phonePlaceholder: string;
+  /** Shown when a non-empty number isn't valid for the chosen country. */
+  phoneInvalid: string;
   preferredDateHint: string;
   partySizeHint: string;
   submit: string;
@@ -28,6 +36,8 @@ interface BookingRequestCopy {
   validation: string;
   server: string;
   notFound: string;
+  /** Account blocked from booking by the team. */
+  suspended: string;
   required: string;
   /** Specific, actionable field messages. */
   datePast: string;
@@ -38,6 +48,8 @@ interface BookingRequestCopy {
   datePlaceholder: string;
   /** Total row label. */
   total: string;
+  /** "Includes VAT (15%)" disclosure label — prices are VAT-inclusive. */
+  vatIncluded: string;
   /** Guests stepper aria-labels. */
   decrease: string;
   increase: string;
@@ -68,6 +80,8 @@ export interface BookingRequestFormProps {
   availableDates: readonly BookableOption[];
   /** Short note under the title: instant-confirmation vs request-to-book. */
   modeNote?: string;
+  /** Caption under the date label, e.g. "Runs Fri & Sat" — sets expectations. */
+  scheduleNote?: string;
   copy: BookingRequestCopy;
 }
 
@@ -137,6 +151,9 @@ function messageForField(
   if (field === 'partySize') {
     return code === 'too_large' ? copy.partySizeTooLarge : copy.required;
   }
+  if (field === 'phone') {
+    return code === 'invalid_phone' ? copy.phoneInvalid : copy.required;
+  }
   return copy.required;
 }
 
@@ -149,6 +166,7 @@ export function BookingRequestForm({
   maxDate,
   availableDates,
   modeNote,
+  scheduleNote,
   copy,
 }: BookingRequestFormProps) {
   const [state, formAction] = useActionState(requestBooking, initialState);
@@ -156,6 +174,13 @@ export function BookingRequestForm({
   const formRef = useRef<HTMLFormElement>(null);
   const noDates = availableDates.length === 0;
   const reduce = useReducedMotion();
+
+  // Client-side validation errors, keyed like the server's `state.fields` and
+  // produced by the *same* zod schema (BRIEF §7). They give instant feedback
+  // for an empty name / missing or malformed phone without a server round
+  // trip; an actual submit still validates server-side (and re-checks
+  // availability, which the client can't know).
+  const [clientFields, setClientFields] = useState<Partial<Record<FieldName, string>>>({});
 
   // Mobile sticky CTA bar: visible only while the inline submit is scrolled
   // out of view. A sentinel at the inline button drives an Intersection
@@ -189,17 +214,10 @@ export function BookingRequestForm({
   );
   const effectiveParty = Math.min(Math.max(1, partySize), maxGuests);
   const totalSar = priceSar * effectiveParty;
-  // Phone field is controlled so we can canonicalise on blur via
-  // formatSaudiPhone (e.g. "0512345678" -> "+966 51 234 5678"). All
-  // other fields stay uncontrolled — they don't need keystroke-level
-  // handling and `defaultValue` is enough to echo server-validation
-  // errors back to the user.
-  //
-  // We don't sync `phone` from state.values.phone on server-side
-  // errors: useActionState preserves the component across re-renders,
-  // so whatever the user just typed (and submitted) is still in
-  // `phone`. The server echo is informational — they match.
-  const [phone, setPhone] = useState<string>(values.phone ?? '');
+  // The phone field is its own component (PhoneInput): a dialling-code
+  // selector + national-number input that posts one canonical E.164 value
+  // via a hidden `phone` input. It re-hydrates from `values.phone` (the
+  // server echo) after a validation error.
   // Deterministic IDs for each field's error message — fed into
   // aria-describedby so screen readers associate the error with the
   // input it belongs to.
@@ -208,46 +226,90 @@ export function BookingRequestForm({
   const hintId = (field: FieldName) => `${errorPrefix}-${field}-hint`;
   const formErrorId = `${errorPrefix}-form-error`;
 
+  // A field is in error if the client flagged it (instant) or the server did
+  // (after submit). The client clears its set on every valid submit, so the
+  // two never show stale-and-fresh together.
+  const errorFor = (field: FieldName): string | undefined =>
+    clientFields[field] ?? state.fields?.[field];
+  const hasClientErrors = Object.keys(clientFields).length > 0;
+
   // The success path on the server action redirects to
   // /book/confirmed/[ref] before this component ever sees a success
   // state — so anything observable here is one of the error branches.
-  const formMessage =
-    state.message === 'server'
+  const formMessage = hasClientErrors
+    ? copy.validation
+    : state.message === 'server'
       ? copy.server
       : state.message === 'notFound'
         ? copy.notFound
-        : state.message === 'validation'
-          ? copy.validation
-          : undefined;
+        : state.message === 'suspended'
+          ? copy.suspended
+          : state.message === 'validation'
+            ? copy.validation
+            : undefined;
 
-  // After a failed submit, move focus to the first invalid field — or,
-  // failing that, to the form-level error region. WCAG 3.3.1 (Error
-  // Identification) + 3.3.3 (Error Suggestion): the user must be able
-  // to perceive *and reach* the error without hunting.
+  // After a failed submit (client or server), move focus to the first invalid
+  // field — or, failing that, to the form-level error region. WCAG 3.3.1 (Error
+  // Identification) + 3.3.3 (Error Suggestion): the user must be able to
+  // perceive *and reach* the error without hunting.
   useEffect(() => {
-    if (!state.fields && !formMessage) return;
+    if (!state.fields && !formMessage && !hasClientErrors) return;
     const form = formRef.current;
     if (!form) return;
 
     for (const field of FIELD_NAMES) {
-      if (state.fields?.[field]) {
-        const el = form.elements.namedItem(field);
-        // `preferredDate` is a hidden input fed by the calendar — focusing it
-        // is a no-op, so skip hidden fields and let focus fall through to the
-        // form-level alert below.
-        if (el instanceof HTMLElement && el.getAttribute('type') !== 'hidden') {
-          el.focus();
-          return;
-        }
+      if (!errorFor(field)) continue;
+      // The phone field posts a hidden E.164 input; focus its visible national
+      // input instead. `preferredDate` is a hidden calendar-fed input — focusing
+      // it is a no-op, so skip it and let focus fall through to the alert.
+      const el =
+        field === 'phone'
+          ? form.querySelector<HTMLElement>('input[autocomplete="tel-national"]')
+          : (form.elements.namedItem(field) as HTMLElement | null);
+      if (el instanceof HTMLElement && el.getAttribute('type') !== 'hidden') {
+        el.focus();
+        return;
       }
     }
 
     const alert = form.querySelector<HTMLElement>('[data-form-error]');
     alert?.focus();
-  }, [state, formMessage]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state, formMessage, clientFields]);
+
+  // Validate with the shared schema before the server action fires. On failure
+  // we block the submit and surface field errors through the same display the
+  // server path uses; on success we clear and let the action proceed (so the
+  // form still works if JS-driven validation is ever bypassed).
+  function validateBeforeSubmit(event: React.FormEvent<HTMLFormElement>) {
+    const form = event.currentTarget;
+    const read = (name: string) =>
+      (form.elements.namedItem(name) as HTMLInputElement | null)?.value ?? '';
+    const parsed = bookingRequestSchema.safeParse({
+      experienceSlug,
+      locale,
+      name: read('name'),
+      phone: read('phone'),
+      preferredDate: selectedDate,
+      partySize: String(effectiveParty),
+    });
+    if (parsed.success) {
+      setClientFields({});
+      return;
+    }
+    event.preventDefault();
+    const fields: Partial<Record<FieldName, string>> = {};
+    for (const issue of parsed.error.issues) {
+      const key = issue.path[0];
+      if (typeof key === 'string' && (FIELD_NAMES as readonly string[]).includes(key)) {
+        fields[key as FieldName] = String(issue.message);
+      }
+    }
+    setClientFields(fields);
+  }
 
   function fieldProps(field: FieldName) {
-    const hasError = Boolean(state.fields?.[field]);
+    const hasError = Boolean(errorFor(field));
     const hasHint = FIELDS_WITH_HINTS.has(field);
     // aria-describedby supports a space-separated list — when both a
     // hint and an error apply, screen readers announce the hint first
@@ -263,7 +325,13 @@ export function BookingRequestForm({
   }
 
   return (
-    <form ref={formRef} action={formAction} noValidate className="flex flex-col gap-4">
+    <form
+      ref={formRef}
+      action={formAction}
+      onSubmit={validateBeforeSubmit}
+      noValidate
+      className="flex flex-col gap-4"
+    >
       <input type="hidden" name="experienceSlug" value={experienceSlug} />
       <input type="hidden" name="locale" value={locale} />
 
@@ -282,6 +350,7 @@ export function BookingRequestForm({
           {/* 1 — Pick a date. Calendar drives the hidden `preferredDate`. */}
           <div className="flex flex-col gap-3">
             <span className="text-sm font-medium">{copy.preferredDate}</span>
+            {scheduleNote && <p className="text-sarat-black-600 -mt-1 text-sm">{scheduleNote}</p>}
             <BookingCalendar
               locale={locale}
               minDate={minDate}
@@ -307,7 +376,7 @@ export function BookingRequestForm({
             )}
             <FieldError
               id={errorId('preferredDate')}
-              message={messageForField('preferredDate', state.fields?.preferredDate, copy)}
+              message={messageForField('preferredDate', errorFor('preferredDate'), copy)}
             />
           </div>
 
@@ -346,7 +415,7 @@ export function BookingRequestForm({
             </p>
             <FieldError
               id={errorId('partySize')}
-              message={messageForField('partySize', state.fields?.partySize, copy)}
+              message={messageForField('partySize', errorFor('partySize'), copy)}
             />
           </div>
 
@@ -363,6 +432,10 @@ export function BookingRequestForm({
                 <Price amount={totalSar} locale={locale} />
               </Pop>
             </div>
+            <p className="text-sarat-black-600 flex items-baseline justify-between text-sm">
+              <span>{copy.vatIncluded}</span>
+              <Price amount={vatPortionSar(totalSar)} locale={locale} />
+            </p>
           </div>
 
           {/* 4 — Your details. */}
@@ -379,37 +452,31 @@ export function BookingRequestForm({
                 defaultValue={values.name}
                 {...fieldProps('name')}
               />
-              <FieldError id={errorId('name')} message={state.fields?.name && copy.required} />
+              <FieldError id={errorId('name')} message={errorFor('name') && copy.required} />
             </div>
 
             <div className="flex flex-col gap-2">
               <label htmlFor="booking-phone" className="text-sm font-medium">
                 {copy.phone}
               </label>
-              <Input
+              <PhoneInput
                 id="booking-phone"
                 name="phone"
-                type="tel"
-                autoComplete="tel"
+                locale={locale}
+                defaultValue={values.phone}
                 required
-                dir="ltr"
-                value={phone}
-                onChange={(event) => setPhone(event.target.value)}
-                onBlur={() => {
-                  // Canonicalise on blur, not on every keystroke — formatting
-                  // mid-typing fights the caret. formatSaudiPhone returns the
-                  // input untouched when the value isn't a recognisable Saudi
-                  // mobile, so this is a no-op for partial / non-Saudi input.
-                  const formatted = formatSaudiPhone(phone);
-                  if (formatted !== phone) setPhone(formatted);
-                }}
-                placeholder="+966 5X XXX XXXX"
-                {...fieldProps('phone')}
+                placeholder={copy.phonePlaceholder}
+                countryLabel={copy.countryLabel}
+                invalid={Boolean(errorFor('phone'))}
+                aria-describedby={fieldProps('phone')['aria-describedby']}
               />
               <p id={hintId('phone')} className="text-sarat-black-600 text-sm">
                 {copy.phoneHint}
               </p>
-              <FieldError id={errorId('phone')} message={state.fields?.phone && copy.required} />
+              <FieldError
+                id={errorId('phone')}
+                message={messageForField('phone', errorFor('phone'), copy)}
+              />
             </div>
           </div>
 

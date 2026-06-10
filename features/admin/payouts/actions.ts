@@ -2,12 +2,15 @@
 
 import { and, eq, inArray, isNull } from 'drizzle-orm';
 import { revalidatePath } from 'next/cache';
+import { z } from 'zod';
 import { db } from '@/lib/db';
 import { serverEnv } from '@/lib/env';
 import { bookings, experiences } from '@/db/schema';
 import { reportError } from '@/lib/log';
 import { getCurrentUser } from '@/features/auth/queries';
 import { isAdminUser } from '@/features/admin/auth';
+
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 /**
  * Mark every still-owed (completed, unpaid) booking for one host as
@@ -29,10 +32,11 @@ export async function markHostPaid(
   if (!admin || !isAdminUser(admin)) return { success: false, message: 'forbidden' };
   if (!serverEnv.DATABASE_URL) return { success: false, message: 'no_db' };
 
-  const hostId = formData.get('hostId');
-  if (typeof hostId !== 'string' || hostId.length === 0) {
+  const parsed = z.string().regex(UUID_RE).safeParse(formData.get('hostId'));
+  if (!parsed.success) {
     return { success: false, message: 'server' };
   }
+  const hostId = parsed.data;
 
   try {
     const hostExperienceIds = db

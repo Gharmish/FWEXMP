@@ -18,6 +18,23 @@ const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
  */
 export const ACTIVE_BOOKING_STATUSES = ['pending', 'confirmed', 'completed'] as const;
 
+/**
+ * How long an instant booking's spot is held while the guest completes online
+ * payment. Past this, an *unpaid* hold (no checkout started) is released by the
+ * cron so it stops occupying capacity. Decision (brief was silent): 30 minutes
+ * — comfortably longer than a card + 3DS session, short enough to free seats.
+ * Tunable here without touching the release job.
+ */
+export const PAYMENT_HOLD_MINUTES = 30;
+
+/**
+ * Has a payment hold expired? `deadline` is null for bookings that never
+ * require online payment (request-to-book, payment-off) — those never expire.
+ */
+export function isHoldExpired(deadline: Date | null, now: Date): boolean {
+  return deadline !== null && deadline.getTime() <= now.getTime();
+}
+
 /** 0=Sun..6=Sat for a `YYYY-MM-DD` string, or null if malformed. */
 export function weekdayOf(dateStr: string): number | null {
   if (!DATE_RE.test(dateStr)) return null;

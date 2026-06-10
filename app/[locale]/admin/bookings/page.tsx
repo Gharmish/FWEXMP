@@ -15,7 +15,7 @@ import {
   totalsFromRows,
 } from '@/features/admin/bookings/queries';
 import type { AdminBookingStatus } from '@/features/admin/bookings/types';
-import { availableTransitions } from '@/features/admin/bookings/lib/transitions';
+import { availableTransitions } from '@/features/bookings/lib/transitions';
 import {
   filterBookings,
   normalizeStatus,
@@ -245,6 +245,11 @@ export default async function AdminBookingsPage({
                           <Badge className={STATUS_TONE[row.status]}>
                             {t(`bookingStatus.${row.status}`)}
                           </Badge>
+                          {row.refundDueSar !== null && (
+                            <Badge className="bg-al-qatt-red/15 text-al-qatt-red">
+                              {t('bookingsList.refundDue')}
+                            </Badge>
+                          )}
                         </div>
                         <div className="text-sarat-black-600 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
                           <span>{row.guestName}</span>
@@ -312,7 +317,9 @@ export default async function AdminBookingsPage({
                               }}
                             />
                           ))}
-                          {(row.status === 'confirmed' || row.status === 'completed') && (
+                          {(row.status === 'confirmed' ||
+                            row.status === 'completed' ||
+                            (row.status === 'cancelled' && row.paymentStatus === 'paid')) && (
                             <RefundButton
                               bookingId={row.id}
                               locale={loc}

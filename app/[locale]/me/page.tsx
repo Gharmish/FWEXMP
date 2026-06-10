@@ -190,7 +190,42 @@ export default async function MePage({ params }: { params: Promise<{ locale: str
 
             {lastBooking.booking?.status === 'completed' && (
               <div className="border-sarat-black/8 rounded-card mt-6 flex flex-col gap-4 [border-width:0.5px] p-6">
-                {lastBooking.review ? (
+                {lastBooking.review?.editable ? (
+                  // Inside the 24h window the review stays editable —
+                  // the form re-submits to updateReview, prefilled.
+                  <ReviewForm
+                    bookingReference={lastBooking.hint.reference}
+                    locale={loc}
+                    mode="edit"
+                    initialRating={lastBooking.review.rating}
+                    initialText={
+                      (loc === 'ar' ? lastBooking.review.textAr : lastBooking.review.textEn) ?? ''
+                    }
+                    copy={{
+                      heading: t('review.editHeading'),
+                      ratingLabel: t('review.ratingLabel'),
+                      ratingValueLabels: [1, 2, 3, 4, 5].map((n) =>
+                        t('review.ratingValue', { rating: n }),
+                      ) as [string, string, string, string, string],
+                      ratingRequired: t('review.ratingRequired'),
+                      commentLabel: t('review.commentLabel'),
+                      commentOptional: t('review.commentOptional'),
+                      commentPlaceholder: t('review.commentPlaceholder'),
+                      submit: t('review.update'),
+                      submitting: t('review.updating'),
+                      errors: {
+                        no_db: t('review.errors.noDb'),
+                        not_found: t('review.errors.notFound'),
+                        wrong_state: t('review.errors.wrongState'),
+                        already_reviewed: t('review.errors.alreadyReviewed'),
+                        forbidden: t('review.errors.forbidden'),
+                        expired: t('review.errors.expired'),
+                        validation: t('review.errors.validation'),
+                        server: t('review.errors.server'),
+                      },
+                    }}
+                  />
+                ) : lastBooking.review ? (
                   <div className="flex flex-col gap-3">
                     <p className={eyebrowClassName}>{t('review.reviewedEyebrow')}</p>
                     <div
@@ -238,6 +273,7 @@ export default async function MePage({ params }: { params: Promise<{ locale: str
                         wrong_state: t('review.errors.wrongState'),
                         already_reviewed: t('review.errors.alreadyReviewed'),
                         forbidden: t('review.errors.forbidden'),
+                        expired: t('review.errors.expired'),
                         validation: t('review.errors.validation'),
                         server: t('review.errors.server'),
                       },

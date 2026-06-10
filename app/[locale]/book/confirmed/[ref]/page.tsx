@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
 import type { ReactNode } from 'react';
-import { ArrowRight, CheckCircle2 } from 'lucide-react';
+import { ArrowRight, CheckCircle2, CircleAlert, Clock, MessageCircle } from 'lucide-react';
 import { notFound } from 'next/navigation';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { cn } from '@/lib/utils';
@@ -10,12 +10,34 @@ import { buttonVariants } from '@/components/ui/button';
 import { formatDate, formatInteger } from '@/lib/format';
 import { Price } from '@/components/ui/price';
 import { getExperienceBySlug } from '@/features/experiences/queries';
-import { getBookingByReference } from '@/features/bookings/queries';
+import {
+  getBookingByReferenceForViewer,
+  getHostContactPhoneForBooking,
+} from '@/features/bookings/queries';
+import { whatsappLink } from '@/lib/whatsapp';
+import { PrintButton } from '@/components/ui/print-button';
+import { ReportProblemForm } from '@/features/disputes/components/report-problem-form';
+import { hasOpenDisputeForBooking } from '@/features/disputes/queries';
+import { CancelBookingButton } from '@/features/bookings/components/cancel-booking-button';
+import { cancelEligibility, freeCancellationDeadline } from '@/features/bookings/lib/cancellation';
+import { vatPortionSar, vatRatePercent } from '@/features/bookings/lib/vat';
+import { getPlatformSettings } from '@/features/admin/settings/queries';
+import { PendingPaymentRefresh } from '@/features/payments/components/pending-payment-refresh';
 import { toArabicText } from '@/features/experiences/lib/arabic-content';
 import { Pop } from '@/components/ui/motion';
 
 /** UUID v4 shape — the only thing we accept as a public reference. */
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/**
+ * HyperPay card-scheme codes → display names. Proper nouns, not translated
+ * (mada is stylised lowercase per Saudi Payments brand guidance).
+ */
+const BRAND_NAMES: Record<string, string> = {
+  MADA: 'mada',
+  VISA: 'Visa',
+  MASTER: 'Mastercard',
+};
 
 interface PageParams {
   params: Promise<{ locale: string; ref: string }>;
@@ -49,7 +71,7 @@ export default async function BookingConfirmedPage({ params, searchParams }: Pag
 
   // Prefer the DB-backed booking when available; fall back to the slug
   // we passed through the redirect (preview / not-yet-found path).
-  const booking = await getBookingByReference(ref);
+  const booking = await getBookingByReferenceForViewer(ref);
   const experienceSlug = booking?.experienceSlug ?? slugFromQuery;
   const experience = experienceSlug ? await getExperienceBySlug(experienceSlug) : undefined;
 
@@ -64,10 +86,85 @@ export default async function BookingConfirmedPage({ params, searchParams }: Pag
       : experience.placeName
     : null;
 
-  const eyebrowClassName = cn(
-    'text-juniper-green-800 text-[11px]',
-    loc === 'en' && 'tracking-[0.2em] uppercase',
+  // Payment outcome view. The `/pay/return` route appends `?payment=<outcome>`
+  // and settlement has already written the authoritative `paymentStatus`, so
+  // the DB wins and the query param is only a fallback (it also covers the
+  // `error` case, where the booking row was left untouched). A `null` view is
+  // the request-to-book / preview path that never involved online payment — its
+  // copy is unchanged.
+  const paymentHint = asString(sp.payment);
+  const paymentView: 'paid' | 'failed' | 'pending' | null =
+    booking?.paymentStatus === 'paid' || paymentHint === 'success'
+      ? 'paid'
+      : booking?.paymentStatus === 'failed' || paymentHint === 'rejected' || paymentHint === 'error'
+        ? 'failed'
+        : booking?.paymentStatus === 'processing' || paymentHint === 'pending'
+          ? 'pending'
+          : null;
+  const isFailed = paymentView === 'failed';
+  const isPending = paymentView === 'pending';
+
+  // The eyebrow's tracking/case is shared across states; only colour shifts.
+  const eyebrowBase = cn('text-[11px]', loc === 'en' && 'tracking-[0.2em] uppercase');
+  // The reference label keeps the calm juniper treatment in every state.
+  const eyebrowClassName = cn(eyebrowBase, 'text-juniper-green-800');
+
+  // A cancelled/refunded booking owns the whole header — the page reads
+  // as the cancellation record, not a stale "request received".
+  const isCancelled = booking?.status === 'cancelled' || booking?.status === 'refunded';
+
+  const HeaderIcon = isCancelled || isFailed ? CircleAlert : isPending ? Clock : CheckCircle2;
+  const headerIconClassName = cn(
+    'size-7 shrink-0',
+    isCancelled
+      ? 'text-rijal-clay'
+      : isFailed
+        ? 'text-al-qatt-red'
+        : isPending
+          ? 'text-sarat-black-600'
+          : 'text-juniper-green',
   );
+  const headerEyebrowClassName = cn(
+    eyebrowBase,
+    isCancelled
+      ? 'text-rijal-clay'
+      : isFailed
+        ? 'text-al-qatt-red-800'
+        : isPending
+          ? 'text-sarat-black-600'
+          : 'text-juniper-green-800',
+  );
+  const headerEyebrow = isCancelled
+    ? t('cancelledEyebrow')
+    : isFailed
+      ? t('paymentFailedEyebrow')
+      : isPending
+        ? t('paymentPendingEyebrow')
+        : isConfirmed
+          ? t('eyebrowConfirmed')
+          : t('eyebrow');
+  const headerTitle = isCancelled
+    ? t('cancelledTitle')
+    : isFailed
+      ? t('paymentFailedTitle')
+      : isPending
+        ? t('paymentPendingTitle')
+        : isConfirmed
+          ? t('titleConfirmed')
+          : t('title');
+  const headerDescription = isCancelled
+    ? booking?.status === 'refunded'
+      ? t('cancelledDescriptionRefunded')
+      : t('cancelledDescription')
+    : isFailed
+      ? t('paymentFailedDescription')
+      : isPending
+        ? t('paymentPendingDescription')
+        : !booking
+          ? t('descriptionPreview')
+          : isConfirmed
+            ? t('descriptionConfirmed')
+            : t('descriptionStored');
 
   const detailRows: Array<{ label: string; value: ReactNode }> = [];
   if (title) detailRows.push({ label: t('experienceLabel'), value: title });
@@ -82,9 +179,61 @@ export default async function BookingConfirmedPage({ params, searchParams }: Pag
       value: formatInteger(booking.partySize, loc),
     });
     detailRows.push({
-      label: t('totalLabel'),
+      label: paymentView === 'paid' ? t('totalPaidLabel') : t('totalLabel'),
       value: <Price amount={booking.totalAmountSar} locale={loc} />,
     });
+    // Prices are VAT-inclusive — the receipt discloses the portion.
+    detailRows.push({
+      label: t('vatIncludedLabel', { pct: vatRatePercent() }),
+      value: <Price amount={vatPortionSar(booking.totalAmountSar)} locale={loc} />,
+    });
+    // Once settled, show it as a receipt line — "Paid · mada" — so the page
+    // reads as proof of payment, not just a request acknowledgement.
+    if (paymentView === 'paid') {
+      const brand = booking.paymentBrand ? BRAND_NAMES[booking.paymentBrand] : undefined;
+      detailRows.push({
+        label: t('paymentLabel'),
+        value: brand ? `${t('paid')} · ${brand}` : t('paid'),
+      });
+    }
+  }
+
+  // "Report a problem" swaps to a we're-on-it note while a dispute is open.
+  const openDispute = booking ? await hasOpenDisputeForBooking(ref) : false;
+
+  // WhatsApp line to the host — only once the host has accepted (the
+  // query itself enforces confirmed/completed and returns null otherwise).
+  const hostPhone =
+    booking && (booking.status === 'confirmed' || booking.status === 'completed')
+      ? await getHostContactPhoneForBooking(ref)
+      : null;
+  const hostWhatsapp = hostPhone
+    ? whatsappLink(hostPhone, t('whatsapp.prefill', { reference: ref }))
+    : null;
+
+  // Guest cancellation. Computed server-side so the page shows the true
+  // consequence (full refund vs forfeited) before the guest commits.
+  let cancelView: { refund: 'none_needed' | 'full' | 'forfeited'; deadline: Date } | null = null;
+  if (booking) {
+    const { cancellationWindowHours } = await getPlatformSettings();
+    const eligibility = cancelEligibility({
+      status: booking.status,
+      paymentStatus: booking.paymentStatus,
+      dateStr: booking.date,
+      startTime: booking.startTime,
+      windowHours: cancellationWindowHours,
+      now: new Date(),
+    });
+    if (eligibility.canCancel) {
+      cancelView = {
+        refund: eligibility.refund,
+        deadline: freeCancellationDeadline(
+          booking.date,
+          booking.startTime,
+          cancellationWindowHours,
+        ),
+      };
+    }
   }
 
   return (
@@ -92,20 +241,17 @@ export default async function BookingConfirmedPage({ params, searchParams }: Pag
       <header className="flex flex-col gap-6">
         <div className="flex items-center gap-3">
           <Pop>
-            <CheckCircle2 className="text-juniper-green size-7 shrink-0" aria-hidden />
+            <HeaderIcon className={headerIconClassName} aria-hidden />
           </Pop>
-          <p className={eyebrowClassName}>{isConfirmed ? t('eyebrowConfirmed') : t('eyebrow')}</p>
+          <p className={headerEyebrowClassName}>{headerEyebrow}</p>
         </div>
         <h1 className="font-display text-4xl font-medium tracking-[-0.035em] text-balance sm:text-5xl">
-          {isConfirmed ? t('titleConfirmed') : t('title')}
+          {headerTitle}
         </h1>
         <p className="text-sarat-black-600 max-w-2xl text-lg leading-relaxed">
-          {!booking
-            ? t('descriptionPreview')
-            : isConfirmed
-              ? t('descriptionConfirmed')
-              : t('descriptionStored')}
+          {headerDescription}
         </p>
+        {isPending && <PendingPaymentRefresh label={t('paymentChecking')} />}
       </header>
 
       <section
@@ -127,38 +273,171 @@ export default async function BookingConfirmedPage({ params, searchParams }: Pag
             ))}
           </dl>
         )}
-      </section>
 
-      <section className="mt-10 flex flex-col gap-3">
-        <h2 className="font-display text-2xl font-medium tracking-[-0.025em]">
-          {t('nextStepsHeading')}
-        </h2>
-        <ol className="text-sarat-black-600 flex flex-col gap-2 text-base">
-          <li>{isConfirmed ? t('nextStepConfirmed1') : t('nextStep1')}</li>
-          <li>{isConfirmed ? t('nextStepConfirmed2') : t('nextStep2')}</li>
-          <li>{isConfirmed ? t('nextStepConfirmed3') : t('nextStep3')}</li>
-        </ol>
-      </section>
-
-      <div className="mt-10 flex flex-wrap gap-3">
-        {experienceSlug && (
-          <Link
-            href={`/experiences/${experienceSlug}`}
-            className={cn(buttonVariants({ variant: 'secondary', size: 'lg' }))}
-          >
-            {t('backToExperience')}
-          </Link>
+        {/* The page doubles as the e-ticket — print it / save as PDF. */}
+        {booking && !isFailed && !isCancelled && (
+          <div className="mt-2">
+            <PrintButton label={t('printTicket')} />
+          </div>
         )}
-        <Link
-          href="/experiences"
-          className={cn(
-            buttonVariants({ variant: 'primary', size: 'lg' }),
-            'inline-flex items-center gap-2',
+      </section>
+
+      {/* The success "what happens next" steps only make sense once the
+          booking is actually settled — suppress them while a payment failed
+          or is still processing. */}
+      {!isFailed && !isPending && !isCancelled && (
+        <section className="mt-10 flex flex-col gap-3">
+          <h2 className="font-display text-2xl font-medium tracking-[-0.025em]">
+            {t('nextStepsHeading')}
+          </h2>
+          <ol className="text-sarat-black-600 flex flex-col gap-2 text-base">
+            <li>{isConfirmed ? t('nextStepConfirmed1') : t('nextStep1')}</li>
+            <li>{isConfirmed ? t('nextStepConfirmed2') : t('nextStep2')}</li>
+            <li>{isConfirmed ? t('nextStepConfirmed3') : t('nextStep3')}</li>
+          </ol>
+        </section>
+      )}
+
+      {/* Report a problem — quiet disclosure, any real booking. */}
+      {booking && (
+        <section className="mt-8 print:hidden">
+          {openDispute ? (
+            <p className="text-sarat-black-600 max-w-xl text-sm leading-relaxed">
+              {t('dispute.openNote')}
+            </p>
+          ) : (
+            <ReportProblemForm
+              reference={ref}
+              locale={loc}
+              copy={{
+                summary: t('dispute.summary'),
+                label: t('dispute.label'),
+                placeholder: t('dispute.placeholder'),
+                submit: t('dispute.submit'),
+                pending: t('dispute.pending'),
+                success: t('dispute.success'),
+                errors: {
+                  no_db: t('dispute.errors.noDb'),
+                  not_found: t('dispute.errors.notFound'),
+                  already_open: t('dispute.errors.alreadyOpen'),
+                  validation: t('dispute.errors.validation'),
+                  server: t('dispute.errors.server'),
+                },
+              }}
+            />
           )}
-        >
-          {t('keepExploring')}
-          <ArrowRight className="size-4 shrink-0 rtl:rotate-180" aria-hidden />
-        </Link>
+        </section>
+      )}
+
+      {/* Host contact — WhatsApp deep link once the booking is accepted. */}
+      {hostWhatsapp && (
+        <section className="border-sarat-black/8 rounded-card mt-10 flex flex-col gap-3 [border-width:0.5px] p-6 print:hidden">
+          <h2 className="font-display text-2xl font-medium tracking-[-0.025em]">
+            {t('whatsapp.heading')}
+          </h2>
+          <p className="text-sarat-black-600 max-w-2xl text-base leading-relaxed">
+            {t('whatsapp.description')}
+          </p>
+          <a
+            href={hostWhatsapp}
+            target="_blank"
+            rel="noopener noreferrer"
+            className={cn(
+              buttonVariants({ variant: 'secondary', size: 'md' }),
+              'inline-flex items-center gap-2 self-start',
+            )}
+          >
+            <MessageCircle className="size-4 shrink-0" aria-hidden />
+            {t('whatsapp.cta')}
+          </a>
+        </section>
+      )}
+
+      {/* Cancellation — only while the booking can still be cancelled. */}
+      {cancelView && (
+        <section className="border-sarat-black/8 rounded-card mt-10 flex flex-col gap-3 [border-width:0.5px] p-6 print:hidden">
+          <h2 className="font-display text-2xl font-medium tracking-[-0.025em]">
+            {t('cancel.heading')}
+          </h2>
+          <p className="text-sarat-black-600 max-w-2xl text-base leading-relaxed">
+            {cancelView.refund === 'none_needed'
+              ? t('cancel.policyUnpaid')
+              : cancelView.refund === 'full'
+                ? t('cancel.policyRefundable', {
+                    deadline: formatDate(cancelView.deadline, loc),
+                  })
+                : t('cancel.policyForfeited')}
+          </p>
+          <CancelBookingButton
+            reference={ref}
+            locale={loc}
+            copy={{
+              label: t('cancel.label'),
+              pending: t('cancel.pending'),
+              confirm:
+                cancelView.refund === 'forfeited'
+                  ? t('cancel.confirmForfeited')
+                  : t('cancel.confirm'),
+              done: {
+                none: t('cancel.doneUnpaid'),
+                refunded: t('cancel.doneRefunded'),
+                refund_pending: t('cancel.doneRefundPending'),
+                forfeited: t('cancel.doneForfeited'),
+              },
+              errors: {
+                forbidden: t('cancel.errors.forbidden'),
+                no_db: t('cancel.errors.noDb'),
+                not_found: t('cancel.errors.notFound'),
+                wrong_state: t('cancel.errors.wrongState'),
+                already_started: t('cancel.errors.alreadyStarted'),
+                validation: t('cancel.errors.validation'),
+                server: t('cancel.errors.server'),
+              },
+            }}
+          />
+        </section>
+      )}
+
+      <div className="mt-10 flex flex-wrap gap-3 print:hidden">
+        {isFailed ? (
+          <>
+            <Link
+              href={`/book/${ref}/pay${experienceSlug ? `?slug=${encodeURIComponent(experienceSlug)}` : ''}`}
+              className={cn(buttonVariants({ variant: 'primary', size: 'lg' }))}
+            >
+              {t('tryPaymentAgain')}
+            </Link>
+            {experienceSlug && (
+              <Link
+                href={`/experiences/${experienceSlug}`}
+                className={cn(buttonVariants({ variant: 'secondary', size: 'lg' }))}
+              >
+                {t('backToExperience')}
+              </Link>
+            )}
+          </>
+        ) : (
+          <>
+            {experienceSlug && (
+              <Link
+                href={`/experiences/${experienceSlug}`}
+                className={cn(buttonVariants({ variant: 'secondary', size: 'lg' }))}
+              >
+                {t('backToExperience')}
+              </Link>
+            )}
+            <Link
+              href="/experiences"
+              className={cn(
+                buttonVariants({ variant: 'primary', size: 'lg' }),
+                'inline-flex items-center gap-2',
+              )}
+            >
+              {t('keepExploring')}
+              <ArrowRight className="size-4 shrink-0 rtl:rotate-180" aria-hidden />
+            </Link>
+          </>
+        )}
       </div>
     </article>
   );

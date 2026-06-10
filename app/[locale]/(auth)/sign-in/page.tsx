@@ -78,6 +78,7 @@ export default async function SignInPage({
           phoneLabel: t('phoneLabel'),
           phoneHint: t('phoneHint'),
           phonePlaceholder: t('phonePlaceholder'),
+          countryLabel: t('countryLabel'),
           emailLabel: t('emailLabel'),
           emailHint: t('emailHint'),
           emailPlaceholder: t('emailPlaceholder'),

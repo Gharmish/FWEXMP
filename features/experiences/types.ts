@@ -18,6 +18,12 @@ export interface ExperienceSummary {
   priceSar: number;
   durationMinutes: number;
   placeName: string;
+  /** Operating city (Abha-only at launch) — drives the catalog city filter. */
+  city: string;
+  /** Capacity ceiling per occurrence — drives the group-size filter. */
+  maxGroupSize: number;
+  /** Recurring weekly availability, 0=Sun..6=Sat — drives the date filter. */
+  availabilityWeekdays: number[];
   hostName: string;
   /** Stable URL slug of the host, for linking to /hosts/[slug]. */
   hostSlug: string;
@@ -74,10 +80,8 @@ export interface MomentInfo {
  * is deferred — flagged for the localization pass.
  */
 export interface ExperienceDetail extends ExperienceSummary {
-  city: string;
   region: string;
   minAge: number;
-  maxGroupSize: number;
   inclusions: string[];
   whatToBring: string[];
   cancellationPolicy: string;
@@ -88,10 +92,6 @@ export interface ExperienceDetail extends ExperienceSummary {
    * until photography lands. Order is the order rendered.
    */
   images: string[];
-  /** `instant` auto-confirms against the calendar; `request` is operator-confirmed. */
-  bookingMode: BookingMode;
-  /** Recurring weekly availability: weekday indexes 0=Sun..6=Sat. */
-  availabilityWeekdays: number[];
 }
 
 /** How a booking is confirmed (mirrors db `booking_mode`). */

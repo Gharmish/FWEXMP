@@ -35,14 +35,14 @@ works) · Vercel project `gharmish` · Supabase `gharmish-experiences`
 
 ### What works **without** any further credentials (soft-launch surface)
 
-| Journey                                             | Needs login?     | Status                                         |
-| --------------------------------------------------- | ---------------- | ---------------------------------------------- |
-| Browse / search / experience detail / host profiles | No               | ✅ Live                                        |
-| **Guest requests a booking** (name + phone)         | **No**           | ✅ Live                                        |
-| Operator confirms/cancels/refunds bookings          | Admin (Test OTP) | ✅ Live                                        |
-| Guest account (`/me`, wishlist, leave review)       | Yes (email OTP)  | ✅ Live via email OTP (§2b); SMS optional (§2) |
-| Host self-service (apply, manage listings, upload)  | Yes (email OTP)  | ✅ Live via email OTP (§2b); SMS optional (§2) |
-| Online card/Mada payment                            | — → §3           | ⛔ Needs Moyasar                               |
+| Journey                                             | Needs login?     | Status                                          |
+| --------------------------------------------------- | ---------------- | ----------------------------------------------- |
+| Browse / search / experience detail / host profiles | No               | ✅ Live                                         |
+| **Guest requests a booking** (name + phone)         | **No**           | ✅ Live                                         |
+| Operator confirms/cancels/refunds bookings          | Admin (Test OTP) | ✅ Live                                         |
+| Guest account (`/me`, wishlist, leave review)       | Yes (email OTP)  | ✅ Live via email OTP (§2b); SMS optional (§2)  |
+| Host self-service (apply, manage listings, upload)  | Yes (email OTP)  | ✅ Live via email OTP (§2b); SMS optional (§2)  |
+| Online card/Mada payment                            | — → §3           | 🟡 HyperPay wired (test); needs token + go-live |
 
 **Implication:** Gharmish can soft-launch today as a _request-to-book_
 marketplace — guests request, the operator confirms and arranges payment
@@ -101,26 +101,61 @@ localize emails to AR/EN via a Send Email Hook (needs human Arabic copy).
 
 ---
 
-## 3. Real payments — Moyasar
+## 3. Real payments — HyperPay (OPPWA COPYandPAY)
 
-The booking flow is currently **request-to-book** (no card is charged).
-There is **no payment code yet** — see the decision note at the bottom.
+**Gateway changed:** after a 2026-06-02 meeting with HyperPay we are
+integrating **HyperPay / OPPWA** (not Moyasar — see the dated decision at
+the bottom). This supersedes the original BRIEF §5 choice; BRIEF §5 should
+be updated to match once confirmed.
 
-When ready to take payment online:
+Default flow stays **request-to-book** until HyperPay env vars arrive —
+the integration is gated behind `hasHyperpay()` (`lib/env.ts`), exactly
+like `hasSupabaseAuth()`.
 
-1. Create a **Moyasar** merchant account (Mada, Apple Pay, STC Pay, Visa,
-   Mastercard). Complete KYC. Obtain **test** then **live** keys.
+### Built + verified against the live test server (2026-06-02)
+
+- Env boundary + `hasHyperpay()` (`lib/env.ts`).
+- DB columns `payment_status` / `checkout_id` / `payment_brand` / `paid_at`
+  on `bookings` — migration **`0014` APPLIED to the prod DB** (additive,
+  nullable/defaulted; was required so the schema matches what the code
+  selects).
+- Server client `features/payments/lib/hyperpay.ts` (+ pure, unit-tested
+  `hyperpay-core.ts`): `prepareCheckout` → `getPaymentStatus`, OPPWA
+  result-code classification, `xx.00` amount formatting, and **test-only
+  flag gating** (`testMode=EXTERNAL`, `customParameters[3DS2_enrolled]`
+  added only when `HYPERPAY_MODE=test`).
+- Payment-details step UI + 3DS2 zod schema + COPYandPAY widget
+  (Mada-first, `paymentTarget:"_top"`), `shopperResultUrl` route with
+  **server-side status verification + amount check** (source of truth —
+  never trusts the redirect), and `requestBooking` wired to route through
+  payment when `hasHyperpay()`. AR/EN strings complete.
+- **Verified:** `POST /v1/checkouts` → `000.200.100`; `GET …/payment` →
+  `000.200.000`; full booking → details → checkout → widget render with
+  **mada shown first + logo** confirmed in-browser.
+
+> The access token is the base64-blob string **verbatim** (do NOT decode
+> it). Token lives in gitignored `.env.local` locally.
+
+### Remaining
+
+- Live click-through with a test card (3DS fields are cross-origin
+  iframes) + the Mada asset pack from HyperPay's quickconnect share.
+- Optional HyperPay webhook (belt-and-suspenders settlement).
+
+### Go-live steps
+
+1. Finish KYC; obtain **live** access token + entity id (test creds in hand).
 2. Add env vars in Vercel (Production + Preview):
-   - `MOYASAR_SECRET_KEY` (server-only, Sensitive)
-   - `NEXT_PUBLIC_MOYASAR_PUBLISHABLE_KEY`
-   - `MOYASAR_WEBHOOK_SECRET`
-3. Build/enable the Moyasar integration (hosted payment + webhook →
-   booking `paymentStatus`/`status`). Recommend building against the
-   **sandbox** first (BRIEF §10 explicitly permits "Moyasar sandbox at
-   most" pre-launch), then flipping keys to live.
-4. **Verify:** in sandbox, complete a booking with a Moyasar test card;
-   confirm the webhook moves the booking to `confirmed`/paid and the
-   confirmation page reflects it.
+   - `HYPERPAY_ACCESS_TOKEN` (server-only, **Sensitive**)
+   - `HYPERPAY_ENTITY_ID`
+   - `HYPERPAY_MODE` (`test` until live-certified, then `live`)
+   - `HYPERPAY_WEBHOOK_SECRET` (when the webhook is enabled)
+3. Add the Mada scripts/logo from HyperPay's asset share (the `0014`
+   migration is already applied to the DB).
+4. **Verify (test server):** complete a booking with the test cards — Mada
+   `4464040000000007` (11/26, CVV 850), Visa `4012000033330026` (01/39,
+   CVV 100) — confirm the server status check flips the booking to paid and
+   the confirmation page reflects it. Amounts must be `xx.00` on test.
 
 ---
 
@@ -171,6 +206,11 @@ The old `gharmish-weld.vercel.app` URL still works as a fallback.
 ---
 
 ## Decisions made (2026-05-29)
+
+> **Superseded 2026-06-02 (payments):** gateway is now **HyperPay/OPPWA**,
+> not Moyasar, and payment code is being built (§3). Decision 1 below
+> stands only as the _fallback_ posture (request-to-book) until HyperPay
+> env vars are set.
 
 1. **Launch model: soft launch.** Ship as a request-to-book marketplace —
    no online payment for now. Moyasar deferred; revisit when card payment

@@ -9,7 +9,19 @@ import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 import { getCurrentUser } from '@/features/auth/queries';
 import { getHostDashboard } from '@/features/host-dashboard/queries';
-import { getMyExperienceById } from '@/features/host-experiences/queries';
+import { getMyExperienceById, getMyExperienceMoments } from '@/features/host-experiences/queries';
+import {
+  addMomentAsHost,
+  deleteMomentAsHost,
+  moveMomentAsHost,
+  updateMomentAsHost,
+} from '@/features/host-experiences/moment-actions';
+import {
+  AddMomentForm,
+  MomentCard,
+  type MomentActions,
+  type MomentsCopy,
+} from '@/app/[locale]/admin/experiences/[id]/moments/moments-editor';
 import { getLatestModerationDecision } from '@/features/admin/experience-moderation/queries';
 import { ExperienceForm } from '@/app/[locale]/host/experiences/[id]/experience-form';
 import { buildExperienceFormCopy } from '@/app/[locale]/host/experiences/[id]/build-form-copy';
@@ -77,14 +89,48 @@ export default async function EditExperiencePage({
       ? await getLatestModerationDecision(experience.id)
       : null;
 
-  const [t, tForm] = await Promise.all([
+  const [t, tForm, momentRows] = await Promise.all([
     getTranslations('hostExperiences'),
     getTranslations('hostExperiences.form'),
+    getMyExperienceMoments(id),
   ]);
   const eyebrowClassName = cn(
     'text-sarat-black-600 text-[11px]',
     loc === 'en' && 'tracking-[0.2em] uppercase',
   );
+
+  // The timeline locks while the listing is public (live) or already in
+  // the review queue — matching the server-side guard in moment-actions.
+  const momentsLocked = experience.status === 'live' || experience.status === 'pending_review';
+  const hostMomentActions: MomentActions = {
+    add: addMomentAsHost,
+    update: updateMomentAsHost,
+    remove: deleteMomentAsHost,
+    move: moveMomentAsHost,
+  };
+  const momentsCopy: MomentsCopy = {
+    timeOfDay: t('moments.timeOfDay'),
+    titleEn: t('moments.titleEn'),
+    descriptionEn: t('moments.descriptionEn'),
+    // Arabic fields are hidden in the host editor; copy still required.
+    titleAr: '',
+    descriptionAr: '',
+    arHint: '',
+    lockedLive: t('moments.lockedLive'),
+    save: t('moments.save'),
+    saving: t('moments.saving'),
+    add: t('moments.add'),
+    adding: t('moments.adding'),
+    addHeading: t('moments.addHeading'),
+    moveUp: t('moments.moveUp'),
+    moveDown: t('moments.moveDown'),
+    moving: t('moments.moving'),
+    deleteLabel: t('moments.deleteLabel'),
+    deleting: t('moments.deleting'),
+    deleteConfirm: t('moments.deleteConfirm'),
+    fieldInvalid: t('moments.fieldInvalid'),
+    error: t('moments.error'),
+  };
 
   return (
     <div className="flex flex-col">
@@ -154,6 +200,8 @@ export default async function EditExperiencePage({
               pendingReviewLabel: t('lifecycle.pendingReviewLabel'),
               pause: t('lifecycle.pause'),
               pausePending: t('lifecycle.pausePending'),
+              duplicate: t('lifecycle.duplicate'),
+              duplicatePending: t('lifecycle.duplicatePending'),
               viewPublic: t('lifecycle.viewPublic'),
               errors: {
                 cannot_publish: t('lifecycle.errors.cannotPublish'),
@@ -216,6 +264,48 @@ export default async function EditExperiencePage({
             canEdit
             ym={ym}
           />
+        </div>
+
+        {/* Timeline (moments) — editable while not live/pending review. */}
+        <div className="border-sarat-black/8 mt-10 [border-top-width:0.5px] pt-10">
+          <h2 className={eyebrowClassName}>{t('moments.heading')}</h2>
+          <p className="text-sarat-black-600 mt-2 max-w-2xl text-sm leading-relaxed">
+            {t('moments.intro')}
+          </p>
+          {momentsLocked ? (
+            <p
+              role="status"
+              className="border-saffron-gold/40 bg-saffron-gold/10 text-sarat-black rounded-card mt-4 [border-width:0.5px] p-4 text-sm leading-relaxed"
+            >
+              {t('moments.lockedLive')}
+            </p>
+          ) : (
+            <div className="mt-6 flex flex-col gap-4">
+              {momentRows.length > 0 && (
+                <ul className="flex flex-col gap-4">
+                  {momentRows.map((moment, index) => (
+                    <MomentCard
+                      key={moment.id}
+                      moment={moment}
+                      experienceId={experience.id}
+                      index={index}
+                      isFirst={index === 0}
+                      isLast={index === momentRows.length - 1}
+                      copy={momentsCopy}
+                      actions={hostMomentActions}
+                      hideArabic
+                    />
+                  ))}
+                </ul>
+              )}
+              <AddMomentForm
+                experienceId={experience.id}
+                copy={momentsCopy}
+                actions={hostMomentActions}
+                hideArabic
+              />
+            </div>
+          )}
         </div>
 
         <div className="border-sarat-black/8 mt-10 [border-top-width:0.5px] pt-10">

@@ -26,8 +26,10 @@ const nextConfig: NextConfig = {
         pathname: '/storage/v1/object/public/avatars/**',
       },
     ],
-    // BRIEF §3 prefers AVIF + WebP; next/image already negotiates
-    // both via Accept headers, no extra config needed here.
+    // BRIEF §3/§6 require AVIF + WebP. next/image only emits the formats
+    // listed here (it defaults to WebP only), so AVIF must be opted in.
+    // Order matters: AVIF is tried first, WebP is the fallback.
+    formats: ['image/avif', 'image/webp'],
   },
 };
 

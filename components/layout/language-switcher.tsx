@@ -1,7 +1,7 @@
 'use client';
 
 import { Languages } from 'lucide-react';
-import { useLocale } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 import { Link, usePathname, localeLabel, type Locale } from '@/lib/i18n';
 
 /**
@@ -16,8 +16,9 @@ import { Link, usePathname, localeLabel, type Locale } from '@/lib/i18n';
 export function LanguageSwitcher() {
   const pathname = usePathname();
   const locale = useLocale() as Locale;
+  const t = useTranslations('nav');
   const other: Locale = locale === 'en' ? 'ar' : 'en';
-  const label = `Switch language to ${localeLabel[other]}`;
+  const label = t('switchLanguage', { lang: localeLabel[other] });
 
   return (
     <Link

@@ -1,10 +1,12 @@
 import { and, avg, count, desc, eq, isNull } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import { serverEnv } from '@/lib/env';
-import { experiences, reviews as reviewsTable } from '@/db/schema';
+import { experiences, guests, reviews as reviewsTable } from '@/db/schema';
 import type { Guest, Review } from '@/db/schema';
 import type { ReviewAggregate, ReviewSummary } from '@/features/reviews/types';
 import { aggregateReviews } from '@/features/reviews/lib/aggregate';
+import { reportError } from '@/lib/log';
+import { getCurrentUser } from '@/features/auth/queries';
 import * as sample from '@/features/reviews/lib/sample-data';
 
 /**
@@ -111,14 +113,21 @@ export async function getReviewForBooking(bookingId: string): Promise<{
   rating: ReviewSummary['rating'];
   textEn: string | null;
   textAr: string | null;
+  /** ISO end of the 24h edit window — the UI swaps to read-only past it. */
+  editableUntil: string;
 } | null> {
   if (!hasDb()) return null;
   const row = await db.query.reviews.findFirst({
     where: (r) => eq(r.bookingId, bookingId),
-    columns: { rating: true, textEn: true, textAr: true },
+    columns: { rating: true, textEn: true, textAr: true, editableUntil: true },
   });
   if (!row) return null;
-  return { rating: clampRating(row.rating), textEn: row.textEn, textAr: row.textAr };
+  return {
+    rating: clampRating(row.rating),
+    textEn: row.textEn,
+    textAr: row.textAr,
+    editableUntil: row.editableUntil.toISOString(),
+  };
 }
 
 /**
@@ -141,18 +150,28 @@ export async function getRatingsBySlug(): Promise<Map<string, ReviewAggregate>> 
     }
     return map;
   }
-  const rows = await db
-    .select({
-      slug: experiences.slug,
-      count: count(reviewsTable.id),
-      // avg() returns a string in Drizzle (PG numeric), so we coerce
-      // to a number after the query.
-      avg: avg(reviewsTable.rating),
-    })
-    .from(reviewsTable)
-    .innerJoin(experiences, eq(reviewsTable.experienceId, experiences.id))
-    .where(isNull(reviewsTable.hiddenAt))
-    .groupBy(experiences.slug);
+  // Ratings are decorative metadata on the catalog cards. If this
+  // aggregate fails (e.g. a transient DB/pooler hiccup), degrade to "no
+  // ratings" rather than throwing — a broken reviews query must never take
+  // down the entire experience catalog, which depends on this accessor.
+  let rows: { slug: string; count: number; avg: string | null }[];
+  try {
+    rows = await db
+      .select({
+        slug: experiences.slug,
+        count: count(reviewsTable.id),
+        // avg() returns a string in Drizzle (PG numeric), so we coerce
+        // to a number after the query.
+        avg: avg(reviewsTable.rating),
+      })
+      .from(reviewsTable)
+      .innerJoin(experiences, eq(reviewsTable.experienceId, experiences.id))
+      .where(isNull(reviewsTable.hiddenAt))
+      .groupBy(experiences.slug);
+  } catch (error) {
+    reportError(error, { surface: 'reviews:getRatingsBySlug' });
+    return new Map();
+  }
 
   const map = new Map<string, ReviewAggregate>();
   for (const row of rows) {
@@ -168,4 +187,65 @@ export async function getRatingsBySlug(): Promise<Map<string, ReviewAggregate>> 
     });
   }
   return map;
+}
+
+/** A review row as the host's reviews page renders it. */
+export interface HostReviewRow {
+  id: string;
+  rating: ReviewSummary['rating'];
+  textEn: string | null;
+  textAr: string | null;
+  hostReply: string | null;
+  createdAt: string;
+  guestName: string;
+  experienceSlug: string;
+  experienceTitleEn: string;
+  experienceTitleAr: string;
+}
+
+/**
+ * Every visible review across the signed-in host's experiences,
+ * newest first. Host identity resolves from the session (`hosts.userId`)
+ * so one host can never list another's reviews. Hidden (moderated)
+ * reviews are excluded — the guest can't see them, so the host
+ * shouldn't reply to them.
+ */
+export async function listReviewsForHost(): Promise<readonly HostReviewRow[]> {
+  if (!hasDb()) return [];
+  const user = await getCurrentUser();
+  if (!user) return [];
+  try {
+    const host = await db.query.hosts.findFirst({
+      where: (h) => eq(h.userId, user.id),
+      columns: { id: true },
+    });
+    if (!host) return [];
+    const rows = await db
+      .select({
+        id: reviewsTable.id,
+        rating: reviewsTable.rating,
+        textEn: reviewsTable.textEn,
+        textAr: reviewsTable.textAr,
+        hostReply: reviewsTable.hostReply,
+        createdAt: reviewsTable.createdAt,
+        guestName: guests.name,
+        experienceSlug: experiences.slug,
+        experienceTitleEn: experiences.titleEn,
+        experienceTitleAr: experiences.titleAr,
+      })
+      .from(reviewsTable)
+      .innerJoin(experiences, eq(reviewsTable.experienceId, experiences.id))
+      .innerJoin(guests, eq(reviewsTable.guestId, guests.id))
+      .where(and(eq(experiences.hostId, host.id), isNull(reviewsTable.hiddenAt)))
+      .orderBy(desc(reviewsTable.createdAt))
+      .limit(500);
+    return rows.map((row) => ({
+      ...row,
+      rating: clampRating(row.rating),
+      createdAt: row.createdAt.toISOString(),
+    }));
+  } catch (error) {
+    reportError(error, { surface: 'reviews:listForHost' });
+    return [];
+  }
 }

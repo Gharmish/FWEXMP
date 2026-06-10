@@ -1,5 +1,5 @@
 import { cookies } from 'next/headers';
-import { hasSupabaseAuth } from '@/lib/env';
+import { hasSupabaseAuth, stubAuthAllowed } from '@/lib/env';
 import { getSupabaseServerClient } from '@/lib/supabase/server';
 import { reportError } from '@/lib/log';
 import { STUB_SESSION_COOKIE, parseStubSessionCookie } from '@/features/auth/lib/stub-session';
@@ -37,6 +37,11 @@ export async function getSession(): Promise<Session | null> {
       return null;
     }
   }
+
+  // Fail closed: never honour a stub-session cookie in production (where
+  // Supabase should be configured). Prevents fake sessions if the Supabase
+  // env vars are ever missing in a prod deploy.
+  if (!stubAuthAllowed()) return null;
 
   const store = await cookies();
   const user = parseStubSessionCookie(store.get(STUB_SESSION_COOKIE)?.value);

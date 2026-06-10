@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { NextIntlClientProvider, hasLocale } from 'next-intl';
-import { setRequestLocale } from 'next-intl/server';
+import { getTranslations, setRequestLocale } from 'next-intl/server';
 
 /**
  * The locale layout reads cookies (Navbar → getCurrentUser) and is the
@@ -61,6 +61,7 @@ export default async function LocaleLayout({
   setRequestLocale(locale);
 
   const dir = localeDirection[locale as Locale];
+  const t = await getTranslations('nav');
 
   return (
     <html
@@ -70,8 +71,17 @@ export default async function LocaleLayout({
     >
       <body className="flex min-h-full flex-col">
         <NextIntlClientProvider>
+          {/* Keyboard bypass-block (WCAG 2.4.1): hidden until focused. */}
+          <a
+            href="#main-content"
+            className="bg-sarat-black text-fog-white rounded-button absolute -top-12 z-[60] ms-4 px-4 py-2 text-sm font-medium transition-[top] duration-200 focus:top-4"
+          >
+            {t('skipToContent')}
+          </a>
           <Navbar />
-          <main className="flex flex-1 flex-col">{children}</main>
+          <main id="main-content" tabIndex={-1} className="flex flex-1 flex-col">
+            {children}
+          </main>
           <Footer />
         </NextIntlClientProvider>
       </body>

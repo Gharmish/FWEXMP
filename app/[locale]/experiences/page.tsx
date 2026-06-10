@@ -11,6 +11,7 @@ import { SearchInput } from '@/features/experiences/components/search-input';
 import { EmptyState } from '@/features/experiences/components/empty-state';
 import { Stagger, StaggerItem } from '@/components/ui/motion';
 import { CATEGORIES } from '@/features/experiences/lib/sample-data';
+import { getEnabledCategories } from '@/features/admin/settings/queries';
 import { getExperiencesFiltered, getFeaturedExperiences } from '@/features/experiences/queries';
 import { parseSearchParams } from '@/features/experiences/lib/search';
 import { getWishlistSet } from '@/features/wishlist/queries';
@@ -81,13 +82,26 @@ export default async function ExperiencesIndexPage({
     criteria.categories.length === 0 &&
     !criteria.originalsOnly &&
     criteria.priceBucket === null &&
-    criteria.durationBucket === null;
+    criteria.durationBucket === null &&
+    criteria.city.length === 0 &&
+    criteria.date === null &&
+    criteria.groupSize === null;
 
-  const [results, featured, savedSlugs] = await Promise.all([
+  const [results, featured, savedSlugs, enabledCategories] = await Promise.all([
     getExperiencesFiltered(criteria),
     showFeatured ? getFeaturedExperiences() : Promise.resolve([] as const),
     getWishlistSet(),
+    getEnabledCategories(),
   ]);
+  const categories = CATEGORIES.filter((c) => enabledCategories.includes(c.key));
+
+  // Distinct cities for the (expansion-ready) city filter, and today's
+  // Riyadh date as the date filter's lower bound.
+  const allForFacets = await getExperiencesFiltered({ ...criteria, city: '' });
+  const cities = Array.from(new Set(allForFacets.map((e) => e.city))).sort();
+  const todayRiyadh = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Riyadh' }).format(
+    new Date(),
+  );
 
   const url = `${SITE_URL}/${loc}/experiences`;
 
@@ -160,7 +174,13 @@ export default async function ExperiencesIndexPage({
               <SortSelect />
             </div>
 
-            <FilterBar locale={loc} categories={CATEGORIES} resultCount={results.length} />
+            <FilterBar
+              locale={loc}
+              categories={categories}
+              resultCount={results.length}
+              cities={cities}
+              todayStr={todayRiyadh}
+            />
           </div>
 
           {results.length === 0 ? (

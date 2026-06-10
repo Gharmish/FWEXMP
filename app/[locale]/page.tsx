@@ -13,6 +13,7 @@ import { JsonLd } from '@/components/seo/json-ld';
 import { ExperienceCard } from '@/features/experiences/components/experience-card';
 import { Stagger, StaggerItem } from '@/components/ui/motion';
 import { CATEGORIES } from '@/features/experiences/lib/sample-data';
+import { getPlatformSettings } from '@/features/admin/settings/queries';
 import { getExperiences, getFeaturedExperiences } from '@/features/experiences/queries';
 import { getAllHosts } from '@/features/hosts/queries';
 import { toArabicText } from '@/features/experiences/lib/arabic-content';
@@ -66,12 +67,17 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
     loc === 'en' && 'tracking-[0.2em] uppercase',
   );
 
-  const [experiences, featured, hosts, savedSlugs] = await Promise.all([
+  const [experiences, featured, hosts, savedSlugs, settings] = await Promise.all([
     getExperiences(),
     getFeaturedExperiences(),
     getAllHosts(),
     getWishlistSet(),
+    getPlatformSettings(),
   ]);
+  const categories = CATEGORIES.filter((c) => settings.enabledCategories.includes(c.key));
+  // Admin-set announcement band (Eid hours, road closures, …). Per
+  // locale; an empty value in the active locale hides the band.
+  const announcement = loc === 'ar' ? settings.announcementAr : settings.announcementEn;
 
   const jsonLd = {
     '@context': 'https://schema.org',
@@ -98,6 +104,15 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
   return (
     <div className="flex flex-col">
       <JsonLd data={jsonLd} />
+      {/* Admin announcement band — plain text, dismiss-free by design. */}
+      {announcement && (
+        <p
+          role="status"
+          className="border-habala-mist bg-habala-mist/30 text-sarat-black [border-bottom-width:0.5px] px-6 py-3 text-center text-sm leading-relaxed"
+        >
+          {announcement}
+        </p>
+      )}
       {/* Hero — editorial, type-forward, no imagery (BRIEF §3). */}
       <section className="mx-auto w-full max-w-6xl px-6 py-24 sm:py-32">
         <div className="flex max-w-3xl flex-col gap-6">
@@ -120,7 +135,7 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
       {/* Category strip — each item deep-links to the filtered catalog. */}
       <section className="border-sarat-black/8 [border-top-width:0.5px]">
         <div className="mx-auto flex w-full max-w-6xl flex-wrap gap-x-6 gap-y-2 px-6 py-8">
-          {CATEGORIES.map((c) => (
+          {categories.map((c) => (
             <Link
               key={c.key}
               href={`/experiences?category=${c.key}`}

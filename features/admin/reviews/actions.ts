@@ -2,12 +2,15 @@
 
 import { eq } from 'drizzle-orm';
 import { revalidatePath } from 'next/cache';
+import { z } from 'zod';
 import { db } from '@/lib/db';
 import { serverEnv } from '@/lib/env';
 import { reviews } from '@/db/schema';
 import { reportError } from '@/lib/log';
 import { getCurrentUser } from '@/features/auth/queries';
 import { isAdminUser } from '@/features/admin/auth';
+
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 /**
  * Hide or unhide a review. Hidden reviews are excluded from the public
@@ -28,11 +31,12 @@ export async function setReviewHidden(
   if (!admin || !isAdminUser(admin)) return { success: false, message: 'forbidden' };
   if (!serverEnv.DATABASE_URL) return { success: false, message: 'no_db' };
 
-  const reviewId = formData.get('reviewId');
   const hide = formData.get('hide') === 'true';
-  if (typeof reviewId !== 'string' || reviewId.length === 0) {
+  const parsed = z.string().regex(UUID_RE).safeParse(formData.get('reviewId'));
+  if (!parsed.success) {
     return { success: false, message: 'server' };
   }
+  const reviewId = parsed.data;
 
   try {
     await db

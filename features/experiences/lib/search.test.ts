@@ -25,6 +25,9 @@ function exp(overrides: Partial<ExperienceSummary> & { slug: string }): Experien
     priceSar: overrides.priceSar ?? 300,
     durationMinutes: overrides.durationMinutes ?? 120,
     placeName: overrides.placeName ?? 'Place',
+    city: overrides.city ?? 'Abha',
+    maxGroupSize: overrides.maxGroupSize ?? 10,
+    availabilityWeekdays: overrides.availabilityWeekdays ?? [4, 5, 6],
     hostName: overrides.hostName ?? 'Host',
     hostSlug: overrides.hostSlug ?? 'host',
     featured: overrides.featured ?? false,
@@ -126,6 +129,9 @@ describe('toSearchParams', () => {
       originalsOnly: true,
       priceBucket: '200-500',
       durationBucket: '2-4h',
+      city: 'abha',
+      date: '2026-06-19',
+      groupSize: 4,
       sort: 'priceDesc',
     };
     const qs = toSearchParams(original).toString();
@@ -345,5 +351,41 @@ describe('sortExperiences — ratingDesc', () => {
     const rows = [exp({ slug: 'a', ratingAverage: null }), exp({ slug: 'b', ratingAverage: null })];
     const out = sortExperiences(rows, 'ratingDesc');
     expect(out.map((r) => r.slug)).toEqual(['a', 'b']);
+  });
+});
+
+describe('city / date / group-size filters', () => {
+  const dataset = [
+    exp({ slug: 'small-abha', city: 'Abha', maxGroupSize: 4, availabilityWeekdays: [5, 6] }),
+    exp({ slug: 'big-abha', city: 'Abha', maxGroupSize: 16, availabilityWeekdays: [0, 2] }),
+    exp({ slug: 'rijal', city: 'Rijal Almaa', maxGroupSize: 8, availabilityWeekdays: [5] }),
+  ];
+
+  it('filters by city, case-insensitively', () => {
+    const out = filterExperiences(dataset, { ...EMPTY_CRITERIA, city: 'rijal almaa' });
+    expect(out.map((e) => e.slug)).toEqual(['rijal']);
+  });
+
+  it('keeps only experiences with room for the group', () => {
+    const out = filterExperiences(dataset, { ...EMPTY_CRITERIA, groupSize: 10 });
+    expect(out.map((e) => e.slug)).toEqual(['big-abha']);
+  });
+
+  it('filters by date against the weekly schedule', () => {
+    // 2026-06-19 is a Friday (weekday 5).
+    const friday = filterExperiences(dataset, { ...EMPTY_CRITERIA, date: '2026-06-19' });
+    expect(friday.map((e) => e.slug)).toEqual(['small-abha', 'rijal']);
+    // 2026-06-21 is a Sunday (weekday 0).
+    const sunday = filterExperiences(dataset, { ...EMPTY_CRITERIA, date: '2026-06-21' });
+    expect(sunday.map((e) => e.slug)).toEqual(['big-abha']);
+  });
+
+  it('parses and clamps the group param; rejects malformed dates', () => {
+    expect(parseSearchParams({ group: '3' }).groupSize).toBe(3);
+    expect(parseSearchParams({ group: '999' }).groupSize).toBe(50);
+    expect(parseSearchParams({ group: '0' }).groupSize).toBeNull();
+    expect(parseSearchParams({ group: 'abc' }).groupSize).toBeNull();
+    expect(parseSearchParams({ date: '2026-06-19' }).date).toBe('2026-06-19');
+    expect(parseSearchParams({ date: 'not-a-date' }).date).toBeNull();
   });
 });

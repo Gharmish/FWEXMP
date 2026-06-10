@@ -11,6 +11,9 @@ export interface AdminBookingRow {
   id: string;
   reference: string;
   status: AdminBookingStatus;
+  paymentStatus: (typeof bookings.$inferSelect)['paymentStatus'];
+  /** Whole-SAR refund owed back after a failed automatic refund; null = none. */
+  refundDueSar: number | null;
   date: string;
   startTime: string;
   partySize: number;

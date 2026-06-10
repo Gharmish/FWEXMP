@@ -3,10 +3,27 @@ import {
   addDays,
   bookableDates,
   isDateBookable,
+  isHoldExpired,
   remainingCapacity,
   splitCommission,
   weekdayOf,
 } from '@/features/bookings/lib/availability';
+
+describe('isHoldExpired', () => {
+  const now = new Date('2026-06-04T12:00:00Z');
+  it('is false when there is no deadline (request / payment-off bookings never expire)', () => {
+    expect(isHoldExpired(null, now)).toBe(false);
+  });
+  it('is true once the deadline has passed', () => {
+    expect(isHoldExpired(new Date('2026-06-04T11:59:59Z'), now)).toBe(true);
+  });
+  it('is false while the deadline is still in the future', () => {
+    expect(isHoldExpired(new Date('2026-06-04T12:30:00Z'), now)).toBe(false);
+  });
+  it('treats an exactly-now deadline as expired', () => {
+    expect(isHoldExpired(new Date('2026-06-04T12:00:00Z'), now)).toBe(true);
+  });
+});
 
 describe('weekdayOf', () => {
   it('returns 0=Sun..6=Sat for valid ISO dates', () => {

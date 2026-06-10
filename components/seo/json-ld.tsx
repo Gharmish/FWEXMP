@@ -7,12 +7,14 @@ export interface JsonLdProps {
 }
 
 export function JsonLd({ data }: JsonLdProps) {
-  return (
-    <script
-      type="application/ld+json"
-      // JSON-LD must be raw JSON in a script tag; this is the standard,
-      // safe pattern (no user input is interpolated).
-      dangerouslySetInnerHTML={{ __html: JSON.stringify(data) }}
-    />
-  );
+  // `data` carries host-authored free text (experience title/description,
+  // host bio). `JSON.stringify` does NOT escape `<`, `>`, `&`, so a value
+  // containing `</script>` would break out of the tag (stored XSS). Escape
+  // the HTML-significant characters as \uXXXX — keeps the JSON valid while
+  // neutralising tag-breakout and HTML-comment tricks.
+  const json = JSON.stringify(data)
+    .replace(/</g, '\\u003c')
+    .replace(/>/g, '\\u003e')
+    .replace(/&/g, '\\u0026');
+  return <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: json }} />;
 }
