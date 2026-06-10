@@ -9,7 +9,7 @@ import {
   transitionBooking,
   type AdminBookingActionResult,
 } from '@/features/admin/bookings/actions';
-import type { BookingTransitionTarget } from '@/features/admin/bookings/lib/transitions';
+import type { BookingTransitionTarget } from '@/features/bookings/lib/transitions';
 
 type ErrorKey =
   | 'forbidden'

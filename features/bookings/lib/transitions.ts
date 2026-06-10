@@ -1,10 +1,13 @@
-import type { AdminBookingStatus } from '@/features/admin/bookings/types';
+import type { bookings } from '@/db/schema';
+
+export type BookingStatus = (typeof bookings.$inferSelect)['status'];
 
 /**
- * Booking lifecycle transitions the admin can drive from the bookings
- * list. `refunded` is handled by its own action (`refundBooking`) since
- * it stamps `refundedAt` and has distinct copy ("record a reversal you
- * already issued in Moyasar"), so it is deliberately absent here.
+ * Booking lifecycle transitions an operator (admin, or the host that
+ * owns the experience) can drive from a bookings list. `refunded` is
+ * handled by its own admin action (`refundBooking`) since it stamps
+ * `refundedAt` and has distinct copy ("record a reversal you already
+ * issued in the gateway"), so it is deliberately absent here.
  *
  * The map is the single source of truth for both the UI (which buttons
  * a row shows) and the server action (which `from` states a target
@@ -27,7 +30,7 @@ export const BOOKING_TRANSITION_TARGETS: readonly BookingTransitionTarget[] = [
 ];
 
 /** For a given current status, the transitions the admin may perform. */
-const TRANSITIONS: Record<AdminBookingStatus, readonly BookingTransitionTarget[]> = {
+const TRANSITIONS: Record<BookingStatus, readonly BookingTransitionTarget[]> = {
   pending: ['confirmed', 'cancelled'],
   confirmed: ['completed', 'cancelled'],
   completed: [],
@@ -36,20 +39,18 @@ const TRANSITIONS: Record<AdminBookingStatus, readonly BookingTransitionTarget[]
 };
 
 /** Transitions available from `status` (order is the UI display order). */
-export function availableTransitions(
-  status: AdminBookingStatus,
-): readonly BookingTransitionTarget[] {
+export function availableTransitions(status: BookingStatus): readonly BookingTransitionTarget[] {
   return TRANSITIONS[status];
 }
 
 /** Whether `to` is a legal transition from `from`. */
-export function canTransition(from: AdminBookingStatus, to: BookingTransitionTarget): boolean {
+export function canTransition(from: BookingStatus, to: BookingTransitionTarget): boolean {
   return TRANSITIONS[from].includes(to);
 }
 
 /** The `from` statuses that may transition into `to` — drives the conditional UPDATE WHERE. */
-export function sourcesFor(to: BookingTransitionTarget): readonly AdminBookingStatus[] {
-  return (Object.keys(TRANSITIONS) as AdminBookingStatus[]).filter((from) =>
+export function sourcesFor(to: BookingTransitionTarget): readonly BookingStatus[] {
+  return (Object.keys(TRANSITIONS) as BookingStatus[]).filter((from) =>
     TRANSITIONS[from].includes(to),
   );
 }

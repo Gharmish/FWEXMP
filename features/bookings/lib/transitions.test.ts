@@ -4,7 +4,7 @@ import {
   canTransition,
   sourcesFor,
   type BookingTransitionTarget,
-} from '@/features/admin/bookings/lib/transitions';
+} from '@/features/bookings/lib/transitions';
 
 describe('availableTransitions', () => {
   it('lets a pending booking be confirmed or cancelled', () => {
