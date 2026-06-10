@@ -11,7 +11,7 @@ import { formatDate, formatInteger } from '@/lib/format';
 import { Price } from '@/components/ui/price';
 import { getAdminBookingById, isAdminAndDbReady } from '@/features/admin/bookings/queries';
 import type { AdminBookingStatus } from '@/features/admin/bookings/types';
-import { availableTransitions } from '@/features/admin/bookings/lib/transitions';
+import { availableTransitions } from '@/features/bookings/lib/transitions';
 import { RefundButton } from '@/app/[locale]/admin/bookings/refund-button';
 import { TransitionButton } from '@/app/[locale]/admin/bookings/transition-button';
 

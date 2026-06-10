@@ -56,6 +56,26 @@ export function baseUrlFor(mode: HyperpayConfig['mode'], override: string): stri
 }
 
 /**
+ * Build the `POST /v1/payments/{id}` refund body (`paymentType=RF`).
+ * A refund references the original debit by its payment id, so no
+ * customer/billing details travel — just entity, amount, currency.
+ * Same test-flag rule as checkouts: `testMode=EXTERNAL` never reaches
+ * the live server.
+ */
+export function buildRefundBody(amountSar: number, cfg: HyperpayConfig): URLSearchParams {
+  const body = new URLSearchParams({
+    entityId: cfg.entityId,
+    amount: formatAmount(amountSar),
+    currency: 'SAR',
+    paymentType: 'RF',
+  });
+  if (cfg.mode === 'test') {
+    body.set('testMode', 'EXTERNAL');
+  }
+  return body;
+}
+
+/**
  * Build the `POST /v1/checkouts` request body. Pure (config injected) so
  * the test-flag gating and parameter set are unit-testable without env.
  *

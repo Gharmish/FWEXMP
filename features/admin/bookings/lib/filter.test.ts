@@ -11,6 +11,8 @@ function row(over: Partial<AdminBookingRow>): AdminBookingRow {
     id: 'id',
     reference: 'ref-abc',
     status: 'pending',
+    paymentStatus: 'unpaid',
+    refundDueSar: null,
     date: '2026-06-10',
     startTime: '09:00',
     partySize: 2,

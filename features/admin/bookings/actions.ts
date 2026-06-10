@@ -1,6 +1,6 @@
 'use server';
 
-import { and, eq, inArray, ne, sql } from 'drizzle-orm';
+import { and, eq, inArray, ne, or, sql } from 'drizzle-orm';
 import { revalidatePath } from 'next/cache';
 import { db } from '@/lib/db';
 import { serverEnv } from '@/lib/env';
@@ -10,7 +10,7 @@ import { reportError } from '@/lib/log';
 import { getCurrentUser } from '@/features/auth/queries';
 import { isAdminUser } from '@/features/admin/auth';
 import { refundBookingSchema, transitionBookingSchema } from '@/features/admin/bookings/schemas';
-import { sourcesFor } from '@/features/admin/bookings/lib/transitions';
+import { sourcesFor } from '@/features/bookings/lib/transitions';
 import { ACTIVE_BOOKING_STATUSES, remainingCapacity } from '@/features/bookings/lib/availability';
 
 /**
@@ -73,12 +73,23 @@ export async function refundBooking(
 
   try {
     // Conditional update: only flips refundable statuses. `pending`
-    // bookings haven't taken money yet (cancel, don't refund);
-    // `cancelled` / `refunded` are terminal.
+    // bookings haven't taken money yet (cancel, don't refund) and
+    // `refunded` is terminal. `cancelled` is refundable only when the
+    // guest had paid — the guest-cancellation flow leaves a paid
+    // booking `cancelled` + `refundDueSar` when the automatic gateway
+    // refund failed; this action records the manual reversal.
     const updated = await db
       .update(bookings)
-      .set({ status: 'refunded', refundedAt: new Date() })
-      .where(and(eq(bookings.id, bookingId), inArray(bookings.status, ['confirmed', 'completed'])))
+      .set({ status: 'refunded', refundedAt: new Date(), refundDueSar: null })
+      .where(
+        and(
+          eq(bookings.id, bookingId),
+          or(
+            inArray(bookings.status, ['confirmed', 'completed']),
+            and(eq(bookings.status, 'cancelled'), eq(bookings.paymentStatus, 'paid')),
+          ),
+        ),
+      )
       .returning({ id: bookings.id });
     if (updated.length === 0) {
       const exists = await db.query.bookings.findFirst({

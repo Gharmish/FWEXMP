@@ -27,3 +27,15 @@ export const bookingRequestSchema = z.object({
 });
 
 export type BookingRequestInput = z.infer<typeof bookingRequestSchema>;
+
+/**
+ * Guest cancellation. The booking is addressed by its public reference
+ * (the idempotency-key UUID); the action separately verifies the caller
+ * may act on it (owner session or last-booking cookie).
+ */
+export const cancelBookingSchema = z.object({
+  reference: z.string().uuid(),
+  locale: z.enum(['en', 'ar']),
+});
+
+export type CancelBookingInput = z.infer<typeof cancelBookingSchema>;

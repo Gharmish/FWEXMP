@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   baseUrlFor,
   buildCheckoutBody,
+  buildRefundBody,
   classifyResult,
   formatAmount,
   isSuccessfulResult,
@@ -100,5 +101,23 @@ describe('buildCheckoutBody', () => {
     const body = buildCheckoutBody(input, liveCfg);
     expect(body.get('testMode')).toBeNull();
     expect(body.get('customParameters[3DS2_enrolled]')).toBeNull();
+  });
+});
+
+describe('buildRefundBody', () => {
+  it('builds an RF body with entity, amount, and currency only', () => {
+    const body = buildRefundBody(960, testCfg);
+    expect(body.get('entityId')).toBe('ent_test');
+    expect(body.get('amount')).toBe('960.00');
+    expect(body.get('currency')).toBe('SAR');
+    expect(body.get('paymentType')).toBe('RF');
+    // Refunds reference the original debit — no customer/billing data travels.
+    expect(body.get('customer.email')).toBeNull();
+    expect(body.get('merchantTransactionId')).toBeNull();
+  });
+
+  it('adds the test flag in test mode and NEVER in live mode', () => {
+    expect(buildRefundBody(100, testCfg).get('testMode')).toBe('EXTERNAL');
+    expect(buildRefundBody(100, liveCfg).get('testMode')).toBeNull();
   });
 });
