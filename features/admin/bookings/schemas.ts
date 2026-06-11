@@ -22,7 +22,7 @@ export type RefundBookingInput = z.infer<typeof refundBookingSchema>;
  */
 export const transitionBookingSchema = z.object({
   bookingId: z.string().uuid(),
-  to: z.enum(['confirmed', 'completed', 'cancelled']),
+  to: z.enum(['confirmed', 'completed', 'cancelled', 'declined']),
   locale: localeSchema,
 });
 

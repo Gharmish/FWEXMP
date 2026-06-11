@@ -44,22 +44,35 @@ Calm, confident, culturally rooted, premium without pretension. Apple-like restr
 
 Use these tokens exclusively. No off-palette hex values anywhere in the codebase.
 
-| Token           | Hex       | Role                                           |
-| --------------- | --------- | ---------------------------------------------- |
-| `sarat-black`   | `#0A0A0A` | Text, dark sections, Originals tier            |
-| `saffron-gold`  | `#F5B800` | Primary CTAs, premium accent, emphasis         |
-| `sarawat-blue`  | `#2E5BFF` | Family category, informational links           |
-| `soudah-sunset` | `#E85D27` | Adventure category, warmth                     |
-| `juniper-green` | `#1F7A5C` | Nature category, success states                |
-| `al-qatt-red`   | `#C8312A` | Heritage category, destructive/error states    |
-| `fog-white`     | `#F5F2EC` | Primary background, surfaces in dark mode text |
-| `honey-amber`   | `#F4B898` | Soft accent, secondary surfaces                |
-| `habala-mist`   | `#BFD4E8` | Soft accent, info surfaces                     |
-| `tihama-coral`  | `#FFB089` | Soft accent                                    |
-| `wadi-mint`     | `#9FD9C0` | Wellness category                              |
-| `rijal-clay`    | `#8B2E20` | Deep accent, sold-out / past states            |
+| Token           | Hex       | Role                                                                                                             |
+| --------------- | --------- | ---------------------------------------------------------------------------------------------------------------- |
+| `sarat-black`   | `#0A0A0A` | Text, dark sections, Originals tier                                                                              |
+| `saffron-gold`  | `#F5B800` | Primary CTAs, premium accent, emphasis                                                                           |
+| `sarawat-blue`  | `#2E5BFF` | Family category, informational links                                                                             |
+| `soudah-sunset` | `#E85D27` | Adventure category, warmth                                                                                       |
+| `juniper-green` | `#1F7A5C` | Nature category, success states                                                                                  |
+| `al-qatt-red`   | `#C8312A` | Heritage category, destructive/error states                                                                      |
+| `white`         | `#FFFFFF` | Primary background, all surfaces, text on dark sections (premium redesign 2026-06; replaces Fog White `#F5F2EC`) |
+| `mist`          | `#FAFAFA` | Secondary surfaces only: section bands, wells, table headers (`mist-deep` `#F5F5F5` for hover/pressed)           |
+| `honey-amber`   | `#F4B898` | Soft accent, secondary surfaces                                                                                  |
+| `habala-mist`   | `#BFD4E8` | Soft accent, info surfaces                                                                                       |
+| `tihama-coral`  | `#FFB089` | Soft accent                                                                                                      |
+| `wadi-mint`     | `#9FD9C0` | Wellness category                                                                                                |
+| `rijal-clay`    | `#8B2E20` | Deep accent, sold-out / past states                                                                              |
 
 Each primary color has a `-50`, `-100`, `-200`, `-400`, `-600`, `-800`, `-900` ramp generated for fills and tints — keep these in `tailwind.config.ts`.
+
+#### Semantic status tones (premium redesign 2026-06)
+
+Status chips and banners always pair a `*-surface` background with the matching text tone. All are aliases onto the brand ramps — no new hex:
+
+| Semantic  | Text tone           | Surface             | Used for                                                           |
+| --------- | ------------------- | ------------------- | ------------------------------------------------------------------ |
+| `success` | `juniper-green-800` | `juniper-green-100` | Confirmed, completed, paid                                         |
+| `pending` | `saffron-gold-800`  | `saffron-gold-100`  | Request-to-book awaiting host approval — never the confirmed green |
+| `warning` | `soudah-sunset-800` | `soudah-sunset-100` | Expiring soon, action needed                                       |
+| `error`   | `al-qatt-red-800`   | `al-qatt-red-100`   | Declined, failed, destructive                                      |
+| `info`    | `habala-mist-800`   | `habala-mist-100`   | Neutral notices, announcements                                     |
 
 ### Category-to-color map (immutable)
 
@@ -78,7 +91,7 @@ Each primary color has a `-50`, `-100`, `-200`, `-400`, `-600`, `-800`, `-900` r
 **English**: Bricolage Grotesque (variable font, weights 200–800, exploit the `opsz` optical-size axis aggressively).
 **Arabic**: IBM Plex Sans Arabic (weights 100–700).
 
-**Weights used in product: only 400 and 500.** Never 600, 700, or 800. The restraint is the brand.
+**Weights used in product: 400 and 500 — plus 600 for Display, H1, and large stat numerals only** (premium redesign 2026-06; owner-approved exception). Never 600 in body copy, labels, or H2/H3. Never 700 or 800 anywhere. The restraint is still the brand.
 
 Load both via `next/font` with `display: swap`. Self-host, do not link to Google Fonts in production.
 
@@ -86,8 +99,8 @@ Load both via `next/font` with `display: swap`. Self-host, do not link to Google
 
 | Role       | Size  | Weight | opsz | Tracking           |
 | ---------- | ----- | ------ | ---- | ------------------ |
-| Display    | 72–96 | 500    | 96   | -0.04em            |
-| H1         | 48–64 | 500    | 56   | -0.035em           |
+| Display    | 72–96 | 600    | 96   | -0.04em            |
+| H1         | 48–64 | 600    | 56   | -0.035em           |
 | H2         | 32–36 | 500    | 36   | -0.03em            |
 | H3         | 24    | 500    | 24   | -0.025em           |
 | Body large | 18    | 400    | 18   | -0.01em            |
@@ -122,7 +135,7 @@ Use the 8-point grid exclusively: `4, 8, 12, 16, 24, 32, 48, 64, 80, 120` (pixel
 
 ### Shadows
 
-**None on UI components.** Use 0.5px borders for separation. Shadows are reserved exclusively for hero atmospheric imagery where they represent real light.
+**None on inline UI components** — cards, buttons, inputs stay shadowless; 0.5px borders do the separation. One exception (premium redesign 2026-06): the single `--shadow-overlay` token (`0 8px 32px rgb(10 10 10 / 0.10), 0 1px 2px rgb(10 10 10 / 0.04)`) is allowed on floating layers only: modals, dropdowns, popovers, and the sticky booking bar. Shadows in imagery remain reserved for real light in hero photography.
 
 ### Motion
 

@@ -86,7 +86,7 @@ export default async function AdminExperienceModerationPage({
           {t('backToAdmin')}
         </Link>
         <p className={eyebrowClassName}>{t('experienceModerationList.eyebrow')}</p>
-        <h1 className="font-display text-4xl font-medium tracking-[-0.035em] text-balance sm:text-5xl">
+        <h1 className="font-display text-4xl font-semibold tracking-[-0.035em] text-balance sm:text-5xl">
           {t('experienceModerationList.title')}
         </h1>
         <p className="text-sarat-black-600 max-w-2xl text-base leading-relaxed">
@@ -94,7 +94,7 @@ export default async function AdminExperienceModerationPage({
         </p>
         <Link
           href="/admin/experiences/new"
-          className="bg-sarat-black text-fog-white rounded-button inline-flex min-h-11 items-center gap-2 self-start px-5 text-sm font-medium transition-transform duration-200 hover:-translate-y-px"
+          className="bg-sarat-black rounded-button inline-flex min-h-11 items-center gap-2 self-start px-5 text-sm font-medium text-white transition-transform duration-200 hover:-translate-y-px"
         >
           <Plus className="size-4 shrink-0" aria-hidden />
           {t('experienceModerationList.create')}
@@ -116,7 +116,7 @@ export default async function AdminExperienceModerationPage({
                 className={cn(
                   'rounded-button min-h-11 px-4 py-2 text-sm font-medium transition-colors duration-200',
                   active
-                    ? 'bg-sarat-black text-fog-white'
+                    ? 'bg-sarat-black text-white'
                     : 'border-sarat-black/20 text-sarat-black [border-width:0.5px] hover:-translate-y-px',
                 )}
               >

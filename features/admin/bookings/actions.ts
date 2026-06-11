@@ -3,7 +3,7 @@
 import { and, eq, inArray, ne, or, sql } from 'drizzle-orm';
 import { revalidatePath } from 'next/cache';
 import { db } from '@/lib/db';
-import { serverEnv } from '@/lib/env';
+import { serverEnv, hasHyperpay } from '@/lib/env';
 import { bookings, experiences } from '@/db/schema';
 import { redirect } from '@/lib/i18n';
 import { reportError } from '@/lib/log';
@@ -12,6 +12,11 @@ import { isAdminUser } from '@/features/admin/auth';
 import { refundBookingSchema, transitionBookingSchema } from '@/features/admin/bookings/schemas';
 import { sourcesFor } from '@/features/bookings/lib/transitions';
 import { ACTIVE_BOOKING_STATUSES, remainingCapacity } from '@/features/bookings/lib/availability';
+import { getPlatformSettings } from '@/features/admin/settings/queries';
+import {
+  sendBookingApprovedEmail,
+  sendBookingDeclinedEmail,
+} from '@/features/bookings/lib/booking-email';
 
 /**
  * Admin booking actions.
@@ -142,7 +147,15 @@ export async function transitionBooking(
       const outcome = await db.transaction(async (tx) => {
         const booking = await tx.query.bookings.findFirst({
           where: (b) => eq(b.id, bookingId),
-          columns: { id: true, experienceId: true, date: true, partySize: true, status: true },
+          columns: {
+            id: true,
+            experienceId: true,
+            date: true,
+            partySize: true,
+            status: true,
+            paymentStatus: true,
+            idempotencyKey: true,
+          },
         });
         if (!booking) return 'not_found' as const;
         // Same conditional-transition guard as below, evaluated in-txn.
@@ -173,22 +186,48 @@ export async function transitionBooking(
         if (remainingCapacity(experience.maxGroupSize, booked) < booking.partySize) {
           return 'over_capacity' as const;
         }
-        await tx.update(bookings).set({ status: 'confirmed' }).where(eq(bookings.id, bookingId));
-        return 'ok' as const;
+        // Approval side effects (pay-after-approval): stamp approvedAt
+        // and open the guest's payment window when online payment is on.
+        const needsPayment = hasHyperpay() && booking.paymentStatus === 'unpaid';
+        const { approvalPaymentWindowHours } = await getPlatformSettings();
+        await tx
+          .update(bookings)
+          .set({
+            status: 'confirmed',
+            approvedAt: new Date(),
+            paymentDeadline: needsPayment
+              ? new Date(Date.now() + approvalPaymentWindowHours * 3_600_000)
+              : null,
+          })
+          .where(eq(bookings.id, bookingId));
+        return { reference: booking.idempotencyKey } as const;
       });
-      if (outcome !== 'ok') return { success: false, message: outcome };
+      if (typeof outcome === 'string') return { success: false, message: outcome };
+      // Tell the guest the request was approved — best-effort.
+      try {
+        await sendBookingApprovedEmail(outcome.reference);
+      } catch (error) {
+        reportError(error, { surface: 'admin:approveEmail', bookingId });
+      }
     } else {
       const updated = await db
         .update(bookings)
         .set({ status: to })
         .where(and(eq(bookings.id, bookingId), inArray(bookings.status, [...sourcesFor(to)])))
-        .returning({ id: bookings.id });
+        .returning({ id: bookings.id, reference: bookings.idempotencyKey });
       if (updated.length === 0) {
         const exists = await db.query.bookings.findFirst({
           where: (b) => eq(b.id, bookingId),
           columns: { id: true },
         });
         return { success: false, message: exists ? 'wrong_state' : 'not_found' };
+      }
+      if (to === 'declined') {
+        try {
+          await sendBookingDeclinedEmail(updated[0].reference);
+        } catch (error) {
+          reportError(error, { surface: 'admin:declineEmail', bookingId });
+        }
       }
     }
   } catch (error) {

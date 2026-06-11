@@ -15,13 +15,43 @@ export async function Footer() {
   const year = new Date().getFullYear();
   const brand = locale === 'ar' ? 'غارميش' : 'Gharmish';
 
-  const links: Array<{ href: string; label: string }> = [
+  const exploreLinks: Array<{ href: string; label: string }> = [
     { href: '/experiences', label: t('linkExperiences') },
     { href: '/hosts', label: t('linkHosts') },
     { href: '/host/apply', label: t('linkHostApply') },
     { href: '/wishlist', label: t('linkWishlist') },
     { href: '/me', label: t('linkMe') },
   ];
+
+  const supportLinks: Array<{ href: string; label: string }> = [
+    { href: '/how-it-works', label: t('linkHowItWorks') },
+    { href: '/trust-and-safety', label: t('linkTrustSafety') },
+    { href: '/cancellation-policy', label: t('linkCancellation') },
+    { href: '/help', label: t('linkHelp') },
+  ];
+
+  const columnLabelClassName = cn(
+    'text-sarat-black-600 text-[11px]',
+    locale === 'en' && 'tracking-[0.2em] uppercase',
+  );
+
+  const renderColumn = (label: string, links: Array<{ href: string; label: string }>) => (
+    <nav aria-label={label} className="flex flex-col gap-2">
+      <p className={columnLabelClassName}>{label}</p>
+      <ul className="flex flex-col gap-2">
+        {links.map((link) => (
+          <li key={link.href}>
+            <Link
+              href={link.href}
+              className="text-sarat-black inline-flex min-h-11 items-center text-sm font-medium transition-opacity duration-200 hover:opacity-60"
+            >
+              {link.label}
+            </Link>
+          </li>
+        ))}
+      </ul>
+    </nav>
+  );
 
   return (
     <footer className="border-sarat-black/8 [border-top-width:0.5px] print:hidden">
@@ -31,28 +61,10 @@ export async function Footer() {
             <Wordmark locale={locale} />
             <p className="text-sarat-black-600 max-w-md text-base">{t('tagline')}</p>
           </div>
-          <nav aria-label={t('exploreLabel')} className="flex flex-col gap-2">
-            <p
-              className={cn(
-                'text-sarat-black-600 text-[11px]',
-                locale === 'en' && 'tracking-[0.2em] uppercase',
-              )}
-            >
-              {t('exploreLabel')}
-            </p>
-            <ul className="flex flex-col gap-2">
-              {links.map((link) => (
-                <li key={link.href}>
-                  <Link
-                    href={link.href}
-                    className="text-sarat-black inline-flex min-h-11 items-center text-sm font-medium transition-opacity duration-200 hover:opacity-60"
-                  >
-                    {link.label}
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          </nav>
+          <div className="flex flex-col gap-8 sm:flex-row sm:gap-16">
+            {renderColumn(t('exploreLabel'), exploreLinks)}
+            {renderColumn(t('supportLabel'), supportLinks)}
+          </div>
         </div>
         <div className="border-sarat-black/8 text-sarat-black-600 flex flex-col gap-1 [border-top-width:0.5px] pt-6 text-sm">
           <span>

@@ -17,7 +17,7 @@ export type ColorToken =
   | 'soudah-sunset'
   | 'juniper-green'
   | 'al-qatt-red'
-  | 'fog-white'
+  | 'white'
   | 'honey-amber'
   | 'habala-mist'
   | 'tihama-coral'
@@ -114,17 +114,20 @@ export const COLORS: Readonly<Record<ColorToken, ColorEntry>> = {
       900: '#551916',
     },
   },
-  'fog-white': {
-    base: '#F5F2EC',
-    role: 'Primary background, surfaces in dark mode text',
+  white: {
+    base: '#FFFFFF',
+    role: 'Primary background, all surfaces; text on dark sections',
+    // Neutral surface tints, not text tones. 50/100 are exposed in
+    // globals.css as --color-mist / --color-mist-deep (section bands,
+    // wells); deeper stops exist only to satisfy the ramp shape.
     ramp: {
-      50: '#F7F5F3',
-      100: '#EDEAE3',
-      200: '#DFD7C9',
-      400: '#BEAC88',
-      600: '#967F4F',
-      800: '#605134',
-      900: '#453B27',
+      50: '#FAFAFA',
+      100: '#F5F5F5',
+      200: '#EBEBEB',
+      400: '#D9D9D9',
+      600: '#BFBFBF',
+      800: '#8C8C8C',
+      900: '#666666',
     },
   },
   'honey-amber': {

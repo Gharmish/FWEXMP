@@ -69,7 +69,7 @@ export function ReportProblemForm({ reference, locale, copy }: ReportProblemForm
           maxLength={DISPUTE_MESSAGE_MAX}
           required
           placeholder={copy.placeholder}
-          className="rounded-input border-sarat-black/20 bg-fog-white text-sarat-black w-full [border-width:0.5px] p-3 text-base"
+          className="rounded-input border-sarat-black/20 text-sarat-black w-full [border-width:0.5px] bg-white p-3 text-base"
         />
         {error && (
           <p role="alert" className="text-al-qatt-red-800 text-sm">

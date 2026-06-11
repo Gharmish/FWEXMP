@@ -21,7 +21,8 @@ export const bricolage = localFont({
 
 /**
  * IBM Plex Sans Arabic — Arabic face, used when `dir="rtl"`.
- * Self-hosted, weights 400 and 500 only (the only weights the brand uses).
+ * Self-hosted, weights 400/500 plus 600 for Display/H1 and stat numerals
+ * only (premium redesign 2026-06; body and labels stay 400/500).
  */
 export const ibmPlexArabic = localFont({
   src: [
@@ -33,6 +34,11 @@ export const ibmPlexArabic = localFont({
     {
       path: '../public/fonts/ibm-plex-sans-arabic-500.woff2',
       weight: '500',
+      style: 'normal',
+    },
+    {
+      path: '../public/fonts/ibm-plex-sans-arabic-600.woff2',
+      weight: '600',
       style: 'normal',
     },
   ],

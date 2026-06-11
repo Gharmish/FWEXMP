@@ -24,6 +24,10 @@ export interface HostBookingRow {
   /** Host payout after commission (whole SAR). */
   payoutSar: number;
   createdAt: string;
+  /** Request-to-book: when this pending request auto-expires. ISO; null otherwise. */
+  approvalDeadline: string | null;
+  /** When an approved-but-unpaid hold lapses (guest payment window). ISO; null when none. */
+  paymentDeadline: string | null;
 
   experienceId: string;
   experienceSlug: string;

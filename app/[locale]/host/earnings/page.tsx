@@ -68,7 +68,7 @@ export default async function HostEarningsPage({
           {t('backToDashboard')}
         </Link>
         <p className={eyebrowClassName}>{t('eyebrow')}</p>
-        <h1 className="font-display text-4xl font-medium tracking-[-0.035em] text-balance sm:text-5xl">
+        <h1 className="font-display text-4xl font-semibold tracking-[-0.035em] text-balance sm:text-5xl">
           {t('title')}
         </h1>
         <p className="text-sarat-black-600 max-w-2xl text-base leading-relaxed">{t('intro')}</p>

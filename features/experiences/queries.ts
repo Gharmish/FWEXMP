@@ -36,6 +36,17 @@ const hasDb = (): boolean => Boolean(serverEnv.DATABASE_URL);
 type ExperienceWithHost = Experience & { host: Host };
 type ExperienceWithDetail = ExperienceWithHost & { moments: Moment[] };
 
+/** "New" badge thresholds (owner-approved 2026-06-11). */
+const NEW_LISTING_MAX_AGE_DAYS = 30;
+const NEW_LISTING_MAX_REVIEWS = 3;
+
+function isNewListing(createdAt: Date, reviewCount: number): boolean {
+  const ageMs = Date.now() - createdAt.getTime();
+  return (
+    ageMs < NEW_LISTING_MAX_AGE_DAYS * 24 * 60 * 60 * 1000 && reviewCount < NEW_LISTING_MAX_REVIEWS
+  );
+}
+
 function toSummary(
   row: ExperienceWithHost,
   ratings: Map<string, ReviewAggregate>,
@@ -61,6 +72,7 @@ function toSummary(
     ratingAverage: agg?.average ?? null,
     ratingCount: agg?.count ?? 0,
     heroImage: row.heroImage,
+    isNew: isNewListing(row.createdAt, agg?.count ?? 0),
   };
 }
 
@@ -72,6 +84,7 @@ function toHostInfo(host: Host): HostInfo {
     bioAr: host.bioAr,
     verified: host.verificationStatus === 'verified',
     photoUrl: host.photoUrl,
+    languages: [...host.languages],
   };
 }
 
@@ -94,6 +107,8 @@ function toDetail(
     ...toSummary(row, ratings),
     region: row.region,
     minAge: row.minAge,
+    lat: row.lat,
+    lng: row.lng,
     inclusions: row.inclusions,
     whatToBring: row.whatToBring,
     cancellationPolicy: row.cancellationPolicy,

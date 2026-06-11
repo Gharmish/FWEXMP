@@ -23,6 +23,10 @@ export interface PlatformSettings {
   enabledCategories: readonly Category[];
   /** Free-cancellation window for guests, in hours before start. */
   cancellationWindowHours: number;
+  /** Request-to-book: hours a host has to approve/decline before expiry. */
+  approvalWindowHours: number;
+  /** Request-to-book: hours an approved guest has to pay before release. */
+  approvalPaymentWindowHours: number;
   /** Home-page announcement band, per locale. Null = no band. */
   announcementEn: string | null;
   announcementAr: string | null;
@@ -33,6 +37,8 @@ export const DEFAULT_SETTINGS: PlatformSettings = {
   defaultCommissionBps: 1500,
   enabledCategories: EXPERIENCE_CATEGORIES,
   cancellationWindowHours: 48,
+  approvalWindowHours: 24,
+  approvalPaymentWindowHours: 24,
   announcementEn: null,
   announcementAr: null,
 };
@@ -63,6 +69,8 @@ export async function getPlatformSettings(): Promise<PlatformSettings> {
         defaultCommissionBps: platformSettings.defaultCommissionBps,
         enabledCategories: platformSettings.enabledCategories,
         cancellationWindowHours: platformSettings.cancellationWindowHours,
+        approvalWindowHours: platformSettings.approvalWindowHours,
+        approvalPaymentWindowHours: platformSettings.approvalPaymentWindowHours,
         announcementEn: platformSettings.announcementEn,
         announcementAr: platformSettings.announcementAr,
       })
@@ -76,6 +84,8 @@ export async function getPlatformSettings(): Promise<PlatformSettings> {
       // An empty array would hide every category — treat it as "use defaults".
       enabledCategories: enabled.length > 0 ? enabled : DEFAULT_SETTINGS.enabledCategories,
       cancellationWindowHours: row.cancellationWindowHours,
+      approvalWindowHours: row.approvalWindowHours,
+      approvalPaymentWindowHours: row.approvalPaymentWindowHours,
       announcementEn: row.announcementEn,
       announcementAr: row.announcementAr,
     };

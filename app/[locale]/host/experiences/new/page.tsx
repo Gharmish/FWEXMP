@@ -53,7 +53,7 @@ export default async function NewExperiencePage({
       <section className="mx-auto w-full max-w-3xl px-6 py-20 sm:py-24">
         <div className="flex flex-col gap-4">
           <p className={eyebrowClassName}>{t('new.eyebrow')}</p>
-          <h1 className="font-display text-4xl font-medium tracking-[-0.035em] text-balance sm:text-5xl">
+          <h1 className="font-display text-4xl font-semibold tracking-[-0.035em] text-balance sm:text-5xl">
             {t('new.title')}
           </h1>
           <p className="text-sarat-black-600 max-w-2xl text-base leading-relaxed">

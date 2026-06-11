@@ -121,7 +121,7 @@ export default async function AdminExperienceNewPage({
           <ArrowLeft className="size-4 shrink-0 rtl:rotate-180" aria-hidden />
           {t('backToAdmin')}
         </Link>
-        <h1 className="font-display text-4xl font-medium tracking-[-0.035em] text-balance sm:text-5xl">
+        <h1 className="font-display text-4xl font-semibold tracking-[-0.035em] text-balance sm:text-5xl">
           {tE('createHeading')}
         </h1>
         <p className="text-sarat-black-600 max-w-2xl text-base leading-relaxed">

@@ -73,7 +73,7 @@ export function SearchInput() {
       role="search"
       onSubmit={onSubmit}
       className={cn(
-        'rounded-input border-sarat-black/20 bg-fog-white relative flex h-11 w-full items-center gap-3 [border-width:0.5px] ps-4 pe-2',
+        'rounded-input border-sarat-black/20 relative flex h-11 w-full items-center gap-3 [border-width:0.5px] bg-white ps-4 pe-2',
         isPending && 'opacity-70 transition-opacity',
       )}
     >

@@ -83,7 +83,7 @@ export default async function AdminActivityPage({
       {backLink}
       <div className="flex flex-col gap-4">
         <p className={eyebrowClassName}>{t('activityLog.eyebrow')}</p>
-        <h1 className="font-display text-4xl font-medium tracking-[-0.035em] text-balance sm:text-5xl">
+        <h1 className="font-display text-4xl font-semibold tracking-[-0.035em] text-balance sm:text-5xl">
           {t('activityLog.title')}
         </h1>
         <p className="text-sarat-black-600 max-w-2xl text-base leading-relaxed">

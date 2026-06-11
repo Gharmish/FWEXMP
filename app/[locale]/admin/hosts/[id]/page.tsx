@@ -104,7 +104,7 @@ export default async function AdminHostDetailPage({
           {t('hostsList.title')}
         </Link>
         <div className="flex flex-wrap items-baseline gap-3">
-          <h1 className="font-display text-4xl font-medium tracking-[-0.035em] text-balance sm:text-5xl">
+          <h1 className="font-display text-4xl font-semibold tracking-[-0.035em] text-balance sm:text-5xl">
             {host.name}
           </h1>
           <Badge className={STATUS_TONE[host.status]}>{t(`hostStatus.${host.status}`)}</Badge>

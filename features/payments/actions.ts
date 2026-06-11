@@ -138,13 +138,20 @@ export async function createCheckout(
     if (booking.paymentStatus === 'paid') {
       return { status: 'error', error: 'alreadyPaid', values: echoValues(formData) };
     }
+    // Pay-after-approval: a request that the host hasn't approved yet
+    // (`pending`) — or that was declined/expired — must never reach a
+    // checkout. Only a `confirmed` booking (instant, or an approved
+    // request inside its payment window) can be charged.
+    if (booking.status === 'pending') {
+      return { status: 'error', error: 'notApproved', values: echoValues(formData) };
+    }
+    if (booking.status !== 'confirmed') {
+      return { status: 'error', error: 'expired', values: echoValues(formData) };
+    }
     // Never prepare a checkout for a hold that's been released (cancelled) or
     // has expired — this is what makes auto-release safe: a freed spot can
     // never be paid for, so there's no charge-for-a-given-away-seat race.
-    if (
-      booking.status === 'cancelled' ||
-      (booking.paymentStatus === 'unpaid' && isHoldExpired(booking.paymentDeadline, new Date()))
-    ) {
+    if (booking.paymentStatus === 'unpaid' && isHoldExpired(booking.paymentDeadline, new Date())) {
       return { status: 'error', error: 'expired', values: echoValues(formData) };
     }
 

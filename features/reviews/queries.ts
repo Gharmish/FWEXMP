@@ -1,4 +1,4 @@
-import { and, avg, count, desc, eq, isNull } from 'drizzle-orm';
+import { and, avg, count, desc, eq, gte, isNull } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import { serverEnv } from '@/lib/env';
 import { experiences, guests, reviews as reviewsTable } from '@/db/schema';
@@ -8,6 +8,7 @@ import { aggregateReviews } from '@/features/reviews/lib/aggregate';
 import { reportError } from '@/lib/log';
 import { getCurrentUser } from '@/features/auth/queries';
 import * as sample from '@/features/reviews/lib/sample-data';
+import * as sampleExperiences from '@/features/experiences/lib/sample-data';
 
 /**
  * Reviews data access — mirrors the experience-queries shape: same
@@ -187,6 +188,64 @@ export async function getRatingsBySlug(): Promise<Map<string, ReviewAggregate>> 
     });
   }
   return map;
+}
+
+/** A recent review with its experience, for site-wide social proof. */
+export interface RecentReview extends ReviewSummary {
+  experienceTitleEn: string;
+  experienceTitleAr: string;
+}
+
+/**
+ * Latest visible high-rated reviews across all live experiences — the
+ * home-page social-proof strip. 4★+ only (it's marketing surface, not
+ * the balanced per-experience listing, which stays unfiltered). Same
+ * degrade-to-empty posture as `getRatingsBySlug`.
+ */
+export async function getRecentReviews(limit: number): Promise<readonly RecentReview[]> {
+  if (!hasDb()) {
+    const all = [...sample.getAllReviews()]
+      .filter((r) => r.rating >= 4)
+      .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+      .slice(0, limit);
+    const titles = new Map(sampleExperiences.getExperiences().map((e) => [e.slug, e] as const));
+    return all.map((r) => ({
+      ...r,
+      experienceTitleEn: titles.get(r.experienceSlug)?.titleEn ?? r.experienceSlug,
+      experienceTitleAr: titles.get(r.experienceSlug)?.titleAr ?? r.experienceSlug,
+    }));
+  }
+  try {
+    const rows = await db
+      .select({
+        review: reviewsTable,
+        guestName: guests.name,
+        slug: experiences.slug,
+        titleEn: experiences.titleEn,
+        titleAr: experiences.titleAr,
+      })
+      .from(reviewsTable)
+      .innerJoin(experiences, eq(reviewsTable.experienceId, experiences.id))
+      .innerJoin(guests, eq(reviewsTable.guestId, guests.id))
+      .where(and(isNull(reviewsTable.hiddenAt), gte(reviewsTable.rating, 4)))
+      .orderBy(desc(reviewsTable.createdAt))
+      .limit(limit);
+    return rows.map((row) => ({
+      id: row.review.id,
+      experienceSlug: row.slug,
+      guestName: row.guestName,
+      rating: clampRating(row.review.rating),
+      textEn: row.review.textEn,
+      textAr: row.review.textAr,
+      hostReply: row.review.hostReply,
+      createdAt: row.review.createdAt.toISOString(),
+      experienceTitleEn: row.titleEn,
+      experienceTitleAr: row.titleAr,
+    }));
+  } catch (error) {
+    reportError(error, { surface: 'reviews:getRecentReviews' });
+    return [];
+  }
 }
 
 /** A review row as the host's reviews page renders it. */

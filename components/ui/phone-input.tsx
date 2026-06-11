@@ -94,7 +94,7 @@ export function PhoneInput({
         value={iso}
         onChange={(event) => setIso(event.target.value)}
         className={cn(
-          'rounded-input border-sarat-black/20 bg-fog-white text-sarat-black h-11 w-36 shrink-0 truncate [border-width:0.5px] ps-3 pe-2 text-base',
+          'rounded-input border-sarat-black/20 text-sarat-black h-11 w-36 shrink-0 truncate [border-width:0.5px] bg-white ps-3 pe-2 text-base',
           'aria-invalid:border-al-qatt-red',
         )}
       >
@@ -121,7 +121,7 @@ export function PhoneInput({
         aria-invalid={invalid ? 'true' : undefined}
         aria-describedby={describedBy}
         className={cn(
-          'rounded-input border-sarat-black/20 bg-fog-white text-sarat-black h-11 w-full min-w-0 flex-1 [border-width:0.5px] px-4 text-base',
+          'rounded-input border-sarat-black/20 text-sarat-black h-11 w-full min-w-0 flex-1 [border-width:0.5px] bg-white px-4 text-base',
           'placeholder:text-sarat-black-600 disabled:pointer-events-none disabled:opacity-50',
           'aria-invalid:border-al-qatt-red',
         )}

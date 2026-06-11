@@ -24,6 +24,8 @@ const STATUSES: readonly AdminBookingStatus[] = [
   'completed',
   'cancelled',
   'refunded',
+  'declined',
+  'expired',
 ];
 
 export function normalizeStatus(raw: string | undefined): BookingStatusFilter {

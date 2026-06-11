@@ -57,7 +57,7 @@ export default async function HostApplySubmittedPage({
             <CheckCircle2 className="text-juniper-green size-10" aria-hidden strokeWidth={1.5} />
           </Pop>
           <p className={eyebrowClassName}>{t('eyebrow')}</p>
-          <h1 className="font-display text-4xl font-medium tracking-[-0.035em] text-balance sm:text-5xl">
+          <h1 className="font-display text-4xl font-semibold tracking-[-0.035em] text-balance sm:text-5xl">
             {t('title')}
           </h1>
           <p className="text-sarat-black-600 text-lg leading-relaxed">{t('description')}</p>

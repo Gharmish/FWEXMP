@@ -31,7 +31,7 @@ export function KpiTile({ label, value, locale, href, trend, hint }: KpiTileProp
     <>
       <span className={eyebrow}>{label}</span>
       <span className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-        <span className="font-display text-3xl font-medium tracking-[-0.03em] tabular-nums">
+        <span className="font-display text-3xl font-semibold tracking-[-0.03em] tabular-nums">
           {value}
         </span>
         {trend && (

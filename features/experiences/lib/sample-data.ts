@@ -23,10 +23,27 @@ type SampleExperience = Omit<
   | 'bookingMode'
   | 'availabilityWeekdays'
   | 'hostSlug'
+  | 'lat'
+  | 'lng'
 >;
+
+/**
+ * Demo meeting-point coordinates — well-known Asir landmarks matching
+ * each entry's placeName. The live DB path carries the host's real
+ * coordinates; these only feed the offline sample dataset.
+ */
+const SAMPLE_COORDS: Record<string, { lat: number; lng: number }> = {
+  'juniper-forest-dawn-walk-jabal-sawda': { lat: 18.2718, lng: 42.3644 },
+  'an-evening-with-the-flower-men': { lat: 18.0301, lng: 42.4321 },
+  'asiri-coffee-ritual-and-saleeg-lunch': { lat: 18.2164, lng: 42.5053 },
+  'sound-and-breath-wadi-mahala': { lat: 18.19, lng: 42.48 },
+  'soudah-cliff-via-ferrata': { lat: 18.286, lng: 42.364 },
+  'al-qatt-painting-rijal-almaa': { lat: 18.1986, lng: 42.1556 },
+};
 
 function attachRatings(e: SampleExperience): ExperienceDetail {
   const agg = aggregateReviews(getSampleReviews(e.slug));
+  const coords = SAMPLE_COORDS[e.slug] ?? { lat: 18.2164, lng: 42.5053 }; // Abha centre
   return {
     ...e,
     hostSlug: e.host.slug,
@@ -37,6 +54,7 @@ function attachRatings(e: SampleExperience): ExperienceDetail {
     // Offline demo defaults — the live DB path carries the real values.
     bookingMode: 'request',
     availabilityWeekdays: [4, 5, 6], // Thu–Sat
+    ...coords,
   };
 }
 
@@ -82,6 +100,7 @@ const FAISAL: HostInfo = {
     'مزارع من الجيل الثالث من الحبلة، نشأ بين مدرجات العرعر. يستضيف فيصل مجموعات صغيرة ليشاركهم طعام عسير وموسيقاها وإيقاع الحياة الجبلية الهادئ.',
   verified: true,
   photoUrl: `${PHOTOS_BASE}/hosts/faisal-al-qahtani/avatar.jpg`,
+  languages: ['ar'],
 };
 
 const ASIR_ADVENTURES: HostInfo = {
@@ -93,6 +112,7 @@ const ASIR_ADVENTURES: HostInfo = {
     'شركة سياحية مرخصة في أبها متخصصة في الأنشطة الجبلية الموجهة، مع مرشدين معتمدين وتجهيزات سلامة كاملة.',
   verified: true,
   photoUrl: `${PHOTOS_BASE}/hosts/asir-adventures-co/avatar.jpg`,
+  languages: ['ar', 'en'],
 };
 
 /** Hero image URL for a given experience slug. */

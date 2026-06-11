@@ -19,6 +19,8 @@ describe('updateSettingsSchema', () => {
     commissionPct: '15',
     enabledCategories: ['nature', 'food'],
     cancellationWindowHours: '48',
+    approvalWindowHours: '24',
+    approvalPaymentWindowHours: '24',
     locale: 'en',
   };
 
@@ -28,7 +30,18 @@ describe('updateSettingsSchema', () => {
     if (parsed.success) {
       expect(parsed.data.commissionPct).toBe(15);
       expect(parsed.data.cancellationWindowHours).toBe(48);
+      expect(parsed.data.approvalWindowHours).toBe(24);
+      expect(parsed.data.approvalPaymentWindowHours).toBe(24);
     }
+  });
+
+  it('rejects a zero or fractional approval window', () => {
+    expect(updateSettingsSchema.safeParse({ ...base, approvalWindowHours: '0' }).success).toBe(
+      false,
+    );
+    expect(
+      updateSettingsSchema.safeParse({ ...base, approvalPaymentWindowHours: '12.5' }).success,
+    ).toBe(false);
   });
 
   it('rejects a cancellation window outside 0–336 hours or fractional', () => {

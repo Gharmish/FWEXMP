@@ -5,7 +5,11 @@ import { serverEnv } from '@/lib/env';
 import { bookings, guests } from '@/db/schema';
 import { reportError } from '@/lib/log';
 import { settleBooking } from '@/features/payments/settle';
-import { sendBookingReminderEmail } from '@/features/bookings/lib/booking-email';
+import {
+  sendBookingExpiredEmail,
+  sendBookingPaymentLapsedEmail,
+  sendBookingReminderEmail,
+} from '@/features/bookings/lib/booking-email';
 import { addDays } from '@/features/bookings/lib/availability';
 
 /** Cap reconciliation work per run so a backlog can't blow the function budget. */
@@ -20,7 +24,10 @@ const REMINDER_LIMIT = 100;
  * sub-daily schedule on Pro, or trigger this endpoint from an external
  * scheduler).
  *
- * Two passes:
+ * Four passes:
+ *
+ * 0. **Expire requests** — flips `pending` request-to-book rows past their
+ *    approval deadline to `expired` (pay-after-approval: nothing was charged).
  *
  * 1. **Release** — cancels bookings whose payment window has passed **and are
  *    still `unpaid`** (no checkout was ever prepared → no payment in flight).
@@ -51,6 +58,30 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   }
 
   try {
+    // Pass 0 — expire undecided booking requests. A `pending` request the
+    // host neither approved nor declined within the approval window moves
+    // to `expired` (terminal, frees the soft-held capacity; nothing was
+    // ever charged in the pay-after-approval model). The guest is told —
+    // best-effort, gated on having an email on file.
+    const expired = await db
+      .update(bookings)
+      .set({ status: 'expired' })
+      .where(
+        and(
+          eq(bookings.status, 'pending'),
+          isNotNull(bookings.approvalDeadline),
+          lte(bookings.approvalDeadline, new Date()),
+        ),
+      )
+      .returning({ id: bookings.id, reference: bookings.idempotencyKey });
+    for (const row of expired) {
+      try {
+        await sendBookingExpiredEmail(row.reference);
+      } catch (error) {
+        reportError(error, { surface: 'cron-expire-requests', reference: row.reference });
+      }
+    }
+
     const released = await db
       .update(bookings)
       .set({ status: 'cancelled' })
@@ -59,10 +90,25 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
           eq(bookings.paymentStatus, 'unpaid'),
           isNotNull(bookings.paymentDeadline),
           lte(bookings.paymentDeadline, new Date()),
-          notInArray(bookings.status, ['cancelled', 'completed', 'refunded']),
+          notInArray(bookings.status, [
+            'cancelled',
+            'completed',
+            'refunded',
+            'declined',
+            'expired',
+          ]),
         ),
       )
-      .returning({ id: bookings.id });
+      .returning({ id: bookings.id, reference: bookings.idempotencyKey });
+    // An approved-then-never-paid request (or an abandoned instant hold)
+    // was just released — tell the guest the hold lapsed. Best-effort.
+    for (const row of released) {
+      try {
+        await sendBookingPaymentLapsedEmail(row.reference);
+      } catch (error) {
+        reportError(error, { surface: 'cron-release-holds:email', reference: row.reference });
+      }
+    }
 
     // Pass 2 — reconcile stuck `processing` holds against HyperPay. Only
     // those whose hold window has elapsed, so a shopper still mid-3DS is
@@ -126,6 +172,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     }
 
     return NextResponse.json({
+      expired: expired.length,
       released: released.length,
       reconciled: stuck.length,
       settled,

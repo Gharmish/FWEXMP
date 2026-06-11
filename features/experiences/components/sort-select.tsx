@@ -46,7 +46,7 @@ export function SortSelect() {
   return (
     <label
       className={cn(
-        'rounded-input border-sarat-black/20 bg-fog-white text-sarat-black relative inline-flex h-11 items-center gap-2 [border-width:0.5px] ps-4 pe-3 text-sm',
+        'rounded-input border-sarat-black/20 text-sarat-black relative inline-flex h-11 items-center gap-2 [border-width:0.5px] bg-white ps-4 pe-3 text-sm',
         isPending && 'opacity-70 transition-opacity',
       )}
     >

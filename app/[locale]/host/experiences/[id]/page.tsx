@@ -150,7 +150,7 @@ export default async function EditExperiencePage({
           </Badge>
         </div>
 
-        <h1 className="font-display mt-2 text-4xl font-medium tracking-[-0.035em] text-balance sm:text-5xl">
+        <h1 className="font-display mt-2 text-4xl font-semibold tracking-[-0.035em] text-balance sm:text-5xl">
           {experience.titleEn}
         </h1>
         <p className="text-sarat-black-600 mt-2 text-sm" dir="ltr">

@@ -11,7 +11,12 @@ import { Badge } from '@/components/ui/badge';
 import { JsonLd } from '@/components/seo/json-ld';
 import { ExperienceCard } from '@/features/experiences/components/experience-card';
 import { toArabicText } from '@/features/experiences/lib/arabic-content';
-import { getAllHostSlugs, getExperiencesByHostSlug, getHostBySlug } from '@/features/hosts/queries';
+import {
+  getAllHostSlugs,
+  getExperiencesByHostSlug,
+  getHostBySlug,
+  getHostResponseStats,
+} from '@/features/hosts/queries';
 import { getWishlistSet } from '@/features/wishlist/queries';
 import { WishlistButton } from '@/features/wishlist/components/wishlist-button';
 
@@ -58,9 +63,10 @@ export default async function HostProfilePage({
   const host = await getHostBySlug(slug);
   if (!host) notFound();
 
-  const [experiences, savedSlugs] = await Promise.all([
+  const [experiences, savedSlugs, responseStats] = await Promise.all([
     getExperiencesByHostSlug(slug),
     getWishlistSet(),
+    getHostResponseStats(slug),
   ]);
   const t = await getTranslations('hostProfile');
   const th = await getTranslations('host');
@@ -144,11 +150,21 @@ export default async function HostProfilePage({
         <div className="flex flex-col gap-6 sm:flex-row sm:items-center">
           <Avatar name={name} src={host.photoUrl ?? undefined} size="lg" />
           <div className="flex flex-col gap-3">
-            <h1 className="font-display text-4xl font-medium tracking-[-0.035em] text-balance sm:text-5xl">
+            <h1 className="font-display text-4xl font-semibold tracking-[-0.035em] text-balance sm:text-5xl">
               {name}
             </h1>
             <div className="flex flex-wrap items-center gap-3">
               {host.verified && <Badge variant="verified">{th('verified')}</Badge>}
+              {responseStats && (
+                <Badge variant="neutral">
+                  {th('respondsIn', { hours: responseStats.avgResponseHours })}
+                </Badge>
+              )}
+              {responseStats && (
+                <Badge variant="neutral">
+                  {th('responseRate', { pct: responseStats.ratePct })}
+                </Badge>
+              )}
               {ratingAverage !== null && (
                 <span className="inline-flex items-center gap-1.5 text-sm">
                   <Star className="text-saffron-gold size-4 fill-current" aria-hidden />

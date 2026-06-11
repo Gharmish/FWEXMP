@@ -43,6 +43,12 @@ export interface ExperienceSummary {
    * in that case.
    */
   heroImage: string | null;
+  /**
+   * Fresh listing flag (trust badge): live for under 30 days with fewer
+   * than 3 reviews (owner-approved thresholds, 2026-06-11). Computed in
+   * the queries layer; undefined on the sample-data path.
+   */
+  isNew?: boolean;
 }
 
 export interface CategoryMeta {
@@ -61,6 +67,8 @@ export interface HostInfo {
   verified: boolean;
   /** Optional avatar URL (Supabase Storage). `null` until the host's portrait session lands. */
   photoUrl: string | null;
+  /** ISO-639-1 language tags the host speaks (`ar`, `en`) — trust chip. */
+  languages: readonly string[];
 }
 
 export interface MomentInfo {
@@ -82,6 +90,9 @@ export interface MomentInfo {
 export interface ExperienceDetail extends ExperienceSummary {
   region: string;
   minAge: number;
+  /** Meeting-point coordinates (WGS84) — drives the detail-page map. */
+  lat: number;
+  lng: number;
   inclusions: string[];
   whatToBring: string[];
   cancellationPolicy: string;

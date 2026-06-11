@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 import type { ReactNode } from 'react';
 import { notFound, redirect } from 'next/navigation';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, Lock } from 'lucide-react';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { Link } from '@/lib/i18n';
 import type { Locale } from '@/lib/i18n';
@@ -54,6 +54,10 @@ export default async function PaymentPage({ params, searchParams }: PageParams) 
   const booking = await getBookingByReferenceForViewer(reference);
   if (!booking) redirect(confirmedHref);
   if (booking.paymentStatus === 'paid') redirect(confirmedHref);
+  // Pay-after-approval: a request the host hasn't accepted (or that was
+  // declined/expired/cancelled) has nothing to pay — the confirmation
+  // page renders the right state and `createCheckout` refuses it anyway.
+  if (booking.status !== 'confirmed') redirect(confirmedHref);
 
   const experienceSlug = booking.experienceSlug ?? slugFromQuery;
   const experience = experienceSlug ? await getExperienceBySlug(experienceSlug) : undefined;
@@ -79,6 +83,7 @@ export default async function PaymentPage({ params, searchParams }: PageParams) 
     errorNotFound: t('errorNotFound'),
     errorAlreadyPaid: t('errorAlreadyPaid'),
     errorExpired: t('errorExpired'),
+    errorNotApproved: t('errorNotApproved'),
     payHeading: t('payHeading'),
     widgetLoading: t('widgetLoading'),
     widgetError: t('widgetError'),
@@ -125,7 +130,7 @@ export default async function PaymentPage({ params, searchParams }: PageParams) 
         <p className="text-juniper-green-800 text-[11px] tracking-[0.2em] uppercase">
           {t('eyebrow')}
         </p>
-        <h1 className="font-display text-4xl font-medium tracking-[-0.035em] text-balance">
+        <h1 className="font-display text-4xl font-semibold tracking-[-0.035em] text-balance">
           {t('title')}
         </h1>
         <p className="text-sarat-black-600 text-lg leading-relaxed">{t('intro')}</p>
@@ -165,6 +170,20 @@ export default async function PaymentPage({ params, searchParams }: PageParams) 
           copy={copy}
           defaults={defaults}
         />
+      </section>
+
+      {/* Secure-checkout reassurance — PCI posture in plain language plus
+          the accepted schemes (proper nouns, untranslated; mada stylised
+          lowercase per Saudi Payments brand guidance). */}
+      <section className="border-sarat-black/8 mt-8 flex flex-col gap-2 [border-top-width:0.5px] pt-6">
+        <p className="text-sarat-black-600 inline-flex items-start gap-2 text-sm leading-relaxed">
+          <Lock className="mt-0.5 size-4 shrink-0" aria-hidden />
+          {t('secureNote')}
+        </p>
+        <p className="text-sarat-black-600 ms-6 text-sm">
+          {t('acceptedMethods')}{' '}
+          <span className="text-sarat-black font-medium">mada · Visa · Mastercard</span>
+        </p>
       </section>
     </article>
   );

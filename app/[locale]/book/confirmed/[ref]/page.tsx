@@ -110,61 +110,116 @@ export default async function BookingConfirmedPage({ params, searchParams }: Pag
   const eyebrowClassName = cn(eyebrowBase, 'text-juniper-green-800');
 
   // A cancelled/refunded booking owns the whole header — the page reads
-  // as the cancellation record, not a stale "request received".
+  // as the cancellation record, not a stale "request received". Declined
+  // and expired requests likewise own it (nothing was ever charged in
+  // the pay-after-approval model).
   const isCancelled = booking?.status === 'cancelled' || booking?.status === 'refunded';
+  const isDeclined = booking?.status === 'declined';
+  const isExpired = booking?.status === 'expired';
+  // An approved request inside its payment window: confirmed by the host
+  // but unpaid — the page's job is to get the guest to the payment step.
+  const isAwaitingPayment =
+    booking?.status === 'confirmed' &&
+    booking.paymentStatus === 'unpaid' &&
+    booking.approvedAt !== null &&
+    booking.paymentDeadline !== null &&
+    !isFailed;
 
-  const HeaderIcon = isCancelled || isFailed ? CircleAlert : isPending ? Clock : CheckCircle2;
+  const HeaderIcon =
+    isCancelled || isFailed || isDeclined
+      ? CircleAlert
+      : isPending || isExpired || isAwaitingPayment
+        ? Clock
+        : CheckCircle2;
   const headerIconClassName = cn(
     'size-7 shrink-0',
     isCancelled
       ? 'text-rijal-clay'
-      : isFailed
+      : isFailed || isDeclined
         ? 'text-al-qatt-red'
-        : isPending
+        : isExpired
           ? 'text-sarat-black-600'
-          : 'text-juniper-green',
+          : isAwaitingPayment
+            ? 'text-pending'
+            : isPending
+              ? 'text-sarat-black-600'
+              : isConfirmed
+                ? 'text-juniper-green'
+                : 'text-pending',
   );
   const headerEyebrowClassName = cn(
     eyebrowBase,
     isCancelled
       ? 'text-rijal-clay'
-      : isFailed
+      : isFailed || isDeclined
         ? 'text-al-qatt-red-800'
-        : isPending
+        : isExpired
           ? 'text-sarat-black-600'
-          : 'text-juniper-green-800',
+          : isAwaitingPayment
+            ? 'text-pending'
+            : isPending
+              ? 'text-sarat-black-600'
+              : isConfirmed
+                ? 'text-juniper-green-800'
+                : 'text-pending',
   );
   const headerEyebrow = isCancelled
     ? t('cancelledEyebrow')
-    : isFailed
-      ? t('paymentFailedEyebrow')
-      : isPending
-        ? t('paymentPendingEyebrow')
-        : isConfirmed
-          ? t('eyebrowConfirmed')
-          : t('eyebrow');
+    : isDeclined
+      ? t('declinedEyebrow')
+      : isExpired
+        ? t('expiredEyebrow')
+        : isFailed
+          ? t('paymentFailedEyebrow')
+          : isPending
+            ? t('paymentPendingEyebrow')
+            : isAwaitingPayment
+              ? t('approvedEyebrow')
+              : isConfirmed
+                ? t('eyebrowConfirmed')
+                : t('eyebrow');
   const headerTitle = isCancelled
     ? t('cancelledTitle')
-    : isFailed
-      ? t('paymentFailedTitle')
-      : isPending
-        ? t('paymentPendingTitle')
-        : isConfirmed
-          ? t('titleConfirmed')
-          : t('title');
+    : isDeclined
+      ? t('declinedTitle')
+      : isExpired
+        ? t('expiredTitle')
+        : isFailed
+          ? t('paymentFailedTitle')
+          : isPending
+            ? t('paymentPendingTitle')
+            : isAwaitingPayment
+              ? t('approvedTitle')
+              : isConfirmed
+                ? t('titleConfirmed')
+                : t('title');
   const headerDescription = isCancelled
     ? booking?.status === 'refunded'
       ? t('cancelledDescriptionRefunded')
       : t('cancelledDescription')
-    : isFailed
-      ? t('paymentFailedDescription')
-      : isPending
-        ? t('paymentPendingDescription')
-        : !booking
-          ? t('descriptionPreview')
-          : isConfirmed
-            ? t('descriptionConfirmed')
-            : t('descriptionStored');
+    : isDeclined
+      ? t('declinedDescription')
+      : isExpired
+        ? t('expiredDescription')
+        : isFailed
+          ? t('paymentFailedDescription')
+          : isPending
+            ? t('paymentPendingDescription')
+            : isAwaitingPayment && booking.paymentDeadline
+              ? t('approvedDescription', {
+                  deadline: formatDate(new Date(booking.paymentDeadline), loc),
+                })
+              : !booking
+                ? t('descriptionPreview')
+                : isConfirmed
+                  ? t('descriptionConfirmed')
+                  : t('descriptionStored');
+  // Plain pending request: tell the guest exactly when the host's window
+  // closes (the distinct amber "pending host approval" state).
+  const respondByNote =
+    booking?.status === 'pending' && booking.approvalDeadline
+      ? t('respondBy', { date: formatDate(new Date(booking.approvalDeadline), loc) })
+      : null;
 
   const detailRows: Array<{ label: string; value: ReactNode }> = [];
   if (title) detailRows.push({ label: t('experienceLabel'), value: title });
@@ -245,12 +300,21 @@ export default async function BookingConfirmedPage({ params, searchParams }: Pag
           </Pop>
           <p className={headerEyebrowClassName}>{headerEyebrow}</p>
         </div>
-        <h1 className="font-display text-4xl font-medium tracking-[-0.035em] text-balance sm:text-5xl">
+        <h1 className="font-display text-4xl font-semibold tracking-[-0.035em] text-balance sm:text-5xl">
           {headerTitle}
         </h1>
         <p className="text-sarat-black-600 max-w-2xl text-lg leading-relaxed">
           {headerDescription}
         </p>
+        {respondByNote && <p className="text-pending text-base font-medium">{respondByNote}</p>}
+        {isAwaitingPayment && (
+          <Link
+            href={`/book/${ref}/pay${experienceSlug ? `?slug=${encodeURIComponent(experienceSlug)}` : ''}`}
+            className={cn(buttonVariants({ variant: 'primary', size: 'lg' }), 'self-start')}
+          >
+            {t('payNow')}
+          </Link>
+        )}
         {isPending && <PendingPaymentRefresh label={t('paymentChecking')} />}
       </header>
 
@@ -275,7 +339,7 @@ export default async function BookingConfirmedPage({ params, searchParams }: Pag
         )}
 
         {/* The page doubles as the e-ticket — print it / save as PDF. */}
-        {booking && !isFailed && !isCancelled && (
+        {booking && !isFailed && !isCancelled && !isDeclined && !isExpired && (
           <div className="mt-2">
             <PrintButton label={t('printTicket')} />
           </div>
@@ -285,18 +349,23 @@ export default async function BookingConfirmedPage({ params, searchParams }: Pag
       {/* The success "what happens next" steps only make sense once the
           booking is actually settled — suppress them while a payment failed
           or is still processing. */}
-      {!isFailed && !isPending && !isCancelled && (
-        <section className="mt-10 flex flex-col gap-3">
-          <h2 className="font-display text-2xl font-medium tracking-[-0.025em]">
-            {t('nextStepsHeading')}
-          </h2>
-          <ol className="text-sarat-black-600 flex flex-col gap-2 text-base">
-            <li>{isConfirmed ? t('nextStepConfirmed1') : t('nextStep1')}</li>
-            <li>{isConfirmed ? t('nextStepConfirmed2') : t('nextStep2')}</li>
-            <li>{isConfirmed ? t('nextStepConfirmed3') : t('nextStep3')}</li>
-          </ol>
-        </section>
-      )}
+      {!isFailed &&
+        !isPending &&
+        !isCancelled &&
+        !isDeclined &&
+        !isExpired &&
+        !isAwaitingPayment && (
+          <section className="mt-10 flex flex-col gap-3">
+            <h2 className="font-display text-2xl font-medium tracking-[-0.025em]">
+              {t('nextStepsHeading')}
+            </h2>
+            <ol className="text-sarat-black-600 flex flex-col gap-2 text-base">
+              <li>{isConfirmed ? t('nextStepConfirmed1') : t('nextStep1')}</li>
+              <li>{isConfirmed ? t('nextStepConfirmed2') : t('nextStep2')}</li>
+              <li>{isConfirmed ? t('nextStepConfirmed3') : t('nextStep3')}</li>
+            </ol>
+          </section>
+        )}
 
       {/* Report a problem — quiet disclosure, any real booking. */}
       {booking && (

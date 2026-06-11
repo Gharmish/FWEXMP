@@ -186,7 +186,7 @@ export function FilterBar({ locale, categories, resultCount, cities, todayStr }:
             value={criteria.date ?? ''}
             min={todayStr}
             onChange={(e) => push({ ...criteria, date: e.target.value || null })}
-            className="rounded-input border-sarat-black/20 bg-fog-white text-sarat-black h-11 [border-width:0.5px] px-3 text-base"
+            className="rounded-input border-sarat-black/20 text-sarat-black h-11 [border-width:0.5px] bg-white px-3 text-base"
             dir="ltr"
           />
         </label>
@@ -203,7 +203,7 @@ export function FilterBar({ locale, categories, resultCount, cities, todayStr }:
               const n = Number.parseInt(e.target.value, 10);
               push({ ...criteria, groupSize: Number.isFinite(n) && n >= 1 ? n : null });
             }}
-            className="rounded-input border-sarat-black/20 bg-fog-white text-sarat-black h-11 w-28 [border-width:0.5px] px-3 text-base"
+            className="rounded-input border-sarat-black/20 text-sarat-black h-11 w-28 [border-width:0.5px] bg-white px-3 text-base"
             dir="ltr"
           />
         </label>
@@ -213,7 +213,7 @@ export function FilterBar({ locale, categories, resultCount, cities, todayStr }:
             <select
               value={criteria.city}
               onChange={(e) => push({ ...criteria, city: e.target.value })}
-              className="rounded-input border-sarat-black/20 bg-fog-white text-sarat-black h-11 [border-width:0.5px] px-3 text-base"
+              className="rounded-input border-sarat-black/20 text-sarat-black h-11 [border-width:0.5px] bg-white px-3 text-base"
             >
               <option value="">{t('cityAll')}</option>
               {cities.map((city) => (

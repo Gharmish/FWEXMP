@@ -25,17 +25,17 @@ export function WalletCard({ locale, copy }: WalletCardProps) {
     <Card variant="dark" className="flex flex-col gap-6 p-6 sm:p-8">
       <div className="flex items-center justify-between">
         <span className="font-display text-xl font-medium tracking-[-0.02em]">{copy.title}</span>
-        <span className="bg-fog-white/10 flex size-10 items-center justify-center rounded-full">
+        <span className="flex size-10 items-center justify-center rounded-full bg-white/10">
           <Wallet className="size-5 shrink-0" aria-hidden />
         </span>
       </div>
       <div className="flex flex-1 flex-col gap-1">
-        <span className="text-fog-white/60 text-[11px] tracking-[0.2em] uppercase">
+        <span className="text-[11px] tracking-[0.2em] text-white/60 uppercase">
           {copy.balanceLabel}
         </span>
-        <Price amount={0} locale={locale} className="text-fog-white text-3xl" />
+        <Price amount={0} locale={locale} className="text-3xl text-white" />
       </div>
-      <p className="text-fog-white/60 text-xs leading-relaxed">{copy.note}</p>
+      <p className="text-xs leading-relaxed text-white/60">{copy.note}</p>
     </Card>
   );
 }

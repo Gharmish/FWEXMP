@@ -7,11 +7,11 @@ import { Link } from '@/lib/i18n';
 import type { Locale } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
+import { BookingStatusBadge } from '@/features/bookings/components/booking-status-badge';
 import { formatDate } from '@/lib/format';
 import { Price } from '@/components/ui/price';
 import { getGuestDetail, isAdminAndDbReady } from '@/features/admin/guests/queries';
 import { GuestSuspendButton } from '@/app/[locale]/admin/guests/[id]/suspend-button';
-import type { AdminBookingStatus } from '@/features/admin/bookings/types';
 
 export async function generateMetadata({
   params,
@@ -24,14 +24,6 @@ export async function generateMetadata({
     robots: { index: false, follow: false },
   };
 }
-
-const STATUS_TONE: Record<AdminBookingStatus, string> = {
-  pending: 'bg-saffron-gold/20 text-sarat-black',
-  confirmed: 'bg-juniper-green/15 text-juniper-green',
-  completed: 'bg-sarat-black/8 text-sarat-black',
-  cancelled: 'bg-al-qatt-red/15 text-al-qatt-red',
-  refunded: 'bg-rijal-clay/15 text-rijal-clay',
-};
 
 export default async function AdminGuestDetailPage({
   params,
@@ -74,7 +66,7 @@ export default async function AdminGuestDetailPage({
       <div className="flex flex-col gap-3">
         <p className={eyebrowClassName}>{t('guestDetail.eyebrow')}</p>
         <div className="flex flex-wrap items-center gap-4">
-          <h1 className="font-display text-4xl font-medium tracking-[-0.035em] text-balance sm:text-5xl">
+          <h1 className="font-display text-4xl font-semibold tracking-[-0.035em] text-balance sm:text-5xl">
             {guest.name}
           </h1>
           {guest.suspendedAt && (
@@ -132,9 +124,7 @@ export default async function AdminGuestDetailPage({
                     >
                       {b.experienceTitleEn}
                     </Link>
-                    <Badge className={STATUS_TONE[b.status]}>
-                      {t(`bookingStatus.${b.status}`)}
-                    </Badge>
+                    <BookingStatusBadge status={b.status} label={t(`bookingStatus.${b.status}`)} />
                   </div>
                   <span className="text-sarat-black-600 text-sm">
                     {formatDate(new Date(b.date), loc)}

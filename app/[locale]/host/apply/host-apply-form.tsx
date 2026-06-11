@@ -231,7 +231,7 @@ export function HostApplyForm({
             maxLength={1200}
             defaultValue={values.bioEn ?? initial?.bioEn}
             className={cn(
-              'rounded-input border-sarat-black/20 bg-fog-white text-sarat-black w-full resize-y [border-width:0.5px] px-4 py-3 text-base',
+              'rounded-input border-sarat-black/20 text-sarat-black w-full resize-y [border-width:0.5px] bg-white px-4 py-3 text-base',
               'placeholder:text-sarat-black-600 disabled:pointer-events-none disabled:opacity-50',
             )}
             {...fieldProps('bioEn')}
@@ -254,7 +254,7 @@ export function HostApplyForm({
                     className={cn(
                       'rounded-button border-sarat-black/20 inline-flex min-h-11 cursor-pointer items-center gap-2 [border-width:0.5px] px-4 text-sm font-medium transition-colors duration-200',
                       checked
-                        ? 'bg-sarat-black text-fog-white border-sarat-black'
+                        ? 'bg-sarat-black border-sarat-black text-white'
                         : 'text-sarat-black hover:border-sarat-black/40',
                     )}
                   >
@@ -308,7 +308,7 @@ export function HostApplyForm({
                   className={cn(
                     'rounded-button border-sarat-black/20 inline-flex min-h-11 cursor-pointer items-center gap-2 [border-width:0.5px] px-4 text-sm font-medium transition-colors duration-200',
                     checked
-                      ? 'bg-sarat-black text-fog-white border-sarat-black'
+                      ? 'bg-sarat-black border-sarat-black text-white'
                       : 'text-sarat-black hover:border-sarat-black/40',
                   )}
                 >

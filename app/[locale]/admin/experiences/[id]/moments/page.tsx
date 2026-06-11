@@ -93,7 +93,7 @@ export default async function AdminMomentsPage({
           <ArrowLeft className="size-4 shrink-0 rtl:rotate-180" aria-hidden />
           {tM('back')}
         </Link>
-        <h1 className="font-display text-4xl font-medium tracking-[-0.035em] text-balance sm:text-5xl">
+        <h1 className="font-display text-4xl font-semibold tracking-[-0.035em] text-balance sm:text-5xl">
           {tM('heading')}
         </h1>
         <p className="text-sarat-black-600 text-base">{experience.titleEn}</p>

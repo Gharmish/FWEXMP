@@ -6,11 +6,10 @@ import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { Link } from '@/lib/i18n';
 import type { Locale } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
-import { Badge } from '@/components/ui/badge';
+import { BookingStatusBadge } from '@/features/bookings/components/booking-status-badge';
 import { formatDate, formatInteger } from '@/lib/format';
 import { Price } from '@/components/ui/price';
 import { getAdminBookingById, isAdminAndDbReady } from '@/features/admin/bookings/queries';
-import type { AdminBookingStatus } from '@/features/admin/bookings/types';
 import { availableTransitions } from '@/features/bookings/lib/transitions';
 import { RefundButton } from '@/app/[locale]/admin/bookings/refund-button';
 import { TransitionButton } from '@/app/[locale]/admin/bookings/transition-button';
@@ -26,14 +25,6 @@ export async function generateMetadata({
     robots: { index: false, follow: false },
   };
 }
-
-const STATUS_TONE: Record<AdminBookingStatus, string> = {
-  pending: 'bg-saffron-gold/20 text-sarat-black',
-  confirmed: 'bg-juniper-green/15 text-juniper-green',
-  completed: 'bg-sarat-black/8 text-sarat-black',
-  cancelled: 'bg-al-qatt-red/15 text-al-qatt-red',
-  refunded: 'bg-rijal-clay/15 text-rijal-clay',
-};
 
 export default async function AdminBookingDetailPage({
   params,
@@ -109,12 +100,13 @@ export default async function AdminBookingDetailPage({
           {t('bookingDetail.back')}
         </Link>
         <div className="flex flex-wrap items-baseline gap-3">
-          <h1 className="font-display text-4xl font-medium tracking-[-0.035em] text-balance sm:text-5xl">
+          <h1 className="font-display text-4xl font-semibold tracking-[-0.035em] text-balance sm:text-5xl">
             {booking.experienceTitleEn}
           </h1>
-          <Badge className={STATUS_TONE[booking.status]}>
-            {t(`bookingStatus.${booking.status}`)}
-          </Badge>
+          <BookingStatusBadge
+            status={booking.status}
+            label={t(`bookingStatus.${booking.status}`)}
+          />
         </div>
         <Link
           href={`/experiences/${booking.experienceSlug}`}
@@ -150,7 +142,9 @@ export default async function AdminBookingDetailPage({
                   label: t(`bookingsList.transition.${to}.label`),
                   pending: t(`bookingsList.transition.${to}.pending`),
                   confirm:
-                    to === 'cancelled' ? t('bookingsList.transition.cancelled.confirm') : undefined,
+                    to === 'cancelled' || to === 'declined'
+                      ? t(`bookingsList.transition.${to}.confirm`)
+                      : undefined,
                   errors: actionErrors,
                 }}
               />

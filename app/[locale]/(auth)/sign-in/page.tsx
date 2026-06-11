@@ -58,7 +58,7 @@ export default async function SignInPage({
     <div className="flex flex-col gap-10">
       <div className="flex flex-col gap-4">
         <p className={eyebrowClassName}>{t('eyebrow')}</p>
-        <h1 className="font-display text-4xl font-medium tracking-[-0.035em] text-balance">
+        <h1 className="font-display text-4xl font-semibold tracking-[-0.035em] text-balance">
           {t('title')}
         </h1>
         <p className="text-sarat-black-600 text-base leading-relaxed">{t('intro')}</p>

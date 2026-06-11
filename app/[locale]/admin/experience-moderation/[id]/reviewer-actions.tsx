@@ -73,7 +73,7 @@ function errorMessage(result: AdminModerationResult, copy: Copy): string | undef
 }
 
 const TEXTAREA_CLASS = cn(
-  'rounded-input border-sarat-black/20 bg-fog-white text-sarat-black w-full resize-y [border-width:0.5px] px-4 py-3 text-base',
+  'rounded-input border-sarat-black/20 bg-white text-sarat-black w-full resize-y [border-width:0.5px] px-4 py-3 text-base',
   'placeholder:text-sarat-black-600 disabled:pointer-events-none disabled:opacity-50',
 );
 

@@ -41,6 +41,8 @@ export async function updateSettings(
   const parsed = updateSettingsSchema.safeParse({
     commissionPct: formData.get('commissionPct'),
     cancellationWindowHours: formData.get('cancellationWindowHours'),
+    approvalWindowHours: formData.get('approvalWindowHours'),
+    approvalPaymentWindowHours: formData.get('approvalPaymentWindowHours'),
     announcementEn: formData.get('announcementEn') ?? undefined,
     announcementAr: formData.get('announcementAr') ?? undefined,
     enabledCategories: formData
@@ -70,6 +72,8 @@ export async function updateSettings(
         defaultCommissionBps,
         enabledCategories: input.enabledCategories,
         cancellationWindowHours: input.cancellationWindowHours,
+        approvalWindowHours: input.approvalWindowHours,
+        approvalPaymentWindowHours: input.approvalPaymentWindowHours,
         announcementEn: input.announcementEn || null,
         announcementAr: input.announcementAr || null,
         updatedByAdminId: guard.adminUserId,
@@ -81,6 +85,8 @@ export async function updateSettings(
           defaultCommissionBps,
           enabledCategories: input.enabledCategories,
           cancellationWindowHours: input.cancellationWindowHours,
+          approvalWindowHours: input.approvalWindowHours,
+          approvalPaymentWindowHours: input.approvalPaymentWindowHours,
           announcementEn: input.announcementEn || null,
           announcementAr: input.announcementAr || null,
           updatedByAdminId: guard.adminUserId,

@@ -211,7 +211,12 @@
       "announcementLabel": "Home announcement",
       "announcementHint": "A short notice band at the top of the home page — Eid hours, road closures. Leave empty to hide.",
       "announcementEnLabel": "English",
-      "announcementArLabel": "Arabic"
+      "announcementArLabel": "Arabic",
+      "approvalLabel": "Host approval window",
+      "approvalHint": "How long a host has to accept or decline a booking request before it expires automatically.",
+      "approvalPaymentLabel": "Payment window after approval",
+      "approvalPaymentHint": "How long a guest has to complete payment after their request is accepted, before the held spot is released.",
+      "hoursSuffix": "hours"
     },
     "activityLog": {
       "eyebrow": "Activity",
@@ -607,6 +612,11 @@
           "label": "Cancel",
           "pending": "Cancelling",
           "confirm": "Cancel this booking? The guest's request will be turned down."
+        },
+        "declined": {
+          "label": "Decline",
+          "pending": "Declining…",
+          "confirm": "Decline this request? The guest will be notified and nothing is charged."
         }
       },
       "actionErrors": {
@@ -641,7 +651,9 @@
       "confirmed": "Confirmed",
       "completed": "Completed",
       "cancelled": "Cancelled",
-      "refunded": "Refunded"
+      "refunded": "Refunded",
+      "declined": "Declined",
+      "expired": "Expired"
     },
     "experienceActions": {
       "approve": "Approve and publish",
@@ -875,7 +887,9 @@
       "confirmed": "Confirmed",
       "completed": "Completed",
       "cancelled": "Cancelled",
-      "refunded": "Refunded"
+      "refunded": "Refunded",
+      "declined": "Declined",
+      "expired": "Expired"
     },
     "transition": {
       "confirmed": {
@@ -887,11 +901,14 @@
         "pending": "Saving…"
       },
       "cancelled": {
+        "label": "Cancel booking",
+        "pending": "Cancelling…",
+        "confirm": "Cancel this confirmed booking? The guest will see it as cancelled. This can't be undone."
+      },
+      "declined": {
         "label": "Decline",
         "pending": "Declining…",
-        "confirm": "Decline this booking? The guest will see it as cancelled. This can't be undone.",
-        "labelConfirmed": "Cancel booking",
-        "confirmConfirmed": "Cancel this confirmed booking? The guest will see it as cancelled. This can't be undone."
+        "confirm": "Decline this request? The guest won't be charged and will be notified."
       }
     },
     "actionErrors": {
@@ -904,7 +921,9 @@
       "validation": "Something about this request was invalid. Refresh and try again.",
       "server": "Something went wrong on our side. Try again."
     },
-    "whatsapp": "WhatsApp"
+    "whatsapp": "WhatsApp",
+    "respondBy": "Respond by {date}",
+    "awaitingPayment": "Awaiting guest payment"
   },
   "hostEarnings": {
     "eyebrow": "Earnings",
@@ -1227,13 +1246,20 @@
     "hostsEyebrow": "Our hosts",
     "hostsTitle": "Meet the people behind the experiences.",
     "hostsIntro": "Vetted local partners — farmers, guides, artisans, and licensed operators — co-creating every Gharmish experience.",
-    "hostsView": "View profile"
+    "hostsView": "View profile",
+    "socialProof": {
+      "eyebrow": "From our guests",
+      "title": "Real words from recent experiences.",
+      "ratingLabel": "Rated {rating} out of 5"
+    }
   },
   "experience": {
     "originals": "Originals",
     "instant": "Instant",
     "perPerson": "/ person",
-    "hours": "hr"
+    "hours": "hr",
+    "requestMode": "Request to book",
+    "newBadge": "New"
   },
   "experienceDetail": {
     "back": "Back to experiences",
@@ -1253,7 +1279,16 @@
     "groupSizeUpTo": "Up to {count} guests",
     "minAge": "Minimum age {age}",
     "requestToBook": "Request to book",
-    "translationPending": "Translation pending."
+    "translationPending": "Translation pending.",
+    "instantBadge": "Instant Book — confirmed right away",
+    "requestBadge": "Request to book",
+    "freeCancellation": "Free cancellation until {hours}h before",
+    "bookedCount": "{count}+ booked",
+    "meetingPoint": {
+      "heading": "Meeting point",
+      "mapTitle": "Map of the meeting point at {place}",
+      "directions": "Open in Google Maps"
+    }
   },
   "availabilityCalendar": {
     "heading": "Availability calendar",
@@ -1303,8 +1338,8 @@
     "noDates": "No open dates in the next 8 weeks. Check back soon, or message the host.",
     "prevMonth": "Previous month",
     "nextMonth": "Next month",
-    "modeInstant": "Instant confirmation — your spot is booked the moment you submit, subject to availability.",
-    "modeRequest": "Request to book — the host confirms availability within 24 hours.",
+    "modeInstant": "Instant Book — your spot is confirmed right away, subject to availability.",
+    "modeRequest": "Request to book — the host responds within {hours} hours. You won't be charged until they accept.",
     "runsOn": "Runs on {days}.",
     "vatIncluded": "Includes VAT ({pct}%)",
     "suspended": "Bookings are currently unavailable for this account. Contact us if you think this is a mistake."
@@ -1314,7 +1349,7 @@
     "eyebrowConfirmed": "Booking confirmed",
     "title": "Thank you — your request is in.",
     "titleConfirmed": "You're booked. See you there.",
-    "descriptionStored": "We've sent your request to the host. You'll hear back within 24 hours to confirm availability and finalise the booking.",
+    "descriptionStored": "We've sent your request to the host. You won't be charged unless they accept — we'll let you know the moment they respond.",
     "descriptionConfirmed": "Your spot is confirmed. We'll send the meeting point and what to bring before the day.",
     "descriptionPreview": "This is a preview environment — the request was not stored, but the booking flow works end-to-end. In production this page would show your booking details.",
     "referenceLabel": "Reference",
@@ -1393,7 +1428,18 @@
         "validation": "Write at least 10 characters so we can understand the issue.",
         "server": "Something went wrong on our side. Try again."
       }
-    }
+    },
+    "respondBy": "The host will respond by {date}.",
+    "approvedEyebrow": "Request accepted",
+    "approvedTitle": "Approved — complete your payment.",
+    "approvedDescription": "The host accepted your request. Complete payment before {deadline} to lock in your spot — until then it's held for you.",
+    "payNow": "Complete payment",
+    "declinedEyebrow": "Request declined",
+    "declinedTitle": "The host couldn't take this booking.",
+    "declinedDescription": "You haven't been charged anything. There's plenty more of Asir to see — browse other experiences or try another date.",
+    "expiredEyebrow": "Request expired",
+    "expiredTitle": "The host didn't respond in time.",
+    "expiredDescription": "Your request expired after the approval window passed, and you haven't been charged anything. You're welcome to send a new request for another date."
   },
   "payment": {
     "eyebrow": "Secure payment",
@@ -1429,7 +1475,10 @@
     "widgetLoading": "Loading secure payment…",
     "widgetError": "The secure payment form couldn't load. Check your connection and try again.",
     "widgetRetry": "Reload payment form",
-    "vatIncludedLabel": "Includes VAT ({pct}%)"
+    "vatIncludedLabel": "Includes VAT ({pct}%)",
+    "errorNotApproved": "This request hasn't been accepted by the host yet. You'll receive a payment link as soon as they accept.",
+    "secureNote": "Payments are processed securely by our payment provider with 3-D Secure. Your card details never touch Gharmish servers.",
+    "acceptedMethods": "We accept"
   },
   "bookingEmail": {
     "subject": "Your Gharmish booking is confirmed",
@@ -1461,7 +1510,26 @@
     "hostNewRequestIntro": "A guest has requested one of your experiences. Review and accept or decline it in your dashboard: {url}",
     "hostNewBookingIntro": "A guest has booked one of your experiences. See the details in your dashboard: {url}",
     "hostNewPayoutLabel": "Your payout",
-    "hostNewClosing": "Thank you for hosting with Gharmish."
+    "hostNewClosing": "Thank you for hosting with Gharmish.",
+    "approvalDeadlineLabel": "Host responds by",
+    "paymentDeadlineLabel": "Pay by",
+    "requestReceivedSubject": "Your request is with the host",
+    "requestReceivedIntro": "Your booking request has been sent to the host. You won't be charged unless they accept — we'll email you the moment they respond.",
+    "requestReceivedClosing": "You can check the status of your request any time from your booking page.",
+    "approvedSubject": "Your booking request was accepted",
+    "approvedIntro": "Good news — the host accepted your request and your booking is confirmed.",
+    "approvedClosing": "We look forward to seeing you there.",
+    "approvedPayIntro": "Good news — the host accepted your request. Complete your payment to lock in your spot: {url}",
+    "approvedPayClosing": "If payment isn't completed before the deadline above, the spot is released back to the calendar and nothing is charged.",
+    "declinedSubject": "Your booking request was declined",
+    "declinedIntro": "The host couldn't take this booking. You haven't been charged anything.",
+    "declinedClosing": "We'd love to help you find another experience that fits your dates.",
+    "expiredSubject": "Your booking request expired",
+    "expiredIntro": "The host didn't respond within the approval window, so your request expired. You haven't been charged anything.",
+    "expiredClosing": "You're welcome to send a new request for another date.",
+    "paymentLapsedSubject": "Your booking hold was released",
+    "paymentLapsedIntro": "The payment window for your booking passed, so the spot was released back to the calendar. You haven't been charged anything.",
+    "paymentLapsedClosing": "If you still want to go, you can book the experience again."
   },
   "notFound": {
     "eyebrow": "404",
@@ -1479,7 +1547,10 @@
   },
   "host": {
     "verified": "Verified host",
-    "viewProfile": "View host profile"
+    "viewProfile": "View host profile",
+    "speaks": "Speaks {languages}",
+    "respondsIn": "Responds in about {hours}h",
+    "responseRate": "{pct}% response rate"
   },
   "hostsIndex": {
     "eyebrow": "Our hosts",
@@ -1515,7 +1586,12 @@
     "linkHosts": "Hosts",
     "linkHostApply": "Host with us",
     "linkWishlist": "Wishlist",
-    "linkMe": "Your activity"
+    "linkMe": "Your activity",
+    "supportLabel": "Support",
+    "linkHowItWorks": "How it works",
+    "linkTrustSafety": "Trust & safety",
+    "linkCancellation": "Cancellation policy",
+    "linkHelp": "Help & FAQ"
   },
   "wishlistButton": {
     "save": "Save to wishlist",
@@ -1544,7 +1620,9 @@
       "confirmed": "Confirmed",
       "completed": "Completed",
       "cancelled": "Cancelled",
-      "refunded": "Refunded"
+      "refunded": "Refunded",
+      "declined": "Declined by host",
+      "expired": "Request expired"
     },
     "viewConfirmation": "Open confirmation",
     "viewExperience": "Open experience",
@@ -1637,10 +1715,13 @@
           "confirmed": "Confirmed",
           "completed": "Completed",
           "cancelled": "Cancelled",
-          "refunded": "Refunded"
+          "refunded": "Refunded",
+          "declined": "Declined by host",
+          "expired": "Request expired"
         }
       }
-    }
+    },
+    "payNow": "Complete payment"
   },
   "wishlist": {
     "eyebrow": "Your wishlist",
@@ -1651,5 +1732,111 @@
     "emptyTitle": "Start saving experiences.",
     "emptyDescription": "Tap the heart on any card while you're browsing. We'll keep them here for when you're ready to book.",
     "emptyCta": "Browse experiences"
+  },
+  "trustSafety": {
+    "eyebrow": "Trust & safety",
+    "title": "Booked with confidence, hosted with care.",
+    "intro": "Every experience on Gharmish is curated, every host is vetted in person, and every payment is protected. Here's what stands behind your booking.",
+    "vetting": {
+      "heading": "Every host is vetted",
+      "body": "Hosts join Gharmish by application, not by sign-up. We verify identity documents and tourism licences, review every experience in person before it goes live, and work with hosts on safety planning. The Verified badge means a real person on our team has checked."
+    },
+    "payments": {
+      "heading": "Your money is protected",
+      "body": "Payments run through a licensed Saudi payment gateway with 3-D Secure — card details never touch our servers. For request-to-book experiences you aren't charged until the host accepts, and if a host declines or doesn't respond in time, nothing is charged at all."
+    },
+    "insurance": {
+      "heading": "Safety on the ground",
+      "body": "Activity experiences run with certified guides and the required civil-defence clearances. What to bring, minimum ages, and fitness expectations are listed on every experience so you know what you're signing up for before you book."
+    },
+    "support": {
+      "heading": "We're close by",
+      "body": "Gharmish is run from Abha, not a call centre. Every booking page has a direct \"report a problem\" line that reaches our team, and confirmed bookings unlock a WhatsApp line to your host for day-of coordination."
+    },
+    "community": {
+      "heading": "Honest reviews, gated by real bookings",
+      "body": "Only guests who completed a booking can review it — one review per booking, and hosts can reply once. No purchased ratings, no anonymous noise."
+    }
+  },
+  "howItWorks": {
+    "eyebrow": "How it works",
+    "title": "From browsing to the mountain top.",
+    "intro": "Gharmish connects you with vetted local hosts across Asir. Here's how booking works for guests — and how hosting works if you'd like to join the other side.",
+    "guests": {
+      "heading": "For guests",
+      "intro": "Booking takes a few minutes, and you always know where you stand.",
+      "step1": "Browse experiences and pick a date — every listing shows its real availability calendar.",
+      "step2": "Book it: Instant Book experiences confirm right away; request-to-book experiences go to the host, who responds within {hours} hours.",
+      "step3": "Pay securely with mada, Visa, or Mastercard. For requests, you only pay after the host accepts.",
+      "step4": "Get your e-ticket and a WhatsApp line to your host. Show up — everything else is arranged."
+    },
+    "bookingTypes": {
+      "heading": "Instant Book vs. Request to book",
+      "instant": "Instant Book — marked with a lightning badge. Your spot is confirmed the moment payment goes through. No waiting.",
+      "request": "Request to book — the host checks they can take your group and responds within {hours} hours. You won't be charged until they accept; if they decline or time runs out, you pay nothing."
+    },
+    "hosts": {
+      "heading": "For hosts",
+      "intro": "We're a partnership marketplace: we co-create experiences with you, not just list them.",
+      "step1": "Apply with your story and what you'd like to host. Our team reviews every application.",
+      "step2": "We verify your identity and licences, then build the experience with you — photography included.",
+      "step3": "Choose how bookings confirm: instantly against your calendar, or with your approval per request.",
+      "step4": "Host your guests and track earnings and payouts from your dashboard."
+    }
+  },
+  "cancellationPolicyPage": {
+    "eyebrow": "Cancellation & refunds",
+    "title": "Plans change. Here's exactly what happens.",
+    "intro": "One platform-wide policy, in plain language — the same rules our system actually enforces, with no fine print.",
+    "freeWindow": {
+      "heading": "Free cancellation window",
+      "body1": "You can cancel any booking before it starts. If you cancel at least {hours} hours before the start time, a paid booking is refunded in full.",
+      "body2": "Inside the final {hours} hours the booking can still be cancelled, but the payment is not refunded — your host has already planned and turned others away."
+    },
+    "requests": {
+      "heading": "Booking requests",
+      "body1": "A request-to-book costs nothing to send. The host has {hours} hours to accept or decline; if they decline or don't respond in time, the request closes and you are never charged.",
+      "body2": "Once a host accepts, you have {hours} hours to complete payment. If the payment window lapses, the hold is released and — as always — nothing is charged."
+    },
+    "refunds": {
+      "heading": "How refunds are paid",
+      "body1": "Refunds go back to the original payment method automatically. Depending on your bank, mada and card refunds typically appear within a few business days.",
+      "body2": "If an automatic refund can't be processed, our team completes it manually and you'll receive a confirmation email — you never need to chase it."
+    },
+    "hostCancellations": {
+      "heading": "If a host cancels",
+      "body": "If a host has to cancel — weather on the mountain is real — you're refunded in full, no matter how close to the start it happens."
+    }
+  },
+  "helpFaq": {
+    "eyebrow": "Help",
+    "title": "Questions, answered.",
+    "intro": "The short version of everything guests ask us. Can't find yours? Use \"report a problem\" on any booking page and a real person in Abha will reply.",
+    "items": {
+      "booking": {
+        "q": "How do I book an experience?",
+        "a": "Pick a date on the experience page, choose your group size, and submit. Instant Book experiences confirm as soon as you pay; request-to-book experiences go to the host first, who responds within {approvalHours} hours."
+      },
+      "payment": {
+        "q": "When am I charged?",
+        "a": "Instant Book: at checkout, and your spot is confirmed immediately. Request to book: only after the host accepts — you'll get a secure payment link by email and on your booking page. A declined or expired request is never charged."
+      },
+      "pending": {
+        "q": "What does \"pending host approval\" mean?",
+        "a": "Your request is with the host. They have {approvalHours} hours to accept or decline, and we'll email you the moment they respond. Until they accept, no money moves."
+      },
+      "cancel": {
+        "q": "Can I cancel a booking?",
+        "a": "Yes — any time before the experience starts, from your booking page. Cancel at least {cancelHours} hours before the start and a paid booking refunds in full; closer than that, the payment is kept."
+      },
+      "contactHost": {
+        "q": "How do I reach my host?",
+        "a": "Once a booking is confirmed, your booking page shows a WhatsApp line straight to the host for meeting-point details and day-of coordination."
+      },
+      "becomeHost": {
+        "q": "How do I become a host?",
+        "a": "Apply from the \"Host with us\" page. We review every application, verify identity and licences, and then build the experience together with you — photography included."
+      }
+    }
   }
 }
