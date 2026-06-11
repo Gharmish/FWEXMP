@@ -90,10 +90,17 @@ export async function getHostResponseStats(slug: string): Promise<HostResponseSt
 
 export async function getAllHostSlugs(): Promise<readonly string[]> {
   if (!hasDb()) return sample.getAllHostSlugs();
-  const rows = await db.query.hosts.findMany({
-    columns: { slug: true },
-  });
-  return rows.map((r) => r.slug);
+  // Build-time caller (generateStaticParams) — same degrade-don't-fail
+  // posture as getAllSlugs: a flaky pooler must not kill the deploy.
+  try {
+    const rows = await db.query.hosts.findMany({
+      columns: { slug: true },
+    });
+    return rows.map((r) => r.slug);
+  } catch (error) {
+    reportError(error, { surface: 'hosts:getAllHostSlugs' });
+    return [];
+  }
 }
 
 export async function getAllHosts(): Promise<readonly HostProfile[]> {

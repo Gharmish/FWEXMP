@@ -1,6 +1,7 @@
 import { and, asc, eq } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import { serverEnv } from '@/lib/env';
+import { reportError } from '@/lib/log';
 import type { Experience, Host, Moment } from '@/db/schema';
 import type {
   ExperienceDetail,
@@ -172,9 +173,18 @@ export async function getExperiencesFiltered(
 
 export async function getAllSlugs(): Promise<string[]> {
   if (!hasDb()) return sample.getAllSlugs();
-  const rows = await db.query.experiences.findMany({
-    where: (e) => eq(e.status, 'live'),
-    columns: { slug: true },
-  });
-  return rows.map((r) => r.slug);
+  // Called from generateStaticParams at BUILD time — a transient pooler
+  // refusal must degrade to [] (pages then render on demand via
+  // dynamicParams) instead of failing the whole deployment. This took
+  // down six consecutive Vercel builds on 2026-06-10.
+  try {
+    const rows = await db.query.experiences.findMany({
+      where: (e) => eq(e.status, 'live'),
+      columns: { slug: true },
+    });
+    return rows.map((r) => r.slug);
+  } catch (error) {
+    reportError(error, { surface: 'experiences:getAllSlugs' });
+    return [];
+  }
 }
