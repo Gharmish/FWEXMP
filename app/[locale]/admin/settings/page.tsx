@@ -74,6 +74,11 @@ export default async function AdminSettingsPage({
     cancellationLabel: t('settings.cancellationLabel'),
     cancellationHint: t('settings.cancellationHint'),
     cancellationSuffix: t('settings.cancellationSuffix'),
+    approvalLabel: t('settings.approvalLabel'),
+    approvalHint: t('settings.approvalHint'),
+    approvalPaymentLabel: t('settings.approvalPaymentLabel'),
+    approvalPaymentHint: t('settings.approvalPaymentHint'),
+    hoursSuffix: t('settings.hoursSuffix'),
     announcementLabel: t('settings.announcementLabel'),
     announcementHint: t('settings.announcementHint'),
     announcementEnLabel: t('settings.announcementEnLabel'),
@@ -95,7 +100,7 @@ export default async function AdminSettingsPage({
       {backLink}
       <div className="flex flex-col gap-4">
         <p className={eyebrowClassName}>{t('settings.eyebrow')}</p>
-        <h1 className="font-display text-4xl font-medium tracking-[-0.035em] text-balance sm:text-5xl">
+        <h1 className="font-display text-4xl font-semibold tracking-[-0.035em] text-balance sm:text-5xl">
           {t('settings.title')}
         </h1>
         <p className="text-sarat-black-600 max-w-2xl text-base leading-relaxed">
@@ -107,6 +112,8 @@ export default async function AdminSettingsPage({
         locale={loc}
         defaultCommissionPct={settings.defaultCommissionBps / 100}
         defaultCancellationWindowHours={settings.cancellationWindowHours}
+        defaultApprovalWindowHours={settings.approvalWindowHours}
+        defaultApprovalPaymentWindowHours={settings.approvalPaymentWindowHours}
         defaultAnnouncementEn={settings.announcementEn ?? ''}
         defaultAnnouncementAr={settings.announcementAr ?? ''}
         defaultEnabled={settings.enabledCategories}

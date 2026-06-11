@@ -5,6 +5,7 @@ import { Link } from '@/lib/i18n';
 import type { Locale } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
+import { BookingStatusBadge } from '@/features/bookings/components/booking-status-badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { formatDate } from '@/lib/format';
@@ -36,14 +37,6 @@ export async function generateMetadata({
   };
 }
 
-const STATUS_TONE: Record<AdminBookingStatus, string> = {
-  pending: 'bg-saffron-gold/20 text-sarat-black',
-  confirmed: 'bg-juniper-green/15 text-juniper-green',
-  completed: 'bg-sarat-black/8 text-sarat-black',
-  cancelled: 'bg-al-qatt-red/15 text-al-qatt-red',
-  refunded: 'bg-rijal-clay/15 text-rijal-clay',
-};
-
 function todayInRiyadh(): string {
   return new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Riyadh' }).format(new Date());
 }
@@ -54,6 +47,8 @@ const FILTERABLE_STATUSES: readonly AdminBookingStatus[] = [
   'completed',
   'cancelled',
   'refunded',
+  'declined',
+  'expired',
 ];
 
 export default async function AdminBookingsPage({
@@ -110,7 +105,7 @@ export default async function AdminBookingsPage({
           {t('backToAdmin')}
         </Link>
         <p className={eyebrowClassName}>{t('bookingsList.eyebrow')}</p>
-        <h1 className="font-display text-4xl font-medium tracking-[-0.035em] text-balance sm:text-5xl">
+        <h1 className="font-display text-4xl font-semibold tracking-[-0.035em] text-balance sm:text-5xl">
           {t('bookingsList.title')}
         </h1>
         <p className="text-sarat-black-600 max-w-2xl text-base leading-relaxed">
@@ -129,7 +124,7 @@ export default async function AdminBookingsPage({
       ) : (
         <>
           {/* Counts strip */}
-          <dl className="border-sarat-black/8 rounded-card grid grid-cols-2 gap-5 [border-width:0.5px] p-6 sm:grid-cols-3 lg:grid-cols-6">
+          <dl className="border-sarat-black/8 rounded-card grid grid-cols-2 gap-5 [border-width:0.5px] p-6 sm:grid-cols-4 lg:grid-cols-8">
             <Stat
               label={t('bookingsList.stats.total')}
               value={totals.total}
@@ -158,6 +153,16 @@ export default async function AdminBookingsPage({
             <Stat
               label={t('bookingStatus.refunded')}
               value={totals.refunded}
+              eyebrowClassName={eyebrowClassName}
+            />
+            <Stat
+              label={t('bookingStatus.declined')}
+              value={totals.declined}
+              eyebrowClassName={eyebrowClassName}
+            />
+            <Stat
+              label={t('bookingStatus.expired')}
+              value={totals.expired}
               eyebrowClassName={eyebrowClassName}
             />
           </dl>
@@ -197,7 +202,7 @@ export default async function AdminBookingsPage({
                   <select
                     name="status"
                     defaultValue={status}
-                    className="rounded-input border-sarat-black/20 bg-fog-white text-sarat-black h-11 [border-width:0.5px] px-3 text-base"
+                    className="rounded-input border-sarat-black/20 text-sarat-black h-11 [border-width:0.5px] bg-white px-3 text-base"
                   >
                     <option value="all">{t('bookingsList.filter.allStatuses')}</option>
                     {FILTERABLE_STATUSES.map((s) => (
@@ -214,7 +219,7 @@ export default async function AdminBookingsPage({
                   <select
                     name="view"
                     defaultValue={view}
-                    className="rounded-input border-sarat-black/20 bg-fog-white text-sarat-black h-11 [border-width:0.5px] px-3 text-base"
+                    className="rounded-input border-sarat-black/20 text-sarat-black h-11 [border-width:0.5px] bg-white px-3 text-base"
                   >
                     <option value="all">{t('bookingsList.filter.viewAll')}</option>
                     <option value="upcoming">{t('bookingsList.filter.viewUpcoming')}</option>
@@ -242,9 +247,10 @@ export default async function AdminBookingsPage({
                           >
                             {row.experienceTitleEn}
                           </Link>
-                          <Badge className={STATUS_TONE[row.status]}>
-                            {t(`bookingStatus.${row.status}`)}
-                          </Badge>
+                          <BookingStatusBadge
+                            status={row.status}
+                            label={t(`bookingStatus.${row.status}`)}
+                          />
                           {row.refundDueSar !== null && (
                             <Badge className="bg-al-qatt-red/15 text-al-qatt-red">
                               {t('bookingsList.refundDue')}
@@ -308,10 +314,10 @@ export default async function AdminBookingsPage({
                               copy={{
                                 label: t(`bookingsList.transition.${to}.label`),
                                 pending: t(`bookingsList.transition.${to}.pending`),
-                                // Only the destructive (cancel) transition prompts.
+                                // Destructive transitions (cancel/decline) prompt.
                                 confirm:
-                                  to === 'cancelled'
-                                    ? t('bookingsList.transition.cancelled.confirm')
+                                  to === 'cancelled' || to === 'declined'
+                                    ? t(`bookingsList.transition.${to}.confirm`)
                                     : undefined,
                                 errors: actionErrors,
                               }}

@@ -30,7 +30,7 @@ function esc(value: string): string {
 
 /**
  * Render the booking-receipt email. Inline styles only — email clients strip
- * <style>/external CSS. Palette mirrors the brand (fog-white surface,
+ * <style>/external CSS. Palette mirrors the brand (white surface,
  * sarat-black text).
  */
 export function renderReceiptEmail(content: ReceiptContent): { html: string; text: string } {
@@ -42,7 +42,7 @@ export function renderReceiptEmail(content: ReceiptContent): { html: string; tex
     )
     .join('');
 
-  const html = `<!doctype html><html dir="${content.dir}"><body style="margin:0;background:#F5F2EC;padding:32px 0">
+  const html = `<!doctype html><html dir="${content.dir}"><body style="margin:0;background:#FAFAFA;padding:32px 0">
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr><td align="center">
 <table role="presentation" width="480" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:20px;padding:32px;font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif">
 <tr><td style="font-size:20px;font-weight:500;color:#0A0A0A;padding-bottom:8px">${esc(content.greeting)}</td></tr>

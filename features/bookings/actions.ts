@@ -16,7 +16,11 @@ import {
   remainingCapacity,
 } from '@/features/bookings/lib/availability';
 import { LAST_BOOKING_COOKIE, serializeLastBookingCookie } from '@/features/account/cookie';
-import { sendHostNewBookingEmail } from '@/features/bookings/lib/booking-email';
+import {
+  sendBookingRequestReceivedEmail,
+  sendHostNewBookingEmail,
+} from '@/features/bookings/lib/booking-email';
+import { getPlatformSettings } from '@/features/admin/settings/queries';
 
 /** Today as `YYYY-MM-DD` in the experience's local day (KSA at launch). */
 function todayInRiyadh(): string {
@@ -94,12 +98,17 @@ export async function requestBooking(
   const reference = crypto.randomUUID();
   const slugParam = `slug=${encodeURIComponent(input.experienceSlug)}`;
   const confirmedPath = `/book/confirmed/${reference}?${slugParam}` as const;
-  // When online payment is configured the booking is created as today, then
-  // the guest is routed to the payment step (3DS details → HyperPay widget)
-  // instead of straight to the confirmation page. `hasHyperpay()` is false
-  // until the credentials arrive, so the live request-to-book flow is
-  // unchanged until then.
-  const nextPath = hasHyperpay() ? (`/book/${reference}/pay?${slugParam}` as const) : confirmedPath;
+  // Where the guest lands depends on the experience's booking mode
+  // (pay-after-approval model, owner decision 2026-06-10):
+  //   instant + payment on  → the payment step (booking holds the spot
+  //                           while the guest pays; confirmed on settle)
+  //   request (any payment) → the confirmation page in its "pending host
+  //                           approval" state. The guest is NEVER charged
+  //                           before the host approves; approval stamps a
+  //                           payment deadline and emails a pay link.
+  // Resolved after the experience row is loaded; defaults to the
+  // confirmation page for the no-DB preview path.
+  let nextPath: string = confirmedPath;
 
   if (!serverEnv.DATABASE_URL) {
     // Preview mode: nothing is persisted, but we still navigate to the
@@ -217,6 +226,10 @@ export async function requestBooking(
       idempotencyKey: reference,
     } as const;
 
+    if (experience.bookingMode === 'instant' && hasHyperpay()) {
+      nextPath = `/book/${reference}/pay?${slugParam}`;
+    }
+
     if (experience.bookingMode === 'instant') {
       // Instant experiences auto-confirm, but only if the date still has
       // room. Lock the experience row for the duration of the transaction
@@ -263,9 +276,13 @@ export async function requestBooking(
         };
       }
     } else {
-      // Request mode: no capacity gate at request time — an admin
-      // confirms each request, and capacity is enforced there.
-      await db.insert(bookings).values({ ...bookingValues, status: 'pending' });
+      // Request mode: no capacity gate at request time — the host (or
+      // admin) confirms each request, and capacity is enforced there.
+      // The approval window starts now; the cron expires undecided
+      // requests past the deadline.
+      const { approvalWindowHours } = await getPlatformSettings();
+      const approvalDeadline = new Date(Date.now() + approvalWindowHours * 3_600_000);
+      await db.insert(bookings).values({ ...bookingValues, status: 'pending', approvalDeadline });
     }
   } catch (error) {
     reportError(error, { surface: 'booking-request', experienceSlug: input.experienceSlug });
@@ -277,6 +294,14 @@ export async function requestBooking(
     await sendHostNewBookingEmail(reference);
   } catch (error) {
     reportError(error, { surface: 'booking-request:hostEmail', reference });
+  }
+
+  // Acknowledge the guest's request (request mode only; no-ops without an
+  // email on file). Same best-effort posture.
+  try {
+    await sendBookingRequestReceivedEmail(reference, input.locale);
+  } catch (error) {
+    reportError(error, { surface: 'booking-request:guestEmail', reference });
   }
 
   await writeLastBookingCookie(reference, input.experienceSlug);

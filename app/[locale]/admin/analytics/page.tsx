@@ -74,7 +74,7 @@ export default async function AdminAnalyticsPage({
           {t('backToAdmin')}
         </Link>
         <p className={eyebrowClassName}>{t('analytics.eyebrow')}</p>
-        <h1 className="font-display text-4xl font-medium tracking-[-0.035em] text-balance sm:text-5xl">
+        <h1 className="font-display text-4xl font-semibold tracking-[-0.035em] text-balance sm:text-5xl">
           {t('analytics.title')}
         </h1>
         <p className="text-sarat-black-600 max-w-2xl text-base leading-relaxed">

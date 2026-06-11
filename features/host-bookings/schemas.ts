@@ -10,7 +10,7 @@ import { z } from 'zod';
  */
 export const hostTransitionBookingSchema = z.object({
   bookingId: z.string().uuid(),
-  to: z.enum(['confirmed', 'completed', 'cancelled']),
+  to: z.enum(['confirmed', 'completed', 'cancelled', 'declined']),
   locale: z.enum(['en', 'ar']),
 });
 

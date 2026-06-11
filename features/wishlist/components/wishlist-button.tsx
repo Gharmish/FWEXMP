@@ -43,9 +43,7 @@ export function WishlistButton({ slug, isSaved, surface = 'light' }: WishlistBut
   }
 
   const baseBg =
-    surface === 'dark'
-      ? 'bg-fog-white/10 hover:bg-fog-white/15'
-      : 'bg-fog-white/85 hover:bg-fog-white';
+    surface === 'dark' ? 'bg-white/10 hover:bg-white/15' : 'bg-white/85 hover:bg-white';
   const savedBg = 'bg-saffron-gold/15 hover:bg-saffron-gold/20';
 
   // Quiet "alive" cue: a spring scale-pop on the heart each time the saved
@@ -58,7 +56,7 @@ export function WishlistButton({ slug, isSaved, surface = 'light' }: WishlistBut
         optimisticSaved
           ? 'text-saffron-gold'
           : surface === 'dark'
-            ? 'text-fog-white'
+            ? 'text-white'
             : 'text-sarat-black-600',
       )}
       aria-hidden

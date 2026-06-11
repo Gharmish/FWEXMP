@@ -1,5 +1,5 @@
 import Image from 'next/image';
-import { Star, Zap } from 'lucide-react';
+import { CalendarClock, Sparkles, Star, Zap } from 'lucide-react';
 import { getTranslations } from 'next-intl/server';
 import { Card } from '@/components/ui/card';
 import { durationHours, formatInteger } from '@/lib/format';
@@ -70,7 +70,7 @@ export async function ExperienceCard({ experience, locale, actions }: Experience
       : category.labelEn
     : experience.category;
 
-  const muted = experience.featured ? 'text-fog-white/70' : 'text-sarat-black-600';
+  const muted = experience.featured ? 'text-white/70' : 'text-sarat-black-600';
   const labelClassName = cn('text-[11px]', locale === 'en' && 'tracking-[0.2em] uppercase');
 
   const ratingDisplay =
@@ -123,17 +123,40 @@ export async function ExperienceCard({ experience, locale, actions }: Experience
                 <span className={labelClassName}>
                   {experience.featured ? t('originals') : categoryLabel}
                 </span>
-                {experience.bookingMode === 'instant' && (
+                {experience.bookingMode === 'instant' ? (
                   <span
                     className={cn(
                       'inline-flex items-center gap-1 rounded-full px-2 py-1 text-[10px] font-medium',
                       experience.featured
-                        ? 'bg-fog-white/15 text-fog-white'
+                        ? 'bg-white/15 text-white'
                         : 'bg-saffron-gold/20 text-sarat-black',
                     )}
                   >
                     <Zap className="size-3 shrink-0" aria-hidden />
                     {t('instant')}
+                  </span>
+                ) : (
+                  <span
+                    className={cn(
+                      'inline-flex items-center gap-1 rounded-full px-2 py-1 text-[10px] font-medium',
+                      experience.featured
+                        ? 'bg-white/15 text-white/90'
+                        : 'bg-sarat-black/8 text-sarat-black-800',
+                    )}
+                  >
+                    <CalendarClock className="size-3 shrink-0" aria-hidden />
+                    {t('requestMode')}
+                  </span>
+                )}
+                {experience.isNew && (
+                  <span
+                    className={cn(
+                      'inline-flex items-center gap-1 rounded-full px-2 py-1 text-[10px] font-medium',
+                      experience.featured ? 'bg-white/15 text-white' : 'bg-info-surface text-info',
+                    )}
+                  >
+                    <Sparkles className="size-3 shrink-0" aria-hidden />
+                    {t('newBadge')}
                   </span>
                 )}
               </div>
@@ -175,7 +198,7 @@ export async function ExperienceCard({ experience, locale, actions }: Experience
                     <span
                       className={cn(
                         'font-medium',
-                        experience.featured ? 'text-fog-white' : 'text-sarat-black',
+                        experience.featured ? 'text-white' : 'text-sarat-black',
                       )}
                     >
                       {ratingDisplay}

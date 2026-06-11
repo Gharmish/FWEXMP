@@ -34,7 +34,7 @@ const pillVariants = cva(
       },
     },
     compoundVariants: [
-      { selected: true, category: 'none', class: 'bg-sarat-black text-fog-white' },
+      { selected: true, category: 'none', class: 'bg-sarat-black text-white' },
       { selected: true, category: 'nature', class: 'bg-juniper-green/12 text-juniper-green-800' },
       { selected: true, category: 'heritage', class: 'bg-al-qatt-red/12 text-al-qatt-red-800' },
       { selected: true, category: 'food', class: 'bg-saffron-gold/15 text-saffron-gold-900' },

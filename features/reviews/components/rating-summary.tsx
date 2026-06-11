@@ -44,7 +44,7 @@ export function RatingSummary({ aggregate, locale }: RatingSummaryProps) {
     <div className="flex flex-col gap-6 sm:flex-row sm:items-start sm:gap-12">
       <div className="flex flex-col gap-2">
         <div className="flex items-baseline gap-2">
-          <span className="font-display text-5xl font-medium tracking-[-0.035em]">
+          <span className="font-display text-5xl font-semibold tracking-[-0.035em]">
             {averageDisplay}
           </span>
           <span className="text-sarat-black-600 text-base">{t('outOf', { max: 5 })}</span>

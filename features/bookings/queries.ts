@@ -1,7 +1,7 @@
-import { desc, eq } from 'drizzle-orm';
+import { and, desc, eq, sql } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import { serverEnv } from '@/lib/env';
-import { bookings } from '@/db/schema';
+import { bookings, experiences } from '@/db/schema';
 import type { Booking } from '@/db/schema';
 import { bookingViewerCanAccess } from '@/features/bookings/lib/access';
 import { reportError } from '@/lib/log';
@@ -33,10 +33,18 @@ export interface BookingDetail {
   guestName: string;
   /** Guest's email if known — prefills the payment-details step. */
   guestEmail: string | null;
+  /** Guest's preferred locale — decision emails are sent in it. */
+  guestPreferredLanguage: 'en' | 'ar';
   /** Card scheme once settled (e.g. `MADA`, `VISA`, `MASTER`); null otherwise. */
   paymentBrand: string | null;
   /** When payment settled, ISO string; null until paid. */
   paidAt: string | null;
+  /** Request-to-book: when the host's decision window closes. ISO; null for instant. */
+  approvalDeadline: string | null;
+  /** When the host/admin approved the request. ISO; null otherwise. */
+  approvedAt: string | null;
+  /** When an unpaid hold (instant, or approved request) lapses. ISO; null when none. */
+  paymentDeadline: string | null;
   createdAt: string;
 }
 
@@ -46,7 +54,7 @@ export async function getBookingByReference(reference: string): Promise<BookingD
     where: eq(bookings.idempotencyKey, reference),
     with: {
       experience: { columns: { slug: true } },
-      guest: { columns: { name: true, email: true } },
+      guest: { columns: { name: true, email: true, preferredLanguage: true } },
     },
   });
   if (!row) return undefined;
@@ -62,8 +70,12 @@ export async function getBookingByReference(reference: string): Promise<BookingD
     experienceSlug: row.experience.slug,
     guestName: row.guest.name,
     guestEmail: row.guest.email,
+    guestPreferredLanguage: row.guest.preferredLanguage,
     paymentBrand: row.paymentBrand,
     paidAt: row.paidAt?.toISOString() ?? null,
+    approvalDeadline: row.approvalDeadline?.toISOString() ?? null,
+    approvedAt: row.approvedAt?.toISOString() ?? null,
+    paymentDeadline: row.paymentDeadline?.toISOString() ?? null,
     createdAt: row.createdAt.toISOString(),
   };
 }
@@ -106,7 +118,7 @@ export async function getBookingsForGuest(guestId: string): Promise<GuestBooking
     orderBy: [desc(bookings.date), desc(bookings.createdAt)],
     with: {
       experience: { columns: { slug: true, titleEn: true, titleAr: true } },
-      guest: { columns: { name: true, email: true } },
+      guest: { columns: { name: true, email: true, preferredLanguage: true } },
     },
   });
   return rows.map((row) => ({
@@ -121,8 +133,12 @@ export async function getBookingsForGuest(guestId: string): Promise<GuestBooking
     experienceSlug: row.experience.slug,
     guestName: row.guest.name,
     guestEmail: row.guest.email,
+    guestPreferredLanguage: row.guest.preferredLanguage,
     paymentBrand: row.paymentBrand,
     paidAt: row.paidAt?.toISOString() ?? null,
+    approvalDeadline: row.approvalDeadline?.toISOString() ?? null,
+    approvedAt: row.approvedAt?.toISOString() ?? null,
+    paymentDeadline: row.paymentDeadline?.toISOString() ?? null,
     experienceTitleEn: row.experience.titleEn,
     experienceTitleAr: row.experience.titleAr,
     createdAt: row.createdAt.toISOString(),
@@ -153,5 +169,26 @@ export async function getHostContactPhoneForBooking(reference: string): Promise<
   } catch (error) {
     reportError(error, { surface: 'bookings:getHostContact', reference });
     return null;
+  }
+}
+
+/**
+ * Completed bookings for an experience — feeds the "{n}+ booked" social
+ * proof chip (shown only at ≥10, owner-approved threshold 2026-06-11).
+ * Never throws; 0 on no-DB/error keeps public pages resilient
+ * (memory: home-page-db-resilience).
+ */
+export async function getCompletedBookingsCountForExperience(slug: string): Promise<number> {
+  if (!hasDb()) return 0;
+  try {
+    const [row] = await db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(bookings)
+      .innerJoin(experiences, eq(bookings.experienceId, experiences.id))
+      .where(and(eq(experiences.slug, slug), eq(bookings.status, 'completed')));
+    return row?.count ?? 0;
+  } catch (error) {
+    reportError(error, { surface: 'bookings:completedCount', slug });
+    return 0;
   }
 }

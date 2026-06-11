@@ -6,13 +6,14 @@ import { redirect, Link } from '@/lib/i18n';
 import type { Locale } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
+import { BookingStatusBadge } from '@/features/bookings/components/booking-status-badge';
 import { EmptyState } from '@/components/ui/empty-state';
 import { Price } from '@/components/ui/price';
-import { formatDate } from '@/lib/format';
+import { formatDate, formatTime } from '@/lib/format';
 import { getCurrentUser } from '@/features/auth/queries';
 import { getHostDashboard } from '@/features/host-dashboard/queries';
 import { listBookingsForHost } from '@/features/host-bookings/queries';
-import type { HostBookingRow, HostBookingStatus } from '@/features/host-bookings/types';
+import type { HostBookingRow } from '@/features/host-bookings/types';
 import { availableTransitions } from '@/features/bookings/lib/transitions';
 import { HostTransitionButton } from '@/app/[locale]/host/bookings/host-transition-button';
 
@@ -27,14 +28,6 @@ export async function generateMetadata({
     robots: { index: false, follow: false },
   };
 }
-
-const STATUS_TONE: Record<HostBookingStatus, string> = {
-  pending: 'bg-saffron-gold/20 text-sarat-black',
-  confirmed: 'bg-juniper-green/15 text-juniper-green',
-  completed: 'bg-sarat-black/8 text-sarat-black',
-  cancelled: 'bg-al-qatt-red/15 text-al-qatt-red',
-  refunded: 'bg-rijal-clay/15 text-rijal-clay',
-};
 
 function todayInRiyadh(): string {
   return new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Riyadh' }).format(new Date());
@@ -97,13 +90,18 @@ export default async function HostBookingsPage({
 
   const renderRow = (row: HostBookingRow) => {
     // Hosts may mark a confirmed booking completed only once its day has
-    // arrived — "it happened" can't be claimed for a future date.
+    // arrived — "it happened" can't be claimed for a future date. A
+    // pending request offers Approve/Decline only — withdrawing a request
+    // (`cancelled`) is the guest's (or admin's) move, not the host's.
     const transitions = availableTransitions(row.status).filter(
-      (to) => !(to === 'completed' && row.date > todayStr),
+      (to) =>
+        !(to === 'completed' && row.date > todayStr) &&
+        !(to === 'cancelled' && row.status === 'pending'),
     );
-    // "Decline" a request; "Cancel" a booking you already accepted.
-    const cancelledCopyKey = row.status === 'pending' ? 'label' : 'labelConfirmed';
-    const cancelledConfirmKey = row.status === 'pending' ? 'confirm' : 'confirmConfirmed';
+    const respondBy =
+      row.status === 'pending' && row.approvalDeadline ? new Date(row.approvalDeadline) : null;
+    const awaitingPayment =
+      row.status === 'confirmed' && row.paymentStatus !== 'paid' && row.paymentDeadline !== null;
     return (
       <li
         key={row.id}
@@ -117,9 +115,12 @@ export default async function HostBookingsPage({
             >
               {loc === 'ar' ? row.experienceTitleAr : row.experienceTitleEn}
             </Link>
-            <Badge className={STATUS_TONE[row.status]}>{t(`status.${row.status}`)}</Badge>
+            <BookingStatusBadge status={row.status} label={t(`status.${row.status}`)} />
             {row.paymentStatus === 'paid' && (
-              <Badge className="bg-juniper-green/15 text-juniper-green">{t('paidBadge')}</Badge>
+              <Badge className="bg-success-surface text-success">{t('paidBadge')}</Badge>
+            )}
+            {awaitingPayment && (
+              <Badge className="bg-pending-surface text-pending">{t('awaitingPayment')}</Badge>
             )}
           </div>
           <div className="text-sarat-black-600 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
@@ -160,6 +161,13 @@ export default async function HostBookingsPage({
           <span className="text-sarat-black-600 text-sm">
             {t('requestedOn', { date: formatDate(new Date(row.createdAt), loc) })}
           </span>
+          {respondBy && (
+            <span className="text-pending text-sm font-medium">
+              {t('respondBy', {
+                date: `${formatDate(respondBy, loc)} · ${formatTime(respondBy, loc)}`,
+              })}
+            </span>
+          )}
           {!suspended && transitions.length > 0 && (
             <div className="flex flex-wrap items-start justify-end gap-2">
               {transitions.map((to) => (
@@ -169,14 +177,12 @@ export default async function HostBookingsPage({
                   to={to}
                   locale={loc}
                   copy={{
-                    label:
-                      to === 'cancelled'
-                        ? t(`transition.cancelled.${cancelledCopyKey}`)
-                        : t(`transition.${to}.label`),
+                    label: t(`transition.${to}.label`),
                     pending: t(`transition.${to}.pending`),
+                    // Destructive moves (decline / cancel) prompt first.
                     confirm:
-                      to === 'cancelled'
-                        ? t(`transition.cancelled.${cancelledConfirmKey}`)
+                      to === 'cancelled' || to === 'declined'
+                        ? t(`transition.${to}.confirm`)
                         : undefined,
                     errors: actionErrors,
                   }}
@@ -223,7 +229,7 @@ export default async function HostBookingsPage({
           {t('backToDashboard')}
         </Link>
         <p className={eyebrowClassName}>{t('eyebrow')}</p>
-        <h1 className="font-display text-4xl font-medium tracking-[-0.035em] text-balance sm:text-5xl">
+        <h1 className="font-display text-4xl font-semibold tracking-[-0.035em] text-balance sm:text-5xl">
           {t('title')}
         </h1>
         <p className="text-sarat-black-600 max-w-2xl text-base leading-relaxed">{t('intro')}</p>

@@ -69,7 +69,7 @@ function RemoveButton({
         onClick={(e) => {
           if (!window.confirm(copy.removeConfirm)) e.preventDefault();
         }}
-        className="bg-sarat-black/70 text-fog-white inline-flex size-7 items-center justify-center rounded-full backdrop-blur transition-opacity duration-200 hover:opacity-80"
+        className="bg-sarat-black/70 inline-flex size-7 items-center justify-center rounded-full text-white backdrop-blur transition-opacity duration-200 hover:opacity-80"
       >
         <X className="size-4" aria-hidden />
       </button>

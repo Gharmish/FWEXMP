@@ -506,7 +506,7 @@ export function BookingRequestForm({
             animate={{ y: reduce ? 0 : stickyBarVisible ? 0 : '110%' }}
             transition={SPRING}
             className={cn(
-              'border-sarat-black/8 bg-fog-white/95 fixed inset-x-0 bottom-0 z-40 [border-top-width:0.5px] px-6 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] backdrop-blur lg:hidden',
+              'border-sarat-black/8 fixed inset-x-0 bottom-0 z-40 [border-top-width:0.5px] bg-white/95 px-6 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] backdrop-blur lg:hidden',
               !stickyBarVisible && 'pointer-events-none',
             )}
           >

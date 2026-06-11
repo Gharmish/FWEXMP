@@ -68,7 +68,7 @@ export default async function HostDashboardPage({
       <section className="mx-auto w-full max-w-6xl px-6 py-20 sm:py-24">
         <div className="flex flex-col gap-5">
           <p className={eyebrowClassName}>{t('eyebrow')}</p>
-          <h1 className="font-display text-4xl font-medium tracking-[-0.035em] text-balance sm:text-6xl">
+          <h1 className="font-display text-4xl font-semibold tracking-[-0.035em] text-balance sm:text-6xl">
             {t('greeting', { name: host.name })}
           </h1>
           {pendingRequests > 0 && (

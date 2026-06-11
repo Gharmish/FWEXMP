@@ -48,9 +48,10 @@ export async function settleBooking(reference: string): Promise<PaymentOutcome |
           paidAt: new Date(),
           paymentReference: status.id,
           paymentBrand: status.paymentBrand ?? null,
-          // A pending request becomes confirmed once paid; an already
-          // confirmed instant booking stays confirmed.
-          status: booking.status === 'pending' ? 'confirmed' : booking.status,
+          // Settlement never changes the lifecycle status. Pay-after-
+          // approval: `createCheckout` refuses anything but `confirmed`
+          // bookings, so payment can't confirm a request the host never
+          // approved.
         })
         .where(eq(bookings.id, booking.id));
       return 'success';

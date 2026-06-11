@@ -57,7 +57,7 @@ export default async function HostApplyPage({ params }: { params: Promise<{ loca
         <section className="mx-auto w-full max-w-3xl px-6 py-20 sm:py-24">
           <div className="flex flex-col gap-5">
             <p className={eyebrowClassName}>{t(`status.${existing.status}.eyebrow`)}</p>
-            <h1 className="font-display text-4xl font-medium tracking-[-0.035em] text-balance sm:text-5xl">
+            <h1 className="font-display text-4xl font-semibold tracking-[-0.035em] text-balance sm:text-5xl">
               {t(`status.${existing.status}.title`, { name: existing.displayName })}
             </h1>
             <p className="text-sarat-black-600 max-w-2xl text-lg leading-relaxed">
@@ -111,7 +111,7 @@ export default async function HostApplyPage({ params }: { params: Promise<{ loca
       <section className="mx-auto w-full max-w-3xl px-6 py-20 sm:py-24">
         <div className="flex flex-col gap-5">
           <p className={eyebrowClassName}>{t('eyebrow')}</p>
-          <h1 className="font-display text-4xl font-medium tracking-[-0.035em] text-balance sm:text-5xl">
+          <h1 className="font-display text-4xl font-semibold tracking-[-0.035em] text-balance sm:text-5xl">
             {t('title')}
           </h1>
           <p className="text-sarat-black-600 max-w-2xl text-lg leading-relaxed">{t('intro')}</p>

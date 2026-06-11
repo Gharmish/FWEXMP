@@ -59,6 +59,8 @@ export async function listBookingsForHost(): Promise<readonly HostBookingRow[]> 
         totalAmountSar: row.booking.totalAmount,
         payoutSar,
         createdAt: row.booking.createdAt.toISOString(),
+        approvalDeadline: row.booking.approvalDeadline?.toISOString() ?? null,
+        paymentDeadline: row.booking.paymentDeadline?.toISOString() ?? null,
         experienceId: row.booking.experienceId,
         experienceSlug: row.experienceSlug,
         experienceTitleEn: row.experienceTitleEn,

@@ -31,6 +31,8 @@ export interface PaymentDetailsCopy {
   errorAlreadyPaid: string;
   /** Hold released / expired before payment completed. */
   errorExpired: string;
+  /** Request-to-book not yet accepted by the host (pay-after-approval). */
+  errorNotApproved: string;
   payHeading: string;
   widgetLoading: string;
   /** Shown if the HyperPay widget script fails to load. */
@@ -123,6 +125,7 @@ export function PaymentDetailsForm({
           notFound: copy.errorNotFound,
           alreadyPaid: copy.errorAlreadyPaid,
           expired: copy.errorExpired,
+          notApproved: copy.errorNotApproved,
         }[state.error ?? 'server']
       : undefined;
 
@@ -176,7 +179,7 @@ export function PaymentDetailsForm({
             defaultValue={values.country ?? defaults?.country ?? 'SA'}
             aria-invalid={state.fields?.country ? true : undefined}
             className={cn(
-              'rounded-input border-sarat-black/20 bg-fog-white text-sarat-black h-11 w-full [border-width:0.5px] px-4 text-base',
+              'rounded-input border-sarat-black/20 text-sarat-black h-11 w-full [border-width:0.5px] bg-white px-4 text-base',
               'aria-invalid:border-al-qatt-red',
             )}
           >

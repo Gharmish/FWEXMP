@@ -88,7 +88,7 @@ export function PhotoGallery({ heroImage, images, alt, locale, copy }: PhotoGall
       <div
         className={cn(
           'rounded-image relative mt-8 aspect-[16/9] w-full overflow-hidden',
-          !heroImage && 'bg-honey-amber/30',
+          !heroImage && 'bg-mist-deep',
         )}
       >
         {heroImage && (
@@ -108,7 +108,7 @@ export function PhotoGallery({ heroImage, images, alt, locale, copy }: PhotoGall
               className="group focus-visible:ring-saffron-gold absolute inset-0 cursor-pointer outline-none focus-visible:ring-2"
             >
               {total > 1 && (
-                <span className="bg-fog-white/90 text-sarat-black border-sarat-black/10 absolute end-4 bottom-4 inline-flex items-center gap-2 rounded-full [border-width:0.5px] px-4 py-2 text-sm font-medium transition-transform duration-200 group-hover:-translate-y-px">
+                <span className="text-sarat-black border-sarat-black/10 absolute end-4 bottom-4 inline-flex items-center gap-2 rounded-full [border-width:0.5px] bg-white/90 px-4 py-2 text-sm font-medium transition-transform duration-200 group-hover:-translate-y-px">
                   <Images className="size-4 shrink-0" aria-hidden />
                   {formatInteger(total, locale)} {copy.count}
                 </span>
@@ -139,7 +139,7 @@ export function PhotoGallery({ heroImage, images, alt, locale, copy }: PhotoGall
                   className="object-cover"
                 />
                 {isLast && (
-                  <span className="bg-sarat-black/55 text-fog-white absolute inset-0 flex items-center justify-center text-lg font-medium">
+                  <span className="bg-sarat-black/55 absolute inset-0 flex items-center justify-center text-lg font-medium text-white">
                     +{formatInteger(overflow + 1, locale)}
                   </span>
                 )}
@@ -158,13 +158,13 @@ export function PhotoGallery({ heroImage, images, alt, locale, copy }: PhotoGall
           className="bg-sarat-black/95 fixed inset-0 z-50 flex flex-col"
         >
           <div className="flex items-center justify-between p-4">
-            <span className="text-fog-white/80 text-sm tabular-nums">
+            <span className="text-sm text-white/80 tabular-nums">
               {formatInteger(openAt + 1, locale)} / {formatInteger(total, locale)}
             </span>
             <IconButton
               aria-label={copy.close}
               onClick={close}
-              className="border-fog-white/20 bg-fog-white/10 text-fog-white hover:bg-fog-white/20"
+              className="border-white/20 bg-white/10 text-white hover:bg-white/20"
             >
               <X aria-hidden />
             </IconButton>
@@ -192,14 +192,14 @@ export function PhotoGallery({ heroImage, images, alt, locale, copy }: PhotoGall
               <IconButton
                 aria-label={copy.prev}
                 onClick={() => step(-1)}
-                className="border-fog-white/20 bg-fog-white/10 text-fog-white hover:bg-fog-white/20"
+                className="border-white/20 bg-white/10 text-white hover:bg-white/20"
               >
                 <ChevronLeft className="rtl:rotate-180" aria-hidden />
               </IconButton>
               <IconButton
                 aria-label={copy.next}
                 onClick={() => step(1)}
-                className="border-fog-white/20 bg-fog-white/10 text-fog-white hover:bg-fog-white/20"
+                className="border-white/20 bg-white/10 text-white hover:bg-white/20"
               >
                 <ChevronRight className="rtl:rotate-180" aria-hidden />
               </IconButton>

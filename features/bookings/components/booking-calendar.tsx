@@ -324,7 +324,7 @@ export function BookingCalendar({
                         ? 'text-sarat-black hover:bg-sarat-black/5 cursor-pointer'
                         : 'text-sarat-black/30 cursor-default',
                       isToday && !isSelected && 'border-sarat-black/25 [border-width:0.5px]',
-                      isSelected && 'text-fog-white',
+                      isSelected && 'text-white',
                     )}
                   >
                     {isSelected &&

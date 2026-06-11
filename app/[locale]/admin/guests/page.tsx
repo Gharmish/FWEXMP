@@ -73,7 +73,7 @@ export default async function AdminGuestsPage({
       {backLink}
       <div className="flex flex-col gap-4">
         <p className={eyebrowClassName}>{t('guestsList.eyebrow')}</p>
-        <h1 className="font-display text-4xl font-medium tracking-[-0.035em] text-balance sm:text-5xl">
+        <h1 className="font-display text-4xl font-semibold tracking-[-0.035em] text-balance sm:text-5xl">
           {t('guestsList.title')}
         </h1>
         <p className="text-sarat-black-600 max-w-2xl text-base leading-relaxed">
@@ -92,12 +92,12 @@ export default async function AdminGuestsPage({
             name="q"
             defaultValue={q}
             placeholder={t('guestsList.searchPlaceholder')}
-            className="rounded-input border-sarat-black/20 bg-fog-white text-sarat-black h-11 w-full [border-width:0.5px] px-3 text-base"
+            className="rounded-input border-sarat-black/20 text-sarat-black h-11 w-full [border-width:0.5px] bg-white px-3 text-base"
           />
         </label>
         <button
           type="submit"
-          className="rounded-button bg-sarat-black text-fog-white h-11 px-5 text-sm font-medium"
+          className="rounded-button bg-sarat-black h-11 px-5 text-sm font-medium text-white"
         >
           {t('guestsList.searchSubmit')}
         </button>

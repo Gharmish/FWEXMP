@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, CalendarClock, ShieldCheck, Users, Zap } from 'lucide-react';
 import { notFound } from 'next/navigation';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { cn } from '@/lib/utils';
@@ -16,9 +16,14 @@ import { toArabicText } from '@/features/experiences/lib/arabic-content';
 import { CATEGORIES } from '@/features/experiences/lib/sample-data';
 import { getAllSlugs, getExperienceBySlug } from '@/features/experiences/queries';
 import { PhotoGallery } from '@/features/experiences/components/photo-gallery';
+import { MeetingPointMap } from '@/features/experiences/components/meeting-point-map';
 import { getScheduleDataBySlug } from '@/features/availability/queries';
 import { addDays, bookableDates } from '@/features/bookings/lib/availability';
 import { vatRatePercent } from '@/features/bookings/lib/vat';
+import { getPlatformSettings } from '@/features/admin/settings/queries';
+import { getCompletedBookingsCountForExperience } from '@/features/bookings/queries';
+import { getHostResponseStats } from '@/features/hosts/queries';
+import { Badge } from '@/components/ui/badge';
 import { ReviewsSection } from '@/features/reviews/components/reviews-section';
 import { getReviewAggregateForExperience } from '@/features/reviews/queries';
 import { FadeIn } from '@/components/ui/motion';
@@ -156,7 +161,24 @@ export default async function ExperienceDetailPage({
     prevMonth: tb('prevMonth'),
     nextMonth: tb('nextMonth'),
   };
-  const modeNote = exp.bookingMode === 'instant' ? tb('modeInstant') : tb('modeRequest');
+  // The request-mode note names the real approval window so guest
+  // expectations match the platform setting, not stale copy. The
+  // cancellation chip reflects the platform-wide refund rule (the one
+  // the cancel action actually enforces).
+  const [settings, completedCount, hostResponseStats] = await Promise.all([
+    getPlatformSettings(),
+    getCompletedBookingsCountForExperience(exp.slug),
+    getHostResponseStats(exp.hostSlug),
+  ]);
+  const modeNote =
+    exp.bookingMode === 'instant'
+      ? tb('modeInstant')
+      : tb('modeRequest', { hours: settings.approvalWindowHours });
+  const BOOKED_COUNT_MIN = 10; // owner-approved social-proof floor
+  const bookedCountChip =
+    completedCount >= BOOKED_COUNT_MIN
+      ? t('bookedCount', { count: Math.floor(completedCount / 10) * 10 })
+      : null;
 
   // Set date expectations up front: when an experience runs only on certain
   // weekdays, name them so the mostly-greyed calendar reads as intentional.
@@ -264,7 +286,7 @@ export default async function ExperienceDetailPage({
 
       <header className="border-sarat-black/8 mt-10 flex flex-col gap-3 [border-bottom-width:0.5px] pb-10">
         <span className={eyebrowClassName}>{exp.featured ? te('originals') : categoryLabel}</span>
-        <h1 className="font-display max-w-3xl text-4xl font-medium tracking-[-0.035em] text-balance sm:text-6xl">
+        <h1 className="font-display max-w-3xl text-4xl font-semibold tracking-[-0.035em] text-balance sm:text-6xl">
           {title}
         </h1>
         <div className="text-sarat-black-600 flex flex-wrap items-baseline gap-x-3 gap-y-1 text-base">
@@ -339,6 +361,18 @@ export default async function ExperienceDetailPage({
 
           <section className="flex flex-col gap-3">
             <h2 className="font-display text-2xl font-medium tracking-[-0.025em]">
+              {t('meetingPoint.heading')}
+            </h2>
+            <MeetingPointMap
+              lat={exp.lat}
+              lng={exp.lng}
+              placeName={placeName}
+              location={location}
+            />
+          </section>
+
+          <section className="flex flex-col gap-3">
+            <h2 className="font-display text-2xl font-medium tracking-[-0.025em]">
               {t('cancellation')}
             </h2>
             <p className="text-sarat-black-600 text-base">{cancellationPolicy}</p>
@@ -348,7 +382,7 @@ export default async function ExperienceDetailPage({
             <h2 className="font-display text-2xl font-medium tracking-[-0.025em]">
               {t('hostedBy')}
             </h2>
-            <HostCard host={exp.host} locale={loc} />
+            <HostCard host={exp.host} locale={loc} responseStats={hostResponseStats} />
           </section>
 
           <ReviewsSection experienceSlug={exp.slug} locale={loc} />
@@ -364,6 +398,32 @@ export default async function ExperienceDetailPage({
               <Price amount={exp.priceSar} locale={loc} />
               <span className="text-sarat-black-600 text-base font-normal"> {te('perPerson')}</span>
             </p>
+            {/* Trust chips — booking type, refund rule, social proof. */}
+            <div className="flex flex-wrap gap-2">
+              {exp.bookingMode === 'instant' ? (
+                <Badge className="bg-saffron-gold/20 text-sarat-black">
+                  <Zap aria-hidden />
+                  {t('instantBadge')}
+                </Badge>
+              ) : (
+                <Badge variant="neutral">
+                  <CalendarClock aria-hidden />
+                  {t('requestBadge')}
+                </Badge>
+              )}
+              {settings.cancellationWindowHours > 0 && (
+                <Badge className="bg-success-surface text-success">
+                  <ShieldCheck aria-hidden />
+                  {t('freeCancellation', { hours: settings.cancellationWindowHours })}
+                </Badge>
+              )}
+              {bookedCountChip && (
+                <Badge variant="neutral">
+                  <Users aria-hidden />
+                  {bookedCountChip}
+                </Badge>
+              )}
+            </div>
             <div className="text-sarat-black-600 flex flex-col gap-1 text-sm">
               <span>{t('groupSizeUpTo', { count: maxGroupSize })}</span>
               <span>{t('minAge', { age: minAge })}</span>

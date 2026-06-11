@@ -47,7 +47,7 @@ export function ResolveDisputeButton({ disputeId, copy }: ResolveDisputeButtonPr
         rows={2}
         maxLength={2000}
         placeholder={copy.notesPlaceholder}
-        className="rounded-input border-sarat-black/20 bg-fog-white text-sarat-black w-full [border-width:0.5px] p-3 text-sm"
+        className="rounded-input border-sarat-black/20 text-sarat-black w-full [border-width:0.5px] bg-white p-3 text-sm"
       />
       {error && (
         <p role="alert" className="text-al-qatt-red-800 text-sm">

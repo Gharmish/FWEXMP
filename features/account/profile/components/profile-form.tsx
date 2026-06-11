@@ -109,7 +109,7 @@ export function ProfileForm({ profile, copy }: ProfileFormProps) {
           {(['ar', 'en'] as const).map((value) => (
             <label
               key={value}
-              className="border-sarat-black/15 rounded-input has-[:checked]:border-sarat-black has-[:checked]:bg-sarat-black has-[:checked]:text-fog-white flex min-h-11 flex-1 cursor-pointer items-center justify-center gap-2 [border-width:0.5px] px-4 text-sm font-medium transition-colors duration-200 sm:flex-none sm:justify-start"
+              className="border-sarat-black/15 rounded-input has-[:checked]:border-sarat-black has-[:checked]:bg-sarat-black flex min-h-11 flex-1 cursor-pointer items-center justify-center gap-2 [border-width:0.5px] px-4 text-sm font-medium transition-colors duration-200 has-[:checked]:text-white sm:flex-none sm:justify-start"
             >
               <input
                 type="radio"

@@ -13,29 +13,36 @@ export type BookingStatus = (typeof bookings.$inferSelect)['status'];
  * a row shows) and the server action (which `from` states a target
  * accepts). Keeping it pure makes the rules unit-testable without a DB.
  *
- *   pending   → confirmed (accept the request) | cancelled (decline)
- *   confirmed → completed (it happened)         | cancelled (call it off)
- *   completed → ·                                (terminal here; refund only)
- *   cancelled → ·                                (terminal)
- *   refunded  → ·                                (terminal)
+ *   pending   → confirmed (approve the request)  | declined (host says no)
+ *               | cancelled (guest/admin withdraws it)
+ *   confirmed → completed (it happened)          | cancelled (call it off)
+ *   completed → ·                                 (terminal here; refund only)
+ *   cancelled → ·                                 (terminal)
+ *   refunded  → ·                                 (terminal)
+ *   declined  → ·                                 (terminal — nothing was charged)
+ *   expired   → ·                                 (terminal — cron-only entry; no
+ *                                                  operator drives a row INTO it)
  */
 
 /** Target statuses the generic `transitionBooking` action understands. */
-export type BookingTransitionTarget = 'confirmed' | 'completed' | 'cancelled';
+export type BookingTransitionTarget = 'confirmed' | 'completed' | 'cancelled' | 'declined';
 
 export const BOOKING_TRANSITION_TARGETS: readonly BookingTransitionTarget[] = [
   'confirmed',
   'completed',
   'cancelled',
+  'declined',
 ];
 
 /** For a given current status, the transitions the admin may perform. */
 const TRANSITIONS: Record<BookingStatus, readonly BookingTransitionTarget[]> = {
-  pending: ['confirmed', 'cancelled'],
+  pending: ['confirmed', 'declined', 'cancelled'],
   confirmed: ['completed', 'cancelled'],
   completed: [],
   cancelled: [],
   refunded: [],
+  declined: [],
+  expired: [],
 };
 
 /** Transitions available from `status` (order is the UI display order). */

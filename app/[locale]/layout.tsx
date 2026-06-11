@@ -74,7 +74,7 @@ export default async function LocaleLayout({
           {/* Keyboard bypass-block (WCAG 2.4.1): hidden until focused. */}
           <a
             href="#main-content"
-            className="bg-sarat-black text-fog-white rounded-button absolute -top-12 z-[60] ms-4 px-4 py-2 text-sm font-medium transition-[top] duration-200 focus:top-4"
+            className="bg-sarat-black rounded-button absolute -top-12 z-[60] ms-4 px-4 py-2 text-sm font-medium text-white transition-[top] duration-200 focus:top-4"
           >
             {t('skipToContent')}
           </a>

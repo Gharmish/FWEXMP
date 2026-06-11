@@ -17,6 +17,11 @@ export interface AdminSettingsFormCopy {
   cancellationLabel: string;
   cancellationHint: string;
   cancellationSuffix: string;
+  approvalLabel: string;
+  approvalHint: string;
+  approvalPaymentLabel: string;
+  approvalPaymentHint: string;
+  hoursSuffix: string;
   announcementLabel: string;
   announcementHint: string;
   announcementEnLabel: string;
@@ -37,6 +42,8 @@ export interface AdminSettingsFormProps {
   locale: Locale;
   defaultCommissionPct: number;
   defaultCancellationWindowHours: number;
+  defaultApprovalWindowHours: number;
+  defaultApprovalPaymentWindowHours: number;
   defaultAnnouncementEn: string;
   defaultAnnouncementAr: string;
   defaultEnabled: readonly Category[];
@@ -58,6 +65,8 @@ export function AdminSettingsForm({
   locale,
   defaultCommissionPct,
   defaultCancellationWindowHours,
+  defaultApprovalWindowHours,
+  defaultApprovalPaymentWindowHours,
   defaultAnnouncementEn,
   defaultAnnouncementAr,
   defaultEnabled,
@@ -157,6 +166,60 @@ export function AdminSettingsForm({
         </div>
         <p className={hintClass}>{copy.cancellationHint}</p>
         {fieldError('cancellationWindowHours')}
+      </fieldset>
+
+      {/* Request-to-book: host approval window */}
+      <fieldset className="flex flex-col gap-2">
+        <label htmlFor="approvalWindowHours" className={labelClass}>
+          {copy.approvalLabel}
+        </label>
+        <div className="flex items-center gap-2">
+          <Input
+            id="approvalWindowHours"
+            name="approvalWindowHours"
+            type="number"
+            inputMode="numeric"
+            min={1}
+            max={336}
+            step={1}
+            dir="ltr"
+            defaultValue={defaultApprovalWindowHours}
+            className="w-32"
+            aria-invalid={fields.approvalWindowHours ? 'true' : undefined}
+            aria-describedby={fields.approvalWindowHours ? eid('approvalWindowHours') : undefined}
+          />
+          <span className="text-sarat-black-600 text-base">{copy.hoursSuffix}</span>
+        </div>
+        <p className={hintClass}>{copy.approvalHint}</p>
+        {fieldError('approvalWindowHours')}
+      </fieldset>
+
+      {/* Request-to-book: payment window after approval */}
+      <fieldset className="flex flex-col gap-2">
+        <label htmlFor="approvalPaymentWindowHours" className={labelClass}>
+          {copy.approvalPaymentLabel}
+        </label>
+        <div className="flex items-center gap-2">
+          <Input
+            id="approvalPaymentWindowHours"
+            name="approvalPaymentWindowHours"
+            type="number"
+            inputMode="numeric"
+            min={1}
+            max={336}
+            step={1}
+            dir="ltr"
+            defaultValue={defaultApprovalPaymentWindowHours}
+            className="w-32"
+            aria-invalid={fields.approvalPaymentWindowHours ? 'true' : undefined}
+            aria-describedby={
+              fields.approvalPaymentWindowHours ? eid('approvalPaymentWindowHours') : undefined
+            }
+          />
+          <span className="text-sarat-black-600 text-base">{copy.hoursSuffix}</span>
+        </div>
+        <p className={hintClass}>{copy.approvalPaymentHint}</p>
+        {fieldError('approvalPaymentWindowHours')}
       </fieldset>
 
       {/* Home announcement band */}

@@ -38,15 +38,42 @@ import { WishlistButton } from '@/features/wishlist/components/wishlist-button';
 const RAMP_STOPS: RampStop[] = [50, 100, 200, 400, 600, 800, 900];
 
 const TYPE_SCALE = [
-  { role: 'Display', cls: 'text-7xl tracking-[-0.04em]', en: 'Discover Asir', ar: 'اكتشف عسير' },
-  { role: 'H1', cls: 'text-5xl tracking-[-0.035em]', en: 'The flower men', ar: 'رجال الزهور' },
-  { role: 'H2', cls: 'text-3xl tracking-[-0.03em]', en: 'Mountain trails', ar: 'مسارات الجبال' },
-  { role: 'H3', cls: 'text-2xl tracking-[-0.025em]', en: 'Coffee & qahwa', ar: 'القهوة العربية' },
-  { role: 'Body large', cls: 'text-lg', en: 'Hosted by locals.', ar: 'يستضيفها الأهالي.' },
-  { role: 'Body', cls: 'text-base', en: 'Booked in minutes.', ar: 'احجز في دقائق.' },
+  // Display/H1 carry weight 600 (premium redesign 2026-06); everything
+  // below H1 stays at 400/500 — the restraint still holds for body copy.
+  {
+    role: 'Display',
+    cls: 'font-semibold text-7xl tracking-[-0.04em]',
+    en: 'Discover Asir',
+    ar: 'اكتشف عسير',
+  },
+  {
+    role: 'H1',
+    cls: 'font-semibold text-5xl tracking-[-0.035em]',
+    en: 'The flower men',
+    ar: 'رجال الزهور',
+  },
+  {
+    role: 'H2',
+    cls: 'font-medium text-3xl tracking-[-0.03em]',
+    en: 'Mountain trails',
+    ar: 'مسارات الجبال',
+  },
+  {
+    role: 'H3',
+    cls: 'font-medium text-2xl tracking-[-0.025em]',
+    en: 'Coffee & qahwa',
+    ar: 'القهوة العربية',
+  },
+  {
+    role: 'Body large',
+    cls: 'font-normal text-lg',
+    en: 'Hosted by locals.',
+    ar: 'يستضيفها الأهالي.',
+  },
+  { role: 'Body', cls: 'font-normal text-base', en: 'Booked in minutes.', ar: 'احجز في دقائق.' },
   {
     role: 'Caption',
-    cls: 'text-[13px] tracking-[0.02em] uppercase',
+    cls: 'font-medium text-[13px] tracking-[0.02em] uppercase',
     en: (
       <>
         From <RiyalSymbol className="h-[0.9em] align-[-0.1em]" /> 480
@@ -60,7 +87,7 @@ const TYPE_SCALE = [
   },
   {
     role: 'Eyebrow',
-    cls: 'text-[11px] tracking-[0.2em] uppercase',
+    cls: 'font-medium text-[11px] tracking-[0.2em] uppercase',
     en: 'Originals',
     ar: 'أصول',
   },
@@ -147,6 +174,7 @@ const SAMPLE_HOST: HostInfo = {
     'مزارع من الجيل الثالث من الحبلة، نشأ بين مدرجات العرعر. يستضيف فيصل مجموعات صغيرة ليشاركهم طعام عسير وموسيقاها وإيقاع الحياة الجبلية الهادئ.',
   verified: true,
   photoUrl: null,
+  languages: ['ar'],
 };
 
 const SPACING = [
@@ -227,7 +255,7 @@ export default async function StyleGuidePage({ params }: { params: Promise<{ loc
         <p className="text-sarat-black-600 text-[11px] tracking-[0.2em] uppercase">
           Gharmish · internal
         </p>
-        <h1 className="font-display text-5xl font-medium tracking-[-0.035em]">Design system</h1>
+        <h1 className="font-display text-5xl font-semibold tracking-[-0.035em]">Design system</h1>
         <p className="text-sarat-black-600 text-base">
           Living reference for tokens and primitives. Locale: {locale}.
         </p>
@@ -294,7 +322,7 @@ export default async function StyleGuidePage({ params }: { params: Promise<{ loc
           {Object.entries(CATEGORY_COLOR).map(([category, color]) => (
             <span
               key={category}
-              className="rounded-button text-fog-white px-4 py-2 text-sm font-medium"
+              className="rounded-button px-4 py-2 text-sm font-medium text-white"
               style={{ backgroundColor: COLORS[color].base }}
             >
               {category}
@@ -313,8 +341,8 @@ export default async function StyleGuidePage({ params }: { params: Promise<{ loc
               <span className="text-sarat-black-600 text-[11px] tracking-[0.2em] uppercase">
                 {t.role}
               </span>
-              <span className={`font-display font-medium ${t.cls}`}>{t.en}</span>
-              <span className={`font-arabic font-medium ${t.cls}`} dir="rtl" lang="ar">
+              <span className={`font-display ${t.cls}`}>{t.en}</span>
+              <span className={`font-arabic ${t.cls}`} dir="rtl" lang="ar">
                 {t.ar}
               </span>
             </div>
@@ -355,7 +383,7 @@ export default async function StyleGuidePage({ params }: { params: Promise<{ loc
             <h3 className="font-display text-2xl font-medium tracking-[-0.025em]">
               Originals card
             </h3>
-            <p className="text-fog-white/70 mt-2 text-base">
+            <p className="mt-2 text-base text-white/70">
               Sarat Black surface for the premium tier.
             </p>
           </Card>
@@ -508,7 +536,7 @@ export default async function StyleGuidePage({ params }: { params: Promise<{ loc
             <span className="text-sarat-black-600 text-[11px] tracking-[0.2em] uppercase">
               Light surface
             </span>
-            <div className="border-sarat-black/8 rounded-card bg-fog-white flex items-center gap-4 [border-width:0.5px] p-6">
+            <div className="border-sarat-black/8 rounded-card flex items-center gap-4 [border-width:0.5px] bg-white p-6">
               <WishlistButton slug="dev-light-unsaved" isSaved={false} surface="light" />
               <WishlistButton slug="dev-light-saved" isSaved surface="light" />
             </div>

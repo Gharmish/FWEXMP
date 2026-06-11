@@ -211,7 +211,7 @@ export default async function AdminIndexPage({ params }: { params: Promise<{ loc
       <FadeIn className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
         <div className="flex flex-col gap-3">
           <p className={eyebrowClassName}>{t('eyebrow')}</p>
-          <h1 className="font-display text-4xl font-medium tracking-[-0.035em] text-balance sm:text-5xl">
+          <h1 className="font-display text-4xl font-semibold tracking-[-0.035em] text-balance sm:text-5xl">
             {t(`dashboard.greeting.${greetingKey()}`)}
           </h1>
           <p className="text-sarat-black-600 max-w-2xl text-base leading-relaxed">

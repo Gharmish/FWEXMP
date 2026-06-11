@@ -56,6 +56,8 @@ export default async function ProfilePage({ params }: { params: Promise<{ locale
     completed: t('history.status.completed'),
     cancelled: t('history.status.cancelled'),
     refunded: t('history.status.refunded'),
+    declined: t('history.status.declined'),
+    expired: t('history.status.expired'),
   } satisfies Record<Booking['status'], string>;
 
   return (
@@ -63,7 +65,7 @@ export default async function ProfilePage({ params }: { params: Promise<{ locale
       {/* Page heading */}
       <header className="flex flex-col gap-2">
         <p className={eyebrowClassName}>{t('eyebrow')}</p>
-        <h1 className="font-display text-3xl font-medium tracking-[-0.035em] text-balance sm:text-4xl">
+        <h1 className="font-display text-3xl font-semibold tracking-[-0.035em] text-balance sm:text-4xl">
           {t('title')}
         </h1>
       </header>

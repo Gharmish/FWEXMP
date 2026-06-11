@@ -68,15 +68,12 @@
   --color-al-qatt-red-800: #78201c;
   --color-al-qatt-red-900: #551916;
 
-  /* Fog White — primary background, surfaces */
-  --color-fog-white: #f5f2ec;
-  --color-fog-white-50: #f7f5f3;
-  --color-fog-white-100: #edeae3;
-  --color-fog-white-200: #dfd7c9;
-  --color-fog-white-400: #beac88;
-  --color-fog-white-600: #967f4f;
-  --color-fog-white-800: #605134;
-  --color-fog-white-900: #453b27;
+  /* White — primary background, all surfaces (premium redesign 2026-06,
+   * replaces Fog White cream). Mist is the only secondary surface tone:
+   * section bands, wells, table headers — never large tinted fills. */
+  --color-white: #ffffff;
+  --color-mist: #fafafa;
+  --color-mist-deep: #f5f5f5;
 
   /* Honey Amber — soft accent, secondary surfaces */
   --color-honey-amber: #f4b898;
@@ -128,6 +125,28 @@
   --color-rijal-clay-800: #76291e;
   --color-rijal-clay-900: #541f17;
 
+  /* Semantic status tones — every status chip/banner pairs a `*-surface`
+   * background with the matching text tone. `pending` (request-to-book,
+   * awaiting host approval) is deliberately amber, never the confirmed
+   * green. Aliases onto the brand ramps; no new hex. */
+  --color-success: var(--color-juniper-green-800);
+  --color-success-surface: var(--color-juniper-green-100);
+  --color-warning: var(--color-soudah-sunset-800);
+  --color-warning-surface: var(--color-soudah-sunset-100);
+  --color-error: var(--color-al-qatt-red-800);
+  --color-error-surface: var(--color-al-qatt-red-100);
+  --color-info: var(--color-habala-mist-800);
+  --color-info-surface: var(--color-habala-mist-100);
+  --color-pending: var(--color-saffron-gold-800);
+  --color-pending-surface: var(--color-saffron-gold-100);
+
+  /* Elevation. The single shadow in the system, reserved for floating
+   * layers only (modals, dropdowns, popovers, sticky booking bar). Cards
+   * and inline components stay shadowless with 0.5px hairlines. */
+  --shadow-overlay:
+    0 8px 32px rgb(10 10 10 / 0.1),
+    0 1px 2px rgb(10 10 10 / 0.04);
+
   /* Typography. Bricolage for Latin/display, IBM Plex Sans Arabic for RTL.
    * Variables come from next/font (lib/fonts.ts). */
   --font-display: var(--font-bricolage), ui-sans-serif, system-ui, sans-serif;
@@ -152,7 +171,7 @@
  * Base styles
  * ------------------------------------------------------------------ */
 body {
-  background-color: var(--color-fog-white);
+  background-color: var(--color-white);
   color: var(--color-sarat-black);
   font-family: var(--font-sans);
   /* English body line-height (BRIEF.md section 3: 1.4–1.5). */
@@ -181,7 +200,7 @@ body {
 :focus-visible {
   outline: none;
   box-shadow:
-    0 0 0 2px var(--color-fog-white),
+    0 0 0 2px var(--color-white),
     0 0 0 4px rgb(10 10 10 / 0.4);
   border-radius: 4px;
 }

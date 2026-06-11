@@ -90,7 +90,7 @@ export function HeroCropper({ imageSrc, copy, onCancel, onApply }: HeroCropperPr
         initial={reduce ? false : { y: '100%' }}
         animate={{ y: 0 }}
         transition={SPRING}
-        className="bg-fog-white rounded-t-modal relative flex max-h-[90vh] w-full flex-col gap-5 p-6 sm:mx-auto sm:max-w-2xl"
+        className="rounded-t-modal relative flex max-h-[90vh] w-full flex-col gap-5 bg-white p-6 sm:mx-auto sm:max-w-2xl"
       >
         <div className="flex flex-col gap-1">
           <h2 className="font-display text-xl font-medium tracking-[-0.02em]">{copy.title}</h2>

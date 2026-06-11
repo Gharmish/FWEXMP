@@ -80,7 +80,7 @@ export default async function HostsIndexPage({ params }: { params: Promise<{ loc
       <section className="mx-auto w-full max-w-6xl px-6 py-20 sm:py-24">
         <div className="flex max-w-3xl flex-col gap-5">
           <p className={eyebrowClassName}>{t('eyebrow')}</p>
-          <h1 className="font-display text-4xl font-medium tracking-[-0.035em] text-balance sm:text-6xl">
+          <h1 className="font-display text-4xl font-semibold tracking-[-0.035em] text-balance sm:text-6xl">
             {t('title')}
           </h1>
           <p className="text-sarat-black-600 max-w-2xl text-lg leading-relaxed">{t('intro')}</p>

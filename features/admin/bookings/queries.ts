@@ -138,6 +138,8 @@ export interface AdminBookingTotals {
   completed: number;
   cancelled: number;
   refunded: number;
+  declined: number;
+  expired: number;
 }
 
 export function totalsFromRows(rows: readonly AdminBookingRow[]): AdminBookingTotals {
@@ -148,6 +150,8 @@ export function totalsFromRows(rows: readonly AdminBookingRow[]): AdminBookingTo
     completed: 0,
     cancelled: 0,
     refunded: 0,
+    declined: 0,
+    expired: 0,
   };
   for (const row of rows) {
     out[row.status]++;

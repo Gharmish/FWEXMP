@@ -21,6 +21,20 @@ export const updateSettingsSchema = z.object({
     .int('window_range')
     .min(0, 'window_range')
     .max(336, 'window_range'),
+  // Request-to-book: hours a host has to answer before the request
+  // auto-expires. Min 1 — a 0 window would expire every request instantly.
+  approvalWindowHours: z.coerce
+    .number()
+    .int('window_range')
+    .min(1, 'window_range')
+    .max(336, 'window_range'),
+  // Request-to-book: hours an approved guest has to complete payment
+  // before the hold is released back to the calendar.
+  approvalPaymentWindowHours: z.coerce
+    .number()
+    .int('window_range')
+    .min(1, 'window_range')
+    .max(336, 'window_range'),
   // Home-page announcement band, per locale. Empty = no band.
   announcementEn: z.string().trim().max(200, 'announcement_long').optional(),
   announcementAr: z.string().trim().max(200, 'announcement_long').optional(),

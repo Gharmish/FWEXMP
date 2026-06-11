@@ -9,8 +9,8 @@ import { cn } from '@/lib/utils';
 const cardVariants = cva('rounded-card [border-width:0.5px] overflow-hidden', {
   variants: {
     variant: {
-      default: 'border-sarat-black/8 bg-fog-white text-sarat-black',
-      dark: 'border-fog-white/10 bg-sarat-black text-fog-white',
+      default: 'border-sarat-black/8 bg-white text-sarat-black',
+      dark: 'border-white/10 bg-sarat-black text-white',
     },
   },
   defaultVariants: {

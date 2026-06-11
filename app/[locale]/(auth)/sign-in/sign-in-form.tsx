@@ -151,7 +151,7 @@ export function SignInForm({ locale, next, isStubMode, copy }: SignInFormProps) 
       cn(
         'min-h-11 flex-1 rounded-button text-sm font-medium transition-[colors,transform] duration-200 active:translate-y-0',
         active
-          ? 'bg-sarat-black text-fog-white'
+          ? 'bg-sarat-black text-white'
           : 'border-sarat-black/20 text-sarat-black [border-width:0.5px] hover:border-sarat-black/40',
       );
 

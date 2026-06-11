@@ -28,7 +28,7 @@ export function contrastRatio(fg: string, bg: string): number {
 }
 
 const AA_NORMAL = 4.5;
-const FOG_WHITE = COLORS['fog-white'].base; // primary surface
+const WHITE = COLORS['white'].base; // primary surface
 const SARAT_BLACK = COLORS['sarat-black'].base; // dark sections / Originals
 
 describe('design-token contrast (WCAG 2.2 AA)', () => {
@@ -42,12 +42,12 @@ describe('design-token contrast (WCAG 2.2 AA)', () => {
     ['sarat-black-900', COLORS['sarat-black'].ramp[900]],
   ] as const;
 
-  it.each(textStops)('%s on fog-white ≥ 4.5:1', (_label, fg) => {
-    expect(contrastRatio(fg, FOG_WHITE)).toBeGreaterThanOrEqual(AA_NORMAL);
+  it.each(textStops)('%s on white ≥ 4.5:1', (_label, fg) => {
+    expect(contrastRatio(fg, WHITE)).toBeGreaterThanOrEqual(AA_NORMAL);
   });
 
-  it('fog-white text on sarat-black (dark sections) ≥ 4.5:1', () => {
-    expect(contrastRatio(FOG_WHITE, SARAT_BLACK)).toBeGreaterThanOrEqual(AA_NORMAL);
+  it('white text on sarat-black (dark sections) ≥ 4.5:1', () => {
+    expect(contrastRatio(WHITE, SARAT_BLACK)).toBeGreaterThanOrEqual(AA_NORMAL);
   });
 
   // -800 stops are the on-light text tone for category accents (e.g.
@@ -60,12 +60,10 @@ describe('design-token contrast (WCAG 2.2 AA)', () => {
     'al-qatt-red',
   ] as const;
 
-  it.each(accentTokens)('%s-800 on fog-white meets AA (or is documented non-text)', (token) => {
-    const ratio = contrastRatio(COLORS[token].ramp[800], FOG_WHITE);
-    // saffron-gold-800 is a warm gold that lands ~4.3:1; it is used for
-    // emphasis fills/borders, never as small body copy. Guard the rest at
-    // full AA and keep saffron honest at the documented 4.0 floor so a
-    // further lightening regression still trips the test.
-    expect(ratio).toBeGreaterThanOrEqual(token === 'saffron-gold' ? 4.0 : AA_NORMAL);
+  it.each(accentTokens)('%s-800 on white ≥ 4.5:1', (token) => {
+    // On the pure-white surface every -800 accent stop clears full AA
+    // (saffron-gold-800 was the close call at ~4.8:1; on the old cream it
+    // only reached ~4.3:1 and carried a documented 4.0 floor).
+    expect(contrastRatio(COLORS[token].ramp[800], WHITE)).toBeGreaterThanOrEqual(AA_NORMAL);
   });
 });

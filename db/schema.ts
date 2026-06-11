@@ -122,12 +122,22 @@ export const hostApplicationEventEnum = pgEnum('host_application_event', [
   'rejected',
 ]);
 
+/**
+ * Booking lifecycle. `pending` is a request-to-book awaiting the host's
+ * decision; `declined` (host said no) and `expired` (no decision within
+ * the approval window) are its terminal outcomes — distinct from
+ * `cancelled` so guests and analytics can tell "the host turned it
+ * down" from "someone called it off". Nothing is ever charged for a
+ * declined or expired request (pay-after-approval model, 2026-06-10).
+ */
 export const bookingStatusEnum = pgEnum('booking_status', [
   'pending',
   'confirmed',
   'completed',
   'cancelled',
   'refunded',
+  'declined',
+  'expired',
 ]);
 
 /**
@@ -375,6 +385,19 @@ export const bookings = pgTable(
      * late-settlement race.
      */
     paymentDeadline: timestamp({ withTimezone: true }),
+    /**
+     * Request-to-book: when the host's window to approve/decline closes.
+     * Stamped at request creation from `platform_settings.
+     * approval_window_hours`; the cron flips `pending` rows past it to
+     * `expired`. Null for instant bookings (no approval step).
+     */
+    approvalDeadline: timestamp({ withTimezone: true }),
+    /**
+     * When the host (or admin) approved the request — feeds the
+     * "responds within X hours" host stat. Null for instant bookings
+     * and undecided/declined requests.
+     */
+    approvedAt: timestamp({ withTimezone: true }),
     /** Safe retries for AI agents (BRIEF §6). */
     idempotencyKey: text().notNull().unique(),
     /**
@@ -655,6 +678,16 @@ export const platformSettings = pgTable('platform_settings', {
    * Platform-wide (per-experience policies stay prose for now).
    */
   cancellationWindowHours: integer().notNull().default(48),
+  /**
+   * Request-to-book: how long a host has to approve or decline a
+   * request before it auto-expires (owner decision 2026-06-10: 24h).
+   */
+  approvalWindowHours: integer().notNull().default(24),
+  /**
+   * Request-to-book: once approved, how long the guest has to complete
+   * payment before the hold is released (pay-after-approval model).
+   */
+  approvalPaymentWindowHours: integer().notNull().default(24),
   /**
    * Optional announcement band on the home page (per locale). Null/
    * empty = no band. Plain text — the band is for "Eid hours" /

@@ -19,6 +19,7 @@ import { getAllHosts } from '@/features/hosts/queries';
 import { toArabicText } from '@/features/experiences/lib/arabic-content';
 import { getWishlistSet } from '@/features/wishlist/queries';
 import { WishlistButton } from '@/features/wishlist/components/wishlist-button';
+import { SocialProofStrip } from '@/features/reviews/components/social-proof-strip';
 
 const languagesAlternates = Object.fromEntries(routing.locales.map((l) => [l, `${SITE_URL}/${l}`]));
 
@@ -108,7 +109,7 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
       {announcement && (
         <p
           role="status"
-          className="border-habala-mist bg-habala-mist/30 text-sarat-black [border-bottom-width:0.5px] px-6 py-3 text-center text-sm leading-relaxed"
+          className="border-habala-mist-200 bg-info-surface text-info [border-bottom-width:0.5px] px-6 py-3 text-center text-sm leading-relaxed"
         >
           {announcement}
         </p>
@@ -117,7 +118,7 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
       <section className="mx-auto w-full max-w-6xl px-6 py-24 sm:py-32">
         <div className="flex max-w-3xl flex-col gap-6">
           <p className={eyebrowClassName}>{t('eyebrow')}</p>
-          <h1 className="font-display text-5xl font-medium tracking-[-0.035em] text-balance sm:text-7xl">
+          <h1 className="font-display text-5xl font-semibold tracking-[-0.035em] text-balance sm:text-7xl">
             {t('headline')}
           </h1>
           <p className="text-sarat-black-600 max-w-xl text-lg">{t('intro')}</p>
@@ -205,6 +206,10 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
           ))}
         </Stagger>
       </section>
+
+      {/* Social proof — latest high-rated guest reviews (renders nothing
+          until reviews exist). */}
+      <SocialProofStrip locale={loc} />
 
       {/* Hosts row — surfaces /hosts/[slug] from the home page. */}
       {hosts.length > 0 && (
