@@ -16,6 +16,7 @@ import {
 } from '@/features/bookings/queries';
 import { whatsappLink } from '@/lib/whatsapp';
 import { PrintButton } from '@/components/ui/print-button';
+import { GharmishLogo } from '@/components/layout/gharmish-logo';
 import { ReportProblemForm } from '@/features/disputes/components/report-problem-form';
 import { hasOpenDisputeForBooking } from '@/features/disputes/queries';
 import { CancelBookingButton } from '@/features/bookings/components/cancel-booking-button';
@@ -293,6 +294,11 @@ export default async function BookingConfirmedPage({ params, searchParams }: Pag
 
   return (
     <article className="mx-auto w-full max-w-3xl px-6 py-20">
+      {/* Print-only brand header: the site chrome is print-hidden, so the
+          e-ticket carries its own wordmark. */}
+      <div className="text-sarat-black mb-8 hidden print:block">
+        <GharmishLogo className="h-7" />
+      </div>
       <header className="flex flex-col gap-6">
         <div className="flex items-center gap-3">
           <Pop>

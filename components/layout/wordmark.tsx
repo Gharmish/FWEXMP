@@ -1,33 +1,28 @@
 import { Link } from '@/lib/i18n';
 import type { Locale } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
+import { GharmishLogo } from '@/components/layout/gharmish-logo';
 
 /**
- * Gharmish wordmark — links to the localized home. The Arabic form
- * (غارميش) is the brand's own name from BRIEF §2, not a translation.
+ * Gharmish wordmark — the brand SVG, linking to the localized home.
+ * The logo is the brand's single (Latin) lockup and is used in both
+ * locales; the accessible name carries the brand for screen readers.
+ * Swap in an Arabic lockup here if/when the brand ships one.
  */
-const BRAND: Record<Locale, string> = {
-  en: 'Gharmish',
-  ar: 'غارميش',
-};
-
 export interface WordmarkProps {
+  /** Kept for call-site stability; the lockup is locale-independent today. */
   locale: Locale;
   className?: string;
 }
 
-export function Wordmark({ locale, className }: WordmarkProps) {
+export function Wordmark({ className }: WordmarkProps) {
   return (
     <Link
       href="/"
-      aria-label={BRAND.en}
-      className={cn(
-        'font-display text-sarat-black inline-flex min-h-11 items-center text-xl font-medium tracking-[-0.03em]',
-        locale === 'ar' && 'font-arabic',
-        className,
-      )}
+      aria-label="Gharmish"
+      className={cn('text-sarat-black inline-flex min-h-11 items-center', className)}
     >
-      {BRAND[locale]}
+      <GharmishLogo className="h-5 sm:h-6" />
     </Link>
   );
 }
