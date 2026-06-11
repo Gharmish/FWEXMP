@@ -41,6 +41,7 @@ export async function generateMetadata({
       languages: languagesAlternates,
     },
     openGraph: {
+      images: [{ url: `${SITE_URL}/images/gharmish-og.png`, width: 1200, height: 630 }],
       title,
       description,
       url: `${SITE_URL}/${locale}/experiences`,

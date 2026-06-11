@@ -28,6 +28,7 @@ export const metadata: Metadata = {
   title: { default: SITE_NAME, template: `%s · ${SITE_NAME}` },
   description: SITE_DESCRIPTION,
   openGraph: {
+    images: [{ url: `${SITE_URL}/images/gharmish-og.png`, width: 1200, height: 630 }],
     title: SITE_NAME,
     description: SITE_DESCRIPTION,
     url: SITE_URL,

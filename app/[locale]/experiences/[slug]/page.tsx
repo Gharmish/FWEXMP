@@ -53,7 +53,13 @@ export async function generateMetadata({
         routing.locales.map((l) => [l, `${SITE_URL}/${l}/experiences/${slug}`]),
       ),
     },
-    openGraph: { title, description, url, type: 'website' },
+    openGraph: {
+      images: [{ url: `${SITE_URL}/images/gharmish-og.png`, width: 1200, height: 630 }],
+      title,
+      description,
+      url,
+      type: 'website',
+    },
     twitter: { card: 'summary_large_image', title, description },
   };
 }
