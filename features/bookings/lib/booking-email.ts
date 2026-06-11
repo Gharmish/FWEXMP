@@ -16,6 +16,9 @@ import { getExperienceBySlug } from '@/features/experiences/queries';
 import { toArabicText } from '@/features/experiences/lib/arabic-content';
 import { renderReceiptEmail, type ReceiptRow } from './booking-email-render';
 
+/** Brand wordmark for email headers — PNG (clients don't render SVG). */
+const EMAIL_LOGO_URL = `${SITE_URL}/images/gharmish-wordmark.png`;
+
 /**
  * Send the "payment received / booking confirmed" receipt for a settled
  * booking. Best-effort and fully gated: a no-op when email is unconfigured or
@@ -56,6 +59,7 @@ export async function sendBookingReceiptEmail(reference: string, locale: Locale)
   rows.push({ label: t('referenceLabel'), value: booking.reference });
 
   const { html, text } = renderReceiptEmail({
+    logoUrl: EMAIL_LOGO_URL,
     subject: t('subject'),
     dir: locale === 'ar' ? 'rtl' : 'ltr',
     greeting: t('greeting', { name: booking.guestName }),
@@ -112,6 +116,7 @@ export async function sendBookingCancellationEmail(
           : t('cancelIntroUnpaid');
 
   const { html, text } = renderReceiptEmail({
+    logoUrl: EMAIL_LOGO_URL,
     subject: t('cancelSubject'),
     dir: locale === 'ar' ? 'rtl' : 'ltr',
     greeting: t('greeting', { name: booking.guestName }),
@@ -157,6 +162,7 @@ export async function sendBookingReminderEmail(reference: string, locale: Locale
   rows.push({ label: t('referenceLabel'), value: booking.reference });
 
   const { html, text } = renderReceiptEmail({
+    logoUrl: EMAIL_LOGO_URL,
     subject: t('reminderSubject'),
     dir: locale === 'ar' ? 'rtl' : 'ltr',
     greeting: t('greeting', { name: booking.guestName }),
@@ -216,6 +222,7 @@ export async function sendBookingRequestReceivedEmail(
   }
 
   const { html, text } = renderReceiptEmail({
+    logoUrl: EMAIL_LOGO_URL,
     subject: t('requestReceivedSubject'),
     dir: locale === 'ar' ? 'rtl' : 'ltr',
     greeting: t('greeting', { name: booking.guestName }),
@@ -254,6 +261,7 @@ export async function sendBookingApprovedEmail(reference: string): Promise<void>
   }
 
   const { html, text } = renderReceiptEmail({
+    logoUrl: EMAIL_LOGO_URL,
     subject: t('approvedSubject'),
     dir: locale === 'ar' ? 'rtl' : 'ltr',
     greeting: t('greeting', { name: booking.guestName }),
@@ -276,6 +284,7 @@ export async function sendBookingDeclinedEmail(reference: string): Promise<void>
   const rows = await lifecycleRows(booking, locale, t);
 
   const { html, text } = renderReceiptEmail({
+    logoUrl: EMAIL_LOGO_URL,
     subject: t('declinedSubject'),
     dir: locale === 'ar' ? 'rtl' : 'ltr',
     greeting: t('greeting', { name: booking.guestName }),
@@ -298,6 +307,7 @@ export async function sendBookingExpiredEmail(reference: string): Promise<void> 
   const rows = await lifecycleRows(booking, locale, t);
 
   const { html, text } = renderReceiptEmail({
+    logoUrl: EMAIL_LOGO_URL,
     subject: t('expiredSubject'),
     dir: locale === 'ar' ? 'rtl' : 'ltr',
     greeting: t('greeting', { name: booking.guestName }),
@@ -324,6 +334,7 @@ export async function sendBookingPaymentLapsedEmail(reference: string): Promise<
   const rows = await lifecycleRows(booking, locale, t);
 
   const { html, text } = renderReceiptEmail({
+    logoUrl: EMAIL_LOGO_URL,
     subject: t('paymentLapsedSubject'),
     dir: locale === 'ar' ? 'rtl' : 'ltr',
     greeting: t('greeting', { name: booking.guestName }),
@@ -379,6 +390,7 @@ export async function sendHostNewBookingEmail(reference: string): Promise<void> 
 
   const isRequest = booking.status === 'pending';
   const { html, text } = renderReceiptEmail({
+    logoUrl: EMAIL_LOGO_URL,
     subject: isRequest ? t('hostNewRequestSubject') : t('hostNewBookingSubject'),
     dir: locale === 'ar' ? 'rtl' : 'ltr',
     greeting: t('hostNewGreeting'),

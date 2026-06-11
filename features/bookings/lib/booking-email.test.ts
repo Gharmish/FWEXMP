@@ -34,6 +34,16 @@ describe('renderReceiptEmail', () => {
     expect(text).toContain('Gharmish');
   });
 
+  it('renders the brand logo only when a URL is provided', () => {
+    const withLogo = renderReceiptEmail({
+      ...base,
+      logoUrl: 'https://gharmish.com/images/gharmish-wordmark.png',
+    });
+    expect(withLogo.html).toContain('img src="https://gharmish.com/images/gharmish-wordmark.png"');
+    expect(withLogo.html).toContain('alt="Gharmish"');
+    expect(renderReceiptEmail(base).html).not.toContain('<img');
+  });
+
   it('sets rtl direction for Arabic', () => {
     const { html } = renderReceiptEmail({ ...base, dir: 'rtl' });
     expect(html).toContain('dir="rtl"');
