@@ -31,8 +31,14 @@ const serverSchema = z.object({
   // `test` → eu-test.oppwa.com + the test-only request flags
   // (testMode=EXTERNAL, customParameters[3DS2_enrolled]). `live` → eu-prod,
   // no test flags. Hard default to `test` so an accidental empty value can
-  // never silently send live-server flags.
-  HYPERPAY_MODE: z.enum(['test', 'live']).default('test'),
+  // never silently send live-server flags. The empty string maps to the
+  // default too: Vercel delivers a cleared-but-present env var as '', and
+  // a bare enum would fail validation and take down every build/boot
+  // (which is exactly what happened on 2026-06-10).
+  HYPERPAY_MODE: z.preprocess(
+    (v) => (v === '' ? undefined : v),
+    z.enum(['test', 'live']).default('test'),
+  ),
   // Optional explicit base URL override; derived from HYPERPAY_MODE when empty.
   HYPERPAY_BASE_URL: z.string().default(''),
   // Shared secret for verifying HyperPay webhook notifications. No webhook
