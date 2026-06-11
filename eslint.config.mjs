@@ -19,6 +19,8 @@ const eslintConfig = defineConfig([
     // Default ignores of eslint-config-next:
     '.next/**',
     '.claude/**',
+    // `vercel build`/`vercel pull` artifacts — generated, never linted.
+    '.vercel/**',
     'out/**',
     'build/**',
     'next-env.d.ts',
