@@ -156,6 +156,25 @@ export const paymentStatusEnum = pgEnum('payment_status', [
 ]);
 
 /**
+ * Append-only payment ledger event types. One row per money-touching
+ * interaction with the gateway (or per manual money decision), so the
+ * sequence of attempts survives — the mutable columns on `bookings`
+ * only ever hold the latest state.
+ */
+export const paymentEventTypeEnum = pgEnum('payment_event_type', [
+  'checkout_created',
+  /** A still-`processing` booking got a fresh checkout; the old id is logged so late captures on it can be traced. */
+  'checkout_superseded',
+  'settle_succeeded',
+  'settle_failed',
+  'refund_attempted',
+  'refund_succeeded',
+  'refund_failed',
+  /** Admin recorded an out-of-band reversal (HyperPay console). */
+  'manual_refund_recorded',
+]);
+
+/**
  * Host-application workflow. Distinct from `hosts.verificationStatus`:
  * an application is the user-submitted artifact (one per auth user, may
  * be rejected and re-submitted by updating the existing row). When an
@@ -213,6 +232,13 @@ export const hosts = pgTable('hosts', {
   city: text().notNull().default('Abha'),
   region: text().notNull().default('Asir'),
   payoutIban: text(),
+  /**
+   * Notification email for the host. Copied from the application's
+   * `contactEmail` at approval so lifecycle senders (new booking, guest
+   * cancellation, payment received) don't depend on the application row
+   * surviving. Nullable for seeded demo hosts.
+   */
+  contactEmail: text(),
   createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
 });
 
@@ -361,6 +387,14 @@ export const bookings = pgTable(
     startTime: text().notNull(),
     partySize: integer().notNull(),
     totalAmount: integer().notNull(),
+    /**
+     * Platform commission in basis points, SNAPSHOTTED from the
+     * experience at booking time. Payouts and earnings compute from
+     * this — an admin editing `experiences.commissionBps` later applies
+     * to future bookings only, never restating what a host is owed (or
+     * was already paid) for existing ones.
+     */
+    commissionBps: integer().notNull().default(1500),
     currency: text().notNull().default('SAR'),
     status: bookingStatusEnum().notNull().default('pending'),
     /**
@@ -425,10 +459,19 @@ export const bookings = pgTable(
     reminderSentAt: timestamp({ withTimezone: true }),
     /**
      * When the host was paid out for this booking. Null = still owed.
-     * The payout amount is derived from the experience commission split
-     * (see features/bookings/lib/availability.ts `splitCommission`).
+     * The payout amount is derived from the booking's snapshotted
+     * commission split (`splitCommission(totalAmount, commissionBps)`).
      */
     hostPaidAt: timestamp({ withTimezone: true }),
+    /** The payout batch this booking was settled in. Null = not yet paid out. */
+    payoutId: uuid(),
+    /**
+     * Client IP at creation (first hop of x-forwarded-for). Used only
+     * to rate-limit anonymous booking spam — bookings need no account
+     * and no payment to hold capacity, so creation must be throttled.
+     * Never rendered in any UI or export.
+     */
+    createdIp: text(),
     createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [
@@ -644,6 +687,65 @@ export const disputes = pgTable(
   ],
 );
 
+/**
+ * Append-only payment ledger. Never UPDATE or DELETE rows here — the
+ * value of the table is that it can't lie about the past. Written by
+ * `recordPaymentEvent` (features/payments/ledger.ts) from checkout
+ * creation, settlement, refunds, and the admin's manual-refund action.
+ */
+export const paymentEvents = pgTable(
+  'payment_events',
+  {
+    id: uuid().defaultRandom().primaryKey(),
+    bookingId: uuid()
+      .notNull()
+      .references(() => bookings.id, { onDelete: 'restrict' }),
+    type: paymentEventTypeEnum().notNull(),
+    /** Whole SAR involved in this event; null for events without an amount. */
+    amountSar: integer(),
+    /**
+     * Gateway identifier: COPYandPAY checkout id for checkout events,
+     * HyperPay payment id (`ndc`) for settle/refund events.
+     */
+    gatewayId: text(),
+    /** Raw OPPWA result code, when the event came from a gateway response. */
+    resultCode: text(),
+    /** Auth user id of the admin who drove the event; null for guest/system flows. */
+    actorUserId: text(),
+    createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    // The per-booking money timeline, and the reuse/dedupe lookups.
+    index('payment_events_booking_idx').on(t.bookingId, t.createdAt),
+  ],
+);
+
+/**
+ * Host payout batches. One row per "Mark paid" action: the amount, the
+ * bookings covered (via `bookings.payout_id`), the IBAN the transfer
+ * was sent to (snapshotted — the host can change theirs later), and
+ * who marked it. `bank_reference` is filled in by the admin when the
+ * transfer has a bank-side id worth keeping.
+ */
+export const payouts = pgTable(
+  'payouts',
+  {
+    id: uuid().defaultRandom().primaryKey(),
+    hostId: uuid()
+      .notNull()
+      .references(() => hosts.id, { onDelete: 'restrict' }),
+    amountSar: integer().notNull(),
+    bookingCount: integer().notNull(),
+    /** Destination IBAN at marking time. */
+    payoutIban: text(),
+    bankReference: text(),
+    /** Auth user id of the admin who marked the batch paid. */
+    markedByUserId: text().notNull(),
+    createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index('payouts_host_idx').on(t.hostId, t.createdAt)],
+);
+
 /** Guest wishlist (BRIEF §8: "Saved experiences"). */
 export const savedExperiences = pgTable(
   'saved_experiences',
@@ -703,6 +805,12 @@ export const platformSettings = pgTable('platform_settings', {
   updatedAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
   /** Admin user id of the last editor (auth user id, not a FK). */
   updatedByAdminId: text(),
+  /**
+   * Heartbeat: when the release-holds cron last completed. The admin
+   * dashboard flags a stale stamp so a silently dead cron is visible.
+   * Null until the first run after this column shipped.
+   */
+  lastCronRunAt: timestamp({ withTimezone: true }),
 });
 
 /* --------------------------- Relations --------------------------- */
@@ -776,6 +884,17 @@ export const reviewsRelations = relations(reviews, ({ one }) => ({
   }),
 }));
 
+export const paymentEventsRelations = relations(paymentEvents, ({ one }) => ({
+  booking: one(bookings, {
+    fields: [paymentEvents.bookingId],
+    references: [bookings.id],
+  }),
+}));
+
+export const payoutsRelations = relations(payouts, ({ one }) => ({
+  host: one(hosts, { fields: [payouts.hostId], references: [hosts.id] }),
+}));
+
 export const disputesRelations = relations(disputes, ({ one }) => ({
   booking: one(bookings, { fields: [disputes.bookingId], references: [bookings.id] }),
   guest: one(guests, { fields: [disputes.guestId], references: [guests.id] }),
@@ -814,3 +933,7 @@ export type HostStatusEvent = typeof hostStatusEvents.$inferSelect;
 export type NewHostStatusEvent = typeof hostStatusEvents.$inferInsert;
 export type HostApplicationEvent = typeof hostApplicationEvents.$inferSelect;
 export type NewHostApplicationEvent = typeof hostApplicationEvents.$inferInsert;
+export type PaymentEvent = typeof paymentEvents.$inferSelect;
+export type NewPaymentEvent = typeof paymentEvents.$inferInsert;
+export type Payout = typeof payouts.$inferSelect;
+export type NewPayout = typeof payouts.$inferInsert;

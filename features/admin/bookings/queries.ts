@@ -54,23 +54,23 @@ export async function listBookingsForAdmin(): Promise<readonly AdminBookingRow[]
       limit: BOOKINGS_LIST_LIMIT,
     });
     return rows.map<AdminBookingRow>((row) => {
-      const { commissionSar, payoutSar } = splitCommission(
-        row.totalAmount,
-        row.experience.commissionBps,
-      );
+      // Snapshot on the booking — a later commission edit never restates
+      // what this booking owes the host.
+      const { commissionSar, payoutSar } = splitCommission(row.totalAmount, row.commissionBps);
       return {
         id: row.id,
         reference: row.idempotencyKey,
         status: row.status,
         paymentStatus: row.paymentStatus,
         refundDueSar: row.refundDueSar,
+        approvalDeadline: row.approvalDeadline?.toISOString() ?? null,
         date: row.date,
         startTime: row.startTime,
         partySize: row.partySize,
         totalAmountSar: row.totalAmount,
         commissionSar,
         payoutSar,
-        commissionBps: row.experience.commissionBps,
+        commissionBps: row.commissionBps,
         currency: row.currency,
         paymentReference: row.paymentReference,
         createdAt: row.createdAt.toISOString(),
@@ -82,6 +82,65 @@ export async function listBookingsForAdmin(): Promise<readonly AdminBookingRow[]
     });
   } catch (error) {
     reportError(error, { surface: 'admin:listBookings' });
+    return [];
+  }
+}
+
+export interface AdminBookingExportRow extends AdminBookingRow {
+  paymentBrand: string | null;
+  paidAt: string | null;
+  refundedAt: string | null;
+  hostPaidAt: string | null;
+}
+
+/**
+ * Full booking set for the accounting CSV export. UNBOUNDED on purpose —
+ * an export that silently truncates reads as "everything" when it isn't.
+ * Carries the settlement/refund/payout timestamps the list view omits,
+ * so a HyperPay settlement report can be reconciled by capture date.
+ */
+export async function listBookingsForExport(): Promise<readonly AdminBookingExportRow[]> {
+  const block = await adminGuard();
+  if (block) return [];
+  try {
+    const rows = await db.query.bookings.findMany({
+      with: {
+        experience: { columns: { slug: true, titleEn: true } },
+        guest: { columns: { name: true, phone: true } },
+      },
+      orderBy: (b) => desc(b.createdAt),
+    });
+    return rows.map<AdminBookingExportRow>((row) => {
+      const { commissionSar, payoutSar } = splitCommission(row.totalAmount, row.commissionBps);
+      return {
+        id: row.id,
+        reference: row.idempotencyKey,
+        status: row.status,
+        paymentStatus: row.paymentStatus,
+        refundDueSar: row.refundDueSar,
+        approvalDeadline: row.approvalDeadline?.toISOString() ?? null,
+        date: row.date,
+        startTime: row.startTime,
+        partySize: row.partySize,
+        totalAmountSar: row.totalAmount,
+        commissionSar,
+        payoutSar,
+        commissionBps: row.commissionBps,
+        currency: row.currency,
+        paymentReference: row.paymentReference,
+        createdAt: row.createdAt.toISOString(),
+        experienceSlug: row.experience.slug,
+        experienceTitleEn: row.experience.titleEn,
+        guestName: row.guest.name,
+        guestPhone: row.guest.phone,
+        paymentBrand: row.paymentBrand,
+        paidAt: row.paidAt?.toISOString() ?? null,
+        refundedAt: row.refundedAt?.toISOString() ?? null,
+        hostPaidAt: row.hostPaidAt?.toISOString() ?? null,
+      };
+    });
+  } catch (error) {
+    reportError(error, { surface: 'admin:listBookingsForExport' });
     return [];
   }
 }
@@ -99,23 +158,21 @@ export async function getAdminBookingById(id: string): Promise<AdminBookingRow |
       },
     });
     if (!row) return undefined;
-    const { commissionSar, payoutSar } = splitCommission(
-      row.totalAmount,
-      row.experience.commissionBps,
-    );
+    const { commissionSar, payoutSar } = splitCommission(row.totalAmount, row.commissionBps);
     return {
       id: row.id,
       reference: row.idempotencyKey,
       status: row.status,
       paymentStatus: row.paymentStatus,
       refundDueSar: row.refundDueSar,
+      approvalDeadline: row.approvalDeadline?.toISOString() ?? null,
       date: row.date,
       startTime: row.startTime,
       partySize: row.partySize,
       totalAmountSar: row.totalAmount,
       commissionSar,
       payoutSar,
-      commissionBps: row.experience.commissionBps,
+      commissionBps: row.commissionBps,
       currency: row.currency,
       paymentReference: row.paymentReference,
       createdAt: row.createdAt.toISOString(),

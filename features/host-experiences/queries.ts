@@ -35,6 +35,9 @@ export interface HostExperienceRow {
   whatToBring: string[];
   cancellationPolicy: string;
   availabilityWeekdays: number[];
+  startTime: string;
+  lat: number;
+  lng: number;
   status: (typeof experiences.$inferSelect)['status'];
   featured: boolean;
   heroImage: string | null;
@@ -62,6 +65,9 @@ function rowToView(row: typeof experiences.$inferSelect): HostExperienceRow {
     whatToBring: [...row.whatToBring],
     cancellationPolicy: row.cancellationPolicy,
     availabilityWeekdays: [...row.availabilityWeekdays],
+    startTime: row.startTime,
+    lat: row.lat,
+    lng: row.lng,
     status: row.status,
     featured: row.featured,
     heroImage: row.heroImage,

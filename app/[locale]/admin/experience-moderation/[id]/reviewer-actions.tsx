@@ -19,6 +19,8 @@ type ErrorKey =
   | 'validation'
   | 'server'
   | 'wrong_state'
+  | 'needs_hero'
+  | 'needs_arabic'
   | 'reviewer_note_short';
 
 interface Copy {

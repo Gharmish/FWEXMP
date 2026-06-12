@@ -4,10 +4,11 @@ import { and, eq, gt, isNull } from 'drizzle-orm';
 import { revalidatePath } from 'next/cache';
 import { db } from '@/lib/db';
 import { serverEnv } from '@/lib/env';
-import { bookings, guests, reviews } from '@/db/schema';
+import { bookings, reviews } from '@/db/schema';
 import { redirect } from '@/lib/i18n';
 import { reportError } from '@/lib/log';
 import { getCurrentUser } from '@/features/auth/queries';
+import { bookingViewerCanAccess } from '@/features/bookings/lib/access';
 import { createReviewSchema, hostReplySchema } from '@/features/reviews/schemas';
 
 /** 24h edit cooldown (BRIEF §8). */
@@ -73,21 +74,13 @@ export async function submitReview(
     });
     if (!booking) return { success: false, message: 'not_found', values };
 
-    // Ownership: the booking reference is a capability that anonymous
-    // guests legitimately hold (they book without an account). But a
-    // *signed-in* caller must own the booking — otherwise anyone who
-    // sees someone else's reference (shared link, screenshot) could post
-    // a review under that guest's identity. So if there's a session,
-    // require the caller's guest row to be the one on the booking.
-    const authUserId = (await getCurrentUser())?.id ?? null;
-    if (authUserId) {
-      const caller = await db.query.guests.findFirst({
-        where: eq(guests.authUserId, authUserId),
-        columns: { id: true },
-      });
-      if (!caller || caller.id !== booking.guestId) {
-        return { success: false, message: 'forbidden', values };
-      }
+    // Same authorization as every other booking surface (cancel,
+    // dispute, checkout): the caller must own the booking (signed-in)
+    // or hold its reference in the last-booking cookie. The bare
+    // reference is NOT enough — a shared link or screenshot must not
+    // let a stranger post a review under the guest's identity.
+    if (!(await bookingViewerCanAccess(bookingReference, booking.guestId))) {
+      return { success: false, message: 'forbidden', values };
     }
 
     // A review is gated by a *completed* booking (BRIEF §8).
@@ -163,15 +156,9 @@ export async function updateReview(
     });
     if (!booking) return { success: false, message: 'not_found', values };
 
-    const authUserId = (await getCurrentUser())?.id ?? null;
-    if (authUserId) {
-      const caller = await db.query.guests.findFirst({
-        where: eq(guests.authUserId, authUserId),
-        columns: { id: true },
-      });
-      if (!caller || caller.id !== booking.guestId) {
-        return { success: false, message: 'forbidden', values };
-      }
+    // Cookie-or-ownership, same as submit.
+    if (!(await bookingViewerCanAccess(bookingReference, booking.guestId))) {
+      return { success: false, message: 'forbidden', values };
     }
 
     const review = await db.query.reviews.findFirst({

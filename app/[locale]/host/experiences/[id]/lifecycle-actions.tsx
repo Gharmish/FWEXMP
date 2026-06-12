@@ -16,6 +16,7 @@ import Link from 'next/link';
 
 type ErrorKey =
   | 'cannot_publish'
+  | 'needs_hero'
   | 'not_found'
   | 'forbidden'
   | 'no_db'

@@ -37,6 +37,7 @@ export interface HostExperienceState {
     | 'forbidden'
     | 'not_found'
     | 'cannot_publish'
+    | 'needs_hero'
     | 'wrong_state'
     | 'suspended'
     | 'server'
@@ -53,16 +54,15 @@ export interface HostExperienceState {
       | 'cancellationPolicy'
       | 'inclusionsRaw'
       | 'whatToBringRaw'
-      | 'availabilityWeekdays',
+      | 'availabilityWeekdays'
+      | 'startTime'
+      | 'lat'
+      | 'lng',
       string
     >
   >;
 }
 
-// Abha city centre — drafts default here until the location picker
-// lands (Mapbox-dependent follow-up).
-const DEFAULT_LAT = 18.2164;
-const DEFAULT_LNG = 42.5053;
 const SLUG_INSERT_MAX_RETRIES = 5;
 const AR_PLACEHOLDER = 'TODO(ar): pending translation';
 
@@ -91,6 +91,9 @@ function parseForm(formData: FormData) {
     whatToBringRaw: formValue(formData, 'whatToBringRaw'),
     cancellationPolicy: formValue(formData, 'cancellationPolicy'),
     availabilityWeekdays: formValues(formData, 'availabilityWeekdays'),
+    startTime: formValue(formData, 'startTime'),
+    lat: formValue(formData, 'lat'),
+    lng: formValue(formData, 'lng'),
     locale: formValue(formData, 'locale'),
   });
 }
@@ -128,12 +131,17 @@ async function requireOwnership(
   return { hostId: guard.hostId };
 }
 
+/**
+ * Columns every host write sets. Arabic is deliberately ABSENT: it is
+ * placeholder-stamped once at creation and preserved on every update —
+ * earlier versions re-stamped `TODO(ar)` on each edit, wiping the
+ * partnership team's translations (and, with the approval gate now
+ * blocking `TODO(ar)`, trapping every edited listing out of review).
+ */
 function payloadForWrite(input: HostExperienceInput) {
   return {
     titleEn: input.titleEn,
-    titleAr: AR_PLACEHOLDER,
     descriptionEn: input.descriptionEn,
-    descriptionAr: AR_PLACEHOLDER,
     category: input.category,
     durationMinutes: input.durationMinutes,
     maxGroupSize: input.maxGroupSize,
@@ -146,6 +154,9 @@ function payloadForWrite(input: HostExperienceInput) {
     whatToBring: input.whatToBringRaw,
     cancellationPolicy: input.cancellationPolicy,
     availabilityWeekdays: input.availabilityWeekdays,
+    startTime: input.startTime,
+    lat: input.lat,
+    lng: input.lng,
   };
 }
 
@@ -175,10 +186,10 @@ export async function createDraftExperience(
         .insert(experiences)
         .values({
           ...writePayload,
+          titleAr: AR_PLACEHOLDER,
+          descriptionAr: AR_PLACEHOLDER,
           slug,
           hostId: guard.hostId,
-          lat: DEFAULT_LAT,
-          lng: DEFAULT_LNG,
           status: 'draft',
           commissionBps: defaultCommissionBps,
         })
@@ -234,9 +245,14 @@ export async function updateHostExperience(
       columns: { status: true },
     });
     if (!current) return { success: false, message: 'not_found' };
-    demoteFromLive = current.status === 'live';
+    // Paused demotes like live: a paused listing has passed review, and
+    // pause → edit → republish would otherwise relaunch unreviewed
+    // content (the republish path deliberately skips the queue).
+    const demotableStatus =
+      current.status === 'live' || current.status === 'paused' ? current.status : null;
+    demoteFromLive = demotableStatus !== null;
 
-    if (demoteFromLive) {
+    if (demotableStatus) {
       const updated = await db
         .update(experiences)
         .set({
@@ -248,7 +264,7 @@ export async function updateHostExperience(
           and(
             eq(experiences.id, experienceId),
             eq(experiences.hostId, guard.hostId),
-            eq(experiences.status, 'live'),
+            eq(experiences.status, demotableStatus),
           ),
         )
         .returning({ id: experiences.id });
@@ -269,7 +285,7 @@ export async function updateHostExperience(
         await db.insert(experienceModerationEvents).values({
           experienceId,
           event: 'submitted',
-          fromStatus: 'live',
+          fromStatus: demotableStatus,
           toStatus: 'pending_review',
           reviewerUserId: null,
           reviewerNotes: null,
@@ -352,6 +368,12 @@ export async function publishHostExperience(
       row.descriptionEn.trim().length < 60
     ) {
       return { success: false, message: 'cannot_publish' };
+    }
+    // A photoless listing renders as a tonal placeholder card — fine
+    // for drafts, not for the catalog. Distinct message so the host
+    // knows exactly what's missing (approval hard-blocks on it too).
+    if (!row.heroImage) {
+      return { success: false, message: 'needs_hero' };
     }
 
     // Paused listings have already passed review — toggle back to live

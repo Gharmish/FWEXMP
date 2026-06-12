@@ -11,6 +11,17 @@ import { bookingViewerCanAccess } from '@/features/bookings/lib/access';
 import { reportError } from '@/lib/log';
 import { paymentDetailsSchema } from '@/features/payments/schemas';
 import { hyperpayBaseUrl, prepareCheckout } from '@/features/payments/lib/hyperpay';
+import { latestPaymentEvent, recordPaymentEvent } from '@/features/payments/ledger';
+
+/**
+ * How long a prepared COPYandPAY checkout is treated as reusable. The
+ * gateway keeps a checkout valid ~30 minutes; staying under that means
+ * a second tab (or a re-submit) gets the SAME checkout id instead of
+ * silently overwriting it — an overwritten id is an orphan-charge path:
+ * settle only ever queries the latest checkout, so a capture completed
+ * on an older widget would be invisible.
+ */
+const CHECKOUT_REUSE_MINUTES = 25;
 
 /**
  * Server action behind the payment-details step. Validates the 3DS2
@@ -123,6 +134,7 @@ export async function createCheckout(
         paymentStatus: true,
         status: true,
         paymentDeadline: true,
+        checkoutId: true,
       },
     });
 
@@ -151,7 +163,13 @@ export async function createCheckout(
     // Never prepare a checkout for a hold that's been released (cancelled) or
     // has expired — this is what makes auto-release safe: a freed spot can
     // never be paid for, so there's no charge-for-a-given-away-seat race.
-    if (booking.paymentStatus === 'unpaid' && isHoldExpired(booking.paymentDeadline, new Date())) {
+    // `failed` is included: a failed attempt may be retried, but only while
+    // the hold is still live — past the deadline the seat no longer counts
+    // toward capacity, so paying late would oversell the date.
+    if (
+      (booking.paymentStatus === 'unpaid' || booking.paymentStatus === 'failed') &&
+      isHoldExpired(booking.paymentDeadline, new Date())
+    ) {
       return { status: 'error', error: 'expired', values: echoValues(formData) };
     }
 
@@ -162,6 +180,44 @@ export async function createCheckout(
       .update(guests)
       .set({ email: input.email })
       .where(and(eq(guests.id, booking.guestId), isNull(guests.email)));
+
+    const origin = await requestOrigin();
+    const returnUrl = `${origin}/${input.locale}/book/${input.reference}/pay/return?slug=${encodeURIComponent(input.slug)}`;
+    const ready = (checkoutId: string): CreateCheckoutState => ({
+      status: 'ready',
+      data: {
+        checkoutId,
+        scriptBaseUrl: hyperpayBaseUrl(),
+        returnUrl,
+        brands: 'MADA VISA MASTER',
+      },
+    });
+
+    // A `processing` booking already holds a checkout. If it's still
+    // inside the gateway's validity window, hand the SAME id back
+    // (second tab, re-submit) instead of overwriting it; if it has aged
+    // out, log the supersession so a late capture on the old checkout
+    // can still be traced during reconciliation.
+    if (booking.paymentStatus === 'processing' && booking.checkoutId) {
+      const created = await latestPaymentEvent(booking.id, 'checkout_created');
+      const fresh =
+        created?.gatewayId === booking.checkoutId &&
+        Date.now() - created.createdAt.getTime() < CHECKOUT_REUSE_MINUTES * 60_000;
+      if (fresh) return ready(booking.checkoutId);
+      try {
+        await recordPaymentEvent({
+          bookingId: booking.id,
+          type: 'checkout_superseded',
+          amountSar: booking.totalAmount,
+          gatewayId: booking.checkoutId,
+        });
+      } catch (error) {
+        reportError(error, {
+          surface: 'payment-create-checkout:ledger',
+          reference: input.reference,
+        });
+      }
+    }
 
     const checkout = await prepareCheckout({
       merchantTransactionId: input.reference,
@@ -180,19 +236,19 @@ export async function createCheckout(
       .update(bookings)
       .set({ checkoutId: checkout.id, paymentStatus: 'processing' })
       .where(eq(bookings.id, booking.id));
+    // The reuse window above keys off this event's timestamp.
+    try {
+      await recordPaymentEvent({
+        bookingId: booking.id,
+        type: 'checkout_created',
+        amountSar: booking.totalAmount,
+        gatewayId: checkout.id,
+      });
+    } catch (error) {
+      reportError(error, { surface: 'payment-create-checkout:ledger', reference: input.reference });
+    }
 
-    const origin = await requestOrigin();
-    const returnUrl = `${origin}/${input.locale}/book/${input.reference}/pay/return?slug=${encodeURIComponent(input.slug)}`;
-
-    return {
-      status: 'ready',
-      data: {
-        checkoutId: checkout.id,
-        scriptBaseUrl: hyperpayBaseUrl(),
-        returnUrl,
-        brands: 'MADA VISA MASTER',
-      },
-    };
+    return ready(checkout.id);
   } catch (error) {
     reportError(error, { surface: 'payment-create-checkout', reference: input.reference });
     return { status: 'error', error: 'server', values: echoValues(formData) };

@@ -13,6 +13,7 @@ function row(over: Partial<AdminBookingRow>): AdminBookingRow {
     status: 'pending',
     paymentStatus: 'unpaid',
     refundDueSar: null,
+    approvalDeadline: null,
     date: '2026-06-10',
     startTime: '09:00',
     partySize: 2,

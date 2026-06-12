@@ -4,7 +4,15 @@ import { serverEnv } from '@/lib/env';
 import { reportError } from '@/lib/log';
 import { getCurrentUser } from '@/features/auth/queries';
 import { isAdminUser } from '@/features/admin/auth';
-import { bookings, experiences, guests, hostApplications } from '@/db/schema';
+import {
+  bookings,
+  disputes,
+  experiences,
+  guests,
+  hostApplications,
+  platformSettings,
+} from '@/db/schema';
+import { paymentCollected, payoutExpr } from '@/features/bookings/lib/payout-sql';
 
 /**
  * Lightweight aggregate for the admin landing page. A handful of cheap
@@ -41,12 +49,26 @@ export interface AdminDashboard {
    * The honest "take" figure: GMV is what flows through, this is what we keep.
    */
   netRevenue30dSar: number;
+  /**
+   * Last completed release-holds cron run. Null until the heartbeat
+   * column has been stamped once. The dashboard flags staleness — a
+   * dead cron silently stops expiry, hold release, reconciliation, and
+   * reminders.
+   */
+  cronLastRunAt: Date | null;
   queue: {
     pendingApplications: number;
     pendingReview: number;
     changesRequested: number;
     pendingBookings: number;
     upcomingBookings: number;
+    /** Open guest disputes ("a real person will reply"). */
+    openDisputes: number;
+    /** Bookings stamped refund_due_sar — money owed back to guests. */
+    refundsDueCount: number;
+    refundsDueSar: number;
+    /** Completed-and-paid bookings not yet paid out to hosts. */
+    payoutsOwedSar: number;
   };
 }
 
@@ -54,39 +76,56 @@ export async function getAdminDashboard(): Promise<AdminDashboard | null> {
   const block = await adminGuard();
   if (block) return null;
   try {
-    const [bookingRow, guestRow, expRow, appRow, netRow] = await Promise.all([
-      db
-        .select({
-          total: sql<number>`count(*)::int`,
-          // GMV excludes refunded bookings (mirrors the analytics view).
-          gmv: sql<number>`coalesce(sum(${bookings.totalAmount}) filter (where ${bookings.status} <> 'refunded'), 0)::int`,
-          pending: sql<number>`count(*) filter (where ${bookings.status} = 'pending')::int`,
-          upcoming: sql<number>`count(*) filter (where ${bookings.date} >= current_date and ${bookings.status} in ('pending','confirmed'))::int`,
-        })
-        .from(bookings),
-      db.select({ n: sql<number>`count(*)::int` }).from(guests),
-      db
-        .select({
-          active: sql<number>`count(*) filter (where ${experiences.status} = 'live')::int`,
-          featured: sql<number>`count(*) filter (where ${experiences.status} = 'live' and ${experiences.featured})::int`,
-          pendingReview: sql<number>`count(*) filter (where ${experiences.status} = 'pending_review')::int`,
-          changesRequested: sql<number>`count(*) filter (where ${experiences.status} = 'changes_requested')::int`,
-        })
-        .from(experiences),
-      db
-        .select({
-          n: sql<number>`count(*) filter (where ${hostApplications.status} = 'pending')::int`,
-        })
-        .from(hostApplications),
-      // Net commission on revenue bookings in the trailing 30 days. Commission
-      // lives on the experience, so this single round-trip joins through it.
-      db
-        .select({
-          net: sql<number>`coalesce(sum(${bookings.totalAmount} * ${experiences.commissionBps} / 10000.0) filter (where ${bookings.status} in ('confirmed','completed') and ${bookings.createdAt} >= now() - interval '30 days'), 0)::int`,
-        })
-        .from(bookings)
-        .innerJoin(experiences, eq(experiences.id, bookings.experienceId)),
-    ]);
+    const [bookingRow, guestRow, expRow, appRow, netRow, disputeRow, payoutRow, heartbeatRow] =
+      await Promise.all([
+        db
+          .select({
+            total: sql<number>`count(*)::int`,
+            // GMV excludes refunded bookings (mirrors the analytics view).
+            gmv: sql<number>`coalesce(sum(${bookings.totalAmount}) filter (where ${bookings.status} <> 'refunded'), 0)::int`,
+            pending: sql<number>`count(*) filter (where ${bookings.status} = 'pending')::int`,
+            upcoming: sql<number>`count(*) filter (where ${bookings.date} >= current_date and ${bookings.status} in ('pending','confirmed'))::int`,
+            refundsDueCount: sql<number>`count(*) filter (where ${bookings.refundDueSar} is not null)::int`,
+            refundsDueSar: sql<number>`coalesce(sum(${bookings.refundDueSar}), 0)::int`,
+          })
+          .from(bookings),
+        db.select({ n: sql<number>`count(*)::int` }).from(guests),
+        db
+          .select({
+            active: sql<number>`count(*) filter (where ${experiences.status} = 'live')::int`,
+            featured: sql<number>`count(*) filter (where ${experiences.status} = 'live' and ${experiences.featured})::int`,
+            pendingReview: sql<number>`count(*) filter (where ${experiences.status} = 'pending_review')::int`,
+            changesRequested: sql<number>`count(*) filter (where ${experiences.status} = 'changes_requested')::int`,
+          })
+          .from(experiences),
+        db
+          .select({
+            n: sql<number>`count(*) filter (where ${hostApplications.status} = 'pending')::int`,
+          })
+          .from(hostApplications),
+        // Net commission on revenue bookings in the trailing 30 days, from
+        // the per-booking commission snapshot.
+        db
+          .select({
+            net: sql<number>`coalesce(sum(${bookings.totalAmount} * ${bookings.commissionBps} / 10000.0) filter (where ${bookings.status} in ('confirmed','completed') and ${bookings.createdAt} >= now() - interval '30 days'), 0)::int`,
+          })
+          .from(bookings),
+        db
+          .select({ n: sql<number>`count(*) filter (where ${disputes.status} = 'open')::int` })
+          .from(disputes),
+        // Payouts owed: completed + collected bookings the host hasn't been
+        // paid for. Same per-booking split expression as the payouts page.
+        db
+          .select({
+            owed: sql<number>`coalesce(sum(${payoutExpr()}) filter (where ${bookings.hostPaidAt} is null and ${paymentCollected()}), 0)::int`,
+          })
+          .from(bookings)
+          .where(eq(bookings.status, 'completed')),
+        db
+          .select({ at: platformSettings.lastCronRunAt })
+          .from(platformSettings)
+          .where(eq(platformSettings.id, 'platform')),
+      ]);
 
     return {
       gmvAllTimeSar: bookingRow[0]?.gmv ?? 0,
@@ -95,12 +134,17 @@ export async function getAdminDashboard(): Promise<AdminDashboard | null> {
       activeExperiences: expRow[0]?.active ?? 0,
       featuredLive: expRow[0]?.featured ?? 0,
       netRevenue30dSar: netRow[0]?.net ?? 0,
+      cronLastRunAt: heartbeatRow[0]?.at ?? null,
       queue: {
         pendingApplications: appRow[0]?.n ?? 0,
         pendingReview: expRow[0]?.pendingReview ?? 0,
         changesRequested: expRow[0]?.changesRequested ?? 0,
         pendingBookings: bookingRow[0]?.pending ?? 0,
         upcomingBookings: bookingRow[0]?.upcoming ?? 0,
+        openDisputes: disputeRow[0]?.n ?? 0,
+        refundsDueCount: bookingRow[0]?.refundsDueCount ?? 0,
+        refundsDueSar: bookingRow[0]?.refundsDueSar ?? 0,
+        payoutsOwedSar: payoutRow[0]?.owed ?? 0,
       },
     };
   } catch (error) {

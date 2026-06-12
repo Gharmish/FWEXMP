@@ -3,15 +3,18 @@
 import { and, eq, inArray } from 'drizzle-orm';
 import { revalidatePath } from 'next/cache';
 import { db } from '@/lib/db';
-import { serverEnv, hasHyperpay } from '@/lib/env';
+import { serverEnv } from '@/lib/env';
 import { bookings } from '@/db/schema';
 import { reportError } from '@/lib/log';
 import { cancelBookingSchema } from '@/features/bookings/schemas';
 import { bookingViewerCanAccess } from '@/features/bookings/lib/access';
 import { cancelEligibility } from '@/features/bookings/lib/cancellation';
-import { sendBookingCancellationEmail } from '@/features/bookings/lib/booking-email';
+import { executeRefund } from '@/features/bookings/lib/refund';
+import {
+  sendBookingCancellationEmail,
+  sendHostGuestCancelledEmail,
+} from '@/features/bookings/lib/booking-email';
 import { getPlatformSettings } from '@/features/admin/settings/queries';
-import { isSuccessfulResult, refundPayment } from '@/features/payments/lib/hyperpay';
 
 /**
  * Guest self-service cancellation (owner decision, 2026-06-10):
@@ -109,11 +112,10 @@ export async function cancelBookingAsGuest(
     if (updated.length === 0) return { success: false, message: 'wrong_state' };
 
     if (eligibility.refund === 'full') {
-      refundOutcome = await executeRefund(
-        booking.id,
-        booking.paymentReference,
-        booking.totalAmount,
-      );
+      refundOutcome = {
+        success: true,
+        refund: await executeRefund(booking.id, booking.paymentReference, booking.totalAmount),
+      };
     } else {
       refundOutcome = {
         success: true,
@@ -125,11 +127,17 @@ export async function cancelBookingAsGuest(
     return { success: false, message: 'server' };
   }
 
-  // Best-effort notification — never fail a completed cancellation over email.
+  // Best-effort notifications — never fail a completed cancellation over email.
   try {
     await sendBookingCancellationEmail(reference, locale, refundOutcome.refund);
   } catch (error) {
     reportError(error, { surface: 'bookings:cancelEmail', reference });
+  }
+  // The host's date just got its spots back — tell them too.
+  try {
+    await sendHostGuestCancelledEmail(reference);
+  } catch (error) {
+    reportError(error, { surface: 'bookings:cancelHostEmail', reference });
   }
 
   revalidatePath('/[locale]/book/confirmed/[ref]', 'page');
@@ -138,36 +146,4 @@ export async function cancelBookingAsGuest(
   revalidatePath('/[locale]/admin/bookings', 'page');
   revalidatePath('/[locale]/host/bookings', 'page');
   return refundOutcome;
-}
-
-/**
- * Try the gateway refund; fall back to the manual queue. Never throws.
- * Returns `refunded` (money moved, booking now `refunded`) or
- * `refund_pending` (cancelled + `refundDueSar` stamped for the admin).
- */
-async function executeRefund(
-  bookingId: string,
-  paymentReference: string | null,
-  amountSar: number,
-): Promise<CancelBookingState & { success: true }> {
-  if (hasHyperpay() && paymentReference) {
-    try {
-      const { resultCode } = await refundPayment(paymentReference, amountSar);
-      if (isSuccessfulResult(resultCode)) {
-        await db
-          .update(bookings)
-          .set({ status: 'refunded', refundedAt: new Date(), refundDueSar: null })
-          .where(eq(bookings.id, bookingId));
-        return { success: true, refund: 'refunded' };
-      }
-      reportError(new Error(`HyperPay refund rejected: ${resultCode}`), {
-        surface: 'bookings:cancelRefund',
-        bookingId,
-      });
-    } catch (error) {
-      reportError(error, { surface: 'bookings:cancelRefund', bookingId });
-    }
-  }
-  await db.update(bookings).set({ refundDueSar: amountSar }).where(eq(bookings.id, bookingId));
-  return { success: true, refund: 'refund_pending' };
 }

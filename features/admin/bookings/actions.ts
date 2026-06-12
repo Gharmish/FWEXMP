@@ -12,20 +12,27 @@ import { isAdminUser } from '@/features/admin/auth';
 import { refundBookingSchema, transitionBookingSchema } from '@/features/admin/bookings/schemas';
 import { sourcesFor } from '@/features/bookings/lib/transitions';
 import { ACTIVE_BOOKING_STATUSES, remainingCapacity } from '@/features/bookings/lib/availability';
+import { holdStillCounts } from '@/features/bookings/lib/capacity-sql';
+import { executeRefund } from '@/features/bookings/lib/refund';
 import { getPlatformSettings } from '@/features/admin/settings/queries';
+import { isSuccessfulResult, refundPayment } from '@/features/payments/lib/hyperpay';
+import { latestPaymentEvent, recordPaymentEvent } from '@/features/payments/ledger';
 import {
   sendBookingApprovedEmail,
+  sendBookingCancellationEmail,
   sendBookingDeclinedEmail,
 } from '@/features/bookings/lib/booking-email';
 
 /**
  * Admin booking actions.
  *
- *   - Refund: flip `bookings.status` from `confirmed`/`completed` to
- *     `refunded` and stamp `refundedAt`. The status enum is the source
- *     of truth — Moyasar reversal is a separate concern (we don't have
- *     an automated path yet; the admin issues the refund out-of-band
- *     through Moyasar's dashboard, then runs this action to record it).
+ *   - Refund: gateway-first — attempt the HyperPay refund API against
+ *     the original payment, then flip `bookings.status` to `refunded`
+ *     and stamp `refundedAt`. When the gateway refuses (commonly: the
+ *     charge was already reversed manually in the HyperPay console,
+ *     which is exactly the workflow this action records), the rejection
+ *     is logged and the status is still recorded — the button's
+ *     contract remains "the money has been returned, write it down".
  *
  * Same chassis as the other admin actions: caller must be admin, DB
  * must be configured, conditional UPDATE WHERE protects against races.
@@ -77,12 +84,71 @@ export async function refundBooking(
   const { bookingId, locale } = parsed.data;
 
   try {
-    // Conditional update: only flips refundable statuses. `pending`
+    const booking = await db.query.bookings.findFirst({
+      where: (b) => eq(b.id, bookingId),
+      columns: {
+        id: true,
+        status: true,
+        paymentStatus: true,
+        paymentReference: true,
+        totalAmount: true,
+        idempotencyKey: true,
+      },
+      with: { guest: { columns: { preferredLanguage: true } } },
+    });
+    if (!booking) return { success: false, message: 'not_found' };
+
+    // Eligibility mirrors the conditional UPDATE below: `pending`
     // bookings haven't taken money yet (cancel, don't refund) and
     // `refunded` is terminal. `cancelled` is refundable only when the
-    // guest had paid — the guest-cancellation flow leaves a paid
-    // booking `cancelled` + `refundDueSar` when the automatic gateway
-    // refund failed; this action records the manual reversal.
+    // guest had paid — the cancellation flows leave a paid booking
+    // `cancelled` + `refundDueSar` when the automatic gateway refund
+    // failed; this action settles that queue.
+    const refundable =
+      booking.status === 'confirmed' ||
+      booking.status === 'completed' ||
+      (booking.status === 'cancelled' && booking.paymentStatus === 'paid');
+    if (!refundable) return { success: false, message: 'wrong_state' };
+
+    // Gateway-first: try the automated reversal before recording — but
+    // never twice: if the ledger already holds a `refund_succeeded` for
+    // this booking (e.g. the executor's gateway call landed but its
+    // status write raced/failed), the money has moved and this action
+    // only records. A rejection (commonly: already reversed in the
+    // HyperPay console) is logged but doesn't block the record — see
+    // the header comment.
+    if (hasHyperpay() && booking.paymentStatus === 'paid' && booking.paymentReference) {
+      const alreadyRefunded = await latestPaymentEvent(booking.id, 'refund_succeeded');
+      if (!alreadyRefunded) {
+        try {
+          await recordPaymentEvent({
+            bookingId: booking.id,
+            type: 'refund_attempted',
+            amountSar: booking.totalAmount,
+            gatewayId: booking.paymentReference,
+            actorUserId: guard.adminUserId,
+          });
+          const { resultCode } = await refundPayment(booking.paymentReference, booking.totalAmount);
+          await recordPaymentEvent({
+            bookingId: booking.id,
+            type: isSuccessfulResult(resultCode) ? 'refund_succeeded' : 'refund_failed',
+            amountSar: booking.totalAmount,
+            gatewayId: booking.paymentReference,
+            resultCode,
+            actorUserId: guard.adminUserId,
+          });
+          if (!isSuccessfulResult(resultCode)) {
+            reportError(new Error(`HyperPay refund rejected (recording anyway): ${resultCode}`), {
+              surface: 'admin:refundBooking',
+              bookingId,
+            });
+          }
+        } catch (error) {
+          reportError(error, { surface: 'admin:refundBooking:gateway', bookingId });
+        }
+      }
+    }
+
     const updated = await db
       .update(bookings)
       .set({ status: 'refunded', refundedAt: new Date(), refundDueSar: null })
@@ -96,12 +162,32 @@ export async function refundBooking(
         ),
       )
       .returning({ id: bookings.id });
-    if (updated.length === 0) {
-      const exists = await db.query.bookings.findFirst({
-        where: (b) => eq(b.id, bookingId),
-        columns: { id: true },
+    if (updated.length === 0) return { success: false, message: 'wrong_state' };
+
+    // The decision itself goes in the ledger — who recorded the refund
+    // and for how much. Best-effort: the status flip above is the
+    // operational truth this action must not roll back over an event.
+    try {
+      await recordPaymentEvent({
+        bookingId: booking.id,
+        type: 'manual_refund_recorded',
+        amountSar: booking.totalAmount,
+        actorUserId: guard.adminUserId,
       });
-      return { success: false, message: exists ? 'wrong_state' : 'not_found' };
+    } catch (error) {
+      reportError(error, { surface: 'admin:refundBooking:ledger', bookingId });
+    }
+
+    // Tell the guest their money is on the way back — best-effort.
+    try {
+      await sendBookingCancellationEmail(
+        booking.idempotencyKey,
+        booking.guest.preferredLanguage,
+        'refunded',
+        { cancelledBy: 'operator' },
+      );
+    } catch (error) {
+      reportError(error, { surface: 'admin:refundEmail', bookingId });
     }
   } catch (error) {
     reportError(error, { surface: 'admin:refundBooking', bookingId });
@@ -180,6 +266,7 @@ export async function transitionBooking(
               eq(bookings.experienceId, booking.experienceId),
               eq(bookings.date, booking.date),
               inArray(bookings.status, [...ACTIVE_BOOKING_STATUSES]),
+              holdStillCounts(),
               ne(bookings.id, bookingId),
             ),
           );
@@ -210,19 +297,53 @@ export async function transitionBooking(
         reportError(error, { surface: 'admin:approveEmail', bookingId });
       }
     } else {
+      // Read first: cancelling a *paid* booking must refund it, so we
+      // need the payment fields (and the guest's locale for the email)
+      // before the status flips.
+      const booking = await db.query.bookings.findFirst({
+        where: (b) => eq(b.id, bookingId),
+        columns: {
+          id: true,
+          paymentStatus: true,
+          paymentReference: true,
+          totalAmount: true,
+          idempotencyKey: true,
+        },
+        with: { guest: { columns: { preferredLanguage: true } } },
+      });
+      if (!booking) return { success: false, message: 'not_found' };
+
       const updated = await db
         .update(bookings)
         .set({ status: to })
         .where(and(eq(bookings.id, bookingId), inArray(bookings.status, [...sourcesFor(to)])))
         .returning({ id: bookings.id, reference: bookings.idempotencyKey });
-      if (updated.length === 0) {
-        const exists = await db.query.bookings.findFirst({
-          where: (b) => eq(b.id, bookingId),
-          columns: { id: true },
-        });
-        return { success: false, message: exists ? 'wrong_state' : 'not_found' };
-      }
-      if (to === 'declined') {
+      if (updated.length === 0) return { success: false, message: 'wrong_state' };
+
+      if (to === 'cancelled') {
+        // Same contract as host cancellation: the guest is never at
+        // fault for an operator cancel, so a paid booking is refunded
+        // in full (gateway-first, manual fallback) and the guest told.
+        let refund: 'none' | 'refunded' | 'refund_pending' = 'none';
+        if (booking.paymentStatus === 'paid') {
+          refund = await executeRefund(
+            bookingId,
+            booking.paymentReference,
+            booking.totalAmount,
+            guard.adminUserId,
+          );
+        }
+        try {
+          await sendBookingCancellationEmail(
+            booking.idempotencyKey,
+            booking.guest.preferredLanguage,
+            refund,
+            { cancelledBy: 'operator' },
+          );
+        } catch (error) {
+          reportError(error, { surface: 'admin:cancelEmail', bookingId });
+        }
+      } else if (to === 'declined') {
         try {
           await sendBookingDeclinedEmail(updated[0].reference);
         } catch (error) {

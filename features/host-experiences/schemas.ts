@@ -57,6 +57,19 @@ export const hostExperienceInputSchema = z.object({
   whatToBringRaw: z.string().transform(linesFromTextarea),
   cancellationPolicy: z.string().trim().min(20, 'policy_short').max(1000, 'policy_long'),
   availabilityWeekdays: z.array(z.string()).transform(weekdaysFromForm),
+  /**
+   * Local start time, HH:MM 24h. Host-settable: every booking, email,
+   * and the e-ticket carry it — a sunset hike defaulting to 09:00 was
+   * wrong for everyone until an admin noticed.
+   */
+  startTime: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, 'time_invalid'),
+  /**
+   * Meeting-point coordinates. Host-entered (paste from Google/Apple
+   * Maps) until an interactive picker lands — without them every map
+   * pin sat at Abha city centre.
+   */
+  lat: z.coerce.number().min(-90, 'coords_invalid').max(90, 'coords_invalid'),
+  lng: z.coerce.number().min(-180, 'coords_invalid').max(180, 'coords_invalid'),
   locale: z.enum(['en', 'ar']),
 });
 

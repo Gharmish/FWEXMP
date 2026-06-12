@@ -70,7 +70,14 @@ async function requireEditableExperience(
     if (!experience || experience.hostId !== host.id) {
       return { error: { success: false, message: 'not_found' } };
     }
-    if (experience.status === 'live' || experience.status === 'pending_review') {
+    // Paused listings have passed review — content edits must re-enter
+    // the queue (pause → edit → republish was a moderation bypass), so
+    // the timeline locks outside draft / changes_requested.
+    if (
+      experience.status === 'live' ||
+      experience.status === 'paused' ||
+      experience.status === 'pending_review'
+    ) {
       return { error: { success: false, message: 'locked_live' } };
     }
     return { experience: { id: experience.id, status: experience.status } };

@@ -22,6 +22,7 @@ type SampleExperience = Omit<
   | 'images'
   | 'bookingMode'
   | 'availabilityWeekdays'
+  | 'startTime'
   | 'hostSlug'
   | 'lat'
   | 'lng'
@@ -54,6 +55,7 @@ function attachRatings(e: SampleExperience): ExperienceDetail {
     // Offline demo defaults — the live DB path carries the real values.
     bookingMode: 'request',
     availabilityWeekdays: [4, 5, 6], // Thu–Sat
+    startTime: '09:00',
     ...coords,
   };
 }

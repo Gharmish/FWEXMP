@@ -20,6 +20,10 @@ interface BookingRequestCopy {
   title: string;
   name: string;
   phone: string;
+  email: string;
+  emailHint: string;
+  /** Shown when a non-empty email doesn't parse. */
+  emailInvalid: string;
   preferredDate: string;
   partySize: string;
   phoneHint: string;
@@ -38,6 +42,8 @@ interface BookingRequestCopy {
   notFound: string;
   /** Account blocked from booking by the team. */
   suspended: string;
+  /** Rate-limited: too many open bookings/requests from this caller. */
+  tooMany: string;
   required: string;
   /** Specific, actionable field messages. */
   datePast: string;
@@ -85,11 +91,11 @@ export interface BookingRequestFormProps {
   copy: BookingRequestCopy;
 }
 
-const FIELD_NAMES = ['name', 'phone', 'preferredDate', 'partySize'] as const;
+const FIELD_NAMES = ['name', 'phone', 'email', 'preferredDate', 'partySize'] as const;
 type FieldName = (typeof FIELD_NAMES)[number];
 
 /** Which fields carry a static helper hint under the label. */
-const FIELDS_WITH_HINTS = new Set<FieldName>(['phone', 'preferredDate', 'partySize']);
+const FIELDS_WITH_HINTS = new Set<FieldName>(['phone', 'email', 'preferredDate', 'partySize']);
 
 const initialState: BookingRequestState = { success: false, values: {} };
 
@@ -153,6 +159,9 @@ function messageForField(
   }
   if (field === 'phone') {
     return code === 'invalid_phone' ? copy.phoneInvalid : copy.required;
+  }
+  if (field === 'email') {
+    return code === 'invalid_email' ? copy.emailInvalid : copy.required;
   }
   return copy.required;
 }
@@ -244,9 +253,11 @@ export function BookingRequestForm({
         ? copy.notFound
         : state.message === 'suspended'
           ? copy.suspended
-          : state.message === 'validation'
-            ? copy.validation
-            : undefined;
+          : state.message === 'too_many'
+            ? copy.tooMany
+            : state.message === 'validation'
+              ? copy.validation
+              : undefined;
 
   // After a failed submit (client or server), move focus to the first invalid
   // field — or, failing that, to the form-level error region. WCAG 3.3.1 (Error
@@ -290,6 +301,7 @@ export function BookingRequestForm({
       locale,
       name: read('name'),
       phone: read('phone'),
+      email: read('email'),
       preferredDate: selectedDate,
       partySize: String(effectiveParty),
     });
@@ -476,6 +488,28 @@ export function BookingRequestForm({
               <FieldError
                 id={errorId('phone')}
                 message={messageForField('phone', errorFor('phone'), copy)}
+              />
+            </div>
+
+            <div className="flex flex-col gap-2">
+              <label htmlFor="booking-email" className="text-sm font-medium">
+                {copy.email}
+              </label>
+              <Input
+                id="booking-email"
+                name="email"
+                type="email"
+                autoComplete="email"
+                dir="ltr"
+                defaultValue={values.email}
+                {...fieldProps('email')}
+              />
+              <p id={hintId('email')} className="text-sarat-black-600 text-sm">
+                {copy.emailHint}
+              </p>
+              <FieldError
+                id={errorId('email')}
+                message={messageForField('email', errorFor('email'), copy)}
               />
             </div>
           </div>

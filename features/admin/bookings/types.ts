@@ -14,6 +14,8 @@ export interface AdminBookingRow {
   paymentStatus: (typeof bookings.$inferSelect)['paymentStatus'];
   /** Whole-SAR refund owed back after a failed automatic refund; null = none. */
   refundDueSar: number | null;
+  /** Request-to-book: when the host's approve/decline window closes. */
+  approvalDeadline: string | null;
   date: string;
   startTime: string;
   partySize: number;

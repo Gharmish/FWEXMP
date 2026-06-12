@@ -37,6 +37,7 @@ export interface UploadHeroState {
     | 'invalid_type'
     | 'too_large'
     | 'upload_failed'
+    | 'locked_live'
     | 'server';
 }
 
@@ -77,12 +78,22 @@ export async function uploadExperienceHero(
   }
 
   try {
-    // Ownership + slug in one scoped read.
+    // Ownership + slug + status in one scoped read.
     const experience = await db.query.experiences.findFirst({
       where: (e) => and(eq(e.id, experienceId), eq(e.hostId, hostId)),
-      columns: { id: true, slug: true },
+      columns: { id: true, slug: true, status: true },
     });
     if (!experience) return { success: false, message: 'not_found' };
+    // The hero of a reviewed listing (live or paused) is part of what
+    // was approved — replacing it goes through an edit + re-review, not
+    // a silent swap. Drafts / changes-requested / in-review may iterate.
+    if (
+      experience.status === 'live' ||
+      experience.status === 'paused' ||
+      experience.status === 'archived'
+    ) {
+      return { success: false, message: 'locked_live' };
+    }
 
     const key = heroObjectKey(experience.slug, check.ext);
     const supabase = await getSupabaseServerClient();

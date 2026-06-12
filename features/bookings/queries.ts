@@ -26,6 +26,8 @@ export interface BookingDetail {
   paymentStatus: Booking['paymentStatus'];
   partySize: number;
   totalAmountSar: number;
+  /** Commission rate snapshotted at booking time, basis points. */
+  commissionBps: number;
   date: string;
   startTime: string;
   experienceSlug: string;
@@ -65,6 +67,7 @@ export async function getBookingByReference(reference: string): Promise<BookingD
     paymentStatus: row.paymentStatus,
     partySize: row.partySize,
     totalAmountSar: row.totalAmount,
+    commissionBps: row.commissionBps,
     date: row.date,
     startTime: row.startTime,
     experienceSlug: row.experience.slug,
@@ -128,6 +131,7 @@ export async function getBookingsForGuest(guestId: string): Promise<GuestBooking
     paymentStatus: row.paymentStatus,
     partySize: row.partySize,
     totalAmountSar: row.totalAmount,
+    commissionBps: row.commissionBps,
     date: row.date,
     startTime: row.startTime,
     experienceSlug: row.experience.slug,

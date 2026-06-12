@@ -5,7 +5,7 @@ import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { Link } from '@/lib/i18n';
 import type { Locale } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
-import { formatDate, formatInteger } from '@/lib/format';
+import { formatDate, formatInteger, formatSAR } from '@/lib/format';
 import { Badge } from '@/components/ui/badge';
 import { Price } from '@/components/ui/price';
 import { FadeIn } from '@/components/ui/motion';
@@ -160,8 +160,39 @@ export default async function AdminIndexPage({ params }: { params: Promise<{ loc
           label: t('dashboard.queue.upcoming'),
           count: dashboard.queue.upcomingBookings,
         },
+        {
+          href: '/admin/disputes',
+          label: t('dashboard.queue.openDisputes'),
+          count: dashboard.queue.openDisputes,
+        },
+        {
+          href: '/admin/bookings?refund_due=1',
+          label: t('dashboard.queue.refundsDue', {
+            amount: formatSAR(dashboard.queue.refundsDueSar, loc),
+          }),
+          count: dashboard.queue.refundsDueCount,
+        },
       ].filter((item) => item.count > 0)
     : [];
+  // Payouts owed is money, not a count — surfaced as its own queue row
+  // whenever anything is owed (1 = "go to the payouts page").
+  if (dashboard && dashboard.queue.payoutsOwedSar > 0) {
+    queue.push({
+      href: '/admin/payouts',
+      label: t('dashboard.queue.payoutsOwed', {
+        amount: formatSAR(dashboard.queue.payoutsOwedSar, loc),
+      }),
+      count: 1,
+    });
+  }
+
+  // Cron heartbeat: stale (or never stamped) means expiry, hold release,
+  // reconciliation, and reminders have silently stopped. 26h threshold
+  // tolerates a missed hourly run-or-two and still catches a dead daily job.
+  const cronStale =
+    dashboard !== null &&
+    (dashboard.cronLastRunAt === null ||
+      new Date().getTime() - dashboard.cronLastRunAt.getTime() > 26 * 3_600_000);
 
   const topExperiences: LeaderboardRow[] = (snapshot?.topExperiences30d ?? []).map((row) => ({
     id: row.experienceId,
@@ -270,6 +301,15 @@ export default async function AdminIndexPage({ params }: { params: Promise<{ loc
           {dashboard && (
             <section className={cn('flex flex-col gap-4', !snapshot && 'lg:col-span-3')}>
               <h2 className={sectionHeading}>{t('dashboard.queueHeading')}</h2>
+              {cronStale && (
+                <p className="bg-error-surface text-error rounded-card px-5 py-4 text-sm font-medium">
+                  {dashboard.cronLastRunAt
+                    ? t('dashboard.cronStale', {
+                        date: formatDate(dashboard.cronLastRunAt, loc),
+                      })
+                    : t('dashboard.cronNever')}
+                </p>
+              )}
               <WorkQueue items={queue} locale={loc} emptyLabel={t('dashboard.queueEmpty')} />
             </section>
           )}

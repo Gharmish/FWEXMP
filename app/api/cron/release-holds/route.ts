@@ -1,16 +1,19 @@
 import { NextResponse, type NextRequest } from 'next/server';
-import { and, eq, isNull, isNotNull, lte, notInArray } from 'drizzle-orm';
+import { and, eq, inArray, isNull, isNotNull, lte, notInArray, sql } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import { serverEnv } from '@/lib/env';
-import { bookings, guests } from '@/db/schema';
+import { bookings, guests, platformSettings } from '@/db/schema';
 import { reportError } from '@/lib/log';
+import { notifyAdmin } from '@/lib/admin-alerts';
 import { settleBooking } from '@/features/payments/settle';
 import {
   sendBookingExpiredEmail,
   sendBookingPaymentLapsedEmail,
   sendBookingReminderEmail,
+  sendHostHoldLapsedEmail,
 } from '@/features/bookings/lib/booking-email';
 import { addDays } from '@/features/bookings/lib/availability';
+import { paymentCollected } from '@/features/bookings/lib/payout-sql';
 
 /** Cap reconciliation work per run so a backlog can't blow the function budget. */
 const RECONCILE_LIMIT = 100;
@@ -20,9 +23,9 @@ const REMINDER_LIMIT = 100;
 
 /**
  * Scheduled release of expired payment holds (Vercel Cron — see vercel.json;
- * runs daily on the Hobby plan, which caps crons at once/day — tighten to a
- * sub-daily schedule on Pro, or trigger this endpoint from an external
- * scheduler).
+ * hourly. NOTE: sub-daily crons require the Pro plan — on Hobby either
+ * revert the schedule to daily or trigger this endpoint from an external
+ * scheduler with the CRON_SECRET bearer token).
  *
  * Four passes:
  *
@@ -82,12 +85,16 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       }
     }
 
+    // `failed` joins `unpaid` here: a final failed attempt holds no
+    // payment in flight (unlike `processing`), so past the deadline the
+    // booking is released the same way. `createCheckout` refuses both
+    // once the hold has lapsed, so a released seat can never be charged.
     const released = await db
       .update(bookings)
       .set({ status: 'cancelled' })
       .where(
         and(
-          eq(bookings.paymentStatus, 'unpaid'),
+          inArray(bookings.paymentStatus, ['unpaid', 'failed']),
           isNotNull(bookings.paymentDeadline),
           lte(bookings.paymentDeadline, new Date()),
           notInArray(bookings.status, [
@@ -101,25 +108,34 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       )
       .returning({ id: bookings.id, reference: bookings.idempotencyKey });
     // An approved-then-never-paid request (or an abandoned instant hold)
-    // was just released — tell the guest the hold lapsed. Best-effort.
+    // was just released — tell the guest the hold lapsed, and the host
+    // that the booking they were notified about evaporated. Best-effort.
     for (const row of released) {
       try {
         await sendBookingPaymentLapsedEmail(row.reference);
       } catch (error) {
         reportError(error, { surface: 'cron-release-holds:email', reference: row.reference });
       }
+      try {
+        await sendHostHoldLapsedEmail(row.reference);
+      } catch (error) {
+        reportError(error, { surface: 'cron-release-holds:hostEmail', reference: row.reference });
+      }
     }
 
     // Pass 2 — reconcile stuck `processing` holds against HyperPay. Only
     // those whose hold window has elapsed, so a shopper still mid-3DS is
     // never disturbed; `settleBooking` is idempotent and safe to re-run.
+    // `cancelled` rows are INCLUDED: a guest can cancel mid-3DS and the
+    // charge still capture — settle detects that and auto-refunds, so
+    // excluding them would leave captured money invisible forever.
     const stuck = await db.query.bookings.findMany({
       where: and(
         eq(bookings.paymentStatus, 'processing'),
         isNotNull(bookings.checkoutId),
         isNotNull(bookings.paymentDeadline),
         lte(bookings.paymentDeadline, new Date()),
-        notInArray(bookings.status, ['cancelled', 'completed', 'refunded']),
+        notInArray(bookings.status, ['completed', 'refunded']),
       ),
       columns: { idempotencyKey: true },
       limit: RECONCILE_LIMIT,
@@ -171,15 +187,53 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       }
     }
 
+    // Pass 4 — auto-complete. A confirmed, collected booking whose date
+    // has passed becomes `completed` the next day (owner decision:
+    // date + 1 day). Completion gates payouts AND reviews — relying on
+    // hosts to press the button quietly starved both. Hosts can still
+    // cancel/dispute before the grace day ends; admin can still refund
+    // after.
+    const completed = await db
+      .update(bookings)
+      .set({ status: 'completed' })
+      .where(
+        and(
+          eq(bookings.status, 'confirmed'),
+          sql`${bookings.date} < ${todayRiyadh}`,
+          paymentCollected(),
+        ),
+      )
+      .returning({ id: bookings.id });
+
+    // Heartbeat — the admin dashboard flags a stale stamp, so a silently
+    // dead cron (expired secret, removed schedule, plan change) is
+    // visible instead of quietly stopping expiry/release/reminders.
+    try {
+      await db
+        .insert(platformSettings)
+        .values({ id: 'platform', lastCronRunAt: new Date() })
+        .onConflictDoUpdate({
+          target: platformSettings.id,
+          set: { lastCronRunAt: new Date() },
+        });
+    } catch (error) {
+      reportError(error, { surface: 'cron-release-holds:heartbeat' });
+    }
+
     return NextResponse.json({
       expired: expired.length,
       released: released.length,
       reconciled: stuck.length,
       settled,
       reminded,
+      completed: completed.length,
     });
   } catch (error) {
     reportError(error, { surface: 'cron-release-holds' });
+    await notifyAdmin('cron_failed', {
+      job: 'release-holds',
+      error: error instanceof Error ? error.message : String(error),
+    });
     return NextResponse.json({ error: 'failed' }, { status: 500 });
   }
 }

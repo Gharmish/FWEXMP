@@ -24,10 +24,12 @@ export async function GET(
 
   if (UUID_RE.test(reference)) {
     const outcome = await settleBooking(reference);
-    confirmed.searchParams.set('payment', outcome);
-    // On a confirmed payment, send the booking receipt. Best-effort and
-    // gated (no-op without email configured / no guest email) — it must never
-    // delay or fail the redirect to the confirmation page.
+    // `already_settled` is a replayed/refreshed return URL on a paid
+    // booking — display as success, but fire no side effects.
+    confirmed.searchParams.set('payment', outcome === 'already_settled' ? 'success' : outcome);
+    // On the actual paid transition, send the booking receipt. Best-effort
+    // and gated (no-op without email configured / no guest email) — it must
+    // never delay or fail the redirect to the confirmation page.
     if (outcome === 'success') {
       await sendBookingReceiptEmail(reference, loc).catch(() => {});
     }

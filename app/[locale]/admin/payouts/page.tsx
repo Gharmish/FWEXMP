@@ -6,7 +6,9 @@ import { Link } from '@/lib/i18n';
 import type { Locale } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
 import { Price } from '@/components/ui/price';
+import { CopyButton } from '@/components/ui/copy-button';
 import { isAdminAndDbReady, listPayouts } from '@/features/admin/payouts/queries';
+import { maskIban } from '@/features/admin/hosts/lib/mask';
 import { MarkPaidButton } from '@/app/[locale]/admin/payouts/mark-paid-button';
 
 export async function generateMetadata({
@@ -120,6 +122,19 @@ export default async function AdminPayoutsPage({
                     })}
                   </span>
                 )}
+                {/* Payout destination — masked on screen, full value on
+                    copy. Without this the operator can't actually make
+                    the transfer "Mark paid" records. */}
+                {row.payoutIban ? (
+                  <span className="text-sarat-black-600 inline-flex items-center gap-1 text-sm">
+                    <span dir="ltr">{maskIban(row.payoutIban)}</span>
+                    <CopyButton value={row.payoutIban} label={t('payoutsList.copyIban')} />
+                  </span>
+                ) : (
+                  <span className="text-warning text-sm font-medium">
+                    {t('payoutsList.noIban')}
+                  </span>
+                )}
               </div>
               <div className="flex items-center gap-4">
                 <span className="font-display text-2xl font-medium tracking-[-0.025em]">
@@ -128,9 +143,16 @@ export default async function AdminPayoutsPage({
                 {row.owedCount > 0 && (
                   <MarkPaidButton
                     hostId={row.hostId}
+                    expectedAmountSar={row.owedSar}
                     label={t('payoutsList.markPaid')}
                     pendingLabel={t('payoutsList.marking')}
-                    errorLabel={t('payoutsList.markError')}
+                    errors={{
+                      server: t('payoutsList.markError'),
+                      no_iban: t('payoutsList.noIban'),
+                      amount_changed: t('payoutsList.amountChanged'),
+                      nothing_owed: t('payoutsList.amountChanged'),
+                      suspended: t('payoutsList.hostSuspended'),
+                    }}
                   />
                 )}
               </div>

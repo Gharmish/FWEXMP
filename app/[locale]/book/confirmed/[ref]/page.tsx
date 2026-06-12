@@ -1,13 +1,13 @@
 import type { Metadata } from 'next';
 import type { ReactNode } from 'react';
-import { ArrowRight, CheckCircle2, CircleAlert, Clock, MessageCircle } from 'lucide-react';
+import { ArrowRight, CheckCircle2, CircleAlert, Clock, MessageCircle, Star } from 'lucide-react';
 import { notFound } from 'next/navigation';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { cn } from '@/lib/utils';
 import { Link } from '@/lib/i18n';
 import type { Locale } from '@/lib/i18n';
 import { buttonVariants } from '@/components/ui/button';
-import { formatDate, formatInteger } from '@/lib/format';
+import { formatDate, formatInteger, formatTime } from '@/lib/format';
 import { Price } from '@/components/ui/price';
 import { getExperienceBySlug } from '@/features/experiences/queries';
 import {
@@ -18,9 +18,12 @@ import { whatsappLink } from '@/lib/whatsapp';
 import { PrintButton } from '@/components/ui/print-button';
 import { GharmishLogo } from '@/components/layout/gharmish-logo';
 import { ReportProblemForm } from '@/features/disputes/components/report-problem-form';
+import { ReviewForm } from '@/features/reviews/components/review-form';
+import { getReviewForBooking } from '@/features/reviews/queries';
 import { hasOpenDisputeForBooking } from '@/features/disputes/queries';
 import { CancelBookingButton } from '@/features/bookings/components/cancel-booking-button';
 import { cancelEligibility, freeCancellationDeadline } from '@/features/bookings/lib/cancellation';
+import { isHoldExpired } from '@/features/bookings/lib/availability';
 import { vatPortionSar, vatRatePercent } from '@/features/bookings/lib/vat';
 import { getPlatformSettings } from '@/features/admin/settings/queries';
 import { PendingPaymentRefresh } from '@/features/payments/components/pending-payment-refresh';
@@ -102,8 +105,27 @@ export default async function BookingConfirmedPage({ params, searchParams }: Pag
         : booking?.paymentStatus === 'processing' || paymentHint === 'pending'
           ? 'pending'
           : null;
-  const isFailed = paymentView === 'failed';
+
+  // An online-payment hold whose window has passed without settling.
+  // The cron will release it (→ cancelled) on its next run; until then
+  // the page must already tell the truth: the spot is no longer held,
+  // nothing was charged, and retrying payment is refused. Takes
+  // precedence over the failed state — "try payment again" would only
+  // bounce off `createCheckout`'s expiry guard.
+  const isHoldLapsed = Boolean(
+    booking &&
+    booking.status === 'confirmed' &&
+    (booking.paymentStatus === 'unpaid' || booking.paymentStatus === 'failed') &&
+    isHoldExpired(booking.paymentDeadline ? new Date(booking.paymentDeadline) : null, new Date()),
+  );
+  const isFailed = paymentView === 'failed' && !isHoldLapsed;
   const isPending = paymentView === 'pending';
+
+  /** Money-relevant deadlines carry a time-of-day, so render it. */
+  const formatDeadline = (d: Date): string =>
+    loc === 'ar'
+      ? `${formatDate(d, loc)}، ${formatTime(d, loc)}`
+      : `${formatDate(d, loc)}, ${formatTime(d, loc)}`;
 
   // The eyebrow's tracking/case is shared across states; only colour shifts.
   const eyebrowBase = cn('text-[11px]', loc === 'en' && 'tracking-[0.2em] uppercase');
@@ -117,19 +139,21 @@ export default async function BookingConfirmedPage({ params, searchParams }: Pag
   const isCancelled = booking?.status === 'cancelled' || booking?.status === 'refunded';
   const isDeclined = booking?.status === 'declined';
   const isExpired = booking?.status === 'expired';
-  // An approved request inside its payment window: confirmed by the host
-  // but unpaid — the page's job is to get the guest to the payment step.
+  // Any confirmed-but-unpaid booking inside a live payment window —
+  // an approved request *or* an instant booking whose guest left the
+  // pay page. The page's job is to get them to the payment step; it
+  // must never read as a finished ticket while money is still owed.
   const isAwaitingPayment =
     booking?.status === 'confirmed' &&
     booking.paymentStatus === 'unpaid' &&
-    booking.approvedAt !== null &&
     booking.paymentDeadline !== null &&
+    !isHoldLapsed &&
     !isFailed;
 
   const HeaderIcon =
     isCancelled || isFailed || isDeclined
       ? CircleAlert
-      : isPending || isExpired || isAwaitingPayment
+      : isPending || isExpired || isAwaitingPayment || isHoldLapsed
         ? Clock
         : CheckCircle2;
   const headerIconClassName = cn(
@@ -138,7 +162,7 @@ export default async function BookingConfirmedPage({ params, searchParams }: Pag
       ? 'text-rijal-clay'
       : isFailed || isDeclined
         ? 'text-al-qatt-red'
-        : isExpired
+        : isExpired || isHoldLapsed
           ? 'text-sarat-black-600'
           : isAwaitingPayment
             ? 'text-pending'
@@ -154,7 +178,7 @@ export default async function BookingConfirmedPage({ params, searchParams }: Pag
       ? 'text-rijal-clay'
       : isFailed || isDeclined
         ? 'text-al-qatt-red-800'
-        : isExpired
+        : isExpired || isHoldLapsed
           ? 'text-sarat-black-600'
           : isAwaitingPayment
             ? 'text-pending'
@@ -170,30 +194,34 @@ export default async function BookingConfirmedPage({ params, searchParams }: Pag
       ? t('declinedEyebrow')
       : isExpired
         ? t('expiredEyebrow')
-        : isFailed
-          ? t('paymentFailedEyebrow')
-          : isPending
-            ? t('paymentPendingEyebrow')
-            : isAwaitingPayment
-              ? t('approvedEyebrow')
-              : isConfirmed
-                ? t('eyebrowConfirmed')
-                : t('eyebrow');
+        : isHoldLapsed
+          ? t('holdLapsedEyebrow')
+          : isFailed
+            ? t('paymentFailedEyebrow')
+            : isPending
+              ? t('paymentPendingEyebrow')
+              : isAwaitingPayment
+                ? t('approvedEyebrow')
+                : isConfirmed
+                  ? t('eyebrowConfirmed')
+                  : t('eyebrow');
   const headerTitle = isCancelled
     ? t('cancelledTitle')
     : isDeclined
       ? t('declinedTitle')
       : isExpired
         ? t('expiredTitle')
-        : isFailed
-          ? t('paymentFailedTitle')
-          : isPending
-            ? t('paymentPendingTitle')
-            : isAwaitingPayment
-              ? t('approvedTitle')
-              : isConfirmed
-                ? t('titleConfirmed')
-                : t('title');
+        : isHoldLapsed
+          ? t('holdLapsedTitle')
+          : isFailed
+            ? t('paymentFailedTitle')
+            : isPending
+              ? t('paymentPendingTitle')
+              : isAwaitingPayment
+                ? t('approvedTitle')
+                : isConfirmed
+                  ? t('titleConfirmed')
+                  : t('title');
   const headerDescription = isCancelled
     ? booking?.status === 'refunded'
       ? t('cancelledDescriptionRefunded')
@@ -202,33 +230,40 @@ export default async function BookingConfirmedPage({ params, searchParams }: Pag
       ? t('declinedDescription')
       : isExpired
         ? t('expiredDescription')
-        : isFailed
-          ? t('paymentFailedDescription')
-          : isPending
-            ? t('paymentPendingDescription')
-            : isAwaitingPayment && booking.paymentDeadline
-              ? t('approvedDescription', {
-                  deadline: formatDate(new Date(booking.paymentDeadline), loc),
-                })
-              : !booking
-                ? t('descriptionPreview')
-                : isConfirmed
-                  ? t('descriptionConfirmed')
-                  : t('descriptionStored');
+        : isHoldLapsed
+          ? t('holdLapsedDescription')
+          : isFailed
+            ? t('paymentFailedDescription')
+            : isPending
+              ? t('paymentPendingDescription')
+              : isAwaitingPayment && booking.paymentDeadline
+                ? t('approvedDescription', {
+                    deadline: formatDeadline(new Date(booking.paymentDeadline)),
+                  })
+                : !booking
+                  ? t('descriptionPreview')
+                  : isConfirmed
+                    ? t('descriptionConfirmed')
+                    : t('descriptionStored');
   // Plain pending request: tell the guest exactly when the host's window
   // closes (the distinct amber "pending host approval" state).
   const respondByNote =
     booking?.status === 'pending' && booking.approvalDeadline
-      ? t('respondBy', { date: formatDate(new Date(booking.approvalDeadline), loc) })
+      ? t('respondBy', { date: formatDeadline(new Date(booking.approvalDeadline)) })
       : null;
 
   const detailRows: Array<{ label: string; value: ReactNode }> = [];
   if (title) detailRows.push({ label: t('experienceLabel'), value: title });
   if (placeName) detailRows.push({ label: t('placeLabel'), value: placeName });
   if (booking) {
+    const startsAt = new Date(`${booking.date}T${booking.startTime}:00`);
     detailRows.push({
       label: t('dateLabel'),
-      value: formatDate(new Date(`${booking.date}T${booking.startTime}:00`), loc),
+      value: formatDate(startsAt, loc),
+    });
+    detailRows.push({
+      label: t('timeLabel'),
+      value: formatTime(startsAt, loc),
     });
     detailRows.push({
       label: t('partyLabel'),
@@ -256,6 +291,42 @@ export default async function BookingConfirmedPage({ params, searchParams }: Pag
 
   // "Report a problem" swaps to a we're-on-it note while a dispute is open.
   const openDispute = booking ? await hasOpenDisputeForBooking(ref) : false;
+
+  // Review entry for ANY completed booking — this page is reachable from
+  // the booking history, so reviews are no longer limited to the /me
+  // "last booking" card. Copy comes from the same `me.review` namespace.
+  const bookingReview =
+    booking?.status === 'completed' ? await getReviewForBooking(booking.id) : null;
+  const reviewEditable = bookingReview
+    ? new Date(bookingReview.editableUntil).getTime() > new Date().getTime()
+    : false;
+  const tMe = booking?.status === 'completed' ? await getTranslations('me') : null;
+  const reviewCopy = tMe
+    ? {
+        ratingLabel: tMe('review.ratingLabel'),
+        ratingValueLabels: [1, 2, 3, 4, 5].map((n) => tMe('review.ratingValue', { rating: n })) as [
+          string,
+          string,
+          string,
+          string,
+          string,
+        ],
+        ratingRequired: tMe('review.ratingRequired'),
+        commentLabel: tMe('review.commentLabel'),
+        commentOptional: tMe('review.commentOptional'),
+        commentPlaceholder: tMe('review.commentPlaceholder'),
+        errors: {
+          no_db: tMe('review.errors.noDb'),
+          not_found: tMe('review.errors.notFound'),
+          wrong_state: tMe('review.errors.wrongState'),
+          already_reviewed: tMe('review.errors.alreadyReviewed'),
+          forbidden: tMe('review.errors.forbidden'),
+          expired: tMe('review.errors.expired'),
+          validation: tMe('review.errors.validation'),
+          server: tMe('review.errors.server'),
+        },
+      }
+    : null;
 
   // WhatsApp line to the host — only once the host has accepted (the
   // query itself enforces confirmed/completed and returns null otherwise).
@@ -344,12 +415,23 @@ export default async function BookingConfirmedPage({ params, searchParams }: Pag
           </dl>
         )}
 
-        {/* The page doubles as the e-ticket — print it / save as PDF. */}
-        {booking && !isFailed && !isCancelled && !isDeclined && !isExpired && (
-          <div className="mt-2">
-            <PrintButton label={t('printTicket')} />
-          </div>
-        )}
+        {/* The page doubles as the e-ticket — print it / save as PDF. Only
+            once nothing is owed: paid, or a booking that never required
+            online payment (request acknowledgements, payment-off mode).
+            An unpaid hold must never print as a ticket. */}
+        {booking &&
+          !isFailed &&
+          !isCancelled &&
+          !isDeclined &&
+          !isExpired &&
+          !isAwaitingPayment &&
+          !isHoldLapsed &&
+          !isPending &&
+          (booking.paymentStatus === 'paid' || booking.paymentDeadline === null) && (
+            <div className="mt-2">
+              <PrintButton label={t('printTicket')} />
+            </div>
+          )}
       </section>
 
       {/* The success "what happens next" steps only make sense once the
@@ -360,7 +442,8 @@ export default async function BookingConfirmedPage({ params, searchParams }: Pag
         !isCancelled &&
         !isDeclined &&
         !isExpired &&
-        !isAwaitingPayment && (
+        !isAwaitingPayment &&
+        !isHoldLapsed && (
           <section className="mt-10 flex flex-col gap-3">
             <h2 className="font-display text-2xl font-medium tracking-[-0.025em]">
               {t('nextStepsHeading')}
@@ -372,6 +455,62 @@ export default async function BookingConfirmedPage({ params, searchParams }: Pag
             </ol>
           </section>
         )}
+
+      {/* Review — every completed booking can be reviewed right here. */}
+      {booking?.status === 'completed' && tMe && reviewCopy && (
+        <section className="border-sarat-black/8 rounded-card mt-10 flex flex-col gap-4 [border-width:0.5px] p-6 print:hidden">
+          {bookingReview && reviewEditable ? (
+            <ReviewForm
+              bookingReference={ref}
+              locale={loc}
+              mode="edit"
+              initialRating={bookingReview.rating}
+              initialText={(loc === 'ar' ? bookingReview.textAr : bookingReview.textEn) ?? ''}
+              copy={{
+                ...reviewCopy,
+                heading: tMe('review.editHeading'),
+                submit: tMe('review.update'),
+                submitting: tMe('review.updating'),
+              }}
+            />
+          ) : bookingReview ? (
+            <div className="flex flex-col gap-3">
+              <p className={eyebrowClassName}>{tMe('review.reviewedEyebrow')}</p>
+              <div
+                className="flex gap-1"
+                aria-label={tMe('review.ratingValue', { rating: bookingReview.rating })}
+              >
+                {[1, 2, 3, 4, 5].map((value) => (
+                  <Star
+                    key={value}
+                    className={cn(
+                      'size-5 fill-current',
+                      value <= bookingReview.rating ? 'text-saffron-gold' : 'text-sarat-black/20',
+                    )}
+                    aria-hidden
+                  />
+                ))}
+              </div>
+              {(loc === 'ar' ? bookingReview.textAr : bookingReview.textEn) && (
+                <p className="text-sarat-black-600 text-base leading-relaxed">
+                  {loc === 'ar' ? bookingReview.textAr : bookingReview.textEn}
+                </p>
+              )}
+            </div>
+          ) : (
+            <ReviewForm
+              bookingReference={ref}
+              locale={loc}
+              copy={{
+                ...reviewCopy,
+                heading: tMe('review.heading'),
+                submit: tMe('review.submit'),
+                submitting: tMe('review.submitting'),
+              }}
+            />
+          )}
+        </section>
+      )}
 
       {/* Report a problem — quiet disclosure, any real booking. */}
       {booking && (
@@ -428,8 +567,10 @@ export default async function BookingConfirmedPage({ params, searchParams }: Pag
         </section>
       )}
 
-      {/* Cancellation — only while the booking can still be cancelled. */}
-      {cancelView && (
+      {/* Cancellation — only while the booking can still be cancelled.
+          A lapsed hold is about to be released anyway; offering "cancel"
+          there would imply the spot is still held. */}
+      {cancelView && !isHoldLapsed && (
         <section className="border-sarat-black/8 rounded-card mt-10 flex flex-col gap-3 [border-width:0.5px] p-6 print:hidden">
           <h2 className="font-display text-2xl font-medium tracking-[-0.025em]">
             {t('cancel.heading')}
@@ -439,7 +580,7 @@ export default async function BookingConfirmedPage({ params, searchParams }: Pag
               ? t('cancel.policyUnpaid')
               : cancelView.refund === 'full'
                 ? t('cancel.policyRefundable', {
-                    deadline: formatDate(cancelView.deadline, loc),
+                    deadline: formatDeadline(cancelView.deadline),
                   })
                 : t('cancel.policyForfeited')}
           </p>

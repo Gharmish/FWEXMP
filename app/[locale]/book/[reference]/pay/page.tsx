@@ -10,11 +10,14 @@ import { formatDate, formatInteger, formatTime } from '@/lib/format';
 import { Price } from '@/components/ui/price';
 import { getBookingByReferenceForViewer } from '@/features/bookings/queries';
 import { vatPortionSar, vatRatePercent } from '@/features/bookings/lib/vat';
+import { isHoldExpired } from '@/features/bookings/lib/availability';
 import { getExperienceBySlug } from '@/features/experiences/queries';
 import {
   PaymentDetailsForm,
   type PaymentDetailsCopy,
 } from '@/features/payments/components/payment-details-form';
+import { PaymentDeadlineNote } from '@/features/payments/components/payment-deadline-note';
+import { cn } from '@/lib/utils';
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -58,6 +61,16 @@ export default async function PaymentPage({ params, searchParams }: PageParams) 
   // declined/expired/cancelled) has nothing to pay — the confirmation
   // page renders the right state and `createCheckout` refuses it anyway.
   if (booking.status !== 'confirmed') redirect(confirmedHref);
+  // A lapsed hold can't be paid (`createCheckout` refuses it) — send the
+  // guest to the confirmation page's "payment window closed" state
+  // instead of letting them fill the whole form first.
+  const holdDeadline = booking.paymentDeadline ? new Date(booking.paymentDeadline) : null;
+  if (
+    (booking.paymentStatus === 'unpaid' || booking.paymentStatus === 'failed') &&
+    isHoldExpired(holdDeadline, new Date())
+  ) {
+    redirect(confirmedHref);
+  }
 
   const experienceSlug = booking.experienceSlug ?? slugFromQuery;
   const experience = experienceSlug ? await getExperienceBySlug(experienceSlug) : undefined;
@@ -127,13 +140,31 @@ export default async function PaymentPage({ params, searchParams }: PageParams) 
   return (
     <article className="mx-auto w-full max-w-2xl px-6 py-16">
       <header className="flex flex-col gap-3">
-        <p className="text-juniper-green-800 text-[11px] tracking-[0.2em] uppercase">
+        <p
+          className={cn(
+            'text-juniper-green-800 text-[11px]',
+            // Letter-spacing severs connected Arabic glyphs — EN only.
+            loc === 'en' && 'tracking-[0.2em] uppercase',
+          )}
+        >
           {t('eyebrow')}
         </p>
         <h1 className="font-display text-4xl font-semibold tracking-[-0.035em] text-balance">
           {t('title')}
         </h1>
         <p className="text-sarat-black-600 text-lg leading-relaxed">{t('intro')}</p>
+        {holdDeadline && (
+          <PaymentDeadlineNote
+            deadlineIso={holdDeadline.toISOString()}
+            note={t('deadlineNote', {
+              deadline:
+                loc === 'ar'
+                  ? `${formatDate(holdDeadline, loc)}، ${formatTime(holdDeadline, loc)}`
+                  : `${formatDate(holdDeadline, loc)}, ${formatTime(holdDeadline, loc)}`,
+            })}
+            minutesLeftTemplate={t.raw('minutesLeft')}
+          />
+        )}
       </header>
 
       <section

@@ -145,9 +145,21 @@ export default async function HostEarningsPage({
 
           {/* Payout ledger */}
           <section className="flex flex-col gap-4">
-            <h2 className="font-display text-2xl font-medium tracking-[-0.025em]">
-              {t('history.title')}
-            </h2>
+            <div className="flex flex-wrap items-baseline justify-between gap-3">
+              <h2 className="font-display text-2xl font-medium tracking-[-0.025em]">
+                {t('history.title')}
+              </h2>
+              {earnings.history.length > 0 && (
+                /* Plain <a>: an API route download, not an app navigation. */
+                <a
+                  href="/api/host/export/earnings"
+                  download
+                  className="text-sarat-black-600 text-sm font-medium underline-offset-4 hover:underline"
+                >
+                  {t('history.export')}
+                </a>
+              )}
+            </div>
             {earnings.history.length === 0 ? (
               <p className="text-sarat-black-600 text-base">{t('history.empty')}</p>
             ) : (
@@ -186,6 +198,22 @@ export default async function HostEarningsPage({
                             </span>
                           </>
                         )}
+                      </div>
+                      {/* Full derivation: gross − commission(rate) = payout.
+                          The host can audit every riyal of their money. */}
+                      <div className="text-sarat-black-600 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
+                        <span>
+                          {t.rich('history.gross', {
+                            amount: () => <Price amount={row.totalSar} locale={loc} />,
+                          })}
+                        </span>
+                        <span aria-hidden>·</span>
+                        <span>
+                          {t.rich('history.commission', {
+                            pct: row.commissionBps / 100,
+                            amount: () => <Price amount={row.commissionSar} locale={loc} />,
+                          })}
+                        </span>
                       </div>
                     </div>
                     <span className="font-display shrink-0 text-xl font-medium tabular-nums">

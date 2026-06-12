@@ -3,6 +3,7 @@ import { db } from '@/lib/db';
 import { serverEnv } from '@/lib/env';
 import { reportError } from '@/lib/log';
 import { bookings } from '@/db/schema';
+import { holdStillCounts } from '@/features/bookings/lib/capacity-sql';
 
 /** Statuses that occupy a spot for capacity display (mirrors the booking action). */
 const ACTIVE_STATUSES = ['pending', 'confirmed', 'completed'] as const;
@@ -81,6 +82,7 @@ async function scheduleDataById(
           gte(bookings.date, fromStr),
           lte(bookings.date, toStr),
           inArray(bookings.status, [...ACTIVE_STATUSES]),
+          holdStillCounts(),
         ),
       )
       .groupBy(bookings.date);

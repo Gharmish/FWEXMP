@@ -6,7 +6,8 @@
     "account": "Your activity",
     "hostDashboard": "Host",
     "switchLanguage": "Switch language to {lang}",
-    "skipToContent": "Skip to content"
+    "skipToContent": "Skip to content",
+    "becomeHost": "Host with us"
   },
   "auth": {
     "eyebrow": "Sign in",
@@ -106,8 +107,13 @@
         "pendingReview": "Experiences pending review",
         "changesRequested": "Experiences awaiting host changes",
         "pendingBookings": "Bookings to confirm",
-        "upcoming": "Upcoming bookings"
-      }
+        "upcoming": "Upcoming bookings",
+        "openDisputes": "Open disputes",
+        "refundsDue": "Refunds owed to guests ({amount})",
+        "payoutsOwed": "Host payouts owed ({amount})"
+      },
+      "cronStale": "The scheduled job hasn't completed a run since {date} — request expiry, hold release, payment reconciliation, and reminders are stalled. Check the Vercel cron and CRON_SECRET.",
+      "cronNever": "The scheduled job has never reported a completed run — request expiry, hold release, payment reconciliation, and reminders may be stalled. Check the Vercel cron and CRON_SECRET."
     },
     "payoutsList": {
       "eyebrow": "Payouts",
@@ -124,7 +130,11 @@
         "eyebrow": "Nothing owed",
         "title": "No payouts due yet",
         "description": "Once bookings are marked completed, the host's earnings appear here."
-      }
+      },
+      "copyIban": "Copy IBAN",
+      "noIban": "No IBAN on file — ask the host to add one on their earnings page.",
+      "amountChanged": "The owed amount changed since the page loaded — refresh and try again.",
+      "hostSuspended": "This host is suspended — resolve their status before paying out."
     },
     "reviewsList": {
       "eyebrow": "Reviews",
@@ -508,7 +518,9 @@
       "historyHeading": "Status history",
       "pendingEyebrow": "Pending",
       "pendingDescription": "This host's application is still being reviewed.",
-      "pendingCta": "Go to host applications →"
+      "pendingCta": "Go to host applications →",
+      "payoutIban": "Payout IBAN",
+      "noIban": "Not provided yet"
     },
     "hostStatusEvent": {
       "suspended": "Suspended",
@@ -587,7 +599,8 @@
         "viewAll": "All bookings",
         "viewUpcoming": "Upcoming",
         "apply": "Apply",
-        "noMatches": "No bookings match these filters."
+        "noMatches": "No bookings match these filters.",
+        "clear": "Clear filter"
       },
       "empty": {
         "eyebrow": "Nothing yet",
@@ -628,7 +641,10 @@
         "validation": "Something didn't validate. Refresh and try again.",
         "server": "We couldn't complete that action. Try again in a moment."
       },
-      "refundDue": "Refund due"
+      "refundDue": "Refund due",
+      "expiresIn": "Expires in {hours}h",
+      "deadlinePassed": "Approval window passed",
+      "refundDueFilter": "Showing bookings with refunds owed"
     },
     "bookingDetail": {
       "back": "All bookings",
@@ -673,7 +689,9 @@
         "validation": "Check the form and try again.",
         "server": "We couldn't complete that action. Try again in a moment.",
         "wrongState": "This experience isn't pending review anymore — refresh to see the latest status.",
-        "reviewerNoteShort": "Add at least 10 characters of context so the host knows how to respond."
+        "reviewerNoteShort": "Add at least 10 characters of context so the host knows how to respond.",
+        "needsHero": "This listing has no hero photo — it can't go live without one.",
+        "needsArabic": "The Arabic title or description is still a TODO placeholder — fill it in before approving (Arabic-first audience)."
       }
     },
     "disputes": {
@@ -742,8 +760,8 @@
         "hint": "Pulled from your account. The partnerships team confirms on WhatsApp."
       },
       "contactEmail": {
-        "label": "Email (optional)",
-        "hint": "If you'd rather we reach you by email for the first conversation."
+        "label": "Email",
+        "hint": "Booking requests, cancellations, and payment notices arrive here — keep it current."
       }
     },
     "identityType": {
@@ -826,7 +844,7 @@
       "step2Title": "Photography session",
       "step2Description": "We bring the camera. Our photographer captures the place, the moments, and you — natural light, no filters.",
       "step3Title": "Go live",
-      "step3Description": "Once your listing is approved, it appears in the catalog and bookings open. We'll text you the first time someone books."
+      "step3Description": "Once your listing is approved, it appears in the catalog and bookings open. We'll email you the moment someone books."
     },
     "experiences": {
       "title": "Your experiences",
@@ -965,7 +983,10 @@
       "paidBadge": "Paid out",
       "owedBadge": "Owed",
       "partyOf": "Party of {count}",
-      "paidOn": "Paid {date}"
+      "paidOn": "Paid {date}",
+      "export": "Download CSV",
+      "gross": "Guest paid <amount></amount>",
+      "commission": "Gharmish commission {pct, number}% · <amount></amount>"
     }
   },
   "hostReviews": {
@@ -1035,7 +1056,8 @@
         "forbidden": "You're not authorised to edit this listing.",
         "notFound": "We couldn't find that listing.",
         "uploadFailed": "The upload didn't go through. Try again in a moment.",
-        "server": "We couldn't save that photo. Try again in a moment."
+        "server": "We couldn't save that photo. Try again in a moment.",
+        "lockedLive": "The photo of a published listing is part of what was approved. Pause and edit the listing — it will go through a quick re-review."
       }
     },
     "suspendedHostBanner": "Your host account is suspended. You can still see and edit this listing, but submitting it for review is blocked until the team restores your account.",
@@ -1082,7 +1104,8 @@
         "server": "We couldn't complete that action. Try again in a moment.",
         "validation": "Check the form and try again.",
         "wrongState": "This experience can't be submitted from its current state — refresh to see the latest.",
-        "suspended": "Your host account is suspended — submitting for review is blocked until the team restores it."
+        "suspended": "Your host account is suspended — submitting for review is blocked until the team restores it.",
+        "needsHero": "Add a hero photo before submitting — listings don't go to review without one."
       },
       "duplicate": "Duplicate",
       "duplicatePending": "Duplicating…"
@@ -1160,9 +1183,16 @@
           "priceTooHigh": "Price is unusually high — check the value.",
           "policyShort": "Cancellation policy is too short — write at least 20 characters.",
           "policyLong": "Cancellation policy is too long — keep it under 1000 characters.",
-          "required": "Check this field."
+          "required": "Check this field.",
+          "timeInvalid": "Enter a time like 16:30.",
+          "coordsInvalid": "Enter valid map coordinates."
         }
-      }
+      },
+      "startTimeLabel": "Start time",
+      "startTimeHint": "Local start time of every occurrence. Guests see it before booking and on their ticket.",
+      "latLabel": "Latitude",
+      "lngLabel": "Longitude",
+      "coordsHint": "Meeting-point coordinates — long-press the spot in Google Maps and copy the two numbers. They drive the map on your listing."
     },
     "moments": {
       "heading": "Experience timeline",
@@ -1288,7 +1318,10 @@
       "heading": "Meeting point",
       "mapTitle": "Map of the meeting point at {place}",
       "directions": "Open in Google Maps"
-    }
+    },
+    "startsAt": "Starts at {time}",
+    "cancellationPolicyLine": "Free cancellation up to {hours} hours before the start — you get a full refund. Closer than that, the payment is non-refundable. You can cancel any time from your booking page.",
+    "cancellationPolicyNone": "You can cancel any time before the start from your booking page."
   },
   "availabilityCalendar": {
     "heading": "Availability calendar",
@@ -1313,7 +1346,7 @@
     "phone": "Mobile number",
     "preferredDate": "Preferred date",
     "partySize": "Guests",
-    "phoneHint": "Enter your number without the leading zero — we'll confirm by WhatsApp.",
+    "phoneHint": "Enter your number without the leading zero — your host can reach you on WhatsApp once the booking is confirmed.",
     "countryLabel": "Country code",
     "phonePlaceholder": "5X XXX XXXX",
     "phoneInvalid": "Enter a valid mobile number for the selected country.",
@@ -1342,7 +1375,11 @@
     "modeRequest": "Request to book — the host responds within {hours} hours. You won't be charged until they accept.",
     "runsOn": "Runs on {days}.",
     "vatIncluded": "Includes VAT ({pct}%)",
-    "suspended": "Bookings are currently unavailable for this account. Contact us if you think this is a mistake."
+    "suspended": "Bookings are currently unavailable for this account. Contact us if you think this is a mistake.",
+    "email": "Email (optional)",
+    "emailHint": "We send your confirmation, payment link, and reminders here. Without an email, keep your booking page link handy.",
+    "emailInvalid": "Enter a valid email address.",
+    "tooMany": "You have too many open bookings right now. Complete or cancel one, or try again later."
   },
   "bookingConfirmed": {
     "eyebrow": "Request received",
@@ -1365,10 +1402,10 @@
     "nextStepsHeading": "What happens next",
     "nextStep1": "Your host reviews the request and confirms availability.",
     "nextStep2": "Once confirmed, we share a secure payment link to complete the booking.",
-    "nextStep3": "You'll get full details — meeting point, what to bring, host contact — by WhatsApp the day before.",
+    "nextStep3": "Once confirmed, your booking page has everything — meeting point, what to bring, and a WhatsApp line to your host.",
     "nextStepConfirmed1": "Your booking is confirmed — no further action needed now.",
     "nextStepConfirmed2": "Save your reference; you'll need it for any changes.",
-    "nextStepConfirmed3": "We'll send the meeting point, what to bring, and host contact by WhatsApp the day before.",
+    "nextStepConfirmed3": "Your booking page has the meeting point, what to bring, and a WhatsApp line to your host — check it before you go.",
     "backToExperience": "Back to the experience",
     "keepExploring": "Keep exploring",
     "paymentFailedEyebrow": "Payment not completed",
@@ -1376,7 +1413,7 @@
     "paymentFailedDescription": "Your card wasn't charged and your booking isn't confirmed yet — you can try the payment again.",
     "paymentPendingEyebrow": "Payment processing",
     "paymentPendingTitle": "We're confirming your payment.",
-    "paymentPendingDescription": "This can take a moment. We'll confirm by WhatsApp as soon as it clears — there's no need to pay again. This page updates on its own.",
+    "paymentPendingDescription": "This can take a moment — there's no need to pay again. This page updates on its own, and if you shared an email your receipt arrives the moment it clears.",
     "tryPaymentAgain": "Try payment again",
     "cancel": {
       "heading": "Need to cancel?",
@@ -1439,7 +1476,11 @@
     "declinedDescription": "You haven't been charged anything. There's plenty more of Asir to see — browse other experiences or try another date.",
     "expiredEyebrow": "Request expired",
     "expiredTitle": "The host didn't respond in time.",
-    "expiredDescription": "Your request expired after the approval window passed, and you haven't been charged anything. You're welcome to send a new request for another date."
+    "expiredDescription": "Your request expired after the approval window passed, and you haven't been charged anything. You're welcome to send a new request for another date.",
+    "timeLabel": "Start time",
+    "holdLapsedEyebrow": "Payment window closed",
+    "holdLapsedTitle": "The payment window has closed",
+    "holdLapsedDescription": "We held your spot while payment was pending, but the window passed before it was completed. Nothing was charged and the spot has been released. You're welcome to book again."
   },
   "payment": {
     "eyebrow": "Secure payment",
@@ -1478,7 +1519,9 @@
     "vatIncludedLabel": "Includes VAT ({pct}%)",
     "errorNotApproved": "This request hasn't been accepted by the host yet. You'll receive a payment link as soon as they accept.",
     "secureNote": "Payments are processed securely by our payment provider with 3-D Secure. Your card details never touch Gharmish servers.",
-    "acceptedMethods": "We accept"
+    "acceptedMethods": "We accept",
+    "deadlineNote": "Complete payment by {deadline} — we're holding your spot until then.",
+    "minutesLeft": "about {minutes} min left"
   },
   "bookingEmail": {
     "subject": "Your Gharmish booking is confirmed",
@@ -1529,7 +1572,16 @@
     "expiredClosing": "You're welcome to send a new request for another date.",
     "paymentLapsedSubject": "Your booking hold was released",
     "paymentLapsedIntro": "The payment window for your booking passed, so the spot was released back to the calendar. You haven't been charged anything.",
-    "paymentLapsedClosing": "If you still want to go, you can book the experience again."
+    "paymentLapsedClosing": "If you still want to go, you can book the experience again.",
+    "cancelByHostIntroRefunded": "Your host couldn't run this booking, so we've cancelled it and refunded your payment in full. Refunds usually arrive within a few business days, depending on your bank.",
+    "cancelByHostIntroRefundPending": "Your host couldn't run this booking, so we've cancelled it. Your full refund is on its way — our team processes it by hand, so it can take a few business days.",
+    "cancelByHostIntroUnpaid": "Your host couldn't run this booking, so we've cancelled it. Nothing was charged.",
+    "hostGuestCancelledSubject": "A guest cancelled their booking",
+    "hostGuestCancelledIntro": "A guest has cancelled the booking below — those spots are open again. Your bookings page has the latest: {url}",
+    "hostHoldLapsedSubject": "A booking lapsed unpaid",
+    "hostHoldLapsedIntro": "The booking below was never paid for within its payment window, so it has been released and the spots are open again. No action is needed.",
+    "hostPaymentReceivedSubject": "Payment received — booking secured",
+    "hostPaymentReceivedIntro": "The guest's payment for the booking below has settled — the booking is fully secured."
   },
   "notFound": {
     "eyebrow": "404",
@@ -1575,7 +1627,8 @@
     "basedOn": "Based on {count} reviews",
     "ratingLabel": "Rated {rating} out of 5",
     "hostReply": "Reply from the host",
-    "moreHidden": "{count, plural, =1 {1 more review not shown} other {# more reviews not shown}}"
+    "moreHidden": "{count, plural, =1 {1 more review not shown} other {# more reviews not shown}}",
+    "showAll": "{count, plural, =1 {Show 1 more review} other {Show # more reviews}}"
   },
   "footer": {
     "tagline": "Experiences hosted by the people who know Asir best.",
@@ -1823,7 +1876,7 @@
       },
       "pending": {
         "q": "What does \"pending host approval\" mean?",
-        "a": "Your request is with the host. They have {approvalHours} hours to accept or decline, and we'll email you the moment they respond. Until they accept, no money moves."
+        "a": "Your request is with the host. They have {approvalHours} hours to accept or decline — if you shared an email, we'll notify you the moment they respond, and this page always shows the latest status. Until they accept, no money moves."
       },
       "cancel": {
         "q": "Can I cancel a booking?",
@@ -1838,5 +1891,15 @@
         "a": "Apply from the \"Host with us\" page. We review every application, verify identity and licences, and then build the experience together with you — photography included."
       }
     }
+  },
+  "hostApplicationEmail": {
+    "greeting": "Hi {name},",
+    "approvedSubject": "Welcome to Gharmish — your application is approved",
+    "approvedIntro": "Your host application has been approved. Your dashboard is ready — create your first experience and our partnerships team will walk the rest of the way with you: {url}",
+    "approvedClosing": "We're glad to have you. — The Gharmish team",
+    "rejectedSubject": "An update on your Gharmish application",
+    "rejectedIntro": "We couldn't approve your application this time. The reviewer left a note explaining why on your application page — you can revise and resubmit anytime: {url}",
+    "rejectedClosing": "Thank you for your interest in hosting with Gharmish. — The Gharmish team",
+    "footer": "Gharmish — experiences hosted by the people who know Asir best."
   }
 }

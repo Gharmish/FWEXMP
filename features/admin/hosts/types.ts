@@ -38,6 +38,8 @@ export interface AdminHostDetail extends AdminHostRow {
   bioAr: string;
   nationalId: string | null;
   crNumber: string | null;
+  /** Payout destination IBAN (self-managed by the host). */
+  payoutIban: string | null;
   languages: readonly string[];
   experiences: readonly AdminHostExperienceRow[];
   statusEvents: readonly AdminHostStatusEventView[];

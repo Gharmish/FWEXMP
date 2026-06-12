@@ -19,6 +19,7 @@ function exp(overrides: Partial<ExperienceSummary> & { slug: string }): Experien
     slug: overrides.slug,
     titleEn: overrides.titleEn ?? 'Title',
     titleAr: overrides.titleAr ?? 'العنوان',
+    startTime: overrides.startTime ?? '09:00',
     descriptionEn: overrides.descriptionEn ?? '',
     descriptionAr: overrides.descriptionAr ?? '',
     category: overrides.category ?? 'nature',

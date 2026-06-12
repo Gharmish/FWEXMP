@@ -6,6 +6,7 @@ import { db } from '@/lib/db';
 import { serverEnv } from '@/lib/env';
 import { bookings, disputes } from '@/db/schema';
 import { reportError } from '@/lib/log';
+import { notifyAdmin } from '@/lib/admin-alerts';
 import { getCurrentUser } from '@/features/auth/queries';
 import { isAdminUser } from '@/features/admin/auth';
 import { bookingViewerCanAccess } from '@/features/bookings/lib/access';
@@ -72,6 +73,10 @@ export async function createDispute(
     reportError(error, { surface: 'disputes:create', reference });
     return { success: false, message: 'server' };
   }
+
+  // "A real person in Abha will reply" only works if a real person
+  // hears about it — alert the team inbox. Best-effort, never blocks.
+  await notifyAdmin('dispute_opened', { reference });
 
   revalidatePath('/[locale]/admin/disputes', 'page');
   return { success: true };

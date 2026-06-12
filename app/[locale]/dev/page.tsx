@@ -107,6 +107,7 @@ function makeExperience(
     slug: overrides.slug,
     titleEn: overrides.titleEn ?? 'Sample experience',
     titleAr: overrides.titleAr ?? 'تجربة عينة',
+    startTime: overrides.startTime ?? '09:00',
     descriptionEn:
       overrides.descriptionEn ??
       'A short description that explains what makes this experience worth booking, in one breath.',

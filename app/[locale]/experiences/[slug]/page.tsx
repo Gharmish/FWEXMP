@@ -3,7 +3,7 @@ import { ArrowLeft, CalendarClock, ShieldCheck, Users, Zap } from 'lucide-react'
 import { notFound } from 'next/navigation';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { cn } from '@/lib/utils';
-import { durationHours, formatInteger, formatDate } from '@/lib/format';
+import { durationHours, formatInteger, formatDate, formatTime } from '@/lib/format';
 import { Price } from '@/components/ui/price';
 import { Link } from '@/lib/i18n';
 import type { Locale } from '@/lib/i18n';
@@ -66,12 +66,16 @@ export async function generateMetadata({
 
 export default async function ExperienceDetailPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ locale: string; slug: string }>;
+  searchParams: Promise<Readonly<Record<string, string | string[] | undefined>>>;
 }) {
   const { locale, slug } = await params;
   setRequestLocale(locale);
   const loc = locale as Locale;
+  const sp = await searchParams;
+  const showAllReviews = (Array.isArray(sp.reviews) ? sp.reviews[0] : sp.reviews) === 'all';
 
   const exp = await getExperienceBySlug(slug);
   if (!exp) notFound();
@@ -131,14 +135,15 @@ export default async function ExperienceDetailPage({
   const location = loc === 'ar' ? `${city}، ${region}` : `${city}, ${region}`;
   const inclusions = loc === 'ar' ? exp.inclusions.map(toArabicText) : exp.inclusions;
   const whatToBring = loc === 'ar' ? exp.whatToBring.map(toArabicText) : exp.whatToBring;
-  const cancellationPolicy =
-    loc === 'ar' ? toArabicText(exp.cancellationPolicy) : exp.cancellationPolicy;
   const maxGroupSize = formatInteger(exp.maxGroupSize, loc);
   const minAge = formatInteger(exp.minAge, loc);
   const bookingCopy = {
     title: tb('title'),
     name: tb('name'),
     phone: tb('phone'),
+    email: tb('email'),
+    emailHint: tb('emailHint'),
+    emailInvalid: tb('emailInvalid'),
     preferredDate: tb('preferredDate'),
     partySize: tb('partySize'),
     phoneHint: tb('phoneHint'),
@@ -153,6 +158,7 @@ export default async function ExperienceDetailPage({
     server: tb('server'),
     notFound: tb('notFound'),
     suspended: tb('suspended'),
+    tooMany: tb('tooMany'),
     required: tb('required'),
     datePast: tb('datePast'),
     dateUnavailable: tb('dateUnavailable'),
@@ -304,6 +310,15 @@ export default async function ExperienceDetailPage({
             {durationHours(exp.durationMinutes, loc)} {te('hours')}
           </span>
           <span aria-hidden>·</span>
+          {/* A guest must know whether this is a dawn walk or an evening
+              trip BEFORE committing — the time was previously invisible
+              until the e-ticket. */}
+          <span>
+            {t('startsAt', {
+              time: formatTime(new Date(`2000-01-01T${exp.startTime}:00`), loc),
+            })}
+          </span>
+          <span aria-hidden>·</span>
           <span>{t('groupSizeUpTo', { count: maxGroupSize })}</span>
         </div>
       </header>
@@ -381,7 +396,16 @@ export default async function ExperienceDetailPage({
             <h2 className="font-display text-2xl font-medium tracking-[-0.025em]">
               {t('cancellation')}
             </h2>
-            <p className="text-sarat-black-600 text-base">{cancellationPolicy}</p>
+            {/* Single source of truth: the line is DERIVED from the
+                platform window the cancel action actually enforces. The
+                host's free-text policy field is no longer rendered here —
+                sample listings promised 24/72h windows while enforcement
+                was 48h, a refund dispute waiting to happen. */}
+            <p className="text-sarat-black-600 text-base">
+              {settings.cancellationWindowHours > 0
+                ? t('cancellationPolicyLine', { hours: settings.cancellationWindowHours })
+                : t('cancellationPolicyNone')}
+            </p>
           </section>
 
           <section className="border-sarat-black/8 flex flex-col gap-4 [border-top-width:0.5px] pt-10">
@@ -391,7 +415,12 @@ export default async function ExperienceDetailPage({
             <HostCard host={exp.host} locale={loc} responseStats={hostResponseStats} />
           </section>
 
-          <ReviewsSection experienceSlug={exp.slug} locale={loc} />
+          <ReviewsSection
+            experienceSlug={exp.slug}
+            locale={loc}
+            showAll={showAllReviews}
+            showAllHref={`/experiences/${exp.slug}?reviews=all#reviews`}
+          />
         </div>
 
         {/* Right: sticky price / booking panel. On short viewports the panel
@@ -431,6 +460,11 @@ export default async function ExperienceDetailPage({
               )}
             </div>
             <div className="text-sarat-black-600 flex flex-col gap-1 text-sm">
+              <span>
+                {t('startsAt', {
+                  time: formatTime(new Date(`2000-01-01T${exp.startTime}:00`), loc),
+                })}
+              </span>
               <span>{t('groupSizeUpTo', { count: maxGroupSize })}</span>
               <span>{t('minAge', { age: minAge })}</span>
             </div>

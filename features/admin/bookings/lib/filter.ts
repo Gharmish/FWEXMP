@@ -14,6 +14,8 @@ export interface BookingFilter {
   q?: string;
   status?: BookingStatusFilter;
   view?: BookingView;
+  /** Only bookings with a stamped refund_due_sar (money owed back). */
+  refundDue?: boolean;
   /** Today, `YYYY-MM-DD`, for the "upcoming" cutoff. */
   todayStr: string;
 }
@@ -72,6 +74,7 @@ export function filterBookings(
   const q = filter.q ?? '';
 
   let out = rows.filter((row) => {
+    if (filter.refundDue && row.refundDueSar === null) return false;
     if (status !== 'all' && row.status !== status) return false;
     if (view === 'upcoming') {
       if (!UPCOMING_STATUSES.has(row.status)) return false;

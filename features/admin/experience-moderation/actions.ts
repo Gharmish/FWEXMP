@@ -32,7 +32,15 @@ import {
 
 export interface AdminModerationResult {
   success: false;
-  message?: 'forbidden' | 'no_db' | 'not_found' | 'validation' | 'server' | 'wrong_state';
+  message?:
+    | 'forbidden'
+    | 'no_db'
+    | 'not_found'
+    | 'validation'
+    | 'server'
+    | 'wrong_state'
+    | 'needs_hero'
+    | 'needs_arabic';
   fieldError?: string;
 }
 
@@ -71,6 +79,20 @@ export async function approveExperience(
   const { experienceId, reviewerNotes, locale } = parsed.data;
 
   try {
+    // Launch-content gates: nothing goes live without a hero photo or
+    // with AI/translation placeholders in the Arabic the year-1
+    // (Arabic-first) audience will actually read. The moderation page
+    // flags both; this makes the flag a hard stop instead of a hint.
+    const row = await db.query.experiences.findFirst({
+      where: (e) => eq(e.id, experienceId),
+      columns: { heroImage: true, titleAr: true, descriptionAr: true },
+    });
+    if (!row) return { success: false, message: 'not_found' };
+    if (!row.heroImage) return { success: false, message: 'needs_hero' };
+    if (row.titleAr.startsWith('TODO(ar') || row.descriptionAr.startsWith('TODO(ar')) {
+      return { success: false, message: 'needs_arabic' };
+    }
+
     // Conditional update: only flips if it's still pending_review.
     const updated = await db
       .update(experiences)

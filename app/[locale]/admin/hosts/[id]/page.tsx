@@ -8,7 +8,8 @@ import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 import { formatDate } from '@/lib/format';
 import { getHostForAdmin, isAdminAndDbReady } from '@/features/admin/hosts/queries';
-import { maskIdentityNumber } from '@/features/admin/hosts/lib/mask';
+import { maskIban, maskIdentityNumber } from '@/features/admin/hosts/lib/mask';
+import { CopyButton } from '@/components/ui/copy-button';
 import { HostActions } from '@/app/[locale]/admin/hosts/[id]/host-actions';
 import type {
   AdminHostExperienceRow,
@@ -177,6 +178,19 @@ export default async function AdminHostDetailPage({
             <dd className="text-base font-medium">{host.languages.join(' · ')}</dd>
           </div>
         )}
+        {/* Payout destination — masked on screen, full value via copy.
+            This is where the operator gets the IBAN for bank transfers. */}
+        <div className="flex flex-col gap-1">
+          <dt className={eyebrowClassName}>{t('hostDetail.payoutIban')}</dt>
+          {host.payoutIban ? (
+            <dd className="inline-flex items-center gap-1 font-mono text-base font-medium">
+              <span dir="ltr">{maskIban(host.payoutIban)}</span>
+              <CopyButton value={host.payoutIban} label={t('payoutsList.copyIban')} />
+            </dd>
+          ) : (
+            <dd className="text-warning text-base font-medium">{t('hostDetail.noIban')}</dd>
+          )}
+        </div>
       </dl>
 
       {/* Bio */}

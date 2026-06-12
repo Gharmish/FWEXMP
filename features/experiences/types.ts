@@ -17,6 +17,8 @@ export interface ExperienceSummary {
   category: Category;
   priceSar: number;
   durationMinutes: number;
+  /** Local start time of every occurrence, HH:MM 24h. */
+  startTime: string;
   placeName: string;
   /** Operating city (Abha-only at launch) — drives the catalog city filter. */
   city: string;

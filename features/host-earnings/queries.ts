@@ -4,17 +4,20 @@ import { serverEnv } from '@/lib/env';
 import { bookings, experiences } from '@/db/schema';
 import { reportError } from '@/lib/log';
 import { getCurrentUser } from '@/features/auth/queries';
+import { paymentCollected, payoutExpr } from '@/features/bookings/lib/payout-sql';
 
 /**
  * Host earnings, scoped to the signed-in host (resolved from
  * `hosts.userId`, never from the URL). Mirrors the admin payouts
- * math exactly: a payout is earned when a booking is `completed`,
- * computed per booking as `total - round(total * clamp(bps) / 10000)`
- * (identical to `splitCommission`), then summed — so the host page,
- * the admin payouts page, and the dashboard agree to the riyal.
+ * math exactly: a payout is earned when a booking is `completed` AND
+ * its money was actually collected (paid online, or no online payment
+ * required), computed per booking from the commission rate SNAPSHOTTED
+ * on the booking (identical to `splitCommission`), then summed — so
+ * the host page, the admin payouts page, and the dashboard agree to
+ * the riyal, and a later commission edit never restates history.
  *
- * "Upcoming" is the projected payout over `confirmed` bookings —
- * money on the calendar, not yet earned. Owed/paid split on
+ * "Upcoming" is the projected payout over collected `confirmed`
+ * bookings — money on the calendar, not yet earned. Owed/paid split on
  * `bookings.hostPaidAt` (stamped by the admin payout action).
  */
 
@@ -24,6 +27,12 @@ export interface HostEarningsHistoryRow {
   experienceTitleEn: string;
   experienceTitleAr: string;
   partySize: number;
+  /** What the guest paid (VAT-inclusive gross). */
+  totalSar: number;
+  /** Platform commission withheld on this booking. */
+  commissionSar: number;
+  /** Commission rate applied (snapshot), basis points. */
+  commissionBps: number;
   payoutSar: number;
   /** Null = completed but not yet paid out. */
   paidOutAt: string | null;
@@ -54,17 +63,18 @@ export async function getHostEarnings(): Promise<HostEarnings | null> {
     });
     if (!host) return null;
 
-    const payout = sql<number>`${bookings.totalAmount} - round(${bookings.totalAmount} * least(10000, greatest(0, ${experiences.commissionBps}))::numeric / 10000)`;
+    const payout = payoutExpr();
+    const collected = paymentCollected();
 
     const [[totals], historyRows] = await Promise.all([
       db
         .select({
-          owedSar: sql<number>`coalesce(sum(${payout}) filter (where ${bookings.status} = 'completed' and ${bookings.hostPaidAt} is null), 0)::int`,
-          owedCount: sql<number>`coalesce(count(*) filter (where ${bookings.status} = 'completed' and ${bookings.hostPaidAt} is null), 0)::int`,
+          owedSar: sql<number>`coalesce(sum(${payout}) filter (where ${bookings.status} = 'completed' and ${bookings.hostPaidAt} is null and ${collected}), 0)::int`,
+          owedCount: sql<number>`coalesce(count(*) filter (where ${bookings.status} = 'completed' and ${bookings.hostPaidAt} is null and ${collected}), 0)::int`,
           paidSar: sql<number>`coalesce(sum(${payout}) filter (where ${bookings.status} = 'completed' and ${bookings.hostPaidAt} is not null), 0)::int`,
           paidCount: sql<number>`coalesce(count(*) filter (where ${bookings.status} = 'completed' and ${bookings.hostPaidAt} is not null), 0)::int`,
-          upcomingSar: sql<number>`coalesce(sum(${payout}) filter (where ${bookings.status} = 'confirmed'), 0)::int`,
-          upcomingCount: sql<number>`coalesce(count(*) filter (where ${bookings.status} = 'confirmed'), 0)::int`,
+          upcomingSar: sql<number>`coalesce(sum(${payout}) filter (where ${bookings.status} = 'confirmed' and ${collected}), 0)::int`,
+          upcomingCount: sql<number>`coalesce(count(*) filter (where ${bookings.status} = 'confirmed' and ${collected}), 0)::int`,
         })
         .from(bookings)
         .innerJoin(experiences, eq(experiences.id, bookings.experienceId))
@@ -81,7 +91,9 @@ export async function getHostEarnings(): Promise<HostEarnings | null> {
           experienceTitleEn: experiences.titleEn,
           experienceTitleAr: experiences.titleAr,
           partySize: bookings.partySize,
-          payoutSar: sql<number>`(${bookings.totalAmount} - round(${bookings.totalAmount} * least(10000, greatest(0, ${experiences.commissionBps}))::numeric / 10000))::int`,
+          totalSar: bookings.totalAmount,
+          commissionBps: bookings.commissionBps,
+          payoutSar: payout,
           paidOutAt: bookings.hostPaidAt,
         })
         .from(bookings)
@@ -101,6 +113,7 @@ export async function getHostEarnings(): Promise<HostEarnings | null> {
       payoutIban: host.payoutIban,
       history: historyRows.map((row) => ({
         ...row,
+        commissionSar: row.totalSar - row.payoutSar,
         paidOutAt: row.paidOutAt ? row.paidOutAt.toISOString() : null,
       })),
     };

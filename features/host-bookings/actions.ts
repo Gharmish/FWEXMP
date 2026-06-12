@@ -11,10 +11,14 @@ import { getCurrentUser } from '@/features/auth/queries';
 import { hostTransitionBookingSchema } from '@/features/host-bookings/schemas';
 import { sourcesFor } from '@/features/bookings/lib/transitions';
 import { ACTIVE_BOOKING_STATUSES, remainingCapacity } from '@/features/bookings/lib/availability';
+import { holdStillCounts } from '@/features/bookings/lib/capacity-sql';
+import { executeRefund } from '@/features/bookings/lib/refund';
 import { getPlatformSettings } from '@/features/admin/settings/queries';
 import {
   sendBookingApprovedEmail,
+  sendBookingCancellationEmail,
   sendBookingDeclinedEmail,
+  sendBookingExpiredEmail,
 } from '@/features/bookings/lib/booking-email';
 
 /**
@@ -101,9 +105,15 @@ export async function transitionBookingAsHost(
           partySize: true,
           status: true,
           paymentStatus: true,
+          totalAmount: true,
+          paymentReference: true,
+          approvalDeadline: true,
           idempotencyKey: true,
         },
-        with: { experience: { columns: { hostId: true, maxGroupSize: true } } },
+        with: {
+          experience: { columns: { hostId: true, maxGroupSize: true } },
+          guest: { columns: { preferredLanguage: true } },
+        },
       });
       // Foreign and missing bookings are indistinguishable on purpose.
       if (!booking || booking.experience.hostId !== hostId) return 'not_found' as const;
@@ -115,6 +125,23 @@ export async function transitionBookingAsHost(
       // was never charged). The release-holds cron frees the spot if the
       // guest never pays.
       const isApproval = to === 'confirmed' && booking.status === 'pending';
+
+      // A request whose approval window has lapsed can no longer be
+      // approved — the guest was promised a decision within the window
+      // and the cron may simply not have run yet. Flip it to `expired`
+      // here (exactly what the cron would do) instead of approving.
+      if (
+        isApproval &&
+        booking.approvalDeadline !== null &&
+        booking.approvalDeadline.getTime() <= Date.now()
+      ) {
+        await tx
+          .update(bookings)
+          .set({ status: 'expired' })
+          .where(and(eq(bookings.id, bookingId), eq(bookings.status, 'pending')));
+        return { lapsed: true, reference: booking.idempotencyKey } as const;
+      }
+
       let stamp: Partial<typeof bookings.$inferInsert> = { status: to };
       if (isApproval) {
         const needsPayment = hasHyperpay() && booking.paymentStatus === 'unpaid';
@@ -142,6 +169,7 @@ export async function transitionBookingAsHost(
               eq(bookings.experienceId, booking.experienceId),
               eq(bookings.date, booking.date),
               inArray(bookings.status, [...ACTIVE_BOOKING_STATUSES]),
+              holdStillCounts(),
               ne(bookings.id, bookingId),
             ),
           );
@@ -158,9 +186,38 @@ export async function transitionBookingAsHost(
         .where(and(eq(bookings.id, bookingId), eq(bookings.status, booking.status)))
         .returning({ id: bookings.id });
       if (updated.length === 0) return 'wrong_state' as const;
-      return { decided: to, reference: booking.idempotencyKey, isApproval } as const;
+      return {
+        decided: to,
+        reference: booking.idempotencyKey,
+        isApproval,
+        wasPaid: booking.paymentStatus === 'paid',
+        totalAmount: booking.totalAmount,
+        paymentReference: booking.paymentReference,
+        guestLocale: booking.guest.preferredLanguage,
+      } as const;
     });
     if (typeof outcome === 'string') return { success: false, message: outcome };
+
+    // The approval window had already lapsed: the request was expired
+    // (not approved). Tell the guest, surface "already moved on" to the host.
+    if ('lapsed' in outcome) {
+      try {
+        await sendBookingExpiredEmail(outcome.reference);
+      } catch (error) {
+        reportError(error, { surface: 'host-bookings:expiredEmail', bookingId });
+      }
+      revalidatePath('/[locale]/host/bookings', 'page');
+      return { success: false, message: 'wrong_state' };
+    }
+
+    // Cancelling a booking the guest already paid for must give the
+    // money back: gateway-first refund with the manual fallback (same
+    // executor as guest self-cancellation). The guest is never at fault
+    // for a host cancellation, so the refund is always in full.
+    let refund: 'none' | 'refunded' | 'refund_pending' = 'none';
+    if (outcome.decided === 'cancelled' && outcome.wasPaid) {
+      refund = await executeRefund(bookingId, outcome.paymentReference, outcome.totalAmount);
+    }
 
     // Tell the guest — best-effort, never fails the decision.
     try {
@@ -168,6 +225,10 @@ export async function transitionBookingAsHost(
         await sendBookingApprovedEmail(outcome.reference);
       } else if (outcome.decided === 'declined') {
         await sendBookingDeclinedEmail(outcome.reference);
+      } else if (outcome.decided === 'cancelled') {
+        await sendBookingCancellationEmail(outcome.reference, outcome.guestLocale, refund, {
+          cancelledBy: 'operator',
+        });
       }
     } catch (error) {
       reportError(error, { surface: 'host-bookings:decisionEmail', bookingId, to });

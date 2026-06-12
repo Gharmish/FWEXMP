@@ -14,6 +14,11 @@ import {
   rejectApplicationSchema,
 } from '@/features/host-applications/admin-schemas';
 import { hostBaseSlug, hostSlugSuffix } from '@/features/hosts/lib/slug';
+import {
+  sendApplicationApprovedEmail,
+  sendApplicationRejectedEmail,
+  type ApplicationDecisionRecipient,
+} from '@/features/host-applications/lib/application-email';
 
 /**
  * Approve / reject server actions for host applications.
@@ -79,6 +84,7 @@ export async function approveApplication(
   // insert a duplicate `hosts.userId` (which would fail uniquely and
   // surface as a generic server error).
   let raced: 'not_found' | 'wrong_state' | null = null;
+  let recipient: ApplicationDecisionRecipient | null = null;
   try {
     await db.transaction(async (tx) => {
       // Claim the row. If another admin already moved it out of
@@ -104,6 +110,7 @@ export async function approveApplication(
           languages: hostApplications.languages,
           city: hostApplications.city,
           region: hostApplications.region,
+          contactEmail: hostApplications.contactEmail,
         });
 
       if (claimed.length === 0) {
@@ -117,6 +124,11 @@ export async function approveApplication(
         return;
       }
       const application = claimed[0];
+      recipient = {
+        contactEmail: application.contactEmail,
+        displayName: application.displayName,
+        languages: application.languages,
+      };
 
       // Mint a unique host slug from the display name. Check the base
       // first and append a random suffix only on collision, so the
@@ -151,6 +163,9 @@ export async function approveApplication(
           languages: [...application.languages],
           city: application.city,
           region: application.region,
+          // Copy the notification address onto the host so lifecycle
+          // emails don't depend on the application row surviving.
+          contactEmail: application.contactEmail,
         })
         .returning({ id: hosts.id });
 
@@ -173,6 +188,15 @@ export async function approveApplication(
     return { success: false, message: 'server' };
   }
   if (raced) return { success: false, message: raced };
+
+  // Tell the applicant — best-effort, never fails the approval.
+  if (recipient) {
+    try {
+      await sendApplicationApprovedEmail(recipient);
+    } catch (error) {
+      reportError(error, { surface: 'admin:approveApplicationEmail', applicationId });
+    }
+  }
 
   revalidatePath('/[locale]/admin/host-applications', 'page');
   // Use the dynamic-segment template so the cache key matches what
@@ -210,6 +234,7 @@ export async function rejectApplication(
   // are still `pending`. Already-approved (with a minted host) and
   // already-rejected rows are not re-decided here.
   let raced: 'not_found' | 'wrong_state' | null = null;
+  let recipient: ApplicationDecisionRecipient | null = null;
   try {
     await db.transaction(async (tx) => {
       const claimed = await tx
@@ -222,7 +247,12 @@ export async function rejectApplication(
           updatedAt: new Date(),
         })
         .where(and(eq(hostApplications.id, applicationId), eq(hostApplications.status, 'pending')))
-        .returning({ id: hostApplications.id });
+        .returning({
+          id: hostApplications.id,
+          displayName: hostApplications.displayName,
+          languages: hostApplications.languages,
+          contactEmail: hostApplications.contactEmail,
+        });
 
       if (claimed.length === 0) {
         const exists = await tx.query.hostApplications.findFirst({
@@ -232,6 +262,11 @@ export async function rejectApplication(
         raced = exists ? 'wrong_state' : 'not_found';
         return;
       }
+      recipient = {
+        contactEmail: claimed[0].contactEmail,
+        displayName: claimed[0].displayName,
+        languages: claimed[0].languages,
+      };
 
       await tx.insert(hostApplicationEvents).values({
         applicationId,
@@ -245,6 +280,15 @@ export async function rejectApplication(
     return { success: false, message: 'server' };
   }
   if (raced) return { success: false, message: raced };
+
+  // Tell the applicant why (the note itself renders on /host/apply).
+  if (recipient) {
+    try {
+      await sendApplicationRejectedEmail(recipient);
+    } catch (error) {
+      reportError(error, { surface: 'admin:rejectApplicationEmail', applicationId });
+    }
+  }
 
   revalidatePath('/[locale]/admin/host-applications', 'page');
   // Use the dynamic-segment template so the cache key matches what

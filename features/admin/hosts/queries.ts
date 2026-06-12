@@ -214,6 +214,7 @@ export async function getHostForAdmin(id: string): Promise<AdminHostDetail | nul
       bioAr: host.bioAr,
       nationalId: host.nationalId,
       crNumber: host.crNumber,
+      payoutIban: host.payoutIban,
       languages: host.languages,
       experiences: expViews,
       statusEvents: eventViews,

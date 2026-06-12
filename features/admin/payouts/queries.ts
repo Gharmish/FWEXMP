@@ -5,6 +5,7 @@ import { reportError } from '@/lib/log';
 import { getCurrentUser } from '@/features/auth/queries';
 import { isAdminUser } from '@/features/admin/auth';
 import { bookings, experiences, hosts } from '@/db/schema';
+import { paymentCollected, payoutExpr } from '@/features/bookings/lib/payout-sql';
 
 /**
  * Host payouts. A host earns a payout once a booking is `completed`
@@ -35,6 +36,8 @@ export async function isAdminAndDbReady(): Promise<AdminGuardFailure | null> {
 export interface PayoutRow {
   hostId: string;
   hostName: string;
+  /** Payout destination (self-managed by the host). Null = not provided. */
+  payoutIban: string | null;
   owedSar: number;
   owedCount: number;
   paidSar: number;
@@ -47,17 +50,21 @@ export async function listPayouts(): Promise<readonly PayoutRow[]> {
   try {
     // Aggregate per host in SQL — one GROUP BY row per host instead of
     // hydrating every completed booking into JS (the set only grows as
-    // the platform succeeds). The per-booking payout is
-    // `total - round(total * clamp(bps,0..10000) / 10000)`, rounded
-    // per booking then summed — identical math to `splitCommission`, so
-    // payouts agrees with the dashboard and bookings list to the riyal.
-    const payout = sql<number>`${bookings.totalAmount} - round(${bookings.totalAmount} * least(10000, greatest(0, ${experiences.commissionBps}))::numeric / 10000)`;
+    // the platform succeeds). The per-booking payout comes from the
+    // commission SNAPSHOT on the booking (identical to
+    // `splitCommission`), so payouts agrees with the dashboard, the
+    // bookings list, and the host's earnings page to the riyal — and a
+    // commission edit never restates history. "Owed" additionally
+    // requires the money to have been collected (paid online, or no
+    // online payment required).
+    const payout = payoutExpr();
     const rows = await db
       .select({
         hostId: hosts.id,
         hostName: hosts.name,
-        owedSar: sql<number>`coalesce(sum(${payout}) filter (where ${bookings.hostPaidAt} is null), 0)::int`,
-        owedCount: sql<number>`coalesce(count(*) filter (where ${bookings.hostPaidAt} is null), 0)::int`,
+        payoutIban: hosts.payoutIban,
+        owedSar: sql<number>`coalesce(sum(${payout}) filter (where ${bookings.hostPaidAt} is null and ${paymentCollected()}), 0)::int`,
+        owedCount: sql<number>`coalesce(count(*) filter (where ${bookings.hostPaidAt} is null and ${paymentCollected()}), 0)::int`,
         paidSar: sql<number>`coalesce(sum(${payout}) filter (where ${bookings.hostPaidAt} is not null), 0)::int`,
         paidCount: sql<number>`coalesce(count(*) filter (where ${bookings.hostPaidAt} is not null), 0)::int`,
       })
@@ -65,7 +72,7 @@ export async function listPayouts(): Promise<readonly PayoutRow[]> {
       .innerJoin(experiences, eq(experiences.id, bookings.experienceId))
       .innerJoin(hosts, eq(hosts.id, experiences.hostId))
       .where(eq(bookings.status, 'completed'))
-      .groupBy(hosts.id, hosts.name);
+      .groupBy(hosts.id, hosts.name, hosts.payoutIban);
 
     // One row per host — bounded by host count, so sorting in JS is cheap.
     // Owed-first (most pressing), then by name for stable ordering.

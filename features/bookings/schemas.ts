@@ -24,6 +24,25 @@ export const bookingRequestSchema = z.object({
     }),
   preferredDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
   partySize: z.coerce.number().int().min(1).max(20),
+  /**
+   * Optional contact email. Every lifecycle notification (approval +
+   * pay link, cancellation, reminder, receipt) is email-only today, so
+   * the form asks for one up front — but a phone-only guest can still
+   * book. Empty string → null.
+   */
+  email: z
+    .string()
+    .trim()
+    .max(254)
+    .default('')
+    .transform((raw, ctx) => {
+      if (!raw) return null;
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(raw)) {
+        ctx.addIssue({ code: 'custom', message: 'invalid_email' });
+        return z.NEVER;
+      }
+      return raw.toLowerCase();
+    }),
 });
 
 export type BookingRequestInput = z.infer<typeof bookingRequestSchema>;

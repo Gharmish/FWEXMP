@@ -17,6 +17,19 @@
 const VISIBLE_TAIL = 4;
 const MASK_CHAR = '•';
 
+/**
+ * Mask an IBAN for display: country prefix + last 4, e.g. `SA••••4523`.
+ * The full value travels only into the copy-to-clipboard affordance —
+ * a leaked screenshot of the payouts page doesn't expose bank details.
+ */
+export function maskIban(raw: string | null | undefined): string | null {
+  if (!raw) return null;
+  const compact = raw.replaceAll(/\s+/g, '');
+  if (compact.length === 0) return null;
+  if (compact.length <= 6) return compact;
+  return `${compact.slice(0, 2)}${MASK_CHAR.repeat(4)}${compact.slice(-4)}`;
+}
+
 export function maskIdentityNumber(raw: string | null | undefined): string | null {
   if (!raw) return null;
   const trimmed = raw.trim();

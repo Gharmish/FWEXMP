@@ -1,7 +1,7 @@
 'use server';
 
-import { and, eq, inArray, sql } from 'drizzle-orm';
-import { cookies } from 'next/headers';
+import { and, eq, gte, inArray, ne, sql } from 'drizzle-orm';
+import { cookies, headers } from 'next/headers';
 import { db } from '@/lib/db';
 import { serverEnv, hasHyperpay } from '@/lib/env';
 import { bookings, experiences, guests } from '@/db/schema';
@@ -15,6 +15,7 @@ import {
   isDateBookable,
   remainingCapacity,
 } from '@/features/bookings/lib/availability';
+import { holdStillCounts } from '@/features/bookings/lib/capacity-sql';
 import { LAST_BOOKING_COOKIE, serializeLastBookingCookie } from '@/features/account/cookie';
 import {
   sendBookingRequestReceivedEmail,
@@ -29,6 +30,25 @@ function todayInRiyadh(): string {
 }
 
 const LAST_BOOKING_COOKIE_MAX_AGE_SECONDS = 60 * 60 * 24 * 90; // 90 days
+
+/**
+ * Booking-spam throttles. Bookings need no account and no payment to
+ * hold capacity (pending requests and instant payment holds), so
+ * creation is rate-limited:
+ *   - per phone: at most this many bookings still holding a spot
+ *     without payment (`pending`, or `confirmed` and not yet paid);
+ *   - per IP: at most this many bookings created in the last hour.
+ */
+const MAX_ACTIVE_HOLDS_PER_PHONE = 3;
+const MAX_BOOKINGS_PER_IP_PER_HOUR = 10;
+
+/** First hop of x-forwarded-for — the client IP on Vercel. Null locally. */
+async function clientIp(): Promise<string | null> {
+  const h = await headers();
+  const forwarded = h.get('x-forwarded-for');
+  const first = forwarded?.split(',')[0]?.trim();
+  return first && first.length > 0 ? first : null;
+}
 
 async function writeLastBookingCookie(reference: string, experienceSlug: string): Promise<void> {
   const store = await cookies();
@@ -50,11 +70,11 @@ async function writeLastBookingCookie(reference: string, experienceSlug: string)
 export interface BookingRequestState {
   success: false;
   message?: string;
-  fields?: Partial<Record<'name' | 'phone' | 'preferredDate' | 'partySize', string>>;
-  values?: Partial<Record<'name' | 'phone' | 'preferredDate' | 'partySize', string>>;
+  fields?: Partial<Record<'name' | 'phone' | 'preferredDate' | 'partySize' | 'email', string>>;
+  values?: Partial<Record<'name' | 'phone' | 'preferredDate' | 'partySize' | 'email', string>>;
 }
 
-const FIELD_NAMES = ['name', 'phone', 'preferredDate', 'partySize'] as const;
+const FIELD_NAMES = ['name', 'phone', 'preferredDate', 'partySize', 'email'] as const;
 
 function formValue(formData: FormData, key: string): string {
   const value = formData.get(key);
@@ -76,6 +96,7 @@ export async function requestBooking(
     phone: formValue(formData, 'phone'),
     preferredDate: formValue(formData, 'preferredDate'),
     partySize: formValue(formData, 'partySize'),
+    email: formValue(formData, 'email'),
   });
 
   if (!parsed.success) {
@@ -128,6 +149,7 @@ export async function requestBooking(
         maxGroupSize: true,
         startTime: true,
         bookingMode: true,
+        commissionBps: true,
         availabilityWeekdays: true,
         blackoutDates: true,
         stopSellDates: true,
@@ -165,6 +187,39 @@ export async function requestBooking(
       };
     }
 
+    // Throttle creation before any write. Bookings hold capacity with
+    // no account and no payment, so both axes are capped: active unpaid
+    // holds per phone, and creations per IP per hour.
+    const ip = await clientIp();
+    const [{ activeForPhone }] = await db
+      .select({ activeForPhone: sql<number>`count(*)::int` })
+      .from(bookings)
+      .innerJoin(guests, eq(bookings.guestId, guests.id))
+      .where(
+        and(
+          eq(guests.phone, input.phone),
+          inArray(bookings.status, ['pending', 'confirmed']),
+          ne(bookings.paymentStatus, 'paid'),
+        ),
+      );
+    if (activeForPhone >= MAX_ACTIVE_HOLDS_PER_PHONE) {
+      return { success: false, message: 'too_many', values: currentValues(formData) };
+    }
+    if (ip) {
+      const [{ recentForIp }] = await db
+        .select({ recentForIp: sql<number>`count(*)::int` })
+        .from(bookings)
+        .where(
+          and(
+            eq(bookings.createdIp, ip),
+            gte(bookings.createdAt, new Date(Date.now() - 3_600_000)),
+          ),
+        );
+      if (recentForIp >= MAX_BOOKINGS_PER_IP_PER_HOUR) {
+        return { success: false, message: 'too_many', values: currentValues(formData) };
+      }
+    }
+
     // Resolve the guest for this booking. For a signed-in account, the row
     // is keyed by auth id first — an email-OTP user may already have a
     // phone-less profile row, and `authUserId` is UNIQUE, so we must reuse it
@@ -176,12 +231,12 @@ export async function requestBooking(
       (authUserId
         ? await db.query.guests.findFirst({
             where: (g) => eq(g.authUserId, authUserId),
-            columns: { id: true, authUserId: true, phone: true, suspendedAt: true },
+            columns: { id: true, authUserId: true, phone: true, email: true, suspendedAt: true },
           })
         : undefined) ??
       (await db.query.guests.findFirst({
         where: (g) => eq(g.phone, input.phone),
-        columns: { id: true, authUserId: true, phone: true, suspendedAt: true },
+        columns: { id: true, authUserId: true, phone: true, email: true, suspendedAt: true },
       }));
 
     // Suspended guests can browse but not book (admin decision trail
@@ -197,6 +252,7 @@ export async function requestBooking(
         .values({
           name: input.name,
           phone: input.phone,
+          email: input.email,
           preferredLanguage: input.locale,
           authUserId,
         })
@@ -204,13 +260,17 @@ export async function requestBooking(
           id: guests.id,
           authUserId: guests.authUserId,
           phone: guests.phone,
+          email: guests.email,
           suspendedAt: guests.suspendedAt,
         });
     } else {
-      // Backfill the auth link and/or the phone on an existing row.
-      const patch: Partial<{ authUserId: string; phone: string }> = {};
+      // Backfill the auth link, phone, and/or email on an existing row.
+      // Email is set-if-empty — never overwrite a known address from an
+      // anonymous form post.
+      const patch: Partial<{ authUserId: string; phone: string; email: string }> = {};
       if (authUserId && !guest.authUserId) patch.authUserId = authUserId;
       if (!guest.phone) patch.phone = input.phone;
+      if (input.email && !guest.email) patch.email = input.email;
       if (Object.keys(patch).length > 0) {
         await db.update(guests).set(patch).where(eq(guests.id, guest.id));
       }
@@ -223,7 +283,10 @@ export async function requestBooking(
       startTime: experience.startTime,
       partySize: input.partySize,
       totalAmount: experience.priceSar * input.partySize,
+      // Snapshot — a later commission edit applies to future bookings only.
+      commissionBps: experience.commissionBps,
       idempotencyKey: reference,
+      createdIp: ip,
     } as const;
 
     if (experience.bookingMode === 'instant' && hasHyperpay()) {
@@ -250,6 +313,7 @@ export async function requestBooking(
               eq(bookings.experienceId, experience.id),
               eq(bookings.date, input.preferredDate),
               inArray(bookings.status, [...ACTIVE_BOOKING_STATUSES]),
+              holdStillCounts(),
             ),
           );
         if (remainingCapacity(experience.maxGroupSize, booked) < input.partySize) {

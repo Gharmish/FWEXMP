@@ -374,6 +374,7 @@ export function HostApplyForm({
             type="email"
             autoComplete="email"
             dir="ltr"
+            required
             defaultValue={values.contactEmail ?? initial?.contactEmail}
             {...fieldProps('contactEmail')}
           />

@@ -38,6 +38,8 @@ type FieldErrorCode =
   | 'price_too_high'
   | 'policy_short'
   | 'policy_long'
+  | 'time_invalid'
+  | 'coords_invalid'
   | 'required';
 
 const FIELD_ERROR_KEY: Record<FieldErrorCode, keyof ExperienceFormCopy['errors']['fields']> = {
@@ -51,6 +53,8 @@ const FIELD_ERROR_KEY: Record<FieldErrorCode, keyof ExperienceFormCopy['errors']
   price_too_high: 'priceTooHigh',
   policy_short: 'policyShort',
   policy_long: 'policyLong',
+  time_invalid: 'timeInvalid',
+  coords_invalid: 'coordsInvalid',
   required: 'required',
 };
 
@@ -84,6 +88,11 @@ export interface ExperienceFormCopy {
   minAgeLabel: string;
   placeNameLabel: string;
   placeNameHint: string;
+  startTimeLabel: string;
+  startTimeHint: string;
+  latLabel: string;
+  lngLabel: string;
+  coordsHint: string;
   cityLabel: string;
   regionLabel: string;
   inclusionsLabel: string;
@@ -122,6 +131,8 @@ export interface ExperienceFormCopy {
       priceTooHigh: string;
       policyShort: string;
       policyLong: string;
+      timeInvalid: string;
+      coordsInvalid: string;
       required: string;
     };
   };
@@ -290,6 +301,24 @@ export function ExperienceForm({ mode, locale, copy, experience }: ExperienceFor
         </div>
 
         <div className="flex flex-col gap-2">
+          <label htmlFor="ex-startTime" className="text-sm font-medium">
+            {copy.startTimeLabel}
+          </label>
+          <Input
+            id="ex-startTime"
+            name="startTime"
+            type="time"
+            required
+            dir="ltr"
+            defaultValue={experience?.startTime ?? '09:00'}
+            aria-invalid={fields.startTime ? 'true' : undefined}
+            aria-describedby={fields.startTime ? eid('startTime') : undefined}
+          />
+          <p className="text-sarat-black-600 text-sm">{copy.startTimeHint}</p>
+          <FieldError id={eid('startTime')} message={fieldErrorMessage(fields.startTime, copy)} />
+        </div>
+
+        <div className="flex flex-col gap-2">
           <label htmlFor="ex-priceSar" className="text-sm font-medium">
             {copy.priceLabel} (<RiyalSymbol className="h-[0.9em] align-[-0.1em]" />)
           </label>
@@ -385,6 +414,48 @@ export function ExperienceForm({ mode, locale, copy, experience }: ExperienceFor
           </label>
           <Input id="ex-region" name="region" defaultValue={experience?.region ?? 'Asir'} />
         </div>
+
+        <div className="flex flex-col gap-2">
+          <label htmlFor="ex-lat" className="text-sm font-medium">
+            {copy.latLabel}
+          </label>
+          <Input
+            id="ex-lat"
+            name="lat"
+            type="number"
+            step="any"
+            min={-90}
+            max={90}
+            required
+            dir="ltr"
+            defaultValue={experience?.lat ?? 18.2164}
+            aria-invalid={fields.lat ? 'true' : undefined}
+            aria-describedby={fields.lat ? eid('lat') : undefined}
+          />
+          <FieldError id={eid('lat')} message={fieldErrorMessage(fields.lat, copy)} />
+        </div>
+
+        <div className="flex flex-col gap-2">
+          <label htmlFor="ex-lng" className="text-sm font-medium">
+            {copy.lngLabel}
+          </label>
+          <Input
+            id="ex-lng"
+            name="lng"
+            type="number"
+            step="any"
+            min={-180}
+            max={180}
+            required
+            dir="ltr"
+            defaultValue={experience?.lng ?? 42.5053}
+            aria-invalid={fields.lng ? 'true' : undefined}
+            aria-describedby={fields.lng ? eid('lng') : undefined}
+          />
+          <FieldError id={eid('lng')} message={fieldErrorMessage(fields.lng, copy)} />
+        </div>
+
+        <p className="text-sarat-black-600 -mt-2 text-sm sm:col-span-2">{copy.coordsHint}</p>
       </fieldset>
 
       {/* ----- Inclusions / what-to-bring ----- */}

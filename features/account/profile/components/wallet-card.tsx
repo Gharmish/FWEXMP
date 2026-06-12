@@ -1,5 +1,6 @@
 import { Wallet } from 'lucide-react';
 import type { Locale } from '@/lib/i18n';
+import { cn } from '@/lib/utils';
 import { Card } from '@/components/ui/card';
 import { Price } from '@/components/ui/price';
 
@@ -30,7 +31,13 @@ export function WalletCard({ locale, copy }: WalletCardProps) {
         </span>
       </div>
       <div className="flex flex-1 flex-col gap-1">
-        <span className="text-[11px] tracking-[0.2em] text-white/60 uppercase">
+        <span
+          className={cn(
+            'text-[11px] text-white/60',
+            // Letter-spacing severs connected Arabic glyphs — EN only.
+            locale === 'en' && 'tracking-[0.2em] uppercase',
+          )}
+        >
           {copy.balanceLabel}
         </span>
         <Price amount={0} locale={locale} className="text-3xl text-white" />

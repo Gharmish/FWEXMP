@@ -205,6 +205,7 @@ export default async function EditExperiencePage({
               viewPublic: t('lifecycle.viewPublic'),
               errors: {
                 cannot_publish: t('lifecycle.errors.cannotPublish'),
+                needs_hero: t('lifecycle.errors.needsHero'),
                 not_found: t('lifecycle.errors.notFound'),
                 forbidden: t('lifecycle.errors.forbidden'),
                 no_db: t('lifecycle.errors.noDb'),
@@ -250,6 +251,7 @@ export default async function EditExperiencePage({
                 forbidden: t('photo.errors.forbidden'),
                 not_found: t('photo.errors.notFound'),
                 upload_failed: t('photo.errors.uploadFailed'),
+                locked_live: t('photo.errors.lockedLive'),
                 server: t('photo.errors.server'),
               },
             }}

@@ -75,7 +75,20 @@ export default async function AdminBookingsPage({
   const q = pick(sp.q)?.slice(0, 80) ?? '';
   const status = normalizeStatus(pick(sp.status));
   const view = normalizeView(pick(sp.view));
-  const filtered = filterBookings(rows, { q, status, view, todayStr: todayInRiyadh() });
+  const refundDue = pick(sp.refund_due) === '1';
+  const filtered = filterBookings(rows, {
+    q,
+    status,
+    view,
+    refundDue,
+    todayStr: todayInRiyadh(),
+  });
+
+  // Pending requests show how long the host's approval window has left —
+  // the 24h SLA is unmanageable if the deadline is invisible.
+  const renderedAt = new Date();
+  const hoursLeft = (iso: string): number =>
+    Math.max(0, Math.ceil((new Date(iso).getTime() - renderedAt.getTime()) / 3_600_000));
 
   // Shared across every row action (transitions + refund). Keyed by the
   // action result's `message` code.
@@ -184,6 +197,9 @@ export default async function AdminBookingsPage({
                 method="get"
                 className="border-sarat-black/8 rounded-card flex flex-wrap items-end gap-3 [border-width:0.5px] p-4"
               >
+                {/* Preserve the refund-due drill-down (dashboard link) across
+                    re-filters; clear it via the badge link below. */}
+                {refundDue && <input type="hidden" name="refund_due" value="1" />}
                 <label className="flex min-w-50 flex-1 flex-col gap-1">
                   <span className="text-sarat-black-600 text-sm">
                     {t('bookingsList.filter.search')}
@@ -228,6 +244,20 @@ export default async function AdminBookingsPage({
                 <Button type="submit">{t('bookingsList.filter.apply')}</Button>
               </form>
 
+              {refundDue && (
+                <p className="flex items-center gap-3 text-sm">
+                  <Badge className="bg-al-qatt-red/15 text-al-qatt-red">
+                    {t('bookingsList.refundDueFilter')}
+                  </Badge>
+                  <Link
+                    href="/admin/bookings"
+                    className="text-sarat-black-600 font-medium underline-offset-4 hover:underline"
+                  >
+                    {t('bookingsList.filter.clear')}
+                  </Link>
+                </p>
+              )}
+
               {filtered.length === 0 ? (
                 <p className="text-sarat-black-600 text-base">
                   {t('bookingsList.filter.noMatches')}
@@ -254,6 +284,15 @@ export default async function AdminBookingsPage({
                           {row.refundDueSar !== null && (
                             <Badge className="bg-al-qatt-red/15 text-al-qatt-red">
                               {t('bookingsList.refundDue')}
+                            </Badge>
+                          )}
+                          {row.status === 'pending' && row.approvalDeadline && (
+                            <Badge className="bg-pending-surface text-pending">
+                              {hoursLeft(row.approvalDeadline) > 0
+                                ? t('bookingsList.expiresIn', {
+                                    hours: hoursLeft(row.approvalDeadline),
+                                  })
+                                : t('bookingsList.deadlinePassed')}
                             </Badge>
                           )}
                         </div>

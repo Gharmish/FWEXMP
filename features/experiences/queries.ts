@@ -62,6 +62,7 @@ function toSummary(
     category: row.category,
     priceSar: row.priceSar,
     durationMinutes: row.durationMinutes,
+    startTime: row.startTime,
     placeName: row.placeName,
     city: row.city,
     maxGroupSize: row.maxGroupSize,

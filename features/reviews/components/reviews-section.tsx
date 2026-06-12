@@ -1,4 +1,5 @@
 import { getTranslations } from 'next-intl/server';
+import { Link } from '@/lib/i18n';
 import type { Locale } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
 import {
@@ -11,25 +12,36 @@ import { ReviewCard } from '@/features/reviews/components/review-card';
 interface ReviewsSectionProps {
   experienceSlug: string;
   locale: Locale;
+  /** Render the full list (`?reviews=all`) instead of the first page. */
+  showAll?: boolean;
+  /** Href that re-renders the page with every review visible. */
+  showAllHref?: string;
 }
 
-/** Initial reviews shown before any "show more" pagination control. */
+/** Initial reviews shown before the "show all" link. */
 const INITIAL_VISIBLE = 4;
+
+/** Hard ceiling for the expanded view — keeps the page bounded. */
+const ALL_VISIBLE_CAP = 100;
 
 /**
  * Reviews section for the experience detail page. Server component —
  * fetches reviews + aggregate in parallel.
  *
- * Pagination strategy: we fetch only the first INITIAL_VISIBLE reviews
- * for display and read the total count from the aggregate (a bounded
- * GROUP BY), so neither query scales with an experience's review count.
- * A future PR swaps the "N more not shown" line for a "show more" button
- * or a dedicated /reviews route once the dataset grows.
+ * Pagination strategy: the default render fetches only the first
+ * INITIAL_VISIBLE reviews and reads the total from the aggregate;
+ * `?reviews=all` re-renders with the full (capped) list — a plain
+ * server-rendered link, no client JS.
  */
-export async function ReviewsSection({ experienceSlug, locale }: ReviewsSectionProps) {
+export async function ReviewsSection({
+  experienceSlug,
+  locale,
+  showAll = false,
+  showAllHref,
+}: ReviewsSectionProps) {
   const t = await getTranslations('reviews');
   const [visible, aggregate] = await Promise.all([
-    getReviewsForExperience(experienceSlug, INITIAL_VISIBLE),
+    getReviewsForExperience(experienceSlug, showAll ? ALL_VISIBLE_CAP : INITIAL_VISIBLE),
     getReviewAggregateForExperience(experienceSlug),
   ]);
 
@@ -61,9 +73,17 @@ export async function ReviewsSection({ experienceSlug, locale }: ReviewsSectionP
         </ul>
       )}
 
-      {hidden > 0 && (
-        <p className="text-sarat-black-600 text-sm">{t('moreHidden', { count: hidden })}</p>
-      )}
+      {hidden > 0 &&
+        (showAllHref && !showAll ? (
+          <Link
+            href={showAllHref}
+            className="text-sarat-black self-start text-sm font-medium underline-offset-4 hover:underline"
+          >
+            {t('showAll', { count: hidden })}
+          </Link>
+        ) : (
+          <p className="text-sarat-black-600 text-sm">{t('moreHidden', { count: hidden })}</p>
+        ))}
     </section>
   );
 }

@@ -8,6 +8,7 @@ import { serverEnv } from '@/lib/env';
 import { hostApplications, hostApplicationEvents } from '@/db/schema';
 import { redirect } from '@/lib/i18n';
 import { reportError } from '@/lib/log';
+import { notifyAdmin } from '@/lib/admin-alerts';
 import { getCurrentUser } from '@/features/auth/queries';
 import {
   HOST_APPLICATION_COOKIE,
@@ -223,6 +224,14 @@ export async function submitHostApplication(
     reportError(error, { surface: 'host-applications:submit', userId: user.id });
     return { success: false, message: 'server', values: currentValues(formData) };
   }
+
+  // Supply is the scarcest resource — the team hears about every new
+  // application without polling the queue. Best-effort, never blocks.
+  await notifyAdmin('host_application_submitted', {
+    displayName: input.displayName,
+    city: input.city,
+    languages: input.languages.join(', '),
+  });
 
   revalidatePath('/[locale]/host/apply', 'page');
   redirect({ href: '/host/apply/submitted', locale: input.locale });

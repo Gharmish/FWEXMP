@@ -26,9 +26,10 @@ export const hostApplicationSchema = z
       .string()
       .trim()
       .regex(/^\d{10}$/, 'identity_invalid'),
-    contactEmail: z
-      .union([z.string().trim().email('email_invalid'), z.literal('').transform(() => undefined)])
-      .optional(),
+    // Required: this address is the host's only notification channel
+    // (new bookings, guest cancellations, payment notices). An email-less
+    // host would silently miss every request until it auto-expired.
+    contactEmail: z.string().trim().min(1, 'email_required').email('email_invalid').max(254),
     city: z.string().trim().min(2).max(80).default('Abha'),
     region: z.string().trim().min(2).max(80).default('Asir'),
     locale: z.enum(['en', 'ar']),

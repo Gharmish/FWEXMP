@@ -34,7 +34,6 @@ export async function listBookingsForHost(): Promise<readonly HostBookingRow[]> 
         experienceSlug: experiences.slug,
         experienceTitleEn: experiences.titleEn,
         experienceTitleAr: experiences.titleAr,
-        commissionBps: experiences.commissionBps,
         guestName: guests.name,
         guestPhone: guests.phone,
       })
@@ -46,7 +45,8 @@ export async function listBookingsForHost(): Promise<readonly HostBookingRow[]> 
       .limit(HOST_BOOKINGS_LIST_LIMIT);
 
     return rows.map<HostBookingRow>((row) => {
-      const { payoutSar } = splitCommission(row.booking.totalAmount, row.commissionBps);
+      // Snapshot on the booking — matches earnings/payouts to the riyal.
+      const { payoutSar } = splitCommission(row.booking.totalAmount, row.booking.commissionBps);
       const contactVisible = CONTACT_VISIBLE_STATUSES.includes(row.booking.status);
       return {
         id: row.booking.id,

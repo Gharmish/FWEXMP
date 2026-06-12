@@ -3,7 +3,7 @@ import { serverEnv } from '@/lib/env';
 import { toCsv } from '@/lib/csv';
 import { getCurrentUser } from '@/features/auth/queries';
 import { isAdminUser } from '@/features/admin/auth';
-import { listBookingsForAdmin } from '@/features/admin/bookings/queries';
+import { listBookingsForExport } from '@/features/admin/bookings/queries';
 
 /**
  * Bookings CSV export for the admin "Export" quick action. The proxy
@@ -21,16 +21,20 @@ export async function GET(): Promise<NextResponse> {
     return NextResponse.json({ error: 'no_db' }, { status: 503 });
   }
 
-  const rows = await listBookingsForAdmin();
+  // Unbounded export with the full accounting columns — reconcilable
+  // against a HyperPay settlement report by capture date.
+  const rows = await listBookingsForExport();
   const csv = toCsv(
     [
       'reference',
       'status',
       'payment_status',
+      'payment_brand',
       'date',
       'start_time',
       'party_size',
       'total_sar',
+      'commission_bps',
       'commission_sar',
       'payout_sar',
       'refund_due_sar',
@@ -38,16 +42,21 @@ export async function GET(): Promise<NextResponse> {
       'guest_name',
       'guest_phone',
       'payment_reference',
+      'paid_at',
+      'refunded_at',
+      'host_paid_at',
       'created_at',
     ],
     rows.map((r) => [
       r.reference,
       r.status,
       r.paymentStatus,
+      r.paymentBrand,
       r.date,
       r.startTime,
       r.partySize,
       r.totalAmountSar,
+      r.commissionBps,
       r.commissionSar,
       r.payoutSar,
       r.refundDueSar,
@@ -55,6 +64,9 @@ export async function GET(): Promise<NextResponse> {
       r.guestName,
       r.guestPhone,
       r.paymentReference,
+      r.paidAt,
+      r.refundedAt,
+      r.hostPaidAt,
       r.createdAt,
     ]),
   );

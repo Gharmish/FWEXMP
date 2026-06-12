@@ -41,11 +41,11 @@ const serverSchema = z.object({
   ),
   // Optional explicit base URL override; derived from HYPERPAY_MODE when empty.
   HYPERPAY_BASE_URL: z.string().default(''),
-  // Shared secret for verifying HyperPay webhook notifications. No webhook
-  // route is implemented yet; settlement is the synchronous `/pay/return`
-  // status check, backed by the reconciliation pass in the release-holds
-  // cron (re-settles holds stuck in `processing`). Reserved for when the
-  // OPPWA webhook route is added.
+  // Shared secret (hex AES-256 key) for decrypting OPPWA webhook
+  // notifications — `app/api/webhooks/hyperpay`. Empty → the route answers
+  // 503 and settlement relies on the synchronous `/pay/return` check plus
+  // the cron reconcile pass. Set it (from the HyperPay dashboard webhook
+  // config) before flipping HYPERPAY_MODE=live.
   HYPERPAY_WEBHOOK_SECRET: z.string().default(''),
   // Resend transactional email (booking confirmations / receipts). Optional,
   // same boundary pattern as HyperPay: `hasEmail()` gates every send and the
@@ -54,6 +54,10 @@ const serverSchema = z.object({
   // "Gharmish <hello@send.gharmish.com>".
   RESEND_API_KEY: z.string().default(''),
   RESEND_FROM: z.string().default(''),
+  // Operational alerts inbox (new applications, disputes, refunds owed,
+  // settlement anomalies, cron failures). Optional — `notifyAdmin()` is a
+  // silent no-op until it's set, same boundary pattern as `hasEmail()`.
+  ADMIN_ALERT_EMAIL: z.string().default(''),
   // Shared secret for the scheduled release-holds job. Vercel Cron sends it as
   // `Authorization: Bearer <CRON_SECRET>`. Empty → the route rejects every
   // request (the job is inert until configured).
@@ -95,6 +99,7 @@ export const serverEnv = parse(
     HYPERPAY_WEBHOOK_SECRET: process.env.HYPERPAY_WEBHOOK_SECRET,
     RESEND_API_KEY: process.env.RESEND_API_KEY,
     RESEND_FROM: process.env.RESEND_FROM,
+    ADMIN_ALERT_EMAIL: process.env.ADMIN_ALERT_EMAIL,
     CRON_SECRET: process.env.CRON_SECRET,
     NODE_ENV: process.env.NODE_ENV,
   },

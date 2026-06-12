@@ -199,6 +199,10 @@ export default async function AdminExperienceModerationDetailPage({
               forbidden: tPhoto('errors.forbidden'),
               not_found: tPhoto('errors.notFound'),
               upload_failed: tPhoto('errors.uploadFailed'),
+              // The admin replace action never returns this (admins may
+              // swap a live hero; the event log records it) — present
+              // only to satisfy the shared component's error map.
+              locked_live: tPhoto('errors.lockedLive'),
               server: tPhoto('errors.server'),
             },
           }}
@@ -361,6 +365,8 @@ export default async function AdminExperienceModerationDetailPage({
               validation: t('experienceActions.errors.validation'),
               server: t('experienceActions.errors.server'),
               wrong_state: t('experienceActions.errors.wrongState'),
+              needs_hero: t('experienceActions.errors.needsHero'),
+              needs_arabic: t('experienceActions.errors.needsArabic'),
               reviewer_note_short: t('experienceActions.errors.reviewerNoteShort'),
             },
           }}
