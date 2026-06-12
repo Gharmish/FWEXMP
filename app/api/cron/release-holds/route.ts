@@ -23,9 +23,11 @@ const REMINDER_LIMIT = 100;
 
 /**
  * Scheduled release of expired payment holds (Vercel Cron — see vercel.json;
- * hourly. NOTE: sub-daily crons require the Pro plan — on Hobby either
- * revert the schedule to daily or trigger this endpoint from an external
- * scheduler with the CRON_SECRET bearer token).
+ * daily at 03:00 — the Hobby-plan ceiling. On Pro, tighten to hourly
+ * (`0 * * * *`); until then capacity stays correct regardless (sums
+ * exclude lapsed holds — see capacity-sql.ts), the cron only catches up
+ * on status flips, emails, and reconciliation. An external scheduler
+ * hitting this URL with the CRON_SECRET bearer token also works.
  *
  * Four passes:
  *
