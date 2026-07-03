@@ -6,7 +6,7 @@ import { db } from '@/lib/db';
 import { serverEnv, hasSupabaseAuth } from '@/lib/env';
 import { experiences } from '@/db/schema';
 import { reportError } from '@/lib/log';
-import { getSupabaseServerClient } from '@/lib/supabase/server';
+import { getSupabaseUserStorage } from '@/lib/supabase/server';
 import { getCurrentUser } from '@/features/auth/queries';
 import { isAdminUser } from '@/features/admin/auth';
 import {
@@ -92,8 +92,9 @@ export async function uploadGalleryImage(
     // Stamp the key so multiple gallery images coexist. Date.now() is
     // fine in a server action (unlike workflow scripts).
     const key = galleryObjectKey(experience.slug, Date.now(), check.ext);
-    const supabase = await getSupabaseServerClient();
-    const { error: uploadError } = await supabase.storage.from(PHOTO_BUCKET).upload(key, file, {
+    const storage = await getSupabaseUserStorage();
+    if (!storage) return { success: false, message: 'forbidden' };
+    const { error: uploadError } = await storage.from(PHOTO_BUCKET).upload(key, file, {
       upsert: true,
       contentType: check.contentType,
     });
@@ -103,7 +104,7 @@ export async function uploadGalleryImage(
     }
     const {
       data: { publicUrl },
-    } = supabase.storage.from(PHOTO_BUCKET).getPublicUrl(key);
+    } = storage.from(PHOTO_BUCKET).getPublicUrl(key);
 
     await db
       .update(experiences)
@@ -144,8 +145,8 @@ export async function removeGalleryImage(
     if (hasSupabaseAuth()) {
       const key = objectKeyFromPublicUrl(url);
       if (key) {
-        const supabase = await getSupabaseServerClient();
-        await supabase.storage.from(PHOTO_BUCKET).remove([key]);
+        const storage = await getSupabaseUserStorage();
+        await storage?.from(PHOTO_BUCKET).remove([key]);
       }
     }
   } catch (error) {

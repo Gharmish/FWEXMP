@@ -1,6 +1,6 @@
 import { cookies } from 'next/headers';
 import { createServerClient } from '@supabase/ssr';
-import type { SupabaseClient } from '@supabase/supabase-js';
+import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import { clientEnv, hasSupabaseAuth } from '@/lib/env';
 
 /**
@@ -46,4 +46,37 @@ export async function getSupabaseServerClient(): Promise<SupabaseClient> {
       },
     },
   );
+}
+
+/**
+ * Storage client that acts AS THE SIGNED-IN USER.
+ *
+ * `getSupabaseServerClient()` attaches the session to auth/PostgREST
+ * calls, but storage requests go out with the ANON key — every host
+ * photo upload died against the bucket's authenticated-only RLS
+ * (storage returned HTTP 400 with an RLS-violation body; verified
+ * against production 2026-07-03). This helper reads the session from
+ * the cookie-bound client and builds a throwaway client whose global
+ * Authorization header carries the user's access token, so storage
+ * RLS finally sees `auth.role() = 'authenticated'`.
+ *
+ * Returns null when there is no session — callers treat that as
+ * forbidden. Always use this (never `getSupabaseServerClient().storage`)
+ * for storage writes on behalf of a user.
+ */
+export async function getSupabaseUserStorage(): Promise<SupabaseClient['storage'] | null> {
+  const supabase = await getSupabaseServerClient();
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
+  if (!session) return null;
+  const bound = createClient(
+    clientEnv.NEXT_PUBLIC_SUPABASE_URL,
+    clientEnv.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+    {
+      auth: { persistSession: false, autoRefreshToken: false },
+      global: { headers: { Authorization: `Bearer ${session.access_token}` } },
+    },
+  );
+  return bound.storage;
 }

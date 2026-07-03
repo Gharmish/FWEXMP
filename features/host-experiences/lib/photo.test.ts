@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest';
 import {
-  MAX_INPUT_BYTES,
   MAX_PHOTO_BYTES,
   galleryObjectKey,
   heroObjectKey,
@@ -49,7 +48,7 @@ describe('validatePhoto', () => {
     });
   });
 
-  it('rejects a file over the 5MB cap and accepts one exactly at it', () => {
+  it('rejects a file over the stored cap and accepts one exactly at it', () => {
     expect(validatePhoto({ size: MAX_PHOTO_BYTES + 1, type: 'image/png' })).toEqual({
       ok: false,
       reason: 'size',
@@ -66,16 +65,12 @@ describe('validateSelectedPhoto', () => {
     });
   });
 
-  it('accepts a large original over the 5MB stored cap (it gets downscaled)', () => {
+  it('accepts an original of any size — re-encoding shrinks it before upload', () => {
     expect(validateSelectedPhoto({ size: MAX_PHOTO_BYTES * 4, type: 'image/jpeg' })).toMatchObject({
       ok: true,
     });
-  });
-
-  it('rejects a file over the 30MB input ceiling', () => {
-    expect(validateSelectedPhoto({ size: MAX_INPUT_BYTES + 1, type: 'image/jpeg' })).toEqual({
-      ok: false,
-      reason: 'size',
+    expect(validateSelectedPhoto({ size: 200 * 1024 * 1024, type: 'image/jpeg' })).toMatchObject({
+      ok: true,
     });
   });
 });

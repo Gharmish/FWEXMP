@@ -5,16 +5,15 @@
  * uploading) and the server action (authoritative check).
  */
 
-/** Bucket cap is 5MB; keep client + server in lockstep with it. */
-export const MAX_PHOTO_BYTES = 5 * 1024 * 1024;
-
 /**
- * Generous cap for the *raw* file a host selects, before client-side
- * cropping + WebP re-encoding shrinks it. Camera and phone originals run
- * large; we downscale them rather than bouncing them, so the selection
- * limit is far higher than the 5MB stored-output cap above.
+ * Bucket cap (owner decision 2026-07-03: no meaningful size wall for
+ * hosts). This only bites the rare fallback path where client-side
+ * WebP re-encoding failed and the original uploads as-is — a normal
+ * upload is a few hundred KB after compression. Keep in lockstep with
+ * `storage.buckets.file_size_limit` and the server-action
+ * `bodySizeLimit` in next.config.ts.
  */
-export const MAX_INPUT_BYTES = 30 * 1024 * 1024;
+export const MAX_PHOTO_BYTES = 15 * 1024 * 1024;
 
 /** Accepted content types → canonical file extension for the object key. */
 const ACCEPTED: Record<string, string> = {
@@ -49,10 +48,11 @@ export function validatePhoto(input: { size: number; type: string }): PhotoValid
 }
 
 /**
- * Validate a file the host just *selected* (pre-crop). Gates on the MIME
- * allow-list and the generous {@link MAX_INPUT_BYTES} ceiling; the chosen
- * crop is re-encoded to a small WebP afterwards, which the authoritative
- * {@link validatePhoto} check then re-validates against the 5MB cap.
+ * Validate a file the host just *selected* (pre-crop/re-encode). Type
+ * check only — no size ceiling (owner decision 2026-07-03): whatever
+ * the camera produced, the client-side WebP re-encode shrinks it before
+ * upload, and the authoritative {@link validatePhoto} still guards the
+ * rare uncompressed fallback.
  */
 export function validateSelectedPhoto(input: {
   size: number;
@@ -61,7 +61,6 @@ export function validateSelectedPhoto(input: {
   if (!input.size) return { ok: false, reason: 'missing' };
   const ext = ACCEPTED[input.type];
   if (!ext) return { ok: false, reason: 'type' };
-  if (input.size > MAX_INPUT_BYTES) return { ok: false, reason: 'size' };
   return { ok: true, ext, contentType: input.type };
 }
 

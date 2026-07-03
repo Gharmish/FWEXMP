@@ -7,7 +7,7 @@ import { serverEnv, hasSupabaseAuth } from '@/lib/env';
 import { experiences } from '@/db/schema';
 import { redirect } from '@/lib/i18n';
 import { reportError } from '@/lib/log';
-import { getSupabaseServerClient } from '@/lib/supabase/server';
+import { getSupabaseUserStorage } from '@/lib/supabase/server';
 import { getCurrentHostIdForWrite } from '@/features/host-experiences/queries';
 import {
   galleryObjectKey,
@@ -99,8 +99,9 @@ export async function uploadExperienceHero(
     }
 
     const key = heroObjectKey(experience.slug, check.ext);
-    const supabase = await getSupabaseServerClient();
-    const { error: uploadError } = await supabase.storage.from(PHOTO_BUCKET).upload(key, file, {
+    const storage = await getSupabaseUserStorage();
+    if (!storage) return { success: false, message: 'forbidden' };
+    const { error: uploadError } = await storage.from(PHOTO_BUCKET).upload(key, file, {
       upsert: true,
       contentType: check.contentType,
     });
@@ -111,7 +112,7 @@ export async function uploadExperienceHero(
 
     const {
       data: { publicUrl },
-    } = supabase.storage.from(PHOTO_BUCKET).getPublicUrl(key);
+    } = storage.from(PHOTO_BUCKET).getPublicUrl(key);
     // Cache-bust: the object key is stable across replacements, so a
     // version query param forces next/image + browsers to refetch.
     const versioned = `${publicUrl}?v=${Date.now()}`;
@@ -189,8 +190,9 @@ export async function uploadGalleryImageAsHost(
     const { experience, hostId } = guard;
 
     const key = galleryObjectKey(experience.slug, Date.now(), check.ext);
-    const supabase = await getSupabaseServerClient();
-    const { error: uploadError } = await supabase.storage.from(PHOTO_BUCKET).upload(key, file, {
+    const storage = await getSupabaseUserStorage();
+    if (!storage) return { success: false, message: 'forbidden' };
+    const { error: uploadError } = await storage.from(PHOTO_BUCKET).upload(key, file, {
       upsert: true,
       contentType: check.contentType,
     });
@@ -200,7 +202,7 @@ export async function uploadGalleryImageAsHost(
     }
     const {
       data: { publicUrl },
-    } = supabase.storage.from(PHOTO_BUCKET).getPublicUrl(key);
+    } = storage.from(PHOTO_BUCKET).getPublicUrl(key);
 
     await db
       .update(experiences)
@@ -240,8 +242,8 @@ export async function removeGalleryImageAsHost(
     if (hasSupabaseAuth()) {
       const key = objectKeyFromPublicUrl(url);
       if (key) {
-        const supabase = await getSupabaseServerClient();
-        await supabase.storage.from(PHOTO_BUCKET).remove([key]);
+        const storage = await getSupabaseUserStorage();
+        await storage?.from(PHOTO_BUCKET).remove([key]);
       }
     }
   } catch (error) {

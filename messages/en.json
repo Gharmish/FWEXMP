@@ -1226,7 +1226,7 @@
       "errors": {
         "missing": "Choose a photo to upload.",
         "invalidType": "That file type isn't supported. Use JPG, PNG, WebP or AVIF.",
-        "tooLarge": "That photo is too large. Pick one under 30MB.",
+        "tooLarge": "That photo is too large even after compression. Try one under 15MB.",
         "noSupabase": "Photo uploads aren't available in this environment.",
         "noDb": "Photo uploads require a database connection.",
         "forbidden": "You're not authorised to edit this listing.",
@@ -1407,7 +1407,7 @@
       "description": "Photos shown after the hero on your listing. Aim for at least five — the listing page's photo mosaic only appears from five photos. Natural light, real Asiri colours — no stock.",
       "imageAlt": "Gallery photo",
       "choose": "Choose a photo",
-      "hint": "JPG, PNG, WebP or AVIF · up to 30MB — we compress it for you",
+      "hint": "JPG, PNG, WebP or AVIF — any size, we compress it for you",
       "add": "Add to gallery",
       "adding": "Uploading",
       "remove": "Remove photo",
@@ -1415,7 +1415,7 @@
       "removeConfirm": "Remove this photo from the gallery?",
       "empty": "No gallery photos yet.",
       "invalidType": "That file type is not supported.",
-      "tooLarge": "That photo is over 5MB.",
+      "tooLarge": "That photo is too large even after compression. Try one under 15MB.",
       "lockedLive": "This listing is archived — its gallery can't be changed.",
       "error": "Something went wrong. Try again."
     }
