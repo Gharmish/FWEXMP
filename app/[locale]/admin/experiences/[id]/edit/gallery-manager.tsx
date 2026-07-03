@@ -8,7 +8,12 @@ import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { ConfirmSubmit } from '@/components/ui/confirm-dialog';
 import type { GalleryState } from '@/features/admin/experiences/gallery-actions';
-import { ACCEPTED_PHOTO_ATTR, validatePhoto } from '@/features/host-experiences/lib/photo';
+import {
+  ACCEPTED_PHOTO_ATTR,
+  validatePhoto,
+  validateSelectedPhoto,
+} from '@/features/host-experiences/lib/photo';
+import { fileToWebp } from '@/features/host-experiences/lib/image-process';
 
 /** A gallery mutation as `useActionState` consumes it. */
 export type GalleryAction = (previous: GalleryState, formData: FormData) => Promise<GalleryState>;
@@ -105,6 +110,11 @@ export function GalleryManager({
   const [state, action] = useActionState(uploadAction, initialState);
   const [clientError, setClientError] = useState<'invalidType' | 'tooLarge' | null>(null);
   const [fileName, setFileName] = useState<string | null>(null);
+  // A raw phone photo is several MB and server actions cap the request
+  // body — so the picked file is re-encoded to a bounded WebP in the
+  // browser (same pipeline as the hero) and swapped back into the input
+  // before submit. `ready` gates the button until that finishes.
+  const [ready, setReady] = useState(false);
   const inputId = useId();
 
   const serverError =
@@ -168,26 +178,51 @@ export function GalleryManager({
           name="photo"
           accept={ACCEPTED_PHOTO_ATTR}
           className="sr-only"
-          onChange={(e) => {
-            const file = e.target.files?.[0];
+          onChange={async (e) => {
+            const input = e.target;
+            const file = input.files?.[0];
+            setReady(false);
             if (!file) {
               setFileName(null);
               setClientError(null);
               return;
             }
-            const result = validatePhoto({ size: file.size, type: file.type });
-            if (!result.ok) {
-              setClientError(result.reason === 'type' ? 'invalidType' : 'tooLarge');
+            // Generous input ceiling (30MB) — the re-encode below is what
+            // brings the upload under the action body cap.
+            const picked = validateSelectedPhoto({ size: file.size, type: file.type });
+            if (!picked.ok) {
+              setClientError(picked.reason === 'type' ? 'invalidType' : 'tooLarge');
               setFileName(null);
-            } else {
-              setClientError(null);
-              setFileName(file.name);
+              return;
             }
+            setClientError(null);
+            setFileName(file.name);
+            let staged = file;
+            try {
+              staged = await fileToWebp(file);
+            } catch {
+              // Canvas re-encode failed (rare) — fall back to the original
+              // if it fits the server's 5MB cap; otherwise surface tooLarge.
+              const fallback = validatePhoto({ size: file.size, type: file.type });
+              if (!fallback.ok) {
+                setClientError('tooLarge');
+                setFileName(null);
+                return;
+              }
+            }
+            const dt = new DataTransfer();
+            dt.items.add(staged);
+            input.files = dt.files;
+            setReady(true);
           }}
         />
         {fileName && <span className="text-sarat-black-600 truncate text-sm">{fileName}</span>}
         <p className="text-sarat-black/40 text-xs">{copy.hint}</p>
-        <UploadSubmit label={copy.add} pendingLabel={copy.adding} disabled={clientError !== null} />
+        <UploadSubmit
+          label={copy.add}
+          pendingLabel={copy.adding}
+          disabled={clientError !== null || !ready}
+        />
         {error && (
           <p role="alert" className="text-al-qatt-red-800 text-sm">
             {error}

@@ -67,6 +67,33 @@ function canvasToBlob(canvas: HTMLCanvasElement): Promise<Blob> {
 }
 
 /**
+ * Re-encode a picked photo to a bounded WebP, preserving its aspect
+ * ratio (no crop) — the gallery counterpart of `cropToWebp`. A raw
+ * phone photo is several MB; server actions cap the request body, so
+ * gallery uploads must shrink in the browser exactly like the hero
+ * does. Never upscales.
+ */
+export async function fileToWebp(file: File, maxWidth = HERO_MAX_WIDTH): Promise<File> {
+  const image = await loadImage(await readFileAsDataUrl(file));
+
+  const scale = Math.min(1, maxWidth / image.naturalWidth);
+  const outWidth = Math.max(1, Math.round(image.naturalWidth * scale));
+  const outHeight = Math.max(1, Math.round(image.naturalHeight * scale));
+
+  const canvas = document.createElement('canvas');
+  canvas.width = outWidth;
+  canvas.height = outHeight;
+
+  const ctx = canvas.getContext('2d');
+  if (!ctx) throw new Error('canvas 2d context unavailable');
+  ctx.imageSmoothingQuality = 'high';
+  ctx.drawImage(image, 0, 0, outWidth, outHeight);
+
+  const blob = await canvasToBlob(canvas);
+  return new File([blob], `gallery.${OUTPUT_EXT}`, { type: OUTPUT_TYPE });
+}
+
+/**
  * Render the chosen crop region to a canonical 16:9 WebP File.
  *
  * The output width is `min(HERO_MAX_WIDTH, crop width)` so we downscale a

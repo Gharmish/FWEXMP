@@ -4,6 +4,23 @@ import createNextIntlPlugin from 'next-intl/plugin';
 const withNextIntl = createNextIntlPlugin('./lib/request.ts');
 
 const nextConfig: NextConfig = {
+  experimental: {
+    serverActions: {
+      // Photo uploads (hero + gallery) travel through server actions.
+      // Clients re-encode to a small WebP first, but the default 1MB cap
+      // 413'd any fallback-path original — 8MB clears the bucket's 5MB
+      // object policy with form-encoding headroom.
+      bodySizeLimit: '8mb',
+    },
+  },
+  // The per-experience opengraph-image route reads brand TTFs off disk
+  // (lib/og/fonts) at runtime. Node file-tracing can't infer the dynamic
+  // join(process.cwd(), …) path, so bundle the fonts into the function
+  // explicitly — otherwise the route 500s in production with ENOENT.
+  outputFileTracingIncludes: {
+    '/[locale]/experiences/[slug]/opengraph-image': ['./lib/og/fonts/*.ttf'],
+    '/[locale]/hosts/[slug]/opengraph-image': ['./lib/og/fonts/*.ttf'],
+  },
   images: {
     /**
      * Allowlist Supabase Storage (public bucket `photos`) as a remote
