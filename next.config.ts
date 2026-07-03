@@ -47,6 +47,10 @@ const nextConfig: NextConfig = {
     // listed here (it defaults to WebP only), so AVIF must be opted in.
     // Order matters: AVIF is tried first, WebP is the fallback.
     formats: ['image/avif', 'image/webp'],
+    // Dev-only: on NAT64/DNS64 networks the Supabase host resolves to
+    // 64:ff9b::/96 addresses, which the optimizer's SSRF guard treats as
+    // private and 400s. Production keeps the guard.
+    dangerouslyAllowLocalIP: process.env.NODE_ENV === 'development',
   },
 };
 
