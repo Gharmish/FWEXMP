@@ -151,6 +151,24 @@ Use the 8-point grid exclusively: `4, 8, 12, 16, 24, 32, 48, 64, 80, 120` (pixel
   spring requirement is binding for every other motion (entrance/reveal, card lift,
   modal/sheet, page transition) — route those through `components/ui/motion.tsx`,
   never a raw `linear`/`ease-*` curve.
+- **Primitive set (animation pass 2026-07)**: `FadeIn` (scroll reveal), `Stagger`/
+  `StaggerItem` (60ms cascade), `HoverLift`, `Pop`, `PageTransition`, plus `RiseIn`
+  (transform-only mount rise — the only primitive allowed on an LCP candidate; never
+  wrap hero H1s in an opacity-from-0 primitive), `MountFade` (mount fade; static on
+  the initial document load unless `eager`), `FadeSwap` (keyed enter-fade for RSC
+  payload swaps — filter/sort results), `Draw` (spine/hairline growth), `ParallaxY`
+  (subtle scroll drift; desktop fine-pointer only), and `AnimatedNumber` (stat
+  count-up; renders the final value under SSR/reduced motion). Demos live in `/dev`.
+  Hero pass 2026-07 added `RiseInWords` (word-by-word RiseIn cascade for hero
+  headlines — same opacity-stays-1 LCP contract), a `scale` prop on `RiseIn`
+  (Ken Burns settle for hero imagery), and `TracePath` (SVG-path variant of
+  Draw for decorative hairline illustrations, e.g. the home hero's Sarawat
+  ridgeline divider).
+- **Overlays** (Dialog, Sheet, ConfirmSubmit, Toast in `components/ui/`) ride Base UI
+  for focus/aria/dismissal and the one spring for enter/exit. `ConfirmSubmit`
+  replaces `window.confirm` for destructive actions. Animate transform/opacity only —
+  never layout properties. All new motion transform/opacity, RTL-checked, and static
+  under `prefers-reduced-motion`.
 
 ### Iconography
 

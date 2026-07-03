@@ -11,15 +11,29 @@ import { SITE_URL, SITE_NAME, SITE_DESCRIPTION } from '@/lib/site';
 import { buttonVariants } from '@/components/ui/button';
 import { JsonLd } from '@/components/seo/json-ld';
 import { ExperienceCard } from '@/features/experiences/components/experience-card';
-import { Stagger, StaggerItem } from '@/components/ui/motion';
+import Image from 'next/image';
+import {
+  FadeIn,
+  MountFade,
+  ParallaxY,
+  RiseIn,
+  RiseInWords,
+  Stagger,
+  StaggerItem,
+} from '@/components/ui/motion';
 import { CATEGORIES } from '@/features/experiences/lib/sample-data';
 import { getPlatformSettings } from '@/features/admin/settings/queries';
 import { getExperiences, getFeaturedExperiences } from '@/features/experiences/queries';
 import { getAllHosts } from '@/features/hosts/queries';
 import { toArabicText } from '@/features/experiences/lib/arabic-content';
+import { pickLocalized } from '@/lib/ar-placeholder';
 import { getWishlistSet } from '@/features/wishlist/queries';
 import { WishlistButton } from '@/features/wishlist/components/wishlist-button';
 import { SocialProofStrip } from '@/features/reviews/components/social-proof-strip';
+import { WhyGharmish } from '@/components/marketing/why-gharmish';
+import { HostCta } from '@/components/marketing/host-cta';
+import { CategoryTiles } from '@/components/marketing/category-tiles';
+import { HeroRidgeline } from '@/components/marketing/hero-ridgeline';
 
 const languagesAlternates = Object.fromEntries(routing.locales.map((l) => [l, `${SITE_URL}/${l}`]));
 
@@ -49,16 +63,6 @@ export async function generateMetadata({
   };
 }
 
-// Category accent dots — literal classes so Tailwind v4 detects them.
-const CATEGORY_DOT: Record<Category, string> = {
-  nature: 'bg-juniper-green',
-  heritage: 'bg-al-qatt-red',
-  food: 'bg-saffron-gold',
-  wellness: 'bg-wadi-mint',
-  adventure: 'bg-soudah-sunset',
-  family: 'bg-sarawat-blue',
-};
-
 export default async function HomePage({ params }: { params: Promise<{ locale: string }> }) {
   const { locale } = await params;
   setRequestLocale(locale);
@@ -77,6 +81,22 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
     getPlatformSettings(),
   ]);
   const categories = CATEGORIES.filter((c) => settings.enabledCategories.includes(c.key));
+  // "All experiences" excludes what the Originals row above already
+  // shows — the same card twice in one viewport reads as a bug, not
+  // merchandising.
+  const featuredSlugs = new Set(featured.map((e) => e.slug));
+  const restOfCatalog = experiences.filter((e) => !featuredSlugs.has(e.slug));
+  // Editorial hero photograph — the most on-brand landscape available
+  // (nature first, then adventure, then heritage, then anything shot).
+  // Null degrades to the type-only hero, so thin photography never
+  // breaks the page.
+  const heroImagePriority: readonly Category[] = ['nature', 'adventure', 'heritage'];
+  const heroImage =
+    heroImagePriority
+      .map((c) => experiences.find((e) => e.category === c && e.heroImage)?.heroImage)
+      .find(Boolean) ??
+    experiences.find((e) => e.heroImage)?.heroImage ??
+    null;
   // Admin-set announcement band (Eid hours, road closures, …). Per
   // locale; an empty value in the active locale hides the band.
   const announcement = loc === 'ar' ? settings.announcementAr : settings.announcementEn;
@@ -115,49 +135,82 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
           {announcement}
         </p>
       )}
-      {/* Hero — editorial, type-forward, no imagery (BRIEF §3). */}
-      <section className="mx-auto w-full max-w-6xl px-6 py-24 sm:py-32">
-        <div className="flex max-w-3xl flex-col gap-6">
-          <p className={eyebrowClassName}>{t('eyebrow')}</p>
-          <h1 className="font-display text-5xl font-semibold tracking-[-0.035em] text-balance sm:text-7xl">
-            {t('headline')}
-          </h1>
-          <p className="text-sarat-black-600 max-w-xl text-lg">{t('intro')}</p>
-          <div>
-            <Link
-              href="/experiences"
-              className={cn(buttonVariants({ variant: 'primary', size: 'lg' }))}
-            >
-              {t('cta')}
-            </Link>
+      {/* Hero — editorial split: the headline cascades in word by word on
+          the inline-start side; a tall Asir photograph settles from a slow
+          Ken Burns zoom and drifts on scroll at the end side (desktop only —
+          mobile keeps the fast type-forward hero). A hairline Sarawat
+          ridgeline traces itself in below as the section divider. All LCP
+          candidates stay transform-only: RiseInWords on the H1, scale-settle
+          + ParallaxY on the image; nothing ever renders at opacity 0. */}
+      <section>
+        <div className="mx-auto w-full max-w-6xl px-6 pt-24 pb-10 sm:pt-32 sm:pb-12">
+          <div
+            className={cn(
+              'grid items-center gap-12',
+              heroImage && 'lg:grid-cols-[1fr_minmax(0,420px)]',
+            )}
+          >
+            <div className="flex max-w-3xl flex-col gap-6">
+              <MountFade eager delay={0}>
+                <p className={eyebrowClassName}>{t('eyebrow')}</p>
+              </MountFade>
+              <h1 className="font-display text-5xl font-semibold tracking-[-0.035em] text-balance sm:text-6xl">
+                <RiseInWords text={t('headline')} delay={0.05} />
+              </h1>
+              <MountFade eager delay={0.25}>
+                <p className="text-sarat-black-600 max-w-xl text-lg">{t('intro')}</p>
+              </MountFade>
+              <MountFade eager delay={0.33}>
+                <div>
+                  <Link
+                    href="/experiences"
+                    className={cn(buttonVariants({ variant: 'primary', size: 'lg' }))}
+                  >
+                    {t('cta')}
+                  </Link>
+                </div>
+              </MountFade>
+            </div>
+            {heroImage && (
+              <div className="rounded-image relative hidden aspect-[4/5] overflow-hidden lg:block">
+                {/* Bleed matches the drift distance so edges never show; the
+                    Ken Burns settle only ever adds bleed on top of that. */}
+                <ParallaxY distance={20} className="absolute -inset-5">
+                  <RiseIn y={0} scale={1.06} delay={0.1} className="absolute inset-0">
+                    <Image
+                      src={heroImage}
+                      alt={t('heroImageAlt')}
+                      fill
+                      priority
+                      sizes="(min-width: 1024px) 420px, 0px"
+                      className="object-cover"
+                    />
+                  </RiseIn>
+                </ParallaxY>
+              </div>
+            )}
           </div>
         </div>
+        <HeroRidgeline />
       </section>
 
-      {/* Category strip — each item deep-links to the filtered catalog. */}
-      <section className="border-sarat-black/8 [border-top-width:0.5px]">
-        <div className="mx-auto flex w-full max-w-6xl flex-wrap gap-x-6 gap-y-2 px-6 py-8">
-          {categories.map((c) => (
-            <Link
-              key={c.key}
-              href={`/experiences?category=${c.key}`}
-              className="inline-flex min-h-11 items-center gap-2 text-sm font-medium transition-opacity duration-200 hover:opacity-60"
-            >
-              <span className={cn('size-2 rounded-full', CATEGORY_DOT[c.key])} aria-hidden />
-              {loc === 'ar' ? c.labelAr : c.labelEn}
-            </Link>
-          ))}
+      {/* Category tiles — discovery row and the page's one moment of colour
+          play; each tile deep-links to the filtered catalog. The ridgeline
+          above is the divider, so no border hairline here. */}
+      <section>
+        <div className="mx-auto w-full max-w-6xl px-6 py-10">
+          <CategoryTiles locale={loc} categories={categories} />
         </div>
       </section>
 
       {/* Originals — featured, dark cards */}
       <section className="mx-auto w-full max-w-6xl px-6 py-20">
-        <div className="mb-8 flex flex-col gap-2">
+        <FadeIn className="mb-8 flex flex-col gap-2">
           <h2 className="font-display text-3xl font-medium tracking-[-0.03em]">
             {t('originalsTitle')}
           </h2>
           <p className="text-sarat-black-600 text-base">{t('originalsSub')}</p>
-        </div>
+        </FadeIn>
         <Stagger className="grid gap-4 sm:grid-cols-2">
           {featured.map((e) => (
             <StaggerItem key={e.slug}>
@@ -179,7 +232,7 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
 
       {/* All experiences */}
       <section className="mx-auto w-full max-w-6xl px-6 pb-24">
-        <div className="mb-8 flex items-baseline justify-between gap-4">
+        <FadeIn className="mb-8 flex items-baseline justify-between gap-4">
           <h2 className="font-display text-3xl font-medium tracking-[-0.03em]">{t('allTitle')}</h2>
           <Link
             href="/experiences"
@@ -188,9 +241,9 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
             {t('viewAll')}
             <ArrowRight className="size-4 shrink-0 rtl:rotate-180" aria-hidden />
           </Link>
-        </div>
+        </FadeIn>
         <Stagger className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {experiences.map((e) => (
+          {restOfCatalog.map((e) => (
             <StaggerItem key={e.slug}>
               <ExperienceCard
                 experience={e}
@@ -208,6 +261,9 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
         </Stagger>
       </section>
 
+      {/* Why Gharmish — the three brand pillars as guest-facing promises. */}
+      <WhyGharmish locale={loc} />
+
       {/* Social proof — latest high-rated guest reviews (renders nothing
           until reviews exist). */}
       <SocialProofStrip locale={loc} />
@@ -216,40 +272,47 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
       {hosts.length > 0 && (
         <section className="border-sarat-black/8 [border-top-width:0.5px]">
           <div className="mx-auto w-full max-w-6xl px-6 py-20">
-            <div className="mb-8 flex flex-col gap-2">
+            <FadeIn className="mb-8 flex flex-col gap-2">
               <p className={eyebrowClassName}>{t('hostsEyebrow')}</p>
               <h2 className="font-display text-3xl font-medium tracking-[-0.03em]">
                 {t('hostsTitle')}
               </h2>
               <p className="text-sarat-black-600 max-w-xl text-base">{t('hostsIntro')}</p>
-            </div>
-            <ul className="grid gap-4 sm:grid-cols-2">
-              {hosts.map((host) => {
-                const name = loc === 'ar' ? toArabicText(host.name) : host.name;
-                const bio = loc === 'ar' ? host.bioAr : host.bioEn;
-                return (
-                  <li key={host.slug}>
-                    <Link
-                      href={`/hosts/${host.slug}`}
-                      className="rounded-card border-sarat-black/8 group flex h-full items-start gap-4 [border-width:0.5px] p-6 transition-transform duration-200 hover:-translate-y-0.5 focus-visible:-translate-y-0.5"
-                    >
-                      <Avatar name={name} size="lg" />
-                      <div className="flex flex-1 flex-col gap-2">
-                        <span className="text-lg font-medium">{name}</span>
-                        <p className="text-sarat-black-600 line-clamp-3 text-sm">{bio}</p>
-                        <span className="text-sarat-black inline-flex items-center gap-1 text-sm font-medium opacity-0 transition-opacity duration-200 group-hover:opacity-100 group-focus-visible:opacity-100">
-                          {t('hostsView')}
-                          <ArrowRight className="size-4 shrink-0 rtl:rotate-180" aria-hidden />
-                        </span>
-                      </div>
-                    </Link>
-                  </li>
-                );
-              })}
-            </ul>
+            </FadeIn>
+            <Stagger>
+              <ul className="grid gap-4 sm:grid-cols-2">
+                {hosts.map((host) => {
+                  const name = loc === 'ar' ? toArabicText(host.name) : host.name;
+                  const bio = pickLocalized(loc, host.bioEn, host.bioAr);
+                  return (
+                    <li key={host.slug}>
+                      <StaggerItem className="h-full">
+                        <Link
+                          href={`/hosts/${host.slug}`}
+                          className="rounded-card border-sarat-black/8 group flex h-full items-start gap-4 [border-width:0.5px] p-6 transition-transform duration-200 hover:-translate-y-0.5 focus-visible:-translate-y-0.5"
+                        >
+                          <Avatar name={name} size="lg" />
+                          <div className="flex flex-1 flex-col gap-2">
+                            <span className="text-lg font-medium">{name}</span>
+                            <p className="text-sarat-black-600 line-clamp-3 text-sm">{bio}</p>
+                            <span className="text-sarat-black inline-flex items-center gap-1 text-sm font-medium opacity-0 transition-opacity duration-200 group-hover:opacity-100 group-focus-visible:opacity-100">
+                              {t('hostsView')}
+                              <ArrowRight className="size-4 shrink-0 rtl:rotate-180" aria-hidden />
+                            </span>
+                          </div>
+                        </Link>
+                      </StaggerItem>
+                    </li>
+                  );
+                })}
+              </ul>
+            </Stagger>
           </div>
         </section>
       )}
+
+      {/* Host recruitment — the page closes on the partnership pitch. */}
+      <HostCta locale={loc} />
     </div>
   );
 }
