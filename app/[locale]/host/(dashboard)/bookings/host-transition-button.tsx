@@ -5,6 +5,7 @@ import { useFormStatus } from 'react-dom';
 import type { Locale } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
+import { ConfirmSubmit } from '@/components/ui/confirm-dialog';
 import {
   transitionBookingAsHost,
   type HostBookingActionResult,
@@ -24,7 +25,7 @@ type ErrorKey =
 interface Copy {
   label: string;
   pending: string;
-  /** Optional native-confirm prompt; decline/cancel (destructive) set it. */
+  /** Optional confirm-dialog body; decline/cancel (destructive) set it. */
   confirm?: string;
   errors: Record<ErrorKey, string>;
 }
@@ -40,6 +41,22 @@ const initialState: HostBookingActionResult = { success: false };
 
 function Submit({ to, copy }: { to: BookingTransitionTarget; copy: Copy }) {
   const { pending } = useFormStatus();
+  if (copy.confirm) {
+    return (
+      <ConfirmSubmit
+        title={copy.label}
+        description={copy.confirm}
+        confirmLabel={copy.label}
+        pendingLabel={copy.pending}
+        destructive={to === 'cancelled'}
+        variant={to === 'confirmed' ? 'primary' : 'secondary'}
+        size="sm"
+        className={cn(to === 'cancelled' && 'border-al-qatt-red/40 text-al-qatt-red-800')}
+      >
+        {copy.label}
+      </ConfirmSubmit>
+    );
+  }
   return (
     <Button
       type="submit"
@@ -47,9 +64,6 @@ function Submit({ to, copy }: { to: BookingTransitionTarget; copy: Copy }) {
       size="sm"
       pending={pending}
       className={cn(to === 'cancelled' && 'border-al-qatt-red/40 text-al-qatt-red-800')}
-      onClick={(e) => {
-        if (copy.confirm && !window.confirm(copy.confirm)) e.preventDefault();
-      }}
     >
       {pending ? copy.pending : copy.label}
     </Button>

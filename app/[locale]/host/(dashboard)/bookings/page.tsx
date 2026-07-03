@@ -1,21 +1,25 @@
 import type { Metadata } from 'next';
-import { ArrowLeft, CalendarCheck, MessageCircle } from 'lucide-react';
+import { CalendarCheck, MessageCircle } from 'lucide-react';
 import { whatsappLink } from '@/lib/whatsapp';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { redirect, Link } from '@/lib/i18n';
 import type { Locale } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
+import { buttonVariants } from '@/components/ui/button';
 import { BookingStatusBadge } from '@/features/bookings/components/booking-status-badge';
 import { EmptyState } from '@/components/ui/empty-state';
 import { Price } from '@/components/ui/price';
 import { formatDate, formatTime } from '@/lib/format';
 import { getCurrentUser } from '@/features/auth/queries';
 import { getHostDashboard } from '@/features/host-dashboard/queries';
-import { listBookingsForHost } from '@/features/host-bookings/queries';
+import { listBookingsForHost, PAST_PAGE_SIZE } from '@/features/host-bookings/queries';
+import { listMyExperiences } from '@/features/host-experiences/queries';
+import { pickLocalized } from '@/lib/ar-placeholder';
 import type { HostBookingRow } from '@/features/host-bookings/types';
 import { availableTransitions } from '@/features/bookings/lib/transitions';
-import { HostTransitionButton } from '@/app/[locale]/host/bookings/host-transition-button';
+import { HostTransitionButton } from '@/app/[locale]/host/(dashboard)/bookings/host-transition-button';
+import { SlaCountdown } from '@/app/[locale]/host/(dashboard)/bookings/sla-countdown';
 
 export async function generateMetadata({
   params,
@@ -33,26 +37,12 @@ function todayInRiyadh(): string {
   return new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Riyadh' }).format(new Date());
 }
 
-/** Requests / upcoming / past buckets for the three page sections. */
-function bucketBookings(rows: readonly HostBookingRow[], todayStr: string) {
-  const requests: HostBookingRow[] = [];
-  const upcoming: HostBookingRow[] = [];
-  const past: HostBookingRow[] = [];
-  for (const row of rows) {
-    if (row.status === 'pending') requests.push(row);
-    else if (row.status === 'confirmed' && row.date >= todayStr) upcoming.push(row);
-    else past.push(row);
-  }
-  // Requests oldest-first (answer in order received); upcoming soonest-first.
-  requests.sort((a, b) => a.createdAt.localeCompare(b.createdAt));
-  upcoming.sort((a, b) => a.date.localeCompare(b.date));
-  return { requests, upcoming, past };
-}
-
 export default async function HostBookingsPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ locale: string }>;
+  searchParams: Promise<{ q?: string; experience?: string; past?: string }>;
 }) {
   const { locale } = await params;
   setRequestLocale(locale);
@@ -67,10 +57,34 @@ export default async function HostBookingsPage({
     redirect({ href: '/host/apply', locale: loc });
   }
 
-  const [t, rows] = await Promise.all([getTranslations('hostBookings'), listBookingsForHost()]);
+  const { q = '', experience = '', past: pastParam } = await searchParams;
+  // The URL carries a 1-based page for humans; the query is 0-based.
+  const pastPageParam = Math.max(1, Number.parseInt(pastParam ?? '1', 10) || 1);
+
+  const [t, result, myExperiences] = await Promise.all([
+    getTranslations('hostBookings'),
+    listBookingsForHost({
+      q: q || undefined,
+      experienceId: experience || undefined,
+      pastPage: pastPageParam - 1,
+    }),
+    listMyExperiences(),
+  ]);
   const todayStr = todayInRiyadh();
-  const { requests, upcoming, past } = bucketBookings(rows, todayStr);
+  const { requests, upcoming, past, pastTotal } = result;
+  const pastPages = Math.max(1, Math.ceil(pastTotal / PAST_PAGE_SIZE));
+  const filtersActive = Boolean(q || experience);
   const suspended = dashboard.host.verificationStatus === 'suspended';
+
+  // Pagination links re-carry the active filters.
+  const pastHref = (page: number) => {
+    const search = new URLSearchParams();
+    if (q) search.set('q', q);
+    if (experience) search.set('experience', experience);
+    if (page > 1) search.set('past', String(page));
+    const qs = search.toString();
+    return `/host/bookings${qs ? `?${qs}` : ''}`;
+  };
 
   const actionErrors = {
     forbidden: t('actionErrors.forbidden'),
@@ -102,6 +116,13 @@ export default async function HostBookingsPage({
       row.status === 'pending' && row.approvalDeadline ? new Date(row.approvalDeadline) : null;
     const awaitingPayment =
       row.status === 'confirmed' && row.paymentStatus !== 'paid' && row.paymentDeadline !== null;
+    // Deadline passed but the daily cron hasn't released the hold yet —
+    // "awaiting payment" would mislead; the seat is already free
+    // (capacity sums exclude lapsed holds) and the cron will cancel it.
+    const paymentLapsed =
+      awaitingPayment &&
+      row.paymentDeadline !== null &&
+      new Date(row.paymentDeadline) <= new Date();
     return (
       <li
         key={row.id}
@@ -119,8 +140,11 @@ export default async function HostBookingsPage({
             {row.paymentStatus === 'paid' && (
               <Badge className="bg-success-surface text-success">{t('paidBadge')}</Badge>
             )}
-            {awaitingPayment && (
+            {awaitingPayment && !paymentLapsed && (
               <Badge className="bg-pending-surface text-pending">{t('awaitingPayment')}</Badge>
+            )}
+            {paymentLapsed && (
+              <Badge className="bg-rijal-clay/10 text-rijal-clay">{t('paymentLapsed')}</Badge>
             )}
           </div>
           <div className="text-sarat-black-600 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
@@ -155,6 +179,11 @@ export default async function HostBookingsPage({
                 amount: () => <Price amount={row.payoutSar} locale={loc} />,
               })}
             </span>
+            <span aria-hidden>·</span>
+            {/* Same reference the guest sees — what they'll quote on WhatsApp. */}
+            <span className="font-mono text-[11px]" dir="ltr">
+              {row.referenceCode}
+            </span>
           </div>
         </div>
         <div className="flex shrink-0 flex-col items-end gap-2">
@@ -162,10 +191,13 @@ export default async function HostBookingsPage({
             {t('requestedOn', { date: formatDate(new Date(row.createdAt), loc) })}
           </span>
           {respondBy && (
-            <span className="text-pending text-sm font-medium">
-              {t('respondBy', {
-                date: `${formatDate(respondBy, loc)} · ${formatTime(respondBy, loc)}`,
-              })}
+            <span className="flex flex-wrap items-center justify-end gap-2">
+              <span className="text-pending text-sm font-medium">
+                {t('respondBy', {
+                  date: `${formatDate(respondBy, loc)} · ${formatTime(respondBy, loc)}`,
+                })}
+              </span>
+              <SlaCountdown deadline={respondBy.toISOString()} />
             </span>
           )}
           {!suspended && transitions.length > 0 && (
@@ -198,20 +230,19 @@ export default async function HostBookingsPage({
   const renderSection = (
     key: 'requests' | 'upcoming' | 'past',
     sectionRows: readonly HostBookingRow[],
+    totalCount = sectionRows.length,
   ) => (
     <section className="flex flex-col gap-4">
       <h2 className="font-display text-2xl font-medium tracking-[-0.025em]">
         {t(`${key}.title`)}
-        {sectionRows.length > 0 && (
-          <span className="text-sarat-black-600 ms-2 text-base tabular-nums">
-            {sectionRows.length}
-          </span>
+        {totalCount > 0 && (
+          <span className="text-sarat-black-600 ms-2 text-base tabular-nums">{totalCount}</span>
         )}
       </h2>
       {sectionRows.length === 0 ? (
         <p className="text-sarat-black-600 text-base">{t(`${key}.empty`)}</p>
       ) : (
-        <ul className="border-sarat-black/8 rounded-card flex flex-col divide-y divide-[var(--color-sarat-black)]/8 [border-width:0.5px]">
+        <ul className="border-sarat-black/8 rounded-card divide-sarat-black/8 flex flex-col divide-y [border-width:0.5px]">
           {sectionRows.map(renderRow)}
         </ul>
       )}
@@ -219,15 +250,8 @@ export default async function HostBookingsPage({
   );
 
   return (
-    <div className="mx-auto flex w-full max-w-6xl flex-col gap-10 px-6 py-16 sm:py-20">
+    <div className="flex w-full flex-col gap-10">
       <div className="flex flex-col gap-4">
-        <Link
-          href="/host"
-          className="text-sarat-black-600 inline-flex min-h-11 items-center gap-2 self-start text-sm font-medium transition-opacity duration-200 hover:opacity-60"
-        >
-          <ArrowLeft className="size-4 shrink-0 rtl:rotate-180" aria-hidden />
-          {t('backToDashboard')}
-        </Link>
         <p className={eyebrowClassName}>{t('eyebrow')}</p>
         <h1 className="font-display text-4xl font-semibold tracking-[-0.035em] text-balance sm:text-5xl">
           {t('title')}
@@ -243,18 +267,108 @@ export default async function HostBookingsPage({
         )}
       </div>
 
-      {rows.length === 0 ? (
+      {/* Search + experience filter — a GET form, so the URL is the state
+          and results are shareable / back-button friendly. */}
+      <form
+        method="get"
+        className="border-sarat-black/8 rounded-card flex flex-wrap items-end gap-4 [border-width:0.5px] p-4"
+      >
+        <div className="flex min-w-48 flex-1 flex-col gap-2">
+          <label htmlFor="bookings-q" className="text-sm font-medium">
+            {t('filter.searchLabel')}
+          </label>
+          <input
+            id="bookings-q"
+            type="search"
+            name="q"
+            defaultValue={q}
+            placeholder={t('filter.searchPlaceholder')}
+            className="rounded-input border-sarat-black/20 text-sarat-black placeholder:text-sarat-black-600 h-11 w-full [border-width:0.5px] bg-white px-4 text-base"
+          />
+        </div>
+        <div className="flex min-w-48 flex-col gap-2">
+          <label htmlFor="bookings-experience" className="text-sm font-medium">
+            {t('filter.experienceLabel')}
+          </label>
+          <select
+            id="bookings-experience"
+            name="experience"
+            defaultValue={experience}
+            className="rounded-input border-sarat-black/20 text-sarat-black h-11 w-full [border-width:0.5px] bg-white px-3 text-base"
+          >
+            <option value="">{t('filter.allExperiences')}</option>
+            {myExperiences.map((exp) => (
+              <option key={exp.id} value={exp.id}>
+                {pickLocalized(loc, exp.titleEn, exp.titleAr)}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div className="flex items-center gap-3">
+          <button
+            type="submit"
+            className={cn(buttonVariants({ variant: 'secondary', size: 'sm' }))}
+          >
+            {t('filter.apply')}
+          </button>
+          {filtersActive && (
+            <Link
+              href="/host/bookings"
+              className="text-sarat-black-600 text-sm font-medium underline-offset-4 hover:underline"
+            >
+              {t('filter.clear')}
+            </Link>
+          )}
+        </div>
+      </form>
+
+      {requests.length === 0 && upcoming.length === 0 && pastTotal === 0 && !filtersActive ? (
         <EmptyState
           icon={CalendarCheck}
           eyebrow={t('empty.eyebrow')}
           title={t('empty.title')}
           description={t('empty.description')}
+          action={
+            <Link
+              href="/host/experiences"
+              className={cn(buttonVariants({ variant: 'secondary', size: 'md' }))}
+            >
+              {t('empty.cta')}
+            </Link>
+          }
         />
       ) : (
         <>
           {renderSection('requests', requests)}
           {renderSection('upcoming', upcoming)}
-          {renderSection('past', past)}
+          {renderSection('past', past, pastTotal)}
+          {pastPages > 1 && (
+            <nav aria-label={t('past.title')} className="flex items-center justify-between gap-4">
+              {pastPageParam > 1 ? (
+                <Link
+                  href={pastHref(pastPageParam - 1)}
+                  className={cn(buttonVariants({ variant: 'secondary', size: 'sm' }))}
+                >
+                  {t('pagination.prev')}
+                </Link>
+              ) : (
+                <span />
+              )}
+              <span className="text-sarat-black-600 text-sm tabular-nums">
+                {t('pagination.pageOf', { page: pastPageParam, pages: pastPages })}
+              </span>
+              {pastPageParam < pastPages ? (
+                <Link
+                  href={pastHref(pastPageParam + 1)}
+                  className={cn(buttonVariants({ variant: 'secondary', size: 'sm' }))}
+                >
+                  {t('pagination.next')}
+                </Link>
+              ) : (
+                <span />
+              )}
+            </nav>
+          )}
         </>
       )}
     </div>

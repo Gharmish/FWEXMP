@@ -113,7 +113,91 @@
         "payoutsOwed": "Host payouts owed ({amount})"
       },
       "cronStale": "The scheduled job hasn't completed a run since {date} — request expiry, hold release, payment reconciliation, and reminders are stalled. Check the Vercel cron and CRON_SECRET.",
-      "cronNever": "The scheduled job has never reported a completed run — request expiry, hold release, payment reconciliation, and reminders may be stalled. Check the Vercel cron and CRON_SECRET."
+      "cronNever": "The scheduled job has never reported a completed run — request expiry, hold release, payment reconciliation, and reminders may be stalled. Check the Vercel cron and CRON_SECRET.",
+      "filter": {
+        "presets": {
+          "today": "Today",
+          "7d": "Last 7 days",
+          "30d": "Last 30 days",
+          "month": "This month",
+          "90d": "Last 90 days",
+          "custom": "Custom"
+        },
+        "from": "From",
+        "to": "To",
+        "apply": "Apply",
+        "comparedTo": "Compared with the previous period ({from} – {to})"
+      },
+      "metrics": {
+        "revenueChart": "Revenue over time",
+        "emptyRange": "No activity in this range.",
+        "hero": {
+          "gmv": "GMV",
+          "netRevenue": "Net revenue",
+          "bookings": "Bookings",
+          "newGuests": "New guests",
+          "aov": "Avg booking value",
+          "confirmationRate": "Confirmation rate"
+        },
+        "sections": {
+          "revenue": "Revenue & payments",
+          "bookings": "Bookings & conversion",
+          "demand": "Demand & growth",
+          "supply": "Supply & hosts",
+          "catalog": "Catalog & quality"
+        },
+        "revenue": {
+          "hostPayouts": "Host payouts",
+          "vat": "VAT (incl.)",
+          "refunded": "Refunded",
+          "paymentSuccess": "Payment success",
+          "paymentMix": "Payment method",
+          "unknownBrand": "Unknown"
+        },
+        "bookings": {
+          "funnel": "Booking funnel",
+          "requests": "Requests",
+          "confirmed": "Confirmed",
+          "completed": "Completed",
+          "pending": "Pending",
+          "declined": "Declined",
+          "expired": "Expired",
+          "cancelled": "Cancelled",
+          "refunded": "Refunded",
+          "completionRate": "Completion rate",
+          "avgParty": "Avg party size",
+          "instantShare": "Instant-book share",
+          "avgResponse": "Avg host response",
+          "hoursValue": "{hours}h"
+        },
+        "demand": {
+          "returningRate": "Returning guests",
+          "arabicShare": "Arabic-first guests",
+          "wishlistSaves": "Wishlist saves"
+        },
+        "supply": {
+          "newHosts": "New hosts",
+          "activeHosts": "Active hosts",
+          "verified": "Verified",
+          "pending": "Pending",
+          "suspended": "Suspended",
+          "topHosts": "Top hosts"
+        },
+        "catalog": {
+          "live": "Live",
+          "originals": "Originals",
+          "paused": "Paused",
+          "pendingReview": "Pending review",
+          "draft": "Draft",
+          "archived": "Archived",
+          "gmvByCategory": "GMV by category",
+          "avgRating": "Avg rating",
+          "reviewCount": "Reviews",
+          "reviewedRate": "Reviewed rate",
+          "hiddenReviews": "Hidden",
+          "topExperiences": "Top experiences"
+        }
+      }
     },
     "payoutsList": {
       "eyebrow": "Payouts",
@@ -723,6 +807,19 @@
         "wrongState": "This report changed in another tab. Refresh to see its current state.",
         "server": "Something went wrong on our side. Try again."
       }
+    },
+    "nav": {
+      "menuLabel": "Admin navigation",
+      "openMenu": "Open menu",
+      "closeMenu": "Close menu",
+      "roleLabel": "Administrator",
+      "dashboard": "Dashboard",
+      "groups": {
+        "overview": "Overview",
+        "operations": "Operations",
+        "directory": "Directory",
+        "setting": "Setting"
+      }
     }
   },
   "hostApply": {
@@ -836,6 +933,15 @@
     "verifiedBadge": "Verified host",
     "suspendedBanner": "Your host account is currently suspended by the team. Every live experience has been paused. We'll be in touch on WhatsApp to resolve this — for urgent questions, reply to your last message from us.",
     "publicProfile": "Public profile:",
+    "share": {
+      "title": "Share your profile",
+      "description": "This is your public link — every live experience you host lives here. Add it to your social bios and send it to guests.",
+      "copy": "Copy link",
+      "copied": "Copied",
+      "whatsapp": "Share on WhatsApp",
+      "more": "Share",
+      "message": "Discover my experiences on Gharmish"
+    },
     "whatsNext": {
       "eyebrow": "What's next",
       "title": "Get ready to host.",
@@ -850,6 +956,7 @@
       "title": "Your experiences",
       "newCta": "New experience",
       "perPerson": "per guest",
+      "daysPerWeek": "{count, plural, one {# day/week} other {# days/week}}",
       "status": {
         "draft": "Draft",
         "pending_review": "Pending review",
@@ -871,7 +978,34 @@
       "viewEarnings": "Earnings",
       "viewReviews": "Reviews"
     },
-    "pendingRequestsBanner": "{count, plural, one {# booking request is waiting for your reply} other {# booking requests are waiting for your reply}}"
+    "pendingRequestsBanner": "{count, plural, one {# booking request is waiting for your reply} other {# booking requests are waiting for your reply}}",
+    "nav": {
+      "menuLabel": "Host navigation",
+      "openMenu": "Open menu",
+      "roleLabel": "Host",
+      "overview": "Overview",
+      "bookings": "Bookings",
+      "experiences": "Experiences",
+      "earnings": "Earnings",
+      "reviews": "Reviews",
+      "newExperience": "New experience",
+      "pendingBadge": "{count, plural, one {# pending request} other {# pending requests}}"
+    },
+    "earningsKpis": {
+      "title": "Earnings",
+      "viewAll": "View earnings"
+    },
+    "upcoming": {
+      "title": "Coming up",
+      "empty": "Nothing on the calendar yet.",
+      "viewAll": "All bookings"
+    },
+    "latestReview": {
+      "title": "Latest review",
+      "empty": "No reviews yet.",
+      "viewAll": "All reviews",
+      "summary": "{average} · {n, plural, one {# review} other {# reviews}}"
+    }
   },
   "hostBookings": {
     "eyebrow": "Bookings",
@@ -886,7 +1020,8 @@
     "empty": {
       "eyebrow": "No bookings yet",
       "title": "Nothing booked yet.",
-      "description": "When a guest requests or books one of your experiences, it shows up here. Make sure your listing is live and your weekly availability is set."
+      "description": "When a guest requests or books one of your experiences, it shows up here. Make sure your listing is live and your weekly availability is set.",
+      "cta": "Manage your experiences"
     },
     "requests": {
       "title": "Requests",
@@ -941,7 +1076,26 @@
     },
     "whatsapp": "WhatsApp",
     "respondBy": "Respond by {date}",
-    "awaitingPayment": "Awaiting guest payment"
+    "awaitingPayment": "Awaiting guest payment",
+    "paymentLapsed": "Payment window lapsed",
+    "filter": {
+      "searchLabel": "Search",
+      "searchPlaceholder": "Guest name or reference",
+      "experienceLabel": "Experience",
+      "allExperiences": "All experiences",
+      "apply": "Filter",
+      "clear": "Clear"
+    },
+    "pagination": {
+      "pageOf": "Page {page} of {pages}",
+      "prev": "Previous",
+      "next": "Next"
+    },
+    "countdown": {
+      "left": "{hours}h {minutes}m left",
+      "minutesLeft": "{minutes}m left",
+      "expired": "Response window passed"
+    }
   },
   "hostEarnings": {
     "eyebrow": "Earnings",
@@ -987,6 +1141,26 @@
       "export": "Download CSV",
       "gross": "Guest paid <amount></amount>",
       "commission": "Gharmish commission {pct, number}% · <amount></amount>"
+    },
+    "filter": {
+      "presets": {
+        "all": "All time",
+        "month": "This month",
+        "d30": "Last 30 days",
+        "d90": "Last 90 days"
+      },
+      "from": "From",
+      "to": "To",
+      "apply": "Apply"
+    },
+    "breakdown": {
+      "title": "By experience",
+      "empty": "No completed bookings in this range.",
+      "bookings": "{count, plural, one {# booking} other {# bookings}}"
+    },
+    "monthly": {
+      "title": "By month",
+      "empty": "No completed bookings in this range."
     }
   },
   "hostReviews": {
@@ -1027,7 +1201,9 @@
     "edit": {
       "back": "Back to your dashboard",
       "formHeading": "Edit",
-      "liveEditWarning": "Heads up — this listing is live. Saving any changes will pull it off the catalog until we re-approve the updated version."
+      "liveEditWarning": "Heads up — this listing is live. Saving any changes will pull it off the catalog until we re-approve the updated version.",
+      "backToList": "Back to your experiences",
+      "preview": "Preview your listing"
     },
     "photo": {
       "heading": "Hero photo",
@@ -1185,14 +1361,20 @@
           "policyLong": "Cancellation policy is too long — keep it under 1000 characters.",
           "required": "Check this field.",
           "timeInvalid": "Enter a time like 16:30.",
-          "coordsInvalid": "Enter valid map coordinates."
+          "coordsInvalid": "Enter valid coordinates inside Saudi Arabia.",
+          "groupInvalid": "Group size must be between 1 and 50.",
+          "ageInvalid": "Minimum age must be between 0 and 99."
         }
       },
       "startTimeLabel": "Start time",
       "startTimeHint": "Local start time of every occurrence. Guests see it before booking and on their ticket.",
       "latLabel": "Latitude",
       "lngLabel": "Longitude",
-      "coordsHint": "Meeting-point coordinates — long-press the spot in Google Maps and copy the two numbers. They drive the map on your listing."
+      "coordsHint": "Meeting-point coordinates — long-press the spot in Google Maps and copy the two numbers. They drive the map on your listing.",
+      "coordsPasteLabel": "Paste a Google Maps link or coordinates",
+      "coordsPastePlaceholder": "https://maps.google.com/… or 18.2164, 42.5053",
+      "coordsPasteInvalid": "Couldn't find coordinates in that — paste a maps link or a “lat, lng” pair.",
+      "coordsPreviewTitle": "Meeting-point preview"
     },
     "moments": {
       "heading": "Experience timeline",
@@ -1214,6 +1396,28 @@
       "deleteConfirm": "Delete this moment? This can't be undone.",
       "fieldInvalid": "Check the highlighted fields — title 2–120 characters, description 2–2000.",
       "error": "Something went wrong on our side. Try again."
+    },
+    "index": {
+      "eyebrow": "Listings",
+      "title": "Your experiences",
+      "intro": "Everything you host, in one place — drafts, listings in review, and what's live in the catalog."
+    },
+    "gallery": {
+      "heading": "Gallery",
+      "description": "Photos shown after the hero on your listing. Aim for at least five — the listing page's photo mosaic only appears from five photos. Natural light, real Asiri colours — no stock.",
+      "imageAlt": "Gallery photo",
+      "choose": "Choose a photo",
+      "hint": "JPG, PNG, WebP or AVIF · up to 5MB",
+      "add": "Add to gallery",
+      "adding": "Uploading",
+      "remove": "Remove photo",
+      "removing": "Removing",
+      "removeConfirm": "Remove this photo from the gallery?",
+      "empty": "No gallery photos yet.",
+      "invalidType": "That file type is not supported.",
+      "tooLarge": "That photo is over 5MB.",
+      "lockedLive": "The gallery of a reviewed listing is locked — pause and edit to change it.",
+      "error": "Something went wrong. Try again."
     }
   },
   "experiencesIndex": {
@@ -1277,11 +1481,28 @@
     "hostsTitle": "Meet the people behind the experiences.",
     "hostsIntro": "Vetted local partners — farmers, guides, artisans, and licensed operators — co-creating every Gharmish experience.",
     "hostsView": "View profile",
+    "whyGharmish": {
+      "eyebrow": "Why Gharmish",
+      "title": "Curation is the difference.",
+      "rootedTitle": "Rooted in Asir",
+      "rootedBody": "Every experience ties to the region's culture, landscape, or community. Nothing generic, nothing imported.",
+      "hostedTitle": "Hosted, not listed",
+      "hostedBody": "We co-create each experience with vetted local partners, and back them with photography, training, and insurance.",
+      "qualityTitle": "Quality over quantity",
+      "qualityBody": "A small, deliberate catalogue. We would rather offer fewer experiences that are worth the journey."
+    },
     "socialProof": {
       "eyebrow": "From our guests",
       "title": "Real words from recent experiences.",
       "ratingLabel": "Rated {rating} out of 5"
-    }
+    },
+    "hostCta": {
+      "eyebrow": "Host with Gharmish",
+      "title": "Know Asir like nobody else?",
+      "body": "We partner with a small circle of local hosts — with photography, training, insurance, and guests who value the real thing.",
+      "cta": "Apply to host"
+    },
+    "heroImageAlt": "Morning mist over the juniper mountains of Asir"
   },
   "experience": {
     "originals": "Originals",
@@ -1289,7 +1510,10 @@
     "perPerson": "/ person",
     "hours": "hr",
     "requestMode": "Request to book",
-    "newBadge": "New"
+    "newBadge": "New",
+    "photoPrev": "Previous photo",
+    "photoNext": "Next photo",
+    "photoGoTo": "Go to photo {n}"
   },
   "experienceDetail": {
     "back": "Back to experiences",
@@ -1298,7 +1522,8 @@
       "count": "photos",
       "close": "Close",
       "prev": "Previous photo",
-      "next": "Next photo"
+      "next": "Next photo",
+      "goTo": "Go to photo {n}"
     },
     "about": "About this experience",
     "timeline": "The timeline",
@@ -1308,6 +1533,14 @@
     "hostedBy": "Hosted by",
     "groupSizeUpTo": "Up to {count} guests",
     "minAge": "Minimum age {age}",
+    "highlights": {
+      "heading": "At a glance",
+      "duration": "Duration",
+      "starts": "Starts",
+      "group": "Group size",
+      "groupValue": "Up to {count}",
+      "age": "Min age"
+    },
     "requestToBook": "Request to book",
     "translationPending": "Translation pending.",
     "instantBadge": "Instant Book — confirmed right away",
@@ -1321,7 +1554,11 @@
     },
     "startsAt": "Starts at {time}",
     "cancellationPolicyLine": "Free cancellation up to {hours} hours before the start — you get a full refund. Closer than that, the payment is non-refundable. You can cancel any time from your booking page.",
-    "cancellationPolicyNone": "You can cancel any time before the start from your booking page."
+    "cancellationPolicyNone": "You can cancel any time before the start from your booking page.",
+    "preview": {
+      "banner": "Preview — this is how your listing looks to guests. Only you (and the review team) can see this page until it's live.",
+      "bookingDisabled": "Booking opens once your listing is live."
+    }
   },
   "availabilityCalendar": {
     "heading": "Availability calendar",
@@ -1404,7 +1641,7 @@
     "nextStep2": "Once confirmed, we share a secure payment link to complete the booking.",
     "nextStep3": "Once confirmed, your booking page has everything — meeting point, what to bring, and a WhatsApp line to your host.",
     "nextStepConfirmed1": "Your booking is confirmed — no further action needed now.",
-    "nextStepConfirmed2": "Save your reference; you'll need it for any changes.",
+    "nextStepConfirmed2": "Your reference is on this page and your e-ticket — quote it if you ever need a change or help.",
     "nextStepConfirmed3": "Your booking page has the meeting point, what to bring, and a WhatsApp line to your host — check it before you go.",
     "backToExperience": "Back to the experience",
     "keepExploring": "Keep exploring",
@@ -1614,17 +1851,22 @@
     "eyebrow": "Host",
     "backToExperiences": "Back to experiences",
     "languages": "Languages spoken",
+    "hostingSinceLabel": "Hosting since",
     "experiencesHeading": "Experiences hosted by {name}",
     "experiencesCount": "{count, plural, =0 {No experiences yet} =1 {1 experience} other {# experiences}}",
     "noExperiences": "No experiences are live for this host yet.",
-    "ratingCount": "· {count, plural, one {# review} other {# reviews}}"
+    "ratingCount": "· {count, plural, one {# review} other {# reviews}}",
+    "reviews": {
+      "eyebrow": "Reviews",
+      "title": "What guests are saying"
+    }
   },
   "reviews": {
     "eyebrow": "From guests",
     "heading": "Reviews",
     "noReviews": "No reviews yet — be the first to share this experience.",
     "outOf": "of {max}",
-    "basedOn": "Based on {count} reviews",
+    "basedOn": "{n, plural, one {Based on {count} review} other {Based on {count} reviews}}",
     "ratingLabel": "Rated {rating} out of 5",
     "hostReply": "Reply from the host",
     "moreHidden": "{count, plural, =1 {1 more review not shown} other {# more reviews not shown}}",
@@ -1661,6 +1903,8 @@
     "emptyTitle": "Start exploring.",
     "emptyDescription": "Save experiences with the heart icon, or send a booking request from any experience page. We'll keep track here.",
     "emptyCta": "Browse experiences",
+    "bookingsEyebrow": "Your trips",
+    "bookingsTitle": "All your bookings",
     "lastBookingEyebrow": "Last request",
     "lastBookingFallbackTitle": "Your booking request",
     "referenceLabel": "Reference",
@@ -1901,5 +2145,18 @@
     "rejectedIntro": "We couldn't approve your application this time. The reviewer left a note explaining why on your application page — you can revise and resubmit anytime: {url}",
     "rejectedClosing": "Thank you for your interest in hosting with Gharmish. — The Gharmish team",
     "footer": "Gharmish — experiences hosted by the people who know Asir best."
+  },
+  "common": {
+    "close": "Close",
+    "cancel": "Cancel",
+    "confirm": "Confirm"
+  },
+  "reviewEmail": {
+    "repliedSubject": "The host replied to your review",
+    "greeting": "Hi {name},",
+    "repliedIntro": "The host of {experience} replied to your review. Read it on the experience page: {url}",
+    "replyLabel": "Their reply",
+    "repliedClosing": "Thank you for sharing your experience — it helps other travellers and the hosts alike.",
+    "footer": "Gharmish · Experiences hosted by the people who know Asir best"
   }
 }

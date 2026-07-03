@@ -1,3 +1,4 @@
+import { cache } from 'react';
 import { eq } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import { serverEnv } from '@/lib/env';
@@ -35,6 +36,7 @@ function toProfile(row: Host): HostDashboardData['host'] {
     languages: row.languages,
     verificationStatus: row.verificationStatus,
     photoUrl: row.photoUrl,
+    joinedAt: row.createdAt.toISOString(),
   };
 }
 
@@ -64,20 +66,26 @@ export async function currentUserIsHost(): Promise<boolean> {
  * Resolve the dashboard payload for the current request, or `null` if
  * the caller isn't signed in / isn't a host yet / the DB isn't wired.
  * Page-level code decides where to send the user in each case.
+ *
+ * Wrapped in React `cache()`: the host layout gates on this and the pages
+ * re-read it for host data (defence in depth), so per-request memoisation
+ * keeps that at one query instead of two.
  */
-export async function getHostDashboard(): Promise<HostDashboardData | null> {
-  const user = await getCurrentUser();
-  if (!user) return null;
-  if (!serverEnv.DATABASE_URL) return null;
+export const getHostDashboard = cache(
+  async function getHostDashboard(): Promise<HostDashboardData | null> {
+    const user = await getCurrentUser();
+    if (!user) return null;
+    if (!serverEnv.DATABASE_URL) return null;
 
-  try {
-    const row = await db.query.hosts.findFirst({
-      where: (h) => eq(h.userId, user.id),
-    });
-    if (!row) return null;
-    return { host: toProfile(row) };
-  } catch (error) {
-    reportError(error, { surface: 'host-dashboard:get', userId: user.id });
-    return null;
-  }
-}
+    try {
+      const row = await db.query.hosts.findFirst({
+        where: (h) => eq(h.userId, user.id),
+      });
+      if (!row) return null;
+      return { host: toProfile(row) };
+    } catch (error) {
+      reportError(error, { surface: 'host-dashboard:get', userId: user.id });
+      return null;
+    }
+  },
+);
