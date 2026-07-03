@@ -63,7 +63,10 @@ export default function middleware(req: NextRequest) {
     if (pathRequiresAuth(rest) && !hasSession(req)) {
       const url = req.nextUrl.clone();
       url.pathname = `/${locale}/sign-in`;
-      url.search = `?next=${encodeURIComponent(`/${locale}${rest}`)}`;
+      // `next` is locale-LESS by convention: every consumer re-localises
+      // via `redirect({ href: next, locale })`. Carrying the prefix here
+      // double-prefixed the post-sign-in redirect (`/en/en/host` → 404).
+      url.search = `?next=${encodeURIComponent(rest)}`;
       return NextResponse.redirect(url, 307);
     }
   }
