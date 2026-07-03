@@ -62,6 +62,12 @@ const serverSchema = z.object({
   // `Authorization: Bearer <CRON_SECRET>`. Empty → the route rejects every
   // request (the job is inert until configured).
   CRON_SECRET: z.string().default(''),
+  // Supabase service-role key — SERVER ONLY, bypasses RLS. Used exclusively
+  // for storage writes inside ownership-checked server actions (the same
+  // trust model as the BYPASSRLS `gharmish_app` DB role): user-session
+  // tokens were rejected by storage RLS in production, so the action layer
+  // is the gatekeeper and storage is plumbing. Never expose to the client.
+  SUPABASE_SERVICE_ROLE_KEY: z.string().default(''),
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
 });
 
@@ -101,6 +107,7 @@ export const serverEnv = parse(
     RESEND_FROM: process.env.RESEND_FROM,
     ADMIN_ALERT_EMAIL: process.env.ADMIN_ALERT_EMAIL,
     CRON_SECRET: process.env.CRON_SECRET,
+    SUPABASE_SERVICE_ROLE_KEY: process.env.SUPABASE_SERVICE_ROLE_KEY,
     NODE_ENV: process.env.NODE_ENV,
   },
   'server',

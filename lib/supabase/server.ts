@@ -1,7 +1,7 @@
 import { cookies } from 'next/headers';
 import { createServerClient } from '@supabase/ssr';
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
-import { clientEnv, hasSupabaseAuth } from '@/lib/env';
+import { clientEnv, serverEnv, hasSupabaseAuth } from '@/lib/env';
 
 /**
  * Server-side Supabase client bound to the current request's cookies.
@@ -49,31 +49,40 @@ export async function getSupabaseServerClient(): Promise<SupabaseClient> {
 }
 
 /**
- * Storage client that acts AS THE SIGNED-IN USER.
+ * Storage client for writes made on behalf of a signed-in user.
  *
- * `getSupabaseServerClient()` attaches the session to auth/PostgREST
- * calls, but storage requests go out with the ANON key — every host
- * photo upload died against the bucket's authenticated-only RLS
- * (storage returned HTTP 400 with an RLS-violation body; verified
- * against production 2026-07-03). This helper reads the session from
- * the cookie-bound client and builds a throwaway client whose global
- * Authorization header carries the user's access token, so storage
- * RLS finally sees `auth.role() = 'authenticated'`.
+ * History (2026-07-03): `getSupabaseServerClient().storage` sends the
+ * ANON key, and even an explicitly-attached, freshly-refreshed user
+ * token was still rejected by storage RLS in production ("new row
+ * violates row-level security policy", HTTP 400) — while the same
+ * insert passes as `authenticated` in a SQL probe and a service-role
+ * upload succeeds. So storage writes use the SERVICE-ROLE key, and the
+ * calling server action is the gatekeeper (ownership + status checks) —
+ * the same trust model as the BYPASSRLS `gharmish_app` database role.
  *
- * Returns null when there is no session — callers treat that as
- * forbidden. Always use this (never `getSupabaseServerClient().storage`)
- * for storage writes on behalf of a user.
+ * The signed-in-user gate stays: no session, no storage client, so this
+ * can never be reached anonymously even if an action forgets its own
+ * guard. Falls back to the user-token client when no service key is
+ * configured (dev environments).
  */
 export async function getSupabaseUserStorage(): Promise<SupabaseClient['storage'] | null> {
   const supabase = await getSupabaseServerClient();
-  // getUser() first: unlike getSession(), it validates against the auth
-  // server and refreshes an expired access token (persisted through the
-  // cookie adapter — server actions may write cookies). Without this a
-  // stale token from a long-open tab reaches storage and is rejected.
+  // getUser() validates against the auth server (and refreshes a stale
+  // access token) — presence of a real user is the entry ticket.
   const {
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) return null;
+
+  const serviceKey = serverEnv.SUPABASE_SERVICE_ROLE_KEY;
+  if (serviceKey) {
+    const admin = createClient(clientEnv.NEXT_PUBLIC_SUPABASE_URL, serviceKey, {
+      auth: { persistSession: false, autoRefreshToken: false },
+    });
+    return admin.storage;
+  }
+
+  // No service key (dev) — best effort with the user's own token.
   const {
     data: { session },
   } = await supabase.auth.getSession();
