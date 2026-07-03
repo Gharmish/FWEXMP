@@ -5,8 +5,8 @@ import type { Locale } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
 import { getCurrentUser } from '@/features/auth/queries';
 import { getHostDashboard } from '@/features/host-dashboard/queries';
-import { ExperienceForm } from '@/app/[locale]/host/experiences/[id]/experience-form';
-import { buildExperienceFormCopy } from '@/app/[locale]/host/experiences/[id]/build-form-copy';
+import { ExperienceForm } from '@/app/[locale]/host/(dashboard)/experiences/[id]/experience-form';
+import { buildExperienceFormCopy } from '@/app/[locale]/host/(dashboard)/experiences/[id]/build-form-copy';
 
 export async function generateMetadata({
   params,
@@ -50,7 +50,7 @@ export default async function NewExperiencePage({
 
   return (
     <div className="flex flex-col">
-      <section className="mx-auto w-full max-w-3xl px-6 py-20 sm:py-24">
+      <section className="mx-auto w-full max-w-3xl">
         <div className="flex flex-col gap-4">
           <p className={eyebrowClassName}>{t('new.eyebrow')}</p>
           <h1 className="font-display text-4xl font-semibold tracking-[-0.035em] text-balance sm:text-5xl">

@@ -35,6 +35,8 @@ export interface GalleryState {
     | 'invalid_type'
     | 'too_large'
     | 'upload_failed'
+    // Host surface only — a reviewed listing's gallery is locked there.
+    | 'locked_live'
     | 'server';
 }
 

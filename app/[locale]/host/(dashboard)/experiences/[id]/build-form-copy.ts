@@ -1,5 +1,5 @@
 import type { getTranslations } from 'next-intl/server';
-import type { ExperienceFormCopy } from '@/app/[locale]/host/experiences/[id]/experience-form';
+import type { ExperienceFormCopy } from '@/app/[locale]/host/(dashboard)/experiences/[id]/experience-form';
 
 /**
  * Build the form's `copy` payload from the `hostExperiences.form`
@@ -35,6 +35,10 @@ export function buildExperienceFormCopy(t: Translator): ExperienceFormCopy {
     latLabel: t('latLabel'),
     lngLabel: t('lngLabel'),
     coordsHint: t('coordsHint'),
+    coordsPasteLabel: t('coordsPasteLabel'),
+    coordsPastePlaceholder: t('coordsPastePlaceholder'),
+    coordsPasteInvalid: t('coordsPasteInvalid'),
+    coordsPreviewTitle: t('coordsPreviewTitle'),
     cityLabel: t('cityLabel'),
     regionLabel: t('regionLabel'),
     inclusionsLabel: t('inclusionsLabel'),
@@ -88,6 +92,8 @@ export function buildExperienceFormCopy(t: Translator): ExperienceFormCopy {
         policyLong: t('errors.fields.policyLong'),
         timeInvalid: t('errors.fields.timeInvalid'),
         coordsInvalid: t('errors.fields.coordsInvalid'),
+        groupInvalid: t('errors.fields.groupInvalid'),
+        ageInvalid: t('errors.fields.ageInvalid'),
         required: t('errors.fields.required'),
       },
     },

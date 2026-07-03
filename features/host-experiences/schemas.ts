@@ -47,8 +47,8 @@ export const hostExperienceInputSchema = z.object({
     .int()
     .min(30, 'duration_short')
     .max(60 * 24, 'duration_long'),
-  maxGroupSize: z.coerce.number().int().min(1).max(50),
-  minAge: z.coerce.number().int().min(0).max(99),
+  maxGroupSize: z.coerce.number().int().min(1, 'group_invalid').max(50, 'group_invalid'),
+  minAge: z.coerce.number().int().min(0, 'age_invalid').max(99, 'age_invalid'),
   priceSar: z.coerce.number().int().min(0, 'price_negative').max(50000, 'price_too_high'),
   placeName: z.string().trim().min(2).max(120),
   city: z.string().trim().min(2).max(80).default('Abha'),
@@ -66,10 +66,12 @@ export const hostExperienceInputSchema = z.object({
   /**
    * Meeting-point coordinates. Host-entered (paste from Google/Apple
    * Maps) until an interactive picker lands — without them every map
-   * pin sat at Abha city centre.
+   * pin sat at Abha city centre. Bounded to Saudi Arabia (lat 16–33,
+   * lng 34–56, generous box) — a swapped lat/lng or a paste from the
+   * wrong tab otherwise dropped the pin in the ocean.
    */
-  lat: z.coerce.number().min(-90, 'coords_invalid').max(90, 'coords_invalid'),
-  lng: z.coerce.number().min(-180, 'coords_invalid').max(180, 'coords_invalid'),
+  lat: z.coerce.number().min(16, 'coords_invalid').max(33, 'coords_invalid'),
+  lng: z.coerce.number().min(34, 'coords_invalid').max(56, 'coords_invalid'),
   locale: z.enum(['en', 'ar']),
 });
 

@@ -1,11 +1,12 @@
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, Eye } from 'lucide-react';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { ScheduleCalendarSection } from '@/features/availability/components/schedule-calendar-section';
 import { redirect, Link } from '@/lib/i18n';
 import type { Locale } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
+import { pickLocalized } from '@/lib/ar-placeholder';
 import { Badge } from '@/components/ui/badge';
 import { getCurrentUser } from '@/features/auth/queries';
 import { getHostDashboard } from '@/features/host-dashboard/queries';
@@ -23,10 +24,15 @@ import {
   type MomentsCopy,
 } from '@/app/[locale]/admin/experiences/[id]/moments/moments-editor';
 import { getLatestModerationDecision } from '@/features/admin/experience-moderation/queries';
-import { ExperienceForm } from '@/app/[locale]/host/experiences/[id]/experience-form';
-import { buildExperienceFormCopy } from '@/app/[locale]/host/experiences/[id]/build-form-copy';
-import { LifecycleActions } from '@/app/[locale]/host/experiences/[id]/lifecycle-actions';
+import { ExperienceForm } from '@/app/[locale]/host/(dashboard)/experiences/[id]/experience-form';
+import { buildExperienceFormCopy } from '@/app/[locale]/host/(dashboard)/experiences/[id]/build-form-copy';
+import { LifecycleActions } from '@/app/[locale]/host/(dashboard)/experiences/[id]/lifecycle-actions';
 import { PhotoUpload } from '@/features/host-experiences/components/photo-upload';
+import { GalleryManager } from '@/app/[locale]/admin/experiences/[id]/edit/gallery-manager';
+import {
+  uploadGalleryImageAsHost,
+  removeGalleryImageAsHost,
+} from '@/features/host-experiences/photo-actions';
 import { uploadExperienceHero } from '@/features/host-experiences/photo-actions';
 import { formatDate } from '@/lib/format';
 
@@ -134,13 +140,13 @@ export default async function EditExperiencePage({
 
   return (
     <div className="flex flex-col">
-      <section className="mx-auto w-full max-w-3xl px-6 py-16 sm:py-20">
+      <section className="mx-auto w-full max-w-3xl">
         <Link
-          href="/host"
+          href="/host/experiences"
           className="text-sarat-black-600 inline-flex min-h-11 items-center gap-2 self-start text-sm font-medium transition-opacity duration-200 hover:opacity-60"
         >
           <ArrowLeft className="size-4 shrink-0 rtl:rotate-180" aria-hidden />
-          {t('edit.back')}
+          {t('edit.backToList')}
         </Link>
 
         <div className="mt-6 flex flex-wrap items-center gap-3">
@@ -151,11 +157,20 @@ export default async function EditExperiencePage({
         </div>
 
         <h1 className="font-display mt-2 text-4xl font-semibold tracking-[-0.035em] text-balance sm:text-5xl">
-          {experience.titleEn}
+          {pickLocalized(loc, experience.titleEn, experience.titleAr)}
         </h1>
         <p className="text-sarat-black-600 mt-2 text-sm" dir="ltr">
           /experiences/{experience.slug}
         </p>
+        {/* Owner-gated render of the real public page — see it before
+            (or after) the reviewers do. */}
+        <Link
+          href={`/experiences/${experience.slug}?preview=1`}
+          className="text-sarat-black mt-3 inline-flex min-h-11 items-center gap-2 self-start text-sm font-medium underline-offset-4 hover:underline"
+        >
+          <Eye className="size-4 shrink-0" aria-hidden />
+          {t('edit.preview')}
+        </Link>
 
         {hostSuspended && (
           <section
@@ -254,6 +269,34 @@ export default async function EditExperiencePage({
                 locked_live: t('photo.errors.lockedLive'),
                 server: t('photo.errors.server'),
               },
+            }}
+          />
+        </div>
+
+        {/* Gallery — the public detail mosaic wants 5+ photos; hosts were
+            hero-only until this section. Same lock rules as the hero. */}
+        <div className="border-sarat-black/8 mt-10 [border-top-width:0.5px] pt-10">
+          <GalleryManager
+            experienceId={experience.id}
+            images={experience.images}
+            uploadAction={uploadGalleryImageAsHost}
+            removeAction={removeGalleryImageAsHost}
+            copy={{
+              heading: t('gallery.heading'),
+              description: t('gallery.description'),
+              imageAlt: t('gallery.imageAlt'),
+              choose: t('gallery.choose'),
+              hint: t('gallery.hint'),
+              add: t('gallery.add'),
+              adding: t('gallery.adding'),
+              remove: t('gallery.remove'),
+              removing: t('gallery.removing'),
+              removeConfirm: t('gallery.removeConfirm'),
+              empty: t('gallery.empty'),
+              invalidType: t('gallery.invalidType'),
+              tooLarge: t('gallery.tooLarge'),
+              lockedLive: t('gallery.lockedLive'),
+              error: t('gallery.error'),
             }}
           />
         </div>

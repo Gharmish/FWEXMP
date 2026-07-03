@@ -17,6 +17,8 @@ import {
 } from '@/features/experiences/lib/search';
 import { getRatingsBySlug } from '@/features/reviews/queries';
 import type { ReviewAggregate } from '@/features/reviews/types';
+import { getCurrentUser } from '@/features/auth/queries';
+import { isAdminUser } from '@/features/admin/auth';
 
 /**
  * Experience data access. These are the swap-in replacements for the
@@ -74,6 +76,7 @@ function toSummary(
     ratingAverage: agg?.average ?? null,
     ratingCount: agg?.count ?? 0,
     heroImage: row.heroImage,
+    images: row.images,
     isNew: isNewListing(row.createdAt, agg?.count ?? 0),
   };
 }
@@ -156,6 +159,36 @@ export async function getExperienceBySlug(slug: string): Promise<ExperienceDetai
     getRatingsBySlug(),
   ]);
   return row ? toDetail(row, ratings) : undefined;
+}
+
+/**
+ * Any-status detail read for the owner's pre-publish preview
+ * (`/experiences/[slug]?preview=1`). Gated hard: only the listing's own
+ * host (via `hosts.userId`) or an admin gets a row back — everyone else
+ * sees the same `undefined` a missing slug produces, so drafts stay
+ * invisible and slugs can't be probed.
+ */
+export async function getExperienceBySlugForOwnerPreview(
+  slug: string,
+): Promise<ExperienceDetail | undefined> {
+  if (!hasDb()) return undefined;
+  const user = await getCurrentUser();
+  if (!user) return undefined;
+  try {
+    const [row, ratings] = await Promise.all([
+      db.query.experiences.findFirst({
+        where: (e) => eq(e.slug, slug),
+        with: { host: true, moments: true },
+      }),
+      getRatingsBySlug(),
+    ]);
+    if (!row) return undefined;
+    if (!isAdminUser(user) && row.host.userId !== user.id) return undefined;
+    return toDetail(row, ratings);
+  } catch (error) {
+    reportError(error, { surface: 'experiences:ownerPreview', slug });
+    return undefined;
+  }
 }
 
 /**

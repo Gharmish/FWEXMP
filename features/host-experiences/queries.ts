@@ -41,6 +41,8 @@ export interface HostExperienceRow {
   status: (typeof experiences.$inferSelect)['status'];
   featured: boolean;
   heroImage: string | null;
+  /** Gallery URLs (after the hero) — the public mosaic wants 5+. */
+  images: string[];
   createdAt: string;
   updatedAt: string;
 }
@@ -71,6 +73,7 @@ function rowToView(row: typeof experiences.$inferSelect): HostExperienceRow {
     status: row.status,
     featured: row.featured,
     heroImage: row.heroImage,
+    images: [...row.images],
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
   };

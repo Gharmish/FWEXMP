@@ -10,6 +10,10 @@ import { BOOKING_MODES, EXPERIENCE_STATUSES } from '@/features/admin/experiences
 import { EXPERIENCE_CATEGORIES } from '@/features/host-experiences/schemas';
 import { AdminExperienceForm } from '@/app/[locale]/admin/experiences/[id]/edit/admin-experience-form';
 import { GalleryManager } from '@/app/[locale]/admin/experiences/[id]/edit/gallery-manager';
+import {
+  uploadGalleryImage,
+  removeGalleryImage,
+} from '@/features/admin/experiences/gallery-actions';
 import { ScheduleCalendarSection } from '@/features/availability/components/schedule-calendar-section';
 
 export async function generateMetadata({
@@ -154,7 +158,13 @@ export default async function AdminExperienceEditPage({
         </Link>
       </div>
 
-      <GalleryManager experienceId={experience.id} images={experience.images} copy={galleryCopy} />
+      <GalleryManager
+        experienceId={experience.id}
+        images={experience.images}
+        copy={galleryCopy}
+        uploadAction={uploadGalleryImage}
+        removeAction={removeGalleryImage}
+      />
 
       <ScheduleCalendarSection
         experienceId={experience.id}

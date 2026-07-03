@@ -4,6 +4,7 @@ import { useActionState, useId } from 'react';
 import { useFormStatus } from 'react-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { LocationPicker } from '@/features/host-experiences/components/location-picker';
 import { RiyalSymbol } from '@/components/ui/riyal-symbol';
 import { cn } from '@/lib/utils';
 import type { Locale } from '@/lib/i18n';
@@ -40,6 +41,8 @@ type FieldErrorCode =
   | 'policy_long'
   | 'time_invalid'
   | 'coords_invalid'
+  | 'group_invalid'
+  | 'age_invalid'
   | 'required';
 
 const FIELD_ERROR_KEY: Record<FieldErrorCode, keyof ExperienceFormCopy['errors']['fields']> = {
@@ -55,6 +58,8 @@ const FIELD_ERROR_KEY: Record<FieldErrorCode, keyof ExperienceFormCopy['errors']
   policy_long: 'policyLong',
   time_invalid: 'timeInvalid',
   coords_invalid: 'coordsInvalid',
+  group_invalid: 'groupInvalid',
+  age_invalid: 'ageInvalid',
   required: 'required',
 };
 
@@ -93,6 +98,10 @@ export interface ExperienceFormCopy {
   latLabel: string;
   lngLabel: string;
   coordsHint: string;
+  coordsPasteLabel: string;
+  coordsPastePlaceholder: string;
+  coordsPasteInvalid: string;
+  coordsPreviewTitle: string;
   cityLabel: string;
   regionLabel: string;
   inclusionsLabel: string;
@@ -133,6 +142,8 @@ export interface ExperienceFormCopy {
       policyLong: string;
       timeInvalid: string;
       coordsInvalid: string;
+      groupInvalid: string;
+      ageInvalid: string;
       required: string;
     };
   };
@@ -415,47 +426,23 @@ export function ExperienceForm({ mode, locale, copy, experience }: ExperienceFor
           <Input id="ex-region" name="region" defaultValue={experience?.region ?? 'Asir'} />
         </div>
 
-        <div className="flex flex-col gap-2">
-          <label htmlFor="ex-lat" className="text-sm font-medium">
-            {copy.latLabel}
-          </label>
-          <Input
-            id="ex-lat"
-            name="lat"
-            type="number"
-            step="any"
-            min={-90}
-            max={90}
-            required
-            dir="ltr"
-            defaultValue={experience?.lat ?? 18.2164}
-            aria-invalid={fields.lat ? 'true' : undefined}
-            aria-describedby={fields.lat ? eid('lat') : undefined}
-          />
-          <FieldError id={eid('lat')} message={fieldErrorMessage(fields.lat, copy)} />
-        </div>
-
-        <div className="flex flex-col gap-2">
-          <label htmlFor="ex-lng" className="text-sm font-medium">
-            {copy.lngLabel}
-          </label>
-          <Input
-            id="ex-lng"
-            name="lng"
-            type="number"
-            step="any"
-            min={-180}
-            max={180}
-            required
-            dir="ltr"
-            defaultValue={experience?.lng ?? 42.5053}
-            aria-invalid={fields.lng ? 'true' : undefined}
-            aria-describedby={fields.lng ? eid('lng') : undefined}
-          />
-          <FieldError id={eid('lng')} message={fieldErrorMessage(fields.lng, copy)} />
-        </div>
-
-        <p className="text-sarat-black-600 -mt-2 text-sm sm:col-span-2">{copy.coordsHint}</p>
+        <LocationPicker
+          defaultLat={experience?.lat ?? 18.2164}
+          defaultLng={experience?.lng ?? 42.5053}
+          latError={fieldErrorMessage(fields.lat, copy)}
+          lngError={fieldErrorMessage(fields.lng, copy)}
+          latErrorId={eid('lat')}
+          lngErrorId={eid('lng')}
+          copy={{
+            latLabel: copy.latLabel,
+            lngLabel: copy.lngLabel,
+            coordsHint: copy.coordsHint,
+            pasteLabel: copy.coordsPasteLabel,
+            pastePlaceholder: copy.coordsPastePlaceholder,
+            pasteInvalid: copy.coordsPasteInvalid,
+            previewTitle: copy.coordsPreviewTitle,
+          }}
+        />
       </fieldset>
 
       {/* ----- Inclusions / what-to-bring ----- */}
@@ -524,7 +511,8 @@ export function ExperienceForm({ mode, locale, copy, experience }: ExperienceFor
 
       {/* ----- Availability ----- */}
       <fieldset className="border-sarat-black/8 flex flex-col gap-3 [border-top-width:0.5px] pt-10">
-        <legend className="text-sm font-medium">{copy.weekdaysLabel}</legend>
+        <legend className="sr-only">{copy.sectionAvailability}</legend>
+        <p className="text-sm font-medium">{copy.weekdaysLabel}</p>
         <div className="flex flex-wrap gap-2">
           {copy.weekdays.map((day, idx) => {
             const checked = weekdaysDefault.has(idx);

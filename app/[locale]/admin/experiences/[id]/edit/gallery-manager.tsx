@@ -6,12 +6,12 @@ import Image from 'next/image';
 import { ImageUp, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
-import {
-  uploadGalleryImage,
-  removeGalleryImage,
-  type GalleryState,
-} from '@/features/admin/experiences/gallery-actions';
+import { ConfirmSubmit } from '@/components/ui/confirm-dialog';
+import type { GalleryState } from '@/features/admin/experiences/gallery-actions';
 import { ACCEPTED_PHOTO_ATTR, validatePhoto } from '@/features/host-experiences/lib/photo';
+
+/** A gallery mutation as `useActionState` consumes it. */
+export type GalleryAction = (previous: GalleryState, formData: FormData) => Promise<GalleryState>;
 
 export interface GalleryManagerCopy {
   heading: string;
@@ -27,6 +27,8 @@ export interface GalleryManagerCopy {
   empty: string;
   invalidType: string;
   tooLarge: string;
+  /** Shown for `locked_live` (host surface only — admins are never locked). */
+  lockedLive?: string;
   error: string;
 }
 
@@ -53,26 +55,35 @@ function RemoveButton({
   experienceId,
   url,
   copy,
+  removeAction,
 }: {
   experienceId: string;
   url: string;
   copy: GalleryManagerCopy;
+  removeAction: GalleryAction;
 }) {
-  const [, action] = useActionState(removeGalleryImage, initialState);
+  const [, action] = useActionState(removeAction, initialState);
   return (
     <form action={action} className="absolute end-2 top-2">
       <input type="hidden" name="experienceId" value={experienceId} />
       <input type="hidden" name="url" value={url} />
-      <button
-        type="submit"
-        aria-label={copy.remove}
-        onClick={(e) => {
-          if (!window.confirm(copy.removeConfirm)) e.preventDefault();
-        }}
-        className="bg-sarat-black/70 inline-flex size-7 items-center justify-center rounded-full text-white backdrop-blur transition-opacity duration-200 hover:opacity-80"
-      >
-        <X className="size-4" aria-hidden />
-      </button>
+      <ConfirmSubmit
+        title={copy.remove}
+        description={copy.removeConfirm}
+        confirmLabel={copy.remove}
+        pendingLabel={copy.removing}
+        destructive
+        trigger={(open) => (
+          <button
+            type="button"
+            aria-label={copy.remove}
+            onClick={open}
+            className="bg-sarat-black/70 inline-flex size-7 items-center justify-center rounded-full text-white backdrop-blur transition-opacity duration-200 hover:opacity-80"
+          >
+            <X className="size-4" aria-hidden />
+          </button>
+        )}
+      />
     </form>
   );
 }
@@ -81,12 +92,17 @@ export function GalleryManager({
   experienceId,
   images,
   copy,
+  uploadAction,
+  removeAction,
 }: {
   experienceId: string;
   images: string[];
   copy: GalleryManagerCopy;
+  /** Surface-scoped server actions — admin passes the admin pair, host the host pair. */
+  uploadAction: GalleryAction;
+  removeAction: GalleryAction;
 }) {
-  const [state, action] = useActionState(uploadGalleryImage, initialState);
+  const [state, action] = useActionState(uploadAction, initialState);
   const [clientError, setClientError] = useState<'invalidType' | 'tooLarge' | null>(null);
   const [fileName, setFileName] = useState<string | null>(null);
   const inputId = useId();
@@ -97,7 +113,9 @@ export function GalleryManager({
         ? copy.invalidType
         : state.message === 'too_large'
           ? copy.tooLarge
-          : copy.error
+          : state.message === 'locked_live'
+            ? (copy.lockedLive ?? copy.error)
+            : copy.error
       : undefined;
   const error = clientError
     ? clientError === 'invalidType'
@@ -122,7 +140,12 @@ export function GalleryManager({
               className="bg-sarat-black/5 rounded-image relative aspect-square overflow-hidden"
             >
               <Image src={url} alt={copy.imageAlt} fill sizes="200px" className="object-cover" />
-              <RemoveButton experienceId={experienceId} url={url} copy={copy} />
+              <RemoveButton
+                experienceId={experienceId}
+                url={url}
+                copy={copy}
+                removeAction={removeAction}
+              />
             </li>
           ))}
         </ul>
