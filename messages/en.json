@@ -1233,7 +1233,7 @@
         "notFound": "We couldn't find that listing.",
         "uploadFailed": "The upload didn't go through. Try again in a moment.",
         "server": "We couldn't save that photo. Try again in a moment.",
-        "lockedLive": "The photo of a published listing is part of what was approved. Pause and edit the listing — it will go through a quick re-review."
+        "lockedLive": "This listing is archived — its photos can't be changed."
       }
     },
     "suspendedHostBanner": "Your host account is suspended. You can still see and edit this listing, but submitting it for review is blocked until the team restores your account.",
@@ -1379,7 +1379,7 @@
     "moments": {
       "heading": "Experience timeline",
       "intro": "The moments of your experience, in order — what guests do from arrival to goodbye. Write in English; our team adds the Arabic.",
-      "lockedLive": "The timeline is locked while your listing is live or under review. Pause the listing (or submit an edit) to change it.",
+      "lockedLive": "The timeline is locked while your listing is under review — it will unlock as soon as the review is decided.",
       "timeOfDay": "Time of day (optional)",
       "titleEn": "Title",
       "descriptionEn": "What happens",
@@ -1416,7 +1416,7 @@
       "empty": "No gallery photos yet.",
       "invalidType": "That file type is not supported.",
       "tooLarge": "That photo is over 5MB.",
-      "lockedLive": "The gallery of a reviewed listing is locked — pause and edit to change it.",
+      "lockedLive": "This listing is archived — its gallery can't be changed.",
       "error": "Something went wrong. Try again."
     }
   },

@@ -90,14 +90,11 @@ export async function uploadExperienceHero(
       columns: { id: true, slug: true, status: true },
     });
     if (!experience) return { success: false, message: 'not_found' };
-    // The hero of a reviewed listing (live or paused) is part of what
-    // was approved — replacing it goes through an edit + re-review, not
-    // a silent swap. Drafts / changes-requested / in-review may iterate.
-    if (
-      experience.status === 'live' ||
-      experience.status === 'paused' ||
-      experience.status === 'archived'
-    ) {
+    // Owner decision 2026-07-03 ("photos free, details re-review"):
+    // photo changes on live/paused listings apply immediately — only
+    // the detail form re-enters review. Archived stays locked (a
+    // retired listing's content shouldn't change).
+    if (experience.status === 'archived') {
       return { success: false, message: 'locked_live' };
     }
 
@@ -136,21 +133,13 @@ export async function uploadExperienceHero(
 
 /**
  * Gallery photos, host-scoped. Same chassis as the admin gallery
- * actions (`features/admin/experiences/gallery-actions`) with two
- * differences: ownership is enforced (`hostId` on both the read and
- * the conditional UPDATE), and a reviewed listing (live / paused /
- * archived) is locked — gallery content on an approved listing changes
- * what was approved, so it goes through edit + re-review like the hero.
- * The public detail mosaic needs 5+ photos, which only these uploads
- * can provide — hosts were previously hero-only.
+ * actions (`features/admin/experiences/gallery-actions`), with
+ * ownership enforced (`hostId` on both the read and the conditional
+ * UPDATE). Owner decision 2026-07-03 ("photos free, details
+ * re-review"): gallery changes apply immediately on live/paused
+ * listings; only `archived` is locked. The public detail mosaic needs
+ * 5+ photos, which only these uploads can provide.
  */
-type LockableStatus = 'live' | 'paused' | 'archived';
-const GALLERY_LOCKED_STATUSES: readonly string[] = [
-  'live',
-  'paused',
-  'archived',
-] satisfies LockableStatus[];
-
 async function requireEditableForPhotos(
   experienceId: string,
 ): Promise<
@@ -165,7 +154,7 @@ async function requireEditableForPhotos(
     columns: { id: true, slug: true, status: true, images: true },
   });
   if (!experience) return { error: { success: false, message: 'not_found' } };
-  if (GALLERY_LOCKED_STATUSES.includes(experience.status)) {
+  if (experience.status === 'archived') {
     return { error: { success: false, message: 'locked_live' } };
   }
   return { experience, hostId };

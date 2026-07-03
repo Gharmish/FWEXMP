@@ -107,7 +107,9 @@ export default async function EditExperiencePage({
 
   // The timeline locks while the listing is public (live) or already in
   // the review queue — matching the server-side guard in moment-actions.
-  const momentsLocked = experience.status === 'live' || experience.status === 'pending_review';
+  // Owner decision 2026-07-03: timeline edits apply immediately on
+  // live/paused listings; only mid-review is locked.
+  const momentsLocked = experience.status === 'pending_review';
   const hostMomentActions: MomentActions = {
     add: addMomentAsHost,
     update: updateMomentAsHost,
@@ -311,7 +313,7 @@ export default async function EditExperiencePage({
           />
         </div>
 
-        {/* Timeline (moments) — editable while not live/pending review. */}
+        {/* Timeline (moments) — editable everywhere except mid-review. */}
         <div className="border-sarat-black/8 mt-10 [border-top-width:0.5px] pt-10">
           <h2 className={eyebrowClassName}>{t('moments.heading')}</h2>
           <p className="text-sarat-black-600 mt-2 max-w-2xl text-sm leading-relaxed">

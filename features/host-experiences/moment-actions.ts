@@ -4,6 +4,7 @@ import { asc, eq, sql } from 'drizzle-orm';
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 import { db } from '@/lib/db';
+import { AR_PLACEHOLDER } from '@/lib/ar-placeholder';
 import { serverEnv } from '@/lib/env';
 import { experiences, moments } from '@/db/schema';
 import { reportError } from '@/lib/log';
@@ -27,8 +28,6 @@ import type { MomentActionState } from '@/features/admin/experiences/moment-acti
  * Hosts write English; Arabic stays the TODO placeholder for the
  * translation pass (same convention as the experience form).
  */
-
-const AR_PLACEHOLDER = 'TODO(ar): pending translation';
 
 const hostMomentSchema = z.object({
   timeOfDay: z.string().trim().max(40).optional(),
@@ -70,14 +69,12 @@ async function requireEditableExperience(
     if (!experience || experience.hostId !== host.id) {
       return { error: { success: false, message: 'not_found' } };
     }
-    // Paused listings have passed review — content edits must re-enter
-    // the queue (pause → edit → republish was a moderation bypass), so
-    // the timeline locks outside draft / changes_requested.
-    if (
-      experience.status === 'live' ||
-      experience.status === 'paused' ||
-      experience.status === 'pending_review'
-    ) {
+    // Owner decision 2026-07-03 ("photos free, details re-review"):
+    // timeline edits on live/paused listings apply immediately — the
+    // re-review gate is for the detail form only. The one remaining
+    // lock is pending_review, so content can't shift under a reviewer
+    // mid-decision.
+    if (experience.status === 'pending_review') {
       return { error: { success: false, message: 'locked_live' } };
     }
     return { experience: { id: experience.id, status: experience.status } };
