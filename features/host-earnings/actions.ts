@@ -4,10 +4,11 @@ import { eq } from 'drizzle-orm';
 import { revalidatePath } from 'next/cache';
 import { db } from '@/lib/db';
 import { serverEnv } from '@/lib/env';
-import { hosts } from '@/db/schema';
+import { hosts, payoutIbanEvents } from '@/db/schema';
 import { reportError } from '@/lib/log';
 import { getCurrentUser } from '@/features/auth/queries';
 import { updatePayoutIbanSchema } from '@/features/host-earnings/schemas';
+import { maskIban } from '@/features/host-earnings/lib/iban';
 
 /**
  * Payout-method management. The IBAN is the only field a host edits
@@ -39,12 +40,27 @@ export async function updatePayoutIban(
   if (!parsed.success) return { success: false, message: 'validation' };
 
   try {
-    const updated = await db
-      .update(hosts)
-      .set({ payoutIban: parsed.data.iban })
-      .where(eq(hosts.userId, user.id))
-      .returning({ id: hosts.id });
-    if (updated.length === 0) return { success: false, message: 'forbidden' };
+    // Update + audit in one transaction so the trail can't drift from
+    // the write. The log stores masked values only — never a full IBAN.
+    const outcome = await db.transaction(async (tx) => {
+      const host = await tx.query.hosts.findFirst({
+        where: (h) => eq(h.userId, user.id),
+        columns: { id: true, payoutIban: true },
+      });
+      if (!host) return 'forbidden' as const;
+      await tx.update(hosts).set({ payoutIban: parsed.data.iban }).where(eq(hosts.id, host.id));
+      // No-op saves (same IBAN resubmitted) don't pollute the trail.
+      if (host.payoutIban !== parsed.data.iban) {
+        await tx.insert(payoutIbanEvents).values({
+          hostId: host.id,
+          actorUserId: user.id,
+          previousIbanMasked: maskIban(host.payoutIban),
+          newIbanMasked: maskIban(parsed.data.iban) ?? '',
+        });
+      }
+      return 'ok' as const;
+    });
+    if (outcome === 'forbidden') return { success: false, message: 'forbidden' };
   } catch (error) {
     reportError(error, { surface: 'host-earnings:updateIban' });
     return { success: false, message: 'server' };

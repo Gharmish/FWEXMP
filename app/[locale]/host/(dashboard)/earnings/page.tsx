@@ -1,10 +1,11 @@
 import type { Metadata } from 'next';
-import { ArrowLeft, Banknote } from 'lucide-react';
+import { Banknote } from 'lucide-react';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { redirect, Link } from '@/lib/i18n';
 import type { Locale } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
+import { buttonVariants } from '@/components/ui/button';
 import { EmptyState } from '@/components/ui/empty-state';
 import { Price } from '@/components/ui/price';
 import { formatDate } from '@/lib/format';
@@ -12,6 +13,7 @@ import { getCurrentUser } from '@/features/auth/queries';
 import { getHostDashboard } from '@/features/host-dashboard/queries';
 import { getHostEarnings } from '@/features/host-earnings/queries';
 import { PayoutMethodForm } from '@/features/host-earnings/components/payout-method-form';
+import { maskIban } from '@/features/host-earnings/lib/iban';
 
 export async function generateMetadata({
   params,
@@ -25,17 +27,25 @@ export async function generateMetadata({
   };
 }
 
-/** `SA•• •••• •••• •••• 1234` — enough to recognise, useless to copy. */
-function maskIban(iban: string | null): string | null {
-  if (!iban) return null;
-  const tail = iban.slice(-4);
-  return `SA${'•'.repeat(Math.max(0, iban.length - 6))}${tail}`;
+const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+
+function todayInRiyadh(): string {
+  return new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Riyadh' }).format(new Date());
+}
+
+/** `days`-wide window ending today (Riyadh), as a `from` date string. */
+function daysBack(todayStr: string, days: number): string {
+  const d = new Date(`${todayStr}T12:00:00Z`);
+  d.setUTCDate(d.getUTCDate() - (days - 1));
+  return d.toISOString().slice(0, 10);
 }
 
 export default async function HostEarningsPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ locale: string }>;
+  searchParams: Promise<{ from?: string; to?: string }>;
 }) {
   const { locale } = await params;
   setRequestLocale(locale);
@@ -50,7 +60,32 @@ export default async function HostEarningsPage({
     redirect({ href: '/host/apply', locale: loc });
   }
 
-  const [t, earnings] = await Promise.all([getTranslations('hostEarnings'), getHostEarnings()]);
+  const sp = await searchParams;
+  const from = sp.from && DATE_RE.test(sp.from) ? sp.from : undefined;
+  const to = sp.to && DATE_RE.test(sp.to) ? sp.to : undefined;
+  const rangeActive = Boolean(from || to);
+
+  const [t, earnings] = await Promise.all([
+    getTranslations('hostEarnings'),
+    getHostEarnings({ from, to }),
+  ]);
+
+  const today = todayInRiyadh();
+  const presets = [
+    { key: 'all', from: undefined as string | undefined },
+    { key: 'month', from: `${today.slice(0, 7)}-01` },
+    { key: 'd30', from: daysBack(today, 30) },
+    { key: 'd90', from: daysBack(today, 90) },
+  ] as const;
+  const presetHref = (presetFrom: string | undefined) =>
+    presetFrom ? `/host/earnings?from=${presetFrom}` : '/host/earnings';
+  const isPresetActive = (presetFrom: string | undefined) =>
+    presetFrom === undefined ? !rangeActive : from === presetFrom && !to;
+
+  const exportQs = new URLSearchParams();
+  if (from) exportQs.set('from', from);
+  if (to) exportQs.set('to', to);
+  const exportHref = `/api/host/export/earnings${exportQs.size > 0 ? `?${exportQs}` : ''}`;
 
   const eyebrowClassName = cn(
     'text-sarat-black-600 text-[11px]',
@@ -58,15 +93,8 @@ export default async function HostEarningsPage({
   );
 
   return (
-    <div className="mx-auto flex w-full max-w-6xl flex-col gap-10 px-6 py-16 sm:py-20">
+    <div className="flex w-full flex-col gap-10">
       <div className="flex flex-col gap-4">
-        <Link
-          href="/host"
-          className="text-sarat-black-600 inline-flex min-h-11 items-center gap-2 self-start text-sm font-medium transition-opacity duration-200 hover:opacity-60"
-        >
-          <ArrowLeft className="size-4 shrink-0 rtl:rotate-180" aria-hidden />
-          {t('backToDashboard')}
-        </Link>
         <p className={eyebrowClassName}>{t('eyebrow')}</p>
         <h1 className="font-display text-4xl font-semibold tracking-[-0.035em] text-balance sm:text-5xl">
           {t('title')}
@@ -114,6 +142,129 @@ export default async function HostEarningsPage({
             </div>
           </dl>
 
+          {/* Range filter — narrows the ledger + rollups; the totals
+              above stay all-time (they're a status snapshot). */}
+          <section className="flex flex-col gap-3">
+            <div className="flex flex-wrap items-center gap-2">
+              {presets.map((preset) => (
+                <Link
+                  key={preset.key}
+                  href={presetHref(preset.from)}
+                  aria-current={isPresetActive(preset.from) ? 'true' : undefined}
+                  className={cn(
+                    'rounded-button inline-flex min-h-11 items-center px-4 text-sm font-medium transition-colors duration-200',
+                    isPresetActive(preset.from)
+                      ? 'bg-sarat-black text-white'
+                      : 'border-sarat-black/20 text-sarat-black hover:border-sarat-black/40 [border-width:0.5px]',
+                  )}
+                >
+                  {t(`filter.presets.${preset.key}`)}
+                </Link>
+              ))}
+            </div>
+            <form method="get" className="flex flex-wrap items-end gap-3">
+              <div className="flex flex-col gap-1">
+                <label htmlFor="earnings-from" className="text-sarat-black-600 text-sm">
+                  {t('filter.from')}
+                </label>
+                <input
+                  id="earnings-from"
+                  type="date"
+                  name="from"
+                  defaultValue={from}
+                  dir="ltr"
+                  className="rounded-input border-sarat-black/20 text-sarat-black h-11 [border-width:0.5px] bg-white px-3 text-sm"
+                />
+              </div>
+              <div className="flex flex-col gap-1">
+                <label htmlFor="earnings-to" className="text-sarat-black-600 text-sm">
+                  {t('filter.to')}
+                </label>
+                <input
+                  id="earnings-to"
+                  type="date"
+                  name="to"
+                  defaultValue={to}
+                  dir="ltr"
+                  className="rounded-input border-sarat-black/20 text-sarat-black h-11 [border-width:0.5px] bg-white px-3 text-sm"
+                />
+              </div>
+              <button
+                type="submit"
+                className={cn(buttonVariants({ variant: 'secondary', size: 'sm' }))}
+              >
+                {t('filter.apply')}
+              </button>
+            </form>
+          </section>
+
+          {/* Rollups — where the money came from, and when. */}
+          <section className="grid gap-6 lg:grid-cols-2">
+            <div className="border-sarat-black/8 rounded-card flex flex-col gap-4 [border-width:0.5px] p-6">
+              <h2 className="font-display text-2xl font-medium tracking-[-0.025em]">
+                {t('breakdown.title')}
+              </h2>
+              {earnings.breakdown.length === 0 ? (
+                <p className="text-sarat-black-600 text-base">{t('breakdown.empty')}</p>
+              ) : (
+                <ul className="divide-sarat-black/8 flex flex-col divide-y">
+                  {earnings.breakdown.map((row) => (
+                    <li
+                      key={row.experienceId}
+                      className="flex items-center justify-between gap-4 py-3 first:pt-0 last:pb-0"
+                    >
+                      <div className="flex min-w-0 flex-col gap-0.5">
+                        <span className="truncate text-base font-medium">
+                          {loc === 'ar' ? row.experienceTitleAr : row.experienceTitleEn}
+                        </span>
+                        <span className="text-sarat-black-600 text-sm">
+                          {t('breakdown.bookings', { count: row.count })}
+                        </span>
+                      </div>
+                      <span className="shrink-0 text-base font-medium tabular-nums">
+                        <Price amount={row.payoutSar} locale={loc} />
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+
+            <div className="border-sarat-black/8 rounded-card flex flex-col gap-4 [border-width:0.5px] p-6">
+              <h2 className="font-display text-2xl font-medium tracking-[-0.025em]">
+                {t('monthly.title')}
+              </h2>
+              {earnings.monthly.length === 0 ? (
+                <p className="text-sarat-black-600 text-base">{t('monthly.empty')}</p>
+              ) : (
+                <ul className="divide-sarat-black/8 flex flex-col divide-y">
+                  {earnings.monthly.map((row) => (
+                    <li
+                      key={row.month}
+                      className="flex items-center justify-between gap-4 py-3 first:pt-0 last:pb-0"
+                    >
+                      <div className="flex min-w-0 flex-col gap-0.5">
+                        <span className="text-base font-medium">
+                          {formatDate(new Date(`${row.month}-01T12:00:00Z`), loc, 'gregory', {
+                            month: 'long',
+                            year: 'numeric',
+                            timeZone: 'UTC',
+                          })}
+                        </span>
+                        <span className="text-sarat-black-600 text-sm">
+                          {t('breakdown.bookings', { count: row.count })}
+                        </span>
+                      </div>
+                      <span className="shrink-0 text-base font-medium tabular-nums">
+                        <Price amount={row.payoutSar} locale={loc} />
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          </section>
+
           {/* Payout method */}
           <section className="flex flex-col gap-4">
             <h2 className="font-display text-2xl font-medium tracking-[-0.025em]">
@@ -152,7 +303,7 @@ export default async function HostEarningsPage({
               {earnings.history.length > 0 && (
                 /* Plain <a>: an API route download, not an app navigation. */
                 <a
-                  href="/api/host/export/earnings"
+                  href={exportHref}
                   download
                   className="text-sarat-black-600 text-sm font-medium underline-offset-4 hover:underline"
                 >
@@ -163,7 +314,7 @@ export default async function HostEarningsPage({
             {earnings.history.length === 0 ? (
               <p className="text-sarat-black-600 text-base">{t('history.empty')}</p>
             ) : (
-              <ul className="border-sarat-black/8 rounded-card flex flex-col divide-y divide-[var(--color-sarat-black)]/8 [border-width:0.5px]">
+              <ul className="border-sarat-black/8 rounded-card divide-sarat-black/8 flex flex-col divide-y [border-width:0.5px]">
                 {earnings.history.map((row) => (
                   <li
                     key={row.id}

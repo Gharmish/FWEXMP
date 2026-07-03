@@ -1,4 +1,4 @@
-import { and, desc, eq, inArray, sql } from 'drizzle-orm';
+import { and, desc, eq, gte, inArray, lte, sql, type SQL } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import { serverEnv } from '@/lib/env';
 import { bookings, experiences } from '@/db/schema';
@@ -38,22 +38,100 @@ export interface HostEarningsHistoryRow {
   paidOutAt: string | null;
 }
 
-export interface HostEarnings {
+export interface HostEarningsTotals {
   owedSar: number;
   owedCount: number;
   paidSar: number;
   paidCount: number;
   upcomingSar: number;
   upcomingCount: number;
+}
+
+/** One experience's completed-earnings rollup within the active range. */
+export interface HostEarningsBreakdownRow {
+  experienceId: string;
+  experienceTitleEn: string;
+  experienceTitleAr: string;
+  count: number;
+  payoutSar: number;
+}
+
+/** One calendar month's completed-earnings rollup within the active range. */
+export interface HostEarningsMonthlyRow {
+  /** `YYYY-MM`. */
+  month: string;
+  count: number;
+  payoutSar: number;
+}
+
+/** Booking-date bounds (inclusive, `YYYY-MM-DD`) for the ledger + rollups. */
+export interface HostEarningsRange {
+  from?: string;
+  to?: string;
+}
+
+export interface HostEarnings extends HostEarningsTotals {
   payoutIban: string | null;
   /** Completed bookings newest-first — the host's payout ledger. */
   history: readonly HostEarningsHistoryRow[];
+  /** Completed earnings per experience, biggest payout first. */
+  breakdown: readonly HostEarningsBreakdownRow[];
+  /** Completed earnings per month, newest first (12-month window). */
+  monthly: readonly HostEarningsMonthlyRow[];
 }
 
 /** Ledger ceiling — same launch-scale guard as the booking lists. */
 const HISTORY_LIMIT = 200;
 
-export async function getHostEarnings(): Promise<HostEarnings | null> {
+/** The one aggregate row behind both earnings surfaces. */
+function selectEarningsTotals(hostId: string) {
+  const payout = payoutExpr();
+  const collected = paymentCollected();
+  return db
+    .select({
+      owedSar: sql<number>`coalesce(sum(${payout}) filter (where ${bookings.status} = 'completed' and ${bookings.hostPaidAt} is null and ${collected}), 0)::int`,
+      owedCount: sql<number>`coalesce(count(*) filter (where ${bookings.status} = 'completed' and ${bookings.hostPaidAt} is null and ${collected}), 0)::int`,
+      paidSar: sql<number>`coalesce(sum(${payout}) filter (where ${bookings.status} = 'completed' and ${bookings.hostPaidAt} is not null), 0)::int`,
+      paidCount: sql<number>`coalesce(count(*) filter (where ${bookings.status} = 'completed' and ${bookings.hostPaidAt} is not null), 0)::int`,
+      upcomingSar: sql<number>`coalesce(sum(${payout}) filter (where ${bookings.status} = 'confirmed' and ${collected}), 0)::int`,
+      upcomingCount: sql<number>`coalesce(count(*) filter (where ${bookings.status} = 'confirmed' and ${collected}), 0)::int`,
+    })
+    .from(bookings)
+    .innerJoin(experiences, eq(experiences.id, bookings.experienceId))
+    .where(
+      and(eq(experiences.hostId, hostId), inArray(bookings.status, ['completed', 'confirmed'])),
+    );
+}
+
+/**
+ * Totals only — the overview's KPI strip. Skips the 200-row ledger the
+ * full `getHostEarnings` hydrates for /host/earnings.
+ */
+export async function getHostEarningsTotals(): Promise<HostEarningsTotals | null> {
+  const user = await getCurrentUser();
+  if (!user || !serverEnv.DATABASE_URL) return null;
+  try {
+    const host = await db.query.hosts.findFirst({
+      where: (h) => eq(h.userId, user.id),
+      columns: { id: true },
+    });
+    if (!host) return null;
+    const [totals] = await selectEarningsTotals(host.id);
+    return {
+      owedSar: totals?.owedSar ?? 0,
+      owedCount: totals?.owedCount ?? 0,
+      paidSar: totals?.paidSar ?? 0,
+      paidCount: totals?.paidCount ?? 0,
+      upcomingSar: totals?.upcomingSar ?? 0,
+      upcomingCount: totals?.upcomingCount ?? 0,
+    };
+  } catch (error) {
+    reportError(error, { surface: 'host-earnings:totals' });
+    return null;
+  }
+}
+
+export async function getHostEarnings(range?: HostEarningsRange): Promise<HostEarnings | null> {
   const user = await getCurrentUser();
   if (!user || !serverEnv.DATABASE_URL) return null;
   try {
@@ -64,26 +142,22 @@ export async function getHostEarnings(): Promise<HostEarnings | null> {
     if (!host) return null;
 
     const payout = payoutExpr();
-    const collected = paymentCollected();
 
-    const [[totals], historyRows] = await Promise.all([
-      db
-        .select({
-          owedSar: sql<number>`coalesce(sum(${payout}) filter (where ${bookings.status} = 'completed' and ${bookings.hostPaidAt} is null and ${collected}), 0)::int`,
-          owedCount: sql<number>`coalesce(count(*) filter (where ${bookings.status} = 'completed' and ${bookings.hostPaidAt} is null and ${collected}), 0)::int`,
-          paidSar: sql<number>`coalesce(sum(${payout}) filter (where ${bookings.status} = 'completed' and ${bookings.hostPaidAt} is not null), 0)::int`,
-          paidCount: sql<number>`coalesce(count(*) filter (where ${bookings.status} = 'completed' and ${bookings.hostPaidAt} is not null), 0)::int`,
-          upcomingSar: sql<number>`coalesce(sum(${payout}) filter (where ${bookings.status} = 'confirmed' and ${collected}), 0)::int`,
-          upcomingCount: sql<number>`coalesce(count(*) filter (where ${bookings.status} = 'confirmed' and ${collected}), 0)::int`,
-        })
-        .from(bookings)
-        .innerJoin(experiences, eq(experiences.id, bookings.experienceId))
-        .where(
-          and(
-            eq(experiences.hostId, host.id),
-            inArray(bookings.status, ['completed', 'confirmed']),
-          ),
-        ),
+    // The headline totals stay all-time (they are a status snapshot);
+    // the range narrows the ledger and the two rollups only.
+    const completedConds: SQL[] = [
+      eq(experiences.hostId, host.id),
+      eq(bookings.status, 'completed'),
+    ];
+    if (range?.from) completedConds.push(gte(bookings.date, range.from));
+    if (range?.to) completedConds.push(lte(bookings.date, range.to));
+    const completedWhere = and(...completedConds);
+
+    const payoutSum = sql<number>`coalesce(sum(${payout}), 0)::int`;
+    const rowCount = sql<number>`count(*)::int`;
+
+    const [[totals], historyRows, breakdown, monthly] = await Promise.all([
+      selectEarningsTotals(host.id),
       db
         .select({
           id: bookings.id,
@@ -98,9 +172,34 @@ export async function getHostEarnings(): Promise<HostEarnings | null> {
         })
         .from(bookings)
         .innerJoin(experiences, eq(experiences.id, bookings.experienceId))
-        .where(and(eq(experiences.hostId, host.id), eq(bookings.status, 'completed')))
+        .where(completedWhere)
         .orderBy(desc(bookings.date))
         .limit(HISTORY_LIMIT),
+      db
+        .select({
+          experienceId: experiences.id,
+          experienceTitleEn: experiences.titleEn,
+          experienceTitleAr: experiences.titleAr,
+          count: rowCount,
+          payoutSar: payoutSum,
+        })
+        .from(bookings)
+        .innerJoin(experiences, eq(experiences.id, bookings.experienceId))
+        .where(completedWhere)
+        .groupBy(experiences.id, experiences.titleEn, experiences.titleAr)
+        .orderBy(desc(payoutSum)),
+      db
+        .select({
+          month: sql<string>`to_char(${bookings.date}, 'YYYY-MM')`,
+          count: rowCount,
+          payoutSar: payoutSum,
+        })
+        .from(bookings)
+        .innerJoin(experiences, eq(experiences.id, bookings.experienceId))
+        .where(completedWhere)
+        .groupBy(sql`to_char(${bookings.date}, 'YYYY-MM')`)
+        .orderBy(desc(sql`to_char(${bookings.date}, 'YYYY-MM')`))
+        .limit(12),
     ]);
 
     return {
@@ -116,6 +215,8 @@ export async function getHostEarnings(): Promise<HostEarnings | null> {
         commissionSar: row.totalSar - row.payoutSar,
         paidOutAt: row.paidOutAt ? row.paidOutAt.toISOString() : null,
       })),
+      breakdown,
+      monthly,
     };
   } catch (error) {
     reportError(error, { surface: 'host-earnings:get' });

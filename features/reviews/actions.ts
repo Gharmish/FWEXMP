@@ -10,6 +10,7 @@ import { reportError } from '@/lib/log';
 import { getCurrentUser } from '@/features/auth/queries';
 import { bookingViewerCanAccess } from '@/features/bookings/lib/access';
 import { createReviewSchema, hostReplySchema } from '@/features/reviews/schemas';
+import { sendHostRepliedEmail } from '@/features/reviews/lib/review-email';
 
 /** 24h edit cooldown (BRIEF §8). */
 const EDIT_WINDOW_MS = 24 * 60 * 60 * 1000;
@@ -254,6 +255,13 @@ export async function replyToReview(
   } catch (error) {
     reportError(error, { surface: 'reviews:replyToReview', reviewId });
     return { success: false, message: 'server' };
+  }
+
+  // Tell the guest — best-effort: a mail hiccup must never fail the reply.
+  try {
+    await sendHostRepliedEmail(reviewId);
+  } catch (error) {
+    reportError(error, { surface: 'reviews:replyToReview:email', reviewId });
   }
 
   return { success: true };

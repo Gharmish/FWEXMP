@@ -435,6 +435,13 @@ export const bookings = pgTable(
     /** Safe retries for AI agents (BRIEF §6). */
     idempotencyKey: text().notNull().unique(),
     /**
+     * Short human reference (`GH-7K3M9X`) — what guests see, quote to
+     * support, and forward to each other. Display identity only; URLs
+     * and lookups keep the unguessable `idempotencyKey` capability.
+     * Unambiguous alphabet (no 0/O/1/I/L/U).
+     */
+    referenceCode: text().notNull().unique(),
+    /**
      * When the admin moved this booking to `refunded`. Null for any
      * booking that was never refunded. Analytics windows refunds by
      * this column (so a 60-day-old booking refunded today shows up in
@@ -650,6 +657,33 @@ export const hostStatusEvents = pgTable(
   (t) => [
     // History timeline for a host, newest first.
     index('host_status_events_host_idx').on(t.hostId, t.createdAt),
+  ],
+);
+
+/**
+ * Append-only audit log of payout IBAN changes. Stores MASKED values
+ * only (`SA••…1234`) — the point is detecting an unexpected change
+ * (compromised account re-routing money), not keeping bank numbers in
+ * a second table. The actor is the session user; today only the host
+ * edits their own IBAN, but the column doesn't assume that.
+ */
+export const payoutIbanEvents = pgTable(
+  'payout_iban_events',
+  {
+    id: uuid().defaultRandom().primaryKey(),
+    hostId: uuid()
+      .notNull()
+      .references(() => hosts.id, { onDelete: 'cascade' }),
+    /** Supabase auth id of whoever made the change. */
+    actorUserId: uuid().notNull(),
+    /** Masked previous value; null when the IBAN was first set. */
+    previousIbanMasked: text(),
+    newIbanMasked: text().notNull(),
+    createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    // History timeline for a host, newest first.
+    index('payout_iban_events_host_idx').on(t.hostId, t.createdAt),
   ],
 );
 

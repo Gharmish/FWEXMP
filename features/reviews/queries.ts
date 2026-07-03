@@ -1,7 +1,7 @@
 import { and, avg, count, desc, eq, gte, isNull } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import { serverEnv } from '@/lib/env';
-import { experiences, guests, reviews as reviewsTable } from '@/db/schema';
+import { experiences, guests, hosts, reviews as reviewsTable } from '@/db/schema';
 import type { Guest, Review } from '@/db/schema';
 import type { ReviewAggregate, ReviewSummary } from '@/features/reviews/types';
 import { aggregateReviews } from '@/features/reviews/lib/aggregate';
@@ -248,6 +248,68 @@ export async function getRecentReviews(limit: number): Promise<readonly RecentRe
   }
 }
 
+/**
+ * High-rated recent reviews across a host's live experiences — the
+ * "what guests are saying" block on the public host profile. 4★+ only
+ * (it's a marketing surface, like the home social-proof strip, not the
+ * balanced per-experience listing). Same degrade-to-empty posture as
+ * getRecentReviews: a flaky reviews query must never 500 the profile.
+ */
+export async function getReviewsByHostSlug(
+  slug: string,
+  limit: number,
+): Promise<readonly RecentReview[]> {
+  if (!hasDb()) {
+    const titles = new Map(
+      sampleExperiences
+        .getExperiences()
+        .filter((e) => e.hostSlug === slug)
+        .map((e) => [e.slug, e] as const),
+    );
+    return [...sample.getAllReviews()]
+      .filter((r) => r.rating >= 4 && titles.has(r.experienceSlug))
+      .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+      .slice(0, limit)
+      .map((r) => ({
+        ...r,
+        experienceTitleEn: titles.get(r.experienceSlug)?.titleEn ?? r.experienceSlug,
+        experienceTitleAr: titles.get(r.experienceSlug)?.titleAr ?? r.experienceSlug,
+      }));
+  }
+  try {
+    const rows = await db
+      .select({
+        review: reviewsTable,
+        guestName: guests.name,
+        slug: experiences.slug,
+        titleEn: experiences.titleEn,
+        titleAr: experiences.titleAr,
+      })
+      .from(reviewsTable)
+      .innerJoin(experiences, eq(reviewsTable.experienceId, experiences.id))
+      .innerJoin(hosts, eq(experiences.hostId, hosts.id))
+      .innerJoin(guests, eq(reviewsTable.guestId, guests.id))
+      .where(and(eq(hosts.slug, slug), isNull(reviewsTable.hiddenAt), gte(reviewsTable.rating, 4)))
+      .orderBy(desc(reviewsTable.createdAt))
+      .limit(limit);
+    return rows.map((row) => ({
+      id: row.review.id,
+      experienceSlug: row.slug,
+      guestName: row.guestName,
+      rating: clampRating(row.review.rating),
+      textEn: row.review.textEn,
+      textAr: row.review.textAr,
+      hostReply: row.review.hostReply,
+      createdAt: row.review.createdAt.toISOString(),
+      experienceTitleEn: row.titleEn,
+      experienceTitleAr: row.titleAr,
+    }));
+  } catch (error) {
+    reportError(error, { surface: 'reviews:getReviewsByHostSlug', slug });
+    return [];
+  }
+}
+
 /** A review row as the host's reviews page renders it. */
 export interface HostReviewRow {
   id: string;
@@ -263,13 +325,58 @@ export interface HostReviewRow {
 }
 
 /**
+ * Rating aggregate (count + average + 1–5 histogram) across every
+ * visible review on the signed-in host's experiences — the summary
+ * block on /host/reviews and the overview. Same bounded GROUP BY
+ * shape as the per-experience aggregate; same degrade-to-empty
+ * posture as the other host reads.
+ */
+export async function getHostReviewAggregate(): Promise<ReviewAggregate> {
+  const empty = { count: 0, average: null, distribution: { ...EMPTY_DISTRIBUTION } };
+  if (!hasDb()) return empty;
+  const user = await getCurrentUser();
+  if (!user) return empty;
+  try {
+    const host = await db.query.hosts.findFirst({
+      where: (h) => eq(h.userId, user.id),
+      columns: { id: true },
+    });
+    if (!host) return empty;
+    const rows = await db
+      .select({ rating: reviewsTable.rating, n: count(reviewsTable.id) })
+      .from(reviewsTable)
+      .innerJoin(experiences, eq(reviewsTable.experienceId, experiences.id))
+      .where(and(eq(experiences.hostId, host.id), isNull(reviewsTable.hiddenAt)))
+      .groupBy(reviewsTable.rating);
+
+    const distribution = { ...EMPTY_DISTRIBUTION };
+    let total = 0;
+    let weighted = 0;
+    for (const row of rows) {
+      const rating = clampRating(row.rating);
+      const n = Number(row.n);
+      distribution[rating] += n;
+      total += n;
+      weighted += rating * n;
+    }
+    return { count: total, average: total > 0 ? weighted / total : null, distribution };
+  } catch (error) {
+    reportError(error, { surface: 'reviews:hostAggregate' });
+    return empty;
+  }
+}
+
+/**
  * Every visible review across the signed-in host's experiences,
  * newest first. Host identity resolves from the session (`hosts.userId`)
  * so one host can never list another's reviews. Hidden (moderated)
  * reviews are excluded — the guest can't see them, so the host
  * shouldn't reply to them.
+ *
+ * `limit` lets the overview pull just the newest review without
+ * hydrating the full (500-row ceiling) list.
  */
-export async function listReviewsForHost(): Promise<readonly HostReviewRow[]> {
+export async function listReviewsForHost(limit = 500): Promise<readonly HostReviewRow[]> {
   if (!hasDb()) return [];
   const user = await getCurrentUser();
   if (!user) return [];
@@ -297,7 +404,7 @@ export async function listReviewsForHost(): Promise<readonly HostReviewRow[]> {
       .innerJoin(guests, eq(reviewsTable.guestId, guests.id))
       .where(and(eq(experiences.hostId, host.id), isNull(reviewsTable.hiddenAt)))
       .orderBy(desc(reviewsTable.createdAt))
-      .limit(500);
+      .limit(limit);
     return rows.map((row) => ({
       ...row,
       rating: clampRating(row.rating),
