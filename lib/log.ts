@@ -19,12 +19,16 @@ export interface ReportErrorContext {
 }
 
 export function reportError(error: unknown, context?: ReportErrorContext): void {
-  if (process.env.NODE_ENV !== 'production') {
+  const sentryConfigured = Boolean(process.env.SENTRY_DSN || process.env.NEXT_PUBLIC_SENTRY_DSN);
+  if (process.env.NODE_ENV !== 'production' || !sentryConfigured) {
     // Single chokepoint for `console.*` in the app — the rest of the
     // codebase routes through reportError() rather than touching the
-    // console directly (CLAUDE.md no-console rule).
+    // console directly (CLAUDE.md no-console rule). In production
+    // WITHOUT a Sentry DSN this is the only place errors surface
+    // (platform function logs) — captureException would enqueue into
+    // the void and every failure would vanish unrecorded.
     console.error('[gharmish]', context?.surface ?? 'error', error, context);
-    return;
+    if (!sentryConfigured) return;
   }
 
   // The `surface` field becomes a Sentry tag (queryable in the

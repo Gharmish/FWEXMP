@@ -66,6 +66,14 @@ export async function getSupabaseServerClient(): Promise<SupabaseClient> {
  */
 export async function getSupabaseUserStorage(): Promise<SupabaseClient['storage'] | null> {
   const supabase = await getSupabaseServerClient();
+  // getUser() first: unlike getSession(), it validates against the auth
+  // server and refreshes an expired access token (persisted through the
+  // cookie adapter — server actions may write cookies). Without this a
+  // stale token from a long-open tab reaches storage and is rejected.
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return null;
   const {
     data: { session },
   } = await supabase.auth.getSession();
