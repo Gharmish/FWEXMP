@@ -1,0 +1,26 @@
+import { z } from 'zod';
+import { HOST_LANGUAGE_OPTIONS } from '@/features/host-applications/types';
+
+/**
+ * Host profile edit — one schema validates the client form, the server
+ * action, and the database write (BRIEF §7). Bounds mirror the host
+ * application (features/host-applications/schemas.ts) so a profile can
+ * never drift outside what onboarding would have accepted.
+ */
+export const hostProfileSchema = z
+  .object({
+    name: z.string().trim().min(2, 'name_short').max(80, 'name_long'),
+    bioEn: z.string().trim().min(40, 'bio_short').max(1200, 'bio_long'),
+    languages: z
+      .array(z.enum(HOST_LANGUAGE_OPTIONS))
+      .min(1, 'languages_required')
+      .max(HOST_LANGUAGE_OPTIONS.length),
+  })
+  // The form encodes the language list as a repeated `languages` field.
+  // FormData → array via `getAll`, then we de-dupe here.
+  .transform((data) => ({
+    ...data,
+    languages: Array.from(new Set(data.languages)),
+  }));
+
+export type HostProfileInput = z.infer<typeof hostProfileSchema>;

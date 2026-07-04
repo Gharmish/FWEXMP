@@ -988,6 +988,8 @@
       "experiences": "Experiences",
       "earnings": "Earnings",
       "reviews": "Reviews",
+      "profile": "Profile",
+      "backToSite": "Back to Gharmish",
       "newExperience": "New experience",
       "pendingBadge": "{count, plural, one {# pending request} other {# pending requests}}"
     },
@@ -1005,6 +1007,60 @@
       "empty": "No reviews yet.",
       "viewAll": "All reviews",
       "summary": "{average} · {n, plural, one {# review} other {# reviews}}"
+    }
+  },
+  "hostProfileSettings": {
+    "eyebrow": "Profile",
+    "title": "Your public profile.",
+    "intro": "This is what guests see on your host page and next to your experiences. Keep it warm, true to you, and current.",
+    "identity": {
+      "verified": "Verified host",
+      "pendingVerification": "Verification pending",
+      "publicLink": "Public profile:",
+      "slugNote": "Your public link stays the same even if you change your display name."
+    },
+    "photo": {
+      "change": "Change photo",
+      "uploading": "Uploading…",
+      "remove": "Remove",
+      "removing": "Removing…",
+      "hint": "A clear, natural-light photo of you. JPG, PNG, or WebP.",
+      "errors": {
+        "noDb": "The database isn't reachable right now. Try again in a moment.",
+        "noAuth": "Your session expired. Sign in again to continue.",
+        "noStorage": "Photo storage isn't available right now. Try again in a moment.",
+        "noFile": "Choose a photo first.",
+        "invalidType": "That file type isn't supported. Use JPG, PNG, or WebP.",
+        "tooLarge": "That photo is too large. Keep it under 15MB.",
+        "server": "We couldn't save your photo. Try again in a moment."
+      }
+    },
+    "details": {
+      "title": "Details guests see",
+      "nameLabel": "Display name",
+      "nameHint": "Your name or your company's, exactly as guests should see it.",
+      "bioLabel": "Bio (English)",
+      "bioHint": "40–1200 characters. Who you are, what you host, and your connection to Asir.",
+      "arabicNote": "The Gharmish team prepares the Arabic version of your bio after you update the English one.",
+      "languagesLabel": "Languages you host in",
+      "languages": {
+        "ar": "Arabic",
+        "en": "English",
+        "fr": "French",
+        "ur": "Urdu"
+      },
+      "submit": "Save profile",
+      "submitting": "Saving…",
+      "saved": "Profile saved.",
+      "nameError": "Enter a display name between 2 and 80 characters.",
+      "bioError": "Your bio needs to be between 40 and 1200 characters.",
+      "languagesError": "Pick at least one language.",
+      "errors": {
+        "noDb": "The database isn't reachable right now. Try again in a moment.",
+        "noAuth": "Your session expired. Sign in again to continue.",
+        "validation": "Check the highlighted fields and try again.",
+        "server": "We couldn't save your changes. Try again in a moment."
+      }
     }
   },
   "hostBookings": {

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, type ReactNode } from 'react';
-import { Menu, Plus } from 'lucide-react';
+import { ArrowLeft, Menu, Plus } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { Link } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
@@ -54,6 +54,16 @@ export function HostShell({ children, userLabel, pendingRequests, actions }: Hos
       <div className="flex-1">
         <HostNav pendingRequests={pendingRequests} onNavigate={() => setOpen(false)} />
       </div>
+      {/* Way out of the dashboard — without this, sign-out is the only
+          exit back to the public site. */}
+      <Link
+        href="/"
+        onClick={() => setOpen(false)}
+        className="text-sarat-black-600 hover:bg-mist hover:text-sarat-black rounded-input flex items-center gap-3 px-3 py-2.5 text-sm transition-colors duration-200"
+      >
+        <ArrowLeft className="size-5 shrink-0 rtl:rotate-180" aria-hidden />
+        <span className="truncate">{t('backToSite')}</span>
+      </Link>
       <div className="border-sarat-black/8 rounded-card flex flex-col gap-3 [border-width:0.5px] p-4">
         <div className="flex flex-col gap-0.5">
           <p className="text-sarat-black-600 text-[11px] tracking-[0.2em] uppercase">

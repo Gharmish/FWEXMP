@@ -1,7 +1,7 @@
 'use client';
 
 import type { ComponentType } from 'react';
-import { Banknote, CalendarCheck, LayoutDashboard, Map, Star } from 'lucide-react';
+import { Banknote, CalendarCheck, LayoutDashboard, Map, Star, UserRound } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useTranslations } from 'next-intl';
 import { Link, usePathname } from '@/lib/i18n';
@@ -25,6 +25,7 @@ const ITEMS: readonly NavItem[] = [
   { href: '/host/experiences', Icon: Map, labelKey: 'experiences' },
   { href: '/host/earnings', Icon: Banknote, labelKey: 'earnings' },
   { href: '/host/reviews', Icon: Star, labelKey: 'reviews' },
+  { href: '/host/profile', Icon: UserRound, labelKey: 'profile' },
 ];
 
 interface HostNavProps {
