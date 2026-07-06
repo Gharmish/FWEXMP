@@ -38,15 +38,15 @@ export default async function SignInPage({
   const loc = locale as Locale;
   const { next: rawNext } = await searchParams;
 
-  // Already signed in? Send them straight to `next` (or /me).
+  // Already signed in? Send them straight to `next` (or home).
   const user = await getCurrentUser();
   if (user) {
-    redirect({ href: rawNext && rawNext.startsWith('/') ? rawNext : '/me', locale: loc });
+    redirect({ href: rawNext && rawNext.startsWith('/') ? rawNext : '/', locale: loc });
   }
 
   // Only accept same-origin, relative `next` paths — never an
   // attacker-controlled absolute URL.
-  const next = rawNext && rawNext.startsWith('/') && !rawNext.startsWith('//') ? rawNext : '/me';
+  const next = rawNext && rawNext.startsWith('/') && !rawNext.startsWith('//') ? rawNext : '/';
 
   const t = await getTranslations('auth');
   const eyebrowClassName = cn(

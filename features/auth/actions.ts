@@ -115,7 +115,7 @@ export async function requestOtp(
     const parsed = requestEmailOtpSchema.safeParse({
       email: formValue(formData, 'email'),
       locale: formValue(formData, 'locale'),
-      next: formValue(formData, 'next') || '/me',
+      next: formValue(formData, 'next') || '/',
     });
     if (!parsed.success) {
       return {
@@ -180,7 +180,7 @@ export async function requestOtp(
   const parsed = requestOtpSchema.safeParse({
     phone: formValue(formData, 'phone'),
     locale: formValue(formData, 'locale'),
-    next: formValue(formData, 'next') || '/me',
+    next: formValue(formData, 'next') || '/',
   });
 
   if (!parsed.success) {
@@ -268,7 +268,7 @@ export async function verifyOtp(
       email: formValue(formData, 'email'),
       code: formValue(formData, 'code'),
       locale: formValue(formData, 'locale'),
-      next: formValue(formData, 'next') || '/me',
+      next: formValue(formData, 'next') || '/',
     });
     if (!parsed.success) {
       const fields: AuthFailure['fields'] = {};
@@ -348,7 +348,7 @@ export async function verifyOtp(
     phone: formValue(formData, 'phone'),
     code: formValue(formData, 'code'),
     locale: formValue(formData, 'locale'),
-    next: formValue(formData, 'next') || '/me',
+    next: formValue(formData, 'next') || '/',
   });
 
   if (!parsed.success) {

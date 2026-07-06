@@ -77,22 +77,39 @@ export default async function MePage({ params }: { params: Promise<{ locale: str
             {hasAnything ? t('intro') : t('introEmpty')}
           </p>
           {profile && (
-            <div className="border-sarat-black/8 rounded-card mt-2 flex items-center gap-4 [border-width:0.5px] p-4">
-              <Avatar name={profile.name} src={profile.avatarUrl ?? undefined} size="md" />
-              <div className="flex min-w-0 flex-col">
-                <span className="truncate font-medium">{profile.name}</span>
+            <div className="border-sarat-black/8 rounded-card mt-2 flex flex-wrap items-center gap-x-6 gap-y-5 [border-width:0.5px] p-5 sm:p-6">
+              <Avatar name={profile.name} src={profile.avatarUrl ?? undefined} size="lg" />
+              <div className="flex min-w-0 flex-1 basis-48 flex-col gap-1">
+                <span className="font-display truncate text-xl font-medium tracking-[-0.02em]">
+                  {profile.name}
+                </span>
                 {/* Phone (or email) stays LTR-isolated so it reads correctly in RTL. */}
                 {(profile.phone || profile.email) && (
                   <span className="text-sarat-black-600 truncate text-sm" dir="ltr">
                     {profile.phone ?? profile.email}
                   </span>
                 )}
+                <div className="text-sarat-black-600 mt-1 flex flex-wrap items-center gap-x-2 text-sm">
+                  <span>
+                    {t('statBookings')}{' '}
+                    <span className="text-sarat-black font-medium">
+                      {formatInteger(allBookings.length, loc)}
+                    </span>
+                  </span>
+                  <span aria-hidden>·</span>
+                  <span>
+                    {t('statSaved')}{' '}
+                    <span className="text-sarat-black font-medium">
+                      {formatInteger(wishlist.length, loc)}
+                    </span>
+                  </span>
+                </div>
               </div>
               <Link
                 href="/me/profile"
-                className="ms-auto inline-flex min-h-11 items-center text-sm font-medium whitespace-nowrap transition-opacity duration-200 hover:opacity-60"
+                className={cn(buttonVariants({ variant: 'secondary', size: 'md' }))}
               >
-                {t('viewProfile')}
+                {t('editProfile')}
               </Link>
             </div>
           )}

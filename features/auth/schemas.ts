@@ -13,14 +13,16 @@ import { isValidE164, normalizeToE164 } from '@/lib/phone';
  * Post-sign-in redirect target. Only an app-relative path is allowed:
  * anything that isn't a single leading `/` (so not an absolute URL like
  * `https://evil.com`, nor a protocol-relative `//evil.com`, nor a
- * backslash trick `/\evil.com`) collapses to `/me`. This closes the
- * open-redirect surface — `next` flows straight into `redirect()`.
+ * backslash trick `/\evil.com`) collapses to the home page. This closes
+ * the open-redirect surface — `next` flows straight into `redirect()`.
+ * Gated flows (host dashboard, checkout) still land where they were
+ * headed via an explicit `next`; a plain sign-in continues browsing.
  */
 const nextPath = z
   .string()
   .trim()
-  .default('/me')
-  .transform((value) => (/^\/(?![/\\])/.test(value) ? value : '/me'));
+  .default('/')
+  .transform((value) => (/^\/(?![/\\])/.test(value) ? value : '/'));
 
 export const requestOtpSchema = z.object({
   phone: z
