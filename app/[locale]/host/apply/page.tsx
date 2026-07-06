@@ -165,6 +165,7 @@ export default async function HostApplyPage({ params }: { params: Promise<{ loca
                 validation: t('errors.validation'),
                 server: t('errors.server'),
                 authRequired: t('errors.authRequired'),
+                cooldown: t('errors.cooldown'),
                 display_name_short: t('errors.fields.displayNameShort'),
                 display_name_long: t('errors.fields.displayNameLong'),
                 bio_short: t('errors.fields.bioShort'),

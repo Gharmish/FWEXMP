@@ -1,6 +1,6 @@
 'use server';
 
-import { and, eq, gt, isNull } from 'drizzle-orm';
+import { and, eq, gt, gte, isNull, sql } from 'drizzle-orm';
 import { revalidatePath } from 'next/cache';
 import { revalidateReviewCaches } from '@/lib/cache-tags';
 import { db } from '@/lib/db';
@@ -17,6 +17,15 @@ import { sendHostRepliedEmail } from '@/features/reviews/lib/review-email';
 const EDIT_WINDOW_MS = 24 * 60 * 60 * 1000;
 
 /**
+ * Review-spam throttle (2026-07 audit M1). One review per booking is the
+ * hard gate, but a guest holding several completed bookings could still
+ * dump them all at once to tank a listing. Same posture as the booking
+ * throttles: generous enough that no honest guest ever sees it.
+ */
+const MAX_REVIEWS_PER_GUEST_PER_HOUR = 5;
+const REVIEW_THROTTLE_WINDOW_MS = 60 * 60 * 1000;
+
+/**
  * On success the action throws (Next.js `redirect`) before returning, so
  * an observable return value is always one of the error shapes. `success`
  * stays on the type only to satisfy the useActionState initial-value
@@ -31,6 +40,7 @@ export interface SubmitReviewState {
     | 'already_reviewed'
     | 'forbidden'
     | 'expired'
+    | 'throttled'
     | 'validation'
     | 'server';
   fields?: Partial<Record<'rating' | 'text', string>>;
@@ -97,6 +107,19 @@ export async function submitReview(
       columns: { id: true },
     });
     if (existing) return { success: false, message: 'already_reviewed', values };
+
+    const [{ recentByGuest }] = await db
+      .select({ recentByGuest: sql<number>`count(*)::int` })
+      .from(reviews)
+      .where(
+        and(
+          eq(reviews.guestId, booking.guestId),
+          gte(reviews.createdAt, new Date(Date.now() - REVIEW_THROTTLE_WINDOW_MS)),
+        ),
+      );
+    if (recentByGuest >= MAX_REVIEWS_PER_GUEST_PER_HOUR) {
+      return { success: false, message: 'throttled', values };
+    }
 
     await db.insert(reviews).values({
       bookingId: booking.id,

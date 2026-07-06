@@ -41,7 +41,7 @@ export type HostApplyFieldName =
 
 export interface HostApplyState {
   success: false;
-  message?: 'validation' | 'auth_required' | 'server';
+  message?: 'validation' | 'auth_required' | 'cooldown' | 'server';
   fields?: Partial<Record<HostApplyFieldName, string>>;
   values?: Partial<Record<Exclude<HostApplyFieldName, 'languages'>, string>> & {
     languages?: string[];
@@ -60,6 +60,14 @@ const FIELD_NAMES: readonly HostApplyFieldName[] = [
   'city',
   'region',
 ];
+
+/**
+ * Anti-nuisance cooldown after a rejection (2026-07 audit L2). Kept
+ * deliberately short: rejections usually mean "fix X and refile", and
+ * supply is the scarcest resource — a genuine host must be able to come
+ * back tomorrow. It only stops same-day refile spam of the review queue.
+ */
+const REAPPLY_COOLDOWN_MS = 24 * 60 * 60 * 1000;
 
 function formValue(formData: FormData, key: string): string {
   const value = formData.get(key);
@@ -158,8 +166,19 @@ export async function submitHostApplication(
   try {
     const existing = await db.query.hostApplications.findFirst({
       where: (a) => eq(a.userId, user.id),
-      columns: { id: true, status: true },
+      columns: { id: true, status: true, reviewedAt: true },
     });
+
+    // A just-rejected applicant waits out the cooldown before refiling.
+    // `reviewedAt` is nulled on every resubmission, so the clock only
+    // runs from an actual admin decision.
+    if (
+      existing?.status === 'rejected' &&
+      existing.reviewedAt &&
+      Date.now() - existing.reviewedAt.getTime() < REAPPLY_COOLDOWN_MS
+    ) {
+      return { success: false, message: 'cooldown', values: currentValues(formData) };
+    }
 
     let applicationId: string;
     let isResubmission = false;

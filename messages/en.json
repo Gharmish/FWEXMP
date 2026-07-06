@@ -928,6 +928,7 @@
       "validation": "Check the highlighted fields and try again.",
       "server": "We couldn't submit your application. Try again in a moment.",
       "authRequired": "Sign in again to submit your application.",
+      "cooldown": "Your previous application was reviewed less than a day ago. You can re-apply after 24 hours.",
       "fields": {
         "required": "Enter a valid value.",
         "displayNameShort": "Use at least two characters.",
@@ -2026,7 +2027,8 @@
         "forbidden": "This booking belongs to a different account.",
         "validation": "Something didn't validate. Check the form and try again.",
         "server": "We couldn't save your review. Try again in a moment.",
-        "expired": "The edit window has closed — reviews can be changed for 24 hours after submission."
+        "expired": "The edit window has closed — reviews can be changed for 24 hours after submission.",
+        "throttled": "You've posted several reviews in a short time. Please try again in a little while."
       },
       "editHeading": "Edit your review",
       "update": "Save changes",

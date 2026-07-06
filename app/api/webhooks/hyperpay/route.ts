@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from 'next/server';
 import { decryptOppwaNotification } from '@/features/payments/lib/webhook-crypto';
 import { serverEnv } from '@/lib/env';
 import { reportError } from '@/lib/log';
+import { notifyAdmin } from '@/lib/admin-alerts';
 import { settleBooking } from '@/features/payments/settle';
 import { getBookingByReference } from '@/features/bookings/queries';
 import { sendBookingReceiptEmail } from '@/features/bookings/lib/booking-email';
@@ -39,6 +40,14 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     decrypted = decryptOppwaNotification(secret, body.encryptedBody, iv, authTag);
   } catch (error) {
     reportError(error, { surface: 'hyperpay-webhook:decrypt' });
+    // A well-formed notification we can't decrypt almost certainly means
+    // the shared secret drifted (rotated on one side only) — every payment
+    // notification is now being dropped and settlement is riding on the
+    // daily cron. That's an ops emergency, not just a Sentry breadcrumb.
+    await notifyAdmin('settle_anomaly', {
+      source: 'hyperpay-webhook',
+      problem: 'notification failed decryption — check HYPERPAY_WEBHOOK_SECRET on both sides',
+    });
     return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
   }
 

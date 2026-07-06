@@ -322,6 +322,7 @@ export default async function BookingConfirmedPage({ params, searchParams }: Pag
           already_reviewed: tMe('review.errors.alreadyReviewed'),
           forbidden: tMe('review.errors.forbidden'),
           expired: tMe('review.errors.expired'),
+          throttled: tMe('review.errors.throttled'),
           validation: tMe('review.errors.validation'),
           server: tMe('review.errors.server'),
         },

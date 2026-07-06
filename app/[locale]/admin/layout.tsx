@@ -1,3 +1,4 @@
+import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { getLocale, getTranslations } from 'next-intl/server';
 import type { Locale } from '@/lib/i18n';
@@ -23,6 +24,11 @@ import { SignOutButton } from '@/components/layout/sign-out-button';
  * footer so admins keep them. The inner `max-w-6xl` content column preserves
  * the width pages were authored for.
  */
+// Belt for the gate above: even if a gate regression ever served admin
+// HTML to a crawler, the pages stay out of the index (robots.txt already
+// disallows the path, but robots.txt doesn't forbid indexing a URL).
+export const metadata: Metadata = { robots: { index: false, follow: false } };
+
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
   const user = await getCurrentUser();
   if (!user || !isAdminUser(user)) notFound();

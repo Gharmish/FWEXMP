@@ -1,3 +1,4 @@
+import type { Metadata } from 'next';
 import { getLocale, getTranslations } from 'next-intl/server';
 import { redirect } from '@/lib/i18n';
 import type { Locale } from '@/lib/i18n';
@@ -21,6 +22,11 @@ import { SignOutButton } from '@/components/layout/sign-out-button';
  * layout) on host dashboard routes. Sign-out + language switch are lifted
  * from that navbar into the rail footer so hosts keep them.
  */
+// Belt for the gate above: even if a gate regression ever served dashboard
+// HTML to a crawler, the pages stay out of the index (robots.txt already
+// disallows the path, but robots.txt doesn't forbid indexing a URL).
+export const metadata: Metadata = { robots: { index: false, follow: false } };
+
 export default async function HostDashboardLayout({ children }: { children: React.ReactNode }) {
   const locale = (await getLocale()) as Locale;
 

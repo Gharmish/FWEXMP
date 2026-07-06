@@ -17,6 +17,7 @@ type ErrorKey =
   | 'validation'
   | 'server'
   | 'authRequired'
+  | 'cooldown'
   | 'display_name_short'
   | 'display_name_long'
   | 'bio_short'
@@ -174,9 +175,11 @@ export function HostApplyForm({
       ? copy.errors.server
       : state.message === 'auth_required'
         ? copy.errors.authRequired
-        : state.message === 'validation'
-          ? copy.errors.validation
-          : undefined;
+        : state.message === 'cooldown'
+          ? copy.errors.cooldown
+          : state.message === 'validation'
+            ? copy.errors.validation
+            : undefined;
 
   function toggleLanguage(lang: string, checked: boolean) {
     setSelectedLanguages((current) =>
