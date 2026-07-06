@@ -58,7 +58,11 @@ export interface CheckoutReady {
   scriptBaseUrl: string;
   /** Absolute `shopperResultUrl` the widget posts back to. */
   returnUrl: string;
-  /** Mada-first brand order for the widget. */
+  /**
+   * Brand order for the widget: Apple Pay first (the widget hides it on
+   * devices that can't pay), then cards Mada-first as required by Saudi
+   * Payments.
+   */
   brands: string;
 }
 
@@ -202,7 +206,7 @@ export async function createCheckout(
         checkoutId,
         scriptBaseUrl: hyperpayBaseUrl(),
         returnUrl,
-        brands: 'MADA VISA MASTER',
+        brands: 'APPLEPAY MADA VISA MASTER',
       },
     });
 

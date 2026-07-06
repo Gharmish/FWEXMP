@@ -211,6 +211,45 @@ body {
     0 0 0 4px rgb(10 10 10 / 0.4);
 }
 
+/* HyperPay COPYandPAY Apple Pay button. The widget owns this element, so
+ * Tailwind can't reach it — size it here to match our 44px tap targets
+ * and full-width primary CTAs (the widget default is a small inline
+ * button). Colors come from Apple's native button rendering. */
+.wpwl-apple-pay-button {
+  -webkit-appearance: -apple-pay-button;
+  -apple-pay-button-style: black;
+  display: block;
+  width: 100%;
+  height: 44px;
+  margin: 0;
+  border-radius: var(--radius-input);
+}
+
+/* The widget renders the card container BEFORE the APPLEPAY one
+ * regardless of data-brands order (and replaces our form with unclassed
+ * markup — `.payment-widget-mount` is our own wrapper, see
+ * payment-widget.tsx). Flex `order` puts Apple Pay (and the injected
+ * divider) visually first without moving DOM nodes — re-parenting the
+ * APPLEPAY container would reload its iframe and break the widget. */
+.payment-widget-mount {
+  display: flex;
+  flex-direction: column;
+}
+.payment-widget-mount .wpwl-container-virtualAccount-APPLEPAY {
+  order: -2;
+}
+.payment-widget-mount [data-pay-divider] {
+  order: -1;
+}
+
+/* Belt for the injected "or pay with card" divider (payment-widget.tsx):
+ * if the widget drops the Apple Pay button after the divider was added,
+ * hide the divider too — it must never appear above the card form with
+ * nothing on the other side of the "or". */
+.payment-widget-mount:not(:has(.wpwl-apple-pay-button)) [data-pay-divider] {
+  display: none;
+}
+
 /* Honor reduced-motion globally (BRIEF.md motion + accessibility). */
 @media (prefers-reduced-motion: reduce) {
   *,

@@ -19,6 +19,8 @@ export interface PaymentWidgetProps {
   errorLabel: string;
   /** Retry action label. */
   retryLabel: string;
+  /** Divider between the Apple Pay button and the card form ("or pay with card"). */
+  orCardLabel: string;
 }
 
 /**
@@ -30,7 +32,14 @@ export interface PaymentWidgetProps {
  *
  * `window.wpwlOptions` is set with `paymentTarget: "_top"` (full-page 3DS
  * redirect, per the HyperPay onboarding email) *before* the script loads.
- * Brand order is Mada-first, as required by Saudi Payments.
+ * Brand order is Apple Pay first, then cards Mada-first as required by
+ * Saudi Payments.
+ *
+ * Apple Pay renders as its own button above the card fields (the two
+ * checkout options). The widget hides the APPLEPAY container on devices
+ * that can't pay (non-Safari, no wallet), so `onReady` only injects the
+ * "or pay with card" divider when the button is actually visible —
+ * everyone else just sees the card form.
  *
  * If the script fails to load we surface a retry rather than leaving the
  * shopper stuck on a loading label forever — `attempt` re-runs the effect.
@@ -40,6 +49,7 @@ export function PaymentWidget({
   loadingLabel,
   errorLabel,
   retryLabel,
+  orCardLabel,
 }: PaymentWidgetProps) {
   const mountRef = useRef<HTMLDivElement>(null);
   const [status, setStatus] = useState<'loading' | 'ready' | 'error'>('loading');
@@ -50,7 +60,49 @@ export function PaymentWidget({
     if (!mount) return;
 
     setStatus('loading');
-    window.wpwlOptions = { paymentTarget: '_top' };
+    window.wpwlOptions = {
+      paymentTarget: '_top',
+      // Passed through to Apple's PaymentRequest by the widget; the amount
+      // itself comes from the prepared checkout, never from the browser.
+      applePay: {
+        version: 3,
+        displayName: 'Gharmish',
+        total: { label: 'Gharmish' },
+        currencyCode: 'SAR',
+        countryCode: 'SA',
+        supportedNetworks: ['mada', 'masterCard', 'visa'],
+        merchantCapabilities: ['supports3DS', 'supportsCredit', 'supportsDebit'],
+        style: 'black',
+      },
+      onReady: () => {
+        // Divider between the Apple Pay button and the card fields — only
+        // when the widget actually renders the button. On non-Apple
+        // browsers the APPLEPAY container stays in the DOM (visible but
+        // zero-height, holding only a hidden iframe), so the container
+        // alone is not a signal; the `.wpwl-apple-pay-button` element is.
+        // A `:has()` rule in globals.css hides the divider again if the
+        // button disappears after injection, and flex `order` rules put
+        // the Apple Pay container and divider visually above the card
+        // form (the widget's own DOM order is card-first).
+        const applePayButton = mount.querySelector('.wpwl-apple-pay-button');
+        const card = mount.querySelector('.wpwl-container-card');
+        if (!applePayButton || !card || mount.querySelector('[data-pay-divider]')) return;
+        const divider = document.createElement('div');
+        divider.setAttribute('data-pay-divider', '');
+        divider.className = 'my-3 flex items-center gap-3';
+        const line = () => {
+          const el = document.createElement('span');
+          el.className = 'bg-sarat-black/10 h-px flex-1';
+          el.setAttribute('aria-hidden', 'true');
+          return el;
+        };
+        const label = document.createElement('span');
+        label.className = 'text-sarat-black-600 text-sm';
+        label.textContent = orCardLabel;
+        divider.append(line(), label, line());
+        card.parentElement?.insertBefore(divider, card);
+      },
+    };
 
     // Build the widget form imperatively so React doesn't manage it.
     const form = document.createElement('form');
@@ -72,7 +124,14 @@ export function PaymentWidget({
       mount.replaceChildren();
       delete window.wpwlOptions;
     };
-  }, [checkout.checkoutId, checkout.scriptBaseUrl, checkout.brands, checkout.returnUrl, attempt]);
+  }, [
+    checkout.checkoutId,
+    checkout.scriptBaseUrl,
+    checkout.brands,
+    checkout.returnUrl,
+    orCardLabel,
+    attempt,
+  ]);
 
   return (
     <div className="flex flex-col gap-4">
@@ -101,8 +160,11 @@ export function PaymentWidget({
       )}
 
       {/* COPYandPAY mounts its fields into the form we append here. React
-          owns this div but never its children — see the comment above. */}
-      <div ref={mountRef} className={cn(status === 'error' && 'hidden')} />
+          owns this div but never its children — see the comment above.
+          `payment-widget-mount` anchors the globals.css rules that order
+          Apple Pay above the card form (the widget replaces our form with
+          unclassed markup, so there is no widget-owned hook to target). */}
+      <div ref={mountRef} className={cn('payment-widget-mount', status === 'error' && 'hidden')} />
     </div>
   );
 }

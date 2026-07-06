@@ -39,6 +39,8 @@ export interface PaymentDetailsCopy {
   widgetError: string;
   /** Retry action for the failed widget. */
   widgetRetry: string;
+  /** Divider between the Apple Pay button and the card form. */
+  orPayWithCard: string;
 }
 
 type DetailField = keyof Pick<
@@ -111,6 +113,7 @@ export function PaymentDetailsForm({
           loadingLabel={copy.widgetLoading}
           errorLabel={copy.widgetError}
           retryLabel={copy.widgetRetry}
+          orCardLabel={copy.orPayWithCard}
         />
       </div>
     );

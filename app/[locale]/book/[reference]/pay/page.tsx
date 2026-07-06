@@ -102,6 +102,7 @@ export default async function PaymentPage({ params, searchParams }: PageParams) 
     widgetLoading: t('widgetLoading'),
     widgetError: t('widgetError'),
     widgetRetry: t('widgetRetry'),
+    orPayWithCard: t('orPayWithCard'),
   };
 
   // Split the booking's guest name into given/surname to prefill the form
@@ -221,7 +222,9 @@ export default async function PaymentPage({ params, searchParams }: PageParams) 
         </p>
         <p className="text-sarat-black-600 ms-6 text-sm">
           {t('acceptedMethods')}{' '}
-          <span className="text-sarat-black font-medium">mada · Visa · Mastercard</span>
+          <span className="text-sarat-black font-medium">
+            mada · Visa · Mastercard · Apple&nbsp;Pay
+          </span>
         </p>
       </section>
     </article>
