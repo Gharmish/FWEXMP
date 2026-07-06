@@ -91,6 +91,12 @@ describe('buildCheckoutBody', () => {
     expect(body.get('billing.postcode')).toBe('62521');
   });
 
+  it('omits billing.state when the guest left it blank (optional per 3DS2 guide)', () => {
+    const body = buildCheckoutBody({ ...input, billing: { ...input.billing, state: '' } }, testCfg);
+    expect(body.has('billing.state')).toBe(false);
+    expect(body.get('billing.street1')).toBe('12 King Fahd Rd');
+  });
+
   it('adds the test-only flags in test mode', () => {
     const body = buildCheckoutBody(input, testCfg);
     expect(body.get('testMode')).toBe('EXTERNAL');

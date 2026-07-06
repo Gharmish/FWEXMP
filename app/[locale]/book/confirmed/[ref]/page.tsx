@@ -393,7 +393,13 @@ export default async function BookingConfirmedPage({ params, searchParams }: Pag
             {t('payNow')}
           </Link>
         )}
-        {isPending && <PendingPaymentRefresh label={t('paymentChecking')} />}
+        {isPending && (
+          <PendingPaymentRefresh
+            label={t('paymentChecking')}
+            stalledLabel={t('paymentStillChecking')}
+            refreshLabel={t('paymentCheckAgain')}
+          />
+        )}
       </header>
 
       <section

@@ -80,6 +80,11 @@ export default async function PaymentPage({ params, searchParams }: PageParams) 
   const t = await getTranslations('payment');
   const copy: PaymentDetailsCopy = {
     heading: t('detailsHeading'),
+    yourDetails: t('yourDetails'),
+    editDetails: t('editDetails'),
+    billingAddressHeading: t('billingAddressHeading'),
+    billingWhy: t('billingWhy'),
+    optionalSuffix: t('optionalSuffix'),
     givenName: t('givenName'),
     surname: t('surname'),
     email: t('email'),
@@ -90,7 +95,16 @@ export default async function PaymentPage({ params, searchParams }: PageParams) 
     country: t('country'),
     submit: t('submit'),
     pending: t('pending'),
-    invalid: t('invalid'),
+    invalid: {
+      givenName: t('invalid.givenName'),
+      surname: t('invalid.surname'),
+      email: t('invalid.email'),
+      street1: t('invalid.street1'),
+      city: t('invalid.city'),
+      state: t('invalid.state'),
+      postcode: t('invalid.postcode'),
+      country: t('invalid.country'),
+    },
     errorValidation: t('errorValidation'),
     errorServer: t('errorServer'),
     errorUnavailable: t('errorUnavailable'),
@@ -200,9 +214,7 @@ export default async function PaymentPage({ params, searchParams }: PageParams) 
         </Link>
       )}
 
-      <p className="text-sarat-black-600 mt-6 text-sm">{t('madaFirst')}</p>
-
-      <section className="mt-4">
+      <section className="mt-8">
         <PaymentDetailsForm
           reference={reference}
           locale={loc}

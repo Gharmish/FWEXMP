@@ -1,7 +1,7 @@
 import { Link } from '@/lib/i18n';
 import type { Locale } from '@/lib/i18n';
-import { Badge } from '@/components/ui/badge';
 import { Price } from '@/components/ui/price';
+import { BookingStatusBadge } from '@/features/bookings/components/booking-status-badge';
 import { formatDate, formatInteger } from '@/lib/format';
 import type { Booking } from '@/db/schema';
 import type { GuestBookingSummary } from '@/features/bookings/queries';
@@ -45,9 +45,9 @@ export function BookingHistory({ bookings, locale, copy }: BookingHistoryProps) 
           </div>
 
           <div className="flex items-center gap-4">
-            <Badge variant={booking.status === 'cancelled' ? 'soldOut' : 'neutral'}>
-              {copy.statusLabels[booking.status]}
-            </Badge>
+            {/* Semantic tones (BRIEF §3): the guest's pending-vs-confirmed
+                anxiety deserves the amber/green signal, not a neutral chip. */}
+            <BookingStatusBadge status={booking.status} label={copy.statusLabels[booking.status]} />
             <Price amount={booking.totalAmountSar} locale={locale} className="text-base" />
             <Link
               href={`/book/confirmed/${booking.reference}?slug=${encodeURIComponent(booking.experienceSlug)}`}

@@ -578,9 +578,18 @@ export function BookingRequestForm({
           >
             <div className="flex items-center justify-between gap-4">
               <span className="flex min-w-0 flex-col leading-tight">
-                <span className="text-sarat-black-600 text-sm">{copy.total}</span>
-                <span className="truncate text-lg font-medium">
-                  <Price amount={totalSar} locale={locale} />
+                {/* The calendar auto-selects a first date — the bar must show
+                    WHICH day is being booked, not just what it costs. */}
+                {selectedOption && (
+                  <span className="text-sarat-black-600 truncate text-sm">
+                    {selectedOption.label}
+                  </span>
+                )}
+                <span className="flex items-baseline gap-2">
+                  <span className="text-sarat-black-600 text-sm">{copy.total}</span>
+                  <span className="truncate text-lg font-medium">
+                    <Price amount={totalSar} locale={locale} />
+                  </span>
                 </span>
               </span>
               <SubmitButton copy={copy} fullWidth={false} />

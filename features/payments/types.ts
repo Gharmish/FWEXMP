@@ -15,7 +15,8 @@ export interface HyperpayCustomer {
 export interface HyperpayBilling {
   street1: string;
   city: string;
-  state: string;
+  /** Optional per the OPPWA 3DS2 guide — omitted from the request when empty. */
+  state?: string;
   /** ISO 3166-1 alpha-2, e.g. `SA`. */
   country: string;
   postcode: string;

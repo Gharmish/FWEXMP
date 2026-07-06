@@ -16,6 +16,7 @@ import { getLastBookingView } from '@/features/account/queries';
 import { getMyProfile } from '@/features/account/profile/queries';
 import { getBookingsForGuest } from '@/features/bookings/queries';
 import { BookingHistory } from '@/features/account/profile/components/booking-history';
+import { BookingStatusBadge } from '@/features/bookings/components/booking-status-badge';
 import { buildBookingStatusLabels } from '@/features/bookings/lib/status-labels';
 import { ReviewForm } from '@/features/reviews/components/review-form';
 import { toArabicText } from '@/features/experiences/lib/arabic-content';
@@ -173,8 +174,13 @@ export default async function MePage({ params }: { params: Promise<{ locale: str
                 <dl className="mt-2 grid gap-3 sm:grid-cols-2">
                   <div className="flex flex-col gap-1">
                     <dt className="text-sarat-black-600 text-sm">{t('statusLabel')}</dt>
-                    <dd className="text-base font-medium">
-                      {t(`status.${lastBooking.booking.status}`)}
+                    {/* Semantic tone (BRIEF §3) — pending amber vs confirmed
+                        green is the one thing a guest checks here. */}
+                    <dd className="flex">
+                      <BookingStatusBadge
+                        status={lastBooking.booking.status}
+                        label={t(`status.${lastBooking.booking.status}`)}
+                      />
                     </dd>
                   </div>
                   <div className="flex flex-col gap-1">

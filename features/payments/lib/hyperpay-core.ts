@@ -97,10 +97,15 @@ export function buildCheckoutBody(
     'customer.surname': input.customer.surname,
     'billing.street1': input.billing.street1,
     'billing.city': input.billing.city,
-    'billing.state': input.billing.state,
     'billing.country': input.billing.country,
     'billing.postcode': input.billing.postcode,
   });
+
+  // billing.state is optional per the OPPWA 3DS2 guide; KSA addresses have
+  // none, so it only travels when the guest actually provided one.
+  if (input.billing.state) {
+    body.set('billing.state', input.billing.state);
+  }
 
   if (cfg.mode === 'test') {
     body.set('testMode', 'EXTERNAL');

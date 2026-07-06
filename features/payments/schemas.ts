@@ -15,7 +15,10 @@ export const paymentDetailsSchema = z.object({
   email: z.string().trim().email().max(128),
   street1: z.string().trim().min(1).max(50),
   city: z.string().trim().min(2).max(45),
-  state: z.string().trim().min(1).max(40),
+  // Optional per the OPPWA 3DS2 guide (billing.state is "Optional"; only
+  // street1/city/postcode/country are mandated). KSA addresses have no
+  // state — the empty string is omitted from the checkout request.
+  state: z.string().trim().max(40),
   postcode: z.string().trim().min(1).max(30),
   // ISO 3166-1 alpha-2 — the email mandates the `A2[A-Z]{2}` format.
   // Defaults to KSA but the field is editable for international cards.
