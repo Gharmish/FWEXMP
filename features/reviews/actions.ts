@@ -2,6 +2,7 @@
 
 import { and, eq, gt, isNull } from 'drizzle-orm';
 import { revalidatePath } from 'next/cache';
+import { revalidateReviewCaches } from '@/lib/cache-tags';
 import { db } from '@/lib/db';
 import { serverEnv } from '@/lib/env';
 import { bookings, reviews } from '@/db/schema';
@@ -116,6 +117,8 @@ export async function submitReview(
     return { success: false, message: 'server', values };
   }
 
+  // The catalog/detail rating aggregates are cached cross-request.
+  revalidateReviewCaches();
   redirect({ href: '/me', locale });
 }
 
@@ -184,6 +187,7 @@ export async function updateReview(
       .returning({ id: reviews.id });
     if (updated.length === 0) return { success: false, message: 'expired', values };
 
+    revalidateReviewCaches();
     revalidatePath('/[locale]/me', 'page');
     revalidatePath('/[locale]/experiences/[slug]', 'page');
   } catch (error) {
@@ -250,6 +254,7 @@ export async function replyToReview(
       .returning({ id: reviews.id });
     if (updated.length === 0) return { success: false, message: 'already_replied' };
 
+    revalidateReviewCaches();
     revalidatePath('/[locale]/host/reviews', 'page');
     revalidatePath('/[locale]/experiences/[slug]', 'page');
   } catch (error) {

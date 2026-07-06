@@ -8,6 +8,7 @@ import { requestBooking, type BookingRequestState } from '@/features/bookings/ac
 import { bookingRequestSchema } from '@/features/bookings/schemas';
 import { vatPortionSar } from '@/features/bookings/lib/vat';
 import { Button } from '@/components/ui/button';
+import { FieldError as SpringFieldError } from '@/components/ui/field-error';
 import { Input } from '@/components/ui/input';
 import { Pop, SPRING } from '@/components/ui/motion';
 import type { Locale } from '@/lib/i18n';
@@ -15,6 +16,9 @@ import { cn } from '@/lib/utils';
 import { PhoneInput } from '@/components/ui/phone-input';
 import { Price } from '@/components/ui/price';
 import { BookingCalendar } from './booking-calendar';
+import type { BookableOption } from '@/features/bookings/types';
+
+export type { BookableOption } from '@/features/bookings/types';
 
 interface BookingRequestCopy {
   title: string;
@@ -66,14 +70,6 @@ interface BookingRequestCopy {
   nextMonth: string;
 }
 
-export interface BookableOption {
-  value: string;
-  label: string;
-  remaining: number;
-  /** Pre-formatted "N spots left" (ICU formatted server-side). */
-  spotsLabel: string;
-}
-
 export interface BookingRequestFormProps {
   experienceSlug: string;
   locale: Locale;
@@ -88,6 +84,14 @@ export interface BookingRequestFormProps {
   modeNote?: string;
   /** Caption under the date label, e.g. "Runs Fri & Sat" — sets expectations. */
   scheduleNote?: string;
+  /**
+   * Pre-selected date (`YYYY-MM-DD`) — carried back from the payment
+   * step's "change date or guests" link so the guest edits their choice
+   * instead of restarting. Only honored when still a bookable option.
+   */
+  initialDate?: string;
+  /** Pre-selected party size — same provenance as `initialDate`. */
+  initialPartySize?: number;
   copy: BookingRequestCopy;
 }
 
@@ -126,11 +130,12 @@ function SubmitButton({
 }
 
 function FieldError({ id, message }: { id: string; message?: string }) {
-  if (!message) return null;
+  // Shared spring slide-in (components/ui/field-error); the form's own gap
+  // classes already provide spacing, so the default mt is neutralised.
   return (
-    <p id={id} className="text-al-qatt-red-800 text-sm">
+    <SpringFieldError id={id} className="mt-0">
       {message}
-    </p>
+    </SpringFieldError>
   );
 }
 
@@ -176,11 +181,31 @@ export function BookingRequestForm({
   availableDates,
   modeNote,
   scheduleNote,
+  initialDate,
+  initialPartySize,
   copy,
 }: BookingRequestFormProps) {
   const [state, formAction] = useActionState(requestBooking, initialState);
   const values = state.values ?? {};
   const formRef = useRef<HTMLFormElement>(null);
+  // Idempotency key, minted once per form mount (BRIEF §6 — safe retries):
+  // a double-tap or a network-layer re-POST re-sends the same key and the
+  // server dedupes to the first booking instead of creating a second one.
+  // Deliberately NOT re-minted after a failed submit — the state update
+  // re-renders but keeps this state, and a validation retry with the same
+  // key is exactly the retry the key exists to make safe.
+  const [idempotencyKey, setIdempotencyKey] = useState(() => crypto.randomUUID());
+  // …but a bfcache restore (hard-navigation back) resurrects the page
+  // snapshot with a possibly USED key, where a new submission must not be
+  // swallowed as a replay. Soft (router) back-navigations remount the
+  // component and mint fresh anyway; this covers the hard-nav case.
+  useEffect(() => {
+    const onPageShow = (e: PageTransitionEvent) => {
+      if (e.persisted) setIdempotencyKey(crypto.randomUUID());
+    };
+    window.addEventListener('pageshow', onPageShow);
+    return () => window.removeEventListener('pageshow', onPageShow);
+  }, []);
   const noDates = availableDates.length === 0;
   const reduce = useReducedMotion();
 
@@ -212,10 +237,16 @@ export function BookingRequestForm({
 
   // Date + guests are controlled so we can show a live total + remaining
   // capacity and cap the party size to what the chosen day actually has.
+  // Precedence: server echo (failed submit) → carried-back choice from the
+  // payment step (when still bookable) → first available.
+  const carriedDate =
+    initialDate && availableDates.some((d) => d.value === initialDate) ? initialDate : undefined;
   const [selectedDate, setSelectedDate] = useState<string>(
-    values.preferredDate ?? availableDates[0]?.value ?? '',
+    values.preferredDate ?? carriedDate ?? availableDates[0]?.value ?? '',
   );
-  const [partySize, setPartySize] = useState<number>(Number(values.partySize) || 1);
+  const [partySize, setPartySize] = useState<number>(
+    Number(values.partySize) || initialPartySize || 1,
+  );
   const selectedOption = availableDates.find((d) => d.value === selectedDate);
   const maxGuests = Math.min(
     Number(maxGroupSize) || 1,
@@ -346,6 +377,7 @@ export function BookingRequestForm({
     >
       <input type="hidden" name="experienceSlug" value={experienceSlug} />
       <input type="hidden" name="locale" value={locale} />
+      <input type="hidden" name="idempotencyKey" value={idempotencyKey} />
 
       {modeNote && (
         <p className="bg-juniper-green/8 text-juniper-green-800 rounded-input px-3 py-2 text-sm">

@@ -2,6 +2,7 @@
 
 import { asc, eq, sql } from 'drizzle-orm';
 import { revalidatePath } from 'next/cache';
+import { revalidateExperienceCaches } from '@/lib/cache-tags';
 import { z } from 'zod';
 import { db } from '@/lib/db';
 import { AR_PLACEHOLDER } from '@/lib/ar-placeholder';
@@ -94,6 +95,7 @@ async function experienceIdOfMoment(momentId: string): Promise<string | null> {
 }
 
 function revalidate(): void {
+  revalidateExperienceCaches();
   revalidatePath('/[locale]/host/experiences/[id]', 'page');
   revalidatePath('/[locale]/experiences/[slug]', 'page');
 }

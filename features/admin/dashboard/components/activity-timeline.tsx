@@ -1,6 +1,7 @@
 import { Link } from '@/lib/i18n';
 import type { Locale } from '@/lib/i18n';
 import { formatDate, formatTime } from '@/lib/format';
+import { Draw, Stagger, StaggerItem } from '@/components/ui/motion';
 import type { ActivityItem, ActivityKind } from '@/features/admin/activity/queries';
 
 interface ActivityTimelineProps {
@@ -36,38 +37,46 @@ export function ActivityTimeline({ items, locale, emptyLabel, t }: ActivityTimel
   }
 
   return (
-    <ol className="flex flex-col">
-      {items.map((item, i) => {
-        const last = i === items.length - 1;
-        const at = new Date(item.at);
-        return (
-          <li key={`${item.kind}-${item.id}`} className="flex gap-4">
-            <div className="flex flex-col items-center">
-              <span
-                className={`mt-1.5 size-2.5 shrink-0 rounded-full ${DOT_TONE[item.kind]}`}
-                aria-hidden
-              />
-              {!last && <span className="bg-sarat-black/10 mt-1 w-px flex-1" aria-hidden />}
-            </div>
-            <div className={`flex min-w-0 flex-col gap-1 ${last ? '' : 'pb-5'}`}>
-              <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-                <span className="text-base font-medium">
-                  {t(`${EVENT_NS[item.kind]}.${item.event}`)}
-                </span>
-                <Link
-                  href={item.targetHref}
-                  className="text-sarat-black-600 truncate text-base underline-offset-4 hover:underline"
-                >
-                  {item.targetLabel}
-                </Link>
-              </div>
-              <span className="text-sarat-black-600 text-sm">
-                {formatDate(at, locale)} · {formatTime(at, locale)}
-              </span>
-            </div>
-          </li>
-        );
-      })}
-    </ol>
+    <Stagger>
+      <ol className="flex flex-col">
+        {items.map((item, i) => {
+          const last = i === items.length - 1;
+          const at = new Date(item.at);
+          return (
+            <li key={`${item.kind}-${item.id}`}>
+              <StaggerItem className="flex gap-4">
+                <div className="flex flex-col items-center">
+                  <span
+                    className={`mt-1.5 size-2.5 shrink-0 rounded-full ${DOT_TONE[item.kind]}`}
+                    aria-hidden
+                  />
+                  {!last && (
+                    <Draw className="mt-1 w-px flex-1">
+                      <span className="bg-sarat-black/10 block size-full" aria-hidden />
+                    </Draw>
+                  )}
+                </div>
+                <div className={`flex min-w-0 flex-col gap-1 ${last ? '' : 'pb-5'}`}>
+                  <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                    <span className="text-base font-medium">
+                      {t(`${EVENT_NS[item.kind]}.${item.event}`)}
+                    </span>
+                    <Link
+                      href={item.targetHref}
+                      className="text-sarat-black-600 truncate text-base underline-offset-4 hover:underline"
+                    >
+                      {item.targetLabel}
+                    </Link>
+                  </div>
+                  <span className="text-sarat-black-600 text-sm">
+                    {formatDate(at, locale)} · {formatTime(at, locale)}
+                  </span>
+                </div>
+              </StaggerItem>
+            </li>
+          );
+        })}
+      </ol>
+    </Stagger>
   );
 }

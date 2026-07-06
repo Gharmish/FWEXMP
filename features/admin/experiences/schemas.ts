@@ -25,21 +25,30 @@ export const BOOKING_MODES = ['request', 'instant'] as const;
 /** HH:MM 24-hour. */
 const HHMM_RE = /^([01]\d|2[0-3]):[0-5]\d$/;
 
-export const adminExperienceSchema = hostExperienceInputSchema.extend({
-  // Arabic copy — admins may author/correct it directly (the no-AI-Arabic
-  // rule is about the assistant, not the human operator).
-  titleAr: z.string().trim().min(2, 'title_ar_short').max(160, 'title_ar_long'),
-  descriptionAr: z.string().trim().min(10, 'description_ar_short').max(5000, 'description_ar_long'),
-  startTime: z.string().regex(HHMM_RE, 'start_time_invalid'),
-  bookingMode: z.enum(BOOKING_MODES),
-  // Percentage in the UI (0–50); stored as basis points by the action.
-  commissionPct: z.coerce.number().min(0, 'commission_range').max(50, 'commission_range'),
-  status: z.enum(EXPERIENCE_STATUSES),
-  // Unchecked checkbox → '' → false; 'on' → true.
-  featured: z.coerce.boolean(),
-  // Blackout dates are managed on the visual calendar (single source of
-  // truth), not this form — see features/availability.
-});
+// Coordinates are omitted: the meeting point belongs to the host's map
+// picker, and the admin editor neither renders nor writes lat/lng —
+// inheriting the requirement made every admin save fail validation.
+export const adminExperienceSchema = hostExperienceInputSchema
+  .omit({ lat: true, lng: true })
+  .extend({
+    // Arabic copy — admins may author/correct it directly (the no-AI-Arabic
+    // rule is about the assistant, not the human operator).
+    titleAr: z.string().trim().min(2, 'title_ar_short').max(160, 'title_ar_long'),
+    descriptionAr: z
+      .string()
+      .trim()
+      .min(10, 'description_ar_short')
+      .max(5000, 'description_ar_long'),
+    startTime: z.string().regex(HHMM_RE, 'start_time_invalid'),
+    bookingMode: z.enum(BOOKING_MODES),
+    // Percentage in the UI (0–50); stored as basis points by the action.
+    commissionPct: z.coerce.number().min(0, 'commission_range').max(50, 'commission_range'),
+    status: z.enum(EXPERIENCE_STATUSES),
+    // Unchecked checkbox → '' → false; 'on' → true.
+    featured: z.coerce.boolean(),
+    // Blackout dates are managed on the visual calendar (single source of
+    // truth), not this form — see features/availability.
+  });
 
 export type AdminExperienceInput = z.infer<typeof adminExperienceSchema>;
 

@@ -2,12 +2,13 @@
 
 import { eq } from 'drizzle-orm';
 import { revalidatePath } from 'next/cache';
+import { revalidateExperienceCaches } from '@/lib/cache-tags';
 import { db } from '@/lib/db';
 import { serverEnv, hasSupabaseAuth } from '@/lib/env';
 import { experiences, experienceModerationEvents } from '@/db/schema';
 import { redirect } from '@/lib/i18n';
 import { reportError } from '@/lib/log';
-import { getSupabaseServerClient } from '@/lib/supabase/server';
+import { getSupabaseUserStorage } from '@/lib/supabase/server';
 import { getCurrentUser } from '@/features/auth/queries';
 import { isAdminUser } from '@/features/admin/auth';
 import { heroObjectKey, validatePhoto } from '@/features/host-experiences/lib/photo';
@@ -21,9 +22,9 @@ const PHOTO_BUCKET = 'photos';
  * Mirrors the host `uploadExperienceHero` action, but the ownership
  * scope is "any experience" rather than "my listings": an admin can
  * replace the hero on any host's experience from the moderation detail
- * page. The write goes through the request-scoped Supabase client so the
- * bucket's authenticated-write RLS sees the admin's session — so it
- * requires real Supabase Auth, same as the host path.
+ * page. The write goes through `getSupabaseUserStorage` (service-role
+ * key behind the signed-in + admin gate) — storage RLS rejects even
+ * bound user tokens in production, same as the host path.
  *
  * The swap is recorded as a `photo_updated` moderation event with
  * `fromStatus === toStatus` (no lifecycle change), keeping the audit
@@ -78,8 +79,9 @@ export async function uploadModerationHero(
     if (!experience) return { success: false, message: 'not_found' };
 
     const key = heroObjectKey(experience.slug, check.ext);
-    const supabase = await getSupabaseServerClient();
-    const { error: uploadError } = await supabase.storage.from(PHOTO_BUCKET).upload(key, file, {
+    const storage = await getSupabaseUserStorage();
+    if (!storage) return { success: false, message: 'forbidden' };
+    const { error: uploadError } = await storage.from(PHOTO_BUCKET).upload(key, file, {
       upsert: true,
       contentType: check.contentType,
     });
@@ -90,7 +92,7 @@ export async function uploadModerationHero(
 
     const {
       data: { publicUrl },
-    } = supabase.storage.from(PHOTO_BUCKET).getPublicUrl(key);
+    } = storage.from(PHOTO_BUCKET).getPublicUrl(key);
     // Cache-bust: the key is stable across replacements.
     const versioned = `${publicUrl}?v=${Date.now()}`;
 
@@ -111,6 +113,7 @@ export async function uploadModerationHero(
     return { success: false, message: 'server' };
   }
 
+  revalidateExperienceCaches();
   revalidatePath('/[locale]/admin/experience-moderation/[id]', 'page');
   revalidatePath('/[locale]/host/experiences/[id]', 'page');
   revalidatePath('/[locale]/experiences/[slug]', 'page');

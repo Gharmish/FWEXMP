@@ -9,7 +9,6 @@ import type { Locale } from '@/lib/i18n';
 import {
   publishHostExperience,
   pauseHostExperience,
-  duplicateHostExperience,
   type HostExperienceState,
 } from '@/features/host-experiences/actions';
 import Link from 'next/link';
@@ -36,8 +35,6 @@ interface LifecycleCopy {
   pendingReviewLabel: string;
   pause: string;
   pausePending: string;
-  duplicate: string;
-  duplicatePending: string;
   viewPublic: string;
   errors: Record<ErrorKey, string>;
 }
@@ -79,11 +76,9 @@ function errorMessage(state: HostExperienceState, copy: LifecycleCopy): string |
 export function LifecycleActions({ experienceId, status, locale, copy }: LifecycleActionsProps) {
   const [publishState, publishAction] = useActionState(publishHostExperience, initialState);
   const [pauseState, pauseAction] = useActionState(pauseHostExperience, initialState);
-  const [duplicateState, duplicateAction] = useActionState(duplicateHostExperience, initialState);
 
   const publishMessage = errorMessage(publishState, copy);
   const pauseMessage = errorMessage(pauseState, copy);
-  const duplicateMessage = errorMessage(duplicateState, copy);
 
   return (
     <div className="flex flex-col gap-3">
@@ -129,17 +124,10 @@ export function LifecycleActions({ experienceId, status, locale, copy }: Lifecyc
             {copy.viewPublic}
           </Link>
         )}
-        {/* Duplicate-as-draft works from any status — even archived
-            listings are reusable as a starting point. */}
-        <form action={duplicateAction}>
-          <input type="hidden" name="experienceId" value={experienceId} />
-          <input type="hidden" name="locale" value={locale} />
-          <PauseSubmit label={copy.duplicate} pendingLabel={copy.duplicatePending} />
-        </form>
       </div>
-      {(publishMessage || pauseMessage || duplicateMessage) && (
+      {(publishMessage || pauseMessage) && (
         <p role="alert" className="text-al-qatt-red-800 text-sm">
-          {publishMessage || pauseMessage || duplicateMessage}
+          {publishMessage || pauseMessage}
         </p>
       )}
     </div>

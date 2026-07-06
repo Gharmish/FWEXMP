@@ -1,15 +1,14 @@
 'use client';
 
 import { useActionState } from 'react';
-import { useFormStatus } from 'react-dom';
 import type { Locale } from '@/lib/i18n';
-import { Button } from '@/components/ui/button';
+import { ConfirmSubmit } from '@/components/ui/confirm-dialog';
 import { cancelBookingAsGuest, type CancelBookingState } from '@/features/bookings/cancel-actions';
 
 interface Copy {
   label: string;
   pending: string;
-  /** Native-confirm prompt — varies with the refund consequence. */
+  /** Confirm-dialog body — varies with the refund consequence. */
   confirm: string;
   /** Success notes keyed by the action's refund outcome. */
   done: Record<'none' | 'refunded' | 'refund_pending' | 'forfeited', string>;
@@ -34,20 +33,19 @@ export interface CancelBookingButtonProps {
 const initialState: CancelBookingState = { success: false };
 
 function Submit({ copy }: { copy: Copy }) {
-  const { pending } = useFormStatus();
   return (
-    <Button
-      type="submit"
+    <ConfirmSubmit
+      title={copy.label}
+      description={copy.confirm}
+      confirmLabel={copy.label}
+      pendingLabel={copy.pending}
+      destructive
       variant="secondary"
       size="md"
-      pending={pending}
       className="border-al-qatt-red/40 text-al-qatt-red-800"
-      onClick={(e) => {
-        if (!window.confirm(copy.confirm)) e.preventDefault();
-      }}
     >
-      {pending ? copy.pending : copy.label}
-    </Button>
+      {copy.label}
+    </ConfirmSubmit>
   );
 }
 

@@ -25,10 +25,10 @@ import { CancelBookingButton } from '@/features/bookings/components/cancel-booki
 import { cancelEligibility, freeCancellationDeadline } from '@/features/bookings/lib/cancellation';
 import { isHoldExpired } from '@/features/bookings/lib/availability';
 import { vatPortionSar, vatRatePercent } from '@/features/bookings/lib/vat';
-import { getPlatformSettings } from '@/features/admin/settings/queries';
+import { getPlatformSettings } from '@/lib/platform-settings';
 import { PendingPaymentRefresh } from '@/features/payments/components/pending-payment-refresh';
 import { toArabicText } from '@/features/experiences/lib/arabic-content';
-import { Pop } from '@/components/ui/motion';
+import { Draw, Pop, Stagger, StaggerItem } from '@/components/ui/motion';
 
 /** UUID v4 shape — the only thing we accept as a public reference. */
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -335,7 +335,7 @@ export default async function BookingConfirmedPage({ params, searchParams }: Pag
       ? await getHostContactPhoneForBooking(ref)
       : null;
   const hostWhatsapp = hostPhone
-    ? whatsappLink(hostPhone, t('whatsapp.prefill', { reference: ref }))
+    ? whatsappLink(hostPhone, t('whatsapp.prefill', { reference: booking?.referenceCode ?? ref }))
     : null;
 
   // Guest cancellation. Computed server-side so the page shows the true
@@ -402,17 +402,28 @@ export default async function BookingConfirmedPage({ params, searchParams }: Pag
         <p id="booking-reference-heading" className={eyebrowClassName}>
           {t('referenceLabel')}
         </p>
-        <p className="font-display text-2xl font-medium tracking-[-0.025em] break-all">{ref}</p>
+        {/* Human reference (GH-XXXXXX); the UUID shows only on the no-DB
+            preview path where no row (and so no code) exists. */}
+        <p className="font-display text-2xl font-medium tracking-[0.04em] break-all" dir="ltr">
+          {booking?.referenceCode ?? ref}
+        </p>
+        {/* Saffron hairline draws under the reference — a quiet flourish on
+            the one number the guest will quote everywhere. */}
+        <Draw axis="x" delay={0.15}>
+          <span className="bg-saffron-gold block h-0.5 w-16 rounded-full" />
+        </Draw>
 
         {detailRows.length > 0 && (
-          <dl className="mt-2 grid gap-3 sm:grid-cols-2">
-            {detailRows.map((row) => (
-              <div key={row.label} className="flex flex-col gap-1">
-                <dt className="text-sarat-black-600 text-sm">{row.label}</dt>
-                <dd className="text-base font-medium">{row.value}</dd>
-              </div>
-            ))}
-          </dl>
+          <Stagger>
+            <dl className="mt-2 grid gap-3 sm:grid-cols-2">
+              {detailRows.map((row) => (
+                <StaggerItem key={row.label} className="flex flex-col gap-1">
+                  <dt className="text-sarat-black-600 text-sm">{row.label}</dt>
+                  <dd className="text-base font-medium">{row.value}</dd>
+                </StaggerItem>
+              ))}
+            </dl>
+          </Stagger>
         )}
 
         {/* The page doubles as the e-ticket — print it / save as PDF. Only

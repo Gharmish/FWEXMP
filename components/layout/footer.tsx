@@ -3,6 +3,7 @@ import { Link } from '@/lib/i18n';
 import type { Locale } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
 import { Wordmark } from '@/components/layout/wordmark';
+import { Stagger, StaggerItem } from '@/components/ui/motion';
 
 /**
  * Restrained footer (BRIEF §3): a single 0.5px top hairline, no shadow,
@@ -54,18 +55,18 @@ export async function Footer() {
   );
 
   return (
-    <footer className="border-sarat-black/8 [border-top-width:0.5px] print:hidden">
+    <footer data-site-chrome className="border-sarat-black/8 [border-top-width:0.5px] print:hidden">
       <div className="mx-auto flex max-w-6xl flex-col gap-10 px-6 py-12">
-        <div className="flex flex-col gap-8 sm:flex-row sm:justify-between">
-          <div className="flex flex-col gap-3">
+        <Stagger className="flex flex-col gap-8 sm:flex-row sm:justify-between">
+          <StaggerItem className="flex flex-col gap-3">
             <Wordmark locale={locale} />
             <p className="text-sarat-black-600 max-w-md text-base">{t('tagline')}</p>
-          </div>
+          </StaggerItem>
           <div className="flex flex-col gap-8 sm:flex-row sm:gap-16">
-            {renderColumn(t('exploreLabel'), exploreLinks)}
-            {renderColumn(t('supportLabel'), supportLinks)}
+            <StaggerItem>{renderColumn(t('exploreLabel'), exploreLinks)}</StaggerItem>
+            <StaggerItem>{renderColumn(t('supportLabel'), supportLinks)}</StaggerItem>
           </div>
-        </div>
+        </Stagger>
         <div className="border-sarat-black/8 text-sarat-black-600 flex flex-col gap-1 [border-top-width:0.5px] pt-6 text-sm">
           <span>
             © {year} {brand}. {t('rights')}

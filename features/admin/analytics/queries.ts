@@ -1,6 +1,5 @@
 import { eq, sql } from 'drizzle-orm';
 import { db } from '@/lib/db';
-import { serverEnv } from '@/lib/env';
 import { bookings, experiences, hostApplications, hosts } from '@/db/schema';
 
 /** Hard ceiling on the bookings load — a safety brake so a misconfigured
@@ -9,8 +8,6 @@ import { bookings, experiences, hostApplications, hosts } from '@/db/schema';
  * aggregations into SQL FILTER clauses (see the file docstring). */
 const BOOKINGS_QUERY_LIMIT = 50_000;
 import { reportError } from '@/lib/log';
-import { getCurrentUser } from '@/features/auth/queries';
-import { isAdminUser } from '@/features/admin/auth';
 import type {
   AnalyticsSnapshot,
   AnalyticsTopExperience,
@@ -19,6 +16,7 @@ import type {
   CatalogTotals,
   SparklinePoint,
 } from '@/features/admin/analytics/types';
+import { adminGuard } from '@/features/admin/guard';
 
 /**
  * Admin analytics. Same guard chassis as the other admin surfaces.
@@ -33,20 +31,8 @@ import type {
  * returned by `getAnalyticsSnapshot` doesn't need to change.
  */
 
-export interface AdminGuardFailure {
-  reason: 'not_admin' | 'no_db';
-}
-
-async function adminGuard(): Promise<AdminGuardFailure | null> {
-  const user = await getCurrentUser();
-  if (!isAdminUser(user)) return { reason: 'not_admin' };
-  if (!serverEnv.DATABASE_URL) return { reason: 'no_db' };
-  return null;
-}
-
-export async function isAdminAndDbReady(): Promise<AdminGuardFailure | null> {
-  return adminGuard();
-}
+export { isAdminAndDbReady } from '@/features/admin/guard';
+export type { AdminGuardFailure } from '@/features/admin/guard';
 
 export interface BookingForAggregation {
   id: string;

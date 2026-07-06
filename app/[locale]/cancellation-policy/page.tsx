@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
 import type { Locale } from '@/lib/i18n';
 import { InfoPage } from '@/components/layout/info-page';
-import { getPlatformSettings } from '@/features/admin/settings/queries';
+import { getPlatformSettings } from '@/lib/platform-settings';
 
 export async function generateMetadata({
   params,

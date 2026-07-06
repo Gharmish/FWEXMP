@@ -45,6 +45,9 @@ export interface ModerationDetail {
   inclusions: readonly string[];
   whatToBring: readonly string[];
   cancellationPolicy: string;
+  inclusionsAr: readonly string[];
+  whatToBringAr: readonly string[];
+  cancellationPolicyAr: string;
   availabilityWeekdays: readonly number[];
   status: ExperienceStatus;
   heroImage: string | null;

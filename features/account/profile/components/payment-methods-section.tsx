@@ -11,10 +11,10 @@ export interface PaymentMethodsSectionProps {
 
 /**
  * Display-only payment methods. BRIEF §5 forbids storing card data, and
- * Moyasar isn't wired yet — so this shows an empty state explaining that
- * saved cards arrive with Moyasar. No card data is collected or stored.
- * When Moyasar lands, replace with a list of tokenized cards (tokens only,
- * never PAN/CVV).
+ * card tokenization isn't wired yet — so this shows an empty state
+ * explaining that saved cards arrive when online payments go live. No
+ * card data is collected or stored. When HyperPay tokenization lands,
+ * replace with a list of tokenized cards (tokens only, never PAN/CVV).
  */
 export function PaymentMethodsSection({ copy }: PaymentMethodsSectionProps) {
   return (

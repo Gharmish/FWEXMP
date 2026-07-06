@@ -39,6 +39,9 @@ export async function sendEmail(input: SendEmailInput): Promise<boolean> {
         ...(input.text ? { text: input.text } : {}),
       }),
       cache: 'no-store',
+      // A hung Resend socket must not stall a booking response (sends are
+      // awaited inline today); the abort lands in the catch below.
+      signal: AbortSignal.timeout(10_000),
     });
 
     if (!res.ok) {

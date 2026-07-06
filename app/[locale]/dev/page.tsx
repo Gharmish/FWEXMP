@@ -1,4 +1,5 @@
 import { Search, Heart, Plus } from 'lucide-react';
+import { notFound } from 'next/navigation';
 import { setRequestLocale } from 'next-intl/server';
 import {
   COLORS,
@@ -24,6 +25,7 @@ import { RatingSummary } from '@/features/reviews/components/rating-summary';
 import { ReviewCard } from '@/features/reviews/components/review-card';
 import type { ReviewAggregate, ReviewSummary } from '@/features/reviews/types';
 import { WishlistButton } from '@/features/wishlist/components/wishlist-button';
+import { MotionDemos, OverlayDemos } from './motion-demos';
 
 /**
  * Internal living style guide. Renders every design token and primitive
@@ -245,6 +247,11 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 }
 
 export default async function StyleGuidePage({ params }: { params: Promise<{ locale: string }> }) {
+  // Internal style guide — local dev and preview deployments only. On the
+  // production domain it 404s (VERCEL_ENV is 'preview' on previews, so
+  // those keep it for design review).
+  if (process.env.VERCEL_ENV === 'production') notFound();
+
   const { locale } = await params;
   setRequestLocale(locale);
 
@@ -576,6 +583,14 @@ export default async function StyleGuidePage({ params }: { params: Promise<{ loc
           <ReviewCard review={SAMPLE_REVIEW} locale={locale as Locale} />
           <ReviewCard review={SAMPLE_REVIEW_WITH_REPLY} locale={locale as Locale} />
         </div>
+      </Section>
+
+      <Section title="Motion">
+        <MotionDemos />
+      </Section>
+
+      <Section title="Overlays">
+        <OverlayDemos />
       </Section>
     </div>
   );

@@ -459,7 +459,20 @@
       "viewPublic": "View public page",
       "photoHeading": "Hero photo",
       "photoDescription": "The first image guests see for this experience. Replacing it updates the listing and the catalog immediately, and records a photo change in the history below.",
-      "editDetails": "Edit all details"
+      "editDetails": "Edit all details",
+      "arabicHeading": "Arabic copy",
+      "arabicEditorDescription": "What Arabic-speaking guests read on the public listing. Saving updates it immediately and records the edit in the history below.",
+      "arabicTitleLabel": "Title (Arabic)",
+      "arabicSave": "Save Arabic copy",
+      "arabicSaving": "Saving…",
+      "arabicTitleInvalid": "The Arabic title needs to be 2–160 characters.",
+      "arabicDescriptionInvalid": "The Arabic description needs to be 10–5000 characters.",
+      "arabicInclusionsLabel": "What's included (Arabic)",
+      "arabicWhatToBringLabel": "What to bring (Arabic)",
+      "arabicListsHint": "One item per line, matching the English lists. Leave empty to keep the automatic translation.",
+      "arabicPolicyLabel": "Cancellation policy (Arabic)",
+      "arabicPolicyHint": "The host's policy text in Arabic. Guests currently see the platform-wide cancellation line, so this is shown alongside the English policy on internal pages.",
+      "arabicPolicyInvalid": "The Arabic cancellation policy can be at most 1000 characters."
     },
     "bookingMode": {
       "request": "Request to book",
@@ -519,7 +532,7 @@
       "description": "Photos shown after the hero on the experience page. Natural light, real Asiri colours — no stock.",
       "imageAlt": "Gallery photo",
       "choose": "Choose a photo",
-      "hint": "JPG, PNG, WebP or AVIF · up to 30MB — we compress it for you",
+      "hint": "JPG, PNG, WebP or AVIF · up to 30MB — you'll frame it to 16:9 before upload.",
       "add": "Add to gallery",
       "adding": "Uploading",
       "remove": "Remove photo",
@@ -957,6 +970,7 @@
       "newCta": "New experience",
       "perPerson": "per guest",
       "daysPerWeek": "{count, plural, one {# day/week} other {# days/week}}",
+      "commissionShare": "{pct, number}% Gharmish share",
       "status": {
         "draft": "Draft",
         "pending_review": "Pending review",
@@ -1261,6 +1275,15 @@
       "backToList": "Back to your experiences",
       "preview": "Preview your listing"
     },
+    "commission": {
+      "heading": "Partnership share",
+      "intro": "Gharmish sets a revenue share for each experience — it covers photography, distribution, payments, and guest support. The partnerships team can adjust it, and the current rate for this experience always shows here.",
+      "shareLabel": "Gharmish share",
+      "keepLabel": "You keep",
+      "pctValue": "{pct, number}%",
+      "perGuestLabel": "You keep per guest",
+      "snapshotNote": "The rate is locked in the moment a guest books — a later change applies to future bookings only, never to earnings you've already made."
+    },
     "photo": {
       "heading": "Hero photo",
       "description": "The first image guests see on your listing and in the catalog. Use a real, natural-light shot — landscape works best.",
@@ -1338,9 +1361,7 @@
         "wrongState": "This experience can't be submitted from its current state — refresh to see the latest.",
         "suspended": "Your host account is suspended — submitting for review is blocked until the team restores it.",
         "needsHero": "Add a hero photo before submitting — listings don't go to review without one."
-      },
-      "duplicate": "Duplicate",
-      "duplicatePending": "Duplicating…"
+      }
     },
     "reviewerFeedback": {
       "changesRequestedEyebrow": "Changes requested",
@@ -1430,7 +1451,13 @@
       "coordsPasteLabel": "Paste a Google Maps link or coordinates",
       "coordsPastePlaceholder": "https://maps.google.com/… or 18.2164, 42.5053",
       "coordsPasteInvalid": "Couldn't find coordinates in that — paste a maps link or a “lat, lng” pair.",
-      "coordsPreviewTitle": "Meeting-point preview"
+      "coordsPreviewTitle": "Meeting-point preview",
+      "mapSearchLabel": "Meeting point on the map",
+      "mapSearchPlaceholder": "Search for a place — e.g. Al Muftaha Village",
+      "mapSearchButton": "Search",
+      "mapSearchNotFound": "No results — try another name, or tap the map to drop the pin.",
+      "mapHint": "Tap the map to drop the pin, or drag it to fine-tune the exact spot.",
+      "manualCoordsLabel": "Enter coordinates manually"
     },
     "moments": {
       "heading": "Experience timeline",
@@ -1463,7 +1490,7 @@
       "description": "Photos shown after the hero on your listing. Aim for at least five — the listing page's photo mosaic only appears from five photos. Natural light, real Asiri colours — no stock.",
       "imageAlt": "Gallery photo",
       "choose": "Choose a photo",
-      "hint": "JPG, PNG, WebP or AVIF — any size, we compress it for you",
+      "hint": "JPG, PNG, WebP or AVIF — any size. You'll frame each photo to 16:9 before it uploads.",
       "add": "Add to gallery",
       "adding": "Uploading",
       "remove": "Remove photo",

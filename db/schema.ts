@@ -196,6 +196,9 @@ export const hostIdentityTypeEnum = pgEnum('host_identity_type', ['national_id',
  */
 export const disputeStatusEnum = pgEnum('dispute_status', ['open', 'resolved']);
 
+/** OTP abuse events counted by the auth throttle (see that table). */
+export const authThrottleKindEnum = pgEnum('auth_throttle_kind', ['send', 'verify_failed']);
+
 /* ----------------------------- Tables ---------------------------- */
 
 export const hosts = pgTable('hosts', {
@@ -300,6 +303,14 @@ export const experiences = pgTable(
     inclusions: text().array().notNull().default([]),
     whatToBring: text().array().notNull().default([]),
     cancellationPolicy: text().notNull(),
+    /**
+     * Admin-authored Arabic for the lists and policy. Empty means "not
+     * written yet" — Arabic surfaces fall back to the seed-content
+     * dictionary (`toArabicText`) and ultimately to the English text.
+     */
+    inclusionsAr: text().array().notNull().default([]),
+    whatToBringAr: text().array().notNull().default([]),
+    cancellationPolicyAr: text().notNull().default(''),
     /** Recurring weekly availability: weekday indexes 0=Sun..6=Sat. */
     availabilityWeekdays: integer().array().notNull().default([]),
     blackoutDates: date().array().notNull().default([]),
@@ -489,6 +500,20 @@ export const bookings = pgTable(
     index('bookings_guest_idx').on(t.guestId),
     // Admin list/analytics filters by status.
     index('bookings_status_idx').on(t.status),
+    // The per-IP creation throttle (`WHERE created_ip = ? AND created_at
+    // >= now()-1h`) runs on EVERY booking submit, before the capacity
+    // transaction — without this it's a sequential scan that grows with
+    // the table. Partial: rows without an IP can never match the filter.
+    index('bookings_created_ip_created_at_idx')
+      .on(t.createdIp, t.createdAt)
+      .where(sql`created_ip IS NOT NULL`),
+    // The release-holds cron's release/reconcile passes filter on
+    // payment_status + payment_deadline daily; without this they scan the
+    // whole table. Partial: only unpaid holds carry a deadline worth
+    // scanning for.
+    index('bookings_payment_deadline_idx')
+      .on(t.paymentDeadline)
+      .where(sql`payment_deadline IS NOT NULL`),
   ],
 );
 
@@ -718,6 +743,33 @@ export const disputes = pgTable(
     index('disputes_status_created_idx').on(t.status, t.createdAt),
     // "Has this booking been reported already?" on the guest page.
     index('disputes_booking_idx').on(t.bookingId),
+  ],
+);
+
+/**
+ * OTP throttle events (2026-07 audit M2). The browser cooldown cookie is
+ * trivially discarded by an attacker, so sends and failed verifies are
+ * counted server-side per identifier and per IP
+ * (features/auth/lib/throttle.ts). Append-only and small: rows outside
+ * the widest counting window are dead weight only — prune opportunistically.
+ */
+export const authThrottleEvents = pgTable(
+  'auth_throttle_events',
+  {
+    id: uuid().defaultRandom().primaryKey(),
+    /** Canonical sign-in identifier: E.164 phone or lowercased email. */
+    identifier: text().notNull(),
+    /** First-hop client IP; null when no proxy header is present. */
+    ip: text(),
+    kind: authThrottleKindEnum().notNull(),
+    createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    // Both throttle counts are `WHERE <key> = ? AND created_at >= ?`.
+    index('auth_throttle_identifier_idx').on(t.identifier, t.createdAt),
+    index('auth_throttle_ip_idx')
+      .on(t.ip, t.createdAt)
+      .where(sql`ip IS NOT NULL`),
   ],
 );
 

@@ -1,6 +1,7 @@
 'use server';
 
 import { and, eq, gte, inArray, ne, sql } from 'drizzle-orm';
+import { after } from 'next/server';
 import { cookies, headers } from 'next/headers';
 import { db } from '@/lib/db';
 import { serverEnv, hasHyperpay } from '@/lib/env';
@@ -16,12 +17,13 @@ import {
   remainingCapacity,
 } from '@/features/bookings/lib/availability';
 import { holdStillCounts } from '@/features/bookings/lib/capacity-sql';
+import { generateReferenceCode } from '@/features/bookings/lib/reference-code';
 import { LAST_BOOKING_COOKIE, serializeLastBookingCookie } from '@/features/account/cookie';
 import {
   sendBookingRequestReceivedEmail,
   sendHostNewBookingEmail,
 } from '@/features/bookings/lib/booking-email';
-import { getPlatformSettings } from '@/features/admin/settings/queries';
+import { getPlatformSettings } from '@/lib/platform-settings';
 
 /** Today as `YYYY-MM-DD` in the experience's local day (KSA at launch). */
 function todayInRiyadh(): string {
@@ -41,6 +43,23 @@ const LAST_BOOKING_COOKIE_MAX_AGE_SECONDS = 60 * 60 * 24 * 90; // 90 days
  */
 const MAX_ACTIVE_HOLDS_PER_PHONE = 3;
 const MAX_BOOKINGS_PER_IP_PER_HOUR = 10;
+
+/**
+ * Did this insert lose to an earlier booking with the same idempotency
+ * key? postgres.js surfaces unique violations as code 23505 with the
+ * constraint name; drizzle may wrap the driver error, so walk the cause
+ * chain. Matched by name so a `reference_code` collision (also 23505)
+ * still lands in the generic server-error path.
+ */
+function isIdempotencyReplay(error: unknown): boolean {
+  for (let e: unknown = error; e && typeof e === 'object'; e = (e as { cause?: unknown }).cause) {
+    const pg = e as { code?: unknown; constraint_name?: unknown };
+    if (pg.code === '23505' && pg.constraint_name === 'bookings_idempotencyKey_unique') {
+      return true;
+    }
+  }
+  return false;
+}
 
 /** First hop of x-forwarded-for — the client IP on Vercel. Null locally. */
 async function clientIp(): Promise<string | null> {
@@ -97,6 +116,7 @@ export async function requestBooking(
     preferredDate: formValue(formData, 'preferredDate'),
     partySize: formValue(formData, 'partySize'),
     email: formValue(formData, 'email'),
+    idempotencyKey: formValue(formData, 'idempotencyKey'),
   });
 
   if (!parsed.success) {
@@ -116,7 +136,10 @@ export async function requestBooking(
   }
 
   const input = parsed.data;
-  const reference = crypto.randomUUID();
+  // The client mints the key when the form mounts (see schemas.ts) so a
+  // retry re-sends the same one; server-minted fallback keeps keyless
+  // posters working but without retry protection.
+  const reference = input.idempotencyKey ?? crypto.randomUUID();
   const slugParam = `slug=${encodeURIComponent(input.experienceSlug)}`;
   const confirmedPath = `/book/confirmed/${reference}?${slugParam}` as const;
   // Where the guest lands depends on the experience's booking mode
@@ -138,6 +161,36 @@ export async function requestBooking(
     // Stash the reference + slug so /me can show 'your last request'.
     await writeLastBookingCookie(reference, input.experienceSlug);
     redirect({ href: confirmedPath, locale: input.locale });
+  }
+
+  // Idempotent-replay fast path: if this key already created a booking, a
+  // double-tap or network re-POST is re-delivering a request we already
+  // served. Land the guest on the existing booking BEFORE the throttles —
+  // the first insert now counts toward them, so re-running the checks
+  // would misreport `too_many` for the guest's own booking. Kept outside
+  // the main try so redirect()'s control-flow throw can't be caught below;
+  // the unique-constraint catch in the insert path is the race-proof
+  // backstop for two retries arriving at once. The confirmation page
+  // renders every state (incl. awaiting-payment with a pay link), so it's
+  // the safe landing for both booking modes.
+  if (input.idempotencyKey) {
+    let existing = false;
+    try {
+      existing = Boolean(
+        await db.query.bookings.findFirst({
+          where: (b) => eq(b.idempotencyKey, reference),
+          columns: { id: true },
+        }),
+      );
+    } catch (error) {
+      // Lookup hiccup → proceed with the normal flow; the constraint
+      // backstop still dedupes.
+      reportError(error, { surface: 'booking-request:replayCheck', reference });
+    }
+    if (existing) {
+      await writeLastBookingCookie(reference, input.experienceSlug);
+      redirect({ href: confirmedPath, locale: input.locale });
+    }
   }
 
   try {
@@ -286,6 +339,10 @@ export async function requestBooking(
       // Snapshot — a later commission edit applies to future bookings only.
       commissionBps: experience.commissionBps,
       idempotencyKey: reference,
+      // Human reference (GH-XXXXXX) — display identity only; the UUID
+      // above stays the URL capability. Unique-constraint collision is
+      // ~1/730M and lands in the generic server-error path.
+      referenceCode: generateReferenceCode(),
       createdIp: ip,
     } as const;
 
@@ -349,24 +406,37 @@ export async function requestBooking(
       await db.insert(bookings).values({ ...bookingValues, status: 'pending', approvalDeadline });
     }
   } catch (error) {
+    // Race-proof replay backstop: two concurrent retries can both pass the
+    // fast path above; the loser's insert hits the idempotency-key unique
+    // constraint. The winner's booking stands — land this caller on it.
+    // Emails are the winner's job; skipping them here IS the dedupe.
+    if (isIdempotencyReplay(error)) {
+      await writeLastBookingCookie(reference, input.experienceSlug);
+      redirect({ href: nextPath, locale: input.locale });
+    }
     reportError(error, { surface: 'booking-request', experienceSlug: input.experienceSlug });
     return { success: false, message: 'server', values: currentValues(formData) };
   }
 
-  // Tell the host — best-effort: a mail hiccup must never fail a booking.
-  try {
-    await sendHostNewBookingEmail(reference);
-  } catch (error) {
-    reportError(error, { surface: 'booking-request:hostEmail', reference });
-  }
-
-  // Acknowledge the guest's request (request mode only; no-ops without an
-  // email on file). Same best-effort posture.
-  try {
-    await sendBookingRequestReceivedEmail(reference, input.locale);
-  } catch (error) {
-    reportError(error, { surface: 'booking-request:guestEmail', reference });
-  }
+  // Tell the host and acknowledge the guest — best-effort (a mail hiccup
+  // must never fail a booking) AND after the response: each send re-loads
+  // the booking + experience and makes a Resend call, which used to sit
+  // between the insert and the redirect as pure user-perceived latency on
+  // the single most important conversion action. `after()` runs once the
+  // redirect has flushed; the function stays alive until it settles.
+  after(async () => {
+    try {
+      await sendHostNewBookingEmail(reference);
+    } catch (error) {
+      reportError(error, { surface: 'booking-request:hostEmail', reference });
+    }
+    // Request mode only; no-ops without an email on file.
+    try {
+      await sendBookingRequestReceivedEmail(reference, input.locale);
+    } catch (error) {
+      reportError(error, { surface: 'booking-request:guestEmail', reference });
+    }
+  });
 
   await writeLastBookingCookie(reference, input.experienceSlug);
   redirect({ href: nextPath, locale: input.locale });

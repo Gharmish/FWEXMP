@@ -28,6 +28,11 @@ export interface HostExperienceRow {
   maxGroupSize: number;
   minAge: number;
   priceSar: number;
+  /**
+   * Platform commission in basis points — admin-owned, per experience.
+   * Read-only for hosts; shown so the payout split is never a surprise.
+   */
+  commissionBps: number;
   placeName: string;
   city: string;
   region: string;
@@ -60,6 +65,7 @@ function rowToView(row: typeof experiences.$inferSelect): HostExperienceRow {
     maxGroupSize: row.maxGroupSize,
     minAge: row.minAge,
     priceSar: row.priceSar,
+    commissionBps: row.commissionBps,
     placeName: row.placeName,
     city: row.city,
     region: row.region,

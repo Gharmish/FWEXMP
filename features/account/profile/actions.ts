@@ -7,7 +7,7 @@ import { serverEnv, hasSupabaseAuth } from '@/lib/env';
 import { guests } from '@/db/schema';
 import { reportError } from '@/lib/log';
 import { getCurrentUser } from '@/features/auth/queries';
-import { getSupabaseServerClient } from '@/lib/supabase/server';
+import { getSupabaseUserStorage } from '@/lib/supabase/server';
 import { getMyProfile } from '@/features/account/profile/queries';
 import {
   profileSchema,
@@ -32,8 +32,8 @@ function isAvatarMime(type: string): type is (typeof AVATAR_MIME_TYPES)[number] 
  * Recover the storage object key from a public avatar URL, e.g.
  * `…/object/public/avatars/<uid>/<file>.png` → `<uid>/<file>.png`.
  * Returns null for anything that isn't an avatars-bucket public URL. We
- * delete by this key (the DELETE policy authorises own-folder paths) so we
- * never need a SELECT/`list()` policy on the bucket.
+ * delete by this key so we never need a `list()` call on the bucket, and
+ * only ever remove the object the guest row actually pointed at.
  */
 function avatarObjectPath(publicUrl: string | null): string | null {
   if (!publicUrl) return null;
@@ -94,8 +94,11 @@ export async function updateProfile(
 
 /**
  * Upload a new profile photo to the public `avatars` bucket and point the
- * guest row at its public URL. The object key is namespaced by the auth
- * user id so storage RLS (folder == auth.uid()) authorises the write.
+ * guest row at its public URL. The write goes through
+ * `getSupabaseUserStorage()` (service-role key behind a signed-in-user
+ * gate) — the anon-key server client fails the bucket's storage RLS in
+ * production (see lib/supabase/server.ts). The object key stays
+ * namespaced by the auth user id so ownership remains auditable.
  */
 export async function updateAvatar(
   _previous: AvatarActionState,
@@ -119,9 +122,10 @@ export async function updateAvatar(
     const profile = await getMyProfile();
     if (!profile) return { status: 'error', message: 'no_auth' };
 
-    const supabase = await getSupabaseServerClient();
+    const storage = await getSupabaseUserStorage();
+    if (!storage) return { status: 'error', message: 'no_auth' };
     const path = `${user.id}/${crypto.randomUUID()}.${AVATAR_EXTENSION[file.type]}`;
-    const { error: uploadError } = await supabase.storage
+    const { error: uploadError } = await storage
       .from(AVATARS_BUCKET)
       .upload(path, file, { contentType: file.type, upsert: false });
     if (uploadError) {
@@ -131,7 +135,7 @@ export async function updateAvatar(
 
     const {
       data: { publicUrl },
-    } = supabase.storage.from(AVATARS_BUCKET).getPublicUrl(path);
+    } = storage.from(AVATARS_BUCKET).getPublicUrl(path);
 
     await db.update(guests).set({ avatarUrl: publicUrl }).where(eq(guests.id, profile.id));
 
@@ -139,7 +143,7 @@ export async function updateAvatar(
     // orphan files. Never blocks the success path.
     const previousPath = avatarObjectPath(profile.avatarUrl);
     if (previousPath && previousPath !== path) {
-      await supabase.storage.from(AVATARS_BUCKET).remove([previousPath]);
+      await storage.from(AVATARS_BUCKET).remove([previousPath]);
     }
 
     revalidatePath('/me/profile');
@@ -166,13 +170,14 @@ export async function removeAvatar(): Promise<AvatarActionState> {
     const profile = await getMyProfile();
     if (!profile) return { status: 'error', message: 'no_auth' };
 
-    const supabase = await getSupabaseServerClient();
-    // Delete the stored object by its key (DELETE policy authorises the
-    // user's own folder). Best-effort — a storage hiccup shouldn't block
-    // clearing the column, so the photo always disappears from the UI.
+    const storage = await getSupabaseUserStorage();
+    if (!storage) return { status: 'error', message: 'no_auth' };
+    // Delete the stored object by its key. Best-effort — a storage
+    // hiccup shouldn't block clearing the column, so the photo always
+    // disappears from the UI.
     const objectPath = avatarObjectPath(profile.avatarUrl);
     if (objectPath) {
-      await supabase.storage.from(AVATARS_BUCKET).remove([objectPath]);
+      await storage.from(AVATARS_BUCKET).remove([objectPath]);
     }
 
     await db.update(guests).set({ avatarUrl: null }).where(eq(guests.id, profile.id));

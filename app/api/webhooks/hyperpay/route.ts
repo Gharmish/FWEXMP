@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from 'next/server';
-import { createDecipheriv } from 'node:crypto';
+import { decryptOppwaNotification } from '@/features/payments/lib/webhook-crypto';
 import { serverEnv } from '@/lib/env';
 import { reportError } from '@/lib/log';
 import { settleBooking } from '@/features/payments/settle';
@@ -36,16 +36,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     if (!body.encryptedBody || !iv || !authTag) {
       return NextResponse.json({ error: 'bad_request' }, { status: 400 });
     }
-    const decipher = createDecipheriv(
-      'aes-256-gcm',
-      Buffer.from(secret, 'hex'),
-      Buffer.from(iv, 'hex'),
-    );
-    decipher.setAuthTag(Buffer.from(authTag, 'hex'));
-    decrypted = Buffer.concat([
-      decipher.update(Buffer.from(body.encryptedBody, 'hex')),
-      decipher.final(),
-    ]).toString('utf8');
+    decrypted = decryptOppwaNotification(secret, body.encryptedBody, iv, authTag);
   } catch (error) {
     reportError(error, { surface: 'hyperpay-webhook:decrypt' });
     return NextResponse.json({ error: 'unauthorized' }, { status: 401 });

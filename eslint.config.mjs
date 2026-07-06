@@ -19,6 +19,8 @@ const eslintConfig = defineConfig([
     // Default ignores of eslint-config-next:
     '.next/**',
     '.claude/**',
+    // Agent-tooling skill templates dropped into the worktree — not app code.
+    '.agents/**',
     // `vercel build`/`vercel pull` artifacts — generated, never linted.
     '.vercel/**',
     'out/**',

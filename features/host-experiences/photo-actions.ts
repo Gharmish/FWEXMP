@@ -2,6 +2,7 @@
 
 import { and, eq } from 'drizzle-orm';
 import { revalidatePath } from 'next/cache';
+import { revalidateExperienceCaches } from '@/lib/cache-tags';
 import { db } from '@/lib/db';
 import { serverEnv, hasSupabaseAuth } from '@/lib/env';
 import { experiences } from '@/db/schema';
@@ -126,6 +127,7 @@ export async function uploadExperienceHero(
     return { success: false, message: 'server' };
   }
 
+  revalidateExperienceCaches();
   revalidatePath('/[locale]/host/experiences/[id]', 'page');
   revalidatePath('/[locale]/experiences/[slug]', 'page');
   revalidatePath('/[locale]/experiences', 'page');
@@ -213,6 +215,7 @@ export async function uploadGalleryImageAsHost(
     return { success: false, message: 'server' };
   }
 
+  revalidateExperienceCaches();
   revalidatePath('/[locale]/host/experiences/[id]', 'page');
   revalidatePath('/[locale]/experiences/[slug]', 'page');
   return { success: true };
@@ -251,6 +254,7 @@ export async function removeGalleryImageAsHost(
     return { success: false, message: 'server' };
   }
 
+  revalidateExperienceCaches();
   revalidatePath('/[locale]/host/experiences/[id]', 'page');
   revalidatePath('/[locale]/experiences/[slug]', 'page');
   return { success: true };

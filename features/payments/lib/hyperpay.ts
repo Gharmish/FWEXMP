@@ -32,9 +32,32 @@ export {
   formatAmount,
 } from '@/features/payments/lib/hyperpay-core';
 
+/**
+ * Hard ceiling on every gateway round-trip. Without it a hung OPPWA
+ * socket holds the request (and its pooled DB connection) until the
+ * platform function timeout: the guest's payment form spins for minutes
+ * and the cron's reconcile pass can burn its whole budget on one stuck
+ * row. The abort surfaces as a TimeoutError in the same catch paths
+ * that already handle transport failures.
+ */
+const HYPERPAY_TIMEOUT_MS = 10_000;
+
 /** Resolved base URL: explicit override, else derived from the mode. */
 export function hyperpayBaseUrl(): string {
   return baseUrlFor(serverEnv.HYPERPAY_MODE, serverEnv.HYPERPAY_BASE_URL);
+}
+
+/**
+ * Parse a gateway response body, folding the HTTP status into the error
+ * when the body isn't JSON — a gateway 502 with an HTML body used to
+ * surface as an opaque SyntaxError with no status attached.
+ */
+async function parseJson<T>(res: Response, what: string): Promise<T> {
+  try {
+    return (await res.json()) as T;
+  } catch {
+    throw new Error(`HyperPay ${what} returned a non-JSON response (HTTP ${res.status})`);
+  }
 }
 
 function config(): HyperpayConfig {
@@ -57,8 +80,9 @@ export async function prepareCheckout(
     headers: { ...authHeaders(), 'Content-Type': 'application/x-www-form-urlencoded' },
     body: buildCheckoutBody(input, config()).toString(),
     cache: 'no-store',
+    signal: AbortSignal.timeout(HYPERPAY_TIMEOUT_MS),
   });
-  const data = (await res.json()) as PrepareCheckoutResponse;
+  const data = await parseJson<PrepareCheckoutResponse>(res, 'prepareCheckout');
   if (!res.ok || !data.id) {
     throw new Error(`HyperPay prepareCheckout failed: ${data.result?.code ?? res.status}`);
   }
@@ -80,8 +104,9 @@ export async function refundPayment(
     headers: { ...authHeaders(), 'Content-Type': 'application/x-www-form-urlencoded' },
     body: buildRefundBody(amountSar, config()).toString(),
     cache: 'no-store',
+    signal: AbortSignal.timeout(HYPERPAY_TIMEOUT_MS),
   });
-  const data = (await res.json()) as { result?: { code?: string } };
+  const data = await parseJson<{ result?: { code?: string } }>(res, 'refund');
   if (!data.result?.code) {
     throw new Error(`HyperPay refund returned no result code (HTTP ${res.status})`);
   }
@@ -92,8 +117,12 @@ export async function refundPayment(
 export async function getPaymentStatus(checkoutId: string): Promise<PaymentStatusResponse> {
   const url = new URL(`${hyperpayBaseUrl()}v1/checkouts/${encodeURIComponent(checkoutId)}/payment`);
   url.searchParams.set('entityId', config().entityId);
-  const res = await fetch(url, { headers: authHeaders(), cache: 'no-store' });
-  const data = (await res.json()) as PaymentStatusResponse;
+  const res = await fetch(url, {
+    headers: authHeaders(),
+    cache: 'no-store',
+    signal: AbortSignal.timeout(HYPERPAY_TIMEOUT_MS),
+  });
+  const data = await parseJson<PaymentStatusResponse>(res, 'getPaymentStatus');
   if (!data.result?.code) {
     throw new Error(`HyperPay getPaymentStatus returned no result code (HTTP ${res.status})`);
   }

@@ -2,6 +2,7 @@
 
 import { eq } from 'drizzle-orm';
 import { revalidatePath } from 'next/cache';
+import { revalidateExperienceCaches } from '@/lib/cache-tags';
 import { db } from '@/lib/db';
 import { serverEnv } from '@/lib/env';
 import { experiences, experienceModerationEvents } from '@/db/schema';
@@ -147,6 +148,7 @@ export async function adminUpdateExperience(
     return { success: false, message: 'server' };
   }
 
+  revalidateExperienceCaches();
   revalidatePath('/[locale]/admin/experience-moderation', 'page');
   revalidatePath('/[locale]/admin/experience-moderation/[id]', 'page');
   revalidatePath('/[locale]/admin/experiences/[id]/edit', 'page');
@@ -267,6 +269,7 @@ export async function adminCreateExperience(
     return { success: false, message: 'server' };
   }
 
+  revalidateExperienceCaches();
   revalidatePath('/[locale]/admin/experience-moderation', 'page');
   revalidatePath('/[locale]/experiences', 'page');
   redirect({ href: `/admin/experiences/${newId}/edit`, locale });

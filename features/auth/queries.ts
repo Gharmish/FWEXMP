@@ -1,3 +1,4 @@
+import { cache } from 'react';
 import { cookies } from 'next/headers';
 import { hasSupabaseAuth, stubAuthAllowed } from '@/lib/env';
 import { getSupabaseServerClient } from '@/lib/supabase/server';
@@ -15,8 +16,14 @@ import type { AuthUser, Session } from '@/features/auth/types';
  *
  * Either way callers get the same `Session` shape, or `null` for
  * signed-out. They never branch on which path produced it.
+ *
+ * React `cache()`-wrapped: the Supabase path is an HTTPS round-trip to
+ * the auth server, and before the wrap the navbar, wishlist, host guard,
+ * and every admin gate each paid it separately within one render (3+
+ * network calls per admin page). Scope is a single request — a fresh
+ * request always re-verifies.
  */
-export async function getSession(): Promise<Session | null> {
+export const getSession = cache(async (): Promise<Session | null> => {
   if (hasSupabaseAuth()) {
     try {
       const supabase = await getSupabaseServerClient();
@@ -46,7 +53,7 @@ export async function getSession(): Promise<Session | null> {
   const store = await cookies();
   const user = parseStubSessionCookie(store.get(STUB_SESSION_COOKIE)?.value);
   return user ? { user } : null;
-}
+});
 
 /** Convenience for the common case — UI code that just wants the user or null. */
 export async function getCurrentUser(): Promise<AuthUser | null> {

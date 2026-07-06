@@ -1,6 +1,9 @@
+import { cache } from 'react';
+import { unstable_cache } from 'next/cache';
 import { and, asc, eq } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import { serverEnv } from '@/lib/env';
+import { EXPERIENCES_CACHE_TAG, REVIEWS_CACHE_TAG } from '@/lib/cache-tags';
 import { reportError } from '@/lib/log';
 import type { Experience, Host, Moment } from '@/db/schema';
 import type {
@@ -19,6 +22,7 @@ import { getRatingsBySlug } from '@/features/reviews/queries';
 import type { ReviewAggregate } from '@/features/reviews/types';
 import { getCurrentUser } from '@/features/auth/queries';
 import { isAdminUser } from '@/features/admin/auth';
+import { isArPlaceholder } from '@/lib/ar-placeholder';
 
 /**
  * Experience data access. These are the swap-in replacements for the
@@ -50,6 +54,20 @@ function isNewListing(createdAt: Date, reviewCount: number): boolean {
   );
 }
 
+/**
+ * Sanitize a bilingual pair at the data layer (2026-07 audit M4): if the
+ * Arabic column still holds the `TODO(ar)` scaffolding marker, callers
+ * get the English text in the Arabic slot instead. The safety property
+ * used to live only in `pickLocalized`, but ~120 call sites (including
+ * generateMetadata → <title>/OG tags, and the owner-preview path that
+ * bypasses the moderation gate) pick fields with raw ternaries —
+ * enforcing here means no placeholder can leave this module regardless
+ * of how the caller picks.
+ */
+function arOrFallback(en: string, ar: string): string {
+  return isArPlaceholder(ar) ? en : ar;
+}
+
 function toSummary(
   row: ExperienceWithHost,
   ratings: Map<string, ReviewAggregate>,
@@ -58,9 +76,9 @@ function toSummary(
   return {
     slug: row.slug,
     titleEn: row.titleEn,
-    titleAr: row.titleAr,
+    titleAr: arOrFallback(row.titleEn, row.titleAr),
     descriptionEn: row.descriptionEn,
-    descriptionAr: row.descriptionAr,
+    descriptionAr: arOrFallback(row.descriptionEn, row.descriptionAr),
     category: row.category,
     priceSar: row.priceSar,
     durationMinutes: row.durationMinutes,
@@ -86,7 +104,7 @@ function toHostInfo(host: Host): HostInfo {
     name: host.name,
     slug: host.slug,
     bioEn: host.bioEn,
-    bioAr: host.bioAr,
+    bioAr: arOrFallback(host.bioEn, host.bioAr),
     verified: host.verificationStatus === 'verified',
     photoUrl: host.photoUrl,
     languages: [...host.languages],
@@ -98,9 +116,9 @@ function toMomentInfo(m: Moment): MomentInfo {
     orderIndex: m.orderIndex,
     timeOfDay: m.timeOfDay ?? '',
     titleEn: m.titleEn,
-    titleAr: m.titleAr,
+    titleAr: arOrFallback(m.titleEn, m.titleAr),
     descriptionEn: m.descriptionEn,
-    descriptionAr: m.descriptionAr,
+    descriptionAr: arOrFallback(m.descriptionEn, m.descriptionAr),
   };
 }
 
@@ -116,6 +134,8 @@ function toDetail(
     lng: row.lng,
     inclusions: row.inclusions,
     whatToBring: row.whatToBring,
+    inclusionsAr: row.inclusionsAr,
+    whatToBringAr: row.whatToBringAr,
     cancellationPolicy: row.cancellationPolicy,
     host: toHostInfo(row.host),
     moments: [...row.moments].sort((a, b) => a.orderIndex - b.orderIndex).map(toMomentInfo),
@@ -123,43 +143,77 @@ function toDetail(
   };
 }
 
-export async function getExperiences(): Promise<readonly ExperienceSummary[]> {
+/**
+ * The live catalog (summaries + embedded ratings), cached across
+ * requests. Public and identical for every visitor, so the 60s window
+ * is safe; content writes call `revalidateExperienceCaches()` /
+ * `revalidateReviewCaches()` for instant freshness. Tagged with BOTH
+ * tags because the summaries embed rating count/average. `undefined`
+ * is not JSON-round-trip-safe, hence the plain-array return.
+ *
+ * Before this cache the full live set (with host join + the global
+ * ratings aggregate) hydrated up to 3× per catalog request — see the
+ * 2026-07 audit (C2). The in-JS filtering downstream is a separate,
+ * deliberate launch-scale tradeoff (`getExperiencesFiltered`).
+ */
+const loadLiveSummaries = unstable_cache(
+  async (): Promise<ExperienceSummary[]> => {
+    const [rows, ratings] = await Promise.all([
+      db.query.experiences.findMany({
+        where: (e) => eq(e.status, 'live'),
+        with: { host: true },
+        orderBy: (e) => asc(e.createdAt),
+      }),
+      getRatingsBySlug(),
+    ]);
+    return rows.map((row) => toSummary(row, ratings));
+  },
+  ['live-experience-summaries'],
+  { revalidate: 60, tags: [EXPERIENCES_CACHE_TAG, REVIEWS_CACHE_TAG] },
+);
+
+export const getExperiences = cache(async (): Promise<readonly ExperienceSummary[]> => {
   if (!hasDb()) return sample.getExperiences();
-  const [rows, ratings] = await Promise.all([
-    db.query.experiences.findMany({
-      where: (e) => eq(e.status, 'live'),
-      with: { host: true },
-      orderBy: (e) => asc(e.createdAt),
-    }),
-    getRatingsBySlug(),
-  ]);
-  return rows.map((row) => toSummary(row, ratings));
-}
+  return loadLiveSummaries();
+});
 
-export async function getFeaturedExperiences(): Promise<readonly ExperienceSummary[]> {
+export const getFeaturedExperiences = cache(async (): Promise<readonly ExperienceSummary[]> => {
   if (!hasDb()) return sample.getFeaturedExperiences();
-  const [rows, ratings] = await Promise.all([
-    db.query.experiences.findMany({
-      where: (e) => and(eq(e.status, 'live'), eq(e.featured, true)),
-      with: { host: true },
-      orderBy: (e) => asc(e.createdAt),
-    }),
-    getRatingsBySlug(),
-  ]);
-  return rows.map((row) => toSummary(row, ratings));
-}
+  // Derived from the shared cached load — featured is a subset of live,
+  // so a second DB query (and second cache entry) would buy nothing.
+  // `createdAt asc` ordering survives the filter.
+  return (await getExperiences()).filter((e) => e.featured);
+});
 
-export async function getExperienceBySlug(slug: string): Promise<ExperienceDetail | undefined> {
-  if (!hasDb()) return sample.getExperienceBySlug(slug);
-  const [row, ratings] = await Promise.all([
-    db.query.experiences.findFirst({
-      where: (e) => and(eq(e.slug, slug), eq(e.status, 'live')),
-      with: { host: true, moments: true },
-    }),
-    getRatingsBySlug(),
-  ]);
-  return row ? toDetail(row, ratings) : undefined;
-}
+/**
+ * Per-slug live detail, cached across requests (the slug is part of the
+ * cache key). `generateMetadata` and the page body both call
+ * `getExperienceBySlug`, and booking emails re-render from it too — the
+ * React `cache()` wrapper dedupes within a request, this entry dedupes
+ * across them. Returns null (not undefined) inside the cached fn:
+ * undefined does not survive the cache's JSON round-trip.
+ */
+const loadDetailBySlug = unstable_cache(
+  async (slug: string): Promise<ExperienceDetail | null> => {
+    const [row, ratings] = await Promise.all([
+      db.query.experiences.findFirst({
+        where: (e) => and(eq(e.slug, slug), eq(e.status, 'live')),
+        with: { host: true, moments: true },
+      }),
+      getRatingsBySlug(),
+    ]);
+    return row ? toDetail(row, ratings) : null;
+  },
+  ['experience-detail'],
+  { revalidate: 60, tags: [EXPERIENCES_CACHE_TAG, REVIEWS_CACHE_TAG] },
+);
+
+export const getExperienceBySlug = cache(
+  async (slug: string): Promise<ExperienceDetail | undefined> => {
+    if (!hasDb()) return sample.getExperienceBySlug(slug);
+    return (await loadDetailBySlug(slug)) ?? undefined;
+  },
+);
 
 /**
  * Any-status detail read for the owner's pre-publish preview

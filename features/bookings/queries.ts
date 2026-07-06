@@ -22,6 +22,8 @@ const hasDb = (): boolean => Boolean(serverEnv.DATABASE_URL);
 export interface BookingDetail {
   id: string;
   reference: string;
+  /** Short human reference (`GH-7K3M9X`) — what guests see and quote. */
+  referenceCode: string;
   status: Booking['status'];
   paymentStatus: Booking['paymentStatus'];
   partySize: number;
@@ -63,6 +65,7 @@ export async function getBookingByReference(reference: string): Promise<BookingD
   return {
     id: row.id,
     reference: row.idempotencyKey,
+    referenceCode: row.referenceCode,
     status: row.status,
     paymentStatus: row.paymentStatus,
     partySize: row.partySize,
@@ -127,6 +130,7 @@ export async function getBookingsForGuest(guestId: string): Promise<GuestBooking
   return rows.map((row) => ({
     id: row.id,
     reference: row.idempotencyKey,
+    referenceCode: row.referenceCode,
     status: row.status,
     paymentStatus: row.paymentStatus,
     partySize: row.partySize,

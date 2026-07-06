@@ -1,6 +1,9 @@
+import { cache } from 'react';
+import { unstable_cache } from 'next/cache';
 import { and, avg, count, desc, eq, gte, isNull } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import { serverEnv } from '@/lib/env';
+import { REVIEWS_CACHE_TAG } from '@/lib/cache-tags';
 import { experiences, guests, hosts, reviews as reviewsTable } from '@/db/schema';
 import type { Guest, Review } from '@/db/schema';
 import type { ReviewAggregate, ReviewSummary } from '@/features/reviews/types';
@@ -142,7 +145,39 @@ export async function getReviewForBooking(bookingId: string): Promise<{
  * NB: full ReviewAggregate is overkill here (callers only consume count
  * + average) but reusing the shape keeps the type surface small.
  */
-export async function getRatingsBySlug(): Promise<Map<string, ReviewAggregate>> {
+/**
+ * The DB read behind `getRatingsBySlug`, cached across requests. The
+ * GROUP BY spans every visible review in the system, and before this
+ * cache it re-ran 2-3× per catalog/home/detail view (and once per
+ * booking email) — the single hottest query in the app. Ratings are
+ * decorative and identical for all visitors, so a 60s-stale copy is
+ * fine; review writes call `revalidateReviewCaches()` for instant
+ * freshness. Errors are NOT caught in here: a thrown load is never
+ * cached, so the next request retries instead of pinning an empty
+ * result for the full window.
+ *
+ * Returns plain rows (not the Map) because `unstable_cache` JSON-round-
+ * trips its value — a Map would come back empty on a cache hit.
+ */
+const loadRatingRows = unstable_cache(
+  async (): Promise<{ slug: string; count: number; avg: string | null }[]> =>
+    db
+      .select({
+        slug: experiences.slug,
+        count: count(reviewsTable.id),
+        // avg() returns a string in Drizzle (PG numeric), so we coerce
+        // to a number after the query.
+        avg: avg(reviewsTable.rating),
+      })
+      .from(reviewsTable)
+      .innerJoin(experiences, eq(reviewsTable.experienceId, experiences.id))
+      .where(isNull(reviewsTable.hiddenAt))
+      .groupBy(experiences.slug),
+  ['ratings-by-slug'],
+  { revalidate: 60, tags: [REVIEWS_CACHE_TAG] },
+);
+
+export const getRatingsBySlug = cache(async (): Promise<Map<string, ReviewAggregate>> => {
   if (!hasDb()) {
     const slugs = new Set(sample.getAllReviews().map((r) => r.experienceSlug));
     const map = new Map<string, ReviewAggregate>();
@@ -157,18 +192,7 @@ export async function getRatingsBySlug(): Promise<Map<string, ReviewAggregate>> 
   // down the entire experience catalog, which depends on this accessor.
   let rows: { slug: string; count: number; avg: string | null }[];
   try {
-    rows = await db
-      .select({
-        slug: experiences.slug,
-        count: count(reviewsTable.id),
-        // avg() returns a string in Drizzle (PG numeric), so we coerce
-        // to a number after the query.
-        avg: avg(reviewsTable.rating),
-      })
-      .from(reviewsTable)
-      .innerJoin(experiences, eq(reviewsTable.experienceId, experiences.id))
-      .where(isNull(reviewsTable.hiddenAt))
-      .groupBy(experiences.slug);
+    rows = await loadRatingRows();
   } catch (error) {
     reportError(error, { surface: 'reviews:getRatingsBySlug' });
     return new Map();
@@ -188,7 +212,7 @@ export async function getRatingsBySlug(): Promise<Map<string, ReviewAggregate>> 
     });
   }
   return map;
-}
+});
 
 /** A recent review with its experience, for site-wide social proof. */
 export interface RecentReview extends ReviewSummary {

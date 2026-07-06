@@ -10,6 +10,8 @@ export type AdminBookingStatus = (typeof bookings.$inferSelect)['status'];
 export interface AdminBookingRow {
   id: string;
   reference: string;
+  /** Short human reference (`GH-7K3M9X`) — what the guest quotes to support. */
+  referenceCode: string;
   status: AdminBookingStatus;
   paymentStatus: (typeof bookings.$inferSelect)['paymentStatus'];
   /** Whole-SAR refund owed back after a failed automatic refund; null = none. */

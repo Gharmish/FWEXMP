@@ -1,14 +1,12 @@
 import { desc, eq } from 'drizzle-orm';
 import { db } from '@/lib/db';
-import { serverEnv } from '@/lib/env';
 import { hostApplications, hostApplicationEvents } from '@/db/schema';
 import { reportError } from '@/lib/log';
-import { getCurrentUser } from '@/features/auth/queries';
-import { isAdminUser } from '@/features/admin/auth';
 import type {
   HostApplicationEventView,
   HostApplicationView,
 } from '@/features/host-applications/types';
+import { adminGuard } from '@/features/admin/guard';
 
 /**
  * Admin reads over host_applications. Two gates apply to every call:
@@ -22,20 +20,8 @@ import type {
  *      per-user-device cookies and aren't visible to anyone else,
  *      so admin views are inherently a DB-only surface.
  */
-export interface AdminGuardFailure {
-  reason: 'not_admin' | 'no_db';
-}
-
-async function adminGuard(): Promise<AdminGuardFailure | null> {
-  const user = await getCurrentUser();
-  if (!isAdminUser(user)) return { reason: 'not_admin' };
-  if (!serverEnv.DATABASE_URL) return { reason: 'no_db' };
-  return null;
-}
-
-export async function isAdminAndDbReady(): Promise<AdminGuardFailure | null> {
-  return adminGuard();
-}
+export { isAdminAndDbReady } from '@/features/admin/guard';
+export type { AdminGuardFailure } from '@/features/admin/guard';
 
 function rowToView(row: typeof hostApplications.$inferSelect): HostApplicationView {
   return {

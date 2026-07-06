@@ -1,36 +1,22 @@
 import { and, count, desc, eq, inArray } from 'drizzle-orm';
 import { db } from '@/lib/db';
-import { serverEnv } from '@/lib/env';
 import { bookings, experiences, hosts, hostStatusEvents } from '@/db/schema';
 import { reportError } from '@/lib/log';
-import { getCurrentUser } from '@/features/auth/queries';
-import { isAdminUser } from '@/features/admin/auth';
 import type {
   AdminHostDetail,
   AdminHostRow,
   AdminHostExperienceRow,
   AdminHostStatusEventView,
 } from '@/features/admin/hosts/types';
+import { adminGuard } from '@/features/admin/guard';
 
 /**
  * Admin reads over hosts. Same guard chassis as the other admin
  * surfaces: caller must be admin, DB must be configured.
  */
 
-export interface AdminGuardFailure {
-  reason: 'not_admin' | 'no_db';
-}
-
-async function adminGuard(): Promise<AdminGuardFailure | null> {
-  const user = await getCurrentUser();
-  if (!isAdminUser(user)) return { reason: 'not_admin' };
-  if (!serverEnv.DATABASE_URL) return { reason: 'no_db' };
-  return null;
-}
-
-export async function isAdminAndDbReady(): Promise<AdminGuardFailure | null> {
-  return adminGuard();
-}
+export { isAdminAndDbReady } from '@/features/admin/guard';
+export type { AdminGuardFailure } from '@/features/admin/guard';
 
 interface RawHost {
   id: string;

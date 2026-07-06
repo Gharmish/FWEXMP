@@ -2,8 +2,8 @@
 
 import { useActionState } from 'react';
 import { useFormStatus } from 'react-dom';
-import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
+import { ConfirmSubmit } from '@/components/ui/confirm-dialog';
 import {
   suspendGuest,
   unsuspendGuest,
@@ -29,25 +29,25 @@ const initialState: GuestModerationState = { success: false };
 
 function Submit({ suspended, copy }: { suspended: boolean; copy: Copy }) {
   const { pending } = useFormStatus();
-  const label = suspended
-    ? pending
-      ? copy.restorePending
-      : copy.restore
-    : pending
-      ? copy.suspendPending
-      : copy.suspend;
+  if (!suspended) {
+    return (
+      <ConfirmSubmit
+        title={copy.suspend}
+        description={copy.suspendConfirm}
+        confirmLabel={copy.suspend}
+        pendingLabel={copy.suspendPending}
+        destructive
+        variant="secondary"
+        size="sm"
+        className="border-al-qatt-red/40 text-al-qatt-red-800"
+      >
+        {copy.suspend}
+      </ConfirmSubmit>
+    );
+  }
   return (
-    <Button
-      type="submit"
-      variant="secondary"
-      size="sm"
-      pending={pending}
-      className={cn(!suspended && 'border-al-qatt-red/40 text-al-qatt-red-800')}
-      onClick={(e) => {
-        if (!suspended && !window.confirm(copy.suspendConfirm)) e.preventDefault();
-      }}
-    >
-      {label}
+    <Button type="submit" variant="secondary" size="sm" pending={pending}>
+      {pending ? copy.restorePending : copy.restore}
     </Button>
   );
 }

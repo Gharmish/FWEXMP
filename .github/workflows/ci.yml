@@ -1,0 +1,26 @@
+# Quality gate — the audit's H1 finding: until this existed, typecheck,
+# lint, and the 363-test suite ran only via the local pre-commit hook
+# (trivially skipped with --no-verify); the only automated check was
+# Vercel's `next build`. Tests need no secrets: the suite is pure/mocked
+# and lib/env.ts defaults every var, so no DATABASE_URL here.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4 # reads pnpm version from package.json packageManager
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm typecheck
+      - run: pnpm lint
+      - run: pnpm test

@@ -64,13 +64,15 @@ export default async function AdminExperienceEditPage({
   const experience = await getAdminExperienceForEdit(id);
   if (!experience) notFound();
 
-  const [tE, tMode, tStatus, tCat, tWeek, tG] = await Promise.all([
+  const [tE, tMode, tStatus, tCat, tWeek, tG, tCrop] = await Promise.all([
     getTranslations('admin.experienceEdit'),
     getTranslations('admin.bookingMode'),
     getTranslations('admin.experienceStatus'),
     getTranslations('hostExperiences.form.categories'),
     getTranslations('hostExperiences.form.weekdays'),
     getTranslations('admin.gallery'),
+    // The crop sheet is shared with the host photo pipeline — same strings.
+    getTranslations('hostExperiences.photo.crop'),
   ]);
 
   const galleryCopy = {
@@ -88,6 +90,14 @@ export default async function AdminExperienceEditPage({
     invalidType: tG('invalidType'),
     tooLarge: tG('tooLarge'),
     error: tG('error'),
+    crop: {
+      title: tCrop('title'),
+      instruction: tCrop('instruction'),
+      zoom: tCrop('zoom'),
+      cancel: tCrop('cancel'),
+      apply: tCrop('apply'),
+      applying: tCrop('applying'),
+    },
   };
 
   const copy = {

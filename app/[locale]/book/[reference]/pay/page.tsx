@@ -5,6 +5,7 @@ import { ArrowLeft, Lock } from 'lucide-react';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { Link } from '@/lib/i18n';
 import type { Locale } from '@/lib/i18n';
+import { MountFade } from '@/components/ui/motion';
 import { hasHyperpay } from '@/lib/env';
 import { formatDate, formatInteger, formatTime } from '@/lib/format';
 import { Price } from '@/components/ui/price';
@@ -139,33 +140,38 @@ export default async function PaymentPage({ params, searchParams }: PageParams) 
 
   return (
     <article className="mx-auto w-full max-w-2xl px-6 py-16">
-      <header className="flex flex-col gap-3">
-        <p
-          className={cn(
-            'text-juniper-green-800 text-[11px]',
-            // Letter-spacing severs connected Arabic glyphs — EN only.
-            loc === 'en' && 'tracking-[0.2em] uppercase',
+      {/* Entrance on the header only. The HyperPay widget below stays
+          motion-free: payment must read rock-solid, and iframes repaint
+          badly under transforms. */}
+      <MountFade eager>
+        <header className="flex flex-col gap-3">
+          <p
+            className={cn(
+              'text-juniper-green-800 text-[11px]',
+              // Letter-spacing severs connected Arabic glyphs — EN only.
+              loc === 'en' && 'tracking-[0.2em] uppercase',
+            )}
+          >
+            {t('eyebrow')}
+          </p>
+          <h1 className="font-display text-4xl font-semibold tracking-[-0.035em] text-balance">
+            {t('title')}
+          </h1>
+          <p className="text-sarat-black-600 text-lg leading-relaxed">{t('intro')}</p>
+          {holdDeadline && (
+            <PaymentDeadlineNote
+              deadlineIso={holdDeadline.toISOString()}
+              note={t('deadlineNote', {
+                deadline:
+                  loc === 'ar'
+                    ? `${formatDate(holdDeadline, loc)}، ${formatTime(holdDeadline, loc)}`
+                    : `${formatDate(holdDeadline, loc)}, ${formatTime(holdDeadline, loc)}`,
+              })}
+              minutesLeftTemplate={t.raw('minutesLeft')}
+            />
           )}
-        >
-          {t('eyebrow')}
-        </p>
-        <h1 className="font-display text-4xl font-semibold tracking-[-0.035em] text-balance">
-          {t('title')}
-        </h1>
-        <p className="text-sarat-black-600 text-lg leading-relaxed">{t('intro')}</p>
-        {holdDeadline && (
-          <PaymentDeadlineNote
-            deadlineIso={holdDeadline.toISOString()}
-            note={t('deadlineNote', {
-              deadline:
-                loc === 'ar'
-                  ? `${formatDate(holdDeadline, loc)}، ${formatTime(holdDeadline, loc)}`
-                  : `${formatDate(holdDeadline, loc)}, ${formatTime(holdDeadline, loc)}`,
-            })}
-            minutesLeftTemplate={t.raw('minutesLeft')}
-          />
-        )}
-      </header>
+        </header>
+      </MountFade>
 
       <section
         className="border-sarat-black/8 rounded-card mt-8 flex flex-col gap-3 [border-width:0.5px] p-6"
@@ -183,7 +189,9 @@ export default async function PaymentPage({ params, searchParams }: PageParams) 
 
       {experienceSlug && (
         <Link
-          href={`/experiences/${experienceSlug}`}
+          // Carry the held choices back so the form opens pre-filled —
+          // changing a date must not mean re-entering everything.
+          href={`/experiences/${experienceSlug}?date=${booking.date}&party=${booking.partySize}`}
           className="text-sarat-black-600 hover:text-sarat-black mt-4 inline-flex items-center gap-2 text-sm transition-colors duration-200"
         >
           <ArrowLeft className="size-4 shrink-0 rtl:rotate-180" aria-hidden />

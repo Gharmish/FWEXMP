@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { pathRequiresAuth } from '@/proxy';
+import { pathRequiresAuth } from '@/proxy-rules';
 
 /**
  * The edge auth gate is the first line of defence for the host and

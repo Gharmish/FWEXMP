@@ -6,7 +6,7 @@ import { Link } from '@/lib/i18n';
 import type { Locale } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
 import { isAdminAndDbReady, listHostsForSelect } from '@/features/admin/experiences/queries';
-import { getPlatformSettings } from '@/features/admin/settings/queries';
+import { getPlatformSettings } from '@/lib/platform-settings';
 import { BOOKING_MODES, EXPERIENCE_STATUSES } from '@/features/admin/experiences/schemas';
 import { EXPERIENCE_CATEGORIES } from '@/features/host-experiences/schemas';
 import { AdminExperienceForm } from '@/app/[locale]/admin/experiences/[id]/edit/admin-experience-form';

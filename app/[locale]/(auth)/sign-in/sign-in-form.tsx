@@ -6,6 +6,7 @@ import { ArrowLeft } from 'lucide-react';
 import { motion, useReducedMotion } from 'framer-motion';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
+import { FieldError as SpringFieldError } from '@/components/ui/field-error';
 import { Input } from '@/components/ui/input';
 import { SPRING } from '@/components/ui/motion';
 import type { Locale } from '@/lib/i18n';
@@ -88,11 +89,12 @@ function StepTransition({ stepKey, children }: { stepKey: string; children: Reac
 }
 
 function FieldError({ id, message }: { id: string; message?: string }) {
-  if (!message) return null;
+  // Shared spring slide-in (components/ui/field-error); the form's gap
+  // classes already provide spacing.
   return (
-    <p id={id} className="text-al-qatt-red-800 text-sm">
+    <SpringFieldError id={id} className="mt-0">
       {message}
-    </p>
+    </SpringFieldError>
   );
 }
 

@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from 'next/server';
 import createMiddleware from 'next-intl/middleware';
 import { routing } from '@/lib/i18n';
 import { STUB_SESSION_COOKIE } from '@/features/auth/lib/stub-session';
+import { pathRequiresAuth } from '@/proxy-rules';
 
 const intlMiddleware = createMiddleware(routing);
 
@@ -20,21 +21,6 @@ const intlMiddleware = createMiddleware(routing);
  * live in page/layout code because they need DB access. Those redirects
  * are far rarer and the meta-refresh fallback is acceptable for them.
  */
-const AUTH_REQUIRED_PREFIXES = ['/host', '/admin'];
-const AUTH_REQUIRED_EXCEPTIONS = ['/host/apply', '/host/apply/submitted'];
-
-export function pathRequiresAuth(localeRelative: string): boolean {
-  // Exact-match the exceptions first so they take precedence.
-  if (
-    AUTH_REQUIRED_EXCEPTIONS.some((p) => localeRelative === p || localeRelative.startsWith(`${p}/`))
-  ) {
-    return false;
-  }
-  return AUTH_REQUIRED_PREFIXES.some(
-    (prefix) => localeRelative === prefix || localeRelative.startsWith(`${prefix}/`),
-  );
-}
-
 function hasSession(req: NextRequest): boolean {
   // Stub mode: gharmish_stub_session cookie.
   if (req.cookies.has(STUB_SESSION_COOKIE)) return true;

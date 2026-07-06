@@ -38,6 +38,12 @@ export interface PhotoCarouselProps {
    */
   href?: string;
   onSlideClick?: (index: number) => void;
+  /**
+   * Auto-advance to the next slide every N ms (wrapping). Defaults to 5s.
+   * Pauses on hover, touch, focus, and while offscreen; disabled entirely
+   * under reduced motion. Pass 0 to turn auto-advance off.
+   */
+  autoAdvanceMs?: number;
   className?: string;
 }
 
@@ -61,12 +67,18 @@ export function PhotoCarousel({
   copy,
   href,
   onSlideClick,
+  autoAdvanceMs = 5000,
   className,
 }: PhotoCarouselProps) {
   const reduce = useReducedMotion();
   const trackRef = useRef<HTMLDivElement>(null);
+  const rootRef = useRef<HTMLDivElement>(null);
   const slideRefs = useRef<(HTMLElement | null)[]>([]);
   const [active, setActive] = useState(0);
+  /** User is hovering/touching/focusing — hold the auto-advance timer. */
+  const [paused, setPaused] = useState(false);
+  /** Only auto-advance while the carousel is actually on screen. */
+  const [inView, setInView] = useState(false);
   const count = images.length;
 
   // Mark the centered slide active. IntersectionObserver is direction-agnostic,
@@ -101,6 +113,26 @@ export function PhotoCarousel({
     [count, reduce],
   );
 
+  // Auto-advance only while visible — a catalog of cards shouldn't all
+  // animate offscreen, and background tabs shouldn't scroll.
+  useEffect(() => {
+    const root = rootRef.current;
+    if (!root || !autoAdvanceMs || count < 2) return;
+    const io = new IntersectionObserver(([entry]) => setInView(entry.isIntersecting), {
+      threshold: 0.5,
+    });
+    io.observe(root);
+    return () => io.disconnect();
+  }, [autoAdvanceMs, count]);
+
+  // Re-arms after every slide change (user- or timer-driven), so a manual
+  // swipe simply restarts the 5s clock instead of fighting it.
+  useEffect(() => {
+    if (!autoAdvanceMs || count < 2 || reduce || paused || !inView) return;
+    const timer = setTimeout(() => goTo((active + 1) % count), autoAdvanceMs);
+    return () => clearTimeout(timer);
+  }, [autoAdvanceMs, count, reduce, paused, inView, active, goTo]);
+
   // Controls may sit inside a clickable card/link — never let them navigate.
   const halt = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -110,7 +142,19 @@ export function PhotoCarousel({
   const label = (i: number) => copy.goTo.replace('{n}', formatInteger(i + 1, locale));
 
   return (
-    <div className={cn('group/carousel relative w-full', aspectClassName, className)}>
+    <div
+      ref={rootRef}
+      className={cn('group/carousel relative w-full', aspectClassName, className)}
+      onMouseEnter={() => setPaused(true)}
+      onMouseLeave={() => setPaused(false)}
+      onTouchStart={() => setPaused(true)}
+      onTouchEnd={() => setPaused(false)}
+      onTouchCancel={() => setPaused(false)}
+      onFocusCapture={() => setPaused(true)}
+      onBlurCapture={(e) => {
+        if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setPaused(false);
+      }}
+    >
       <div
         ref={trackRef}
         className={cn(

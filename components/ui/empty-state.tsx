@@ -1,6 +1,7 @@
 import type { LucideIcon } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { cn } from '@/lib/utils';
+import { Pop } from '@/components/ui/motion';
 
 /**
  * Gharmish EmptyState — calm, on-brand placeholder for any empty list
@@ -37,9 +38,11 @@ export function EmptyState({
       )}
     >
       {Icon ? (
-        <span className="bg-sarat-black/5 text-sarat-black-600 flex size-12 items-center justify-center rounded-full">
-          <Icon size={24} strokeWidth={1.5} aria-hidden="true" />
-        </span>
+        <Pop>
+          <span className="bg-sarat-black/5 text-sarat-black-600 flex size-12 items-center justify-center rounded-full">
+            <Icon size={24} strokeWidth={1.5} aria-hidden="true" />
+          </span>
+        </Pop>
       ) : null}
       <div className="flex flex-col gap-2">
         {eyebrow ? <p className="text-sarat-black-600 text-[11px]">{eyebrow}</p> : null}

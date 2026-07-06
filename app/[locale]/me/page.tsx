@@ -14,6 +14,9 @@ import { WishlistButton } from '@/features/wishlist/components/wishlist-button';
 import { getWishlistExperiences } from '@/features/wishlist/queries';
 import { getLastBookingView } from '@/features/account/queries';
 import { getMyProfile } from '@/features/account/profile/queries';
+import { getBookingsForGuest } from '@/features/bookings/queries';
+import { BookingHistory } from '@/features/account/profile/components/booking-history';
+import { buildBookingStatusLabels } from '@/features/bookings/lib/status-labels';
 import { ReviewForm } from '@/features/reviews/components/review-form';
 import { toArabicText } from '@/features/experiences/lib/arabic-content';
 import { formatDate, formatInteger } from '@/lib/format';
@@ -38,19 +41,29 @@ export default async function MePage({ params }: { params: Promise<{ locale: str
   setRequestLocale(locale);
   const loc = locale as Locale;
 
-  const [wishlist, lastBooking, profile, t] = await Promise.all([
+  const [wishlist, lastBooking, profile, t, tp] = await Promise.all([
     getWishlistExperiences(),
     getLastBookingView(),
     getMyProfile(),
     getTranslations('me'),
+    getTranslations('me.profile'),
   ]);
+
+  // Full history for signed-in guests — the hub must reach every booking,
+  // not just the cookie-hinted last one (which can expire or point at a
+  // different device's booking).
+  const allBookings = profile ? await getBookingsForGuest(profile.id) : [];
+  // The last-booking card above already shows this one in full.
+  const earlierBookings = allBookings.filter((b) => b.reference !== lastBooking?.hint.reference);
 
   const eyebrowClassName = cn(
     'text-sarat-black-600 text-[11px]',
     loc === 'en' && 'tracking-[0.2em] uppercase',
   );
 
-  const hasAnything = wishlist.length > 0 || lastBooking !== null;
+  const hasAnything = wishlist.length > 0 || lastBooking !== null || allBookings.length > 0;
+
+  const statusLabels = buildBookingStatusLabels(tp);
 
   return (
     <div className="flex flex-col">
@@ -130,8 +143,13 @@ export default async function MePage({ params }: { params: Promise<{ locale: str
 
             <div className="border-sarat-black/8 rounded-card flex flex-col gap-4 [border-width:0.5px] p-6">
               <p className={eyebrowClassName}>{t('referenceLabel')}</p>
-              <p className="font-display text-2xl font-medium tracking-[-0.025em] break-all">
-                {lastBooking.hint.reference}
+              {/* Human reference (GH-XXXXXX); UUID only when the row is
+                  unavailable (no-DB preview). */}
+              <p
+                className="font-display text-2xl font-medium tracking-[0.04em] break-all"
+                dir="ltr"
+              >
+                {lastBooking.booking?.referenceCode ?? lastBooking.hint.reference}
               </p>
 
               {lastBooking.booking && (
@@ -282,6 +300,28 @@ export default async function MePage({ params }: { params: Promise<{ locale: str
                 )}
               </div>
             )}
+          </div>
+        </section>
+      )}
+
+      {earlierBookings.length > 0 && (
+        <section className="border-sarat-black/8 [border-top-width:0.5px]">
+          <div className="mx-auto w-full max-w-6xl px-6 py-16 sm:py-20">
+            <div className="mb-8 flex flex-col gap-2">
+              <p className={eyebrowClassName}>{t('bookingsEyebrow')}</p>
+              <h2 className="font-display text-3xl font-medium tracking-[-0.03em]">
+                {t('bookingsTitle')}
+              </h2>
+            </div>
+            <BookingHistory
+              bookings={earlierBookings}
+              locale={loc}
+              copy={{
+                partyLabel: tp('history.partyLabel'),
+                statusLabels,
+                view: tp('history.view'),
+              }}
+            />
           </div>
         </section>
       )}

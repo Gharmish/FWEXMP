@@ -8,4 +8,6 @@ import type { HostInfo } from '@/features/experiences/types';
 export interface HostProfile extends HostInfo {
   /** URL slug derived via features/hosts/lib/slug.ts. */
   slug: string;
+  /** ISO-8601 (UTC) of when the host joined — drives "Hosting since {year}". */
+  joinedAt: string;
 }

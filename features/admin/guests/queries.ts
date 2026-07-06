@@ -1,11 +1,9 @@
 import { desc, eq, ilike, or, sql } from 'drizzle-orm';
 import { db } from '@/lib/db';
-import { serverEnv } from '@/lib/env';
 import { reportError } from '@/lib/log';
-import { getCurrentUser } from '@/features/auth/queries';
-import { isAdminUser } from '@/features/admin/auth';
 import { bookings, experiences, guests } from '@/db/schema';
 import type { AdminBookingStatus } from '@/features/admin/bookings/types';
+import { adminGuard } from '@/features/admin/guard';
 
 /**
  * Admin guest directory — support + CRM lookups. PII note: returns the
@@ -13,20 +11,8 @@ import type { AdminBookingStatus } from '@/features/admin/bookings/types';
  * layout gate (same posture as the bookings list).
  */
 
-export interface AdminGuardFailure {
-  reason: 'not_admin' | 'no_db';
-}
-
-async function adminGuard(): Promise<AdminGuardFailure | null> {
-  const user = await getCurrentUser();
-  if (!isAdminUser(user)) return { reason: 'not_admin' };
-  if (!serverEnv.DATABASE_URL) return { reason: 'no_db' };
-  return null;
-}
-
-export async function isAdminAndDbReady(): Promise<AdminGuardFailure | null> {
-  return adminGuard();
-}
+export { isAdminAndDbReady } from '@/features/admin/guard';
+export type { AdminGuardFailure } from '@/features/admin/guard';
 
 export interface AdminGuestRow {
   id: string;

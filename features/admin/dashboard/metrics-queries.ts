@@ -1,9 +1,6 @@
 import { and, eq, gte, lt, sql, type AnyColumn, type SQL } from 'drizzle-orm';
 import { db } from '@/lib/db';
-import { serverEnv } from '@/lib/env';
 import { reportError } from '@/lib/log';
-import { getCurrentUser } from '@/features/auth/queries';
-import { isAdminUser } from '@/features/admin/auth';
 import {
   bookings,
   experiences,
@@ -29,6 +26,7 @@ import type {
   PaymentSlice,
   SeriesPoint,
 } from '@/features/admin/dashboard/metrics-types';
+import { adminGuard } from '@/features/admin/guard';
 
 /**
  * Range-filtered dashboard metrics. Aggregation lives in SQL and is squeezed
@@ -124,17 +122,6 @@ function activeHostCount(w: Window): SQL<number> {
 }
 
 const STATUS = (s: string): SQL => sql`${bookings.status} = ${s}`;
-
-interface AdminGuardFailure {
-  reason: 'not_admin' | 'no_db';
-}
-
-async function adminGuard(): Promise<AdminGuardFailure | null> {
-  const user = await getCurrentUser();
-  if (!isAdminUser(user)) return { reason: 'not_admin' };
-  if (!serverEnv.DATABASE_URL) return { reason: 'no_db' };
-  return null;
-}
 
 /** Percent (0–100, rounded), guarding divide-by-zero. */
 function pct(numerator: number, denominator: number): number {

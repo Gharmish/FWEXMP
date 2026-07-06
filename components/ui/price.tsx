@@ -14,14 +14,17 @@ interface PriceProps {
 }
 
 /**
- * Render a Saudi Riyal price as `<symbol> <number>` (English) or
- * `<number> <symbol>` (Arabic), matching local convention. The glyph scales
- * with the text and inherits its color. The visible parts are decorative;
- * an `aria-label` carries the spoken form (`SAR 480` / `480 ر.س`) for AT.
+ * Render a Saudi Riyal price as `SAR <number>` (English) or
+ * `<number> <symbol>` (Arabic), matching local convention (BRIEF §4).
+ * English uses the visible ISO code — international guests (and machine
+ * readers walking the DOM) can't be assumed to know the Riyal glyph, so
+ * the currency must survive as text. Arabic keeps the official symbol,
+ * which is native to the audience; the glyph scales with the text and
+ * inherits its color. An `aria-label` carries the spoken form
+ * (`SAR 480` / `480 ر.س`) for AT.
  */
 export function Price({ amount, locale, className, symbolClassName }: PriceProps) {
   const number = formatRiyalAmount(amount, locale);
-  const symbol = <RiyalSymbol className={symbolClassName} />;
 
   return (
     <span
@@ -33,11 +36,13 @@ export function Price({ amount, locale, className, symbolClassName }: PriceProps
         {locale === 'ar' ? (
           <>
             {number}
-            {symbol}
+            <RiyalSymbol className={symbolClassName} />
           </>
         ) : (
           <>
-            {symbol}
+            <span className={cn('text-[0.72em] font-medium tracking-[0.02em]', symbolClassName)}>
+              SAR
+            </span>
             {number}
           </>
         )}

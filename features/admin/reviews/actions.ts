@@ -2,6 +2,7 @@
 
 import { eq } from 'drizzle-orm';
 import { revalidatePath } from 'next/cache';
+import { revalidateReviewCaches } from '@/lib/cache-tags';
 import { z } from 'zod';
 import { db } from '@/lib/db';
 import { serverEnv } from '@/lib/env';
@@ -50,6 +51,7 @@ export async function setReviewHidden(
 
   revalidatePath('/[locale]/admin/reviews', 'page');
   // The experience detail + catalog rating change when visibility flips.
+  revalidateReviewCaches();
   revalidatePath('/[locale]/experiences', 'page');
   revalidatePath('/[locale]/experiences/[slug]', 'page');
   return { success: true };

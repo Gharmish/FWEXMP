@@ -4,6 +4,33 @@ import createNextIntlPlugin from 'next-intl/plugin';
 const withNextIntl = createNextIntlPlugin('./lib/request.ts');
 
 const nextConfig: NextConfig = {
+  /**
+   * Baseline security headers (2026-07 audit M1 — there were none).
+   * `frame-ancestors 'none'` matters most: the payment page hosts the
+   * HyperPay COPYandPAY card widget and must never be frameable
+   * (clickjacking a victim through paying an attacker's booking).
+   * Referrer-Policy matters because booking-reference URLs act as
+   * partial capabilities — never leak them cross-origin. A full CSP is
+   * deliberately deferred: it needs care around the OPPWA widget script
+   * origin and inline hydration, and a broken CSP on the pay page is
+   * worse than none.
+   */
+  async headers() {
+    return [
+      {
+        source: '/(.*)',
+        headers: [
+          { key: 'Strict-Transport-Security', value: 'max-age=63072000; includeSubDomains' },
+          { key: 'Content-Security-Policy', value: "frame-ancestors 'none'" },
+          { key: 'X-Content-Type-Options', value: 'nosniff' },
+          { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
+          // Nothing in the app uses these browser APIs (grep-verified);
+          // deny so an injected script can't either.
+          { key: 'Permissions-Policy', value: 'camera=(), microphone=(), geolocation=()' },
+        ],
+      },
+    ];
+  },
   experimental: {
     serverActions: {
       // Photo uploads (hero + gallery) travel through server actions.

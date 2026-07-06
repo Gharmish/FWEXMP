@@ -137,13 +137,3 @@ export function bookableDates(input: {
   }
   return out;
 }
-
-/** Whole-SAR split of a booking total into platform commission + host payout. */
-export function splitCommission(
-  totalAmountSar: number,
-  commissionBps: number,
-): { commissionSar: number; payoutSar: number } {
-  const clampedBps = Math.min(10000, Math.max(0, Math.round(commissionBps)));
-  const commissionSar = Math.round((totalAmountSar * clampedBps) / 10000);
-  return { commissionSar, payoutSar: totalAmountSar - commissionSar };
-}

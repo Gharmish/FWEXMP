@@ -23,6 +23,13 @@ import {
   OTP_COOLDOWN_SECONDS,
   cooldownRemainingSeconds,
 } from '@/features/auth/lib/otp-cooldown';
+import {
+  authClientIp,
+  otpSendAllowed,
+  otpVerifyAllowed,
+  recordOtpSend,
+  recordOtpVerifyFailure,
+} from '@/features/auth/lib/throttle';
 
 /**
  * Sign-in flow. Two server actions, one per form step.
@@ -135,6 +142,15 @@ export async function requestOtp(
       return { success: true, stage: 'code', method, email };
     }
 
+    // Server-side send throttle — the cooldown cookie above is advisory
+    // (an attacker just doesn't return it). Recorded BEFORE the provider
+    // call so failed sends count as attempts too.
+    const ip = await authClientIp();
+    if (!(await otpSendAllowed(email, ip))) {
+      return { success: false, stage: 'phone', method, message: 'rate_limited', email };
+    }
+    await recordOtpSend(email, ip);
+
     try {
       const supabase = await getSupabaseServerClient();
       const { error } = await supabase.auth.signInWithOtp({
@@ -200,6 +216,14 @@ export async function requestOtp(
     await stampOtpCooldown();
     return { success: true, stage: 'code', method, phone };
   }
+
+  // Server-side send throttle — same rationale as the email branch, and
+  // doubly important here: every send is a paid SMS once a provider is live.
+  const ip = await authClientIp();
+  if (!(await otpSendAllowed(phone, ip))) {
+    return { success: false, stage: 'phone', method, message: 'rate_limited', phone };
+  }
+  await recordOtpSend(phone, ip);
 
   try {
     const supabase = await getSupabaseServerClient();
@@ -286,12 +310,21 @@ export async function verifyOtp(
       redirect({ href: next, locale });
     }
 
+    // Brute-force guard: too many wrong codes for this email → refuse
+    // further attempts for the window, regardless of what Supabase allows.
+    if (!(await otpVerifyAllowed(email))) {
+      return { success: false, stage: 'code', method, message: 'rate_limited', email };
+    }
+
     try {
       const supabase = await getSupabaseServerClient();
       const { data, error } = await supabase.auth.verifyOtp({ email, token: code, type: 'email' });
       if (error || !data.session) {
         const message: AuthFailure['message'] =
           error?.status === 410 || error?.status === 401 ? 'invalid_code' : 'server';
+        if (message === 'invalid_code') {
+          await recordOtpVerifyFailure(email, await authClientIp());
+        }
         return {
           success: false,
           stage: 'code',
@@ -361,12 +394,20 @@ export async function verifyOtp(
     redirect({ href: next, locale });
   }
 
+  // Brute-force guard — same as the email branch.
+  if (!(await otpVerifyAllowed(phone))) {
+    return { success: false, stage: 'code', method, message: 'rate_limited', phone };
+  }
+
   try {
     const supabase = await getSupabaseServerClient();
     const { data, error } = await supabase.auth.verifyOtp({ phone, token: code, type: 'sms' });
     if (error || !data.session) {
       const message: AuthFailure['message'] =
         error?.status === 410 || error?.status === 401 ? 'invalid_code' : 'server';
+      if (message === 'invalid_code') {
+        await recordOtpVerifyFailure(phone, await authClientIp());
+      }
       return {
         success: false,
         stage: 'code',

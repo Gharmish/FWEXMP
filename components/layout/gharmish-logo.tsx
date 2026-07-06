@@ -18,7 +18,7 @@ export interface GharmishLogoProps {
 export function GharmishLogo({ className }: GharmishLogoProps) {
   return (
     <svg
-      viewBox="14 58 1452 306"
+      viewBox="14 58 1470 306"
       fill="currentColor"
       xmlns="http://www.w3.org/2000/svg"
       aria-hidden

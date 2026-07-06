@@ -7,7 +7,7 @@ import { SPRING } from '@/components/ui/motion';
 import { cn } from '@/lib/utils';
 import { formatDate, formatInteger } from '@/lib/format';
 import type { Locale } from '@/lib/i18n';
-import type { BookableOption } from './booking-request-form';
+import type { BookableOption } from '@/features/bookings/types';
 
 interface BookingCalendarCopy {
   prevMonth: string;

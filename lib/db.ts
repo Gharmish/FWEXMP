@@ -52,6 +52,13 @@ export function getDb(): Database {
         idle_timeout: 20,
         max_lifetime: 60 * 30,
         connect_timeout: 15,
+        // postgres.js defaults to 10 connections per client — per lambda
+        // instance on Vercel, so a traffic spike's fan-out (hundreds of
+        // warm instances) could exhaust Supavisor's client-connection cap.
+        // 5 still covers the widest in-request Promise.all (the admin
+        // dashboard's 8 aggregates mostly pipeline) and Fluid's modest
+        // in-function concurrency; dev keeps the default for HMR comfort.
+        max: process.env.VERCEL ? 5 : 10,
       });
     if (process.env.NODE_ENV !== 'production') {
       globalForDb.__gharmishPgClient = client;

@@ -5,6 +5,7 @@ import { useFormStatus } from 'react-dom';
 import type { Locale } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
+import { ConfirmSubmit } from '@/components/ui/confirm-dialog';
 import {
   transitionBooking,
   type AdminBookingActionResult,
@@ -39,6 +40,22 @@ const initialState: AdminBookingActionResult = { success: false };
 
 function Submit({ to, copy }: { to: BookingTransitionTarget; copy: Copy }) {
   const { pending } = useFormStatus();
+  if (copy.confirm) {
+    return (
+      <ConfirmSubmit
+        title={copy.label}
+        description={copy.confirm}
+        confirmLabel={copy.label}
+        pendingLabel={copy.pending}
+        destructive={to === 'cancelled'}
+        variant={to === 'confirmed' ? 'primary' : 'secondary'}
+        size="sm"
+        className={cn(to === 'cancelled' && 'border-al-qatt-red/40 text-al-qatt-red-800')}
+      >
+        {copy.label}
+      </ConfirmSubmit>
+    );
+  }
   return (
     <Button
       type="submit"
@@ -46,11 +63,6 @@ function Submit({ to, copy }: { to: BookingTransitionTarget; copy: Copy }) {
       size="sm"
       pending={pending}
       className={cn(to === 'cancelled' && 'border-al-qatt-red/40 text-al-qatt-red-800')}
-      onClick={(e) => {
-        // Native confirm for destructive transitions only. A modal can
-        // replace this when the design system grows a dialog.
-        if (copy.confirm && !window.confirm(copy.confirm)) e.preventDefault();
-      }}
     >
       {pending ? copy.pending : copy.label}
     </Button>

@@ -48,7 +48,7 @@ export function KpiTile({ label, value, locale, href, trend, hint }: KpiTileProp
   );
 
   const cardClass =
-    'border-sarat-black/8 rounded-card flex flex-col gap-2 [border-width:0.5px] p-6';
+    'border-sarat-black/8 rounded-card flex h-full flex-col gap-2 [border-width:0.5px] p-6';
 
   if (href) {
     return (

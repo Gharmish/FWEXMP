@@ -1,11 +1,9 @@
 import { desc, eq } from 'drizzle-orm';
 import { db } from '@/lib/db';
-import { serverEnv } from '@/lib/env';
 import { reportError } from '@/lib/log';
-import { getCurrentUser } from '@/features/auth/queries';
-import { isAdminUser } from '@/features/admin/auth';
-import { splitCommission } from '@/features/bookings/lib/availability';
+import { splitCommission } from '@/features/bookings/lib/commission';
 import type { AdminBookingRow } from '@/features/admin/bookings/types';
+import { adminGuard } from '@/features/admin/guard';
 
 /**
  * Admin reads over bookings. Same two gates as the other admin
@@ -26,20 +24,8 @@ import type { AdminBookingRow } from '@/features/admin/bookings/types';
  * entire table. Promote to a filtered/paginated query when we cross it. */
 const BOOKINGS_LIST_LIMIT = 500;
 
-export interface AdminGuardFailure {
-  reason: 'not_admin' | 'no_db';
-}
-
-async function adminGuard(): Promise<AdminGuardFailure | null> {
-  const user = await getCurrentUser();
-  if (!isAdminUser(user)) return { reason: 'not_admin' };
-  if (!serverEnv.DATABASE_URL) return { reason: 'no_db' };
-  return null;
-}
-
-export async function isAdminAndDbReady(): Promise<AdminGuardFailure | null> {
-  return adminGuard();
-}
+export { isAdminAndDbReady } from '@/features/admin/guard';
+export type { AdminGuardFailure } from '@/features/admin/guard';
 
 export async function listBookingsForAdmin(): Promise<readonly AdminBookingRow[]> {
   const block = await adminGuard();
@@ -60,6 +46,7 @@ export async function listBookingsForAdmin(): Promise<readonly AdminBookingRow[]
       return {
         id: row.id,
         reference: row.idempotencyKey,
+        referenceCode: row.referenceCode,
         status: row.status,
         paymentStatus: row.paymentStatus,
         refundDueSar: row.refundDueSar,
@@ -115,6 +102,7 @@ export async function listBookingsForExport(): Promise<readonly AdminBookingExpo
       return {
         id: row.id,
         reference: row.idempotencyKey,
+        referenceCode: row.referenceCode,
         status: row.status,
         paymentStatus: row.paymentStatus,
         refundDueSar: row.refundDueSar,
@@ -162,6 +150,7 @@ export async function getAdminBookingById(id: string): Promise<AdminBookingRow |
     return {
       id: row.id,
       reference: row.idempotencyKey,
+      referenceCode: row.referenceCode,
       status: row.status,
       paymentStatus: row.paymentStatus,
       refundDueSar: row.refundDueSar,

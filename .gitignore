@@ -43,3 +43,5 @@ next-env.d.ts
 
 # claude code session artifacts (worktrees, transcripts, etc.)
 .claude/
+.agents/
+skills-lock.json

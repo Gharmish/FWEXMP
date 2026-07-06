@@ -9,7 +9,7 @@ import { bookings, experiences, payouts } from '@/db/schema';
 import { reportError } from '@/lib/log';
 import { getCurrentUser } from '@/features/auth/queries';
 import { isAdminUser } from '@/features/admin/auth';
-import { splitCommission } from '@/features/bookings/lib/availability';
+import { splitCommission } from '@/features/bookings/lib/commission';
 import { paymentCollected } from '@/features/bookings/lib/payout-sql';
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;

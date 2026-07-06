@@ -362,6 +362,9 @@ export default async function HostDashboardPage({
                       : t('experiences.daysPerWeek', {
                           count: experience.availabilityWeekdays.length,
                         }),
+                  commissionShare: t('experiences.commissionShare', {
+                    pct: experience.commissionBps / 100,
+                  }),
                 }}
               />
             ))}

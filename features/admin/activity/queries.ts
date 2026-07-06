@@ -1,9 +1,6 @@
 import { desc, eq } from 'drizzle-orm';
 import { db } from '@/lib/db';
-import { serverEnv } from '@/lib/env';
 import { reportError } from '@/lib/log';
-import { getCurrentUser } from '@/features/auth/queries';
-import { isAdminUser } from '@/features/admin/auth';
 import {
   experienceModerationEvents,
   experiences,
@@ -12,6 +9,7 @@ import {
   hostStatusEvents,
   hosts,
 } from '@/db/schema';
+import { adminGuard } from '@/features/admin/guard';
 
 /**
  * Unified activity feed — merges the three append-only audit logs
@@ -24,20 +22,8 @@ import {
  * namespaces (moderationEvent / applicationEvent / hostStatusEvent).
  */
 
-export interface AdminGuardFailure {
-  reason: 'not_admin' | 'no_db';
-}
-
-async function adminGuard(): Promise<AdminGuardFailure | null> {
-  const user = await getCurrentUser();
-  if (!isAdminUser(user)) return { reason: 'not_admin' };
-  if (!serverEnv.DATABASE_URL) return { reason: 'no_db' };
-  return null;
-}
-
-export async function isAdminAndDbReady(): Promise<AdminGuardFailure | null> {
-  return adminGuard();
-}
+export { isAdminAndDbReady } from '@/features/admin/guard';
+export type { AdminGuardFailure } from '@/features/admin/guard';
 
 export type ActivityKind = 'experience' | 'application' | 'host';
 

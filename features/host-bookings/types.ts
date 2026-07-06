@@ -14,6 +14,8 @@ export type HostBookingPaymentStatus = (typeof bookings.$inferSelect)['paymentSt
 export interface HostBookingRow {
   id: string;
   reference: string;
+  /** Short human reference (`GH-7K3M9X`) — matches what the guest sees. */
+  referenceCode: string;
   status: HostBookingStatus;
   paymentStatus: HostBookingPaymentStatus;
   date: string;

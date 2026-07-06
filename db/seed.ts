@@ -46,9 +46,28 @@ async function seed() {
     .returning();
 
   console.warn('Inserting experiences…');
+
+  // DEMO GALLERY PLACEHOLDER (2026-06-14). No per-experience gallery photos
+  // have been uploaded yet (Storage holds only one hero.jpg per listing), so
+  // each experience borrows its siblings' hero shots purely so the detail-page
+  // mosaic renders. These are NOT production content — replace `images` with
+  // real, licensed photography per experience when it lands.
+  const PHOTOS_BASE = 'https://xjgpflzkpydfpuomqhuq.supabase.co/storage/v1/object/public/photos';
+  const ALL_SLUGS = [
+    'juniper-forest-dawn-walk-jabal-sawda',
+    'an-evening-with-the-flower-men',
+    'asiri-coffee-ritual-and-saleeg-lunch',
+    'sound-and-breath-wadi-mahala',
+    'soudah-cliff-via-ferrata',
+    'al-qatt-painting-rijal-almaa',
+  ];
+  const demoGallery = (slug: string): string[] =>
+    ALL_SLUGS.filter((s) => s !== slug).map((s) => `${PHOTOS_BASE}/experiences/${s}/hero.jpg`);
+
   const data: NewExperience[] = [
     {
       slug: 'juniper-forest-dawn-walk-jabal-sawda',
+      images: demoGallery('juniper-forest-dawn-walk-jabal-sawda'),
       titleEn: 'Juniper forest dawn walk on Jabal Sawda',
       titleAr: 'مشي الفجر بين عرعر جبل السودة',
       descriptionEn:
@@ -73,6 +92,7 @@ async function seed() {
     },
     {
       slug: 'an-evening-with-the-flower-men',
+      images: demoGallery('an-evening-with-the-flower-men'),
       titleEn: 'An evening with the flower men of Habala',
       titleAr: 'أمسية مع رجال الزهور في الحبلة',
       descriptionEn:
@@ -97,6 +117,7 @@ async function seed() {
     },
     {
       slug: 'asiri-coffee-ritual-and-saleeg-lunch',
+      images: demoGallery('asiri-coffee-ritual-and-saleeg-lunch'),
       titleEn: 'Asiri coffee ritual and saleeg lunch',
       titleAr: 'طقوس القهوة العسيرية وغداء السليق',
       descriptionEn:
@@ -121,6 +142,7 @@ async function seed() {
     },
     {
       slug: 'sound-and-breath-wadi-mahala',
+      images: demoGallery('sound-and-breath-wadi-mahala'),
       titleEn: 'Sound and breath at Wadi Mahala',
       titleAr: 'الصوت والتنفس في وادي محالة',
       descriptionEn:
@@ -145,6 +167,7 @@ async function seed() {
     },
     {
       slug: 'soudah-cliff-via-ferrata',
+      images: demoGallery('soudah-cliff-via-ferrata'),
       titleEn: 'Soudah cliff via ferrata and cable descent',
       titleAr: 'مسار فيا فيراتا على حافة السودة ونزول بالحبل',
       descriptionEn:
@@ -169,6 +192,7 @@ async function seed() {
     },
     {
       slug: 'al-qatt-painting-rijal-almaa',
+      images: demoGallery('al-qatt-painting-rijal-almaa'),
       titleEn: 'Al-Qatt Al-Asiri painting for families in Rijal Almaa',
       titleAr: 'رسم القط العسيري للعائلات في رجال ألمع',
       descriptionEn:

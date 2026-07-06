@@ -143,9 +143,7 @@
   /* Elevation. The single shadow in the system, reserved for floating
    * layers only (modals, dropdowns, popovers, sticky booking bar). Cards
    * and inline components stay shadowless with 0.5px hairlines. */
-  --shadow-overlay:
-    0 8px 32px rgb(10 10 10 / 0.1),
-    0 1px 2px rgb(10 10 10 / 0.04);
+  --shadow-overlay: 0 8px 32px rgb(10 10 10 / 0.1), 0 1px 2px rgb(10 10 10 / 0.04);
 
   /* Typography. Bricolage for Latin/display, IBM Plex Sans Arabic for RTL.
    * Variables come from next/font (lib/fonts.ts). */
@@ -178,6 +176,12 @@ body {
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  /* Exploit Bricolage's optical-size axis (BRIEF.md section 3). The face
+   * carries `opsz` 12–96, so `auto` maps optical size to the rendered px
+   * size — Display reads at opsz≈96, body at opsz≈16 — matching the brief
+   * type-scale table without per-heading overrides. No-op for IBM Plex
+   * Arabic, which has no opsz axis. */
+  font-optical-sizing: auto;
 }
 
 /* Arabic locale: switch face and loosen line-height (BRIEF.md: 1.7–1.8). */
@@ -197,12 +201,14 @@ body {
   outline: none;
 }
 
+/* No border-radius override here: the box-shadow ring follows each
+ * element's own radius (pills get a pill ring, inputs a 12px one) —
+ * forcing 4px visibly reshaped pill buttons while focused. */
 :focus-visible {
   outline: none;
   box-shadow:
     0 0 0 2px var(--color-white),
     0 0 0 4px rgb(10 10 10 / 0.4);
-  border-radius: 4px;
 }
 
 /* Honor reduced-motion globally (BRIEF.md motion + accessibility). */

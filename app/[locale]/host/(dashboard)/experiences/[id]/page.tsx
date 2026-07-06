@@ -8,6 +8,8 @@ import type { Locale } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
 import { pickLocalized } from '@/lib/ar-placeholder';
 import { Badge } from '@/components/ui/badge';
+import { Price } from '@/components/ui/price';
+import { splitCommission } from '@/features/bookings/lib/commission';
 import { getCurrentUser } from '@/features/auth/queries';
 import { getHostDashboard } from '@/features/host-dashboard/queries';
 import { getMyExperienceById, getMyExperienceMoments } from '@/features/host-experiences/queries';
@@ -217,8 +219,6 @@ export default async function EditExperiencePage({
               pendingReviewLabel: t('lifecycle.pendingReviewLabel'),
               pause: t('lifecycle.pause'),
               pausePending: t('lifecycle.pausePending'),
-              duplicate: t('lifecycle.duplicate'),
-              duplicatePending: t('lifecycle.duplicatePending'),
               viewPublic: t('lifecycle.viewPublic'),
               errors: {
                 cannot_publish: t('lifecycle.errors.cannotPublish'),
@@ -233,6 +233,42 @@ export default async function EditExperiencePage({
               },
             }}
           />
+        </div>
+
+        {/* Partnership share — admin-owned per-experience rate, read-only
+            here. Bookings snapshot the rate, so a later change never
+            restates the host's existing earnings. */}
+        <div className="border-sarat-black/8 mt-10 [border-top-width:0.5px] pt-10">
+          <h2 className={eyebrowClassName}>{t('commission.heading')}</h2>
+          <p className="text-sarat-black-600 mt-2 max-w-2xl text-sm leading-relaxed">
+            {t('commission.intro')}
+          </p>
+          <dl className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-3">
+            <div className="bg-mist rounded-card flex flex-col gap-1 p-5">
+              <dt className="text-sarat-black-600 text-sm">{t('commission.shareLabel')}</dt>
+              <dd className="text-2xl font-medium tabular-nums">
+                {t('commission.pctValue', { pct: experience.commissionBps / 100 })}
+              </dd>
+            </div>
+            <div className="bg-mist rounded-card flex flex-col gap-1 p-5">
+              <dt className="text-sarat-black-600 text-sm">{t('commission.keepLabel')}</dt>
+              <dd className="text-2xl font-medium tabular-nums">
+                {t('commission.pctValue', { pct: (10000 - experience.commissionBps) / 100 })}
+              </dd>
+            </div>
+            <div className="bg-mist rounded-card flex flex-col gap-1 p-5">
+              <dt className="text-sarat-black-600 text-sm">{t('commission.perGuestLabel')}</dt>
+              <dd className="text-2xl font-medium tabular-nums">
+                <Price
+                  amount={splitCommission(experience.priceSar, experience.commissionBps).payoutSar}
+                  locale={loc}
+                />
+              </dd>
+            </div>
+          </dl>
+          <p className="text-sarat-black-600 mt-4 max-w-2xl text-sm leading-relaxed">
+            {t('commission.snapshotNote')}
+          </p>
         </div>
 
         <div className="border-sarat-black/8 mt-10 [border-top-width:0.5px] pt-10">
@@ -299,6 +335,14 @@ export default async function EditExperiencePage({
               tooLarge: t('gallery.tooLarge'),
               lockedLive: t('gallery.lockedLive'),
               error: t('gallery.error'),
+              crop: {
+                title: t('photo.crop.title'),
+                instruction: t('photo.crop.instruction'),
+                zoom: t('photo.crop.zoom'),
+                cancel: t('photo.crop.cancel'),
+                apply: t('photo.crop.apply'),
+                applying: t('photo.crop.applying'),
+              },
             }}
           />
         </div>

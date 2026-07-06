@@ -25,7 +25,7 @@ export const EXPERIENCE_CATEGORIES = [
   'family',
 ] as const;
 
-const linesFromTextarea = (raw: string): string[] =>
+export const linesFromTextarea = (raw: string): string[] =>
   raw
     .split(/\r?\n/)
     .map((l) => l.trim())

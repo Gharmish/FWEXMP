@@ -1,9 +1,6 @@
 import { eq, sql } from 'drizzle-orm';
 import { db } from '@/lib/db';
-import { serverEnv } from '@/lib/env';
 import { reportError } from '@/lib/log';
-import { getCurrentUser } from '@/features/auth/queries';
-import { isAdminUser } from '@/features/admin/auth';
 import {
   bookings,
   disputes,
@@ -13,6 +10,7 @@ import {
   platformSettings,
 } from '@/db/schema';
 import { paymentCollected, payoutExpr } from '@/features/bookings/lib/payout-sql';
+import { adminGuard } from '@/features/admin/guard';
 
 /**
  * Lightweight aggregate for the admin landing page. A handful of cheap
@@ -21,20 +19,8 @@ import { paymentCollected, payoutExpr } from '@/features/bookings/lib/payout-sql
  * static link menu.
  */
 
-export interface AdminGuardFailure {
-  reason: 'not_admin' | 'no_db';
-}
-
-async function adminGuard(): Promise<AdminGuardFailure | null> {
-  const user = await getCurrentUser();
-  if (!isAdminUser(user)) return { reason: 'not_admin' };
-  if (!serverEnv.DATABASE_URL) return { reason: 'no_db' };
-  return null;
-}
-
-export async function isAdminAndDbReady(): Promise<AdminGuardFailure | null> {
-  return adminGuard();
-}
+export { isAdminAndDbReady } from '@/features/admin/guard';
+export type { AdminGuardFailure } from '@/features/admin/guard';
 
 export interface AdminDashboard {
   gmvAllTimeSar: number;

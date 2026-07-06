@@ -1,6 +1,6 @@
 'use client';
 
-import { useActionState, useId, useState } from 'react';
+import { useActionState, useId, useRef, useState } from 'react';
 import { useFormStatus } from 'react-dom';
 import Image from 'next/image';
 import { ImageUp, X } from 'lucide-react';
@@ -8,12 +8,12 @@ import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { ConfirmSubmit } from '@/components/ui/confirm-dialog';
 import type { GalleryState } from '@/features/admin/experiences/gallery-actions';
+import { ACCEPTED_PHOTO_ATTR, validateSelectedPhoto } from '@/features/host-experiences/lib/photo';
+import { readFileAsDataUrl } from '@/features/host-experiences/lib/image-process';
 import {
-  ACCEPTED_PHOTO_ATTR,
-  validatePhoto,
-  validateSelectedPhoto,
-} from '@/features/host-experiences/lib/photo';
-import { fileToWebp } from '@/features/host-experiences/lib/image-process';
+  HeroCropper,
+  type HeroCropperCopy,
+} from '@/features/host-experiences/components/hero-cropper';
 
 /** A gallery mutation as `useActionState` consumes it. */
 export type GalleryAction = (previous: GalleryState, formData: FormData) => Promise<GalleryState>;
@@ -35,6 +35,8 @@ export interface GalleryManagerCopy {
   /** Shown for `locked_live` (host surface only — admins are never locked). */
   lockedLive?: string;
   error: string;
+  /** Crop-sheet copy — every gallery photo is framed to the canonical 16:9. */
+  crop: HeroCropperCopy;
 }
 
 const initialState: GalleryState = { success: false };
@@ -110,12 +112,14 @@ export function GalleryManager({
   const [state, action] = useActionState(uploadAction, initialState);
   const [clientError, setClientError] = useState<'invalidType' | 'tooLarge' | null>(null);
   const [fileName, setFileName] = useState<string | null>(null);
-  // A raw phone photo is several MB and server actions cap the request
-  // body — so the picked file is re-encoded to a bounded WebP in the
-  // browser (same pipeline as the hero) and swapped back into the input
-  // before submit. `ready` gates the button until that finishes.
+  /** Data URL of the freshly picked file, while the crop sheet is open. */
+  const [cropSrc, setCropSrc] = useState<string | null>(null);
+  // Every picked photo goes through the crop sheet and is rendered to a
+  // bounded 16:9 WebP (same pipeline as the hero) before it's staged in
+  // the input. `ready` gates the button until the host applies a frame.
   const [ready, setReady] = useState(false);
   const inputId = useId();
+  const photoInputRef = useRef<HTMLInputElement>(null);
 
   const serverError =
     !state.success && state.message
@@ -147,7 +151,7 @@ export function GalleryManager({
           {images.map((url) => (
             <li
               key={url}
-              className="bg-sarat-black/5 rounded-image relative aspect-square overflow-hidden"
+              className="bg-sarat-black/5 rounded-image relative aspect-[16/9] overflow-hidden"
             >
               <Image src={url} alt={copy.imageAlt} fill sizes="200px" className="object-cover" />
               <RemoveButton
@@ -173,6 +177,7 @@ export function GalleryManager({
           {copy.choose}
         </label>
         <input
+          ref={photoInputRef}
           id={inputId}
           type="file"
           name="photo"
@@ -187,7 +192,7 @@ export function GalleryManager({
               setClientError(null);
               return;
             }
-            // Generous input ceiling (30MB) — the re-encode below is what
+            // Generous input ceiling (30MB) — the crop re-encode is what
             // brings the upload under the action body cap.
             const picked = validateSelectedPhoto({ size: file.size, type: file.type });
             if (!picked.ok) {
@@ -197,23 +202,9 @@ export function GalleryManager({
             }
             setClientError(null);
             setFileName(file.name);
-            let staged = file;
-            try {
-              staged = await fileToWebp(file);
-            } catch {
-              // Canvas re-encode failed (rare) — fall back to the original
-              // if it fits the server's 5MB cap; otherwise surface tooLarge.
-              const fallback = validatePhoto({ size: file.size, type: file.type });
-              if (!fallback.ok) {
-                setClientError('tooLarge');
-                setFileName(null);
-                return;
-              }
-            }
-            const dt = new DataTransfer();
-            dt.items.add(staged);
-            input.files = dt.files;
-            setReady(true);
+            setCropSrc(await readFileAsDataUrl(file));
+            // Allow re-picking the same file (onChange wouldn't fire again).
+            input.value = '';
           }}
         />
         {fileName && <span className="text-sarat-black-600 truncate text-sm">{fileName}</span>}
@@ -229,6 +220,27 @@ export function GalleryManager({
           </p>
         )}
       </form>
+
+      {cropSrc && (
+        <HeroCropper
+          imageSrc={cropSrc}
+          copy={copy.crop}
+          onCancel={() => {
+            setCropSrc(null);
+            setFileName(null);
+          }}
+          onApply={(file) => {
+            const input = photoInputRef.current;
+            if (input) {
+              const transfer = new DataTransfer();
+              transfer.items.add(file);
+              input.files = transfer.files;
+              setReady(true);
+            }
+            setCropSrc(null);
+          }}
+        />
+      )}
     </section>
   );
 }

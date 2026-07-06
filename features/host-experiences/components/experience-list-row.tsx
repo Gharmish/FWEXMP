@@ -18,7 +18,7 @@ const STATUS_TONE: Record<HostExperienceRow['status'], string> = {
 interface ExperienceListRowProps {
   experience: HostExperienceRow;
   locale: Locale;
-  copy: { status: string; perPerson: string; daysPerWeek: string };
+  copy: { status: string; perPerson: string; daysPerWeek: string; commissionShare: string };
 }
 
 /**
@@ -49,6 +49,8 @@ export function ExperienceListRow({ experience, locale, copy }: ExperienceListRo
             </span>
             <span aria-hidden>·</span>
             <span>{copy.daysPerWeek}</span>
+            <span aria-hidden>·</span>
+            <span>{copy.commissionShare}</span>
           </div>
         </div>
         <ArrowRight className="text-sarat-black-600 size-4 shrink-0 rtl:rotate-180" aria-hidden />

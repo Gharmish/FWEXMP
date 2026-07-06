@@ -3,6 +3,7 @@
 import { useActionState } from 'react';
 import { useFormStatus } from 'react-dom';
 import { Button } from '@/components/ui/button';
+import { ConfirmSubmit } from '@/components/ui/confirm-dialog';
 import type { MomentActionState } from '@/features/admin/experiences/moment-actions';
 
 type MomentAction = (state: MomentActionState, formData: FormData) => Promise<MomentActionState>;
@@ -33,17 +34,23 @@ function Submit({
   disabled?: boolean;
 }) {
   const { pending } = useFormStatus();
+  if (confirm && !disabled) {
+    return (
+      <ConfirmSubmit
+        title={label}
+        description={confirm}
+        confirmLabel={label}
+        pendingLabel={pendingLabel}
+        destructive
+        variant={variant}
+        size="sm"
+      >
+        {label}
+      </ConfirmSubmit>
+    );
+  }
   return (
-    <Button
-      type="submit"
-      variant={variant}
-      size="sm"
-      pending={pending}
-      disabled={disabled}
-      onClick={(e) => {
-        if (confirm && !window.confirm(confirm)) e.preventDefault();
-      }}
-    >
+    <Button type="submit" variant={variant} size="sm" pending={pending} disabled={disabled}>
       {pending ? pendingLabel : label}
     </Button>
   );

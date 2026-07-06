@@ -46,6 +46,13 @@ export interface ExperienceSummary {
    */
   heroImage: string | null;
   /**
+   * Gallery photos after the hero — drives the swipeable carousel on the
+   * catalog card. Optional: omitted on lightweight constructors (dev mock),
+   * defaults to an empty list (hero-only card). The detail shape
+   * ([[ExperienceDetail]]) re-declares this as required.
+   */
+  images?: string[];
+  /**
    * Fresh listing flag (trust badge): live for under 30 days with fewer
    * than 3 reviews (owner-approved thresholds, 2026-06-11). Computed in
    * the queries layer; undefined on the sample-data path.
@@ -85,9 +92,8 @@ export interface MomentInfo {
 /**
  * Full experience for the detail page. Extends the card summary.
  *
- * Note: `inclusions` / `whatToBring` / `cancellationPolicy` are
- * English-only here (mirroring db/seed.ts). Making these arrays bilingual
- * is deferred — flagged for the localization pass.
+ * Note: `cancellationPolicy` is English-only here — guests see the
+ * platform-wide translated cancellation line, not the host free text.
  */
 export interface ExperienceDetail extends ExperienceSummary {
   region: string;
@@ -97,6 +103,12 @@ export interface ExperienceDetail extends ExperienceSummary {
   lng: number;
   inclusions: string[];
   whatToBring: string[];
+  /**
+   * Admin-authored Arabic lists. Empty = not written yet — the Arabic
+   * page falls back to the seed dictionary (`toArabicText`).
+   */
+  inclusionsAr: string[];
+  whatToBringAr: string[];
   cancellationPolicy: string;
   host: HostInfo;
   moments: MomentInfo[];

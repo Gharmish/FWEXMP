@@ -23,14 +23,26 @@ export interface Trend {
 
 const WINDOW = 7;
 
-function trend(current: number, previous: number): Trend {
+/**
+ * Period-over-period growth of `current` vs `previous`. An empty prior period
+ * can't form a ratio, so a non-zero current reads `up` with a null delta
+ * ("new", not "+∞%") and a zero current reads `flat`. Shared by the 7-day
+ * sparkline trend and the date-range dashboard's per-KPI growth badges.
+ */
+export function growth(
+  current: number,
+  previous: number,
+): { deltaPct: number | null; direction: TrendDirection } {
   if (previous === 0) {
-    if (current === 0) return { value: 0, deltaPct: null, direction: 'flat' };
-    return { value: current, deltaPct: null, direction: 'up' };
+    if (current === 0) return { deltaPct: null, direction: 'flat' };
+    return { deltaPct: null, direction: 'up' };
   }
   const deltaPct = Math.round(((current - previous) / previous) * 100);
-  const direction: TrendDirection = deltaPct > 0 ? 'up' : deltaPct < 0 ? 'down' : 'flat';
-  return { value: current, deltaPct, direction };
+  return { deltaPct, direction: deltaPct > 0 ? 'up' : deltaPct < 0 ? 'down' : 'flat' };
+}
+
+function trend(current: number, previous: number): Trend {
+  return { value: current, ...growth(current, previous) };
 }
 
 /**

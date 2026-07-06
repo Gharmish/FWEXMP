@@ -2,8 +2,10 @@
 
 import { asc, eq, sql } from 'drizzle-orm';
 import { revalidatePath } from 'next/cache';
+import { revalidateExperienceCaches } from '@/lib/cache-tags';
 import { z } from 'zod';
 import { db } from '@/lib/db';
+import { AR_PLACEHOLDER } from '@/lib/ar-placeholder';
 import { serverEnv } from '@/lib/env';
 import { moments } from '@/db/schema';
 import { reportError } from '@/lib/log';
@@ -27,8 +29,6 @@ export interface MomentActionState {
   fields?: Record<string, string>;
 }
 
-const AR_PLACEHOLDER = 'TODO(ar): pending translation';
-
 const momentSchema = z.object({
   timeOfDay: z.string().trim().max(40).optional(),
   titleEn: z.string().trim().min(2, 'title_short').max(120, 'title_long'),
@@ -50,6 +50,7 @@ async function requireAdmin(): Promise<{ adminUserId: string } | { error: Moment
 }
 
 function revalidate(experienceId: string): void {
+  revalidateExperienceCaches();
   revalidatePath('/[locale]/admin/experiences/[id]/moments', 'page');
   revalidatePath('/[locale]/admin/experiences/[id]/edit', 'page');
   revalidatePath('/[locale]/experiences/[slug]', 'page');

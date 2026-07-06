@@ -101,6 +101,9 @@ export default async function HostExperiencesIndexPage({
                     : t('experiences.daysPerWeek', {
                         count: experience.availabilityWeekdays.length,
                       }),
+                commissionShare: t('experiences.commissionShare', {
+                  pct: experience.commissionBps / 100,
+                }),
               }}
             />
           ))}

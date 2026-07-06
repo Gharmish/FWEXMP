@@ -1,4 +1,5 @@
 import * as Sentry from '@sentry/nextjs';
+import { scrubEvent } from '@/lib/sentry-scrub';
 
 /**
  * Next.js instrumentation hook (Next 13+). Runs once per server process
@@ -20,6 +21,10 @@ export function register(): void {
       // SDK already skips network IO but this stops the per-request
       // breadcrumb buffer from filling memory on hot paths.
       enabled: Boolean(process.env.SENTRY_DSN),
+      // Never attach default PII (IP, cookies, headers); scrub the rest
+      // (BRIEF §6 — PII masking at the Sentry boundary).
+      sendDefaultPii: false,
+      beforeSend: scrubEvent,
     });
   }
 }

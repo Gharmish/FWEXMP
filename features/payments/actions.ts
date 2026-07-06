@@ -12,6 +12,7 @@ import { reportError } from '@/lib/log';
 import { paymentDetailsSchema } from '@/features/payments/schemas';
 import { hyperpayBaseUrl, prepareCheckout } from '@/features/payments/lib/hyperpay';
 import { latestPaymentEvent, recordPaymentEvent } from '@/features/payments/ledger';
+import { SITE_URL } from '@/lib/site';
 
 /**
  * How long a prepared COPYandPAY checkout is treated as reusable. The
@@ -82,7 +83,19 @@ function echoValues(formData: FormData): CreateCheckoutState['values'] {
   return Object.fromEntries(DETAIL_FIELDS.map((key) => [key, formValue(formData, key)]));
 }
 
+/**
+ * Origin for the widget's `shopperResultUrl` (where 3DS sends the
+ * shopper back). Prefer the explicitly configured canonical origin —
+ * deriving it from request headers is safe on Vercel (platform-set) but
+ * host-header poisoning behind any other fronting could send the
+ * shopper to an attacker origin after 3DS (2026-07 audit L1;
+ * phishing-adjacent only — settlement never trusts the redirect). The
+ * header fallback keeps localhost and preview deployments working
+ * without per-environment config; set NEXT_PUBLIC_SITE_URL in
+ * production to pin it.
+ */
 async function requestOrigin(): Promise<string> {
+  if (process.env.NEXT_PUBLIC_SITE_URL) return SITE_URL;
   const h = await headers();
   const host = h.get('x-forwarded-host') ?? h.get('host') ?? '';
   const proto = h.get('x-forwarded-proto') ?? (host.startsWith('localhost') ? 'http' : 'https');

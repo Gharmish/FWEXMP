@@ -313,7 +313,7 @@ export default async function AdminBookingsPage({
                           </span>
                           <span aria-hidden>·</span>
                           <span className="font-mono text-[11px]" dir="ltr">
-                            {row.reference}
+                            {row.referenceCode}
                           </span>
                         </div>
                         <div className="text-sarat-black-600 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">

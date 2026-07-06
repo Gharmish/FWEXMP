@@ -34,13 +34,19 @@ interface MockBooking {
 }
 let booking: MockBooking | undefined;
 const setCalls: Array<Record<string, unknown>> = [];
+/**
+ * Rows the conditional `UPDATE ... RETURNING` reports as flipped.
+ * Empty = this caller lost the settle race (another entry point flipped
+ * the row between the read and the write).
+ */
+let updateReturns: Array<{ id: string }> = [{ id: 'b-1' }];
 vi.mock('@/lib/db', () => ({
   db: {
     query: { bookings: { findFirst: async () => booking } },
     update: () => ({
       set: (values: Record<string, unknown>) => {
         setCalls.push(values);
-        return { where: async () => undefined };
+        return { where: () => ({ returning: async () => updateReturns }) };
       },
     }),
   },
@@ -82,6 +88,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   setCalls.length = 0;
   ledgerEvents.length = 0;
+  updateReturns = [{ id: 'b-1' }];
   booking = {
     id: 'b-1',
     checkoutId: 'chk-1',
@@ -122,6 +129,31 @@ describe('settleBooking', () => {
     expect(setCalls).toHaveLength(0);
     expect(ledgerEvents).toHaveLength(0);
     expect(sendHostPaymentReceivedEmail).not.toHaveBeenCalled();
+  });
+
+  it('loses a concurrent settle race safely: no side effects double-fire', async () => {
+    // Worst case: the dead-booking auto-refund path. The webhook and the
+    // return route race; this caller passed the early already-paid check
+    // but another caller flipped the row first.
+    booking = { ...booking!, status: 'cancelled' };
+    updateReturns = [];
+
+    const outcome = await settleBooking('ref-1');
+
+    expect(outcome).toBe('already_settled');
+    expect(ledgerEvents).toHaveLength(0);
+    expect(executeRefund).not.toHaveBeenCalled();
+    expect(sendHostPaymentReceivedEmail).not.toHaveBeenCalled();
+  });
+
+  it('does not duplicate the settle_failed ledger event on a replayed rejection', async () => {
+    gatewayStatus = { id: 'pay-1', result: { code: '800.100.151' } };
+    updateReturns = [];
+
+    const outcome = await settleBooking('ref-1');
+
+    expect(outcome).toBe('rejected');
+    expect(ledgerEvents).toHaveLength(0);
   });
 
   it('refuses an amount mismatch and alerts the team', async () => {

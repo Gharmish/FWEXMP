@@ -43,7 +43,12 @@ Before doing anything, read `BRIEF.md` in the repo root. If the conversation con
 
 - Every form uses `react-hook-form` + a zod schema.
 - The same zod schema validates client, server action, and database insert.
-- Server actions return `{ success: true, data }` or `{ success: false, error }`. Never throw to the client.
+- Server actions never throw to the client. Failures return a discriminated
+  state: `{ success: false, message: <per-feature union>, fields?, values? }`.
+  Success either returns `{ success: true, ... }` or throws Next's
+  `redirect()` — for redirect-on-success actions the observable state is
+  always a failure shape. (2026-07: doc updated to match the convention the
+  codebase actually uses.)
 
 ### Files & naming
 

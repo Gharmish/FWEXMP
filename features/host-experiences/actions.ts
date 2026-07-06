@@ -2,7 +2,9 @@
 
 import { and, eq, sql } from 'drizzle-orm';
 import { revalidatePath } from 'next/cache';
+import { revalidateExperienceCaches } from '@/lib/cache-tags';
 import { db } from '@/lib/db';
+import { AR_PLACEHOLDER } from '@/lib/ar-placeholder';
 import { serverEnv } from '@/lib/env';
 import { experiences, experienceModerationEvents, hosts, moments } from '@/db/schema';
 import { redirect } from '@/lib/i18n';
@@ -13,7 +15,7 @@ import {
 } from '@/features/host-experiences/schemas';
 import { experienceSlugFromTitle } from '@/features/host-experiences/lib/slug';
 import { getCurrentHostIdForWrite } from '@/features/host-experiences/queries';
-import { getPlatformSettings } from '@/features/admin/settings/queries';
+import { getPlatformSettings } from '@/lib/platform-settings';
 
 /**
  * Host-side experience CRUD.
@@ -64,8 +66,6 @@ export interface HostExperienceState {
 }
 
 const SLUG_INSERT_MAX_RETRIES = 5;
-const AR_PLACEHOLDER = 'TODO(ar): pending translation';
-
 function formValue(formData: FormData, key: string): string {
   const value = formData.get(key);
   return typeof value === 'string' ? value : '';
@@ -302,6 +302,7 @@ export async function updateHostExperience(
     return { success: false, message: 'server' };
   }
 
+  revalidateExperienceCaches();
   revalidatePath('/[locale]/host', 'page');
   revalidatePath('/[locale]/host/experiences/[id]', 'page');
   // The public detail page renders by slug — invalidate the bucket.
@@ -447,6 +448,7 @@ export async function publishHostExperience(
     return { success: false, message: 'server' };
   }
 
+  revalidateExperienceCaches();
   revalidatePath('/[locale]/host', 'page');
   revalidatePath('/[locale]/host/experiences/[id]', 'page');
   revalidatePath('/[locale]/admin/experience-moderation', 'page');
@@ -473,6 +475,7 @@ export async function pauseHostExperience(
     return { success: false, message: 'server' };
   }
 
+  revalidateExperienceCaches();
   revalidatePath('/[locale]/host', 'page');
   revalidatePath('/[locale]/host/experiences/[id]', 'page');
   revalidatePath('/[locale]/experiences', 'page');

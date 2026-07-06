@@ -7,6 +7,7 @@ import type { Locale } from '@/lib/i18n';
 import type { HostInfo } from '@/features/experiences/types';
 import type { HostResponseStats } from '@/features/hosts/queries';
 import { toArabicText } from '@/features/experiences/lib/arabic-content';
+import { pickLocalized } from '@/lib/ar-placeholder';
 
 /**
  * Host card — Avatar (initials fallback), name, verified badge, bio,
@@ -22,7 +23,7 @@ export interface HostCardProps {
 
 export async function HostCard({ host, locale, responseStats }: HostCardProps) {
   const t = await getTranslations('host');
-  const bio = locale === 'ar' ? host.bioAr : host.bioEn;
+  const bio = pickLocalized(locale, host.bioEn, host.bioAr);
   const name = locale === 'ar' ? toArabicText(host.name) : host.name;
   const slug = host.slug;
 

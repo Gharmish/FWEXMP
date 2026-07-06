@@ -20,6 +20,9 @@ import { bricolage, ibmPlexArabic } from '@/lib/fonts';
 import { routing, localeDirection, type Locale } from '@/lib/i18n';
 import { Navbar } from '@/components/layout/navbar';
 import { Footer } from '@/components/layout/footer';
+import { MotionProvider } from '@/components/ui/motion';
+import { ToastProvider } from '@/components/ui/toast';
+import { DirectionProvider } from '@base-ui/react/direction-provider';
 import { SITE_URL, SITE_NAME, SITE_DESCRIPTION } from '@/lib/site';
 import '../globals.css';
 
@@ -72,18 +75,24 @@ export default async function LocaleLayout({
     >
       <body className="flex min-h-full flex-col">
         <NextIntlClientProvider>
-          {/* Keyboard bypass-block (WCAG 2.4.1): hidden until focused. */}
-          <a
-            href="#main-content"
-            className="bg-sarat-black rounded-button absolute -top-12 z-[60] ms-4 px-4 py-2 text-sm font-medium text-white transition-[top] duration-200 focus:top-4"
-          >
-            {t('skipToContent')}
-          </a>
-          <Navbar />
-          <main id="main-content" tabIndex={-1} className="flex flex-1 flex-col">
-            {children}
-          </main>
-          <Footer />
+          <DirectionProvider direction={dir}>
+            <MotionProvider>
+              <ToastProvider>
+                {/* Keyboard bypass-block (WCAG 2.4.1): hidden until focused. */}
+                <a
+                  href="#main-content"
+                  className="bg-sarat-black rounded-button absolute -top-12 z-[60] ms-4 px-4 py-2 text-sm font-medium text-white transition-[top] duration-200 focus:top-4"
+                >
+                  {t('skipToContent')}
+                </a>
+                <Navbar />
+                <main id="main-content" tabIndex={-1} className="flex flex-1 flex-col">
+                  {children}
+                </main>
+                <Footer />
+              </ToastProvider>
+            </MotionProvider>
+          </DirectionProvider>
         </NextIntlClientProvider>
       </body>
     </html>

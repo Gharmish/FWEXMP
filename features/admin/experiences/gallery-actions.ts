@@ -2,6 +2,7 @@
 
 import { eq } from 'drizzle-orm';
 import { revalidatePath } from 'next/cache';
+import { revalidateExperienceCaches } from '@/lib/cache-tags';
 import { db } from '@/lib/db';
 import { serverEnv, hasSupabaseAuth } from '@/lib/env';
 import { experiences } from '@/db/schema';
@@ -53,6 +54,7 @@ async function requireAdmin(): Promise<{ ok: true } | { error: GalleryState }> {
 }
 
 function revalidate(): void {
+  revalidateExperienceCaches();
   revalidatePath('/[locale]/admin/experiences/[id]/edit', 'page');
   revalidatePath('/[locale]/experiences/[slug]', 'page');
 }

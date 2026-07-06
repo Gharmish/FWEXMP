@@ -30,12 +30,18 @@ function toProfile(row: Host): HostProfile {
     verified: row.verificationStatus === 'verified',
     languages: row.languages,
     photoUrl: row.photoUrl,
+    joinedAt: row.createdAt.toISOString(),
   };
 }
 
 export async function getHostBySlug(slug: string): Promise<HostProfile | undefined> {
   if (!hasDb()) return sample.getHostBySlug(slug);
-  const row = await db.query.hosts.findFirst({ where: (h) => eq(h.slug, slug) });
+  // Public profile pages are verified-only: a pending host isn't part of
+  // the curated marketplace yet, and a suspended host must not keep a
+  // public storefront while under review.
+  const row = await db.query.hosts.findFirst({
+    where: (h) => and(eq(h.slug, slug), eq(h.verificationStatus, 'verified')),
+  });
   return row ? toProfile(row) : undefined;
 }
 
@@ -95,6 +101,7 @@ export async function getAllHostSlugs(): Promise<readonly string[]> {
   try {
     const rows = await db.query.hosts.findMany({
       columns: { slug: true },
+      where: (h) => eq(h.verificationStatus, 'verified'),
     });
     return rows.map((r) => r.slug);
   } catch (error) {
@@ -110,7 +117,11 @@ export async function getAllHosts(): Promise<readonly HostProfile[]> {
   // degrade to an empty list and report. (`?? []` also guards the rare case
   // where an interrupted pooled connection resolves without rows.)
   try {
+    // Verified-only: home and /hosts are merchandising surfaces — a host
+    // pending review (or suspended after a complaint) must never be
+    // featured as part of the curated roster.
     const rows = await db.query.hosts.findMany({
+      where: (h) => eq(h.verificationStatus, 'verified'),
       orderBy: (h) => asc(h.createdAt),
     });
     return (rows ?? []).map(toProfile);

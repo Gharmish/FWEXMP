@@ -6,6 +6,7 @@ import {
   getReviewAggregateForExperience,
   getReviewsForExperience,
 } from '@/features/reviews/queries';
+import { Stagger, StaggerItem } from '@/components/ui/motion';
 import { RatingSummary } from '@/features/reviews/components/rating-summary';
 import { ReviewCard } from '@/features/reviews/components/review-card';
 
@@ -64,13 +65,17 @@ export async function ReviewsSection({
       <RatingSummary aggregate={aggregate} locale={locale} />
 
       {visible.length > 0 && (
-        <ul className="grid gap-4 sm:grid-cols-2">
-          {visible.map((review) => (
-            <li key={review.id}>
-              <ReviewCard review={review} locale={locale} />
-            </li>
-          ))}
-        </ul>
+        <Stagger>
+          <ul className="grid gap-4 sm:grid-cols-2">
+            {visible.map((review) => (
+              <li key={review.id}>
+                <StaggerItem className="h-full">
+                  <ReviewCard review={review} locale={locale} />
+                </StaggerItem>
+              </li>
+            ))}
+          </ul>
+        </Stagger>
       )}
 
       {hidden > 0 &&

@@ -1,11 +1,9 @@
 import { eq, sql } from 'drizzle-orm';
 import { db } from '@/lib/db';
-import { serverEnv } from '@/lib/env';
 import { reportError } from '@/lib/log';
-import { getCurrentUser } from '@/features/auth/queries';
-import { isAdminUser } from '@/features/admin/auth';
 import { bookings, experiences, hosts } from '@/db/schema';
 import { paymentCollected, payoutExpr } from '@/features/bookings/lib/payout-sql';
+import { adminGuard } from '@/features/admin/guard';
 
 /**
  * Host payouts. A host earns a payout once a booking is `completed`
@@ -18,20 +16,8 @@ import { paymentCollected, payoutExpr } from '@/features/bookings/lib/payout-sql
  * dashboard, the bookings list, and payouts agree to the riyal.
  */
 
-export interface AdminGuardFailure {
-  reason: 'not_admin' | 'no_db';
-}
-
-async function adminGuard(): Promise<AdminGuardFailure | null> {
-  const user = await getCurrentUser();
-  if (!isAdminUser(user)) return { reason: 'not_admin' };
-  if (!serverEnv.DATABASE_URL) return { reason: 'no_db' };
-  return null;
-}
-
-export async function isAdminAndDbReady(): Promise<AdminGuardFailure | null> {
-  return adminGuard();
-}
+export { isAdminAndDbReady } from '@/features/admin/guard';
+export type { AdminGuardFailure } from '@/features/admin/guard';
 
 export interface PayoutRow {
   hostId: string;

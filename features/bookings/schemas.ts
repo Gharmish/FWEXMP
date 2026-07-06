@@ -4,6 +4,16 @@ import { normalizeToE164 } from '@/lib/phone';
 export const bookingRequestSchema = z.object({
   experienceSlug: z.string().min(1),
   locale: z.enum(['en', 'ar']),
+  /**
+   * Client-minted idempotency key (BRIEF §6 — safe retries, incl. AI
+   * agents). Minted once when the form mounts, so a double-tap or a
+   * network-layer re-POST re-delivers the SAME key and the unique
+   * constraint dedupes the insert instead of creating a second booking.
+   * Optional with a swallow-on-invalid catch: an absent or malformed key
+   * falls back to a server-minted UUID (no retry protection, pre-2026-07
+   * behavior) rather than failing the booking.
+   */
+  idempotencyKey: z.string().uuid().optional().catch(undefined),
   name: z.string().trim().min(2).max(80),
   // The form posts a canonical E.164 number (any country except Israel, see
   // `lib/phone`). Bare digits from API/MCP clients are read as Saudi numbers.

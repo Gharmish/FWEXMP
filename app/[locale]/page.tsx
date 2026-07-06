@@ -22,7 +22,7 @@ import {
   StaggerItem,
 } from '@/components/ui/motion';
 import { CATEGORIES } from '@/features/experiences/lib/sample-data';
-import { getPlatformSettings } from '@/features/admin/settings/queries';
+import { getPlatformSettings } from '@/lib/platform-settings';
 import { getExperiences, getFeaturedExperiences } from '@/features/experiences/queries';
 import { getAllHosts } from '@/features/hosts/queries';
 import { toArabicText } from '@/features/experiences/lib/arabic-content';

@@ -3,14 +3,13 @@ import { db } from '@/lib/db';
 import { serverEnv } from '@/lib/env';
 import { experienceModerationEvents } from '@/db/schema';
 import { reportError } from '@/lib/log';
-import { getCurrentUser } from '@/features/auth/queries';
-import { isAdminUser } from '@/features/admin/auth';
 import type {
   ExperienceStatus,
   ModerationDetail,
   ModerationEventView,
   ModerationQueueRow,
 } from '@/features/admin/experience-moderation/types';
+import { adminGuard } from '@/features/admin/guard';
 
 /**
  * Admin reads over experience moderation. Same two gates as host
@@ -21,20 +20,8 @@ import type {
  * the reviewer can backtrack on a decision they just made.
  */
 
-export interface AdminGuardFailure {
-  reason: 'not_admin' | 'no_db';
-}
-
-async function adminGuard(): Promise<AdminGuardFailure | null> {
-  const user = await getCurrentUser();
-  if (!isAdminUser(user)) return { reason: 'not_admin' };
-  if (!serverEnv.DATABASE_URL) return { reason: 'no_db' };
-  return null;
-}
-
-export async function isAdminAndDbReady(): Promise<AdminGuardFailure | null> {
-  return adminGuard();
-}
+export { isAdminAndDbReady } from '@/features/admin/guard';
+export type { AdminGuardFailure } from '@/features/admin/guard';
 
 /**
  * Last submission timestamp per experience, used to sort the queue
@@ -180,6 +167,9 @@ export async function getModerationDetail(id: string): Promise<ModerationDetail 
       inclusions: row.inclusions,
       whatToBring: row.whatToBring,
       cancellationPolicy: row.cancellationPolicy,
+      inclusionsAr: row.inclusionsAr,
+      whatToBringAr: row.whatToBringAr,
+      cancellationPolicyAr: row.cancellationPolicyAr,
       availabilityWeekdays: row.availabilityWeekdays,
       status: row.status,
       heroImage: row.heroImage,

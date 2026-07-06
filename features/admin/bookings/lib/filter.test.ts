@@ -10,6 +10,7 @@ function row(over: Partial<AdminBookingRow>): AdminBookingRow {
   return {
     id: 'id',
     reference: 'ref-abc',
+    referenceCode: 'GH-TEST22',
     status: 'pending',
     paymentStatus: 'unpaid',
     refundDueSar: null,

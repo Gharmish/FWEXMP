@@ -22,7 +22,10 @@ export default defineConfig({
   },
   test: {
     environment: 'node',
-    include: ['features/**/*.test.ts', 'lib/**/*.test.ts'],
+    // `*.test.ts` picks up root-level test files (proxy.test.ts — the
+    // edge auth-gate tests). Before it was added, that file existed on
+    // disk but was silently excluded from every `pnpm test` run.
+    include: ['*.test.ts', 'features/**/*.test.ts', 'lib/**/*.test.ts'],
     exclude: ['node_modules/**', '.next/**', 'db/migrations/**', '.claude/**'],
     reporters: ['default'],
   },

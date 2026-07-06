@@ -2,6 +2,7 @@
 
 import { and, eq } from 'drizzle-orm';
 import { revalidatePath } from 'next/cache';
+import { revalidateExperienceCaches } from '@/lib/cache-tags';
 import { db } from '@/lib/db';
 import { serverEnv } from '@/lib/env';
 import { experiences, experienceModerationEvents } from '@/db/schema';
@@ -13,6 +14,7 @@ import {
   approveExperienceSchema,
   rejectExperienceSchema,
   requestChangesSchema,
+  updateArabicCopySchema,
 } from '@/features/admin/experience-moderation/schemas';
 
 /**
@@ -115,6 +117,7 @@ export async function approveExperience(
     return { success: false, message: 'server' };
   }
 
+  revalidateExperienceCaches();
   revalidatePath('/[locale]/admin/experience-moderation', 'page');
   // Dynamic-segment template — mixing a templated `[locale]` with a
   // concrete id wouldn't match the cached entry.
@@ -122,6 +125,78 @@ export async function approveExperience(
   revalidatePath('/[locale]/host', 'page');
   revalidatePath('/[locale]/host/experiences/[id]', 'page');
   // The public detail page renders by slug — invalidate the bucket.
+  revalidatePath('/[locale]/experiences', 'page');
+  revalidatePath('/[locale]/experiences/[slug]', 'page');
+  redirect({ href: `/admin/experience-moderation/${experienceId}`, locale });
+}
+
+// ---------- arabic copy ----------
+
+/**
+ * Inline Arabic title/description editor on the moderation detail page.
+ * Works on any status (Arabic on a live listing may need fixing too —
+ * same scope as the hero swap) and records an `edited` audit event with
+ * `fromStatus === toStatus`.
+ */
+export async function updateExperienceArabicCopy(
+  _previous: AdminModerationResult,
+  formData: FormData,
+): Promise<AdminModerationResult> {
+  const guard = await requireAdmin();
+  if ('error' in guard) return guard.error;
+
+  const parsed = updateArabicCopySchema.safeParse({
+    experienceId: formValue(formData, 'experienceId'),
+    titleAr: formValue(formData, 'titleAr'),
+    descriptionAr: formValue(formData, 'descriptionAr'),
+    inclusionsArRaw: formValue(formData, 'inclusionsArRaw'),
+    whatToBringArRaw: formValue(formData, 'whatToBringArRaw'),
+    cancellationPolicyAr: formValue(formData, 'cancellationPolicyAr'),
+    locale: formValue(formData, 'locale'),
+  });
+  if (!parsed.success) {
+    const issue = parsed.error.issues[0];
+    return {
+      success: false,
+      message: 'validation',
+      fieldError: issue?.message ?? 'invalid',
+    };
+  }
+  const { experienceId, titleAr, descriptionAr, locale } = parsed.data;
+
+  try {
+    const updated = await db
+      .update(experiences)
+      .set({
+        titleAr,
+        descriptionAr,
+        inclusionsAr: parsed.data.inclusionsArRaw,
+        whatToBringAr: parsed.data.whatToBringArRaw,
+        cancellationPolicyAr: parsed.data.cancellationPolicyAr,
+        updatedAt: new Date(),
+      })
+      .where(eq(experiences.id, experienceId))
+      .returning({ status: experiences.status });
+    if (updated.length === 0) {
+      return { success: false, message: 'not_found' };
+    }
+    await db.insert(experienceModerationEvents).values({
+      experienceId,
+      event: 'edited',
+      fromStatus: updated[0].status,
+      toStatus: updated[0].status,
+      reviewerUserId: guard.adminUserId,
+    });
+  } catch (error) {
+    reportError(error, { surface: 'admin:updateExperienceArabicCopy', experienceId });
+    return { success: false, message: 'server' };
+  }
+
+  revalidateExperienceCaches();
+  revalidatePath('/[locale]/admin/experience-moderation', 'page');
+  // Dynamic-segment template — mixing a templated `[locale]` with a
+  // concrete id wouldn't match the cached entry.
+  revalidatePath('/[locale]/admin/experience-moderation/[id]', 'page');
   revalidatePath('/[locale]/experiences', 'page');
   revalidatePath('/[locale]/experiences/[slug]', 'page');
   redirect({ href: `/admin/experience-moderation/${experienceId}`, locale });

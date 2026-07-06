@@ -102,6 +102,12 @@ export interface ExperienceFormCopy {
   coordsPastePlaceholder: string;
   coordsPasteInvalid: string;
   coordsPreviewTitle: string;
+  mapSearchLabel: string;
+  mapSearchPlaceholder: string;
+  mapSearchButton: string;
+  mapSearchNotFound: string;
+  mapHint: string;
+  manualCoordsLabel: string;
   cityLabel: string;
   regionLabel: string;
   inclusionsLabel: string;
@@ -441,6 +447,12 @@ export function ExperienceForm({ mode, locale, copy, experience }: ExperienceFor
             pastePlaceholder: copy.coordsPastePlaceholder,
             pasteInvalid: copy.coordsPasteInvalid,
             previewTitle: copy.coordsPreviewTitle,
+            searchLabel: copy.mapSearchLabel,
+            searchPlaceholder: copy.mapSearchPlaceholder,
+            searchButton: copy.mapSearchButton,
+            searchNotFound: copy.mapSearchNotFound,
+            mapHint: copy.mapHint,
+            manualCoordsLabel: copy.manualCoordsLabel,
           }}
         />
       </fieldset>

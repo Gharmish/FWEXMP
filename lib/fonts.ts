@@ -3,13 +3,13 @@ import localFont from 'next/font/local';
 /**
  * Bricolage Grotesque — English / Latin display + body face.
  *
- * Self-hosted variable font (Fontsource `standard` subset). It carries the
- * `wght` axis across 200–800. Note: Fontsource ships Bricolage's variable
- * axes as separate subset files, so this file does NOT carry the `opsz`
- * optical-size axis. The brand brief asks to "exploit opsz aggressively";
- * doing so requires the full multi-axis Bricolage source (not available via
- * Fontsource's split subsets). Tracked as a known limitation — the product
- * only uses weights 400/500 today, which this file fully supports.
+ * Self-hosted multi-axis variable font built from the upstream
+ * ateliertriay/bricolage source: it carries BOTH the `wght` axis (200–800)
+ * and the `opsz` optical-size axis (12–96). The `wdth` axis is pinned to its
+ * default and the glyph set is subset to Latin (Arabic is served by IBM Plex
+ * Sans Arabic), keeping the file ~100KB. This fulfils the brief's "exploit
+ * the opsz axis aggressively" — `font-optical-sizing: auto` (app/globals.css)
+ * maps optical size to the rendered px size across the whole product.
  */
 export const bricolage = localFont({
   src: '../public/fonts/bricolage-grotesque-variable.woff2',

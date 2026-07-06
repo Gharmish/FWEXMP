@@ -104,11 +104,16 @@ export function formatInteger(value: number, locale: Locale): string {
  * Format a time as 12-hour with AM/PM (English) or ص/م (Arabic).
  * Digits are always Western (Latin), never Arabic-Indic.
  */
-export function formatTime(date: Date, locale: Locale): string {
+export function formatTime(
+  date: Date,
+  locale: Locale,
+  options: Intl.DateTimeFormatOptions = {},
+): string {
   return new Intl.DateTimeFormat(intlLocale[locale], {
     numberingSystem: 'latn',
     hour: 'numeric',
     minute: '2-digit',
     hour12: true,
+    ...options,
   }).format(date);
 }

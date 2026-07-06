@@ -39,6 +39,10 @@ export function RatingSummary({ aggregate, locale }: RatingSummaryProps) {
 
   const fillPercent = (average / 5) * 100;
   const buckets: Array<1 | 2 | 3 | 4 | 5> = [5, 4, 3, 2, 1];
+  // A distribution drawn against one or two reviews is four empty rows —
+  // it advertises how few reviews exist instead of summarizing them.
+  // Hide the histogram until the sample says something.
+  const showDistribution = count >= 5;
 
   return (
     <div className="flex flex-col gap-6 sm:flex-row sm:items-start sm:gap-12">
@@ -70,37 +74,41 @@ export function RatingSummary({ aggregate, locale }: RatingSummaryProps) {
         </div>
 
         <p className="text-sarat-black-600 text-sm">
-          {t('basedOn', { count: formatInteger(count, locale) })}
+          {/* `n` (raw) drives the ICU plural; `count` stays the latn-digit
+              formatted string so Arabic never renders Arabic-Indic digits. */}
+          {t('basedOn', { n: count, count: formatInteger(count, locale) })}
         </p>
       </div>
 
-      <ul className="flex w-full max-w-sm flex-col gap-2">
-        {buckets.map((bucket) => {
-          const n = distribution[bucket];
-          const pct = count === 0 ? 0 : (n / count) * 100;
-          return (
-            <li key={bucket} className="flex items-center gap-3 text-sm">
-              <span className="text-sarat-black-600 w-3 text-end tabular-nums">{bucket}</span>
-              <Star className="text-saffron-gold size-3.5 shrink-0 fill-current" aria-hidden />
-              <span
-                className="bg-sarat-black/8 relative h-1.5 flex-1 overflow-hidden rounded-full"
-                aria-hidden
-              >
+      {showDistribution && (
+        <ul className="flex w-full max-w-sm flex-col gap-2">
+          {buckets.map((bucket) => {
+            const n = distribution[bucket];
+            const pct = count === 0 ? 0 : (n / count) * 100;
+            return (
+              <li key={bucket} className="flex items-center gap-3 text-sm">
+                <span className="text-sarat-black-600 w-3 text-end tabular-nums">{bucket}</span>
+                <Star className="text-saffron-gold size-3.5 shrink-0 fill-current" aria-hidden />
                 <span
-                  className={cn(
-                    'bg-saffron-gold absolute inset-y-0 start-0 block rounded-full',
-                    pct === 0 && 'opacity-0',
-                  )}
-                  style={{ width: `${pct}%` }}
-                />
-              </span>
-              <span className="text-sarat-black-600 w-6 text-end tabular-nums">
-                {formatInteger(n, locale)}
-              </span>
-            </li>
-          );
-        })}
-      </ul>
+                  className="bg-sarat-black/8 relative h-1.5 flex-1 overflow-hidden rounded-full"
+                  aria-hidden
+                >
+                  <span
+                    className={cn(
+                      'bg-saffron-gold absolute inset-y-0 start-0 block rounded-full',
+                      pct === 0 && 'opacity-0',
+                    )}
+                    style={{ width: `${pct}%` }}
+                  />
+                </span>
+                <span className="text-sarat-black-600 w-6 text-end tabular-nums">
+                  {formatInteger(n, locale)}
+                </span>
+              </li>
+            );
+          })}
+        </ul>
+      )}
     </div>
   );
 }

@@ -13,7 +13,7 @@ import { AvatarUpload } from '@/features/account/profile/components/avatar-uploa
 import { WalletCard } from '@/features/account/profile/components/wallet-card';
 import { PaymentMethodsSection } from '@/features/account/profile/components/payment-methods-section';
 import { BookingHistory } from '@/features/account/profile/components/booking-history';
-import type { Booking } from '@/db/schema';
+import { buildBookingStatusLabels } from '@/features/bookings/lib/status-labels';
 
 export async function generateMetadata({
   params,
@@ -50,15 +50,7 @@ export default async function ProfilePage({ params }: { params: Promise<{ locale
     loc === 'en' && 'tracking-[0.2em] uppercase',
   );
 
-  const statusLabels = {
-    pending: t('history.status.pending'),
-    confirmed: t('history.status.confirmed'),
-    completed: t('history.status.completed'),
-    cancelled: t('history.status.cancelled'),
-    refunded: t('history.status.refunded'),
-    declined: t('history.status.declined'),
-    expired: t('history.status.expired'),
-  } satisfies Record<Booking['status'], string>;
+  const statusLabels = buildBookingStatusLabels(t);
 
   return (
     <div className="mx-auto flex w-full max-w-2xl flex-col gap-6 px-6 py-14 sm:py-20">

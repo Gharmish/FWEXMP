@@ -83,7 +83,7 @@ export default async function AdminBookingDetailPage({
       dir: 'ltr',
     },
     { label: t('bookingDetail.created'), value: formatDate(new Date(booking.createdAt), loc) },
-    { label: t('bookingDetail.reference'), value: booking.reference, dir: 'ltr' },
+    { label: t('bookingDetail.reference'), value: booking.referenceCode, dir: 'ltr' },
   ];
 
   const transitions = availableTransitions(booking.status);

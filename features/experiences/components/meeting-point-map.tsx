@@ -4,11 +4,11 @@ import { getTranslations } from 'next-intl/server';
 /**
  * Meeting-point map for the experience detail page.
  *
- * Interim implementation: an OpenStreetMap embed — zero dependencies and
- * no API token. BRIEF §5 names Mapbox GL JS as the maps stack; swapping
- * this iframe for a Mapbox view is a drop-in once a token is provisioned
- * (flagged 2026-06-11). The Google Maps link is the actionable path
- * guests really use for navigation either way.
+ * An OpenStreetMap embed — keyless and free, no provider account (owner
+ * direction 2026-07-03: keyless maps only; supersedes the BRIEF §5
+ * Mapbox plan). The host picker uses the same OSM data via Leaflet, so
+ * what guests see here matches what the host pinned. The Google Maps
+ * link is the actionable path guests really use for navigation.
  */
 
 /** Bounding-box half-width in degrees (~1.6 km at Asir latitudes). */

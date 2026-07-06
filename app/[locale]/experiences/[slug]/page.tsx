@@ -36,7 +36,7 @@ import { MeetingPointMap } from '@/features/experiences/components/meeting-point
 import { getScheduleDataBySlug } from '@/features/availability/queries';
 import { addDays, bookableDates } from '@/features/bookings/lib/availability';
 import { vatRatePercent } from '@/features/bookings/lib/vat';
-import { getPlatformSettings } from '@/features/admin/settings/queries';
+import { getPlatformSettings } from '@/lib/platform-settings';
 import { getCompletedBookingsCountForExperience } from '@/features/bookings/queries';
 import { getHostResponseStats } from '@/features/hosts/queries';
 import { Badge } from '@/components/ui/badge';
@@ -112,27 +112,27 @@ export default async function ExperienceDetailPage({
     : await getExperienceBySlug(slug);
   if (!exp) notFound();
 
-  // Fetch the aggregate rating in parallel with translation setup — it
-  // feeds both the JSON-LD AggregateRating and the visible reviews
-  // section (which re-fetches the full list itself, also cached).
-  const ratingAggregate = await getReviewAggregateForExperience(slug);
-
-  const t = await getTranslations('experienceDetail');
-  const te = await getTranslations('experience');
-  const tb = await getTranslations('bookingRequest');
-
-  // Build the guest date picker: only dates that are actually bookable
-  // (open weekday, not blackout/stop-sell/past, with capacity) over the
-  // next ~8 weeks, each with its remaining-spots count.
+  // Everything below depends only on the slug/host/locale — one parallel
+  // fan-out instead of the previous chain of sequential awaits, which
+  // stacked ~4 extra DB round-trips of latency onto every view (2026-07
+  // audit M10). The aggregate feeds JSON-LD + the reviews section; the
+  // schedule builds the guest date picker (open weekday, not
+  // blackout/stop-sell/past, with capacity) over the next ~8 weeks.
   const BOOKING_HORIZON_DAYS = 60;
   const todayRiyadh = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Riyadh' }).format(
     new Date(),
   );
-  const schedule = await getScheduleDataBySlug(
-    slug,
-    todayRiyadh,
-    addDays(todayRiyadh, BOOKING_HORIZON_DAYS),
-  );
+  const [ratingAggregate, t, te, tb, schedule, settings, completedCount, hostResponseStats] =
+    await Promise.all([
+      getReviewAggregateForExperience(slug),
+      getTranslations('experienceDetail'),
+      getTranslations('experience'),
+      getTranslations('bookingRequest'),
+      getScheduleDataBySlug(slug, todayRiyadh, addDays(todayRiyadh, BOOKING_HORIZON_DAYS)),
+      getPlatformSettings(),
+      getCompletedBookingsCountForExperience(exp.slug),
+      getHostResponseStats(exp.hostSlug),
+    ]);
   const availableDates = (
     schedule
       ? bookableDates({
@@ -165,8 +165,20 @@ export default async function ExperienceDetailPage({
   const city = loc === 'ar' ? toArabicText(exp.city) : exp.city;
   const region = loc === 'ar' ? toArabicText(exp.region) : exp.region;
   const location = loc === 'ar' ? `${city}، ${region}` : `${city}, ${region}`;
-  const inclusions = loc === 'ar' ? exp.inclusions.map(toArabicText) : exp.inclusions;
-  const whatToBring = loc === 'ar' ? exp.whatToBring.map(toArabicText) : exp.whatToBring;
+  // Admin-authored Arabic lists win; the seed dictionary is the fallback
+  // for listings whose Arabic hasn't been written yet.
+  const inclusions =
+    loc === 'ar'
+      ? exp.inclusionsAr.length > 0
+        ? exp.inclusionsAr
+        : exp.inclusions.map(toArabicText)
+      : exp.inclusions;
+  const whatToBring =
+    loc === 'ar'
+      ? exp.whatToBringAr.length > 0
+        ? exp.whatToBringAr
+        : exp.whatToBring.map(toArabicText)
+      : exp.whatToBring;
   const maxGroupSize = formatInteger(exp.maxGroupSize, loc);
   const minAge = formatInteger(exp.minAge, loc);
   const bookingCopy = {
@@ -209,11 +221,6 @@ export default async function ExperienceDetailPage({
   // expectations match the platform setting, not stale copy. The
   // cancellation chip reflects the platform-wide refund rule (the one
   // the cancel action actually enforces).
-  const [settings, completedCount, hostResponseStats] = await Promise.all([
-    getPlatformSettings(),
-    getCompletedBookingsCountForExperience(exp.slug),
-    getHostResponseStats(exp.hostSlug),
-  ]);
   const modeNote =
     exp.bookingMode === 'instant'
       ? tb('modeInstant')

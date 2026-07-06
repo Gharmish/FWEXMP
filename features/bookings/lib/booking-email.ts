@@ -11,13 +11,32 @@ import { SITE_URL } from '@/lib/site';
 import { hostApplications } from '@/db/schema';
 import { getBookingByReference } from '@/features/bookings/queries';
 import { vatPortionSar, vatRatePercent } from '@/features/bookings/lib/vat';
-import { splitCommission } from '@/features/bookings/lib/availability';
+import { startInstant } from '@/features/bookings/lib/cancellation';
+import { splitCommission } from '@/features/bookings/lib/commission';
 import { getExperienceBySlug } from '@/features/experiences/queries';
 import { toArabicText } from '@/features/experiences/lib/arabic-content';
 import { renderReceiptEmail, type ReceiptRow } from './booking-email-render';
 
 /** Brand wordmark for email headers — PNG (clients don't render SVG). */
 const EMAIL_LOGO_URL = `${SITE_URL}/images/gharmish-wordmark.png`;
+
+/**
+ * Email dates/times ALWAYS render in KSA wall-clock time, explicitly
+ * (2026-07 audit M7). Before this, `new Date('YYYY-MM-DDTHH:mm:00')`
+ * parsed in the server zone and formatted in the server zone — correct
+ * on UTC Vercel only because the two cancelled out, and one "helpful"
+ * tz added to a formatter would have shifted every receipt 3h. Parsing
+ * now pins +03:00 via `startInstant` and formatting pins Asia/Riyadh.
+ * (This also fixed a real bug: deadline dates formatted in server UTC
+ * showed the previous DAY for deadlines before 3am KSA.)
+ */
+const KSA_TIME: Intl.DateTimeFormatOptions = { timeZone: 'Asia/Riyadh' };
+const KSA_DATE: Intl.DateTimeFormatOptions = {
+  day: 'numeric',
+  month: 'long',
+  year: 'numeric',
+  timeZone: 'Asia/Riyadh',
+};
 
 /**
  * Send the "payment received / booking confirmed" receipt for a settled
@@ -43,20 +62,20 @@ export async function sendBookingReceiptEmail(reference: string, locale: Locale)
     : null;
 
   const t = await getTranslations({ locale, namespace: 'bookingEmail' });
-  const startsAt = new Date(`${booking.date}T${booking.startTime}:00`);
+  const startsAt = startInstant(booking.date, booking.startTime);
 
   const rows: ReceiptRow[] = [];
   if (title) rows.push({ label: t('experienceLabel'), value: title });
   if (placeName) rows.push({ label: t('placeLabel'), value: placeName });
-  rows.push({ label: t('dateLabel'), value: formatDate(startsAt, locale) });
-  rows.push({ label: t('timeLabel'), value: formatTime(startsAt, locale) });
+  rows.push({ label: t('dateLabel'), value: formatDate(startsAt, locale, 'gregory', KSA_DATE) });
+  rows.push({ label: t('timeLabel'), value: formatTime(startsAt, locale, KSA_TIME) });
   rows.push({ label: t('partyLabel'), value: formatInteger(booking.partySize, locale) });
   rows.push({ label: t('totalLabel'), value: formatSAR(booking.totalAmountSar, locale) });
   rows.push({
     label: t('vatIncludedLabel', { pct: vatRatePercent() }),
     value: formatSAR(vatPortionSar(booking.totalAmountSar), locale),
   });
-  rows.push({ label: t('referenceLabel'), value: booking.reference });
+  rows.push({ label: t('referenceLabel'), value: booking.referenceCode });
 
   const { html, text } = renderReceiptEmail({
     logoUrl: EMAIL_LOGO_URL,
@@ -99,16 +118,16 @@ export async function sendBookingCancellationEmail(
   const title = experience ? (locale === 'ar' ? experience.titleAr : experience.titleEn) : null;
 
   const t = await getTranslations({ locale, namespace: 'bookingEmail' });
-  const startsAt = new Date(`${booking.date}T${booking.startTime}:00`);
+  const startsAt = startInstant(booking.date, booking.startTime);
 
   const rows: ReceiptRow[] = [];
   if (title) rows.push({ label: t('experienceLabel'), value: title });
-  rows.push({ label: t('dateLabel'), value: formatDate(startsAt, locale) });
-  rows.push({ label: t('timeLabel'), value: formatTime(startsAt, locale) });
+  rows.push({ label: t('dateLabel'), value: formatDate(startsAt, locale, 'gregory', KSA_DATE) });
+  rows.push({ label: t('timeLabel'), value: formatTime(startsAt, locale, KSA_TIME) });
   if (refund === 'refunded' || refund === 'refund_pending') {
     rows.push({ label: t('refundLabel'), value: formatSAR(booking.totalAmountSar, locale) });
   }
-  rows.push({ label: t('referenceLabel'), value: booking.reference });
+  rows.push({ label: t('referenceLabel'), value: booking.referenceCode });
 
   const byOperator = options?.cancelledBy === 'operator';
   const intro =
@@ -156,15 +175,15 @@ export async function sendBookingReminderEmail(reference: string, locale: Locale
     : null;
 
   const t = await getTranslations({ locale, namespace: 'bookingEmail' });
-  const startsAt = new Date(`${booking.date}T${booking.startTime}:00`);
+  const startsAt = startInstant(booking.date, booking.startTime);
 
   const rows: ReceiptRow[] = [];
   if (title) rows.push({ label: t('experienceLabel'), value: title });
   if (placeName) rows.push({ label: t('placeLabel'), value: placeName });
-  rows.push({ label: t('dateLabel'), value: formatDate(startsAt, locale) });
-  rows.push({ label: t('timeLabel'), value: formatTime(startsAt, locale) });
+  rows.push({ label: t('dateLabel'), value: formatDate(startsAt, locale, 'gregory', KSA_DATE) });
+  rows.push({ label: t('timeLabel'), value: formatTime(startsAt, locale, KSA_TIME) });
   rows.push({ label: t('partyLabel'), value: formatInteger(booking.partySize, locale) });
-  rows.push({ label: t('referenceLabel'), value: booking.reference });
+  rows.push({ label: t('referenceLabel'), value: booking.referenceCode });
 
   const { html, text } = renderReceiptEmail({
     logoUrl: EMAIL_LOGO_URL,
@@ -193,13 +212,13 @@ async function lifecycleRows(
     ? await getExperienceBySlug(booking.experienceSlug)
     : undefined;
   const title = experience ? (locale === 'ar' ? experience.titleAr : experience.titleEn) : null;
-  const startsAt = new Date(`${booking.date}T${booking.startTime}:00`);
+  const startsAt = startInstant(booking.date, booking.startTime);
   const rows: ReceiptRow[] = [];
   if (title) rows.push({ label: t('experienceLabel'), value: title });
-  rows.push({ label: t('dateLabel'), value: formatDate(startsAt, locale) });
-  rows.push({ label: t('timeLabel'), value: formatTime(startsAt, locale) });
+  rows.push({ label: t('dateLabel'), value: formatDate(startsAt, locale, 'gregory', KSA_DATE) });
+  rows.push({ label: t('timeLabel'), value: formatTime(startsAt, locale, KSA_TIME) });
   rows.push({ label: t('partyLabel'), value: formatInteger(booking.partySize, locale) });
-  rows.push({ label: t('referenceLabel'), value: booking.reference });
+  rows.push({ label: t('referenceLabel'), value: booking.referenceCode });
   return rows;
 }
 
@@ -398,7 +417,7 @@ function hostRows(
   host: HostEmailContext,
   t: Awaited<ReturnType<typeof getTranslations<'bookingEmail'>>>,
 ): ReceiptRow[] {
-  const startsAt = new Date(`${booking.date}T${booking.startTime}:00`);
+  const startsAt = startInstant(booking.date, booking.startTime);
   return [
     { label: t('experienceLabel'), value: host.title },
     { label: t('dateLabel'), value: formatDate(startsAt, host.locale) },

@@ -4,7 +4,7 @@ import { serverEnv } from '@/lib/env';
 import { bookings, experiences, guests } from '@/db/schema';
 import { reportError } from '@/lib/log';
 import { getCurrentHostIdForWrite } from '@/features/host-experiences/queries';
-import { splitCommission } from '@/features/bookings/lib/availability';
+import { splitCommission } from '@/features/bookings/lib/commission';
 import type { HostBookingRow } from '@/features/host-bookings/types';
 
 /**

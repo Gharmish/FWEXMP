@@ -1,11 +1,11 @@
 'use client';
 
-import { useActionState, useId } from 'react';
+import { useActionState, useEffect, useId } from 'react';
 import { useFormStatus } from 'react-dom';
-import { Check } from 'lucide-react';
 import { localeLabel } from '@/lib/i18n';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { toast } from '@/components/ui/toast';
 import { updateProfile } from '@/features/account/profile/actions';
 import type {
   GuestProfile,
@@ -47,6 +47,12 @@ export function ProfileForm({ profile, copy }: ProfileFormProps) {
   const nameId = useId();
   const emailId = useId();
   const langId = useId();
+
+  // Save feedback springs in as a toast; useActionState returns a fresh
+  // state object per submit, so repeat saves re-fire.
+  useEffect(() => {
+    if (state.status === 'success') toast({ title: copy.saved, tone: 'success' });
+  }, [state, copy.saved]);
 
   const errored = state.status === 'error' ? state : undefined;
   const nameError = errored?.fields?.name ? copy.nameError : undefined;
@@ -134,15 +140,6 @@ export function ProfileForm({ profile, copy }: ProfileFormProps) {
 
       <div className="border-sarat-black/8 flex items-center gap-3 [border-top-width:0.5px] pt-5">
         <Submit copy={copy} />
-        {state.status === 'success' && (
-          <p
-            className="text-juniper-green-800 inline-flex items-center gap-1.5 text-sm"
-            role="status"
-          >
-            <Check className="size-4 shrink-0" aria-hidden />
-            {copy.saved}
-          </p>
-        )}
       </div>
     </form>
   );

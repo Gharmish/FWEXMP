@@ -14,7 +14,7 @@ import {
   sendBookingCancellationEmail,
   sendHostGuestCancelledEmail,
 } from '@/features/bookings/lib/booking-email';
-import { getPlatformSettings } from '@/features/admin/settings/queries';
+import { getPlatformSettings } from '@/lib/platform-settings';
 
 /**
  * Guest self-service cancellation (owner decision, 2026-06-10):

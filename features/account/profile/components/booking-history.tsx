@@ -39,6 +39,8 @@ export function BookingHistory({ bookings, locale, copy }: BookingHistoryProps) 
               {formatDate(new Date(`${booking.date}T${booking.startTime}:00`), locale)}
               {' · '}
               {copy.partyLabel} {formatInteger(booking.partySize, locale)}
+              {' · '}
+              <span dir="ltr">{booking.referenceCode}</span>
             </p>
           </div>
 

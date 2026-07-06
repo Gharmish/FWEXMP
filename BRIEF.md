@@ -429,7 +429,11 @@ This is non-negotiable and most platforms in 2026 will miss it.
 
 ### Error handling
 
-- Server actions return `{ success: true, data }` or `{ success: false, error: { code, message } }` — never throw to the client.
+- Server actions never throw to the client. Failures return
+  `{ success: false, message: <per-feature union>, fields?, values? }`;
+  success returns `{ success: true, ... }` or throws Next's `redirect()`
+  (2026-07: doc updated to match the convention the codebase actually
+  uses — the `error: { code, message }` shape was never built).
 - Use Next.js `error.tsx` boundaries at the route group level.
 - Log all unexpected errors to Sentry with user context.
 - User-facing errors are translated; technical errors are not exposed.
@@ -493,6 +497,10 @@ Fixed set: `nature | heritage | food | wellness | adventure | family`. Stored in
 - Status (`pending | confirmed | completed | cancelled | refunded`)
 - Payment reference (Moyasar transaction ID)
 - Idempotency key (for safe retries from AI agents)
+- Reference code (`GH-XXXXXX`, unambiguous alphabet, unique) — the
+  _human_ identity shown to guests, hosts, admin, and emails
+  (2026-06-13). The idempotency-key UUID stays the URL capability and
+  is never asked of a human.
 
 ### Guest
 

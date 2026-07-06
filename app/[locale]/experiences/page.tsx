@@ -9,9 +9,9 @@ import { FilterBar } from '@/features/experiences/components/filter-bar';
 import { SortSelect } from '@/features/experiences/components/sort-select';
 import { SearchInput } from '@/features/experiences/components/search-input';
 import { EmptyState } from '@/features/experiences/components/empty-state';
-import { Stagger, StaggerItem } from '@/components/ui/motion';
+import { FadeSwap, MountFade, RiseIn, Stagger, StaggerItem } from '@/components/ui/motion';
 import { CATEGORIES } from '@/features/experiences/lib/sample-data';
-import { getEnabledCategories } from '@/features/admin/settings/queries';
+import { getEnabledCategories } from '@/lib/platform-settings';
 import { getExperiencesFiltered, getFeaturedExperiences } from '@/features/experiences/queries';
 import { parseSearchParams } from '@/features/experiences/lib/search';
 import { getWishlistSet } from '@/features/wishlist/queries';
@@ -96,6 +96,12 @@ export default async function ExperiencesIndexPage({
   ]);
   const categories = CATEGORIES.filter((c) => enabledCategories.includes(c.key));
 
+  // When the featured row renders, the main grid shows the *rest* of the
+  // catalog — the same card twice on one page reads as a bug. The filter
+  // bar still counts every match (featured cards included, all visible).
+  const featuredSlugs = new Set(featured.map((e) => e.slug));
+  const gridResults = showFeatured ? results.filter((e) => !featuredSlugs.has(e.slug)) : results;
+
   // Distinct cities for the (expansion-ready) city filter, and today's
   // Riyadh date as the date filter's lower bound.
   const allForFacets = await getExperiencesFiltered({ ...criteria, city: '' });
@@ -128,11 +134,17 @@ export default async function ExperiencesIndexPage({
 
       <section className="mx-auto w-full max-w-6xl px-6 py-20 sm:py-24">
         <div className="flex max-w-3xl flex-col gap-5">
-          <p className={eyebrowClassName}>{t('eyebrow')}</p>
-          <h1 className="font-display text-4xl font-semibold tracking-[-0.035em] text-balance sm:text-6xl">
-            {t('title')}
-          </h1>
-          <p className="text-sarat-black-600 max-w-2xl text-lg">{t('intro')}</p>
+          <MountFade eager delay={0}>
+            <p className={eyebrowClassName}>{t('eyebrow')}</p>
+          </MountFade>
+          <RiseIn delay={0.05}>
+            <h1 className="font-display text-4xl font-semibold tracking-[-0.035em] text-balance sm:text-6xl">
+              {t('title')}
+            </h1>
+          </RiseIn>
+          <MountFade eager delay={0.12}>
+            <p className="text-sarat-black-600 max-w-2xl text-lg">{t('intro')}</p>
+          </MountFade>
         </div>
       </section>
 
@@ -184,27 +196,32 @@ export default async function ExperiencesIndexPage({
             />
           </div>
 
-          {results.length === 0 ? (
-            <EmptyState locale={loc} />
-          ) : (
-            <Stagger className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              {results.map((experience) => (
-                <StaggerItem key={experience.slug}>
-                  <ExperienceCard
-                    experience={experience}
-                    locale={loc}
-                    actions={
-                      <WishlistButton
-                        slug={experience.slug}
-                        isSaved={savedSlugs.has(experience.slug)}
-                        surface={experience.featured ? 'dark' : 'light'}
-                      />
-                    }
-                  />
-                </StaggerItem>
-              ))}
-            </Stagger>
-          )}
+          {/* Keyed enter-fade: each new RSC payload (filter/sort change)
+              springs in instead of jump-cutting. Exit animation is
+              impossible here — the server owns the outgoing list. */}
+          <FadeSwap watch={JSON.stringify(criteria)}>
+            {results.length === 0 ? (
+              <EmptyState locale={loc} />
+            ) : (
+              <Stagger className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                {gridResults.map((experience) => (
+                  <StaggerItem key={experience.slug}>
+                    <ExperienceCard
+                      experience={experience}
+                      locale={loc}
+                      actions={
+                        <WishlistButton
+                          slug={experience.slug}
+                          isSaved={savedSlugs.has(experience.slug)}
+                          surface={experience.featured ? 'dark' : 'light'}
+                        />
+                      }
+                    />
+                  </StaggerItem>
+                ))}
+              </Stagger>
+            )}
+          </FadeSwap>
         </div>
       </section>
     </div>

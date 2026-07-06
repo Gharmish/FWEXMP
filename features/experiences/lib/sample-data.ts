@@ -26,6 +26,8 @@ type SampleExperience = Omit<
   | 'hostSlug'
   | 'lat'
   | 'lng'
+  | 'inclusionsAr'
+  | 'whatToBringAr'
 >;
 
 /**
@@ -56,6 +58,9 @@ function attachRatings(e: SampleExperience): ExperienceDetail {
     bookingMode: 'request',
     availabilityWeekdays: [4, 5, 6], // Thu–Sat
     startTime: '09:00',
+    // Empty → the Arabic page uses the seed dictionary, same as before.
+    inclusionsAr: [],
+    whatToBringAr: [],
     ...coords,
   };
 }

@@ -10,7 +10,9 @@ import { Avatar } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { JsonLd } from '@/components/seo/json-ld';
 import { ExperienceCard } from '@/features/experiences/components/experience-card';
+import { HostReviews } from '@/features/reviews/components/host-reviews';
 import { toArabicText } from '@/features/experiences/lib/arabic-content';
+import { pickLocalized } from '@/lib/ar-placeholder';
 import {
   getAllHostSlugs,
   getExperiencesByHostSlug,
@@ -34,7 +36,7 @@ export async function generateMetadata({
   const host = await getHostBySlug(slug);
   if (!host) return {};
   const name = locale === 'ar' ? toArabicText(host.name) : host.name;
-  const description = locale === 'ar' ? host.bioAr : host.bioEn;
+  const description = pickLocalized(locale, host.bioEn, host.bioAr);
   const url = `${SITE_URL}/${locale}/hosts/${slug}`;
   const title = locale === 'ar' ? `${name} · مضيف على غارميش` : `${name} · Host on ${SITE_NAME}`;
   return {
@@ -47,7 +49,8 @@ export async function generateMetadata({
       ),
     },
     openGraph: {
-      images: [{ url: `${SITE_URL}/images/gharmish-og.png`, width: 1200, height: 630 }],
+      // og:image is supplied by the co-located opengraph-image.tsx (dynamic,
+      // per-host). Omitting it here lets the file convention win.
       title,
       description,
       url,
@@ -78,7 +81,7 @@ export default async function HostProfilePage({
   const th = await getTranslations('host');
 
   const name = loc === 'ar' ? toArabicText(host.name) : host.name;
-  const bio = loc === 'ar' ? host.bioAr : host.bioEn;
+  const bio = pickLocalized(loc, host.bioEn, host.bioAr);
 
   const eyebrowClassName = cn(
     'text-sarat-black-600 text-[11px]',
@@ -110,6 +113,12 @@ export default async function HostProfilePage({
     .map((code) => languageDisplay.of(code) ?? code)
     .filter((label): label is string => Boolean(label));
 
+  // Year only, Latin digits in both locales (BRIEF §4).
+  const joinedYear = new Intl.DateTimeFormat(loc === 'ar' ? 'ar-SA' : 'en-SA', {
+    numberingSystem: 'latn',
+    year: 'numeric',
+  }).format(new Date(host.joinedAt));
+
   const url = `${SITE_URL}/${loc}/hosts/${slug}`;
 
   // schema.org Person/Organization picked by host type heuristic — a
@@ -140,94 +149,113 @@ export default async function HostProfilePage({
   };
 
   return (
-    <article className="mx-auto w-full max-w-6xl px-6 py-12">
+    <article className="w-full">
       <JsonLd data={jsonLd} />
 
-      <Link
-        href="/experiences"
-        className="text-sarat-black-600 inline-flex min-h-11 items-center gap-2 text-sm transition-opacity duration-200 hover:opacity-60"
-      >
-        <ArrowLeft className="size-4 shrink-0 rtl:rotate-180" aria-hidden />
-        {t('backToExperiences')}
-      </Link>
+      {/* Masthead — a mist band gives the profile presence without a cover
+          photo (listings have no imagery to borrow yet). Mist is the
+          brief-sanctioned secondary surface for section bands (BRIEF §3). */}
+      <div className="bg-mist">
+        <div className="mx-auto w-full max-w-6xl px-6 py-12">
+          <Link
+            href="/experiences"
+            className="text-sarat-black-600 inline-flex min-h-11 items-center gap-2 text-sm transition-opacity duration-200 hover:opacity-60"
+          >
+            <ArrowLeft className="size-4 shrink-0 rtl:rotate-180" aria-hidden />
+            {t('backToExperiences')}
+          </Link>
 
-      <header className="border-sarat-black/8 mt-8 flex flex-col gap-6 [border-bottom-width:0.5px] pb-12">
-        <p className={eyebrowClassName}>{t('eyebrow')}</p>
-        <div className="flex flex-col gap-6 sm:flex-row sm:items-center">
-          <Avatar name={name} src={host.photoUrl ?? undefined} size="lg" />
-          <div className="flex flex-col gap-3">
-            <h1 className="font-display text-4xl font-semibold tracking-[-0.035em] text-balance sm:text-5xl">
-              {name}
-            </h1>
-            <div className="flex flex-wrap items-center gap-3">
-              {host.verified && <Badge variant="verified">{th('verified')}</Badge>}
-              {responseStats && (
-                <Badge variant="neutral">
-                  {th('respondsIn', { hours: responseStats.avgResponseHours })}
-                </Badge>
-              )}
-              {responseStats && (
-                <Badge variant="neutral">
-                  {th('responseRate', { pct: responseStats.ratePct })}
-                </Badge>
-              )}
-              {ratingAverage !== null && (
-                <span className="inline-flex items-center gap-1.5 text-sm">
-                  <Star className="text-saffron-gold size-4 fill-current" aria-hidden />
-                  <span className="font-medium tabular-nums">
-                    {formatRating(ratingAverage, loc)}
-                  </span>
-                  <span className="text-sarat-black-600">
-                    {t('ratingCount', { count: ratingCount })}
-                  </span>
-                </span>
+          <header className="mt-8 flex flex-col gap-6">
+            <p className={eyebrowClassName}>{t('eyebrow')}</p>
+            <div className="flex flex-col gap-6 sm:flex-row sm:items-center">
+              <Avatar name={name} src={host.photoUrl ?? undefined} size="lg" />
+              <div className="flex flex-col gap-3">
+                <h1 className="font-display text-4xl font-semibold tracking-[-0.035em] text-balance sm:text-5xl">
+                  {name}
+                </h1>
+                <div className="flex flex-wrap items-center gap-3">
+                  {host.verified && <Badge variant="verified">{th('verified')}</Badge>}
+                  {responseStats && (
+                    <Badge variant="neutral">
+                      {th('respondsIn', { hours: responseStats.avgResponseHours })}
+                    </Badge>
+                  )}
+                  {responseStats && (
+                    <Badge variant="neutral">
+                      {th('responseRate', { pct: responseStats.ratePct })}
+                    </Badge>
+                  )}
+                  {ratingAverage !== null && (
+                    <span className="inline-flex items-center gap-1.5 text-sm">
+                      <Star className="text-saffron-gold size-4 fill-current" aria-hidden />
+                      <span className="font-medium tabular-nums">
+                        {formatRating(ratingAverage, loc)}
+                      </span>
+                      <span className="text-sarat-black-600">
+                        {t('ratingCount', { count: ratingCount })}
+                      </span>
+                    </span>
+                  )}
+                </div>
+              </div>
+            </div>
+            <p className="text-sarat-black-600 max-w-2xl text-lg leading-relaxed">{bio}</p>
+
+            {/* Trust meta — paired eyebrow/value items, the same treatment the
+                languages block already used. */}
+            <div className="flex flex-col gap-6 sm:flex-row sm:gap-16">
+              <div className="flex flex-col gap-2">
+                <p className={eyebrowClassName}>{t('hostingSinceLabel')}</p>
+                <p className="text-base tabular-nums">{joinedYear}</p>
+              </div>
+              {languageLabels.length > 0 && (
+                <div className="flex flex-col gap-2">
+                  <p className={eyebrowClassName}>{t('languages')}</p>
+                  <p className="text-base">{languageLabels.join(' · ')}</p>
+                </div>
               )}
             </div>
-          </div>
+          </header>
         </div>
-        <p className="text-sarat-black-600 max-w-2xl text-lg leading-relaxed">{bio}</p>
+      </div>
 
-        {languageLabels.length > 0 && (
-          <div className="flex flex-col gap-2">
-            <p className={eyebrowClassName}>{t('languages')}</p>
-            <p className="text-base">{languageLabels.join(' · ')}</p>
+      <div className="mx-auto w-full max-w-6xl px-6 py-12">
+        <section className="flex flex-col gap-8">
+          <div className="flex items-baseline justify-between gap-4">
+            <h2 className="font-display text-2xl font-medium tracking-[-0.025em]">
+              {t('experiencesHeading', { name })}
+            </h2>
+            <p className="text-sarat-black-600 text-sm">
+              {t('experiencesCount', { count: experiences.length })}
+            </p>
           </div>
-        )}
-      </header>
 
-      <section className="mt-12 flex flex-col gap-8">
-        <div className="flex items-baseline justify-between gap-4">
-          <h2 className="font-display text-2xl font-medium tracking-[-0.025em]">
-            {t('experiencesHeading', { name })}
-          </h2>
-          <p className="text-sarat-black-600 text-sm">
-            {t('experiencesCount', { count: experiences.length })}
-          </p>
-        </div>
+          {experiences.length === 0 ? (
+            <div className="border-sarat-black/8 rounded-card [border-width:0.5px] p-10">
+              <p className="text-sarat-black-600 text-base">{t('noExperiences')}</p>
+            </div>
+          ) : (
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {experiences.map((experience) => (
+                <ExperienceCard
+                  key={experience.slug}
+                  experience={experience}
+                  locale={loc}
+                  actions={
+                    <WishlistButton
+                      slug={experience.slug}
+                      isSaved={savedSlugs.has(experience.slug)}
+                      surface={experience.featured ? 'dark' : 'light'}
+                    />
+                  }
+                />
+              ))}
+            </div>
+          )}
+        </section>
 
-        {experiences.length === 0 ? (
-          <div className="border-sarat-black/8 rounded-card [border-width:0.5px] p-10">
-            <p className="text-sarat-black-600 text-base">{t('noExperiences')}</p>
-          </div>
-        ) : (
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {experiences.map((experience) => (
-              <ExperienceCard
-                key={experience.slug}
-                experience={experience}
-                locale={loc}
-                actions={
-                  <WishlistButton
-                    slug={experience.slug}
-                    isSaved={savedSlugs.has(experience.slug)}
-                    surface={experience.featured ? 'dark' : 'light'}
-                  />
-                }
-              />
-            ))}
-          </div>
-        )}
-      </section>
+        <HostReviews slug={slug} locale={loc} />
+      </div>
     </article>
   );
 }

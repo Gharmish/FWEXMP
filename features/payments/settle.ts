@@ -1,4 +1,4 @@
-import { eq } from 'drizzle-orm';
+import { and, eq, ne } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import { serverEnv, hasHyperpay } from '@/lib/env';
 import { bookings } from '@/db/schema';
@@ -20,6 +20,25 @@ export type SettleOutcome = PaymentOutcome | 'already_settled' | 'error';
 
 /** Lifecycle states where a captured charge has no booking to pay for. */
 const DEAD_STATUSES = ['cancelled', 'refunded', 'declined', 'expired'] as const;
+
+/**
+ * One bounded retry on the status fetch (2026-07 audit M5): a single
+ * transient gateway 5xx during `/pay/return` used to leave a PAID
+ * booking stuck in `processing` until the daily cron reconcile — the
+ * guest saw an error page for up to 24h. One retry after a short pause
+ * absorbs blips without meaningfully extending the request; anything
+ * beyond that still falls to the webhook/cron.
+ */
+async function getPaymentStatusWithRetry(
+  checkoutId: string,
+): Promise<ReturnType<typeof getPaymentStatus>> {
+  try {
+    return await getPaymentStatus(checkoutId);
+  } catch {
+    await new Promise((resolve) => setTimeout(resolve, 750));
+    return getPaymentStatus(checkoutId);
+  }
+}
 
 /**
  * Settle a booking against HyperPay — the **source of truth**. Called from
@@ -47,7 +66,7 @@ export async function settleBooking(reference: string): Promise<SettleOutcome> {
     if (!booking || !booking.checkoutId) return 'error';
     if (booking.paymentStatus === 'paid') return 'already_settled';
 
-    const status = await getPaymentStatus(booking.checkoutId);
+    const status = await getPaymentStatusWithRetry(booking.checkoutId);
     const outcome = classifyResult(status.result.code);
 
     if (outcome === 'success') {
@@ -83,7 +102,7 @@ export async function settleBooking(reference: string): Promise<SettleOutcome> {
         return 'error';
       }
 
-      await db
+      const won = await db
         .update(bookings)
         .set({
           paymentStatus: 'paid',
@@ -95,7 +114,19 @@ export async function settleBooking(reference: string): Promise<SettleOutcome> {
           // bookings, so payment can't confirm a request the host never
           // approved.
         })
-        .where(eq(bookings.id, booking.id));
+        .where(and(eq(bookings.id, booking.id), ne(bookings.paymentStatus, 'paid')))
+        .returning({ id: bookings.id });
+
+      // Concurrent-settle guard: the return route, the webhook, and the
+      // cron reconcile can race on the same reference, and the early
+      // `already_settled` check above is read-then-act. The conditional
+      // UPDATE is the arbiter — only the caller whose write actually
+      // flipped the row runs the side effects below (ledger, dead-booking
+      // auto-refund, host email); the loser exits as a replay. Without
+      // this, a webhook/return-route race could double-fire the refund,
+      // stamping `refund_due_sar` on an already-refunded booking.
+      if (won.length === 0) return 'already_settled';
+
       try {
         await recordPaymentEvent({
           bookingId: booking.id,
@@ -133,17 +164,25 @@ export async function settleBooking(reference: string): Promise<SettleOutcome> {
     }
 
     if (outcome === 'rejected') {
-      await db.update(bookings).set({ paymentStatus: 'failed' }).where(eq(bookings.id, booking.id));
-      try {
-        await recordPaymentEvent({
-          bookingId: booking.id,
-          type: 'settle_failed',
-          amountSar: booking.totalAmount,
-          gatewayId: status.id,
-          resultCode: status.result.code,
-        });
-      } catch (error) {
-        reportError(error, { surface: 'payment-settle:ledger', reference });
+      // Same race guard as the paid transition — a replayed rejection
+      // must not append a duplicate settle_failed ledger event.
+      const flipped = await db
+        .update(bookings)
+        .set({ paymentStatus: 'failed' })
+        .where(and(eq(bookings.id, booking.id), ne(bookings.paymentStatus, 'failed')))
+        .returning({ id: bookings.id });
+      if (flipped.length > 0) {
+        try {
+          await recordPaymentEvent({
+            bookingId: booking.id,
+            type: 'settle_failed',
+            amountSar: booking.totalAmount,
+            gatewayId: status.id,
+            resultCode: status.result.code,
+          });
+        } catch (error) {
+          reportError(error, { surface: 'payment-settle:ledger', reference });
+        }
       }
     }
     // `pending` leaves the booking in `processing` for a later retry/webhook.

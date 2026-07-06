@@ -14,6 +14,7 @@ import {
   isAdminAndDbReady,
 } from '@/features/admin/experience-moderation/queries';
 import { ReviewerActions } from '@/app/[locale]/admin/experience-moderation/[id]/reviewer-actions';
+import { ArabicEditor } from '@/app/[locale]/admin/experience-moderation/[id]/arabic-editor';
 import { PhotoUpload } from '@/features/host-experiences/components/photo-upload';
 import { uploadModerationHero } from '@/features/admin/experience-moderation/photo-actions';
 import type {
@@ -102,9 +103,6 @@ export default async function AdminExperienceModerationDetailPage({
     'text-sarat-black-600 text-[11px]',
     loc === 'en' && 'tracking-[0.2em] uppercase',
   );
-
-  const titleArIsPlaceholder = detail.titleAr.startsWith('TODO(ar):');
-  const descriptionArIsPlaceholder = detail.descriptionAr.startsWith('TODO(ar):');
 
   return (
     <div className="flex flex-col gap-10">
@@ -254,24 +252,42 @@ export default async function AdminExperienceModerationDetailPage({
         <p className="text-base leading-relaxed whitespace-pre-line">{detail.descriptionEn}</p>
       </section>
 
-      <section className="flex flex-col gap-3">
-        <h2 className={eyebrowClassName}>{t('experienceModerationDetail.descriptionAr')}</h2>
-        {descriptionArIsPlaceholder ? (
-          <p className="text-sarat-black-600 text-base italic">
-            {t('experienceModerationDetail.arabicPending')}
-          </p>
-        ) : (
-          <p className="text-base leading-relaxed whitespace-pre-line" dir="rtl">
-            {detail.descriptionAr}
-          </p>
-        )}
+      {/* Arabic copy — editable inline; the year-1 audience reads this */}
+      <section className="border-sarat-black/8 rounded-card [border-width:0.5px] p-6">
+        <ArabicEditor
+          experienceId={detail.id}
+          locale={loc}
+          titleAr={detail.titleAr}
+          descriptionAr={detail.descriptionAr}
+          inclusionsAr={detail.inclusionsAr}
+          whatToBringAr={detail.whatToBringAr}
+          cancellationPolicyAr={detail.cancellationPolicyAr}
+          copy={{
+            heading: t('experienceModerationDetail.arabicHeading'),
+            description: t('experienceModerationDetail.arabicEditorDescription'),
+            pendingHint: t('experienceModerationDetail.arabicPending'),
+            titleLabel: t('experienceModerationDetail.arabicTitleLabel'),
+            descriptionLabel: t('experienceModerationDetail.descriptionAr'),
+            inclusionsLabel: t('experienceModerationDetail.arabicInclusionsLabel'),
+            whatToBringLabel: t('experienceModerationDetail.arabicWhatToBringLabel'),
+            listsHint: t('experienceModerationDetail.arabicListsHint'),
+            policyLabel: t('experienceModerationDetail.arabicPolicyLabel'),
+            policyHint: t('experienceModerationDetail.arabicPolicyHint'),
+            save: t('experienceModerationDetail.arabicSave'),
+            saving: t('experienceModerationDetail.arabicSaving'),
+            errors: {
+              forbidden: t('experienceActions.errors.forbidden'),
+              no_db: t('experienceActions.errors.noDb'),
+              not_found: t('experienceActions.errors.notFound'),
+              validation: t('experienceActions.errors.validation'),
+              server: t('experienceActions.errors.server'),
+              title_ar_invalid: t('experienceModerationDetail.arabicTitleInvalid'),
+              description_ar_invalid: t('experienceModerationDetail.arabicDescriptionInvalid'),
+              policy_ar_invalid: t('experienceModerationDetail.arabicPolicyInvalid'),
+            },
+          }}
+        />
       </section>
-
-      {titleArIsPlaceholder && (
-        <p className="text-sarat-black-600 text-sm italic">
-          {t('experienceModerationDetail.arabicTitlePending')}
-        </p>
-      )}
 
       {/* Inclusions / what to bring */}
       {(detail.inclusions.length > 0 || detail.whatToBring.length > 0) && (

@@ -1,11 +1,14 @@
 'use client';
 
-import { useTransition } from 'react';
+import { useState, useTransition } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
-import { ChevronDown } from 'lucide-react';
+import { Check, ChevronDown } from 'lucide-react';
+import { Select } from '@base-ui/react/select';
+import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import { usePathname, useRouter } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
+import { SPRING } from '@/components/ui/motion';
 import {
   DEFAULT_SORT,
   SORT_KEYS,
@@ -15,16 +18,18 @@ import {
 } from '@/features/experiences/lib/search';
 
 /**
- * URL-driven sort dropdown. Native <select> for accessibility +
- * minimal client weight; custom chevron + hairline border to match
- * the rest of the catalog UI. The selected value lives in the URL
- * so SSR + back/forward navigation stay correct.
+ * URL-driven sort dropdown on Base UI Select — branded popup (hairline,
+ * rounded-input, --shadow-overlay) that opens on the one spring. The
+ * selected value lives in the URL so SSR + back/forward navigation stay
+ * correct; keyboard and screen-reader behavior come from Base UI.
  */
 export function SortSelect() {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const [isPending, startTransition] = useTransition();
+  const [open, setOpen] = useState(false);
+  const reduce = useReducedMotion();
   const t = useTranslations('experiencesIndex.sort');
 
   const params: Record<string, string | string[]> = {};
@@ -36,7 +41,7 @@ export function SortSelect() {
   });
   const criteria = parseSearchParams(params);
 
-  function onChange(next: SortKey) {
+  function onValueChange(next: SortKey) {
     const qs = toSearchParams({ ...criteria, sort: next }).toString();
     startTransition(() => {
       router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
@@ -44,30 +49,78 @@ export function SortSelect() {
   }
 
   return (
-    <label
-      className={cn(
-        'rounded-input border-sarat-black/20 text-sarat-black relative inline-flex h-11 items-center gap-2 [border-width:0.5px] bg-white ps-4 pe-3 text-sm',
-        isPending && 'opacity-70 transition-opacity',
-      )}
+    <Select.Root
+      items={SORT_KEYS.map((key) => ({ value: key, label: t(key) }))}
+      value={criteria.sort}
+      onValueChange={(value) => onValueChange(value as SortKey)}
+      open={open}
+      onOpenChange={setOpen}
     >
-      <span className="text-sarat-black-600">{t('label')}</span>
-      <select
-        value={criteria.sort}
-        onChange={(event) => onChange(event.target.value as SortKey)}
-        className="text-sarat-black -mx-2 cursor-pointer appearance-none bg-transparent px-2 pe-6 text-sm font-medium focus:outline-none"
+      <Select.Trigger
+        aria-label={t('label')}
+        className={cn(
+          'rounded-input border-sarat-black/20 text-sarat-black inline-flex h-11 cursor-pointer items-center gap-2 [border-width:0.5px] bg-white ps-4 pe-3 text-sm select-none',
+          isPending && 'opacity-70 transition-opacity',
+        )}
       >
-        {SORT_KEYS.map((key) => (
-          <option key={key} value={key}>
-            {t(key)}
-          </option>
-        ))}
-      </select>
-      <ChevronDown
-        className="text-sarat-black-600 pointer-events-none absolute end-3 size-4"
-        aria-hidden
-      />
+        <span className="text-sarat-black-600">{t('label')}</span>
+        <span className="font-medium">
+          <Select.Value />
+        </span>
+        <Select.Icon
+          render={
+            <ChevronDown
+              className={cn(
+                'text-sarat-black-600 size-4 transition-transform duration-200',
+                open && 'rotate-180',
+              )}
+              aria-hidden
+            />
+          }
+        />
+      </Select.Trigger>
+      <AnimatePresence>
+        {open ? (
+          <Select.Portal>
+            <Select.Positioner sideOffset={4} align="end" className="z-[60]">
+              <Select.Popup
+                render={
+                  <motion.div
+                    className="rounded-input border-sarat-black/8 min-w-[--anchor-width] [border-width:0.5px] bg-white py-1 shadow-[var(--shadow-overlay)]"
+                    initial={reduce ? false : { opacity: 0, scale: 0.97, y: -4 }}
+                    animate={{ opacity: 1, scale: 1, y: 0 }}
+                    exit={reduce ? undefined : { opacity: 0, scale: 0.98 }}
+                    transition={SPRING}
+                  />
+                }
+              >
+                {SORT_KEYS.map((key) => (
+                  <Select.Item
+                    key={key}
+                    value={key}
+                    className="data-[highlighted]:bg-mist-deep flex min-h-11 cursor-pointer items-center gap-2 px-4 text-sm outline-none select-none"
+                  >
+                    <Select.ItemIndicator
+                      render={<Check className="size-4 shrink-0" aria-hidden />}
+                    />
+                    <span
+                      className={cn(
+                        'inline-block',
+                        // Reserve the indicator slot so labels align.
+                        criteria.sort !== key && 'ms-6',
+                      )}
+                    >
+                      <Select.ItemText>{t(key)}</Select.ItemText>
+                    </span>
+                  </Select.Item>
+                ))}
+              </Select.Popup>
+            </Select.Positioner>
+          </Select.Portal>
+        ) : null}
+      </AnimatePresence>
       {/* hidden default keeps the URL clean when the user picks it explicitly */}
       <span className="sr-only">{t(DEFAULT_SORT)}</span>
-    </label>
+    </Select.Root>
   );
 }

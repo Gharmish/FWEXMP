@@ -1,9 +1,8 @@
 'use client';
 
 import { useActionState } from 'react';
-import { useFormStatus } from 'react-dom';
 import type { Locale } from '@/lib/i18n';
-import { Button } from '@/components/ui/button';
+import { ConfirmSubmit } from '@/components/ui/confirm-dialog';
 import { refundBooking, type AdminBookingActionResult } from '@/features/admin/bookings/actions';
 
 type ErrorKey = 'forbidden' | 'no_db' | 'not_found' | 'wrong_state' | 'validation' | 'server';
@@ -24,22 +23,19 @@ export interface RefundButtonProps {
 const initialState: AdminBookingActionResult = { success: false };
 
 function Submit({ copy }: { copy: Copy }) {
-  const { pending } = useFormStatus();
   return (
-    <Button
-      type="submit"
+    <ConfirmSubmit
+      title={copy.label}
+      description={copy.confirm}
+      confirmLabel={copy.label}
+      pendingLabel={copy.pending}
+      destructive
       variant="secondary"
       size="sm"
-      pending={pending}
       className="border-al-qatt-red/40 text-al-qatt-red-800"
-      // Native confirm — keeps the dependency surface flat. A modal
-      // can replace this when the design system grows a dialog.
-      onClick={(e) => {
-        if (!window.confirm(copy.confirm)) e.preventDefault();
-      }}
     >
-      {pending ? copy.pending : copy.label}
-    </Button>
+      {copy.label}
+    </ConfirmSubmit>
   );
 }
 

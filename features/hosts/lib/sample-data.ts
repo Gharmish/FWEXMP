@@ -26,6 +26,7 @@ const HOSTS: readonly HostProfile[] = [
     verified: true,
     languages: ['ar', 'en'],
     photoUrl: `${PHOTOS_BASE}/hosts/faisal-al-qahtani/avatar.jpg`,
+    joinedAt: '2025-08-01T00:00:00.000Z',
   },
   {
     slug: hostSlug('Asir Adventures Co.'),
@@ -37,6 +38,7 @@ const HOSTS: readonly HostProfile[] = [
     verified: true,
     languages: ['ar', 'en'],
     photoUrl: `${PHOTOS_BASE}/hosts/asir-adventures-co/avatar.jpg`,
+    joinedAt: '2025-09-15T00:00:00.000Z',
   },
 ];
 

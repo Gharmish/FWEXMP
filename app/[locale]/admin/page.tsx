@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
 import type { ReactNode } from 'react';
-import { ArrowRight, Megaphone, Sparkles } from 'lucide-react';
+import { Megaphone, Sparkles } from 'lucide-react';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { Link } from '@/lib/i18n';
 import type { Locale } from '@/lib/i18n';
@@ -8,20 +8,30 @@ import { cn } from '@/lib/utils';
 import { formatDate, formatInteger, formatSAR } from '@/lib/format';
 import { Badge } from '@/components/ui/badge';
 import { Price } from '@/components/ui/price';
-import { FadeIn } from '@/components/ui/motion';
+import { FadeIn, Stagger, StaggerItem, HoverLift } from '@/components/ui/motion';
+import { AnimatedNumber } from '@/components/ui/animated-number';
 import { getAdminDashboard } from '@/features/admin/dashboard/queries';
-import { getAnalyticsSnapshot } from '@/features/admin/analytics/queries';
+import { getDashboardMetrics } from '@/features/admin/dashboard/metrics-queries';
 import { listActivity } from '@/features/admin/activity/queries';
-import { sevenDayTrends } from '@/features/admin/dashboard/lib/trends';
+import { growth } from '@/features/admin/dashboard/lib/trends';
+import {
+  resolveDateRange,
+  comparison,
+  dayCount,
+  type DatePreset,
+} from '@/features/admin/dashboard/lib/date-range';
+import type { Delta } from '@/features/admin/dashboard/metrics-types';
 import { KpiTile } from '@/features/admin/dashboard/components/kpi-tile';
-import { SummaryChart } from '@/features/admin/dashboard/components/summary-chart';
+import { MetricStat } from '@/features/admin/dashboard/components/metric-stat';
+import { RevenueChart } from '@/features/admin/dashboard/components/revenue-chart';
+import {
+  BreakdownBars,
+  type BreakdownRow,
+} from '@/features/admin/dashboard/components/breakdown-bars';
 import { WorkQueue, type QueueItem } from '@/features/admin/dashboard/components/work-queue';
 import { ActivityTimeline } from '@/features/admin/dashboard/components/activity-timeline';
-import {
-  Leaderboard,
-  type LeaderboardRow,
-} from '@/features/admin/dashboard/components/leaderboard';
-import { DashboardSearch } from '@/features/admin/dashboard/components/dashboard-search';
+import { Leaderboard } from '@/features/admin/dashboard/components/leaderboard';
+import { DateRangePicker } from '@/features/admin/dashboard/components/date-range-picker';
 import { QuickActions } from '@/features/admin/dashboard/components/quick-actions';
 
 export async function generateMetadata({
@@ -51,88 +61,112 @@ function greetingKey(): 'morning' | 'afternoon' | 'evening' {
   return 'evening';
 }
 
-export default async function AdminIndexPage({ params }: { params: Promise<{ locale: string }> }) {
+const CATEGORY_COLOR: Record<string, string> = {
+  nature: 'bg-juniper-green',
+  heritage: 'bg-al-qatt-red',
+  food: 'bg-saffron-gold',
+  wellness: 'bg-wadi-mint',
+  adventure: 'bg-soudah-sunset',
+  family: 'bg-sarawat-blue',
+};
+
+export default async function AdminIndexPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ locale: string }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
   const { locale } = await params;
   setRequestLocale(locale);
   const loc = locale as Locale;
-  const t = await getTranslations('admin');
+  const [t, tCat, sp] = await Promise.all([
+    getTranslations('admin'),
+    getTranslations('hostExperiences.form.categories'),
+    searchParams,
+  ]);
+
+  const one = (v: string | string[] | undefined): string | undefined =>
+    Array.isArray(v) ? v[0] : v;
+  const range = resolveDateRange({ preset: one(sp.preset), from: one(sp.from), to: one(sp.to) });
+  const prev = comparison(range);
+
+  const [metrics, dashboard, activity] = await Promise.all([
+    getDashboardMetrics(range),
+    getAdminDashboard(),
+    listActivity(),
+  ]);
 
   const eyebrowClassName = cn(
     'text-sarat-black-600 text-[11px]',
     loc === 'en' && 'tracking-[0.2em] uppercase',
   );
   const sectionHeading = 'font-display text-2xl font-medium tracking-[-0.025em]';
-
-  // Three resilient reads in parallel — each returns null/[] on DB failure,
-  // so the shell (greeting + nav) always renders (memory: home-page-db-resilience).
-  const [dashboard, snapshot, activity] = await Promise.all([
-    getAdminDashboard(),
-    getAnalyticsSnapshot(),
-    listActivity(),
-  ]);
-
-  const trends = snapshot ? sevenDayTrends(snapshot.sparkline) : null;
-  const trendNote = t('dashboard.kpi.trendNote');
+  const card = 'border-sarat-black/8 rounded-card [border-width:0.5px] p-6';
   const newLabel = t('dashboard.kpi.new');
 
-  // KPI row. With a snapshot we lead on the trailing-30-day figures + 7-day
-  // trend; without it we fall back to the all-time headline counts.
-  const kpis: {
-    label: string;
-    value: ReactNode;
-    href?: string;
-    hint?: string;
-    trend?: { direction: 'up' | 'down' | 'flat'; deltaPct: number | null; newLabel: string };
-  }[] =
-    snapshot && trends
-      ? [
-          {
-            label: t('dashboard.kpi.gmv30d'),
-            value: <Price amount={snapshot.last30d.gmvSar} locale={loc} />,
-            hint: trendNote,
-            trend: { ...trends.gmv, newLabel },
-          },
-          {
-            label: t('dashboard.kpi.bookings30d'),
-            value: formatInteger(snapshot.last30d.bookings, loc),
-            href: '/admin/bookings',
-            hint: trendNote,
-            trend: { ...trends.bookings, newLabel },
-          },
-          {
-            label: t('dashboard.kpi.netRevenue'),
-            value: <Price amount={dashboard?.netRevenue30dSar ?? 0} locale={loc} />,
-          },
-          {
-            label: t('dashboard.kpi.newGuests'),
-            value: formatInteger(snapshot.last30d.uniqueGuests, loc),
-            href: '/admin/guests',
-          },
-        ]
-      : dashboard
-        ? [
-            {
-              label: t('dashboard.kpi.gmv'),
-              value: <Price amount={dashboard.gmvAllTimeSar} locale={loc} />,
-            },
-            {
-              label: t('dashboard.kpi.bookings'),
-              value: formatInteger(dashboard.bookingsTotal, loc),
-              href: '/admin/bookings',
-            },
-            {
-              label: t('dashboard.kpi.activeExperiences'),
-              value: formatInteger(dashboard.activeExperiences, loc),
-              href: '/admin/experience-moderation?status=live',
-            },
-            {
-              label: t('dashboard.kpi.guests'),
-              value: formatInteger(dashboard.guests, loc),
-              href: '/admin/guests',
-            },
-          ]
-        : [];
+  // KpiTile trend from a Delta (up = green; used where "up = good").
+  const tr = (d: Delta) => ({ ...growth(d.current, d.previous), newLabel });
 
+  const presetLabels = Object.fromEntries(
+    (['today', '7d', '30d', 'month', '90d', 'custom'] as DatePreset[]).map((p) => [
+      p,
+      t(`dashboard.filter.presets.${p}`),
+    ]),
+  ) as Record<DatePreset, string>;
+
+  const picker = (
+    <DateRangePicker
+      preset={range.preset}
+      from={range.from}
+      to={range.to}
+      presetLabels={presetLabels}
+      fromLabel={t('dashboard.filter.from')}
+      toLabel={t('dashboard.filter.to')}
+      applyLabel={t('dashboard.filter.apply')}
+    />
+  );
+
+  // Greeting + actions + the always-present date control.
+  const header = (
+    <FadeIn className="flex flex-col gap-6">
+      <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
+        <div className="flex flex-col gap-3">
+          <p className={eyebrowClassName}>{t('eyebrow')}</p>
+          <h1 className="font-display text-4xl font-semibold tracking-[-0.035em] text-balance sm:text-5xl">
+            {t(`dashboard.greeting.${greetingKey()}`)}
+          </h1>
+          <p className="text-sarat-black-600 max-w-2xl text-base leading-relaxed">
+            <span className="capitalize">
+              {formatDate(new Date(), loc, 'gregory', {
+                weekday: 'long',
+                day: 'numeric',
+                month: 'long',
+              })}
+            </span>{' '}
+            · {t('intro')}
+          </p>
+        </div>
+        <QuickActions
+          newExperienceLabel={t('dashboard.actions.newExperience')}
+          exportLabel={t('dashboard.actions.export')}
+          settingsLabel={t('dashboard.actions.settings')}
+        />
+      </div>
+      <div className="border-sarat-black/8 rounded-card flex flex-col gap-3 [border-width:0.5px] p-4">
+        {picker}
+        <p className="text-sarat-black-600 text-xs">
+          {t('dashboard.filter.comparedTo', {
+            from: formatDate(toDate(prev.from), loc),
+            to: formatDate(toDate(prev.to), loc),
+            days: dayCount(range.from, range.to),
+          })}
+        </p>
+      </div>
+    </FadeIn>
+  );
+
+  // Work queue (current-state) — unchanged operational to-do list.
   const queue: QueueItem[] = dashboard
     ? [
         {
@@ -144,11 +178,6 @@ export default async function AdminIndexPage({ params }: { params: Promise<{ loc
           href: '/admin/experience-moderation',
           label: t('dashboard.queue.pendingReview'),
           count: dashboard.queue.pendingReview,
-        },
-        {
-          href: '/admin/experience-moderation',
-          label: t('dashboard.queue.changesRequested'),
-          count: dashboard.queue.changesRequested,
         },
         {
           href: '/admin/bookings',
@@ -174,8 +203,6 @@ export default async function AdminIndexPage({ params }: { params: Promise<{ loc
         },
       ].filter((item) => item.count > 0)
     : [];
-  // Payouts owed is money, not a count — surfaced as its own queue row
-  // whenever anything is owed (1 = "go to the payouts page").
   if (dashboard && dashboard.queue.payoutsOwedSar > 0) {
     queue.push({
       href: '/admin/payouts',
@@ -185,231 +212,425 @@ export default async function AdminIndexPage({ params }: { params: Promise<{ loc
       count: 1,
     });
   }
-
-  // Cron heartbeat: stale (or never stamped) means expiry, hold release,
-  // reconciliation, and reminders have silently stopped. 26h threshold
-  // tolerates a missed hourly run-or-two and still catches a dead daily job.
   const cronStale =
     dashboard !== null &&
     (dashboard.cronLastRunAt === null ||
       new Date().getTime() - dashboard.cronLastRunAt.getTime() > 26 * 3_600_000);
 
-  const topExperiences: LeaderboardRow[] = (snapshot?.topExperiences30d ?? []).map((row) => ({
-    id: row.experienceId,
-    label: row.titleEn,
-    href: `/experiences/${row.slug}`,
-    bookings: row.bookings,
-    gmvSar: row.gmvSar,
+  if (!metrics) {
+    // No DB / failure: still render the shell + a calm notice (resilience).
+    return (
+      <div className="flex flex-col gap-12">
+        {header}
+        <div className={cn(card, 'flex flex-col items-start gap-4 p-10')}>
+          <p className={eyebrowClassName}>{t('noDb.eyebrow')}</p>
+          <h2 className="font-display text-2xl font-medium tracking-[-0.025em]">
+            {t('noDb.title')}
+          </h2>
+          <p className="text-sarat-black-600 max-w-xl text-base">{t('noDb.description')}</p>
+        </div>
+      </div>
+    );
+  }
+
+  const m = metrics;
+
+  // Hero KPI row.
+  const hero: { label: string; value: ReactNode; trend: ReturnType<typeof tr> }[] = [
+    {
+      label: t('dashboard.metrics.hero.gmv'),
+      value: <Price amount={m.gmvSar.current} locale={loc} />,
+      trend: tr(m.gmvSar),
+    },
+    {
+      label: t('dashboard.metrics.hero.netRevenue'),
+      value: <Price amount={m.netRevenueSar.current} locale={loc} />,
+      trend: tr(m.netRevenueSar),
+    },
+    {
+      label: t('dashboard.metrics.hero.bookings'),
+      value: <AnimatedNumber value={m.bookings.current} />,
+      trend: tr(m.bookings),
+    },
+    {
+      label: t('dashboard.metrics.hero.newGuests'),
+      value: <AnimatedNumber value={m.newGuests.current} />,
+      trend: tr(m.newGuests),
+    },
+    {
+      label: t('dashboard.metrics.hero.aov'),
+      value: <Price amount={m.aovSar.current} locale={loc} />,
+      trend: tr(m.aovSar),
+    },
+    {
+      label: t('dashboard.metrics.hero.confirmationRate'),
+      value: `${m.confirmationRate.current}%`,
+      trend: tr(m.confirmationRate),
+    },
+  ];
+
+  // Payment-method mix rows (Mada highlighted).
+  const paymentRows: BreakdownRow[] = m.paymentMix.map((s) => ({
+    id: s.brand,
+    label: s.brand === 'unknown' ? t('dashboard.metrics.revenue.unknownBrand') : s.brand,
+    magnitude: s.gmvSar,
+    display: (
+      <span className="inline-flex items-baseline gap-1.5">
+        <Price amount={s.gmvSar} locale={loc} /> · {formatInteger(s.bookings, loc)}
+      </span>
+    ),
+    colorClass: s.brand.toUpperCase() === 'MADA' ? 'bg-juniper-green' : 'bg-sarat-black/70',
   }));
-  const topHosts: LeaderboardRow[] = (snapshot?.topHosts30d ?? []).map((row) => ({
-    id: row.hostId,
-    label: row.name,
-    bookings: row.bookings,
-    gmvSar: row.gmvSar,
+
+  // Funnel rows.
+  const funnelColor: Record<string, string> = {
+    requests: 'bg-sarat-black',
+    confirmed: 'bg-juniper-green',
+    completed: 'bg-juniper-green/70',
+    pending: 'bg-saffron-gold',
+    declined: 'bg-al-qatt-red',
+    expired: 'bg-al-qatt-red/60',
+    cancelled: 'bg-sarat-black/40',
+    refunded: 'bg-rijal-clay',
+  };
+  const funnelRows: BreakdownRow[] = (
+    [
+      'requests',
+      'confirmed',
+      'completed',
+      'pending',
+      'declined',
+      'expired',
+      'cancelled',
+      'refunded',
+    ] as const
+  )
+    .map((k) => ({
+      id: k,
+      label: t(`dashboard.metrics.bookings.${k}`),
+      magnitude: m.funnel[k],
+      display: formatInteger(m.funnel[k], loc),
+      colorClass: funnelColor[k],
+    }))
+    .filter((r) => r.magnitude > 0);
+
+  // GMV-by-category rows.
+  const categoryRows: BreakdownRow[] = m.gmvByCategory.map((s) => ({
+    id: s.category,
+    label: tCat(s.category),
+    magnitude: s.gmvSar,
+    display: (
+      <span className="inline-flex items-baseline gap-1.5">
+        <Price amount={s.gmvSar} locale={loc} /> · {formatInteger(s.bookings, loc)}
+      </span>
+    ),
+    colorClass: CATEGORY_COLOR[s.category] ?? 'bg-sarat-black',
   }));
+
   const bookingsLabel = (count: number) => t('analytics.bookingsLabel', { count });
-
-  const sections = [
-    'hostApplications',
-    'experienceModeration',
-    'bookings',
-    'payouts',
-    'reviews',
-    'disputes',
-    'analytics',
-    'hosts',
-    'guests',
-    'settings',
-    'activity',
-  ].map((key) => ({
-    href: `/admin/${key === 'hostApplications' ? 'host-applications' : key === 'experienceModeration' ? 'experience-moderation' : key}`,
-    title: t(`sections.${key}.title`),
-    description: t(`sections.${key}.description`),
-  }));
-
-  // CTO gap analysis, surfaced on the dashboard as planned controls (not yet
-  // routes — see the plan's "Recommended next steps"). Non-interactive so we
-  // never link to a 404. (Settings & commission shipped — it's now a live
-  // tile in Manage, above.)
-  const comingNext = [
-    { key: 'featured', Icon: Sparkles },
-    { key: 'broadcast', Icon: Megaphone },
-  ] as const;
+  const emptyRange = t('dashboard.metrics.emptyRange');
 
   return (
     <div className="flex flex-col gap-12">
-      {/* Greeting band */}
-      <FadeIn className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
-        <div className="flex flex-col gap-3">
-          <p className={eyebrowClassName}>{t('eyebrow')}</p>
-          <h1 className="font-display text-4xl font-semibold tracking-[-0.035em] text-balance sm:text-5xl">
-            {t(`dashboard.greeting.${greetingKey()}`)}
-          </h1>
-          <p className="text-sarat-black-600 max-w-2xl text-base leading-relaxed">
-            <span className="capitalize">
-              {formatDate(new Date(), loc, 'gregory', {
-                weekday: 'long',
-                day: 'numeric',
-                month: 'long',
-              })}
-            </span>{' '}
-            · {t('intro')}
-          </p>
-        </div>
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center lg:flex-col lg:items-end">
-          <DashboardSearch
-            placeholder={t('dashboard.search.placeholder')}
-            submitLabel={t('dashboard.search.submit')}
+      {header}
+
+      {/* Hero KPIs */}
+      <Stagger className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        {hero.map((k) => (
+          <StaggerItem key={k.label} className="h-full">
+            <HoverLift className="h-full">
+              <KpiTile label={k.label} value={k.value} locale={loc} trend={k.trend} />
+            </HoverLift>
+          </StaggerItem>
+        ))}
+      </Stagger>
+
+      {/* Revenue chart + current work queue */}
+      <FadeIn className="grid gap-4 lg:grid-cols-3">
+        <section className={cn(card, 'flex flex-col gap-5 lg:col-span-2')}>
+          <div className="flex flex-wrap items-baseline justify-between gap-3">
+            <h2 className={sectionHeading}>{t('dashboard.metrics.revenueChart')}</h2>
+            <p className="text-sarat-black-600 text-xs">{rangeLabel(range.from, range.to, loc)}</p>
+          </div>
+          <RevenueChart
+            points={m.series}
+            locale={loc}
+            gmvLabel={t('dashboard.metrics.hero.gmv')}
+            bookingsLabel={t('dashboard.metrics.hero.bookings')}
+            emptyLabel={emptyRange}
           />
-          <QuickActions
-            newExperienceLabel={t('dashboard.actions.newExperience')}
-            exportLabel={t('dashboard.actions.export')}
-            settingsLabel={t('dashboard.actions.settings')}
-          />
-        </div>
-      </FadeIn>
-
-      {/* KPIs */}
-      {kpis.length > 0 && (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          {kpis.map((kpi) => (
-            <KpiTile
-              key={kpi.label}
-              label={kpi.label}
-              value={kpi.value}
-              locale={loc}
-              href={kpi.href}
-              hint={kpi.hint}
-              trend={kpi.trend}
-            />
-          ))}
-        </div>
-      )}
-
-      {/* Summary chart + work queue */}
-      {(snapshot || dashboard) && (
-        <div className="grid gap-4 lg:grid-cols-3">
-          {snapshot && (
-            <section className="border-sarat-black/8 rounded-card flex flex-col gap-5 [border-width:0.5px] p-6 lg:col-span-2">
-              <div className="flex flex-wrap items-baseline justify-between gap-3">
-                <h2 className={sectionHeading}>{t('dashboard.chart.title')}</h2>
-                <p className="text-sarat-black-600 text-xs">{t('dashboard.chart.subtitle')}</p>
-              </div>
-              <SummaryChart points={snapshot.sparkline} locale={loc} />
-            </section>
-          )}
-          {dashboard && (
-            <section className={cn('flex flex-col gap-4', !snapshot && 'lg:col-span-3')}>
-              <h2 className={sectionHeading}>{t('dashboard.queueHeading')}</h2>
-              {cronStale && (
-                <p className="bg-error-surface text-error rounded-card px-5 py-4 text-sm font-medium">
-                  {dashboard.cronLastRunAt
-                    ? t('dashboard.cronStale', {
-                        date: formatDate(dashboard.cronLastRunAt, loc),
-                      })
-                    : t('dashboard.cronNever')}
-                </p>
-              )}
-              <WorkQueue items={queue} locale={loc} emptyLabel={t('dashboard.queueEmpty')} />
-            </section>
-          )}
-        </div>
-      )}
-
-      {/* Activity timeline + leaderboards */}
-      {(activity.length > 0 || snapshot) && (
-        <div className="grid gap-8 lg:grid-cols-2">
-          <section className="flex flex-col gap-4">
-            <div className="flex items-baseline justify-between gap-3">
-              <h2 className={sectionHeading}>{t('dashboard.timeline.title')}</h2>
-              <Link
-                href="/admin/activity"
-                className="text-sarat-black-600 text-sm font-medium underline-offset-4 hover:underline"
-              >
-                {t('dashboard.timeline.viewAll')}
-              </Link>
-            </div>
-            <ActivityTimeline
-              items={activity.slice(0, 8)}
-              locale={loc}
-              emptyLabel={t('activityLog.empty')}
-              t={t}
-            />
-          </section>
-
-          {snapshot && (
-            <section className="flex flex-col gap-8">
-              <div className="flex flex-col gap-4">
-                <h2 className={sectionHeading}>{t('dashboard.leaderboard.experiences')}</h2>
-                <Leaderboard
-                  rows={topExperiences}
-                  locale={loc}
-                  emptyLabel={t('analytics.empty')}
-                  bookingsLabel={bookingsLabel}
-                />
-              </div>
-              <div className="flex flex-col gap-4">
-                <h2 className={sectionHeading}>{t('dashboard.leaderboard.hosts')}</h2>
-                <Leaderboard
-                  rows={topHosts}
-                  locale={loc}
-                  emptyLabel={t('analytics.empty')}
-                  bookingsLabel={bookingsLabel}
-                />
-              </div>
-            </section>
-          )}
-        </div>
-      )}
-
-      {/* Section navigation */}
-      <section className="flex flex-col gap-4">
-        <div className="flex flex-wrap items-baseline justify-between gap-3">
-          <h2 className={sectionHeading}>{t('dashboard.manageHeading')}</h2>
-          {dashboard && (
-            <p className="text-sarat-black-600 text-sm tabular-nums">
-              {t('dashboard.catalogNote', {
-                live: formatInteger(dashboard.activeExperiences, loc),
-                featured: formatInteger(dashboard.featuredLive, loc),
-              })}
+        </section>
+        <section className="flex flex-col gap-4">
+          <h2 className={sectionHeading}>{t('dashboard.queueHeading')}</h2>
+          {cronStale && (
+            <p className="bg-error-surface text-error rounded-card px-5 py-4 text-sm font-medium">
+              {dashboard?.cronLastRunAt
+                ? t('dashboard.cronStale', { date: formatDate(dashboard.cronLastRunAt, loc) })
+                : t('dashboard.cronNever')}
             </p>
           )}
+          <WorkQueue items={queue} locale={loc} emptyLabel={t('dashboard.queueEmpty')} />
+        </section>
+      </FadeIn>
+
+      {/* A — Revenue & payments */}
+      <Section title={t('dashboard.metrics.sections.revenue')} heading={sectionHeading}>
+        <div className={cn(card, 'grid grid-cols-2 gap-6 lg:grid-cols-4')}>
+          <MetricStat
+            label={t('dashboard.metrics.revenue.hostPayouts')}
+            value={<Price amount={m.hostPayoutsSar.current} locale={loc} />}
+            locale={loc}
+            growth={growth(m.hostPayoutsSar.current, m.hostPayoutsSar.previous)}
+            newLabel={newLabel}
+          />
+          <MetricStat
+            label={t('dashboard.metrics.revenue.vat')}
+            value={<Price amount={m.vatSar.current} locale={loc} />}
+            locale={loc}
+          />
+          <MetricStat
+            label={t('dashboard.metrics.revenue.refunded')}
+            value={<Price amount={m.refundedSar.current} locale={loc} />}
+            locale={loc}
+          />
+          <MetricStat
+            label={t('dashboard.metrics.revenue.paymentSuccess')}
+            value={`${m.paymentSuccessRate.current}%`}
+            locale={loc}
+            growth={growth(m.paymentSuccessRate.current, m.paymentSuccessRate.previous)}
+            newLabel={newLabel}
+          />
         </div>
-        <ul className="grid gap-4 sm:grid-cols-2">
-          {sections.map((section) => (
-            <li key={section.href}>
-              <Link
-                href={section.href}
-                className="border-sarat-black/8 rounded-card hover:border-sarat-black/20 group flex h-full flex-col gap-3 [border-width:0.5px] p-6 transition-colors duration-200"
-              >
-                <h3 className="font-display text-xl font-medium tracking-[-0.02em]">
-                  {section.title}
-                </h3>
-                <p className="text-sarat-black-600 text-base leading-relaxed">
-                  {section.description}
-                </p>
-                <span className="text-sarat-black mt-auto inline-flex items-center gap-2 text-sm font-medium">
-                  {t('open')}
-                  <ArrowRight
-                    className="size-4 shrink-0 transition-transform duration-200 group-hover:translate-x-0.5 rtl:rotate-180 rtl:group-hover:-translate-x-0.5"
-                    aria-hidden
-                  />
-                </span>
-              </Link>
-            </li>
-          ))}
-        </ul>
-      </section>
+        <div className={cn(card, 'flex flex-col gap-4')}>
+          <h3 className="text-sarat-black text-sm font-medium">
+            {t('dashboard.metrics.revenue.paymentMix')}
+          </h3>
+          <BreakdownBars rows={paymentRows} emptyLabel={emptyRange} />
+        </div>
+      </Section>
+
+      {/* B — Bookings & funnel */}
+      <Section title={t('dashboard.metrics.sections.bookings')} heading={sectionHeading}>
+        <div className={cn(card, 'flex flex-col gap-4')}>
+          <h3 className="text-sarat-black text-sm font-medium">
+            {t('dashboard.metrics.bookings.funnel')}
+          </h3>
+          <BreakdownBars rows={funnelRows} emptyLabel={emptyRange} />
+        </div>
+        <div className={cn(card, 'grid grid-cols-2 gap-6 lg:grid-cols-4')}>
+          <MetricStat
+            label={t('dashboard.metrics.bookings.completionRate')}
+            value={`${m.completionRate.current}%`}
+            locale={loc}
+            growth={growth(m.completionRate.current, m.completionRate.previous)}
+            newLabel={newLabel}
+          />
+          <MetricStat
+            label={t('dashboard.metrics.bookings.avgParty')}
+            value={(m.avgPartySizeX100.current / 100).toFixed(1)}
+            locale={loc}
+            growth={growth(m.avgPartySizeX100.current, m.avgPartySizeX100.previous)}
+            newLabel={newLabel}
+          />
+          <MetricStat
+            label={t('dashboard.metrics.bookings.instantShare')}
+            value={`${m.instantShare.current}%`}
+            locale={loc}
+            growth={growth(m.instantShare.current, m.instantShare.previous)}
+            newLabel={newLabel}
+          />
+          <MetricStat
+            label={t('dashboard.metrics.bookings.avgResponse')}
+            value={t('dashboard.metrics.bookings.hoursValue', {
+              hours: (m.avgResponseHoursX10.current / 10).toFixed(1),
+            })}
+            locale={loc}
+          />
+        </div>
+      </Section>
+
+      {/* C — Demand & growth */}
+      <Section title={t('dashboard.metrics.sections.demand')} heading={sectionHeading}>
+        <div className={cn(card, 'grid grid-cols-2 gap-6 lg:grid-cols-3')}>
+          <MetricStat
+            label={t('dashboard.metrics.demand.returningRate')}
+            value={`${m.returningGuestRate.current}%`}
+            locale={loc}
+            growth={growth(m.returningGuestRate.current, m.returningGuestRate.previous)}
+            newLabel={newLabel}
+          />
+          <MetricStat
+            label={t('dashboard.metrics.demand.arabicShare')}
+            value={`${m.newGuestArShare}%`}
+            locale={loc}
+          />
+          <MetricStat
+            label={t('dashboard.metrics.demand.wishlistSaves')}
+            value={formatInteger(m.wishlistSaves.current, loc)}
+            locale={loc}
+            growth={growth(m.wishlistSaves.current, m.wishlistSaves.previous)}
+            newLabel={newLabel}
+          />
+        </div>
+      </Section>
+
+      {/* D — Supply & hosts */}
+      <Section title={t('dashboard.metrics.sections.supply')} heading={sectionHeading}>
+        <div className={cn(card, 'grid grid-cols-2 gap-6 lg:grid-cols-5')}>
+          <MetricStat
+            label={t('dashboard.metrics.supply.newHosts')}
+            value={formatInteger(m.newHosts.current, loc)}
+            locale={loc}
+            growth={growth(m.newHosts.current, m.newHosts.previous)}
+            newLabel={newLabel}
+          />
+          <MetricStat
+            label={t('dashboard.metrics.supply.activeHosts')}
+            value={formatInteger(m.activeHosts.current, loc)}
+            locale={loc}
+            growth={growth(m.activeHosts.current, m.activeHosts.previous)}
+            newLabel={newLabel}
+          />
+          <MetricStat
+            label={t('dashboard.metrics.supply.verified')}
+            value={formatInteger(m.hostVerification.verified, loc)}
+            locale={loc}
+          />
+          <MetricStat
+            label={t('dashboard.metrics.supply.pending')}
+            value={formatInteger(m.hostVerification.pending, loc)}
+            locale={loc}
+          />
+          <MetricStat
+            label={t('dashboard.metrics.supply.suspended')}
+            value={formatInteger(m.hostVerification.suspended, loc)}
+            locale={loc}
+          />
+        </div>
+        <div className="flex flex-col gap-4">
+          <h3 className="text-sarat-black text-sm font-medium">
+            {t('dashboard.metrics.supply.topHosts')}
+          </h3>
+          <Leaderboard
+            rows={m.topHosts}
+            locale={loc}
+            emptyLabel={emptyRange}
+            bookingsLabel={bookingsLabel}
+          />
+        </div>
+      </Section>
+
+      {/* E — Catalog & quality */}
+      <Section title={t('dashboard.metrics.sections.catalog')} heading={sectionHeading}>
+        <div className={cn(card, 'grid grid-cols-2 gap-6 sm:grid-cols-3 lg:grid-cols-6')}>
+          <MetricStat
+            label={t('dashboard.metrics.catalog.live')}
+            value={formatInteger(m.experienceStatus.live, loc)}
+            locale={loc}
+          />
+          <MetricStat
+            label={t('dashboard.metrics.catalog.originals')}
+            value={formatInteger(m.originalsLive, loc)}
+            locale={loc}
+          />
+          <MetricStat
+            label={t('dashboard.metrics.catalog.paused')}
+            value={formatInteger(m.experienceStatus.paused, loc)}
+            locale={loc}
+          />
+          <MetricStat
+            label={t('dashboard.metrics.catalog.pendingReview')}
+            value={formatInteger(m.experienceStatus.pendingReview, loc)}
+            locale={loc}
+          />
+          <MetricStat
+            label={t('dashboard.metrics.catalog.draft')}
+            value={formatInteger(m.experienceStatus.draft, loc)}
+            locale={loc}
+          />
+          <MetricStat
+            label={t('dashboard.metrics.catalog.archived')}
+            value={formatInteger(m.experienceStatus.archived, loc)}
+            locale={loc}
+          />
+        </div>
+        <div className="grid gap-4 lg:grid-cols-2">
+          <div className={cn(card, 'flex flex-col gap-4')}>
+            <h3 className="text-sarat-black text-sm font-medium">
+              {t('dashboard.metrics.catalog.gmvByCategory')}
+            </h3>
+            <BreakdownBars rows={categoryRows} emptyLabel={emptyRange} />
+          </div>
+          <div className={cn(card, 'grid grid-cols-2 gap-6')}>
+            <MetricStat
+              label={t('dashboard.metrics.catalog.avgRating')}
+              value={m.reviewCount.current > 0 ? (m.avgRatingX10.current / 10).toFixed(1) : '—'}
+              locale={loc}
+            />
+            <MetricStat
+              label={t('dashboard.metrics.catalog.reviewCount')}
+              value={formatInteger(m.reviewCount.current, loc)}
+              locale={loc}
+              growth={growth(m.reviewCount.current, m.reviewCount.previous)}
+              newLabel={newLabel}
+            />
+            <MetricStat
+              label={t('dashboard.metrics.catalog.reviewedRate')}
+              value={`${m.reviewedRate.current}%`}
+              locale={loc}
+              growth={growth(m.reviewedRate.current, m.reviewedRate.previous)}
+              newLabel={newLabel}
+            />
+            <MetricStat
+              label={t('dashboard.metrics.catalog.hiddenReviews')}
+              value={formatInteger(m.hiddenReviews, loc)}
+              locale={loc}
+            />
+          </div>
+        </div>
+        <div className="flex flex-col gap-4">
+          <h3 className="text-sarat-black text-sm font-medium">
+            {t('dashboard.metrics.catalog.topExperiences')}
+          </h3>
+          <Leaderboard
+            rows={m.topExperiences}
+            locale={loc}
+            emptyLabel={emptyRange}
+            bookingsLabel={bookingsLabel}
+          />
+        </div>
+      </Section>
+
+      {/* F — Operations: recent activity (current-state) */}
+      <FadeIn className="flex flex-col gap-4">
+        <div className="flex items-baseline justify-between gap-3">
+          <h2 className={sectionHeading}>{t('dashboard.timeline.title')}</h2>
+          <Link
+            href="/admin/activity"
+            className="text-sarat-black-600 text-sm font-medium underline-offset-4 hover:underline"
+          >
+            {t('dashboard.timeline.viewAll')}
+          </Link>
+        </div>
+        <ActivityTimeline
+          items={activity.slice(0, 8)}
+          locale={loc}
+          emptyLabel={t('activityLog.empty')}
+          t={t}
+        />
+      </FadeIn>
 
       {/* CTO gap analysis — planned controls */}
-      <section className="flex flex-col gap-4">
+      <FadeIn className="flex flex-col gap-4">
         <h2 className={sectionHeading}>{t('dashboard.comingNext.heading')}</h2>
         <ul className="grid gap-4 sm:grid-cols-2">
-          {comingNext.map(({ key, Icon }) => (
-            <li
-              key={key}
-              className="border-sarat-black/8 rounded-card flex flex-col gap-3 [border-width:0.5px] p-6"
-            >
+          {(
+            [
+              { key: 'featured', Icon: Sparkles },
+              { key: 'broadcast', Icon: Megaphone },
+            ] as const
+          ).map(({ key, Icon }) => (
+            <li key={key} className={cn(card, 'flex flex-col gap-3')}>
               <div className="flex items-center justify-between gap-3">
                 <Icon className="text-sarat-black-600 size-5 shrink-0" aria-hidden />
                 <Badge variant="neutral">{t('dashboard.comingNext.soon')}</Badge>
@@ -423,7 +644,34 @@ export default async function AdminIndexPage({ params }: { params: Promise<{ loc
             </li>
           ))}
         </ul>
-      </section>
+      </FadeIn>
     </div>
+  );
+}
+
+// ---------------------------------------------------------------- helpers
+
+function toDate(day: string): Date {
+  return new Date(`${day}T12:00:00+03:00`);
+}
+
+function rangeLabel(from: string, to: string, loc: Locale): string {
+  return `${formatDate(toDate(from), loc)} – ${formatDate(toDate(to), loc)}`;
+}
+
+function Section({
+  title,
+  heading,
+  children,
+}: {
+  title: string;
+  heading: string;
+  children: ReactNode;
+}) {
+  return (
+    <FadeIn className="flex flex-col gap-4">
+      <h2 className={heading}>{title}</h2>
+      {children}
+    </FadeIn>
   );
 }

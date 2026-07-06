@@ -10,9 +10,10 @@ import type { Locale } from '@/lib/i18n';
 import { routing } from '@/lib/i18n';
 import { SITE_DESCRIPTION, SITE_NAME, SITE_URL } from '@/lib/site';
 import { toArabicText } from '@/features/experiences/lib/arabic-content';
+import { pickLocalized } from '@/lib/ar-placeholder';
 import { getAllHosts } from '@/features/hosts/queries';
 import { EmptyState } from '@/components/ui/empty-state';
-import { HoverLift, Stagger, StaggerItem } from '@/components/ui/motion';
+import { HoverLift, MountFade, RiseIn, Stagger, StaggerItem } from '@/components/ui/motion';
 import { Users } from 'lucide-react';
 
 const languagesAlternates = Object.fromEntries(
@@ -85,11 +86,17 @@ export default async function HostsIndexPage({ params }: { params: Promise<{ loc
 
       <section className="mx-auto w-full max-w-6xl px-6 py-20 sm:py-24">
         <div className="flex max-w-3xl flex-col gap-5">
-          <p className={eyebrowClassName}>{t('eyebrow')}</p>
-          <h1 className="font-display text-4xl font-semibold tracking-[-0.035em] text-balance sm:text-6xl">
-            {t('title')}
-          </h1>
-          <p className="text-sarat-black-600 max-w-2xl text-lg leading-relaxed">{t('intro')}</p>
+          <MountFade eager delay={0}>
+            <p className={eyebrowClassName}>{t('eyebrow')}</p>
+          </MountFade>
+          <RiseIn delay={0.05}>
+            <h1 className="font-display text-4xl font-semibold tracking-[-0.035em] text-balance sm:text-6xl">
+              {t('title')}
+            </h1>
+          </RiseIn>
+          <MountFade eager delay={0.12}>
+            <p className="text-sarat-black-600 max-w-2xl text-lg leading-relaxed">{t('intro')}</p>
+          </MountFade>
         </div>
       </section>
 
@@ -101,7 +108,7 @@ export default async function HostsIndexPage({ params }: { params: Promise<{ loc
             <Stagger className="grid gap-4 sm:grid-cols-2">
               {hosts.map((host) => {
                 const name = loc === 'ar' ? toArabicText(host.name) : host.name;
-                const bio = loc === 'ar' ? host.bioAr : host.bioEn;
+                const bio = pickLocalized(loc, host.bioEn, host.bioAr);
                 return (
                   <StaggerItem key={host.slug}>
                     <HoverLift className="h-full">

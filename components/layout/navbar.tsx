@@ -2,6 +2,7 @@ import { getLocale, getTranslations } from 'next-intl/server';
 import { Compass, LogIn, Store, User } from 'lucide-react';
 import { Link } from '@/lib/i18n';
 import type { Locale } from '@/lib/i18n';
+import { NavShell } from '@/components/layout/nav-shell';
 import { Wordmark } from '@/components/layout/wordmark';
 import { LanguageSwitcher } from '@/components/layout/language-switcher';
 import { SignOutButton } from '@/components/layout/sign-out-button';
@@ -20,7 +21,7 @@ function phoneTail(phone: string): string {
  * label visually is safe.
  */
 const navLinkClass =
-  'text-sarat-black inline-flex min-h-11 items-center gap-2 px-1 text-sm font-medium whitespace-nowrap transition-opacity duration-200 hover:opacity-60 sm:px-2';
+  'text-sarat-black inline-flex min-h-11 min-w-11 items-center justify-center gap-2 px-1 text-sm font-medium whitespace-nowrap transition-opacity duration-200 hover:opacity-60 sm:px-2';
 
 /**
  * Sticky, blurred top nav. Restraint-first (BRIEF §3): no shadow, a
@@ -37,7 +38,7 @@ export async function Navbar() {
   ]);
 
   return (
-    <header className="border-sarat-black/8 sticky top-0 z-50 [border-bottom-width:0.5px] bg-white/80 backdrop-blur-md print:hidden">
+    <NavShell>
       <nav className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-3 px-4 sm:px-6">
         <Wordmark locale={locale} />
         <div className="flex items-center gap-1 sm:gap-5">
@@ -80,6 +81,6 @@ export async function Navbar() {
           <LanguageSwitcher />
         </div>
       </nav>
-    </header>
+    </NavShell>
   );
 }
