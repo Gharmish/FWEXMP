@@ -20,7 +20,10 @@ export default async function TrustAndSafetyPage({
   const { locale } = await params;
   setRequestLocale(locale);
   const loc = locale as Locale;
-  const t = await getTranslations('trustSafety');
+  const [t, tRelated] = await Promise.all([
+    getTranslations('trustSafety'),
+    getTranslations('infoRelated'),
+  ]);
 
   const sections = (['vetting', 'payments', 'insurance', 'support', 'community'] as const).map(
     (key) => ({
@@ -36,6 +39,11 @@ export default async function TrustAndSafetyPage({
       title={t('title')}
       intro={t('intro')}
       sections={sections}
+      relatedLabel={tRelated('label')}
+      related={[
+        { href: '/how-it-works', label: tRelated('howItWorks') },
+        { href: '/help', label: tRelated('help') },
+      ]}
     />
   );
 }

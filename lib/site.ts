@@ -9,4 +9,6 @@ export const SITE_URL = (process.env.NEXT_PUBLIC_SITE_URL ?? 'https://gharmish.c
 
 export const SITE_NAME = 'Gharmish';
 
+export const SUPPORT_EMAIL = 'hello@gharmish.com';
+
 export const SITE_DESCRIPTION = 'Experiences hosted by the people who know Asir best.';

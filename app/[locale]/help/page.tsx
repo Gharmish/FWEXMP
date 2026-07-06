@@ -3,6 +3,7 @@ import { ChevronDown } from 'lucide-react';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
 import type { Locale } from '@/lib/i18n';
 import { InfoPage } from '@/components/layout/info-page';
+import { JsonLd } from '@/components/seo/json-ld';
 import { getPlatformSettings } from '@/lib/platform-settings';
 
 export async function generateMetadata({
@@ -14,43 +15,103 @@ export async function generateMetadata({
   return { title: t('title'), description: t('intro') };
 }
 
-const FAQ_KEYS = ['booking', 'payment', 'pending', 'cancel', 'contactHost', 'becomeHost'] as const;
+const GUEST_FAQ_KEYS = [
+  'booking',
+  'payment',
+  'pending',
+  'cancel',
+  'contactHost',
+  'becomeHost',
+] as const;
+const HOST_FAQ_KEYS = ['payout', 'hostCancel', 'requestWindow', 'editListing'] as const;
+const FAQ_KEYS = [...GUEST_FAQ_KEYS, ...HOST_FAQ_KEYS];
+
+type FaqKey = (typeof FAQ_KEYS)[number];
+type FaqTranslate = (key: string, values?: Record<string, number>) => string;
+
+/** Native-disclosure FAQ group — zero client JS, fully keyboard accessible. */
+function FaqList({
+  keys,
+  t,
+  values,
+}: {
+  keys: readonly FaqKey[];
+  t: FaqTranslate;
+  values: Record<string, number>;
+}) {
+  return (
+    <div className="border-sarat-black/8 flex flex-col [border-top-width:0.5px]">
+      {keys.map((key) => (
+        <details key={key} className="border-sarat-black/8 group [border-bottom-width:0.5px]">
+          <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-4 py-5 text-lg font-medium [&::-webkit-details-marker]:hidden">
+            {t(`items.${key}.q`, values)}
+            <ChevronDown
+              className="text-sarat-black-600 size-5 shrink-0 transition-transform duration-200 group-open:rotate-180"
+              aria-hidden
+            />
+          </summary>
+          <p className="text-sarat-black-600 pb-6 text-base leading-relaxed">
+            {t(`items.${key}.a`, values)}
+          </p>
+        </details>
+      ))}
+    </div>
+  );
+}
 
 export default async function HelpPage({ params }: { params: Promise<{ locale: string }> }) {
   const { locale } = await params;
   setRequestLocale(locale);
   const loc = locale as Locale;
-  const [t, settings] = await Promise.all([getTranslations('helpFaq'), getPlatformSettings()]);
+  const [t, tRelated, settings] = await Promise.all([
+    getTranslations('helpFaq'),
+    getTranslations('infoRelated'),
+    getPlatformSettings(),
+  ]);
   const values = {
     approvalHours: settings.approvalWindowHours,
     cancelHours: settings.cancellationWindowHours,
   };
 
+  // Same strings as the visible FAQ, so search results can never drift
+  // from what the page actually says.
+  const jsonLd = {
+    '@context': 'https://schema.org',
+    '@type': 'FAQPage',
+    mainEntity: FAQ_KEYS.map((key) => ({
+      '@type': 'Question',
+      name: t(`items.${key}.q`, values),
+      acceptedAnswer: { '@type': 'Answer', text: t(`items.${key}.a`, values) },
+    })),
+  };
+
+  const sections = [
+    {
+      heading: t('guestsHeading'),
+      body: <FaqList keys={GUEST_FAQ_KEYS} t={t} values={values} />,
+    },
+    {
+      heading: t('hostsHeading'),
+      body: <FaqList keys={HOST_FAQ_KEYS} t={t} values={values} />,
+    },
+  ];
+
   return (
-    <InfoPage
-      locale={loc}
-      eyebrow={t('eyebrow')}
-      title={t('title')}
-      intro={t('intro')}
-      sections={[]}
-    >
-      {/* Native-disclosure FAQ — zero client JS, fully keyboard accessible. */}
-      <div className="border-sarat-black/8 flex flex-col [border-top-width:0.5px]">
-        {FAQ_KEYS.map((key) => (
-          <details key={key} className="border-sarat-black/8 group [border-bottom-width:0.5px]">
-            <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-4 py-5 text-lg font-medium [&::-webkit-details-marker]:hidden">
-              {t(`items.${key}.q`, values)}
-              <ChevronDown
-                className="text-sarat-black-600 size-5 shrink-0 transition-transform duration-200 group-open:rotate-180"
-                aria-hidden
-              />
-            </summary>
-            <p className="text-sarat-black-600 pb-6 text-base leading-relaxed">
-              {t(`items.${key}.a`, values)}
-            </p>
-          </details>
-        ))}
-      </div>
-    </InfoPage>
+    <>
+      <JsonLd data={jsonLd} />
+      <InfoPage
+        locale={loc}
+        eyebrow={t('eyebrow')}
+        title={t('title')}
+        intro={t('intro')}
+        sections={sections}
+        relatedLabel={tRelated('label')}
+        related={[
+          { href: '/how-it-works', label: tRelated('howItWorks') },
+          { href: '/cancellation-policy', label: tRelated('cancellation') },
+          { href: '/trust-and-safety', label: tRelated('trustSafety') },
+        ]}
+      />
+    </>
   );
 }

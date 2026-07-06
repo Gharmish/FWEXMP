@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 import { cn } from '@/lib/utils';
+import { Link } from '@/lib/i18n';
 import type { Locale } from '@/lib/i18n';
 
 /**
@@ -13,17 +14,35 @@ export interface InfoSection {
   body: ReactNode;
 }
 
+export interface InfoRelatedLink {
+  href: string;
+  label: string;
+}
+
 interface InfoPageProps {
   locale: Locale;
   eyebrow: string;
   title: string;
   intro: string;
   sections: readonly InfoSection[];
+  /** Cross-links to sibling info pages, rendered as a closing nav block. */
+  related?: readonly InfoRelatedLink[];
+  /** Accessible heading for the related-links block; required with `related`. */
+  relatedLabel?: string;
   /** Optional extra content rendered after the sections (e.g. FAQ list). */
   children?: ReactNode;
 }
 
-export function InfoPage({ locale, eyebrow, title, intro, sections, children }: InfoPageProps) {
+export function InfoPage({
+  locale,
+  eyebrow,
+  title,
+  intro,
+  sections,
+  related,
+  relatedLabel,
+  children,
+}: InfoPageProps) {
   const eyebrowClassName = cn(
     'text-sarat-black-600 text-[11px]',
     locale === 'en' && 'tracking-[0.2em] uppercase',
@@ -54,6 +73,27 @@ export function InfoPage({ locale, eyebrow, title, intro, sections, children }: 
       ))}
 
       {children}
+
+      {related && related.length > 0 && relatedLabel ? (
+        <nav
+          aria-label={relatedLabel}
+          className="border-sarat-black/8 flex flex-col gap-3 [border-top-width:0.5px] pt-10"
+        >
+          <p className={eyebrowClassName}>{relatedLabel}</p>
+          <ul className="flex flex-wrap items-center gap-x-8 gap-y-1">
+            {related.map((link) => (
+              <li key={link.href}>
+                <Link
+                  href={link.href}
+                  className="text-sarat-black inline-flex min-h-11 items-center text-base font-medium transition-opacity duration-200 hover:opacity-60"
+                >
+                  {link.label}
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </nav>
+      ) : null}
     </article>
   );
 }

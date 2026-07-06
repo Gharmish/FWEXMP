@@ -1982,11 +1982,21 @@
     "linkHostApply": "Host with us",
     "linkWishlist": "Wishlist",
     "linkMe": "Your activity",
+    "accountLabel": "Account",
     "supportLabel": "Support",
     "linkHowItWorks": "How it works",
     "linkTrustSafety": "Trust & safety",
     "linkCancellation": "Cancellation policy",
-    "linkHelp": "Help & FAQ"
+    "linkHelp": "Help & FAQ",
+    "legalLabel": "Legal",
+    "linkTerms": "Terms of service",
+    "linkPrivacy": "Privacy policy",
+    "crLine": "CR XXXXXXXXXX · VAT XXXXXXXXXXXXXXX",
+    "paymentsLabel": "Accepted payment methods",
+    "brandMada": "mada",
+    "brandVisa": "Visa",
+    "brandMastercard": "Mastercard",
+    "brandApplePay": "Apple Pay"
   },
   "wishlistButton": {
     "save": "Save to wishlist",
@@ -2211,7 +2221,9 @@
   "helpFaq": {
     "eyebrow": "Help",
     "title": "Questions, answered.",
-    "intro": "The short version of everything guests ask us. Can't find yours? Use \"report a problem\" on any booking page and a real person in Abha will reply.",
+    "intro": "The short version of everything guests and hosts ask us. Can't find yours? Use \"report a problem\" on any booking page and a real person in Abha will reply.",
+    "guestsHeading": "For guests",
+    "hostsHeading": "For hosts",
     "items": {
       "booking": {
         "q": "How do I book an experience?",
@@ -2236,7 +2248,122 @@
       "becomeHost": {
         "q": "How do I become a host?",
         "a": "Apply from the \"Host with us\" page. We review every application, verify identity and licences, and then build the experience together with you — photography included."
+      },
+      "payout": {
+        "q": "When do I get paid as a host?",
+        "a": "A payout is earned when a booking is completed. We transfer what you're owed to your Saudi IBAN and record every transfer in the payout ledger in your dashboard — where you can also update your IBAN at any time."
+      },
+      "hostCancel": {
+        "q": "What if I have to cancel as a host?",
+        "a": "Cancel from your bookings page as early as you can. The guest is notified and any payment is refunded in full automatically, no matter how close to the start it happens."
+      },
+      "requestWindow": {
+        "q": "How long do I have to answer a booking request?",
+        "a": "{approvalHours} hours. Accept and the guest receives a secure payment link; decline or let the window lapse and the request expires — the guest is never charged either way."
+      },
+      "editListing": {
+        "q": "Can I change my experience after it's published?",
+        "a": "Yes — edit the details, pause the listing, or adjust day-by-day availability from your dashboard whenever you need. Confirmed bookings keep the price and terms they were booked with."
       }
+    }
+  },
+  "infoRelated": {
+    "label": "Keep reading",
+    "howItWorks": "How it works",
+    "trustSafety": "Trust & safety",
+    "cancellation": "Cancellation policy",
+    "help": "Help & FAQ",
+    "terms": "Terms of service",
+    "privacy": "Privacy policy"
+  },
+  "termsPage": {
+    "eyebrow": "Legal",
+    "title": "Terms of service",
+    "intro": "The agreement between you and Gharmish when you browse, book, or host — written to be read. Last updated 6 July 2026.",
+    "platform": {
+      "heading": "What Gharmish is",
+      "body1": "Gharmish is an online marketplace that connects guests with independent local hosts offering experiences in the Asir region of Saudi Arabia. Gharmish operates the platform, handles payments, and supports both sides — the experience itself is created and delivered by the host.",
+      "body2": "We vet every host before they appear on the platform, but hosts are not Gharmish employees, and each experience page describes what the individual host offers."
+    },
+    "accounts": {
+      "heading": "Your account",
+      "body1": "You must be 18 or older to book or host. Keep your account details accurate — we use your phone number and email to deliver booking confirmations, payment links, and time-sensitive updates.",
+      "body2": "You are responsible for activity on your account. If you believe someone else has accessed it, contact us right away."
+    },
+    "bookingsPayments": {
+      "heading": "Bookings and payment",
+      "body1": "All prices are in Saudi Riyals and include VAT. Instant Book experiences are confirmed as soon as your payment succeeds. Request-to-book experiences are confirmed only after the host accepts within {approvalHours} hours and you complete payment within {payHours} hours of acceptance.",
+      "body2": "Payments are processed by a licensed third-party payment provider supporting mada, Visa, Mastercard, and Apple Pay. Gharmish never stores your full card details."
+    },
+    "cancellations": {
+      "heading": "Cancellations and refunds",
+      "body": "One platform-wide policy applies to every booking: cancel at least {hours} hours before the start time and a paid booking is refunded in full; inside that window the payment is kept.",
+      "link": "Read the full cancellation policy"
+    },
+    "conduct": {
+      "heading": "Guest conduct",
+      "body": "Arrive on time, follow the host's safety instructions, and treat hosts, other guests, and the places you visit with respect. Behaviour that endangers others or violates Saudi law or local customs can lead to a cancelled booking without refund and removal from the platform."
+    },
+    "hosts": {
+      "heading": "Hosting on Gharmish",
+      "body": "Hosts agree to describe their experiences accurately, hold the licences and permits their activity requires, honour confirmed bookings, and deliver what the listing promises."
+    },
+    "content": {
+      "heading": "Reviews and content",
+      "body": "Reviews must reflect a genuine booking and an honest experience. We may remove content that is abusive, misleading, or unlawful, and we may suspend accounts that misuse the platform."
+    },
+    "liability": {
+      "heading": "Liability",
+      "body": "Experiences carry the inherent risks of the activity described on their page. To the extent permitted by law, Gharmish's liability is limited to the amount you paid for the booking concerned. Nothing in these terms excludes liability that cannot be excluded under Saudi law."
+    },
+    "changes": {
+      "heading": "Changes and governing law",
+      "body1": "We may update these terms as the platform evolves; material changes will be posted here with a new date. Continuing to use Gharmish after a change means you accept the updated terms.",
+      "body2": "These terms are governed by the laws of the Kingdom of Saudi Arabia, and any dispute falls under the jurisdiction of the Saudi courts."
+    },
+    "contact": {
+      "heading": "Contact",
+      "body": "Questions about these terms? Write to us at"
+    }
+  },
+  "privacyPage": {
+    "eyebrow": "Legal",
+    "title": "Privacy policy",
+    "intro": "What we collect, why, and the choices you have — in plain language, under the Saudi Personal Data Protection Law (PDPL). Last updated 6 July 2026.",
+    "collect": {
+      "heading": "What we collect",
+      "body1": "Account details you give us: your name, phone number, and email address. Booking details: the experience, date, group size, and any notes you share with a host.",
+      "body2": "Payment is handled by our licensed payment provider — your card details go directly to them, and Gharmish never stores your full card number. We also keep technical records such as sign-in events and error logs to keep the platform secure and working."
+    },
+    "use": {
+      "heading": "How we use it",
+      "body": "To run your bookings and payments, send confirmations, reminders, payment links, and status updates by email or SMS, answer support requests, prevent fraud and abuse, and meet our legal obligations. We don't sell your personal data."
+    },
+    "sharing": {
+      "heading": "Who we share it with",
+      "body1": "Your host sees what they need to run the experience: your name, group size, and — once a booking is confirmed — a way to coordinate with you. Hosts never see your payment details.",
+      "body2": "We use trusted service providers to operate the platform — payment processing, hosting, databases, email and SMS delivery, and error monitoring — and they process data on our instructions only. We disclose data to authorities when Saudi law requires it."
+    },
+    "storage": {
+      "heading": "Where your data lives",
+      "body": "Our databases are hosted with international cloud providers, including in the European Union. Wherever data is processed, we apply the same safeguards and handle cross-border transfers in line with the PDPL."
+    },
+    "retention": {
+      "heading": "How long we keep it",
+      "body": "We keep booking and payment records for as long as needed to run your account and to meet Saudi tax and commercial record-keeping requirements. Data with no remaining purpose is deleted or anonymised."
+    },
+    "rights": {
+      "heading": "Your rights",
+      "body": "Under the PDPL you can ask what personal data we hold about you, request a copy, ask us to correct it, or ask us to delete what we're not legally required to keep.",
+      "contact": "To exercise any of these rights, write to us at"
+    },
+    "cookies": {
+      "heading": "Cookies",
+      "body": "We use only the cookies the platform needs to work: keeping you signed in and remembering your language. No advertising or cross-site tracking cookies."
+    },
+    "changes": {
+      "heading": "Changes to this policy",
+      "body": "If we change how we handle personal data, we'll update this page and revise the date at the top. Significant changes will be flagged more prominently."
     }
   },
   "hostApplicationEmail": {

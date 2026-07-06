@@ -19,6 +19,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     '/trust-and-safety',
     '/cancellation-policy',
     '/help',
+    '/terms',
+    '/privacy',
     ...experienceSlugs.map((slug) => `/experiences/${slug}`),
     ...hostSlugs.map((slug) => `/hosts/${slug}`),
   ];
@@ -31,6 +33,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     if (path === '/experiences') return 0.9;
     if (path === '/hosts') return 0.8;
     if (path.startsWith('/hosts/')) return 0.7;
+    if (path === '/terms' || path === '/privacy') return 0.3;
     return 0.8;
   }
 

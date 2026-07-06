@@ -26,8 +26,9 @@ export default async function CancellationPolicyPage({
   const loc = locale as Locale;
   // The numbers on this page are the live platform settings — the same
   // values the cancel/approval actions enforce, never hardcoded copy.
-  const [t, settings] = await Promise.all([
+  const [t, tRelated, settings] = await Promise.all([
     getTranslations('cancellationPolicyPage'),
+    getTranslations('infoRelated'),
     getPlatformSettings(),
   ]);
   const cancelHours = settings.cancellationWindowHours;
@@ -75,6 +76,12 @@ export default async function CancellationPolicyPage({
       title={t('title')}
       intro={t('intro')}
       sections={sections}
+      relatedLabel={tRelated('label')}
+      related={[
+        { href: '/help', label: tRelated('help') },
+        { href: '/how-it-works', label: tRelated('howItWorks') },
+        { href: '/terms', label: tRelated('terms') },
+      ]}
     />
   );
 }

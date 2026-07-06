@@ -36,7 +36,11 @@ export default async function HowItWorksPage({ params }: { params: Promise<{ loc
   const { locale } = await params;
   setRequestLocale(locale);
   const loc = locale as Locale;
-  const [t, settings] = await Promise.all([getTranslations('howItWorks'), getPlatformSettings()]);
+  const [t, tRelated, settings] = await Promise.all([
+    getTranslations('howItWorks'),
+    getTranslations('infoRelated'),
+    getPlatformSettings(),
+  ]);
   const hours = settings.approvalWindowHours;
 
   const sections = [
@@ -83,6 +87,12 @@ export default async function HowItWorksPage({ params }: { params: Promise<{ loc
       title={t('title')}
       intro={t('intro')}
       sections={sections}
+      relatedLabel={tRelated('label')}
+      related={[
+        { href: '/cancellation-policy', label: tRelated('cancellation') },
+        { href: '/trust-and-safety', label: tRelated('trustSafety') },
+        { href: '/help', label: tRelated('help') },
+      ]}
     />
   );
 }
