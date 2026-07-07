@@ -4,14 +4,22 @@ import { and, eq } from 'drizzle-orm';
 import { revalidatePath } from 'next/cache';
 import { db } from '@/lib/db';
 import { serverEnv } from '@/lib/env';
-import { hostApplications, hostApplicationEvents, hosts } from '@/db/schema';
+import {
+  hostApplications,
+  hostApplicationDocuments,
+  hostApplicationEvents,
+  hosts,
+  payoutIbanEvents,
+} from '@/db/schema';
 import { redirect } from '@/lib/i18n';
 import { reportError } from '@/lib/log';
 import { getCurrentUser } from '@/features/auth/queries';
 import { isAdminUser } from '@/features/admin/auth';
+import { maskIban } from '@/features/host-earnings/lib/iban';
 import {
   approveApplicationSchema,
   rejectApplicationSchema,
+  reviewDocumentSchema,
 } from '@/features/host-applications/admin-schemas';
 import { hostBaseSlug, hostSlugSuffix } from '@/features/hosts/lib/slug';
 import {
@@ -107,6 +115,7 @@ export async function approveApplication(
           bioAr: hostApplications.bioAr,
           identityType: hostApplications.identityType,
           identityNumber: hostApplications.identityNumber,
+          iban: hostApplications.iban,
           languages: hostApplications.languages,
           city: hostApplications.city,
           region: hostApplications.region,
@@ -142,10 +151,10 @@ export async function approveApplication(
       });
       const slug = slugTaken ? `${baseSlug}-${hostSlugSuffix()}` : baseSlug;
 
-      // Mint a hosts row from the application. Identity + bio come over;
-      // payout/insurance still gathered out-of-band (BRIEF §10 Sprint 4+).
-      // The application's userId becomes the host's userId so the host
-      // can sign in and land on /host (their dashboard).
+      // Mint a hosts row from the application. Identity, bio, and the
+      // KYC payout IBAN come over (the host can still change it later
+      // at /host/earnings). The application's userId becomes the host's
+      // userId so the host can sign in and land on /host (their dashboard).
       const [host] = await tx
         .insert(hosts)
         .values({
@@ -163,11 +172,23 @@ export async function approveApplication(
           languages: [...application.languages],
           city: application.city,
           region: application.region,
+          payoutIban: application.iban,
           // Copy the notification address onto the host so lifecycle
           // emails don't depend on the application row surviving.
           contactEmail: application.contactEmail,
         })
         .returning({ id: hosts.id });
+
+      // Seed the payout-IBAN audit trail (masked values only, same as
+      // the host self-service edit path in features/host-earnings).
+      if (application.iban) {
+        await tx.insert(payoutIbanEvents).values({
+          hostId: host.id,
+          actorUserId: guard.adminUserId,
+          previousIbanMasked: null,
+          newIbanMasked: maskIban(application.iban) ?? '',
+        });
+      }
 
       // Link the freshly-minted host back onto the application row.
       await tx
@@ -297,4 +318,65 @@ export async function rejectApplication(
   revalidatePath('/[locale]/admin/host-applications/[id]', 'page');
   revalidatePath('/[locale]/host/apply', 'page');
   redirect({ href: `/admin/host-applications/${applicationId}`, locale });
+}
+
+export interface DocumentReviewState {
+  success: boolean;
+  /** Reuses the application-action union ('wrong_state' never occurs here). */
+  message?: AdminApplyResult['message'];
+  /** Zod message code for the notes field (e.g. 'rejection_note_short'). */
+  fieldError?: string;
+}
+
+/**
+ * Per-document verdict, independent of the application decision. No
+ * status gate on the parent application: a document can be re-judged
+ * at any time (e.g. an approved host's ID turns out to be expired) —
+ * the application-level approve/reject stays the only action that
+ * changes what the host may do on the platform.
+ */
+export async function reviewDocument(
+  _previous: DocumentReviewState,
+  formData: FormData,
+): Promise<DocumentReviewState> {
+  const guard = await requireAdmin();
+  if ('error' in guard) return guard.error;
+
+  const parsed = reviewDocumentSchema.safeParse({
+    documentId: formValue(formData, 'documentId'),
+    decision: formValue(formData, 'decision'),
+    reviewerNotes: formValue(formData, 'reviewerNotes'),
+  });
+  if (!parsed.success) {
+    const issue = parsed.error.issues[0];
+    return {
+      success: false,
+      message: 'validation',
+      fieldError: issue?.message ?? 'invalid',
+    };
+  }
+  const { documentId, decision, reviewerNotes } = parsed.data;
+
+  try {
+    const updated = await db
+      .update(hostApplicationDocuments)
+      .set({
+        status: decision,
+        reviewerNotes: reviewerNotes ?? null,
+        reviewedByUserId: guard.adminUserId,
+        reviewedAt: new Date(),
+        updatedAt: new Date(),
+      })
+      .where(eq(hostApplicationDocuments.id, documentId))
+      .returning({ id: hostApplicationDocuments.id });
+    if (updated.length === 0) return { success: false, message: 'not_found' };
+  } catch (error) {
+    reportError(error, { surface: 'admin:reviewDocument', documentId });
+    return { success: false, message: 'server' };
+  }
+
+  revalidatePath('/[locale]/admin/host-applications/[id]', 'page');
+  // The host sees per-document verdicts on their apply/status surface.
+  revalidatePath('/[locale]/host/apply', 'page');
+  return { success: true };
 }

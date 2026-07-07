@@ -16,6 +16,9 @@ vi.mock('@/lib/log', () => ({
 
 vi.mock('@/lib/env', () => ({
   serverEnv: { DATABASE_URL: 'postgres://test' },
+  // No storage in the unit harness — the action skips the document
+  // staging/upload path entirely (documentsEnabled === false).
+  hasSupabaseAuth: () => false,
 }));
 
 vi.mock('next/cache', () => ({
@@ -53,8 +56,8 @@ const updates: Array<Record<string, unknown>> = [];
 const insertedApplications: Array<Record<string, unknown>> = [];
 const insertedEvents: Array<Record<string, unknown>> = [];
 
-vi.mock('@/lib/db', () => ({
-  db: {
+vi.mock('@/lib/db', () => {
+  const handlers = {
     query: {
       hostApplications: { findFirst: async () => existingApp },
     },
@@ -80,8 +83,16 @@ vi.mock('@/lib/db', () => ({
         return p;
       },
     }),
-  },
-}));
+  };
+  return {
+    db: {
+      ...handlers,
+      // The submit path wraps its writes in a transaction; the unit
+      // harness just replays them against the same recording handlers.
+      transaction: async (fn: (tx: typeof handlers) => Promise<void>) => fn(handlers),
+    },
+  };
+});
 
 import { submitHostApplication, type HostApplyState } from '@/features/host-applications/actions';
 
@@ -99,6 +110,13 @@ function applyForm() {
   form.append('languages', 'en');
   form.set('identityType', 'national_id');
   form.set('identityNumber', '1234567890');
+  form.set('legalName', 'Saad bin Nasser Al-Shahrani');
+  form.set('dateOfBirth', '1985-03-12');
+  // Published SAMA example IBAN — checksum-valid by construction.
+  form.set('iban', 'SA0380000000608010167519');
+  form.set('bankName', 'Al Rajhi Bank');
+  form.set('bankAccountHolder', 'Saad bin Nasser Al-Shahrani');
+  form.set('termsAccepted', 'on');
   form.set('contactEmail', 'host@example.com');
   form.set('city', 'Abha');
   form.set('region', 'Asir');

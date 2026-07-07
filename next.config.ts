@@ -36,8 +36,10 @@ const nextConfig: NextConfig = {
       // Photo uploads (hero + gallery) travel through server actions.
       // Clients re-encode to a small WebP first, but the default 1MB cap
       // 413'd any fallback-path original — 20MB clears the bucket's 15MB
-      // object policy with form-encoding headroom.
-      bodySizeLimit: '20mb',
+      // object policy with form-encoding headroom. 25MB since the host
+      // KYC form submits up to five 4MB documents in one multipart body
+      // (keep in lockstep with MAX_DOCUMENT_BYTES × doc count).
+      bodySizeLimit: '25mb',
     },
   },
   // The per-experience opengraph-image route reads brand TTFs off disk

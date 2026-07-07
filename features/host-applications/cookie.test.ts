@@ -14,12 +14,19 @@ const sample: HostApplicationView = {
   languages: ['ar', 'en'],
   identityType: 'national_id',
   identityNumber: '1010101010',
+  legalName: 'Layla bint Ahmad Al-Asmari',
+  dateOfBirth: '1985-03-12',
+  iban: 'SA0380000000608010167519',
+  bankName: 'Al Rajhi Bank',
+  bankAccountHolder: 'Layla bint Ahmad Al-Asmari',
+  vatNumber: null,
   city: 'Abha',
   region: 'Asir',
   status: 'pending',
   reviewerNotes: null,
   createdAt: '2026-05-22T10:00:00.000Z',
   reviewedAt: null,
+  documents: [],
 };
 
 describe('parseHostApplicationCookie', () => {

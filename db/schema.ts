@@ -612,6 +612,29 @@ export const hostApplications = pgTable(
     languages: text().array().notNull().default([]),
     identityType: hostIdentityTypeEnum().notNull(),
     identityNumber: text().notNull(),
+    /**
+     * KYC fields (owner decision 2026-07-07). All nullable: rows filed
+     * before the KYC form shipped don't have them, and the stub-cookie
+     * path can't collect uploads. New submissions always fill them —
+     * the zod schema is the enforcement point, not the DB.
+     */
+    /** Full legal name exactly as on the ID (individual) or CR (company). */
+    legalName: text(),
+    /** Individuals only (18+ gate). Null for CR applicants. */
+    dateOfBirth: date(),
+    /** Payout IBAN (SA + 22 digits, mod-97 checked). Copied to hosts.payoutIban on approval. */
+    iban: text(),
+    bankName: text(),
+    /** Account holder name on the IBAN letter — must match legalName; admin verifies. */
+    bankAccountHolder: text(),
+    /** ZATCA VAT registration number (15 digits) — CR applicants, optional. */
+    vatNumber: text(),
+    /**
+     * When the applicant ticked the accuracy + PDPL-consent + full-
+     * liability acknowledgment (Gharmish provides no insurance; hosts
+     * are solely responsible for their experiences — owner 2026-07-07).
+     */
+    termsAcceptedAt: timestamp({ withTimezone: true }),
     city: text().notNull().default('Abha'),
     region: text().notNull().default('Asir'),
     status: hostApplicationStatusEnum().notNull().default('pending'),
@@ -627,6 +650,72 @@ export const hostApplications = pgTable(
   (t) => [
     // Admin moderation queue filters applications by status.
     index('host_applications_status_idx').on(t.status),
+  ],
+);
+
+/**
+ * KYC document kinds collected at host onboarding (owner decision
+ * 2026-07-07 — no insurance / civil-defense documents; hosts carry
+ * full liability for their experiences).
+ *
+ * Required set depends on `host_applications.identityType`:
+ *   - national_id: national_id, iban_letter (tourism_license optional —
+ *     the MoT freelance document, encouraged but not a filing blocker)
+ *   - cr: cr_certificate, tourism_license, signatory_id, iban_letter
+ *     (vat_certificate optional, only if VAT-registered)
+ */
+export const hostDocumentTypeEnum = pgEnum('host_document_type', [
+  'national_id',
+  'cr_certificate',
+  'tourism_license',
+  'signatory_id',
+  'vat_certificate',
+  'iban_letter',
+]);
+
+/**
+ * Per-document review state, independent of the application decision.
+ * A re-uploaded document resets to `pending`; documents not re-uploaded
+ * on resubmission keep their prior verdict.
+ */
+export const hostDocumentStatusEnum = pgEnum('host_document_status', [
+  'pending',
+  'approved',
+  'rejected',
+]);
+
+/**
+ * One row per (application, document type) — a re-upload replaces the
+ * row in place (and best-effort deletes the old storage object), so the
+ * table always holds the *current* document. Objects live in the
+ * private `kyc-documents` bucket under `{userId}/{type}-{ts}.{ext}`;
+ * admin review reads them via short-lived signed URLs, never public.
+ */
+export const hostApplicationDocuments = pgTable(
+  'host_application_documents',
+  {
+    id: uuid().defaultRandom().primaryKey(),
+    applicationId: uuid()
+      .notNull()
+      .references(() => hostApplications.id, { onDelete: 'cascade' }),
+    type: hostDocumentTypeEnum().notNull(),
+    /** Object key inside the `kyc-documents` bucket. */
+    objectKey: text().notNull(),
+    /** Original file name, for the admin review surface only. */
+    fileName: text().notNull(),
+    contentType: text().notNull(),
+    sizeBytes: integer().notNull(),
+    status: hostDocumentStatusEnum().notNull().default('pending'),
+    /** Reviewer note — required by the action layer on per-doc reject. */
+    reviewerNotes: text(),
+    reviewedByUserId: uuid(),
+    reviewedAt: timestamp({ withTimezone: true }),
+    createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    unique('host_application_documents_application_type_uq').on(t.applicationId, t.type),
+    index('host_application_documents_application_idx').on(t.applicationId),
   ],
 );
 
@@ -956,6 +1045,17 @@ export const hostStatusEventsRelations = relations(hostStatusEvents, ({ one }) =
   host: one(hosts, {
     fields: [hostStatusEvents.hostId],
     references: [hosts.id],
+  }),
+}));
+
+export const hostApplicationsRelations = relations(hostApplications, ({ many }) => ({
+  documents: many(hostApplicationDocuments),
+}));
+
+export const hostApplicationDocumentsRelations = relations(hostApplicationDocuments, ({ one }) => ({
+  application: one(hostApplications, {
+    fields: [hostApplicationDocuments.applicationId],
+    references: [hostApplications.id],
   }),
 }));
 

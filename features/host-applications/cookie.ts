@@ -83,20 +83,32 @@ export function parseHostApplicationCookie(value: string | undefined): HostAppli
     languages,
     identityType: identityType as HostIdentityType,
     identityNumber,
+    // KYC scalars ride the cookie unvalidated-but-typed; a pre-KYC
+    // cookie simply yields nulls, same as a pre-KYC DB row.
+    legalName: stringField(raw, 'legalName') || null,
+    dateOfBirth: stringField(raw, 'dateOfBirth') || null,
+    iban: stringField(raw, 'iban') || null,
+    bankName: stringField(raw, 'bankName') || null,
+    bankAccountHolder: stringField(raw, 'bankAccountHolder') || null,
+    vatNumber: stringField(raw, 'vatNumber') || null,
     city: stringField(raw, 'city') || 'Abha',
     region: stringField(raw, 'region') || 'Asir',
     status: status as HostApplicationStatus,
     reviewerNotes: stringField(raw, 'reviewerNotes') || null,
     createdAt,
     reviewedAt: stringField(raw, 'reviewedAt') || null,
+    // Stub mode has no real storage — uploads are DB-mode only.
+    documents: [],
   };
 }
 
 export function serializeHostApplicationCookie(view: HostApplicationView): string {
-  // Drop `id` (always null in cookie mode) so the payload stays compact
+  // Drop `id` (always null in cookie mode) and `documents` (always
+  // empty — uploads need real storage) so the payload stays compact
   // and the parse round-trips cleanly.
   const rest = { ...view } as Partial<HostApplicationView>;
   delete rest.id;
+  delete rest.documents;
   return JSON.stringify(rest);
 }
 

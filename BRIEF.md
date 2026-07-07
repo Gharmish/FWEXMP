@@ -8,7 +8,7 @@
 
 Gharmish (غارميش) is a curated experiences marketplace for Saudi Arabia, launching in Abha (Asir region). We connect vetted local hosts — individual Saudis and tourism companies — with guests seeking authentic Asiri experiences: heritage tours, mountain adventures, food, wellness, family activities, and premium "Originals."
 
-We are not a passive listing platform. We are a **partnership marketplace**: we co-create experiences with hosts, provide photography, training, insurance, and distribution, in exchange for a fair revenue share. Quality and curation are the moat.
+We are not a passive listing platform. We are a **partnership marketplace**: we co-create experiences with hosts, provide photography, training, and distribution, in exchange for a fair revenue share. Quality and curation are the moat. Gharmish does not provide insurance — hosts carry full liability for the experiences they deliver (owner decision 2026-07-07); the terms page and the host-onboarding consent reflect that.
 
 **Initial launch market**: Abha and surrounding Asir region, summer 2026.
 **Primary audience year 1**: Saudi domestic travelers (Arabic-first).
@@ -455,10 +455,12 @@ Initial entities. We'll expand as features ship.
 
 Individual Saudi or registered tourism company. Has:
 
-- Identity (national ID / CR number, name, photo, bio)
-- License documents (MoT license, insurance, civil defense where applicable)
+- Identity (national ID / CR number, legal name, date of birth for individuals, photo, bio)
+- KYC documents, per applicant type (2026-07-07 — no insurance / civil-defense documents):
+  - Individual: national ID + IBAN letter (MoT freelance tourism document optional)
+  - Company: CR certificate + tourism licence + authorized-signatory ID + IBAN letter (VAT certificate if registered)
 - Verification status (`pending | verified | suspended`)
-- Payout details
+- Payout details (Saudi IBAN + bank + account holder — collected at onboarding, checksum-validated, name-matched against the IBAN letter by the reviewing admin)
 - Listings (1:N → Experience)
 - Languages spoken
 

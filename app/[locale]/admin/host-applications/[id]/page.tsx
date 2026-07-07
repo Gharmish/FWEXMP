@@ -8,11 +8,13 @@ import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 import { formatDate } from '@/lib/format';
 import {
+  getApplicationDocumentsForAdmin,
   getApplicationEventsForAdmin,
   getApplicationForAdmin,
   isAdminAndDbReady,
 } from '@/features/host-applications/admin-queries';
 import { ReviewerActions } from '@/app/[locale]/admin/host-applications/[id]/reviewer-actions';
+import { DocumentReview } from '@/app/[locale]/admin/host-applications/[id]/document-review';
 import type {
   HostApplicationEventType,
   HostApplicationStatus,
@@ -82,9 +84,11 @@ export default async function AdminHostApplicationDetailPage({
   const application = await getApplicationForAdmin(id);
   if (!application || application.id === null) notFound();
   // Application id is non-null here — the cookie-mode view never
-  // reaches the DB-only admin queries above. Pull the event timeline
-  // in parallel-friendly form (single roundtrip).
-  const events = await getApplicationEventsForAdmin(application.id);
+  // reaches the DB-only admin queries above.
+  const [events, documents] = await Promise.all([
+    getApplicationEventsForAdmin(application.id),
+    getApplicationDocumentsForAdmin(application.id),
+  ]);
 
   const t = await getTranslations('admin');
   const eyebrowClassName = cn(
@@ -146,7 +150,75 @@ export default async function AdminHostApplicationDetailPage({
             {application.city} · {application.region}
           </dd>
         </div>
+        {application.legalName && (
+          <div className="flex flex-col gap-1">
+            <dt className={eyebrowClassName}>{t('detail.legalName')}</dt>
+            <dd className="text-base font-medium">{application.legalName}</dd>
+            {application.dateOfBirth && (
+              <dd className="text-sarat-black-600 text-sm" dir="ltr">
+                {t('detail.dateOfBirth', {
+                  date: formatDate(new Date(application.dateOfBirth), loc),
+                })}
+              </dd>
+            )}
+            {application.vatNumber && (
+              <dd className="text-sarat-black-600 text-sm" dir="ltr">
+                {t('detail.vatNumber', { number: application.vatNumber })}
+              </dd>
+            )}
+          </div>
+        )}
+        {application.iban && (
+          <div className="flex flex-col gap-1">
+            <dt className={eyebrowClassName}>{t('detail.payout')}</dt>
+            <dd className="text-base font-medium" dir="ltr">
+              {application.iban}
+            </dd>
+            <dd className="text-sarat-black-600 text-sm">
+              {[application.bankAccountHolder, application.bankName].filter(Boolean).join(' · ')}
+            </dd>
+          </div>
+        )}
       </dl>
+
+      <DocumentReview
+        headingClassName={eyebrowClassName}
+        items={documents.map((document) => ({
+          document,
+          uploadedOn: formatDate(new Date(document.createdAt), loc),
+        }))}
+        copy={{
+          heading: t('documents.heading'),
+          empty: t('documents.empty'),
+          view: t('documents.view'),
+          approve: t('documents.approve'),
+          reject: t('documents.reject'),
+          pendingAction: t('documents.pendingAction'),
+          noteLabel: t('actions.notesLabel'),
+          noteHint: t('documents.noteHint'),
+          statuses: {
+            pending: t('documents.status.pending'),
+            approved: t('documents.status.approved'),
+            rejected: t('documents.status.rejected'),
+          },
+          typeLabels: {
+            national_id: t('documentType.national_id'),
+            cr_certificate: t('documentType.cr_certificate'),
+            tourism_license: t('documentType.tourism_license'),
+            signatory_id: t('documentType.signatory_id'),
+            vat_certificate: t('documentType.vat_certificate'),
+            iban_letter: t('documentType.iban_letter'),
+          },
+          errors: {
+            forbidden: t('actions.errors.forbidden'),
+            no_db: t('actions.errors.noDb'),
+            not_found: t('actions.errors.notFound'),
+            validation: t('actions.errors.validation'),
+            server: t('actions.errors.server'),
+            rejection_note_short: t('actions.errors.rejectionNoteShort'),
+          },
+        }}
+      />
 
       <section className="flex flex-col gap-3">
         <h2 className={eyebrowClassName}>{t('detail.bio')}</h2>

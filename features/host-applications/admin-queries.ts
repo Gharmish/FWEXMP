@@ -1,8 +1,12 @@
 import { desc, eq } from 'drizzle-orm';
 import { db } from '@/lib/db';
-import { hostApplications, hostApplicationEvents } from '@/db/schema';
+import { hostApplications, hostApplicationDocuments, hostApplicationEvents } from '@/db/schema';
 import { reportError } from '@/lib/log';
+import { getSupabaseUserStorage } from '@/lib/supabase/server';
+import { hasSupabaseAuth } from '@/lib/env';
+import { KYC_DOCUMENTS_BUCKET } from '@/features/host-applications/lib/documents';
 import type {
+  HostApplicationDocumentAdminView,
   HostApplicationEventView,
   HostApplicationView,
 } from '@/features/host-applications/types';
@@ -35,12 +39,21 @@ function rowToView(row: typeof hostApplications.$inferSelect): HostApplicationVi
     languages: row.languages,
     identityType: row.identityType,
     identityNumber: row.identityNumber,
+    legalName: row.legalName,
+    dateOfBirth: row.dateOfBirth,
+    iban: row.iban,
+    bankName: row.bankName,
+    bankAccountHolder: row.bankAccountHolder,
+    vatNumber: row.vatNumber,
     city: row.city,
     region: row.region,
     status: row.status,
     reviewerNotes: row.reviewerNotes,
     createdAt: row.createdAt.toISOString(),
     reviewedAt: row.reviewedAt ? row.reviewedAt.toISOString() : null,
+    // Documents are loaded on the detail surface only, via
+    // getApplicationDocumentsForAdmin (they need signed URLs).
+    documents: [],
   };
 }
 
@@ -79,6 +92,57 @@ export async function getApplicationForAdmin(id: string): Promise<HostApplicatio
   } catch (error) {
     reportError(error, { surface: 'admin:getApplication', applicationId: id });
     return null;
+  }
+}
+
+/**
+ * KYC documents for one application with short-lived signed URLs into
+ * the private `kyc-documents` bucket (1 hour — matches a review
+ * sitting, and the page mints fresh ones on every load). Empty list
+ * for non-admins or stub mode; `signedUrl: null` when storage is
+ * unreachable so the review surface degrades instead of erroring.
+ */
+export async function getApplicationDocumentsForAdmin(
+  applicationId: string,
+): Promise<readonly HostApplicationDocumentAdminView[]> {
+  const block = await adminGuard();
+  if (block) return [];
+  try {
+    const rows = await db
+      .select()
+      .from(hostApplicationDocuments)
+      .where(eq(hostApplicationDocuments.applicationId, applicationId))
+      .orderBy(hostApplicationDocuments.type);
+
+    const storage = hasSupabaseAuth() ? await getSupabaseUserStorage() : null;
+    return await Promise.all(
+      rows.map(async (row) => {
+        let signedUrl: string | null = null;
+        if (storage) {
+          const { data, error } = await storage
+            .from(KYC_DOCUMENTS_BUCKET)
+            .createSignedUrl(row.objectKey, 60 * 60);
+          if (error) {
+            reportError(error, { surface: 'admin:signKycDocument', documentId: row.id });
+          }
+          signedUrl = data?.signedUrl ?? null;
+        }
+        return {
+          id: row.id,
+          type: row.type,
+          fileName: row.fileName,
+          contentType: row.contentType,
+          sizeBytes: row.sizeBytes,
+          status: row.status,
+          reviewerNotes: row.reviewerNotes,
+          createdAt: row.createdAt.toISOString(),
+          signedUrl,
+        };
+      }),
+    );
+  } catch (error) {
+    reportError(error, { surface: 'admin:getApplicationDocuments', applicationId });
+    return [];
   }
 }
 

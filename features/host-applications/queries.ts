@@ -28,6 +28,7 @@ export async function getCurrentUserHostApplication(): Promise<HostApplicationVi
     try {
       const row = await db.query.hostApplications.findFirst({
         where: (a) => eq(a.userId, user.id),
+        with: { documents: true },
       });
       if (!row) return null;
       return {
@@ -41,12 +42,26 @@ export async function getCurrentUserHostApplication(): Promise<HostApplicationVi
         languages: row.languages,
         identityType: row.identityType,
         identityNumber: row.identityNumber,
+        legalName: row.legalName,
+        dateOfBirth: row.dateOfBirth,
+        iban: row.iban,
+        bankName: row.bankName,
+        bankAccountHolder: row.bankAccountHolder,
+        vatNumber: row.vatNumber,
         city: row.city,
         region: row.region,
         status: row.status,
         reviewerNotes: row.reviewerNotes,
         createdAt: row.createdAt.toISOString(),
         reviewedAt: row.reviewedAt ? row.reviewedAt.toISOString() : null,
+        documents: row.documents.map((d) => ({
+          id: d.id,
+          type: d.type,
+          fileName: d.fileName,
+          status: d.status,
+          reviewerNotes: d.reviewerNotes,
+          createdAt: d.createdAt.toISOString(),
+        })),
       };
     } catch (error) {
       reportError(error, { surface: 'host-applications:getCurrent', userId: user.id });
