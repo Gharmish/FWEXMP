@@ -2245,6 +2245,12 @@
     "brandMastercard": "Mastercard",
     "brandApplePay": "Apple Pay"
   },
+  "cookieNotice": {
+    "regionLabel": "Cookie notice",
+    "body": "Gharmish uses only the cookies it needs to work — keeping you signed in and remembering your language. No advertising or tracking cookies, ever.",
+    "privacyLink": "Privacy policy",
+    "cta": "Got it"
+  },
   "wishlistButton": {
     "save": "Save to wishlist",
     "remove": "Remove from wishlist"

@@ -20,6 +20,7 @@ import { bricolage, ibmPlexArabic } from '@/lib/fonts';
 import { routing, localeDirection, type Locale } from '@/lib/i18n';
 import { Navbar } from '@/components/layout/navbar';
 import { Footer } from '@/components/layout/footer';
+import { CookieNotice } from '@/components/layout/cookie-notice';
 import { MotionProvider } from '@/components/ui/motion';
 import { ToastProvider } from '@/components/ui/toast';
 import { DirectionProvider } from '@base-ui/react/direction-provider';
@@ -90,6 +91,7 @@ export default async function LocaleLayout({
                   {children}
                 </main>
                 <Footer />
+                <CookieNotice />
               </ToastProvider>
             </MotionProvider>
           </DirectionProvider>
