@@ -30,6 +30,21 @@ export interface BookingDetail {
   totalAmountSar: number;
   /** Commission rate snapshotted at booking time, basis points. */
   commissionBps: number;
+  /**
+   * VAT rate snapshotted at payment settlement, basis points. Null =
+   * the payment settled with the platform VAT toggle off (or is unpaid).
+   */
+  vatRateBps: number | null;
+  /** Seller VAT registration number snapshotted with the rate. */
+  vatRegistrationNumber: string | null;
+  /**
+   * Invoice line-item description (experience title) + buyer name,
+   * snapshotted at settlement. Null on rows settled before the columns
+   * existed — the invoice page falls back to live lookups there.
+   */
+  invoiceItemEn: string | null;
+  invoiceItemAr: string | null;
+  billedName: string | null;
   date: string;
   startTime: string;
   experienceSlug: string;
@@ -49,6 +64,8 @@ export interface BookingDetail {
   approvedAt: string | null;
   /** When an unpaid hold (instant, or approved request) lapses. ISO; null when none. */
   paymentDeadline: string | null;
+  /** When the booking was moved to `refunded`. ISO; null when never refunded. */
+  refundedAt: string | null;
   createdAt: string;
 }
 
@@ -71,6 +88,11 @@ export async function getBookingByReference(reference: string): Promise<BookingD
     partySize: row.partySize,
     totalAmountSar: row.totalAmount,
     commissionBps: row.commissionBps,
+    vatRateBps: row.vatRateBps,
+    vatRegistrationNumber: row.vatRegistrationNumber,
+    invoiceItemEn: row.invoiceItemEn,
+    invoiceItemAr: row.invoiceItemAr,
+    billedName: row.billedName,
     date: row.date,
     startTime: row.startTime,
     experienceSlug: row.experience.slug,
@@ -82,6 +104,7 @@ export async function getBookingByReference(reference: string): Promise<BookingD
     approvalDeadline: row.approvalDeadline?.toISOString() ?? null,
     approvedAt: row.approvedAt?.toISOString() ?? null,
     paymentDeadline: row.paymentDeadline?.toISOString() ?? null,
+    refundedAt: row.refundedAt?.toISOString() ?? null,
     createdAt: row.createdAt.toISOString(),
   };
 }
@@ -136,6 +159,11 @@ export async function getBookingsForGuest(guestId: string): Promise<GuestBooking
     partySize: row.partySize,
     totalAmountSar: row.totalAmount,
     commissionBps: row.commissionBps,
+    vatRateBps: row.vatRateBps,
+    vatRegistrationNumber: row.vatRegistrationNumber,
+    invoiceItemEn: row.invoiceItemEn,
+    invoiceItemAr: row.invoiceItemAr,
+    billedName: row.billedName,
     date: row.date,
     startTime: row.startTime,
     experienceSlug: row.experience.slug,
@@ -147,6 +175,7 @@ export async function getBookingsForGuest(guestId: string): Promise<GuestBooking
     approvalDeadline: row.approvalDeadline?.toISOString() ?? null,
     approvedAt: row.approvedAt?.toISOString() ?? null,
     paymentDeadline: row.paymentDeadline?.toISOString() ?? null,
+    refundedAt: row.refundedAt?.toISOString() ?? null,
     experienceTitleEn: row.experience.titleEn,
     experienceTitleAr: row.experience.titleAr,
     createdAt: row.createdAt.toISOString(),

@@ -35,6 +35,16 @@ export interface PlatformSettings {
   /** Home-page announcement band, per locale. Null = no band. */
   announcementEn: string | null;
   announcementAr: string | null;
+  /**
+   * VAT collection switch — off until the platform is ZATCA-registered
+   * (375K SAR threshold). While off no surface mentions VAT; while on
+   * the rate is disclosed as a portion of the unchanged inclusive price.
+   */
+  vatEnabled: boolean;
+  /** VAT rate in basis points (KSA standard 15% = 1500). */
+  vatRateBps: number;
+  /** ZATCA VAT registration number (15 digits); null until registered. */
+  vatRegistrationNumber: string | null;
 }
 
 /** Code-level defaults — the truth when no settings row exists yet. */
@@ -46,6 +56,10 @@ export const DEFAULT_SETTINGS: PlatformSettings = {
   approvalPaymentWindowHours: 24,
   announcementEn: null,
   announcementAr: null,
+  // Safe default: never disclose VAT unless the settings row says so.
+  vatEnabled: false,
+  vatRateBps: 1500,
+  vatRegistrationNumber: null,
 };
 
 /**
@@ -63,6 +77,9 @@ export async function getPlatformSettings(): Promise<PlatformSettings> {
         approvalPaymentWindowHours: platformSettings.approvalPaymentWindowHours,
         announcementEn: platformSettings.announcementEn,
         announcementAr: platformSettings.announcementAr,
+        vatEnabled: platformSettings.vatEnabled,
+        vatRateBps: platformSettings.vatRateBps,
+        vatRegistrationNumber: platformSettings.vatRegistrationNumber,
       })
       .from(platformSettings)
       .where(eq(platformSettings.id, 'platform'))
@@ -78,11 +95,50 @@ export async function getPlatformSettings(): Promise<PlatformSettings> {
       approvalPaymentWindowHours: row.approvalPaymentWindowHours,
       announcementEn: row.announcementEn,
       announcementAr: row.announcementAr,
+      // VAT is only ever disclosed with a registration number to print on
+      // tax invoices — a toggle without a number degrades to "off".
+      vatEnabled: row.vatEnabled && Boolean(row.vatRegistrationNumber),
+      vatRateBps: row.vatRateBps,
+      vatRegistrationNumber: row.vatRegistrationNumber,
     };
   } catch (error) {
     reportError(error, { surface: 'platform-settings:get' });
     return DEFAULT_SETTINGS;
   }
+}
+
+/**
+ * Strict variant for money-critical paths (payment settlement): a DB
+ * error THROWS instead of degrading to defaults. Degrading would decide
+ * "no VAT" for a payment while the platform is registered — silently
+ * under-declared output tax. A missing row still returns defaults:
+ * that's a legitimate "never configured" state, not a read failure.
+ */
+export async function getPlatformSettingsStrict(): Promise<PlatformSettings> {
+  if (!serverEnv.DATABASE_URL) return DEFAULT_SETTINGS;
+  const [row] = await db
+    .select({
+      defaultCommissionBps: platformSettings.defaultCommissionBps,
+      enabledCategories: platformSettings.enabledCategories,
+      cancellationWindowHours: platformSettings.cancellationWindowHours,
+      approvalWindowHours: platformSettings.approvalWindowHours,
+      approvalPaymentWindowHours: platformSettings.approvalPaymentWindowHours,
+      announcementEn: platformSettings.announcementEn,
+      announcementAr: platformSettings.announcementAr,
+      vatEnabled: platformSettings.vatEnabled,
+      vatRateBps: platformSettings.vatRateBps,
+      vatRegistrationNumber: platformSettings.vatRegistrationNumber,
+    })
+    .from(platformSettings)
+    .where(eq(platformSettings.id, 'platform'))
+    .limit(1);
+  if (!row) return DEFAULT_SETTINGS;
+  const enabled = (row.enabledCategories as Category[] | null) ?? [];
+  return {
+    ...row,
+    enabledCategories: enabled.length > 0 ? enabled : DEFAULT_SETTINGS.enabledCategories,
+    vatEnabled: row.vatEnabled && Boolean(row.vatRegistrationNumber),
+  };
 }
 
 /** Just the enabled-category set — convenience for public facets/forms. */

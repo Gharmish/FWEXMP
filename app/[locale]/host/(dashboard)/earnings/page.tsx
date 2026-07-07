@@ -11,7 +11,7 @@ import { Price } from '@/components/ui/price';
 import { formatDate } from '@/lib/format';
 import { getCurrentUser } from '@/features/auth/queries';
 import { getHostDashboard } from '@/features/host-dashboard/queries';
-import { getHostEarnings } from '@/features/host-earnings/queries';
+import { getHostEarnings, getHostPayoutBatches } from '@/features/host-earnings/queries';
 import { PayoutMethodForm } from '@/features/host-earnings/components/payout-method-form';
 import { maskIban } from '@/features/host-earnings/lib/iban';
 
@@ -65,9 +65,10 @@ export default async function HostEarningsPage({
   const to = sp.to && DATE_RE.test(sp.to) ? sp.to : undefined;
   const rangeActive = Boolean(from || to);
 
-  const [t, earnings] = await Promise.all([
+  const [t, earnings, payoutBatches] = await Promise.all([
     getTranslations('hostEarnings'),
     getHostEarnings({ from, to }),
+    getHostPayoutBatches(),
   ]);
 
   const today = todayInRiyadh();
@@ -294,6 +295,44 @@ export default async function HostEarningsPage({
             />
           </section>
 
+          {/* Payout statements — one printable remittance doc per transfer. */}
+          {payoutBatches && payoutBatches.length > 0 && (
+            <section className="flex flex-col gap-4">
+              <h2 className="font-display text-2xl font-medium tracking-[-0.025em]">
+                {t('statements.title')}
+              </h2>
+              <p className="text-sarat-black-600 max-w-2xl text-sm">{t('statements.intro')}</p>
+              <ul className="border-sarat-black/8 rounded-card divide-sarat-black/8 flex flex-col divide-y [border-width:0.5px]">
+                {payoutBatches.map((batch) => (
+                  <li
+                    key={batch.id}
+                    className="flex flex-wrap items-center justify-between gap-3 p-5"
+                  >
+                    <div className="flex flex-col gap-1">
+                      <span className="text-base font-medium">
+                        {formatDate(new Date(batch.createdAt), loc)}
+                      </span>
+                      <span className="text-sarat-black-600 text-sm">
+                        {t('statements.bookings', { count: batch.bookingCount })}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-4">
+                      <span className="font-display text-xl font-medium tabular-nums">
+                        <Price amount={batch.amountSar} locale={loc} />
+                      </span>
+                      <Link
+                        href={`/host/earnings/statements/${batch.id}`}
+                        className={cn(buttonVariants({ variant: 'secondary', size: 'sm' }))}
+                      >
+                        {t('statements.view')}
+                      </Link>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
+
           {/* Payout ledger */}
           <section className="flex flex-col gap-4">
             <div className="flex flex-wrap items-baseline justify-between gap-3">
@@ -359,6 +398,16 @@ export default async function HostEarningsPage({
                           })}
                         </span>
                         <span aria-hidden>·</span>
+                        {row.vatSar > 0 && (
+                          <>
+                            <span>
+                              {t.rich('history.vat', {
+                                amount: () => <Price amount={row.vatSar} locale={loc} />,
+                              })}
+                            </span>
+                            <span aria-hidden>·</span>
+                          </>
+                        )}
                         <span>
                           {t.rich('history.commission', {
                             pct: row.commissionBps / 100,

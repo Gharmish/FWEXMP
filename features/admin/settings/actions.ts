@@ -45,6 +45,9 @@ export async function updateSettings(
     approvalPaymentWindowHours: formData.get('approvalPaymentWindowHours'),
     announcementEn: formData.get('announcementEn') ?? undefined,
     announcementAr: formData.get('announcementAr') ?? undefined,
+    vatEnabled: formData.get('vatEnabled') === 'on',
+    vatRatePct: formData.get('vatRatePct'),
+    vatRegistrationNumber: formData.get('vatRegistrationNumber') ?? undefined,
     enabledCategories: formData
       .getAll('enabledCategories')
       .filter((v): v is string => typeof v === 'string'),
@@ -62,6 +65,10 @@ export async function updateSettings(
 
   const input = parsed.data;
   const defaultCommissionBps = commissionPctToBps(input.commissionPct);
+  const vatRateBps = commissionPctToBps(input.vatRatePct);
+  // Keep a captured registration number even while VAT is off (it can be
+  // entered ahead of registration day); never store an empty string.
+  const vatRegistrationNumber = input.vatRegistrationNumber || null;
   const now = new Date();
 
   try {
@@ -76,6 +83,9 @@ export async function updateSettings(
         approvalPaymentWindowHours: input.approvalPaymentWindowHours,
         announcementEn: input.announcementEn || null,
         announcementAr: input.announcementAr || null,
+        vatEnabled: input.vatEnabled,
+        vatRateBps,
+        vatRegistrationNumber,
         updatedByAdminId: guard.adminUserId,
         updatedAt: now,
       })
@@ -89,6 +99,9 @@ export async function updateSettings(
           approvalPaymentWindowHours: input.approvalPaymentWindowHours,
           announcementEn: input.announcementEn || null,
           announcementAr: input.announcementAr || null,
+          vatEnabled: input.vatEnabled,
+          vatRateBps,
+          vatRegistrationNumber,
           updatedByAdminId: guard.adminUserId,
           updatedAt: now,
         },
@@ -103,6 +116,9 @@ export async function updateSettings(
   revalidatePath('/[locale]/admin', 'page');
   revalidatePath('/[locale]', 'page');
   revalidatePath('/[locale]/experiences', 'page');
+  // VAT disclosure lines render on the detail + payment surfaces.
+  revalidatePath('/[locale]/experiences/[slug]', 'page');
+  revalidatePath('/[locale]/book/[reference]/pay', 'page');
 
   return { success: true };
 }

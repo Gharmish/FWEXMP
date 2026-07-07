@@ -210,7 +210,10 @@ export default async function ExperienceDetailPage({
     partySizeTooLarge: tb('partySizeTooLarge'),
     datePlaceholder: tb('datePlaceholder'),
     total: tb('total'),
-    vatIncluded: tb('vatIncluded', { pct: vatRatePercent() }),
+    // Null while the VAT toggle is off — the form renders no VAT line.
+    vatIncluded: settings.vatEnabled
+      ? tb('vatIncluded', { pct: vatRatePercent(settings.vatRateBps) })
+      : null,
     decrease: tb('decrease'),
     increase: tb('increase'),
     noDates: tb('noDates'),
@@ -608,6 +611,7 @@ export default async function ExperienceDetailPage({
                 scheduleNote={scheduleNote}
                 initialDate={initialDate}
                 initialPartySize={initialPartySize}
+                vatRateBps={settings.vatEnabled ? settings.vatRateBps : null}
                 copy={bookingCopy}
               />
             )}

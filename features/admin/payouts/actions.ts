@@ -90,6 +90,7 @@ export async function markHostPaid(
           id: bookings.id,
           totalAmount: bookings.totalAmount,
           commissionBps: bookings.commissionBps,
+          vatRateBps: bookings.vatRateBps,
         })
         .from(bookings)
         .where(
@@ -105,7 +106,7 @@ export async function markHostPaid(
       if (owed.length === 0) return 'nothing_owed' as const;
 
       const amountSar = owed.reduce(
-        (sum, b) => sum + splitCommission(b.totalAmount, b.commissionBps).payoutSar,
+        (sum, b) => sum + splitCommission(b.totalAmount, b.commissionBps, b.vatRateBps).payoutSar,
         0,
       );
       if (amountSar !== expectedAmountSar) return 'amount_changed' as const;

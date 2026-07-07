@@ -11,6 +11,7 @@ import { formatDate, formatInteger, formatTime } from '@/lib/format';
 import { Price } from '@/components/ui/price';
 import { getBookingByReferenceForViewer } from '@/features/bookings/queries';
 import { vatPortionSar, vatRatePercent } from '@/features/bookings/lib/vat';
+import { getPlatformSettings } from '@/lib/platform-settings';
 import { isHoldExpired } from '@/features/bookings/lib/availability';
 import { getExperienceBySlug } from '@/features/experiences/queries';
 import {
@@ -147,11 +148,16 @@ export default async function PaymentPage({ params, searchParams }: PageParams) 
     label: t('totalLabel'),
     value: <Price amount={booking.totalAmountSar} locale={loc} />,
   });
-  // Prices are VAT-inclusive — disclose the portion, never add on top.
-  summary.push({
-    label: t('vatIncludedLabel', { pct: vatRatePercent() }),
-    value: <Price amount={vatPortionSar(booking.totalAmountSar)} locale={loc} />,
-  });
+  // Prices are VAT-inclusive — while the platform VAT toggle is on, this
+  // pre-payment step discloses the portion the settlement will stamp.
+  // Never add on top; never mention VAT while the toggle is off.
+  const { vatEnabled, vatRateBps } = await getPlatformSettings();
+  if (vatEnabled) {
+    summary.push({
+      label: t('vatIncludedLabel', { pct: vatRatePercent(vatRateBps) }),
+      value: <Price amount={vatPortionSar(booking.totalAmountSar, vatRateBps)} locale={loc} />,
+    });
+  }
 
   return (
     <article className="mx-auto w-full max-w-2xl px-6 py-16">

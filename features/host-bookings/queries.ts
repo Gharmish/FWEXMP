@@ -57,8 +57,13 @@ function toRow(row: {
   guestName: string;
   guestPhone: string | null;
 }): HostBookingRow {
-  // Snapshot on the booking — matches earnings/payouts to the riyal.
-  const { payoutSar } = splitCommission(row.booking.totalAmount, row.booking.commissionBps);
+  // Snapshots on the booking — matches earnings/payouts to the riyal
+  // (commission on the ex-VAT net once a VAT rate is stamped).
+  const { payoutSar } = splitCommission(
+    row.booking.totalAmount,
+    row.booking.commissionBps,
+    row.booking.vatRateBps,
+  );
   const contactVisible = CONTACT_VISIBLE_STATUSES.includes(row.booking.status);
   return {
     id: row.booking.id,

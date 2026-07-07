@@ -37,6 +37,7 @@ import {
 } from '@/features/host-experiences/photo-actions';
 import { uploadExperienceHero } from '@/features/host-experiences/photo-actions';
 import { formatDate } from '@/lib/format';
+import { getPlatformSettings } from '@/lib/platform-settings';
 
 export async function generateMetadata({
   params,
@@ -87,6 +88,12 @@ export default async function EditExperiencePage({
 
   const experience = await getMyExperienceById(id);
   if (!experience) notFound();
+
+  // Prospective per-guest payout preview: unlike settled bookings (which
+  // read their own snapshot), this reflects what a NEW booking would pay
+  // out under today's live VAT setting.
+  const settings = await getPlatformSettings();
+  const prospectiveVatRateBps = settings.vatEnabled ? settings.vatRateBps : null;
 
   const hostSuspended = dashboard.host.verificationStatus === 'suspended';
 
@@ -260,7 +267,13 @@ export default async function EditExperiencePage({
               <dt className="text-sarat-black-600 text-sm">{t('commission.perGuestLabel')}</dt>
               <dd className="text-2xl font-medium tabular-nums">
                 <Price
-                  amount={splitCommission(experience.priceSar, experience.commissionBps).payoutSar}
+                  amount={
+                    splitCommission(
+                      experience.priceSar,
+                      experience.commissionBps,
+                      prospectiveVatRateBps,
+                    ).payoutSar
+                  }
                   locale={loc}
                 />
               </dd>

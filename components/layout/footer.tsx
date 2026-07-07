@@ -3,6 +3,7 @@ import { Link } from '@/lib/i18n';
 import type { Locale } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
 import { SUPPORT_EMAIL } from '@/lib/site';
+import { getPlatformSettings } from '@/lib/platform-settings';
 import { Wordmark } from '@/components/layout/wordmark';
 import { Stagger, StaggerItem } from '@/components/ui/motion';
 
@@ -15,6 +16,13 @@ export async function Footer() {
   const locale = (await getLocale()) as Locale;
   const t = await getTranslations('footer');
   const year = new Date().getFullYear();
+  // The VAT registration number appears only once the platform actually
+  // collects VAT — advertising one unregistered is a ZATCA violation.
+  const { vatEnabled, vatRegistrationNumber } = await getPlatformSettings();
+  const registrationLine =
+    vatEnabled && vatRegistrationNumber
+      ? t('crVatLine', { vat: vatRegistrationNumber })
+      : t('crLine');
   const brand = locale === 'ar' ? 'غارميش' : 'Gharmish';
 
   const exploreLinks: Array<{ href: string; label: string }> = [
@@ -110,7 +118,7 @@ export async function Footer() {
               © {year} {brand}. {t('rights')}
             </span>
             <span>{t('region')}</span>
-            <span>{t('crLine')}</span>
+            <span>{registrationLine}</span>
           </div>
         </div>
       </div>

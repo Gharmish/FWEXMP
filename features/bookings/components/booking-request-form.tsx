@@ -58,8 +58,11 @@ interface BookingRequestCopy {
   datePlaceholder: string;
   /** Total row label. */
   total: string;
-  /** "Includes VAT (15%)" disclosure label — prices are VAT-inclusive. */
-  vatIncluded: string;
+  /**
+   * "Includes VAT (15%)" disclosure label — prices are VAT-inclusive.
+   * Null while the platform VAT toggle is off: no VAT line renders.
+   */
+  vatIncluded: string | null;
   /** Guests stepper aria-labels. */
   decrease: string;
   increase: string;
@@ -92,6 +95,11 @@ export interface BookingRequestFormProps {
   initialDate?: string;
   /** Pre-selected party size — same provenance as `initialDate`. */
   initialPartySize?: number;
+  /**
+   * Platform VAT rate in basis points, or null while VAT collection is
+   * off. Paired with `copy.vatIncluded` — both come from the server page.
+   */
+  vatRateBps?: number | null;
   copy: BookingRequestCopy;
 }
 
@@ -183,6 +191,7 @@ export function BookingRequestForm({
   scheduleNote,
   initialDate,
   initialPartySize,
+  vatRateBps,
   copy,
 }: BookingRequestFormProps) {
   const [state, formAction] = useActionState(requestBooking, initialState);
@@ -476,10 +485,12 @@ export function BookingRequestForm({
                 <Price amount={totalSar} locale={locale} />
               </Pop>
             </div>
-            <p className="text-sarat-black-600 flex items-baseline justify-between text-sm">
-              <span>{copy.vatIncluded}</span>
-              <Price amount={vatPortionSar(totalSar)} locale={locale} />
-            </p>
+            {copy.vatIncluded && vatRateBps ? (
+              <p className="text-sarat-black-600 flex items-baseline justify-between text-sm">
+                <span>{copy.vatIncluded}</span>
+                <Price amount={vatPortionSar(totalSar, vatRateBps)} locale={locale} />
+              </p>
+            ) : null}
           </div>
 
           {/* 4 — Your details. */}

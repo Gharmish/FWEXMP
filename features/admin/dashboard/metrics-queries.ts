@@ -77,8 +77,23 @@ function sumAmt(cond: SQL, w: Window): SQL<number> {
   return sql<number>`coalesce(sum(${bookings.totalAmount}) filter (where (${cond}) and ${created(w)}), 0)::int`;
 }
 
+/**
+ * VAT portion contained in revenue bookings, from the per-booking rate
+ * snapshot stamped at settlement (`total × rate / (10000 + rate)` — prices
+ * are VAT-inclusive). Bookings settled while the platform VAT toggle was
+ * off carry a NULL rate and contribute 0, so the KPI is truthfully zero
+ * until ZATCA registration day and only counts post-registration money.
+ */
+function vatSum(w: Window): SQL<number> {
+  return sql<number>`coalesce(round(sum(${bookings.totalAmount} * ${bookings.vatRateBps} / (10000.0 + ${bookings.vatRateBps})) filter (where ${REVENUE} and ${bookings.vatRateBps} is not null and ${created(w)})), 0)::int`;
+}
+
 function netRevenue(w: Window): SQL<number> {
-  return sql<number>`coalesce(round(sum(${bookings.totalAmount} * ${bookings.commissionBps} / 10000.0) filter (where ${REVENUE} and ${created(w)})), 0)::int`;
+  // Commission on the ex-VAT base (owner decision 2026-07-07): the VAT
+  // portion belongs to ZATCA and is never platform revenue. NULL-rate
+  // bookings (pre-registration) contribute their full total as the base.
+  const netBase = sql`(${bookings.totalAmount} - coalesce(round(${bookings.totalAmount} * ${bookings.vatRateBps}::numeric / (10000 + ${bookings.vatRateBps})), 0))`;
+  return sql<number>`coalesce(round(sum(${netBase} * ${bookings.commissionBps} / 10000.0) filter (where ${REVENUE} and ${created(w)})), 0)::int`;
 }
 
 function avgPartyX100(w: Window): SQL<number> {
@@ -180,6 +195,8 @@ async function runDashboardMetrics(range: DateRange): Promise<DashboardMetrics> 
           avgRespPrev: avgRespX10(prev),
           refundedSarCur: refundedSum(cur),
           refundedSarPrev: refundedSum(prev),
+          vatSarCur: vatSum(cur),
+          vatSarPrev: vatSum(prev),
           refundedCntCur: refundedCnt(cur),
           instantCur: instantCount(cur),
           instantPrev: instantCount(prev),
@@ -366,7 +383,7 @@ async function runDashboardMetrics(range: DateRange): Promise<DashboardMetrics> 
 
     hostPayoutsSar: delta(n('payouts_cur'), n('payouts_prev')),
     refundedSar: delta(s.refundedSarCur, s.refundedSarPrev),
-    vatSar: delta(Math.round((s.gmvCur * 15) / 115), Math.round((s.gmvPrev * 15) / 115)),
+    vatSar: delta(s.vatSarCur, s.vatSarPrev),
     paymentSuccessRate: delta(
       pct(n('pe_ok_cur'), n('pe_ok_cur') + n('pe_fail_cur')),
       pct(n('pe_ok_prev'), n('pe_ok_prev') + n('pe_fail_prev')),

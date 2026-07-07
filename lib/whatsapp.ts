@@ -6,6 +6,14 @@
  * `wa.me` wants the number digits-only (no `+`, spaces, or zeros
  * prefix); we accept canonical E.164 and strip the `+`.
  */
+/**
+ * Recipient-less share link — opens WhatsApp's chat picker with the text
+ * prefilled (e.g. sharing an invoice link with yourself or your group).
+ */
+export function whatsappShareLink(text: string): string {
+  return `https://wa.me/?text=${encodeURIComponent(text)}`;
+}
+
 export function whatsappLink(phoneE164: string, text?: string): string | null {
   const digits = phoneE164.replace(/[^\d]/g, '');
   // E.164 is 8–15 digits; anything else isn't a dialable number.

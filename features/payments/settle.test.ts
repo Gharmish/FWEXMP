@@ -31,6 +31,8 @@ interface MockBooking {
   paymentStatus: string;
   status: string;
   totalAmount: number;
+  experience: { titleEn: string; titleAr: string };
+  guest: { name: string };
 }
 let booking: MockBooking | undefined;
 const setCalls: Array<Record<string, unknown>> = [];
@@ -82,6 +84,17 @@ vi.mock('@/features/bookings/lib/booking-email', () => ({
   sendHostPaymentReceivedEmail: () => sendHostPaymentReceivedEmail(),
 }));
 
+// The VAT tax point reads settings STRICTLY: a read failure must abort
+// the settle (fail-loud) instead of silently deciding "no VAT".
+let settings: { vatEnabled: boolean; vatRateBps: number; vatRegistrationNumber: string | null };
+let settingsReadFails = false;
+vi.mock('@/lib/platform-settings', () => ({
+  getPlatformSettingsStrict: async () => {
+    if (settingsReadFails) throw new Error('settings read failed');
+    return settings;
+  },
+}));
+
 import { settleBooking } from './settle';
 
 beforeEach(() => {
@@ -95,7 +108,11 @@ beforeEach(() => {
     paymentStatus: 'processing',
     status: 'confirmed',
     totalAmount: 480,
+    experience: { titleEn: 'Dawn walk', titleAr: 'مشي الفجر' },
+    guest: { name: 'Aziz' },
   };
+  settings = { vatEnabled: false, vatRateBps: 1500, vatRegistrationNumber: null };
+  settingsReadFails = false;
   gatewayStatus = {
     id: 'pay-1',
     result: { code: '000.000.000' },
@@ -114,10 +131,39 @@ describe('settleBooking', () => {
       paymentStatus: 'paid',
       paymentReference: 'pay-1',
       paymentBrand: 'MADA',
+      // VAT off → no snapshot; invoice-immutability snapshots always stamp.
+      vatRateBps: null,
+      vatRegistrationNumber: null,
+      invoiceItemEn: 'Dawn walk',
+      invoiceItemAr: 'مشي الفجر',
+      billedName: 'Aziz',
     });
     expect(ledgerEvents.map((e) => e.type)).toEqual(['settle_succeeded']);
     expect(sendHostPaymentReceivedEmail).toHaveBeenCalledTimes(1);
     expect(executeRefund).not.toHaveBeenCalled();
+  });
+
+  it('stamps the VAT snapshot at the tax point when VAT is on', async () => {
+    settings = { vatEnabled: true, vatRateBps: 1500, vatRegistrationNumber: '310000000000003' };
+
+    const outcome = await settleBooking('ref-1');
+
+    expect(outcome).toBe('success');
+    expect(setCalls[0]).toMatchObject({
+      paymentStatus: 'paid',
+      vatRateBps: 1500,
+      vatRegistrationNumber: '310000000000003',
+    });
+  });
+
+  it('fails loud when the settings read fails: booking stays processing for a retry', async () => {
+    settingsReadFails = true;
+
+    const outcome = await settleBooking('ref-1');
+
+    expect(outcome).toBe('error');
+    expect(setCalls).toHaveLength(0);
+    expect(sendHostPaymentReceivedEmail).not.toHaveBeenCalled();
   });
 
   it('is idempotent: an already-paid booking returns already_settled with no side effects', async () => {

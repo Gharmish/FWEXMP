@@ -6,8 +6,10 @@ import { Check } from 'lucide-react';
 import type { Locale } from '@/lib/i18n';
 import type { Category } from '@/lib/colors';
 import { Button } from '@/components/ui/button';
+import { ConfirmSubmit } from '@/components/ui/confirm-dialog';
 import { Input } from '@/components/ui/input';
 import { Pill } from '@/components/ui/pill';
+import { cn } from '@/lib/utils';
 import { updateSettings, type UpdateSettingsState } from '@/features/admin/settings/actions';
 
 export interface AdminSettingsFormCopy {
@@ -29,6 +31,16 @@ export interface AdminSettingsFormCopy {
   categoriesLabel: string;
   categoriesHint: string;
   categories: readonly { value: Category; label: string }[];
+  vatLabel: string;
+  vatHint: string;
+  vatToggleLabel: string;
+  vatRateLabel: string;
+  vatRateSuffix: string;
+  vatNumberLabel: string;
+  vatNumberHint: string;
+  vatConfirmTitle: string;
+  vatConfirmDescription: string;
+  vatConfirmAction: string;
   save: string;
   saving: string;
   success: string;
@@ -47,6 +59,9 @@ export interface AdminSettingsFormProps {
   defaultAnnouncementEn: string;
   defaultAnnouncementAr: string;
   defaultEnabled: readonly Category[];
+  defaultVatEnabled: boolean;
+  defaultVatRatePct: number;
+  defaultVatRegistrationNumber: string;
   copy: AdminSettingsFormCopy;
 }
 
@@ -70,10 +85,14 @@ export function AdminSettingsForm({
   defaultAnnouncementEn,
   defaultAnnouncementAr,
   defaultEnabled,
+  defaultVatEnabled,
+  defaultVatRatePct,
+  defaultVatRegistrationNumber,
   copy,
 }: AdminSettingsFormProps) {
   const [state, formAction] = useActionState(updateSettings, initialState);
   const [enabled, setEnabled] = useState<ReadonlySet<Category>>(new Set(defaultEnabled));
+  const [vatOn, setVatOn] = useState(defaultVatEnabled);
 
   const fields = state.success ? {} : (state.fields ?? {});
   const errorPrefix = useId();
@@ -249,6 +268,74 @@ export function AdminSettingsForm({
         {fieldError('announcementAr')}
       </fieldset>
 
+      {/* Tax (VAT) */}
+      <fieldset className="flex flex-col gap-3">
+        <legend className={labelClass}>{copy.vatLabel}</legend>
+        <p className={hintClass}>{copy.vatHint}</p>
+        <label className="flex min-h-11 w-fit cursor-pointer items-center gap-3">
+          <input
+            type="checkbox"
+            name="vatEnabled"
+            checked={vatOn}
+            onChange={(e) => setVatOn(e.target.checked)}
+            className="peer sr-only"
+          />
+          <span
+            aria-hidden
+            className={cn(
+              'relative h-6 w-11 shrink-0 rounded-full transition-colors duration-200',
+              'after:absolute after:start-0.5 after:top-0.5 after:size-5 after:rounded-full after:bg-white after:transition-transform after:duration-200',
+              'peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2',
+              vatOn
+                ? 'bg-juniper-green after:translate-x-5 rtl:after:-translate-x-5'
+                : 'bg-sarat-black/15',
+            )}
+          />
+          <span className="text-sm font-medium">{copy.vatToggleLabel}</span>
+        </label>
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:gap-6">
+          <label className="flex flex-col gap-1 text-sm font-medium">
+            {copy.vatRateLabel}
+            <div className="flex items-center gap-2">
+              <Input
+                name="vatRatePct"
+                type="number"
+                inputMode="decimal"
+                min={1}
+                max={50}
+                step={0.5}
+                dir="ltr"
+                defaultValue={defaultVatRatePct}
+                className="w-32"
+                aria-invalid={fields.vatRatePct ? 'true' : undefined}
+                aria-describedby={fields.vatRatePct ? eid('vatRatePct') : undefined}
+              />
+              <span className="text-sarat-black-600 text-base font-normal">
+                {copy.vatRateSuffix}
+              </span>
+            </div>
+          </label>
+          <label className="flex grow flex-col gap-1 text-sm font-medium">
+            {copy.vatNumberLabel}
+            <Input
+              name="vatRegistrationNumber"
+              inputMode="numeric"
+              maxLength={15}
+              dir="ltr"
+              placeholder="3XXXXXXXXXXXXX3"
+              defaultValue={defaultVatRegistrationNumber}
+              aria-invalid={fields.vatRegistrationNumber ? 'true' : undefined}
+              aria-describedby={
+                fields.vatRegistrationNumber ? eid('vatRegistrationNumber') : undefined
+              }
+            />
+            <span className={cn(hintClass, 'font-normal')}>{copy.vatNumberHint}</span>
+          </label>
+        </div>
+        {fieldError('vatRatePct')}
+        {fieldError('vatRegistrationNumber')}
+      </fieldset>
+
       {/* Enabled categories */}
       <fieldset className="flex flex-col gap-3">
         <legend className={labelClass}>{copy.categoriesLabel}</legend>
@@ -283,7 +370,22 @@ export function AdminSettingsForm({
       )}
 
       <div>
-        <SubmitButton label={copy.save} pending={copy.saving} />
+        {vatOn && !defaultVatEnabled ? (
+          // Newly enabling VAT is a legal-posture change — confirm before
+          // the (otherwise identical) save submits.
+          <ConfirmSubmit
+            title={copy.vatConfirmTitle}
+            description={copy.vatConfirmDescription}
+            confirmLabel={copy.vatConfirmAction}
+            variant="primary"
+            size="lg"
+            pendingLabel={copy.saving}
+          >
+            {copy.save}
+          </ConfirmSubmit>
+        ) : (
+          <SubmitButton label={copy.save} pending={copy.saving} />
+        )}
       </div>
     </form>
   );

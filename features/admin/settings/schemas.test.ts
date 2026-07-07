@@ -21,6 +21,8 @@ describe('updateSettingsSchema', () => {
     cancellationWindowHours: '48',
     approvalWindowHours: '24',
     approvalPaymentWindowHours: '24',
+    vatEnabled: false,
+    vatRatePct: '15',
     locale: 'en',
   };
 
@@ -69,5 +71,38 @@ describe('updateSettingsSchema', () => {
   it('rejects an unknown category', () => {
     const parsed = updateSettingsSchema.safeParse({ ...base, enabledCategories: ['rockets'] });
     expect(parsed.success).toBe(false);
+  });
+
+  it('allows VAT off without a registration number (pre-registration default)', () => {
+    expect(updateSettingsSchema.safeParse(base).success).toBe(true);
+    expect(updateSettingsSchema.safeParse({ ...base, vatRegistrationNumber: '' }).success).toBe(
+      true,
+    );
+  });
+
+  it('requires a valid ZATCA number to enable VAT', () => {
+    // Enabling without a number, or with a malformed one, is refused —
+    // a tax invoice without a registration number is a ZATCA violation.
+    expect(updateSettingsSchema.safeParse({ ...base, vatEnabled: true }).success).toBe(false);
+    expect(
+      updateSettingsSchema.safeParse({
+        ...base,
+        vatEnabled: true,
+        vatRegistrationNumber: '123456789012345',
+      }).success,
+    ).toBe(false);
+    expect(
+      updateSettingsSchema.safeParse({
+        ...base,
+        vatEnabled: true,
+        vatRegistrationNumber: '310000000000003',
+      }).success,
+    ).toBe(true);
+  });
+
+  it('rejects a malformed number even while VAT is off (bad data never persists)', () => {
+    expect(
+      updateSettingsSchema.safeParse({ ...base, vatRegistrationNumber: '3abc3' }).success,
+    ).toBe(false);
   });
 });

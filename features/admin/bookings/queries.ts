@@ -42,7 +42,11 @@ export async function listBookingsForAdmin(): Promise<readonly AdminBookingRow[]
     return rows.map<AdminBookingRow>((row) => {
       // Snapshot on the booking — a later commission edit never restates
       // what this booking owes the host.
-      const { commissionSar, payoutSar } = splitCommission(row.totalAmount, row.commissionBps);
+      const { commissionSar, payoutSar } = splitCommission(
+        row.totalAmount,
+        row.commissionBps,
+        row.vatRateBps,
+      );
       return {
         id: row.id,
         reference: row.idempotencyKey,
@@ -98,7 +102,11 @@ export async function listBookingsForExport(): Promise<readonly AdminBookingExpo
       orderBy: (b) => desc(b.createdAt),
     });
     return rows.map<AdminBookingExportRow>((row) => {
-      const { commissionSar, payoutSar } = splitCommission(row.totalAmount, row.commissionBps);
+      const { commissionSar, payoutSar } = splitCommission(
+        row.totalAmount,
+        row.commissionBps,
+        row.vatRateBps,
+      );
       return {
         id: row.id,
         reference: row.idempotencyKey,
@@ -146,7 +154,11 @@ export async function getAdminBookingById(id: string): Promise<AdminBookingRow |
       },
     });
     if (!row) return undefined;
-    const { commissionSar, payoutSar } = splitCommission(row.totalAmount, row.commissionBps);
+    const { commissionSar, payoutSar } = splitCommission(
+      row.totalAmount,
+      row.commissionBps,
+      row.vatRateBps,
+    );
     return {
       id: row.id,
       reference: row.idempotencyKey,

@@ -273,11 +273,18 @@ export default async function BookingConfirmedPage({ params, searchParams }: Pag
       label: paymentView === 'paid' ? t('totalPaidLabel') : t('totalLabel'),
       value: <Price amount={booking.totalAmountSar} locale={loc} />,
     });
-    // Prices are VAT-inclusive — the receipt discloses the portion.
-    detailRows.push({
-      label: t('vatIncludedLabel', { pct: vatRatePercent() }),
-      value: <Price amount={vatPortionSar(booking.totalAmountSar)} locale={loc} />,
-    });
+    // Prices are VAT-inclusive. The VAT line renders ONLY from the
+    // per-booking snapshot stamped at settlement — a paid booking from
+    // before the platform registered for VAT stays VAT-silent forever,
+    // and unpaid bookings disclose nothing until the money moves.
+    if (booking.vatRateBps) {
+      detailRows.push({
+        label: t('vatIncludedLabel', { pct: vatRatePercent(booking.vatRateBps) }),
+        value: (
+          <Price amount={vatPortionSar(booking.totalAmountSar, booking.vatRateBps)} locale={loc} />
+        ),
+      });
+    }
     // Once settled, show it as a receipt line — "Paid · mada" — so the page
     // reads as proof of payment, not just a request acknowledgement.
     if (paymentView === 'paid') {
@@ -446,8 +453,21 @@ export default async function BookingConfirmedPage({ params, searchParams }: Pag
           !isHoldLapsed &&
           !isPending &&
           (booking.paymentStatus === 'paid' || booking.paymentDeadline === null) && (
-            <div className="mt-2">
+            <div className="mt-2 flex flex-wrap items-center gap-3">
               <PrintButton label={t('printTicket')} />
+              {/* The keepable payment document (receipt / tax invoice) —
+                  only exists once money actually moved. */}
+              {booking.paidAt && (
+                <Link
+                  href={`/book/confirmed/${ref}/invoice`}
+                  className={cn(
+                    buttonVariants({ variant: 'secondary', size: 'md' }),
+                    'print:hidden',
+                  )}
+                >
+                  {t('viewInvoice')}
+                </Link>
+              )}
             </div>
           )}
       </section>

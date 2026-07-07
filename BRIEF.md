@@ -530,10 +530,37 @@ End user. Has:
   forfeited. Refunds go through the HyperPay refund API first; if the
   gateway refuses, the booking is stamped `refund_due_sar` and the
   admin reverses manually, then records it via the admin refund action.
-- **VAT**: listed prices are **VAT-inclusive** (15% KSA VAT). Checkout,
-  confirmation, and receipt emails disclose the contained portion as
-  "Includes VAT (15%)" — `total × 15/115` — and VAT is never added on
-  top of a listed price.
+- **VAT** (updated 2026-07-07 — supersedes the always-disclose rule):
+  Gharmish is below the ZATCA mandatory registration threshold
+  (375,000 SAR taxable turnover / 12 months) and is NOT VAT-registered,
+  so **no surface mentions VAT while `platform_settings.vat_enabled` is
+  off** (default). On registration day the owner turns the toggle on in
+  `/admin/settings` (requires the 15-digit ZATCA registration number).
+  From that moment each payment settlement stamps the rate + number on
+  the booking (`bookings.vat_rate_bps` / `vat_registration_number`);
+  receipts render exclusively from that snapshot, so history is never
+  restated. Listed prices stay **VAT-inclusive** — when enabled the
+  portion is disclosed as "Includes VAT (15%)" (`total × rate/(10000+rate)`),
+  never added on top, so guest prices don't change at the flip. The
+  guest's document at `/book/confirmed/[ref]/invoice` is a plain
+  "Receipt" pre-registration and a ZATCA Phase-1 **simplified tax
+  invoice** (VAT number + TLV QR code) post-registration; Phase-2
+  (Fatoora integration) is a later revenue wave.
+  **Money split (owner decision 2026-07-07, principal model)**: Gharmish
+  is merchant of record. Once a booking carries a VAT snapshot,
+  commission is calculated on the **ex-VAT net** and the host is paid
+  from the net (`vat + commission + payout = total`, mirrored in
+  `splitCommission` and `payoutExpr` — change both). Pre-registration
+  bookings keep the original gross formula forever. Refunded tax
+  invoices are reversed by a **credit note** (`CN-<ref>`, own QR) on the
+  invoice page — refunds are always full-amount. `/admin/vat` is the
+  filing surface (tax-point basis, CSV export, rolling-12-month
+  threshold monitor); the cron alerts at 90% of the 375K mandatory
+  threshold and flags any paid booking missing its VAT stamp. Hosts get
+  a printable **payout statement** per transfer at
+  `/host/earnings/statements/[payoutId]` (payment advice, not a tax
+  invoice). Invoices are immutable via settlement snapshots
+  (`invoice_item_en/ar`, `billed_name`).
 
 ---
 

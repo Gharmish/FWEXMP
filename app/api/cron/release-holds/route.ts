@@ -14,6 +14,10 @@ import {
 } from '@/features/bookings/lib/booking-email';
 import { addDays } from '@/features/bookings/lib/availability';
 import { paymentCollected } from '@/features/bookings/lib/payout-sql';
+import {
+  VAT_MANDATORY_THRESHOLD_SAR,
+  VAT_THRESHOLD_ALERT_RATIO,
+} from '@/features/admin/vat/thresholds';
 
 /** Cap reconciliation work per run so a backlog can't blow the function budget. */
 const RECONCILE_LIMIT = 100;
@@ -206,6 +210,71 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         ),
       )
       .returning({ id: bookings.id });
+
+    // Pass 5 — VAT accounting guards (daily, best-effort; failures are
+    // logged but never block the operational passes above).
+    try {
+      const [settings] = await db
+        .select({
+          vatEnabled: platformSettings.vatEnabled,
+          vatRegistrationNumber: platformSettings.vatRegistrationNumber,
+          vatThresholdAlertedAt: platformSettings.vatThresholdAlertedAt,
+        })
+        .from(platformSettings)
+        .where(eq(platformSettings.id, 'platform'))
+        .limit(1);
+
+      // 5a — stamp integrity: while VAT is on, every payment settled in
+      // the last 48h must carry a rate snapshot. A miss means output tax
+      // is being under-declared — the team must reconcile before filing.
+      if (settings?.vatEnabled && settings.vatRegistrationNumber) {
+        const [unstamped] = await db
+          .select({ count: sql<number>`count(*)::int` })
+          .from(bookings)
+          .where(
+            and(
+              eq(bookings.paymentStatus, 'paid'),
+              isNull(bookings.vatRateBps),
+              sql`${bookings.paidAt} >= now() - interval '48 hours'`,
+            ),
+          );
+        if (unstamped && unstamped.count > 0) {
+          await notifyAdmin('vat_stamp_missing', {
+            count: unstamped.count,
+            window: 'last 48 hours',
+            action: 'stamp these bookings before the next VAT filing (/admin/vat)',
+          });
+        }
+      }
+
+      // 5b — registration-threshold watch: rolling-12-month paid sales
+      // (net of refunds) vs the ZATCA mandatory line. Alerts at 90% so
+      // registration can be arranged ahead of the legal deadline;
+      // de-duped to once per 30 days via the stamp column.
+      const [turnover] = await db
+        .select({
+          netSar: sql<number>`coalesce(sum(${bookings.totalAmount}) filter (where ${bookings.paidAt} >= now() - interval '365 days'), 0)::int - coalesce(sum(${bookings.totalAmount}) filter (where ${bookings.status} = 'refunded' and ${bookings.paidAt} >= now() - interval '365 days'), 0)::int`,
+        })
+        .from(bookings);
+      const netSar = turnover?.netSar ?? 0;
+      const alertFloor = VAT_MANDATORY_THRESHOLD_SAR * VAT_THRESHOLD_ALERT_RATIO;
+      const lastAlert = settings?.vatThresholdAlertedAt?.getTime() ?? 0;
+      const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
+      if (netSar >= alertFloor && Date.now() - lastAlert > THIRTY_DAYS_MS) {
+        await notifyAdmin('vat_threshold', {
+          rolling12mNetSar: netSar,
+          mandatoryThresholdSar: VAT_MANDATORY_THRESHOLD_SAR,
+          percent: Math.round((netSar / VAT_MANDATORY_THRESHOLD_SAR) * 100),
+          action: 'arrange ZATCA VAT registration, then enable VAT in /admin/settings',
+        });
+        await db
+          .update(platformSettings)
+          .set({ vatThresholdAlertedAt: new Date() })
+          .where(eq(platformSettings.id, 'platform'));
+      }
+    } catch (error) {
+      reportError(error, { surface: 'cron-release-holds:vat-guards' });
+    }
 
     // Heartbeat — the admin dashboard flags a stale stamp, so a silently
     // dead cron (expired secret, removed schedule, plan change) is

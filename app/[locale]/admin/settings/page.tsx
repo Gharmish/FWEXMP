@@ -86,6 +86,16 @@ export default async function AdminSettingsPage({
     categoriesLabel: t('settings.categoriesLabel'),
     categoriesHint: t('settings.categoriesHint'),
     categories: EXPERIENCE_CATEGORIES.map((c) => ({ value: c, label: tCat(c) })),
+    vatLabel: t('settings.vatLabel'),
+    vatHint: t('settings.vatHint'),
+    vatToggleLabel: t('settings.vatToggleLabel'),
+    vatRateLabel: t('settings.vatRateLabel'),
+    vatRateSuffix: t('settings.vatRateSuffix'),
+    vatNumberLabel: t('settings.vatNumberLabel'),
+    vatNumberHint: t('settings.vatNumberHint'),
+    vatConfirmTitle: t('settings.vatConfirmTitle'),
+    vatConfirmDescription: t('settings.vatConfirmDescription'),
+    vatConfirmAction: t('settings.vatConfirmAction'),
     save: t('settings.save'),
     saving: t('settings.saving'),
     success: t('settings.success'),
@@ -117,6 +127,9 @@ export default async function AdminSettingsPage({
         defaultAnnouncementEn={settings.announcementEn ?? ''}
         defaultAnnouncementAr={settings.announcementAr ?? ''}
         defaultEnabled={settings.enabledCategories}
+        defaultVatEnabled={settings.vatEnabled}
+        defaultVatRatePct={settings.vatRateBps / 100}
+        defaultVatRegistrationNumber={settings.vatRegistrationNumber ?? ''}
         copy={copy}
       />
     </div>

@@ -6,16 +6,31 @@ import { bookings } from '@/db/schema';
 /**
  * Shared SQL for payout math, so the host earnings page, the admin
  * payouts page, the dashboard, and the mark-paid action agree to the
- * riyal — and all of them read the commission SNAPSHOT on the booking,
- * never the experience's current (editable) rate.
+ * riyal — and all of them read the commission + VAT SNAPSHOTS on the
+ * booking, never the experience's current (editable) rate or today's
+ * platform setting.
  */
 
 /**
- * Per-booking host payout: `total - round(total * clamp(bps)/10000)`.
- * Identical math to the unit-tested `splitCommission`.
+ * VAT portion contained in the inclusive total, from the per-booking
+ * snapshot: `round(total × rate / (10000 + rate))`, 0 when the booking
+ * settled without VAT (null rate). Identical math to `vatPortionSar`.
+ */
+export function vatPortionExpr(): SQL<number> {
+  return sql<number>`coalesce(round(${bookings.totalAmount} * ${bookings.vatRateBps}::numeric / (10000 + ${bookings.vatRateBps})), 0)::int`;
+}
+
+/**
+ * Per-booking host payout. VAT era (principal model, owner decision
+ * 2026-07-07): commission applies to the ex-VAT net, and the host is
+ * paid from the net — `net - round(net * clamp(bps)/10000)` where
+ * `net = total - vatPortion`. Bookings without a VAT snapshot reduce to
+ * the original `total - round(total * clamp(bps)/10000)`.
+ * Identical math to the unit-tested `splitCommission` — change BOTH.
  */
 export function payoutExpr(): SQL<number> {
-  return sql<number>`(${bookings.totalAmount} - round(${bookings.totalAmount} * least(10000, greatest(0, ${bookings.commissionBps}))::numeric / 10000))::int`;
+  const net = sql`(${bookings.totalAmount} - ${vatPortionExpr()})`;
+  return sql<number>`(${net} - round(${net} * least(10000, greatest(0, ${bookings.commissionBps}))::numeric / 10000))::int`;
 }
 
 /**

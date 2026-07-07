@@ -71,10 +71,15 @@ export async function sendBookingReceiptEmail(reference: string, locale: Locale)
   rows.push({ label: t('timeLabel'), value: formatTime(startsAt, locale, KSA_TIME) });
   rows.push({ label: t('partyLabel'), value: formatInteger(booking.partySize, locale) });
   rows.push({ label: t('totalLabel'), value: formatSAR(booking.totalAmountSar, locale) });
-  rows.push({
-    label: t('vatIncludedLabel', { pct: vatRatePercent() }),
-    value: formatSAR(vatPortionSar(booking.totalAmountSar), locale),
-  });
+  // VAT renders ONLY from the per-booking snapshot stamped at settlement —
+  // a receipt from before the platform's ZATCA registration never
+  // mentions VAT, no matter what the toggle says today.
+  if (booking.vatRateBps) {
+    rows.push({
+      label: t('vatIncludedLabel', { pct: vatRatePercent(booking.vatRateBps) }),
+      value: formatSAR(vatPortionSar(booking.totalAmountSar, booking.vatRateBps), locale),
+    });
+  }
   rows.push({ label: t('referenceLabel'), value: booking.referenceCode });
 
   const { html, text } = renderReceiptEmail({
@@ -84,6 +89,10 @@ export async function sendBookingReceiptEmail(reference: string, locale: Locale)
     greeting: t('greeting', { name: booking.guestName }),
     intro: t('intro'),
     rows,
+    cta: {
+      label: t('viewInvoice'),
+      url: `${SITE_URL}/${locale}/book/confirmed/${reference}/invoice`,
+    },
     closing: t('closing'),
     footer: t('footer'),
   });
@@ -139,6 +148,11 @@ export async function sendBookingCancellationEmail(
           ? t('cancelIntroForfeited')
           : t(byOperator ? 'cancelByHostIntroUnpaid' : 'cancelIntroUnpaid');
 
+  // Refunded (or refund-owed) payments get a link to the invoice page,
+  // which carries the credit note for VAT-stamped bookings and the
+  // refunded receipt otherwise. Forfeited/unpaid cancellations have no
+  // money document to show.
+  const showDocument = refund === 'refunded' || refund === 'refund_pending';
   const { html, text } = renderReceiptEmail({
     logoUrl: EMAIL_LOGO_URL,
     subject: t('cancelSubject'),
@@ -146,6 +160,12 @@ export async function sendBookingCancellationEmail(
     greeting: t('greeting', { name: booking.guestName }),
     intro,
     rows,
+    cta: showDocument
+      ? {
+          label: booking.vatRateBps ? t('viewCreditNote') : t('viewReceipt'),
+          url: `${SITE_URL}/${locale}/book/confirmed/${reference}/invoice`,
+        }
+      : undefined,
     closing: t('cancelClosing'),
     footer: t('footer'),
   });
@@ -439,8 +459,13 @@ export async function sendHostNewBookingEmail(reference: string): Promise<void> 
   if (!host) return;
 
   const t = await getTranslations({ locale: host.locale, namespace: 'bookingEmail' });
-  // Snapshot on the booking — matches earnings/payouts to the riyal.
-  const { payoutSar } = splitCommission(booking.totalAmountSar, booking.commissionBps);
+  // Snapshots on the booking — matches earnings/payouts to the riyal
+  // (commission on the ex-VAT net once a VAT rate is stamped).
+  const { payoutSar } = splitCommission(
+    booking.totalAmountSar,
+    booking.commissionBps,
+    booking.vatRateBps,
+  );
 
   const rows = hostRows(booking, host, t);
   rows.push({ label: t('hostNewPayoutLabel'), value: formatSAR(payoutSar, host.locale) });
@@ -534,8 +559,13 @@ export async function sendHostPaymentReceivedEmail(reference: string): Promise<v
   if (!host) return;
 
   const t = await getTranslations({ locale: host.locale, namespace: 'bookingEmail' });
-  // Snapshot on the booking — matches earnings/payouts to the riyal.
-  const { payoutSar } = splitCommission(booking.totalAmountSar, booking.commissionBps);
+  // Snapshots on the booking — matches earnings/payouts to the riyal
+  // (commission on the ex-VAT net once a VAT rate is stamped).
+  const { payoutSar } = splitCommission(
+    booking.totalAmountSar,
+    booking.commissionBps,
+    booking.vatRateBps,
+  );
 
   const rows = hostRows(booking, host, t);
   rows.push({ label: t('hostNewPayoutLabel'), value: formatSAR(payoutSar, host.locale) });

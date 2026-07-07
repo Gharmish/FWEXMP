@@ -281,6 +281,10 @@
       "disputes": {
         "title": "Disputes",
         "description": "Guest-reported problems, open first."
+      },
+      "vat": {
+        "title": "VAT",
+        "description": "Output VAT, credit notes, and net VAT due per period on the tax-point basis — plus the ZATCA registration-threshold monitor. This is the page a VAT return is prepared from."
       }
     },
     "settings": {
@@ -310,7 +314,49 @@
       "approvalHint": "How long a host has to accept or decline a booking request before it expires automatically.",
       "approvalPaymentLabel": "Payment window after approval",
       "approvalPaymentHint": "How long a guest has to complete payment after their request is accepted, before the held spot is released.",
-      "hoursSuffix": "hours"
+      "hoursSuffix": "hours",
+      "vatLabel": "Tax (VAT)",
+      "vatHint": "Keep this off until Gharmish is VAT-registered with ZATCA (registration becomes mandatory at 375,000 SAR revenue over 12 months). While off, no VAT is mentioned anywhere. Turning it on never changes guest prices — the rate is disclosed as a portion of the same VAT-inclusive total on payments settled from that moment.",
+      "vatToggleLabel": "Collect VAT on new payments",
+      "vatRateLabel": "VAT rate",
+      "vatRateSuffix": "%",
+      "vatNumberLabel": "VAT registration number",
+      "vatNumberHint": "The 15 digits on your ZATCA certificate, starting and ending with 3. Required to turn VAT on; printed on every tax invoice.",
+      "vatConfirmTitle": "Turn on VAT?",
+      "vatConfirmDescription": "From this moment every newly settled payment is stamped with the VAT rate, and its receipt becomes a simplified tax invoice carrying your registration number and a ZATCA QR code. Guest prices do not change, and earlier bookings are not restated. Confirm only if your ZATCA registration is active.",
+      "vatConfirmAction": "Turn on VAT and save"
+    },
+    "vat": {
+      "title": "VAT & filing.",
+      "unavailable": "VAT data is unavailable — check the database connection and try again.",
+      "disabledNote": "VAT collection is currently off (pre-registration). All figures below read from per-booking settlement snapshots, so they will be zero until the toggle is turned on in Settings.",
+      "unstampedWarning": "{count, plural, one {# payment settled without a VAT stamp while VAT is on} other {# payments settled without a VAT stamp while VAT is on}} — investigate before filing. Each should have been stamped at settlement.",
+      "periodHeading": "Period: {from} – {to}",
+      "periodCounts": "{sales, plural, one {# taxable sale} other {# taxable sales}} · {credits, plural, one {# credit note} other {# credit notes}}",
+      "taxPointNote": "All figures use the tax point (payment settlement date), not the booking date. Credit notes reduce the period they were issued in.",
+      "outputVat": "Output VAT",
+      "taxable": "Taxable amount",
+      "creditNotes": "Credit-note reversals",
+      "netDue": "Net VAT due",
+      "threshold": {
+        "heading": "Registration threshold monitor",
+        "intro": "ZATCA registration is voluntary at SAR {voluntary} and mandatory at SAR {mandatory} of taxable turnover over any rolling 12 months. The tick marks the voluntary line; the bar turns orange at 90% of mandatory.",
+        "grossTrack": "Rolling 12-month sales (net of refunds)",
+        "commissionTrack": "Commission-only track (for reference)"
+      },
+      "detailHeading": "Per-booking detail",
+      "downloadCsv": "Download CSV",
+      "emptyDetail": "No VAT-stamped payments in this period.",
+      "truncatedNote": "Showing the first 1,000 rows — narrow the period for a complete export.",
+      "table": {
+        "reference": "Reference",
+        "paidAt": "Paid on",
+        "gross": "Gross",
+        "taxable": "Taxable",
+        "vat": "VAT",
+        "rate": "Rate %",
+        "refunded": "Refunded"
+      }
     },
     "activityLog": {
       "eyebrow": "Activity",
@@ -1211,7 +1257,35 @@
       "paidOn": "Paid {date}",
       "export": "Download CSV",
       "gross": "Guest paid <amount></amount>",
+      "vat": "VAT (to ZATCA) <amount></amount>",
       "commission": "Gharmish commission {pct, number}% · <amount></amount>"
+    },
+    "statements": {
+      "title": "Payout statements",
+      "intro": "One statement per bank transfer — open it for the booking-by-booking breakdown, and print or save it for your records.",
+      "bookings": "{count, plural, one {# booking} other {# bookings}}",
+      "view": "View statement"
+    },
+    "statement": {
+      "title": "Payout statement",
+      "issuedTo": "Issued to {name}",
+      "dateLabel": "Transfer recorded",
+      "bookingsLabel": "Bookings",
+      "ibanLabel": "Sent to",
+      "bankRefLabel": "Bank reference",
+      "table": {
+        "booking": "Booking",
+        "date": "Date",
+        "gross": "Guest paid",
+        "vat": "VAT",
+        "commission": "Commission",
+        "payout": "Your payout"
+      },
+      "totalLabel": "Total transferred",
+      "vatNote": "VAT shown is collected from the guest and remitted by Gharmish to ZATCA — it is not part of your payout and not a charge to you.",
+      "footerNote": "This is a payment advice from Gharmish, not a tax invoice. Keep it with your records.",
+      "printAction": "Print or save as PDF",
+      "backToEarnings": "Back to earnings"
     },
     "filter": {
       "presets": {
@@ -1773,6 +1847,7 @@
       "prefill": "Hi! I have a Gharmish booking (ref {reference}) and a quick question."
     },
     "printTicket": "Print or save as PDF",
+    "viewInvoice": "View invoice",
     "dispute": {
       "summary": "Something not right? Report a problem",
       "label": "Tell us what happened",
@@ -1918,7 +1993,44 @@
     "hostHoldLapsedSubject": "A booking lapsed unpaid",
     "hostHoldLapsedIntro": "The booking below was never paid for within its payment window, so it has been released and the spots are open again. No action is needed.",
     "hostPaymentReceivedSubject": "Payment received — booking secured",
-    "hostPaymentReceivedIntro": "The guest's payment for the booking below has settled — the booking is fully secured."
+    "hostPaymentReceivedIntro": "The guest's payment for the booking below has settled — the booking is fully secured.",
+    "viewInvoice": "View your invoice",
+    "viewCreditNote": "View your credit note",
+    "viewReceipt": "View your receipt"
+  },
+  "invoice": {
+    "receiptTitle": "Receipt",
+    "taxInvoiceTitle": "Simplified tax invoice",
+    "invoiceNumberLabel": "Invoice no.",
+    "issueDateLabel": "Issued",
+    "sellerLabel": "Issued by",
+    "sellerRegion": "Abha, Asir region, Saudi Arabia",
+    "crLabel": "CR",
+    "vatNumberLabel": "VAT registration no.",
+    "billedToLabel": "Billed to",
+    "itemLabel": "Item",
+    "itemDescription": "{title} — {date}, {time}",
+    "qtyLabel": "Guests",
+    "unitPriceLabel": "Price per guest",
+    "amountLabel": "Amount",
+    "taxableLabel": "Taxable amount (excl. VAT)",
+    "vatLabel": "VAT ({pct}%)",
+    "totalInclVatLabel": "Total (incl. VAT)",
+    "totalPaidLabel": "Total paid",
+    "paymentMethodLabel": "Payment method",
+    "paidOnLabel": "Paid on",
+    "refundedStamp": "Refunded",
+    "refundedNote": "This payment was refunded in full on {date}.",
+    "creditNoteTitle": "Credit note",
+    "creditNoteAgainst": "Issued against simplified tax invoice {invoice} on {date} — this payment was refunded in full and the VAT below is reversed.",
+    "creditTotalLabel": "Total refunded",
+    "qrCaption": "ZATCA e-invoice QR — scan to verify",
+    "vatNote": "Prices are VAT-inclusive; VAT is calculated within the total, not added to it.",
+    "printAction": "Print or save as PDF",
+    "whatsappAction": "Share on WhatsApp",
+    "whatsappMessage": "Gharmish booking {reference} — invoice: {url}",
+    "backToBooking": "Back to booking",
+    "footerNote": "Keep this document for your records. Questions? {email}"
   },
   "notFound": {
     "eyebrow": "404",
@@ -1991,7 +2103,8 @@
     "legalLabel": "Legal",
     "linkTerms": "Terms of service",
     "linkPrivacy": "Privacy policy",
-    "crLine": "CR XXXXXXXXXX · VAT XXXXXXXXXXXXXXX",
+    "crLine": "CR XXXXXXXXXX",
+    "crVatLine": "CR XXXXXXXXXX · VAT {vat}",
     "paymentsLabel": "Accepted payment methods",
     "brandMada": "mada",
     "brandVisa": "Visa",
@@ -2292,7 +2405,7 @@
     },
     "bookingsPayments": {
       "heading": "Bookings and payment",
-      "body1": "All prices are in Saudi Riyals and include VAT. Instant Book experiences are confirmed as soon as your payment succeeds. Request-to-book experiences are confirmed only after the host accepts within {approvalHours} hours and you complete payment within {payHours} hours of acceptance.",
+      "body1": "All prices are in Saudi Riyals, and the price shown is the final amount you pay — inclusive of any applicable taxes, with nothing added at checkout. Instant Book experiences are confirmed as soon as your payment succeeds. Request-to-book experiences are confirmed only after the host accepts within {approvalHours} hours and you complete payment within {payHours} hours of acceptance.",
       "body2": "Payments are processed by a licensed third-party payment provider supporting mada, Visa, Mastercard, and Apple Pay. Gharmish never stores your full card details."
     },
     "cancellations": {

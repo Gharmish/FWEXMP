@@ -20,7 +20,9 @@ export type AdminAlertKind =
   | 'dispute_opened'
   | 'refund_due'
   | 'settle_anomaly'
-  | 'cron_failed';
+  | 'cron_failed'
+  | 'vat_stamp_missing'
+  | 'vat_threshold';
 
 const SUBJECTS: Record<AdminAlertKind, string> = {
   host_application_submitted: 'New host application',
@@ -28,6 +30,8 @@ const SUBJECTS: Record<AdminAlertKind, string> = {
   refund_due: 'Refund owed — manual reversal required',
   settle_anomaly: 'Payment settlement anomaly',
   cron_failed: 'Scheduled job failed',
+  vat_stamp_missing: 'VAT integrity — settled payments without a VAT stamp',
+  vat_threshold: 'VAT registration threshold approaching',
 };
 
 function escapeHtml(value: string): string {

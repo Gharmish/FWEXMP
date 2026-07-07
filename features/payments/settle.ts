@@ -4,6 +4,7 @@ import { serverEnv, hasHyperpay } from '@/lib/env';
 import { bookings } from '@/db/schema';
 import { reportError } from '@/lib/log';
 import { notifyAdmin } from '@/lib/admin-alerts';
+import { getPlatformSettingsStrict } from '@/lib/platform-settings';
 import { classifyResult, getPaymentStatus } from '@/features/payments/lib/hyperpay';
 import { recordPaymentEvent } from '@/features/payments/ledger';
 import { executeRefund } from '@/features/bookings/lib/refund';
@@ -61,6 +62,12 @@ export async function settleBooking(reference: string): Promise<SettleOutcome> {
     const booking = await db.query.bookings.findFirst({
       where: eq(bookings.idempotencyKey, reference),
       columns: { id: true, checkoutId: true, paymentStatus: true, status: true, totalAmount: true },
+      // Invoice-immutability snapshots: the issued invoice must keep the
+      // item description and buyer name as they were at payment time.
+      with: {
+        experience: { columns: { titleEn: true, titleAr: true } },
+        guest: { columns: { name: true } },
+      },
     });
 
     if (!booking || !booking.checkoutId) return 'error';
@@ -102,6 +109,16 @@ export async function settleBooking(reference: string): Promise<SettleOutcome> {
         return 'error';
       }
 
+      // VAT tax point: stamp the platform's rate + registration number on
+      // the booking at the moment it becomes paid. Null while the VAT
+      // toggle is off — receipts/invoices render exclusively from this
+      // snapshot, so flipping the toggle later never restates history.
+      // STRICT read: a DB error here throws (caught below → 'error'),
+      // leaving the booking `processing` for the webhook/cron to retry.
+      // Degrading to defaults would silently settle a registered-era
+      // payment without VAT — under-declared output tax.
+      const { vatEnabled, vatRateBps, vatRegistrationNumber } = await getPlatformSettingsStrict();
+
       const won = await db
         .update(bookings)
         .set({
@@ -109,6 +126,11 @@ export async function settleBooking(reference: string): Promise<SettleOutcome> {
           paidAt: new Date(),
           paymentReference: status.id,
           paymentBrand: status.paymentBrand ?? null,
+          vatRateBps: vatEnabled ? vatRateBps : null,
+          vatRegistrationNumber: vatEnabled ? vatRegistrationNumber : null,
+          invoiceItemEn: booking.experience.titleEn,
+          invoiceItemAr: booking.experience.titleAr,
+          billedName: booking.guest.name,
           // Settlement never advances the lifecycle status. Pay-after-
           // approval: `createCheckout` refuses anything but `confirmed`
           // bookings, so payment can't confirm a request the host never

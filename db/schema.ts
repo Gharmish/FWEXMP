@@ -422,6 +422,32 @@ export const bookings = pgTable(
     /** When payment was confirmed paid. Null until settled. */
     paidAt: timestamp({ withTimezone: true }),
     /**
+     * VAT rate in basis points, SNAPSHOTTED at payment settlement (the
+     * tax point). Null = no VAT — the payment settled while the platform
+     * was below the ZATCA registration threshold (`platform_settings.
+     * vat_enabled` off). Prices are VAT-inclusive, so the disclosed
+     * portion is `total × rate / (10000 + rate)`, never added on top.
+     * Flipping the platform toggle never restates history: receipts and
+     * tax invoices render from this column only.
+     */
+    vatRateBps: integer(),
+    /**
+     * Seller VAT registration number snapshotted together with the rate,
+     * so an issued tax invoice keeps the number it was issued under even
+     * if the platform setting later changes.
+     */
+    vatRegistrationNumber: text(),
+    /**
+     * Invoice line-item description (experience title, per locale) and
+     * buyer name, SNAPSHOTTED at payment settlement. An issued invoice is
+     * a legal document — a host renaming the experience (or a guest
+     * renaming their profile) must never rewrite it retroactively. Null
+     * on legacy rows; the invoice page falls back to live lookups there.
+     */
+    invoiceItemEn: text(),
+    invoiceItemAr: text(),
+    billedName: text(),
+    /**
      * For payment-required bookings, when the unpaid hold expires. Set only
      * when the booking is created and routed to online payment; null for
      * request-to-book and payment-off bookings (which never auto-expire). The
@@ -883,6 +909,26 @@ export const platformSettings = pgTable('platform_settings', {
    */
   announcementEn: text(),
   announcementAr: text(),
+  /**
+   * VAT collection switch. OFF until Gharmish crosses the ZATCA mandatory
+   * registration threshold (375,000 SAR taxable turnover over 12 months)
+   * and actually registers — while off, no guest surface may mention VAT
+   * (disclosing VAT unregistered is a ZATCA violation). Turning it on
+   * does NOT change customer prices: listed prices stay VAT-inclusive and
+   * the rate is carved out of the same total, stamped per booking at
+   * payment settlement.
+   */
+  vatEnabled: boolean().notNull().default(false),
+  /** VAT rate in basis points (KSA standard rate 15% = 1500). */
+  vatRateBps: integer().notNull().default(1500),
+  /** ZATCA VAT registration number (15 digits) — required to enable VAT. */
+  vatRegistrationNumber: text(),
+  /**
+   * When the cron last alerted the team that rolling-12-month turnover
+   * crossed 90% of the ZATCA mandatory-registration threshold. De-dups
+   * the alert to once per 30 days. Null = never alerted.
+   */
+  vatThresholdAlertedAt: timestamp({ withTimezone: true }),
   /** Categories currently bookable/visible. Subset of the `category` enum. */
   enabledCategories: categoryEnum()
     .array()
