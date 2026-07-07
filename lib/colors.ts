@@ -205,6 +205,7 @@ export const CATEGORY_COLOR = {
   wellness: 'wadi-mint',
   adventure: 'soudah-sunset',
   family: 'sarawat-blue',
+  women_only: 'tihama-coral',
 } as const satisfies Record<string, ColorToken>;
 
 export type Category = keyof typeof CATEGORY_COLOR;

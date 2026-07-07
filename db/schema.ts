@@ -39,6 +39,8 @@ export const categoryEnum = pgEnum('category', [
   'wellness',
   'adventure',
   'family',
+  /** Women-only experiences (owner decision 2026-07-08). */
+  'women_only',
 ]);
 
 export const hostVerificationEnum = pgEnum('host_verification', [
@@ -963,6 +965,30 @@ export const savedExperiences = pgTable(
 );
 
 /**
+ * Operating-cities registry (owner request 2026-07-08). `city` on
+ * hosts / experiences / host_applications stays a plain text column —
+ * this table is the admin-managed list of cities the marketplace
+ * operates in: which values the experience-form pickers offer, plus
+ * the bilingual display names the coverage view groups by. `enabled`
+ * gates NEW supply only; disabling a city never hides experiences
+ * that are already live there. Rows are matched to the text columns
+ * by exact `nameEn`, so the pickers are what keep the data clean.
+ */
+export const cities = pgTable('cities', {
+  id: uuid().defaultRandom().primaryKey(),
+  /** Stable identifier, e.g. `abha`, `rijal-almaa`. */
+  slug: text().notNull().unique(),
+  /** Canonical English name — the value stored on `experiences.city`. */
+  nameEn: text().notNull().unique(),
+  nameAr: text().notNull(),
+  region: text().notNull().default('Asir'),
+  /** Offered to hosts/admins for new experiences when true. */
+  enabled: boolean().notNull().default(true),
+  createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
+});
+
+/**
  * Platform-wide settings — a single row (`id = 'platform'`) holding the
  * runtime-configurable knobs an admin owns: the default commission applied
  * to newly created experiences and which categories are bookable. Kept as a
@@ -1022,7 +1048,9 @@ export const platformSettings = pgTable('platform_settings', {
   enabledCategories: categoryEnum()
     .array()
     .notNull()
-    .default(sql`ARRAY['nature','heritage','food','wellness','adventure','family']::category[]`),
+    .default(
+      sql`ARRAY['nature','heritage','food','wellness','adventure','family','women_only']::category[]`,
+    ),
   updatedAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
   /** Admin user id of the last editor (auth user id, not a FK). */
   updatedByAdminId: text(),

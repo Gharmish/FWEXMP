@@ -26,6 +26,7 @@ const pillVariants = cva(
         wellness: '',
         adventure: '',
         family: '',
+        women_only: '',
       },
       selected: {
         true: '',
@@ -45,6 +46,11 @@ const pillVariants = cva(
         class: 'bg-soudah-sunset/12 text-soudah-sunset-800',
       },
       { selected: true, category: 'family', class: 'bg-sarawat-blue/12 text-sarawat-blue-800' },
+      {
+        selected: true,
+        category: 'women_only',
+        class: 'bg-tihama-coral/20 text-tihama-coral-800',
+      },
     ],
     defaultVariants: {
       category: 'none',

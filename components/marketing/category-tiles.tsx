@@ -1,4 +1,13 @@
-import { Castle, Coffee, Flower2, Leaf, Mountain, Users, type LucideIcon } from 'lucide-react';
+import {
+  Castle,
+  Coffee,
+  Flower2,
+  Leaf,
+  Mountain,
+  Users,
+  Venus,
+  type LucideIcon,
+} from 'lucide-react';
 import { Link } from '@/lib/i18n';
 import type { Locale } from '@/lib/i18n';
 import type { Category } from '@/lib/colors';
@@ -25,6 +34,7 @@ const TILE_DISC: Record<Category, string> = {
   wellness: 'bg-wadi-mint-100 text-wadi-mint-800',
   adventure: 'bg-soudah-sunset-100 text-soudah-sunset-800',
   family: 'bg-sarawat-blue-100 text-sarawat-blue-800',
+  women_only: 'bg-tihama-coral-100 text-tihama-coral-800',
 };
 
 // Castle for heritage: Asir's fortress villages (Rijal Almaa, Habala) —
@@ -36,6 +46,7 @@ const TILE_ICON: Record<Category, LucideIcon> = {
   wellness: Flower2,
   adventure: Mountain,
   family: Users,
+  women_only: Venus,
 };
 
 export function CategoryTiles({ locale, categories }: CategoryTilesProps) {

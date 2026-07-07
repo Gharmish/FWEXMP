@@ -1,6 +1,6 @@
 'use client';
 
-import { useActionState, useId } from 'react';
+import { useActionState, useId, useState } from 'react';
 import { useFormStatus } from 'react-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -155,11 +155,21 @@ export interface ExperienceFormCopy {
   };
 }
 
+export interface ExperienceFormCityOption {
+  /** Canonical English name — the value submitted and stored. */
+  nameEn: string;
+  region: string;
+  /** Locale-resolved display label. */
+  label: string;
+}
+
 export interface ExperienceFormProps {
   mode: 'create' | 'edit';
   locale: Locale;
   copy: ExperienceFormCopy;
   experience?: HostExperienceRow;
+  /** Enabled operating cities (admin catalog registry). */
+  cityOptions: readonly ExperienceFormCityOption[];
 }
 
 const initialState: HostExperienceState = { success: false };
@@ -205,9 +215,29 @@ function formMessage(state: HostExperienceState, copy: ExperienceFormCopy): stri
   return key ? copy.errors[key] : copy.errors.server;
 }
 
-export function ExperienceForm({ mode, locale, copy, experience }: ExperienceFormProps) {
+export function ExperienceForm({
+  mode,
+  locale,
+  copy,
+  experience,
+  cityOptions,
+}: ExperienceFormProps) {
   const action = mode === 'create' ? createDraftExperience : updateHostExperience;
   const [state, formAction] = useActionState(action, initialState);
+
+  // City comes from the operating-cities registry. A legacy row whose
+  // city predates the registry (or was disabled since) keeps its value
+  // as an extra option so editing never silently relocates it.
+  const cityDefault = experience?.city ?? cityOptions[0]?.nameEn ?? 'Abha';
+  const cityChoices = cityOptions.some((o) => o.nameEn === cityDefault)
+    ? cityOptions
+    : [
+        { nameEn: cityDefault, region: experience?.region ?? 'Asir', label: cityDefault },
+        ...cityOptions,
+      ];
+  const [region, setRegion] = useState(
+    experience?.region ?? cityChoices.find((o) => o.nameEn === cityDefault)?.region ?? 'Asir',
+  );
 
   const errorPrefix = useId();
   const eid = (k: string) => `${errorPrefix}-${k}-error`;
@@ -422,14 +452,34 @@ export function ExperienceForm({ mode, locale, copy, experience }: ExperienceFor
           <label htmlFor="ex-city" className="text-sm font-medium">
             {copy.cityLabel}
           </label>
-          <Input id="ex-city" name="city" defaultValue={experience?.city ?? 'Abha'} />
+          <select
+            id="ex-city"
+            name="city"
+            defaultValue={cityDefault}
+            className={SELECT_CLASS}
+            onChange={(e) => {
+              const picked = cityChoices.find((o) => o.nameEn === e.target.value);
+              if (picked) setRegion(picked.region);
+            }}
+          >
+            {cityChoices.map((o) => (
+              <option key={o.nameEn} value={o.nameEn}>
+                {o.label}
+              </option>
+            ))}
+          </select>
         </div>
 
         <div className="flex flex-col gap-2">
           <label htmlFor="ex-region" className="text-sm font-medium">
             {copy.regionLabel}
           </label>
-          <Input id="ex-region" name="region" defaultValue={experience?.region ?? 'Asir'} />
+          <Input
+            id="ex-region"
+            name="region"
+            value={region}
+            onChange={(e) => setRegion(e.target.value)}
+          />
         </div>
 
         <LocationPicker

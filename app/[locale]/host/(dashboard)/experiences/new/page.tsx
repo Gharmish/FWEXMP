@@ -4,6 +4,7 @@ import { redirect } from '@/lib/i18n';
 import type { Locale } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
 import { getCurrentUser } from '@/features/auth/queries';
+import { getEnabledCities } from '@/lib/cities';
 import { getHostDashboard } from '@/features/host-dashboard/queries';
 import { ExperienceForm } from '@/app/[locale]/host/(dashboard)/experiences/[id]/experience-form';
 import { buildExperienceFormCopy } from '@/app/[locale]/host/(dashboard)/experiences/[id]/build-form-copy';
@@ -39,10 +40,16 @@ export default async function NewExperiencePage({
     redirect({ href: '/host/apply', locale: loc });
   }
 
-  const [t, tForm] = await Promise.all([
+  const [t, tForm, enabledCities] = await Promise.all([
     getTranslations('hostExperiences'),
     getTranslations('hostExperiences.form'),
+    getEnabledCities(),
   ]);
+  const cityOptions = enabledCities.map((c) => ({
+    nameEn: c.nameEn,
+    region: c.region,
+    label: loc === 'ar' ? c.nameAr : c.nameEn,
+  }));
   const eyebrowClassName = cn(
     'text-sarat-black-600 text-[11px]',
     loc === 'en' && 'tracking-[0.2em] uppercase',
@@ -65,7 +72,12 @@ export default async function NewExperiencePage({
         </div>
 
         <div className="border-sarat-black/8 mt-12 [border-top-width:0.5px] pt-12">
-          <ExperienceForm mode="create" locale={loc} copy={buildExperienceFormCopy(tForm)} />
+          <ExperienceForm
+            mode="create"
+            locale={loc}
+            copy={buildExperienceFormCopy(tForm)}
+            cityOptions={cityOptions}
+          />
         </div>
       </section>
     </div>

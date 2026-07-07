@@ -8,6 +8,7 @@ import { cn } from '@/lib/utils';
 import { getAdminExperienceForEdit, isAdminAndDbReady } from '@/features/admin/experiences/queries';
 import { BOOKING_MODES, EXPERIENCE_STATUSES } from '@/features/admin/experiences/schemas';
 import { EXPERIENCE_CATEGORIES } from '@/features/host-experiences/schemas';
+import { getEnabledCities } from '@/lib/cities';
 import { AdminExperienceForm } from '@/app/[locale]/admin/experiences/[id]/edit/admin-experience-form';
 import { GalleryManager } from '@/app/[locale]/admin/experiences/[id]/edit/gallery-manager';
 import {
@@ -64,7 +65,7 @@ export default async function AdminExperienceEditPage({
   const experience = await getAdminExperienceForEdit(id);
   if (!experience) notFound();
 
-  const [tE, tMode, tStatus, tCat, tWeek, tG, tCrop] = await Promise.all([
+  const [tE, tMode, tStatus, tCat, tWeek, tG, tCrop, enabledCities] = await Promise.all([
     getTranslations('admin.experienceEdit'),
     getTranslations('admin.bookingMode'),
     getTranslations('admin.experienceStatus'),
@@ -73,7 +74,13 @@ export default async function AdminExperienceEditPage({
     getTranslations('admin.gallery'),
     // The crop sheet is shared with the host photo pipeline — same strings.
     getTranslations('hostExperiences.photo.crop'),
+    getEnabledCities(),
   ]);
+  const cityOptions = enabledCities.map((c) => ({
+    nameEn: c.nameEn,
+    region: c.region,
+    label: loc === 'ar' ? c.nameAr : c.nameEn,
+  }));
 
   const galleryCopy = {
     heading: tG('heading'),
@@ -184,7 +191,12 @@ export default async function AdminExperienceEditPage({
         ym={ym}
       />
 
-      <AdminExperienceForm locale={loc} experience={experience} copy={copy} />
+      <AdminExperienceForm
+        locale={loc}
+        experience={experience}
+        cityOptions={cityOptions}
+        copy={copy}
+      />
     </div>
   );
 }

@@ -88,6 +88,7 @@ const VALID_CATEGORIES: readonly Category[] = [
   'wellness',
   'adventure',
   'family',
+  'women_only',
 ];
 
 const VALID_SORTS = new Set<SortKey>(SORT_KEYS);

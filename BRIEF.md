@@ -84,6 +84,7 @@ Status chips and banners always pair a `*-surface` background with the matching 
 | Wellness                 | Wadi Mint                            | العافية        |
 | Adventure                | Soudah Sunset                        | المغامرة       |
 | Family                   | Sarawat Blue                         | العائلة        |
+| Women only               | Tihama Coral                         | للنساء فقط     |
 | Originals (premium tier) | Sarat Black bg + Saffron Gold accent | أصول غارميش    |
 
 ### Typography
@@ -489,7 +490,7 @@ Sub-element of an Experience timeline:
 
 ### Category
 
-Fixed set: `nature | heritage | food | wellness | adventure | family`. Stored in DB for joins; the enum is the source of truth.
+Fixed set: `nature | heritage | food | wellness | adventure | family | women_only`. Stored in DB for joins; the enum is the source of truth. (`women_only` added 2026-07-08, owner decision — Tihama Coral, Venus icon.)
 
 ### Booking
 

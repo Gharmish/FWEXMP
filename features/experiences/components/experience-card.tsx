@@ -28,6 +28,7 @@ const CATEGORY_DOT: Record<Category, string> = {
   wellness: 'bg-wadi-mint',
   adventure: 'bg-soudah-sunset',
   family: 'bg-sarawat-blue',
+  women_only: 'bg-tihama-coral',
 };
 
 /**
@@ -42,6 +43,7 @@ const CATEGORY_PLACEHOLDER: Record<Category, string> = {
   wellness: 'bg-wadi-mint/25',
   adventure: 'bg-soudah-sunset/15',
   family: 'bg-sarawat-blue/15',
+  women_only: 'bg-tihama-coral/25',
 };
 
 export interface ExperienceCardProps {

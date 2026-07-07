@@ -270,6 +270,10 @@
         "title": "Guests",
         "description": "Look up a guest by name, phone, or email and see their full booking history."
       },
+      "catalog": {
+        "title": "Catalog & coverage",
+        "description": "Manage bookable categories and operating cities, and see where experience supply is thin."
+      },
       "settings": {
         "title": "Settings & commission",
         "description": "Set the default platform commission and which categories are bookable across the marketplace."
@@ -325,6 +329,46 @@
       "vatConfirmTitle": "Turn on VAT?",
       "vatConfirmDescription": "From this moment every newly settled payment is stamped with the VAT rate, and its receipt becomes a simplified tax invoice carrying your registration number and a ZATCA QR code. Guest prices do not change, and earlier bookings are not restated. Confirm only if your ZATCA registration is active.",
       "vatConfirmAction": "Turn on VAT and save"
+    },
+    "catalog": {
+      "eyebrow": "Catalog",
+      "intro": "Which categories guests can book, which cities Gharmish operates in, and where the catalogue is thin. Disabling either never touches experiences that are already live.",
+      "categoriesTitle": "Categories",
+      "categoriesHint": "Turn a category off to hide it from the home page, search, and new-experience forms. Live experiences in it stay live.",
+      "citiesTitle": "Cities",
+      "citiesHint": "Cities offered in the experience-form pickers. The English name is fixed once created — experiences are stored under it.",
+      "coverageTitle": "Coverage",
+      "coverageHint": "Live experiences per city and category.",
+      "coverageLegend": "Highlighted cells are open cities with no live experience in an enabled category — the next gaps to fill.",
+      "coverageEmpty": "No experiences yet — coverage appears once the first experience is created.",
+      "cityColumn": "City",
+      "liveCount": "{count, plural, one {# live} other {# live}}",
+      "totalCount": "{count, plural, one {# total} other {# total}}",
+      "enable": "Enable",
+      "disable": "Disable",
+      "enabledBadge": "Enabled",
+      "disabledBadge": "Disabled",
+      "cityOpenBadge": "Open",
+      "cityClosedBadge": "Closed to new",
+      "unregisteredBadge": "Not in registry",
+      "unregisteredHint": "This city name exists on experiences but isn't registered. Add it above (same English spelling) to manage it.",
+      "cityNameEnLabel": "City name (English)",
+      "cityNameArLabel": "City name (Arabic)",
+      "regionLabel": "Region",
+      "cityEnabledLabel": "Open for new experiences",
+      "addCityTitle": "Add a city",
+      "addCity": "Add city",
+      "addCityPending": "Adding",
+      "save": "Save",
+      "saving": "Saving",
+      "success": "Saved.",
+      "fieldInvalid": "Check this field and try again.",
+      "formServer": "We couldn't save that. Try again in a moment.",
+      "formForbidden": "You don't have permission to change the catalog.",
+      "formValidation": "Some fields need attention.",
+      "duplicateCity": "This city is already registered.",
+      "lastCategory": "At least one category must stay enabled.",
+      "cityNotFound": "That city no longer exists — refresh the page."
     },
     "vat": {
       "title": "VAT & filing.",
@@ -1576,7 +1620,8 @@
         "food": "Food & coffee",
         "wellness": "Wellness",
         "adventure": "Adventure",
-        "family": "Family"
+        "family": "Family",
+        "women_only": "Women only"
       },
       "submitCreate": "Create draft",
       "submitCreatePending": "Creating",

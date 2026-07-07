@@ -11,6 +11,7 @@ import { Badge } from '@/components/ui/badge';
 import { Price } from '@/components/ui/price';
 import { splitCommission } from '@/features/bookings/lib/commission';
 import { getCurrentUser } from '@/features/auth/queries';
+import { getEnabledCities } from '@/lib/cities';
 import { getHostDashboard } from '@/features/host-dashboard/queries';
 import { getMyExperienceById, getMyExperienceMoments } from '@/features/host-experiences/queries';
 import {
@@ -104,11 +105,17 @@ export default async function EditExperiencePage({
       ? await getLatestModerationDecision(experience.id)
       : null;
 
-  const [t, tForm, momentRows] = await Promise.all([
+  const [t, tForm, momentRows, enabledCities] = await Promise.all([
     getTranslations('hostExperiences'),
     getTranslations('hostExperiences.form'),
     getMyExperienceMoments(id),
+    getEnabledCities(),
   ]);
+  const cityOptions = enabledCities.map((c) => ({
+    nameEn: c.nameEn,
+    region: c.region,
+    label: loc === 'ar' ? c.nameAr : c.nameEn,
+  }));
   const eyebrowClassName = cn(
     'text-sarat-black-600 text-[11px]',
     loc === 'en' && 'tracking-[0.2em] uppercase',
@@ -428,6 +435,7 @@ export default async function EditExperiencePage({
               locale={loc}
               experience={experience}
               copy={buildExperienceFormCopy(tForm)}
+              cityOptions={cityOptions}
             />
           </div>
         </div>

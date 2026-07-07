@@ -84,6 +84,7 @@ export const CATEGORIES: readonly CategoryMeta[] = [
   { key: 'wellness', labelEn: 'Wellness', labelAr: 'العافية' },
   { key: 'adventure', labelEn: 'Adventure', labelAr: 'المغامرة' },
   { key: 'family', labelEn: 'Family', labelAr: 'العائلة' },
+  { key: 'women_only', labelEn: 'Women only', labelAr: 'للنساء فقط' },
 ];
 
 /**

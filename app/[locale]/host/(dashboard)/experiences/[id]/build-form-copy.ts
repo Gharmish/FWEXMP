@@ -73,6 +73,7 @@ export function buildExperienceFormCopy(t: Translator): ExperienceFormCopy {
       wellness: t('categories.wellness'),
       adventure: t('categories.adventure'),
       family: t('categories.family'),
+      women_only: t('categories.women_only'),
     },
     submitCreate: t('submitCreate'),
     submitCreatePending: t('submitCreatePending'),

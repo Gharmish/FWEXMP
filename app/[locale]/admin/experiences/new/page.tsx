@@ -7,6 +7,7 @@ import type { Locale } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
 import { isAdminAndDbReady, listHostsForSelect } from '@/features/admin/experiences/queries';
 import { getPlatformSettings } from '@/lib/platform-settings';
+import { getEnabledCities } from '@/lib/cities';
 import { BOOKING_MODES, EXPERIENCE_STATUSES } from '@/features/admin/experiences/schemas';
 import { EXPERIENCE_CATEGORIES } from '@/features/host-experiences/schemas';
 import { AdminExperienceForm } from '@/app/[locale]/admin/experiences/[id]/edit/admin-experience-form';
@@ -52,15 +53,21 @@ export default async function AdminExperienceNewPage({
   }
   if (block?.reason === 'not_admin') notFound();
 
-  const [hosts, settings, tE, tMode, tStatus, tCat, tWeek] = await Promise.all([
+  const [hosts, settings, enabledCities, tE, tMode, tStatus, tCat, tWeek] = await Promise.all([
     listHostsForSelect(),
     getPlatformSettings(),
+    getEnabledCities(),
     getTranslations('admin.experienceEdit'),
     getTranslations('admin.bookingMode'),
     getTranslations('admin.experienceStatus'),
     getTranslations('hostExperiences.form.categories'),
     getTranslations('hostExperiences.form.weekdays'),
   ]);
+  const cityOptions = enabledCities.map((c) => ({
+    nameEn: c.nameEn,
+    region: c.region,
+    label: loc === 'ar' ? c.nameAr : c.nameEn,
+  }));
 
   const copy = {
     sectionPublishing: tE('sectionPublishing'),
@@ -134,6 +141,7 @@ export default async function AdminExperienceNewPage({
         mode="create"
         hosts={hosts}
         defaultCommissionBps={settings.defaultCommissionBps}
+        cityOptions={cityOptions}
         copy={copy}
       />
     </div>

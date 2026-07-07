@@ -6,6 +6,7 @@ import {
   BarChart3,
   CalendarCheck,
   ClipboardCheck,
+  Grid3x3,
   Landmark,
   LayoutDashboard,
   Settings,
@@ -74,6 +75,7 @@ const GROUPS: readonly NavGroup[] = [
     items: [
       { href: '/admin/hosts', Icon: Users, sectionKey: 'hosts' },
       { href: '/admin/guests', Icon: UserRound, sectionKey: 'guests' },
+      { href: '/admin/catalog', Icon: Grid3x3, sectionKey: 'catalog' },
     ],
   },
   {

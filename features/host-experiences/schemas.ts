@@ -23,6 +23,7 @@ export const EXPERIENCE_CATEGORIES = [
   'wellness',
   'adventure',
   'family',
+  'women_only',
 ] as const;
 
 export const linesFromTextarea = (raw: string): string[] =>

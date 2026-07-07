@@ -68,6 +68,7 @@ const CATEGORY_COLOR: Record<string, string> = {
   wellness: 'bg-wadi-mint',
   adventure: 'bg-soudah-sunset',
   family: 'bg-sarawat-blue',
+  women_only: 'bg-tihama-coral',
 };
 
 export default async function AdminIndexPage({

@@ -1,6 +1,6 @@
 'use client';
 
-import { useActionState, useId } from 'react';
+import { useActionState, useId, useState } from 'react';
 import { useFormStatus } from 'react-dom';
 import type { Locale } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
@@ -94,6 +94,14 @@ const BLANK: Omit<AdminExperienceEdit, 'id' | 'slug' | 'heroImage' | 'images'> =
   featured: false,
 };
 
+export interface AdminExperienceCityOption {
+  /** Canonical English name — the value submitted and stored. */
+  nameEn: string;
+  region: string;
+  /** Locale-resolved display label. */
+  label: string;
+}
+
 export interface AdminExperienceFormProps {
   locale: Locale;
   /** 'edit' (default) requires `experience`; 'create' requires `hosts`. */
@@ -102,6 +110,8 @@ export interface AdminExperienceFormProps {
   hosts?: readonly HostOption[];
   /** Commission (bps) prefilled in create mode — from platform settings. */
   defaultCommissionBps?: number;
+  /** Enabled operating cities (admin catalog registry). */
+  cityOptions: readonly AdminExperienceCityOption[];
   copy: AdminExperienceFormCopy;
 }
 
@@ -130,6 +140,7 @@ export function AdminExperienceForm({
   experience,
   hosts = [],
   defaultCommissionBps,
+  cityOptions,
   copy,
 }: AdminExperienceFormProps) {
   const isCreate = mode === 'create';
@@ -140,6 +151,19 @@ export function AdminExperienceForm({
   const [state, formAction] = useActionState(
     isCreate ? adminCreateExperience : adminUpdateExperience,
     initialState,
+  );
+
+  // City comes from the operating-cities registry; a legacy value stays
+  // selectable so editing never silently relocates the experience.
+  const cityDefault = experience?.city ?? cityOptions[0]?.nameEn ?? BLANK.city;
+  const cityChoices = cityOptions.some((o) => o.nameEn === cityDefault)
+    ? cityOptions
+    : [
+        { nameEn: cityDefault, region: experience?.region ?? BLANK.region, label: cityDefault },
+        ...cityOptions,
+      ];
+  const [region, setRegion] = useState(
+    experience?.region ?? cityChoices.find((o) => o.nameEn === cityDefault)?.region ?? BLANK.region,
   );
   const fields = state.fields ?? {};
   const errorPrefix = useId();
@@ -431,13 +455,35 @@ export function AdminExperienceForm({
             <label htmlFor="ex-city" className={labelClass}>
               {copy.city}
             </label>
-            <Input id="ex-city" name="city" defaultValue={ex.city} {...aria('city')} />
+            <select
+              id="ex-city"
+              name="city"
+              defaultValue={cityDefault}
+              className={SELECT_CLASS}
+              onChange={(e) => {
+                const picked = cityChoices.find((o) => o.nameEn === e.target.value);
+                if (picked) setRegion(picked.region);
+              }}
+              {...aria('city')}
+            >
+              {cityChoices.map((o) => (
+                <option key={o.nameEn} value={o.nameEn}>
+                  {o.label}
+                </option>
+              ))}
+            </select>
           </div>
           <div className="flex flex-col gap-2">
             <label htmlFor="ex-region" className={labelClass}>
               {copy.region}
             </label>
-            <Input id="ex-region" name="region" defaultValue={ex.region} {...aria('region')} />
+            <Input
+              id="ex-region"
+              name="region"
+              value={region}
+              onChange={(e) => setRegion(e.target.value)}
+              {...aria('region')}
+            />
           </div>
         </div>
       </fieldset>

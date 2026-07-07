@@ -169,6 +169,13 @@
       "when": 1783430757118,
       "tag": "0023_married_bloodstrike",
       "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1783459021332,
+      "tag": "0024_classy_morph",
+      "breakpoints": true
     }
   ]
 }
