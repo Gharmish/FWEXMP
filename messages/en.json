@@ -2248,8 +2248,11 @@
   "cookieNotice": {
     "regionLabel": "Cookie notice",
     "body": "Gharmish uses only the cookies it needs to work — keeping you signed in and remembering your language. No advertising or tracking cookies, ever.",
+    "consentBody": "Gharmish uses essential cookies to keep you signed in and remember your language. With your consent, we also use marketing cookies from Snapchat and TikTok to measure our ads — decline them and everything still works.",
     "privacyLink": "Privacy policy",
-    "cta": "Got it"
+    "cta": "Got it",
+    "acceptAll": "Accept all",
+    "essentialOnly": "Essential only"
   },
   "wishlistButton": {
     "save": "Save to wishlist",
@@ -2612,7 +2615,7 @@
     },
     "cookies": {
       "heading": "Cookies",
-      "body": "We use only the cookies the platform needs to work: keeping you signed in and remembering your language. No advertising or cross-site tracking cookies."
+      "body": "We use the cookies the platform needs to work: keeping you signed in and remembering your language. If you choose \"Accept all\" in our cookie banner, we also set marketing cookies from Snapchat and TikTok to measure how our ads perform; declining them changes nothing about how Gharmish works, and you can clear your browser cookies at any time to be asked again."
     },
     "changes": {
       "heading": "Changes to this policy",

@@ -27,6 +27,7 @@ import { isHoldExpired } from '@/features/bookings/lib/availability';
 import { vatPortionSar, vatRatePercent } from '@/features/bookings/lib/vat';
 import { getPlatformSettings } from '@/lib/platform-settings';
 import { PendingPaymentRefresh } from '@/features/payments/components/pending-payment-refresh';
+import { PurchaseConversion } from '@/features/bookings/components/purchase-conversion';
 import { toArabicText } from '@/features/experiences/lib/arabic-content';
 import { Draw, Pop, Stagger, StaggerItem } from '@/components/ui/motion';
 
@@ -373,6 +374,14 @@ export default async function BookingConfirmedPage({ params, searchParams }: Pag
 
   return (
     <article className="mx-auto w-full max-w-3xl px-6 py-20">
+      {/* Ad-platform purchase conversion — only for a DB-verified paid
+          booking (the query-param hint alone never fires money events). */}
+      {booking && booking.paymentStatus === 'paid' && (
+        <PurchaseConversion
+          reference={booking.referenceCode ?? ref}
+          amountSar={booking.totalAmountSar}
+        />
+      )}
       {/* Print-only brand header: the site chrome is print-hidden, so the
           e-ticket carries its own wordmark. */}
       <div className="text-sarat-black mb-8 hidden print:block">

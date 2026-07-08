@@ -79,6 +79,13 @@ const clientSchema = z.object({
   // UX stays demoable creds-free. Same boundary pattern as `hasDb()`.
   NEXT_PUBLIC_SUPABASE_URL: z.string().default(''),
   NEXT_PUBLIC_SUPABASE_ANON_KEY: z.string().default(''),
+  // Snap Pixel + TikTok Pixel ids for ad conversion tracking. Optional —
+  // `hasMarketingPixels()` gates both the script loader and the cookie
+  // banner's consent mode, so until at least one id is set the site sets
+  // zero marketing cookies and the banner stays a plain notice. Even when
+  // set, the pixels load only after the visitor picks "Accept all".
+  NEXT_PUBLIC_SNAP_PIXEL_ID: z.string().default(''),
+  NEXT_PUBLIC_TIKTOK_PIXEL_ID: z.string().default(''),
 });
 
 function parse<T extends z.ZodType>(schema: T, source: unknown, scope: string): z.infer<T> {
@@ -119,6 +126,8 @@ export const clientEnv = parse(
     NEXT_PUBLIC_SENTRY_DSN: process.env.NEXT_PUBLIC_SENTRY_DSN,
     NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL,
     NEXT_PUBLIC_SUPABASE_ANON_KEY: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+    NEXT_PUBLIC_SNAP_PIXEL_ID: process.env.NEXT_PUBLIC_SNAP_PIXEL_ID,
+    NEXT_PUBLIC_TIKTOK_PIXEL_ID: process.env.NEXT_PUBLIC_TIKTOK_PIXEL_ID,
   },
   'client',
 );
@@ -131,6 +140,15 @@ export const clientEnv = parse(
  */
 export function hasSupabaseAuth(): boolean {
   return Boolean(clientEnv.NEXT_PUBLIC_SUPABASE_URL && clientEnv.NEXT_PUBLIC_SUPABASE_ANON_KEY);
+}
+
+/**
+ * Is at least one ad pixel (Snapchat / TikTok) configured? Client-safe.
+ * Gates the pixel loader and switches the cookie banner from a plain
+ * notice into its Accept-all / Essential-only consent mode.
+ */
+export function hasMarketingPixels(): boolean {
+  return Boolean(clientEnv.NEXT_PUBLIC_SNAP_PIXEL_ID || clientEnv.NEXT_PUBLIC_TIKTOK_PIXEL_ID);
 }
 
 /**
