@@ -144,7 +144,8 @@
           "bookings": "Bookings & conversion",
           "demand": "Demand & growth",
           "supply": "Supply & hosts",
-          "catalog": "Catalog & quality"
+          "catalog": "Catalog & quality",
+          "health": "Marketplace health"
         },
         "revenue": {
           "hostPayouts": "Host payouts",
@@ -173,7 +174,14 @@
         "demand": {
           "returningRate": "Returning guests",
           "arabicShare": "Arabic-first guests",
-          "wishlistSaves": "Wishlist saves"
+          "wishlistSaves": "Wishlist saves",
+          "views": "Experience views",
+          "viewToRequest": "View → request",
+          "zeroSearches": "Zero-result searches",
+          "bySource": "Bookings by source",
+          "organic": "Organic / direct",
+          "unservedSearches": "Unserved searches",
+          "unservedEmpty": "Every search in this range found matches."
         },
         "supply": {
           "newHosts": "New hosts",
@@ -196,6 +204,26 @@
           "reviewedRate": "Reviewed rate",
           "hiddenReviews": "Hidden",
           "topExperiences": "Top experiences"
+        },
+        "health": {
+          "utilization": "Seat utilization",
+          "abandonment": "Checkout abandonment",
+          "leadTime": "Avg lead time",
+          "daysValue": "{days} days",
+          "slaBreach": "24h SLA breaches",
+          "takeRate": "Take rate",
+          "ratingDistribution": "Rating distribution",
+          "stars": "{count, plural, one {# star} other {# stars}}",
+          "failureReasons": "Payment failure codes",
+          "failuresEmpty": "No failed payments in this range.",
+          "unknown": "Unknown",
+          "declineLeaders": "Highest decline rates",
+          "declineValue": "{pct}% of {requests} requests",
+          "declinesEmpty": "No declined requests in this range.",
+          "zeroBooking": "Live with zero bookings",
+          "zeroBookingCount": "{count} total",
+          "zeroBookingEmpty": "Every live experience was booked in this range.",
+          "daysLive": "{days}d live"
         }
       }
     },

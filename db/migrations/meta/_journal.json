@@ -176,6 +176,13 @@
       "when": 1783459021332,
       "tag": "0024_classy_morph",
       "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "7",
+      "when": 1783504131177,
+      "tag": "0025_daffy_nextwave",
+      "breakpoints": true
     }
   ]
 }

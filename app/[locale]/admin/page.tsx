@@ -92,11 +92,14 @@ export default async function AdminIndexPage({
   const range = resolveDateRange({ preset: one(sp.preset), from: one(sp.from), to: one(sp.to) });
   const prev = comparison(range);
 
-  const [metrics, dashboard, activity] = await Promise.all([
-    getDashboardMetrics(range),
-    getAdminDashboard(),
-    listActivity(),
-  ]);
+  // Sequential on purpose. Each of these fans out its own statements
+  // (metrics alone runs 11 in parallel); firing all three at once puts
+  // ~22 concurrent statements on the 10-connection postgres-js pool and
+  // deadlocks it — the render then hangs forever, no error. Sequential
+  // keeps peak demand at one fan-out and measures ~2.8s total.
+  const metrics = await getDashboardMetrics(range);
+  const dashboard = await getAdminDashboard();
+  const activity = await listActivity();
 
   const eyebrowClassName = cn(
     'text-sarat-black-600 text-[11px]',
@@ -331,6 +334,61 @@ export default async function AdminIndexPage({
   const bookingsLabel = (count: number) => t('analytics.bookingsLabel', { count });
   const emptyRange = t('dashboard.metrics.emptyRange');
 
+  // Marketplace-health breakdowns.
+  const ratingBarRows: BreakdownRow[] = m.ratingDistribution.some((r) => r.count > 0)
+    ? m.ratingDistribution.map((r) => ({
+        id: String(r.rating),
+        label: t('dashboard.metrics.health.stars', { count: r.rating }),
+        magnitude: r.count,
+        display: formatInteger(r.count, loc),
+        colorClass:
+          r.rating >= 4
+            ? 'bg-juniper-green'
+            : r.rating === 3
+              ? 'bg-saffron-gold'
+              : 'bg-al-qatt-red',
+      }))
+    : [];
+
+  const failureBarRows: BreakdownRow[] = m.failureReasons.map((f) => ({
+    id: f.resultCode,
+    label: f.resultCode === 'unknown' ? t('dashboard.metrics.health.unknown') : f.resultCode,
+    magnitude: f.count,
+    display: formatInteger(f.count, loc),
+    colorClass: 'bg-al-qatt-red',
+  }));
+
+  const sourceRows: BreakdownRow[] = m.bookingsBySource.map((r) => ({
+    id: r.source,
+    label: r.source === 'organic' ? t('dashboard.metrics.demand.organic') : r.source,
+    magnitude: r.gmvSar,
+    display: (
+      <span className="inline-flex items-baseline gap-1.5">
+        <Price amount={r.gmvSar} locale={loc} /> · {formatInteger(r.bookings, loc)}
+      </span>
+    ),
+    colorClass: r.source === 'organic' ? 'bg-sarat-black/70' : 'bg-sarawat-blue',
+  }));
+
+  const zeroQueryRows: BreakdownRow[] = m.zeroResultQueries.map((q) => ({
+    id: q.query,
+    label: q.query,
+    magnitude: q.count,
+    display: formatInteger(q.count, loc),
+    colorClass: 'bg-saffron-gold',
+  }));
+
+  const declineBarRows: BreakdownRow[] = m.declineLeaders.map((h) => ({
+    id: h.id,
+    label: h.label,
+    magnitude: h.declinePct,
+    display: t('dashboard.metrics.health.declineValue', {
+      pct: h.declinePct,
+      requests: h.requests,
+    }),
+    colorClass: 'bg-soudah-sunset',
+  }));
+
   return (
     <div className="flex flex-col gap-12">
       {header}
@@ -454,6 +512,25 @@ export default async function AdminIndexPage({
       <Section title={t('dashboard.metrics.sections.demand')} heading={sectionHeading}>
         <div className={cn(card, 'grid grid-cols-2 gap-6 lg:grid-cols-3')}>
           <MetricStat
+            label={t('dashboard.metrics.demand.views')}
+            value={formatInteger(m.experienceViews.current, loc)}
+            locale={loc}
+            growth={growth(m.experienceViews.current, m.experienceViews.previous)}
+            newLabel={newLabel}
+          />
+          <MetricStat
+            label={t('dashboard.metrics.demand.viewToRequest')}
+            value={`${m.viewToRequestPct.current}%`}
+            locale={loc}
+            growth={growth(m.viewToRequestPct.current, m.viewToRequestPct.previous)}
+            newLabel={newLabel}
+          />
+          <MetricStat
+            label={t('dashboard.metrics.demand.zeroSearches')}
+            value={formatInteger(m.zeroResultSearches.current, loc)}
+            locale={loc}
+          />
+          <MetricStat
             label={t('dashboard.metrics.demand.returningRate')}
             value={`${m.returningGuestRate.current}%`}
             locale={loc}
@@ -472,6 +549,23 @@ export default async function AdminIndexPage({
             growth={growth(m.wishlistSaves.current, m.wishlistSaves.previous)}
             newLabel={newLabel}
           />
+        </div>
+        <div className="grid gap-4 lg:grid-cols-2">
+          <div className={cn(card, 'flex flex-col gap-4')}>
+            <h3 className="text-sarat-black text-sm font-medium">
+              {t('dashboard.metrics.demand.bySource')}
+            </h3>
+            <BreakdownBars rows={sourceRows} emptyLabel={emptyRange} />
+          </div>
+          <div className={cn(card, 'flex flex-col gap-4')}>
+            <h3 className="text-sarat-black text-sm font-medium">
+              {t('dashboard.metrics.demand.unservedSearches')}
+            </h3>
+            <BreakdownBars
+              rows={zeroQueryRows}
+              emptyLabel={t('dashboard.metrics.demand.unservedEmpty')}
+            />
+          </div>
         </div>
       </Section>
 
@@ -602,7 +696,105 @@ export default async function AdminIndexPage({
         </div>
       </Section>
 
-      {/* F — Operations: recent activity (current-state) */}
+      {/* F — Marketplace health */}
+      <Section title={t('dashboard.metrics.sections.health')} heading={sectionHeading}>
+        <div className={cn(card, 'grid grid-cols-2 gap-6 lg:grid-cols-5')}>
+          <MetricStat
+            label={t('dashboard.metrics.health.utilization')}
+            value={`${m.utilizationPct.current}%`}
+            locale={loc}
+            growth={growth(m.utilizationPct.current, m.utilizationPct.previous)}
+            newLabel={newLabel}
+          />
+          <MetricStat
+            label={t('dashboard.metrics.health.abandonment')}
+            value={`${m.checkoutAbandonPct.current}%`}
+            locale={loc}
+          />
+          <MetricStat
+            label={t('dashboard.metrics.health.leadTime')}
+            value={t('dashboard.metrics.health.daysValue', {
+              days: (m.avgLeadDaysX10.current / 10).toFixed(1),
+            })}
+            locale={loc}
+          />
+          <MetricStat
+            label={t('dashboard.metrics.health.slaBreach')}
+            value={`${m.slaBreachPct.current}%`}
+            locale={loc}
+          />
+          <MetricStat
+            label={t('dashboard.metrics.health.takeRate')}
+            value={`${(m.takeRatePctX10.current / 10).toFixed(1)}%`}
+            locale={loc}
+            growth={growth(m.takeRatePctX10.current, m.takeRatePctX10.previous)}
+            newLabel={newLabel}
+          />
+        </div>
+        <div className="grid gap-4 lg:grid-cols-2">
+          <div className={cn(card, 'flex flex-col gap-4')}>
+            <h3 className="text-sarat-black text-sm font-medium">
+              {t('dashboard.metrics.health.ratingDistribution')}
+            </h3>
+            <BreakdownBars rows={ratingBarRows} emptyLabel={emptyRange} />
+          </div>
+          <div className={cn(card, 'flex flex-col gap-4')}>
+            <h3 className="text-sarat-black text-sm font-medium">
+              {t('dashboard.metrics.health.failureReasons')}
+            </h3>
+            <BreakdownBars
+              rows={failureBarRows}
+              emptyLabel={t('dashboard.metrics.health.failuresEmpty')}
+            />
+          </div>
+        </div>
+        <div className="grid gap-4 lg:grid-cols-2">
+          <div className={cn(card, 'flex flex-col gap-4')}>
+            <h3 className="text-sarat-black text-sm font-medium">
+              {t('dashboard.metrics.health.declineLeaders')}
+            </h3>
+            <BreakdownBars
+              rows={declineBarRows}
+              emptyLabel={t('dashboard.metrics.health.declinesEmpty')}
+            />
+          </div>
+          <div className={cn(card, 'flex flex-col gap-4')}>
+            <div className="flex items-baseline justify-between gap-3">
+              <h3 className="text-sarat-black text-sm font-medium">
+                {t('dashboard.metrics.health.zeroBooking')}
+              </h3>
+              <span className="text-sarat-black-600 text-xs tabular-nums">
+                {t('dashboard.metrics.health.zeroBookingCount', {
+                  count: formatInteger(m.zeroBookingLive, loc),
+                })}
+              </span>
+            </div>
+            {m.zeroBookingListings.length === 0 ? (
+              <p className="text-sarat-black-600 text-sm">
+                {t('dashboard.metrics.health.zeroBookingEmpty')}
+              </p>
+            ) : (
+              <ul className="flex flex-col gap-2.5">
+                {m.zeroBookingListings.map((x) => (
+                  <li key={x.id} className="flex items-baseline justify-between gap-3 text-sm">
+                    <Link
+                      href={x.href}
+                      className="text-sarat-black truncate font-medium underline-offset-4 hover:underline"
+                    >
+                      {x.label}
+                    </Link>
+                    <span className="text-sarat-black-600 shrink-0 tabular-nums">
+                      {t('dashboard.metrics.health.daysLive', { days: x.daysLive })}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        </div>
+      </Section>
+
+      {/* G — Operations: recent activity (current-state) */}
       <FadeIn className="flex flex-col gap-4">
         <div className="flex items-baseline justify-between gap-3">
           <h2 className={sectionHeading}>{t('dashboard.timeline.title')}</h2>

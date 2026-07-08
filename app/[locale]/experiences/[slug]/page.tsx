@@ -33,6 +33,7 @@ import {
 } from '@/features/experiences/queries';
 import { PhotoGallery } from '@/features/experiences/components/photo-gallery';
 import { MeetingPointMap } from '@/features/experiences/components/meeting-point-map';
+import { trackExperienceView, utmFromSearchParams } from '@/features/analytics/capture';
 import { getScheduleDataBySlug } from '@/features/availability/queries';
 import { addDays, bookableDates } from '@/features/bookings/lib/availability';
 import { vatRatePercent } from '@/features/bookings/lib/vat';
@@ -111,6 +112,12 @@ export default async function ExperienceDetailPage({
     ? await getExperienceBySlugForOwnerPreview(slug)
     : await getExperienceBySlug(slug);
   if (!exp) notFound();
+
+  // Funnel signal (view side of view->request conversion). Not fired for
+  // owner previews - those are hosts checking their own draft, not demand.
+  if (!previewMode) {
+    trackExperienceView({ experienceSlug: exp.slug, locale: loc, utm: utmFromSearchParams(sp) });
+  }
 
   // Everything below depends only on the slug/host/locale — one parallel
   // fan-out instead of the previous chain of sequential awaits, which

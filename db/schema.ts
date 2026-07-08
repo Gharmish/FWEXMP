@@ -471,6 +471,22 @@ export const bookings = pgTable(
      * and undecided/declined requests.
      */
     approvedAt: timestamp({ withTimezone: true }),
+    /**
+     * When the host (or admin) declined the request — the decline-side
+     * twin of `approvedAt`, so the 24h-SLA metric can time declines too.
+     * Null for rows declined before this column existed (the SLA metric
+     * skips those) and for every non-declined booking.
+     */
+    declinedAt: timestamp({ withTimezone: true }),
+    /**
+     * First-touch UTM attribution, captured client-side from the landing
+     * URL (sessionStorage, no cookie — the cookie notice promises none)
+     * and submitted with the booking form. Null = organic/unknown. Only
+     * ever rendered in the admin dashboard's acquisition breakdown.
+     */
+    utmSource: text(),
+    utmMedium: text(),
+    utmCampaign: text(),
     /** Safe retries for AI agents (BRIEF §6). */
     idempotencyKey: text().notNull().unique(),
     /**
@@ -987,6 +1003,50 @@ export const cities = pgTable('cities', {
   createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
 });
+
+/** Funnel event kinds — see `analyticsEvents`. */
+export const analyticsEventTypeEnum = pgEnum('analytics_event_type', [
+  /** An experience detail page was served. */
+  'experience_view',
+  /** The catalog was served with filters/search applied; `resultCount` says how much supply matched. */
+  'search',
+]);
+
+/**
+ * Lean first-party funnel events (owner-approved P0: the dashboard was
+ * blind above the booking request). Append-only, written fire-and-forget
+ * from server renders via `after()` — a failed insert never slows or
+ * breaks a page. Deliberately NO user identifiers, no IP, no session id:
+ * nothing here is PII, so the cookie-notice promise ("no tracking
+ * cookies, ever") holds. Bot traffic is not filtered at write time;
+ * dashboard queries can add UA heuristics later if noise demands it.
+ */
+export const analyticsEvents = pgTable(
+  'analytics_events',
+  {
+    id: uuid().defaultRandom().primaryKey(),
+    type: analyticsEventTypeEnum().notNull(),
+    /** The experience viewed; null for `search` events. */
+    experienceId: uuid().references(() => experiences.id, { onDelete: 'cascade' }),
+    locale: text(),
+    /** UTM triplet from the request URL, when present (paid/social traffic). */
+    utmSource: text(),
+    utmMedium: text(),
+    utmCampaign: text(),
+    /** `search` events: the normalized filter/query string, e.g. `q=diving&city=Jeddah`. */
+    searchQuery: text(),
+    /** `search` events: experiences matched. 0 = demand we couldn't serve. */
+    resultCount: integer(),
+    createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    // Dashboard aggregations: per-type counts and per-experience views, windowed.
+    index('analytics_events_type_created_idx').on(t.type, t.createdAt),
+    index('analytics_events_experience_idx')
+      .on(t.experienceId, t.createdAt)
+      .where(sql`experience_id IS NOT NULL`),
+  ],
+);
 
 /**
  * Platform-wide settings — a single row (`id = 'platform'`) holding the

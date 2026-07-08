@@ -1,6 +1,9 @@
 import { z } from 'zod';
 import { normalizeToE164 } from '@/lib/phone';
 
+/** Optional attribution label: trimmed, clamped, undefined over invalid. */
+const utmLabel = z.string().trim().min(1).max(100).optional().catch(undefined);
+
 export const bookingRequestSchema = z.object({
   experienceSlug: z.string().min(1),
   locale: z.enum(['en', 'ar']),
@@ -53,6 +56,14 @@ export const bookingRequestSchema = z.object({
       }
       return raw.toLowerCase();
     }),
+  /**
+   * First-touch UTM attribution (see features/analytics/utm-capture).
+   * Best-effort labels, never load-bearing: anything absent or oversized
+   * degrades to undefined rather than failing the booking.
+   */
+  utmSource: utmLabel,
+  utmMedium: utmLabel,
+  utmCampaign: utmLabel,
 });
 
 export type BookingRequestInput = z.infer<typeof bookingRequestSchema>;

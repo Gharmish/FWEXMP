@@ -22,6 +22,7 @@ import { Navbar } from '@/components/layout/navbar';
 import { Footer } from '@/components/layout/footer';
 import { CookieNotice } from '@/components/layout/cookie-notice';
 import { MarketingPixels } from '@/components/layout/marketing-pixels';
+import { UtmCapture } from '@/features/analytics/utm-capture';
 import { MotionProvider } from '@/components/ui/motion';
 import { ToastProvider } from '@/components/ui/toast';
 import { DirectionProvider } from '@base-ui/react/direction-provider';
@@ -94,6 +95,7 @@ export default async function LocaleLayout({
                 <Footer />
                 <CookieNotice />
                 <MarketingPixels />
+                <UtmCapture />
               </ToastProvider>
             </MotionProvider>
           </DirectionProvider>

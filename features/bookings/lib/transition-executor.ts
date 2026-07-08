@@ -114,6 +114,9 @@ export async function executeBookingTransition(
     }
 
     let stamp: Partial<typeof bookings.$inferInsert> = { status: to };
+    if (to === 'declined' && booking.status === 'pending') {
+      stamp = { status: to, declinedAt: new Date() };
+    }
     if (isApproval) {
       const needsPayment = hasHyperpay() && booking.paymentStatus === 'unpaid';
       const { approvalPaymentWindowHours } = await getPlatformSettings();

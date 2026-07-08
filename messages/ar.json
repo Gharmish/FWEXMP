@@ -144,7 +144,8 @@
           "bookings": "الحجوزات والتحويل",
           "demand": "الطلب والنمو",
           "supply": "العرض والمضيفون",
-          "catalog": "الكتالوج والجودة"
+          "catalog": "الكتالوج والجودة",
+          "health": "صحة المنصة"
         },
         "revenue": {
           "hostPayouts": "مستحقات المضيفين",
@@ -173,7 +174,14 @@
         "demand": {
           "returningRate": "ضيوف عائدون",
           "arabicShare": "ضيوف بالعربية",
-          "wishlistSaves": "الإضافات للمفضّلة"
+          "wishlistSaves": "الإضافات للمفضّلة",
+          "views": "مشاهدات التجارب",
+          "viewToRequest": "من مشاهدة إلى طلب",
+          "zeroSearches": "عمليات بحث بلا نتائج",
+          "bySource": "الحجوزات حسب المصدر",
+          "organic": "مباشر / بدون حملة",
+          "unservedSearches": "طلبات بحث لم نلبِّها",
+          "unservedEmpty": "كل عمليات البحث في هذه الفترة وجدت نتائج."
         },
         "supply": {
           "newHosts": "مضيفون جدد",
@@ -196,6 +204,26 @@
           "reviewedRate": "نسبة التقييم",
           "hiddenReviews": "مخفية",
           "topExperiences": "أبرز التجارب"
+        },
+        "health": {
+          "utilization": "إشغال المقاعد",
+          "abandonment": "التخلي عن الدفع",
+          "leadTime": "متوسط مدة الحجز المسبق",
+          "daysValue": "{days} يوم",
+          "slaBreach": "تجاوز مهلة الرد (٢٤ ساعة)",
+          "takeRate": "نسبة العمولة",
+          "ratingDistribution": "توزيع التقييمات",
+          "stars": "{count, plural, one {نجمة واحدة} two {نجمتان} few {# نجوم} other {# نجمة}}",
+          "failureReasons": "رموز فشل الدفع",
+          "failuresEmpty": "لا مدفوعات فاشلة في هذه الفترة.",
+          "unknown": "غير معروف",
+          "declineLeaders": "الأعلى رفضًا للطلبات",
+          "declineValue": "{pct}٪ من {requests} طلبات",
+          "declinesEmpty": "لا طلبات مرفوضة في هذه الفترة.",
+          "zeroBooking": "منشورة بلا حجوزات",
+          "zeroBookingCount": "الإجمالي {count}",
+          "zeroBookingEmpty": "كل التجارب المنشورة تلقّت حجوزات في هذه الفترة.",
+          "daysLive": "منشورة منذ {days} يوم"
         }
       }
     },

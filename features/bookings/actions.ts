@@ -117,6 +117,9 @@ export async function requestBooking(
     partySize: formValue(formData, 'partySize'),
     email: formValue(formData, 'email'),
     idempotencyKey: formValue(formData, 'idempotencyKey'),
+    utmSource: formValue(formData, 'utmSource'),
+    utmMedium: formValue(formData, 'utmMedium'),
+    utmCampaign: formValue(formData, 'utmCampaign'),
   });
 
   if (!parsed.success) {
@@ -344,6 +347,10 @@ export async function requestBooking(
       // ~1/730M and lands in the generic server-error path.
       referenceCode: generateReferenceCode(),
       createdIp: ip,
+      // First-touch acquisition source; feeds only the admin dashboard.
+      utmSource: input.utmSource ?? null,
+      utmMedium: input.utmMedium ?? null,
+      utmCampaign: input.utmCampaign ?? null,
     } as const;
 
     if (experience.bookingMode === 'instant' && hasHyperpay()) {

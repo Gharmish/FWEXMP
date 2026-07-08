@@ -14,6 +14,7 @@ import { CATEGORIES } from '@/features/experiences/lib/sample-data';
 import { getEnabledCategories } from '@/lib/platform-settings';
 import { getExperiencesFiltered, getFeaturedExperiences } from '@/features/experiences/queries';
 import { parseSearchParams } from '@/features/experiences/lib/search';
+import { trackSearch, utmFromSearchParams } from '@/features/analytics/capture';
 import { getWishlistSet } from '@/features/wishlist/queries';
 import { WishlistButton } from '@/features/wishlist/components/wishlist-button';
 
@@ -95,6 +96,28 @@ export default async function ExperiencesIndexPage({
     getEnabledCategories(),
   ]);
   const categories = CATEGORIES.filter((c) => enabledCategories.includes(c.key));
+
+  // Funnel signal: an ACTIVE search/filter is expressed demand; log the
+  // normalized criteria and how much supply matched (0 = unserved demand).
+  // The bare catalog (showFeatured) is browsing, not searching.
+  if (!showFeatured) {
+    const parts = [
+      criteria.q && `q=${criteria.q}`,
+      criteria.categories.length > 0 && `category=${criteria.categories.join(',')}`,
+      criteria.originalsOnly && 'originals=1',
+      criteria.priceBucket && `price=${criteria.priceBucket}`,
+      criteria.durationBucket && `duration=${criteria.durationBucket}`,
+      criteria.city && `city=${criteria.city}`,
+      criteria.date && `date=${criteria.date}`,
+      criteria.groupSize !== null && `group=${criteria.groupSize}`,
+    ].filter(Boolean);
+    trackSearch({
+      query: parts.join('&'),
+      resultCount: results.length,
+      locale: loc,
+      utm: utmFromSearchParams(rawSearchParams),
+    });
+  }
 
   // When the featured row renders, the main grid shows the *rest* of the
   // catalog — the same card twice on one page reads as a bug. The filter

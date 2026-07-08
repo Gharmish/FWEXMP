@@ -17,6 +17,7 @@ import { PhoneInput } from '@/components/ui/phone-input';
 import { Price } from '@/components/ui/price';
 import { BookingCalendar } from './booking-calendar';
 import type { BookableOption } from '@/features/bookings/types';
+import { readStoredUtm } from '@/features/analytics/utm-capture';
 
 export type { BookableOption } from '@/features/bookings/types';
 
@@ -195,6 +196,16 @@ export function BookingRequestForm({
   copy,
 }: BookingRequestFormProps) {
   const [state, formAction] = useActionState(requestBooking, initialState);
+  // First-touch UTM (see UtmCapture) is appended at submit time, not as
+  // hidden inputs: sessionStorage doesn't exist during SSR, so rendering
+  // it would risk a hydration mismatch. Runs client-side by construction.
+  const submitWithUtm = (formData: FormData) => {
+    const utm = readStoredUtm();
+    if (utm.source) formData.set('utmSource', utm.source);
+    if (utm.medium) formData.set('utmMedium', utm.medium);
+    if (utm.campaign) formData.set('utmCampaign', utm.campaign);
+    formAction(formData);
+  };
   const values = state.values ?? {};
   const formRef = useRef<HTMLFormElement>(null);
   // Idempotency key, minted once per form mount (BRIEF §6 — safe retries):
@@ -379,7 +390,7 @@ export function BookingRequestForm({
   return (
     <form
       ref={formRef}
-      action={formAction}
+      action={submitWithUtm}
       onSubmit={validateBeforeSubmit}
       noValidate
       className="flex flex-col gap-4"
