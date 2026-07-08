@@ -44,8 +44,8 @@ import { adminGuard } from '@/features/admin/guard';
  * breakdowns (time series, category, payment mix, two leaderboards, rating
  * distribution, settle-failure reasons, decline leaders, zero-booking list,
  * zero-result searches, bookings by acquisition source).
- * Keeping the fan-out small keeps the dashboard fast and the connection pool
- * unsaturated. Bookings window by `created_at`; refunds by `refunded_at`;
+ * Statements run in waves of <=4 (see the comment at the call site): the
+ * Vercel pool is 5 connections and overflowing it deadlocks silently. Bookings window by `created_at`; refunds by `refunded_at`;
  * utilization seats by the experience `date` itself.
  */
 
@@ -207,21 +207,14 @@ async function runDashboardMetrics(range: DateRange): Promise<DashboardMetrics> 
   // Scalar-subquery predicates for the single other-table statement.
   const win = (col: AnyColumn, w: Window) => inWindow(col, w);
 
-  const [
-    scanRow,
-    otherRows,
-    seriesRows,
-    categoryRows,
-    paymentRows,
-    topExpRows,
-    topHostRows,
-    ratingRows,
-    failureRows,
-    declineRows,
-    zeroRows,
-    zeroQueryRows,
-    sourceRows,
-  ] = await Promise.all([
+  // Waves of <=4 concurrent statements, NOT one big Promise.all. The
+  // postgres-js pool is only FIVE connections on Vercel (lib/db.ts) and is
+  // shared with any concurrent render on the same instance; overflowing it
+  // by more than a few queued statements deadlocks the pool and the render
+  // hangs forever with no error (same failure the page-level Promise.all
+  // had - see app/[locale]/admin/page.tsx). Three extra round-trips of
+  // latency buy a fan-out that can never exceed the pool.
+  const [scanRow, otherRows, seriesRows, categoryRows] = await Promise.all([
     // (1) One bookings⋈experiences scan → every booking/experience-derived
     // single-row metric, both windows. The inner join is 1:1 (FK), so the
     // booking aggregates are unaffected by it.
@@ -344,7 +337,9 @@ async function runDashboardMetrics(range: DateRange): Promise<DashboardMetrics> 
         ),
       )
       .groupBy(experiences.category),
+  ]);
 
+  const [paymentRows, topExpRows, topHostRows, ratingRows] = await Promise.all([
     // (5) Payment-method mix.
     db
       .select({
@@ -418,7 +413,9 @@ async function runDashboardMetrics(range: DateRange): Promise<DashboardMetrics> 
         ),
       )
       .groupBy(reviews.rating),
+  ]);
 
+  const [failureRows, declineRows, zeroRows] = await Promise.all([
     // (9) Failed settles by gateway result code. The card brand on a
     // failed attempt isn't reliably recorded (bookings.payment_brand
     // holds the latest attempt only), so the exact OPPWA code is the
@@ -485,7 +482,9 @@ async function runDashboardMetrics(range: DateRange): Promise<DashboardMetrics> 
       )
       .orderBy(experiences.createdAt)
       .limit(5),
+  ]);
 
+  const [zeroQueryRows, sourceRows] = await Promise.all([
     // (12) Most-repeated zero-result searches — demand we couldn't serve,
     // i.e. the supply-recruitment shortlist.
     db
