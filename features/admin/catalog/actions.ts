@@ -74,7 +74,7 @@ export async function addCity(
   const parsed = addCitySchema.safeParse({
     nameEn: formData.get('nameEn'),
     nameAr: formData.get('nameAr'),
-    region: formData.get('region') || 'Asir',
+    region: formData.get('region') || 'Aseer',
     locale: formData.get('locale'),
   });
   if (!parsed.success) {

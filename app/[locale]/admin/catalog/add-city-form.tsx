@@ -98,7 +98,7 @@ export function AddCityForm({ locale, copy }: AddCityFormProps) {
         <Input
           id={`${uid}-region`}
           name="region"
-          defaultValue="Asir"
+          defaultValue="Aseer"
           aria-invalid={fields.region ? true : undefined}
         />
         {fields.region && <p className="text-al-qatt-red-800 text-xs">{copy.fieldInvalid}</p>}

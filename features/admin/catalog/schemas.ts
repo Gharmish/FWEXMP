@@ -19,7 +19,7 @@ const cityName = z.string().trim().min(2, 'name_short').max(80, 'name_long');
 export const addCitySchema = z.object({
   nameEn: cityName,
   nameAr: cityName,
-  region: z.string().trim().min(2, 'name_short').max(80, 'name_long').default('Asir'),
+  region: z.string().trim().min(2, 'name_short').max(80, 'name_long').default('Aseer'),
   locale: localeSchema,
 });
 

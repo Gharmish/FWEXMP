@@ -80,7 +80,7 @@ export const hostApplicationSchema = z
     // host would silently miss every request until it auto-expired.
     contactEmail: z.string().trim().min(1, 'email_required').email('email_invalid').max(254),
     city: z.string().trim().min(2).max(80).default('Abha'),
-    region: z.string().trim().min(2).max(80).default('Asir'),
+    region: z.string().trim().min(2).max(80).default('Aseer'),
     locale: z.enum(['en', 'ar']),
   })
   .superRefine((data, ctx) => {

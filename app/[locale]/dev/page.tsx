@@ -45,7 +45,7 @@ const TYPE_SCALE = [
   {
     role: 'Display',
     cls: 'font-semibold text-7xl tracking-[-0.04em]',
-    en: 'Discover Asir',
+    en: 'Discover Aseer',
     ar: 'اكتشف عسير',
   },
   {
@@ -172,7 +172,7 @@ const SAMPLE_HOST: HostInfo = {
   name: 'Faisal Al Qahtani',
   slug: 'faisal-al-qahtani',
   bioEn:
-    'A third-generation farmer from Habala who grew up among the juniper terraces. Faisal hosts small groups to share Asiri food, music, and the slow rhythm of mountain life.',
+    'A third-generation farmer from Habala who grew up among the juniper terraces. Faisal hosts small groups to share Aseeri food, music, and the slow rhythm of mountain life.',
   bioAr:
     'مزارع من الجيل الثالث من الحبلة، نشأ بين مدرجات العرعر. يستضيف فيصل مجموعات صغيرة ليشاركهم طعام عسير وموسيقاها وإيقاع الحياة الجبلية الهادئ.',
   verified: true,

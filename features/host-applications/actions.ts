@@ -212,7 +212,7 @@ export async function submitHostApplication(
     termsAccepted: formValue(formData, 'termsAccepted'),
     contactEmail: formValue(formData, 'contactEmail'),
     city: formValue(formData, 'city') || 'Abha',
-    region: formValue(formData, 'region') || 'Asir',
+    region: formValue(formData, 'region') || 'Aseer',
     locale: formValue(formData, 'locale'),
   });
 

@@ -31,7 +31,7 @@ type SampleExperience = Omit<
 >;
 
 /**
- * Demo meeting-point coordinates — well-known Asir landmarks matching
+ * Demo meeting-point coordinates — well-known Aseer landmarks matching
  * each entry's placeName. The live DB path carries the host's real
  * coordinates; these only feed the offline sample dataset.
  */
@@ -103,7 +103,7 @@ const FAISAL: HostInfo = {
   name: 'Faisal Al Qahtani',
   slug: hostSlug('Faisal Al Qahtani'),
   bioEn:
-    'A third-generation farmer from Habala who grew up among the juniper terraces. Faisal hosts small groups to share Asiri food, music, and the slow rhythm of mountain life.',
+    'A third-generation farmer from Habala who grew up among the juniper terraces. Faisal hosts small groups to share Aseeri food, music, and the slow rhythm of mountain life.',
   bioAr:
     'مزارع من الجيل الثالث من الحبلة، نشأ بين مدرجات العرعر. يستضيف فيصل مجموعات صغيرة ليشاركهم طعام عسير وموسيقاها وإيقاع الحياة الجبلية الهادئ.',
   verified: true,
@@ -140,13 +140,13 @@ const EXPERIENCES: readonly SampleExperience[] = [
     durationMinutes: 180,
     placeName: 'Jabal Sawda',
     city: 'Abha',
-    region: 'Asir',
+    region: 'Aseer',
     minAge: 12,
     maxGroupSize: 8,
     hostName: FAISAL.name,
     host: FAISAL,
     featured: false,
-    inclusions: ['Local guide', 'Asiri breakfast', 'Hot qahwa'],
+    inclusions: ['Local guide', 'Aseeri breakfast', 'Hot qahwa'],
     whatToBring: ['Warm layer', 'Walking shoes'],
     cancellationPolicy: 'Free cancellation up to 48 hours before the experience.',
     moments: [
@@ -181,13 +181,13 @@ const EXPERIENCES: readonly SampleExperience[] = [
     durationMinutes: 240,
     placeName: 'Habala',
     city: 'Abha',
-    region: 'Asir',
+    region: 'Aseer',
     minAge: 0,
     maxGroupSize: 10,
     hostName: FAISAL.name,
     host: FAISAL,
     featured: true,
-    inclusions: ['Traditional dinner', 'Live Asiri music', 'Tea and qahwa'],
+    inclusions: ['Traditional dinner', 'Live Aseeri music', 'Tea and qahwa'],
     whatToBring: ['Appetite', 'A light jacket for the evening'],
     cancellationPolicy: 'Free cancellation up to 72 hours before the experience.',
     moments: [
@@ -204,7 +204,8 @@ const EXPERIENCES: readonly SampleExperience[] = [
         timeOfDay: 'Evening',
         titleEn: 'Stories and music',
         titleAr: 'قصص وموسيقى',
-        descriptionEn: 'The flower men share the meaning behind the crowns, with live Asiri music.',
+        descriptionEn:
+          'The flower men share the meaning behind the crowns, with live Aseeri music.',
         descriptionAr: 'يشارك رجال الزهور معاني الأكاليل، مع موسيقى عسيرية حية.',
       },
       {
@@ -212,17 +213,17 @@ const EXPERIENCES: readonly SampleExperience[] = [
         timeOfDay: 'Night',
         titleEn: 'Shared dinner',
         titleAr: 'عشاء مشترك',
-        descriptionEn: 'A home-cooked Asiri meal eaten together under the stars.',
+        descriptionEn: 'A home-cooked Aseeri meal eaten together under the stars.',
         descriptionAr: 'وجبة عسيرية منزلية نتشاركها تحت النجوم.',
       },
     ],
   },
   {
     slug: 'asiri-coffee-ritual-and-saleeg-lunch',
-    titleEn: 'Asiri coffee ritual and saleeg lunch',
+    titleEn: 'Aseeri coffee ritual and saleeg lunch',
     titleAr: 'طقوس القهوة العسيرية وغداء السليق',
     descriptionEn:
-      'Roast and pound green beans the Asiri way, learn the etiquette of the dallah, then sit to a slow saleeg lunch. A hands-on afternoon in a family majlis in old Abha.',
+      'Roast and pound green beans the Aseeri way, learn the etiquette of the dallah, then sit to a slow saleeg lunch. A hands-on afternoon in a family majlis in old Abha.',
     descriptionAr:
       'حمص واطحن البن الأخضر على الطريقة العسيرية، وتعرّف على آداب تقديم الدلة، ثم اجلس إلى غداء سليق هادئ. بعد ظهر عملي في مجلس عائلي في أبها القديمة.',
     category: 'food',
@@ -230,7 +231,7 @@ const EXPERIENCES: readonly SampleExperience[] = [
     durationMinutes: 150,
     placeName: 'Old Abha',
     city: 'Abha',
-    region: 'Asir',
+    region: 'Aseer',
     minAge: 6,
     maxGroupSize: 12,
     hostName: FAISAL.name,
@@ -271,7 +272,7 @@ const EXPERIENCES: readonly SampleExperience[] = [
     durationMinutes: 90,
     placeName: 'Wadi Mahala',
     city: 'Abha',
-    region: 'Asir',
+    region: 'Aseer',
     minAge: 16,
     maxGroupSize: 14,
     hostName: ASIR_ADVENTURES.name,
@@ -312,7 +313,7 @@ const EXPERIENCES: readonly SampleExperience[] = [
     durationMinutes: 210,
     placeName: 'Soudah',
     city: 'Abha',
-    region: 'Asir',
+    region: 'Aseer',
     minAge: 14,
     maxGroupSize: 6,
     hostName: ASIR_ADVENTURES.name,
@@ -342,10 +343,10 @@ const EXPERIENCES: readonly SampleExperience[] = [
   },
   {
     slug: 'al-qatt-painting-rijal-almaa',
-    titleEn: 'Al-Qatt Al-Asiri painting for families in Rijal Almaa',
+    titleEn: 'Al-Qatt Al-Aseeri painting for families in Rijal Almaa',
     titleAr: 'رسم القط العسيري للعائلات في رجال ألمع',
     descriptionEn:
-      'In the stone village of Rijal Almaa, a local artist teaches families the geometric Al-Qatt Al-Asiri wall painting — a UNESCO-listed Asiri craft. Everyone takes home their own panel.',
+      'In the stone village of Rijal Almaa, a local artist teaches families the geometric Al-Qatt Al-Aseeri wall painting — a UNESCO-listed Aseeri craft. Everyone takes home their own panel.',
     descriptionAr:
       'في قرية رجال ألمع الحجرية، تعلّم فنانة محلية العائلات زخرفة القط العسيري الهندسية، وهي حرفة عسيرية مدرجة لدى اليونسكو. يأخذ كل مشارك لوحته معه إلى البيت.',
     category: 'family',
@@ -353,7 +354,7 @@ const EXPERIENCES: readonly SampleExperience[] = [
     durationMinutes: 120,
     placeName: 'Rijal Almaa',
     city: 'Abha',
-    region: 'Asir',
+    region: 'Aseer',
     minAge: 5,
     maxGroupSize: 16,
     hostName: ASIR_ADVENTURES.name,

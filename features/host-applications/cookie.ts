@@ -92,7 +92,7 @@ export function parseHostApplicationCookie(value: string | undefined): HostAppli
     bankAccountHolder: stringField(raw, 'bankAccountHolder') || null,
     vatNumber: stringField(raw, 'vatNumber') || null,
     city: stringField(raw, 'city') || 'Abha',
-    region: stringField(raw, 'region') || 'Asir',
+    region: stringField(raw, 'region') || 'Aseer',
     status: status as HostApplicationStatus,
     reviewerNotes: stringField(raw, 'reviewerNotes') || null,
     createdAt,

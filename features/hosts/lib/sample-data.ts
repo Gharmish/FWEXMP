@@ -20,7 +20,7 @@ const HOSTS: readonly HostProfile[] = [
     slug: hostSlug('Faisal Al Qahtani'),
     name: 'Faisal Al Qahtani',
     bioEn:
-      'A third-generation farmer from Habala who grew up among the juniper terraces. Faisal hosts small groups to share Asiri food, music, and the slow rhythm of mountain life.',
+      'A third-generation farmer from Habala who grew up among the juniper terraces. Faisal hosts small groups to share Aseeri food, music, and the slow rhythm of mountain life.',
     bioAr:
       'مزارع من الجيل الثالث من الحبلة، نشأ بين مدرجات العرعر. يستضيف فيصل مجموعات صغيرة ليشاركهم طعام عسير وموسيقاها وإيقاع الحياة الجبلية الهادئ.',
     verified: true,

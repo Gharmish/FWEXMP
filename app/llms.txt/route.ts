@@ -30,11 +30,11 @@ export async function GET(): Promise<Response> {
   const lines: string[] = [
     `# ${SITE_NAME}`,
     '',
-    `> ${SITE_DESCRIPTION} A curated marketplace of authentic Asiri experiences in Abha (Asir region), Saudi Arabia. Bilingual: English (/en) and Arabic (/ar, RTL).`,
+    `> ${SITE_DESCRIPTION} A curated marketplace of authentic Aseeri experiences in Abha (Aseer region), Saudi Arabia. Bilingual: English (/en) and Arabic (/ar, RTL).`,
     '',
     '## About',
     '',
-    '- Region: Abha and the Asir highlands, Saudi Arabia',
+    '- Region: Abha and the Aseer highlands, Saudi Arabia',
     '- Languages: English, Arabic (RTL)',
     '- Currency: SAR (Saudi Riyal)',
     '- Bookings: request-to-book; host confirms within 24 hours, payment after confirmation',
@@ -51,7 +51,7 @@ export async function GET(): Promise<Response> {
       `- URL (Arabic): ${SITE_URL}/ar/experiences/${exp.slug}`,
       `- Category: ${categoryLabel(exp.category)}`,
       `- Host: ${exp.hostName}`,
-      `- Place: ${exp.placeName}, Abha, Asir`,
+      `- Place: ${exp.placeName}, Abha, Aseer`,
       `- Duration: ${durationHours(exp.durationMinutes, 'en')} hours`,
       `- Price: ${formatSAR(exp.priceSar, 'en')} per person`,
     ];

@@ -30,7 +30,7 @@ export async function generateMetadata({
   const description =
     locale === 'ar'
       ? 'تعرّف على المضيفين الذين يصممون تجارب غارميش — مزارعون، مرشدون، حرفيون، وشركات سياحية مرخصة في عسير.'
-      : 'Meet the people behind every Gharmish experience — farmers, guides, artisans, and licensed Asiri tourism operators.';
+      : 'Meet the people behind every Gharmish experience — farmers, guides, artisans, and licensed Aseeri tourism operators.';
 
   return {
     title,

@@ -85,14 +85,14 @@ const SAMPLE_REVIEWS: readonly ReviewSummary[] = [
     createdAt: '2026-04-09T21:05:00Z',
   },
 
-  // Asiri coffee ritual & saleeg lunch (3 reviews)
+  // Aseeri coffee ritual & saleeg lunch (3 reviews)
   {
     id: 'rv_acr_001',
     experienceSlug: 'asiri-coffee-ritual-and-saleeg-lunch',
     guestName: 'Layla F.',
     rating: 5,
     textEn:
-      'I have lived in Riyadh for years and had never tasted real Asiri qahwa until this. The saleeg afterwards was perfect comfort food on a cool Abha afternoon.',
+      'I have lived in Riyadh for years and had never tasted real Aseeri qahwa until this. The saleeg afterwards was perfect comfort food on a cool Abha afternoon.',
     textAr: null,
     hostReply: null,
     createdAt: '2026-04-14T13:30:00Z',

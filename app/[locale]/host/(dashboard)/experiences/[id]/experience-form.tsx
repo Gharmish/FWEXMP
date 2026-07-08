@@ -232,11 +232,11 @@ export function ExperienceForm({
   const cityChoices = cityOptions.some((o) => o.nameEn === cityDefault)
     ? cityOptions
     : [
-        { nameEn: cityDefault, region: experience?.region ?? 'Asir', label: cityDefault },
+        { nameEn: cityDefault, region: experience?.region ?? 'Aseer', label: cityDefault },
         ...cityOptions,
       ];
   const [region, setRegion] = useState(
-    experience?.region ?? cityChoices.find((o) => o.nameEn === cityDefault)?.region ?? 'Asir',
+    experience?.region ?? cityChoices.find((o) => o.nameEn === cityDefault)?.region ?? 'Aseer',
   );
 
   const errorPrefix = useId();

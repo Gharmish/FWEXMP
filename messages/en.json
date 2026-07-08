@@ -651,7 +651,7 @@
     },
     "gallery": {
       "heading": "Gallery",
-      "description": "Photos shown after the hero on the experience page. Natural light, real Asiri colours — no stock.",
+      "description": "Photos shown after the hero on the experience page. Natural light, real Aseeri colours — no stock.",
       "imageAlt": "Gallery photo",
       "choose": "Choose a photo",
       "hint": "JPG, PNG, WebP or AVIF · up to 30MB — you'll frame it to 16:9 before upload.",
@@ -998,7 +998,7 @@
       },
       "bio": {
         "label": "Short bio (English)",
-        "hint": "A paragraph or two on who you are and what you love about Asir. We'll have it translated to Arabic with you. Minimum 40 characters."
+        "hint": "A paragraph or two on who you are and what you love about Aseer. We'll have it translated to Arabic with you. Minimum 40 characters."
       },
       "languages": {
         "label": "Languages you host in",
@@ -1262,7 +1262,7 @@
       "nameLabel": "Display name",
       "nameHint": "Your name or your company's, exactly as guests should see it.",
       "bioLabel": "Bio (English)",
-      "bioHint": "40–1200 characters. Who you are, what you host, and your connection to Asir.",
+      "bioHint": "40–1200 characters. Who you are, what you host, and your connection to Aseer.",
       "arabicNote": "The Gharmish team prepares the Arabic version of your bio after you update the English one.",
       "languagesLabel": "Languages you host in",
       "languages": {
@@ -1624,7 +1624,7 @@
       "cityLabel": "City",
       "regionLabel": "Region",
       "inclusionsLabel": "What's included",
-      "inclusionsPlaceholder": "Bottled water\nTransportation from Abha\nLight Asiri breakfast",
+      "inclusionsPlaceholder": "Bottled water\nTransportation from Abha\nLight Aseeri breakfast",
       "inclusionsHint": "One per line.",
       "whatToBringLabel": "What to bring",
       "whatToBringPlaceholder": "Comfortable walking shoes\nA layer for the evening",
@@ -1724,7 +1724,7 @@
     },
     "gallery": {
       "heading": "Gallery",
-      "description": "Photos shown after the hero on your listing. Aim for at least five — the listing page's photo mosaic only appears from five photos. Natural light, real Asiri colours — no stock.",
+      "description": "Photos shown after the hero on your listing. Aim for at least five — the listing page's photo mosaic only appears from five photos. Natural light, real Aseeri colours — no stock.",
       "imageAlt": "Gallery photo",
       "choose": "Choose a photo",
       "hint": "JPG, PNG, WebP or AVIF — any size. You'll frame each photo to 16:9 before it uploads.",
@@ -1742,7 +1742,7 @@
   },
   "experiencesIndex": {
     "eyebrow": "Abha experiences",
-    "title": "Explore authentic Asiri experiences.",
+    "title": "Explore authentic Aseeri experiences.",
     "intro": "A curated collection of heritage, mountain, food, wellness, adventure, and family activities hosted by vetted local partners.",
     "featured": "Featured Originals",
     "all": "All experiences",
@@ -1789,9 +1789,9 @@
     "cityAll": "All cities"
   },
   "home": {
-    "eyebrow": "Abha · Asir",
-    "headline": "Experiences hosted by the people who know Asir best.",
-    "intro": "A curated marketplace of authentic Asiri experiences — heritage, mountains, food, and more — co-created with local hosts.",
+    "eyebrow": "Abha · Aseer",
+    "headline": "Experiences hosted by the people who know Aseer best.",
+    "intro": "A curated marketplace of authentic Aseeri experiences — heritage, mountains, food, and more — co-created with local hosts.",
     "cta": "Discover experiences",
     "originalsTitle": "Gharmish Originals",
     "originalsSub": "Premium experiences we produce hand in hand with our hosts.",
@@ -1804,7 +1804,7 @@
     "whyGharmish": {
       "eyebrow": "Why Gharmish",
       "title": "Curation is the difference.",
-      "rootedTitle": "Rooted in Asir",
+      "rootedTitle": "Rooted in Aseer",
       "rootedBody": "Every experience ties to the region's culture, landscape, or community. Nothing generic, nothing imported.",
       "hostedTitle": "Hosted, not listed",
       "hostedBody": "We co-create each experience with vetted local partners, and back them with photography, training, and hands-on support.",
@@ -1818,11 +1818,11 @@
     },
     "hostCta": {
       "eyebrow": "Host with Gharmish",
-      "title": "Know Asir like nobody else?",
+      "title": "Know Aseer like nobody else?",
       "body": "We partner with a small circle of local hosts — with photography, training, and guests who value the real thing.",
       "cta": "Apply to host"
     },
-    "heroImageAlt": "Morning mist over the juniper mountains of Asir"
+    "heroImageAlt": "Morning mist over the juniper mountains of Aseer"
   },
   "experience": {
     "originals": "Originals",
@@ -2033,7 +2033,7 @@
     "payNow": "Complete payment",
     "declinedEyebrow": "Request declined",
     "declinedTitle": "The host couldn't take this booking.",
-    "declinedDescription": "You haven't been charged anything. There's plenty more of Asir to see — browse other experiences or try another date.",
+    "declinedDescription": "You haven't been charged anything. There's plenty more of Aseer to see — browse other experiences or try another date.",
     "expiredEyebrow": "Request expired",
     "expiredTitle": "The host didn't respond in time.",
     "expiredDescription": "Your request expired after the approval window passed, and you haven't been charged anything. You're welcome to send a new request for another date.",
@@ -2108,8 +2108,8 @@
     "partyLabel": "Guests",
     "totalLabel": "Total paid",
     "referenceLabel": "Reference",
-    "closing": "We'll send the meeting point and what to bring before the day. See you in Asir.",
-    "footer": "Gharmish — experiences hosted by the people who know Asir best.",
+    "closing": "We'll send the meeting point and what to bring before the day. See you in Aseer.",
+    "footer": "Gharmish — experiences hosted by the people who know Aseer best.",
     "cancelSubject": "Your Gharmish booking is cancelled",
     "cancelIntroRefunded": "Your booking has been cancelled and your refund has been issued to your card. Depending on your bank, it can take a few business days to appear.",
     "cancelIntroRefundPending": "Your booking has been cancelled. Your refund is being processed by our team and will reach your card within a few business days.",
@@ -2166,7 +2166,7 @@
     "invoiceNumberLabel": "Invoice no.",
     "issueDateLabel": "Issued",
     "sellerLabel": "Issued by",
-    "sellerRegion": "Abha, Asir region, Saudi Arabia",
+    "sellerRegion": "Abha, Aseer region, Saudi Arabia",
     "crLabel": "CR",
     "vatNumberLabel": "VAT registration no.",
     "billedToLabel": "Billed to",
@@ -2218,7 +2218,7 @@
   "hostsIndex": {
     "eyebrow": "Our hosts",
     "title": "The people behind every experience.",
-    "intro": "Vetted local partners — Saudi individuals and licensed Asiri tourism operators — co-creating the Gharmish catalog. Every host is verified before they go live.",
+    "intro": "Vetted local partners — Saudi individuals and licensed Aseeri tourism operators — co-creating the Gharmish catalog. Every host is verified before they go live.",
     "empty": "No hosts have been listed yet."
   },
   "hostProfile": {
@@ -2247,9 +2247,9 @@
     "showAll": "{count, plural, =1 {Show 1 more review} other {Show # more reviews}}"
   },
   "footer": {
-    "tagline": "Experiences hosted by the people who know Asir best.",
+    "tagline": "Experiences hosted by the people who know Aseer best.",
     "rights": "All rights reserved.",
-    "region": "Abha · Asir, Saudi Arabia",
+    "region": "Abha · Aseer, Saudi Arabia",
     "exploreLabel": "Explore",
     "linkExperiences": "Experiences",
     "linkHosts": "Hosts",
@@ -2455,7 +2455,7 @@
   "howItWorks": {
     "eyebrow": "How it works",
     "title": "From browsing to the mountain top.",
-    "intro": "Gharmish connects you with vetted local hosts across Asir. Here's how booking works for guests — and how hosting works if you'd like to join the other side.",
+    "intro": "Gharmish connects you with vetted local hosts across Aseer. Here's how booking works for guests — and how hosting works if you'd like to join the other side.",
     "guests": {
       "heading": "For guests",
       "intro": "Booking takes a few minutes, and you always know where you stand.",
@@ -2566,7 +2566,7 @@
     "intro": "The agreement between you and Gharmish when you browse, book, or host — written to be read. Last updated 7 July 2026.",
     "platform": {
       "heading": "What Gharmish is",
-      "body1": "Gharmish is an online marketplace that connects guests with independent local hosts offering experiences in the Asir region of Saudi Arabia. Gharmish operates the platform, handles payments, and supports both sides — the experience itself is created and delivered by the host.",
+      "body1": "Gharmish is an online marketplace that connects guests with independent local hosts offering experiences in the Aseer region of Saudi Arabia. Gharmish operates the platform, handles payments, and supports both sides — the experience itself is created and delivered by the host.",
       "body2": "We vet every host before they appear on the platform, but hosts are not Gharmish employees, and each experience page describes what the individual host offers."
     },
     "accounts": {
@@ -2658,7 +2658,7 @@
     "rejectedSubject": "An update on your Gharmish application",
     "rejectedIntro": "We couldn't approve your application this time. The reviewer left a note explaining why on your application page — you can revise and resubmit anytime: {url}",
     "rejectedClosing": "Thank you for your interest in hosting with Gharmish. — The Gharmish team",
-    "footer": "Gharmish — experiences hosted by the people who know Asir best."
+    "footer": "Gharmish — experiences hosted by the people who know Aseer best."
   },
   "common": {
     "close": "Close",
@@ -2671,6 +2671,6 @@
     "repliedIntro": "The host of {experience} replied to your review. Read it on the experience page: {url}",
     "replyLabel": "Their reply",
     "repliedClosing": "Thank you for sharing your experience — it helps other travellers and the hosts alike.",
-    "footer": "Gharmish · Experiences hosted by the people who know Asir best"
+    "footer": "Gharmish · Experiences hosted by the people who know Aseer best"
   }
 }

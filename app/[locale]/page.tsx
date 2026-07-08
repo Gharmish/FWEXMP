@@ -110,7 +110,7 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
         name: SITE_NAME,
         url: SITE_URL,
         description: SITE_DESCRIPTION,
-        areaServed: 'Abha, Asir, Saudi Arabia',
+        areaServed: 'Abha, Aseer, Saudi Arabia',
       },
       {
         '@type': 'WebSite',
@@ -136,7 +136,7 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
         </p>
       )}
       {/* Hero — editorial split: the headline cascades in word by word on
-          the inline-start side; a tall Asir photograph settles from a slow
+          the inline-start side; a tall Aseer photograph settles from a slow
           Ken Burns zoom and drifts on scroll at the end side (desktop only —
           mobile keeps the fast type-forward hero). A hairline Sarawat
           ridgeline traces itself in below as the section divider. All LCP

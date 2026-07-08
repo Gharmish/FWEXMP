@@ -1,6 +1,6 @@
 # Gharmish
 
-A curated experiences marketplace for Abha and the wider Asir region. Bilingual Next.js 16 App Router app with English (`/en`) and Arabic (`/ar`) routes, full RTL, Gharmish design tokens, Drizzle/Postgres data access, JSON-LD on every public page, and an AI-readable `/llms.txt`.
+A curated experiences marketplace for Abha and the wider Aseer region. Bilingual Next.js 16 App Router app with English (`/en`) and Arabic (`/ar`) routes, full RTL, Gharmish design tokens, Drizzle/Postgres data access, JSON-LD on every public page, and an AI-readable `/llms.txt`.
 
 For brand, design, architecture, and scope: read **`BRIEF.md`**. It's the source of truth.
 

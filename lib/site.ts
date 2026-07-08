@@ -11,4 +11,4 @@ export const SITE_NAME = 'Gharmish';
 
 export const SUPPORT_EMAIL = 'hello@gharmish.com';
 
-export const SITE_DESCRIPTION = 'Experiences hosted by the people who know Asir best.';
+export const SITE_DESCRIPTION = 'Experiences hosted by the people who know Aseer best.';

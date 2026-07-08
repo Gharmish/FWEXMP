@@ -37,7 +37,7 @@ const TILE_DISC: Record<Category, string> = {
   women_only: 'bg-tihama-coral-100 text-tihama-coral-800',
 };
 
-// Castle for heritage: Asir's fortress villages (Rijal Almaa, Habala) —
+// Castle for heritage: Aseer's fortress villages (Rijal Almaa, Habala) —
 // not Landmark's Greek temple, which reads foreign here.
 const TILE_ICON: Record<Category, LucideIcon> = {
   nature: Leaf,

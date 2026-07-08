@@ -32,7 +32,7 @@ export async function generateMetadata({
   const description =
     locale === 'ar'
       ? 'تجارب عسيرية منتقاة في أبها، يقدمها شركاء محليون موثوقون.'
-      : 'Curated Asiri experiences in Abha, hosted by vetted local partners.';
+      : 'Curated Aseeri experiences in Abha, hosted by vetted local partners.';
 
   return {
     title,

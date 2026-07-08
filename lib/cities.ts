@@ -30,7 +30,7 @@ export const DEFAULT_CITIES: readonly City[] = [
     slug: 'abha',
     nameEn: 'Abha',
     nameAr: 'أبها',
-    region: 'Asir',
+    region: 'Aseer',
     enabled: true,
   },
 ];

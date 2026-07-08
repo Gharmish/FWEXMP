@@ -86,7 +86,7 @@ function parseForm(formData: FormData) {
     priceSar: formValue(formData, 'priceSar'),
     placeName: formValue(formData, 'placeName'),
     city: formValue(formData, 'city') || 'Abha',
-    region: formValue(formData, 'region') || 'Asir',
+    region: formValue(formData, 'region') || 'Aseer',
     inclusionsRaw: formValue(formData, 'inclusionsRaw'),
     whatToBringRaw: formValue(formData, 'whatToBringRaw'),
     cancellationPolicy: formValue(formData, 'cancellationPolicy'),

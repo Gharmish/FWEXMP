@@ -78,7 +78,7 @@ describe('parseHostApplicationCookie', () => {
   it('defaults city and region when blank', () => {
     const view = parseHostApplicationCookie(JSON.stringify({ ...sample, city: '', region: '' }));
     expect(view?.city).toBe('Abha');
-    expect(view?.region).toBe('Asir');
+    expect(view?.region).toBe('Aseer');
   });
 });
 

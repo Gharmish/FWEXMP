@@ -81,7 +81,7 @@ const BLANK: Omit<AdminExperienceEdit, 'id' | 'slug' | 'heroImage' | 'images'> =
   priceSar: 0,
   placeName: '',
   city: 'Abha',
-  region: 'Asir',
+  region: 'Aseer',
   inclusions: [],
   whatToBring: [],
   cancellationPolicy: '',

@@ -235,7 +235,7 @@ export const hosts = pgTable('hosts', {
    * more cities. Copied from `host_applications.city` on approval.
    */
   city: text().notNull().default('Abha'),
-  region: text().notNull().default('Asir'),
+  region: text().notNull().default('Aseer'),
   payoutIban: text(),
   /**
    * Notification email for the host. Copied from the application's
@@ -300,7 +300,7 @@ export const experiences = pgTable(
     lat: doublePrecision().notNull(),
     lng: doublePrecision().notNull(),
     city: text().notNull().default('Abha'),
-    region: text().notNull().default('Asir'),
+    region: text().notNull().default('Aseer'),
     placeName: text().notNull(),
     inclusions: text().array().notNull().default([]),
     whatToBring: text().array().notNull().default([]),
@@ -654,7 +654,7 @@ export const hostApplications = pgTable(
      */
     termsAcceptedAt: timestamp({ withTimezone: true }),
     city: text().notNull().default('Abha'),
-    region: text().notNull().default('Asir'),
+    region: text().notNull().default('Aseer'),
     status: hostApplicationStatusEnum().notNull().default('pending'),
     reviewerNotes: text(),
     /** Supabase auth id of the admin who approved/rejected. Audit trail. */
@@ -997,7 +997,7 @@ export const cities = pgTable('cities', {
   /** Canonical English name — the value stored on `experiences.city`. */
   nameEn: text().notNull().unique(),
   nameAr: text().notNull(),
-  region: text().notNull().default('Asir'),
+  region: text().notNull().default('Aseer'),
   /** Offered to hosts/admins for new experiences when true. */
   enabled: boolean().notNull().default(true),
   createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),

@@ -11,7 +11,7 @@ import { getTranslations } from 'next-intl/server';
  * link is the actionable path guests really use for navigation.
  */
 
-/** Bounding-box half-width in degrees (~1.6 km at Asir latitudes). */
+/** Bounding-box half-width in degrees (~1.6 km at Aseer latitudes). */
 const BBOX_DELTA = 0.015;
 
 interface MeetingPointMapProps {

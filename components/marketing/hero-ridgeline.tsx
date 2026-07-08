@@ -1,7 +1,7 @@
 import { TracePath } from '@/components/ui/motion';
 
 /**
- * Decorative Sarawat ridgeline — a single hairline tracing an Asir mountain
+ * Decorative Sarawat ridgeline — a single hairline tracing an Aseer mountain
  * profile, drawn in as the hero settles. It doubles as the divider between
  * the hero and the category row, so no border hairline sits beside it. The
  * RTL mirror makes the stroke draw from the inline-start edge in Arabic.

@@ -6,11 +6,11 @@
 
 ## 1. What we're building
 
-Gharmish (غارميش) is a curated experiences marketplace for Saudi Arabia, launching in Abha (Asir region). We connect vetted local hosts — individual Saudis and tourism companies — with guests seeking authentic Asiri experiences: heritage tours, mountain adventures, food, wellness, family activities, and premium "Originals."
+Gharmish (غارميش) is a curated experiences marketplace for Saudi Arabia, launching in Abha (Aseer region). We connect vetted local hosts — individual Saudis and tourism companies — with guests seeking authentic Aseeri experiences: heritage tours, mountain adventures, food, wellness, family activities, and premium "Originals."
 
 We are not a passive listing platform. We are a **partnership marketplace**: we co-create experiences with hosts, provide photography, training, and distribution, in exchange for a fair revenue share. Quality and curation are the moat. Gharmish does not provide insurance — hosts carry full liability for the experiences they deliver (owner decision 2026-07-07); the terms page and the host-onboarding consent reflect that.
 
-**Initial launch market**: Abha and surrounding Asir region, summer 2026.
+**Initial launch market**: Abha and surrounding Aseer region, summer 2026.
 **Primary audience year 1**: Saudi domestic travelers (Arabic-first).
 **Secondary audience year 2+**: International visitors (English).
 
@@ -28,11 +28,11 @@ Calm, confident, culturally rooted, premium without pretension. Apple-like restr
 
 ### Positioning statement
 
-> Experiences hosted by the people who know Asir best.
+> Experiences hosted by the people who know Aseer best.
 
 ### Brand pillars
 
-1. **Authenticity** — every experience ties to Asiri culture, geography, or community.
+1. **Authenticity** — every experience ties to Aseeri culture, geography, or community.
 2. **Partnership** — hosts are partners, not inventory.
 3. **Restraint** — design, copy, and feature set are deliberate. Less is the point.
 
@@ -178,7 +178,7 @@ Use the 8-point grid exclusively: `4, 8, 12, 16, 24, 32, 48, 64, 80, 120` (pixel
 ### Photography rules (for content team)
 
 - Natural light only, no filters.
-- Real Asiri colors — no Instagram saturation.
+- Real Aseeri colors — no Instagram saturation.
 - Three crops shot for every listing: 4:5, 16:9, square.
 - People always show hands or faces, never faceless figures.
 - No stock photography ever.
