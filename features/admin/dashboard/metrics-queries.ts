@@ -1,6 +1,7 @@
 import { and, eq, gte, lt, sql, type AnyColumn, type SQL } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import { reportError } from '@/lib/log';
+import { DeadlineError, withDeadline } from '@/lib/deadline';
 import {
   analyticsEvents,
   bookings,
@@ -195,6 +196,28 @@ export async function getDashboardMetrics(range: DateRange): Promise<DashboardMe
 }
 
 /**
+ * Run one wave of statements under a deadline, retrying ONCE on timeout.
+ *
+ * postgres-js has no statement timeout: a statement queued onto a poisoned
+ * pooled connection (half-sent protocol message; production shows backends
+ * `active` on `ClientRead` for minutes) never settles and the render hangs
+ * forever. The deadline converts that into an error; the retry re-issues
+ * fresh statements, which the pool queues onto healthy slots (the stuck slot
+ * stays occupied until recycled — hence exactly one retry, then the caller's
+ * catch degrades the dashboard to its "metrics unavailable" notice instead
+ * of never opening at all).
+ */
+async function wave<T>(label: string, run: () => Promise<T>): Promise<T> {
+  try {
+    return await withDeadline(`metrics:${label}`, 8_000, run());
+  } catch (error) {
+    if (!(error instanceof DeadlineError)) throw error;
+    reportError(error, { surface: 'admin:metricsWaveRetry', label });
+    return await withDeadline(`metrics:${label}:retry`, 8_000, run());
+  }
+}
+
+/**
  * The unguarded aggregation. Throws on any DB error (the caller logs + degrades
  * to null). Separated from the guard so it can be exercised directly in tests.
  */
@@ -214,59 +237,60 @@ async function runDashboardMetrics(range: DateRange): Promise<DashboardMetrics> 
   // hangs forever with no error (same failure the page-level Promise.all
   // had - see app/[locale]/admin/page.tsx). Three extra round-trips of
   // latency buy a fan-out that can never exceed the pool.
-  const [scanRow, otherRows, seriesRows, categoryRows] = await Promise.all([
-    // (1) One bookings⋈experiences scan → every booking/experience-derived
-    // single-row metric, both windows. The inner join is 1:1 (FK), so the
-    // booking aggregates are unaffected by it.
-    db
-      .select({
-        reqCur: cnt(sql`true`, cur),
-        reqPrev: cnt(sql`true`, prev),
-        revCur: cnt(REVENUE, cur),
-        revPrev: cnt(REVENUE, prev),
-        gmvCur: sumAmt(REVENUE, cur),
-        gmvPrev: sumAmt(REVENUE, prev),
-        netCur: netRevenue(cur),
-        netPrev: netRevenue(prev),
-        confirmedCur: cnt(STATUS('confirmed'), cur),
-        completedCur: cnt(STATUS('completed'), cur),
-        completedPrev: cnt(STATUS('completed'), prev),
-        pendingCur: cnt(STATUS('pending'), cur),
-        declinedCur: cnt(STATUS('declined'), cur),
-        expiredCur: cnt(STATUS('expired'), cur),
-        cancelledCur: cnt(STATUS('cancelled'), cur),
-        avgPartyCur: avgPartyX100(cur),
-        avgPartyPrev: avgPartyX100(prev),
-        avgRespCur: avgRespX10(cur),
-        avgRespPrev: avgRespX10(prev),
-        refundedSarCur: refundedSum(cur),
-        refundedSarPrev: refundedSum(prev),
-        vatSarCur: vatSum(cur),
-        vatSarPrev: vatSum(prev),
-        refundedCntCur: refundedCnt(cur),
-        instantCur: instantCount(cur),
-        instantPrev: instantCount(prev),
-        activeHostsCur: activeHostCount(cur),
-        activeHostsPrev: activeHostCount(prev),
-        retActiveCur: retActive(cur),
-        retActivePrev: retActive(prev),
-        retReturningCur: retReturning(cur),
-        retReturningPrev: retReturning(prev),
-        seatsBookedCur: seatsBooked(range),
-        seatsBookedPrev: seatsBooked(prevRange),
-        leadCur: leadDaysX10(cur),
-        leadPrev: leadDaysX10(prev),
-        slaDecidedCur: slaDecided(cur),
-        slaDecidedPrev: slaDecided(prev),
-        slaBreachedCur: slaBreached(cur),
-        slaBreachedPrev: slaBreached(prev),
-      })
-      .from(bookings)
-      .innerJoin(experiences, eq(experiences.id, bookings.experienceId)),
+  const [scanRow, otherRows, seriesRows, categoryRows] = await wave('1', () =>
+    Promise.all([
+      // (1) One bookings⋈experiences scan → every booking/experience-derived
+      // single-row metric, both windows. The inner join is 1:1 (FK), so the
+      // booking aggregates are unaffected by it.
+      db
+        .select({
+          reqCur: cnt(sql`true`, cur),
+          reqPrev: cnt(sql`true`, prev),
+          revCur: cnt(REVENUE, cur),
+          revPrev: cnt(REVENUE, prev),
+          gmvCur: sumAmt(REVENUE, cur),
+          gmvPrev: sumAmt(REVENUE, prev),
+          netCur: netRevenue(cur),
+          netPrev: netRevenue(prev),
+          confirmedCur: cnt(STATUS('confirmed'), cur),
+          completedCur: cnt(STATUS('completed'), cur),
+          completedPrev: cnt(STATUS('completed'), prev),
+          pendingCur: cnt(STATUS('pending'), cur),
+          declinedCur: cnt(STATUS('declined'), cur),
+          expiredCur: cnt(STATUS('expired'), cur),
+          cancelledCur: cnt(STATUS('cancelled'), cur),
+          avgPartyCur: avgPartyX100(cur),
+          avgPartyPrev: avgPartyX100(prev),
+          avgRespCur: avgRespX10(cur),
+          avgRespPrev: avgRespX10(prev),
+          refundedSarCur: refundedSum(cur),
+          refundedSarPrev: refundedSum(prev),
+          vatSarCur: vatSum(cur),
+          vatSarPrev: vatSum(prev),
+          refundedCntCur: refundedCnt(cur),
+          instantCur: instantCount(cur),
+          instantPrev: instantCount(prev),
+          activeHostsCur: activeHostCount(cur),
+          activeHostsPrev: activeHostCount(prev),
+          retActiveCur: retActive(cur),
+          retActivePrev: retActive(prev),
+          retReturningCur: retReturning(cur),
+          retReturningPrev: retReturning(prev),
+          seatsBookedCur: seatsBooked(range),
+          seatsBookedPrev: seatsBooked(prevRange),
+          leadCur: leadDaysX10(cur),
+          leadPrev: leadDaysX10(prev),
+          slaDecidedCur: slaDecided(cur),
+          slaDecidedPrev: slaDecided(prev),
+          slaBreachedCur: slaBreached(cur),
+          slaBreachedPrev: slaBreached(prev),
+        })
+        .from(bookings)
+        .innerJoin(experiences, eq(experiences.id, bookings.experienceId)),
 
-    // (2) Every other-table single-row metric in one statement via scalar
-    // subqueries — one round-trip instead of seven.
-    db.execute(sql`select
+      // (2) Every other-table single-row metric in one statement via scalar
+      // subqueries — one round-trip instead of seven.
+      db.execute(sql`select
         (select count(*) from ${guests} where ${win(guests.createdAt, cur)})::int as new_guests_cur,
         (select count(*) from ${guests} where ${win(guests.createdAt, prev)})::int as new_guests_prev,
         (select count(*) from ${guests} where ${guests.preferredLanguage} = 'ar' and ${win(guests.createdAt, cur)})::int as ar_cur,
@@ -308,221 +332,228 @@ async function runDashboardMetrics(range: DateRange): Promise<DashboardMetrics> 
         (select count(*) from ${analyticsEvents} where ${analyticsEvents.type} = 'search' and ${analyticsEvents.resultCount} = 0 and ${win(analyticsEvents.createdAt, prev)})::int as zsearch_prev
       `),
 
-    // (3) Time series over the selected window, bucketed in Riyadh time.
-    db
-      .select({
-        bucket: sql<string>`to_char(date_trunc(${granularity}, ${bookings.createdAt} at time zone 'Asia/Riyadh'), 'YYYY-MM-DD')`,
-        bookings: sql<number>`count(*) filter (where ${REVENUE})::int`,
-        gmvSar: sql<number>`coalesce(sum(${bookings.totalAmount}) filter (where ${REVENUE}), 0)::int`,
-      })
-      .from(bookings)
-      .where(and(gte(bookings.createdAt, cur.start), lt(bookings.createdAt, cur.endExclusive)))
-      .groupBy(sql`1`)
-      .orderBy(sql`1`),
+      // (3) Time series over the selected window, bucketed in Riyadh time.
+      db
+        .select({
+          bucket: sql<string>`to_char(date_trunc(${granularity}, ${bookings.createdAt} at time zone 'Asia/Riyadh'), 'YYYY-MM-DD')`,
+          bookings: sql<number>`count(*) filter (where ${REVENUE})::int`,
+          gmvSar: sql<number>`coalesce(sum(${bookings.totalAmount}) filter (where ${REVENUE}), 0)::int`,
+        })
+        .from(bookings)
+        .where(and(gte(bookings.createdAt, cur.start), lt(bookings.createdAt, cur.endExclusive)))
+        .groupBy(sql`1`)
+        .orderBy(sql`1`),
 
-    // (4) GMV by category.
-    db
-      .select({
-        category: experiences.category,
-        bookings: sql<number>`count(*)::int`,
-        gmvSar: sql<number>`coalesce(sum(${bookings.totalAmount}), 0)::int`,
-      })
-      .from(bookings)
-      .innerJoin(experiences, eq(experiences.id, bookings.experienceId))
-      .where(
-        and(
-          sql`${bookings.status} in ('confirmed','completed')`,
-          gte(bookings.createdAt, cur.start),
-          lt(bookings.createdAt, cur.endExclusive),
-        ),
-      )
-      .groupBy(experiences.category),
-  ]);
+      // (4) GMV by category.
+      db
+        .select({
+          category: experiences.category,
+          bookings: sql<number>`count(*)::int`,
+          gmvSar: sql<number>`coalesce(sum(${bookings.totalAmount}), 0)::int`,
+        })
+        .from(bookings)
+        .innerJoin(experiences, eq(experiences.id, bookings.experienceId))
+        .where(
+          and(
+            sql`${bookings.status} in ('confirmed','completed')`,
+            gte(bookings.createdAt, cur.start),
+            lt(bookings.createdAt, cur.endExclusive),
+          ),
+        )
+        .groupBy(experiences.category),
+    ]),
+  );
 
-  const [paymentRows, topExpRows, topHostRows, ratingRows] = await Promise.all([
-    // (5) Payment-method mix.
-    db
-      .select({
-        brand: sql<string>`coalesce(nullif(${bookings.paymentBrand}, ''), 'unknown')`,
-        bookings: sql<number>`count(*)::int`,
-        gmvSar: sql<number>`coalesce(sum(${bookings.totalAmount}), 0)::int`,
-      })
-      .from(bookings)
-      .where(
-        and(
-          sql`${bookings.status} in ('confirmed','completed')`,
-          gte(bookings.createdAt, cur.start),
-          lt(bookings.createdAt, cur.endExclusive),
-        ),
-      )
-      .groupBy(sql`1`),
+  const [paymentRows, topExpRows, topHostRows, ratingRows] = await wave('2', () =>
+    Promise.all([
+      // (5) Payment-method mix.
+      db
+        .select({
+          brand: sql<string>`coalesce(nullif(${bookings.paymentBrand}, ''), 'unknown')`,
+          bookings: sql<number>`count(*)::int`,
+          gmvSar: sql<number>`coalesce(sum(${bookings.totalAmount}), 0)::int`,
+        })
+        .from(bookings)
+        .where(
+          and(
+            sql`${bookings.status} in ('confirmed','completed')`,
+            gte(bookings.createdAt, cur.start),
+            lt(bookings.createdAt, cur.endExclusive),
+          ),
+        )
+        .groupBy(sql`1`),
 
-    // (6) Top experiences by GMV.
-    db
-      .select({
-        id: experiences.id,
-        label: experiences.titleEn,
-        slug: experiences.slug,
-        bookings: sql<number>`count(*)::int`,
-        gmvSar: sql<number>`coalesce(sum(${bookings.totalAmount}), 0)::int`,
-      })
-      .from(bookings)
-      .innerJoin(experiences, eq(experiences.id, bookings.experienceId))
-      .where(
-        and(
-          sql`${bookings.status} in ('confirmed','completed')`,
-          gte(bookings.createdAt, cur.start),
-          lt(bookings.createdAt, cur.endExclusive),
-        ),
-      )
-      .groupBy(experiences.id, experiences.titleEn, experiences.slug)
-      .orderBy(sql`coalesce(sum(${bookings.totalAmount}), 0) desc`)
-      .limit(5),
+      // (6) Top experiences by GMV.
+      db
+        .select({
+          id: experiences.id,
+          label: experiences.titleEn,
+          slug: experiences.slug,
+          bookings: sql<number>`count(*)::int`,
+          gmvSar: sql<number>`coalesce(sum(${bookings.totalAmount}), 0)::int`,
+        })
+        .from(bookings)
+        .innerJoin(experiences, eq(experiences.id, bookings.experienceId))
+        .where(
+          and(
+            sql`${bookings.status} in ('confirmed','completed')`,
+            gte(bookings.createdAt, cur.start),
+            lt(bookings.createdAt, cur.endExclusive),
+          ),
+        )
+        .groupBy(experiences.id, experiences.titleEn, experiences.slug)
+        .orderBy(sql`coalesce(sum(${bookings.totalAmount}), 0) desc`)
+        .limit(5),
 
-    // (7) Top hosts by GMV.
-    db
-      .select({
-        id: hosts.id,
-        label: hosts.name,
-        bookings: sql<number>`count(*)::int`,
-        gmvSar: sql<number>`coalesce(sum(${bookings.totalAmount}), 0)::int`,
-      })
-      .from(bookings)
-      .innerJoin(experiences, eq(experiences.id, bookings.experienceId))
-      .innerJoin(hosts, eq(hosts.id, experiences.hostId))
-      .where(
-        and(
-          sql`${bookings.status} in ('confirmed','completed')`,
-          gte(bookings.createdAt, cur.start),
-          lt(bookings.createdAt, cur.endExclusive),
-        ),
-      )
-      .groupBy(hosts.id, hosts.name)
-      .orderBy(sql`coalesce(sum(${bookings.totalAmount}), 0) desc`)
-      .limit(5),
+      // (7) Top hosts by GMV.
+      db
+        .select({
+          id: hosts.id,
+          label: hosts.name,
+          bookings: sql<number>`count(*)::int`,
+          gmvSar: sql<number>`coalesce(sum(${bookings.totalAmount}), 0)::int`,
+        })
+        .from(bookings)
+        .innerJoin(experiences, eq(experiences.id, bookings.experienceId))
+        .innerJoin(hosts, eq(hosts.id, experiences.hostId))
+        .where(
+          and(
+            sql`${bookings.status} in ('confirmed','completed')`,
+            gte(bookings.createdAt, cur.start),
+            lt(bookings.createdAt, cur.endExclusive),
+          ),
+        )
+        .groupBy(hosts.id, hosts.name)
+        .orderBy(sql`coalesce(sum(${bookings.totalAmount}), 0) desc`)
+        .limit(5),
 
-    // (8) Rating distribution over visible reviews in the window.
-    db
-      .select({ rating: reviews.rating, count: sql<number>`count(*)::int` })
-      .from(reviews)
-      .where(
-        and(
-          sql`${reviews.hiddenAt} is null`,
-          gte(reviews.createdAt, cur.start),
-          lt(reviews.createdAt, cur.endExclusive),
-        ),
-      )
-      .groupBy(reviews.rating),
-  ]);
+      // (8) Rating distribution over visible reviews in the window.
+      db
+        .select({ rating: reviews.rating, count: sql<number>`count(*)::int` })
+        .from(reviews)
+        .where(
+          and(
+            sql`${reviews.hiddenAt} is null`,
+            gte(reviews.createdAt, cur.start),
+            lt(reviews.createdAt, cur.endExclusive),
+          ),
+        )
+        .groupBy(reviews.rating),
+    ]),
+  );
 
-  const [failureRows, declineRows, zeroRows] = await Promise.all([
-    // (9) Failed settles by gateway result code. The card brand on a
-    // failed attempt isn't reliably recorded (bookings.payment_brand
-    // holds the latest attempt only), so the exact OPPWA code is the
-    // truthful axis for "why are payments failing".
-    db
-      .select({
-        resultCode: sql<string>`coalesce(nullif(${paymentEvents.resultCode}, ''), 'unknown')`,
-        count: sql<number>`count(*)::int`,
-      })
-      .from(paymentEvents)
-      .where(
-        and(
-          sql`${paymentEvents.type} = 'settle_failed'`,
-          gte(paymentEvents.createdAt, cur.start),
-          lt(paymentEvents.createdAt, cur.endExclusive),
-        ),
-      )
-      .groupBy(sql`1`)
-      .orderBy(sql`count(*) desc`)
-      .limit(6),
+  const [failureRows, declineRows, zeroRows] = await wave('3', () =>
+    Promise.all([
+      // (9) Failed settles by gateway result code. The card brand on a
+      // failed attempt isn't reliably recorded (bookings.payment_brand
+      // holds the latest attempt only), so the exact OPPWA code is the
+      // truthful axis for "why are payments failing".
+      db
+        .select({
+          resultCode: sql<string>`coalesce(nullif(${paymentEvents.resultCode}, ''), 'unknown')`,
+          count: sql<number>`count(*)::int`,
+        })
+        .from(paymentEvents)
+        .where(
+          and(
+            sql`${paymentEvents.type} = 'settle_failed'`,
+            gte(paymentEvents.createdAt, cur.start),
+            lt(paymentEvents.createdAt, cur.endExclusive),
+          ),
+        )
+        .groupBy(sql`1`)
+        .orderBy(sql`count(*) desc`)
+        .limit(6),
 
-    // (10) Hosts declining the most requests. ≥3 requests so one decline
-    // on a single request doesn't top the list; only hosts with at least
-    // one decline appear at all.
-    db
-      .select({
-        id: hosts.id,
-        label: hosts.name,
-        requests: sql<number>`count(*)::int`,
-        declined: sql<number>`count(*) filter (where ${bookings.status} = 'declined')::int`,
-      })
-      .from(bookings)
-      .innerJoin(experiences, eq(experiences.id, bookings.experienceId))
-      .innerJoin(hosts, eq(hosts.id, experiences.hostId))
-      .where(
-        and(
-          sql`${experiences.bookingMode} = 'request'`,
-          gte(bookings.createdAt, cur.start),
-          lt(bookings.createdAt, cur.endExclusive),
-        ),
-      )
-      .groupBy(hosts.id, hosts.name)
-      .having(sql`count(*) >= 3 and count(*) filter (where ${bookings.status} = 'declined') > 0`)
-      .orderBy(
-        sql`(count(*) filter (where ${bookings.status} = 'declined'))::numeric / count(*) desc`,
-      )
-      .limit(5),
+      // (10) Hosts declining the most requests. ≥3 requests so one decline
+      // on a single request doesn't top the list; only hosts with at least
+      // one decline appear at all.
+      db
+        .select({
+          id: hosts.id,
+          label: hosts.name,
+          requests: sql<number>`count(*)::int`,
+          declined: sql<number>`count(*) filter (where ${bookings.status} = 'declined')::int`,
+        })
+        .from(bookings)
+        .innerJoin(experiences, eq(experiences.id, bookings.experienceId))
+        .innerJoin(hosts, eq(hosts.id, experiences.hostId))
+        .where(
+          and(
+            sql`${experiences.bookingMode} = 'request'`,
+            gte(bookings.createdAt, cur.start),
+            lt(bookings.createdAt, cur.endExclusive),
+          ),
+        )
+        .groupBy(hosts.id, hosts.name)
+        .having(sql`count(*) >= 3 and count(*) filter (where ${bookings.status} = 'declined') > 0`)
+        .orderBy(
+          sql`(count(*) filter (where ${bookings.status} = 'declined'))::numeric / count(*) desc`,
+        )
+        .limit(5),
 
-    // (11) Live listings with no revenue booking created in the window,
-    // oldest first — the ones that have had the longest chance to sell.
-    db
-      .select({
-        id: experiences.id,
-        label: experiences.titleEn,
-        slug: experiences.slug,
-        createdAt: experiences.createdAt,
-      })
-      .from(experiences)
-      .where(
-        and(
-          eq(experiences.status, 'live'),
-          sql`not exists (select 1 from ${bookings} where ${bookings.experienceId} = ${experiences.id} and ${bookings.status} in ('confirmed','completed') and ${created(cur)})`,
-        ),
-      )
-      .orderBy(experiences.createdAt)
-      .limit(5),
-  ]);
+      // (11) Live listings with no revenue booking created in the window,
+      // oldest first — the ones that have had the longest chance to sell.
+      db
+        .select({
+          id: experiences.id,
+          label: experiences.titleEn,
+          slug: experiences.slug,
+          createdAt: experiences.createdAt,
+        })
+        .from(experiences)
+        .where(
+          and(
+            eq(experiences.status, 'live'),
+            sql`not exists (select 1 from ${bookings} where ${bookings.experienceId} = ${experiences.id} and ${bookings.status} in ('confirmed','completed') and ${created(cur)})`,
+          ),
+        )
+        .orderBy(experiences.createdAt)
+        .limit(5),
+    ]),
+  );
 
-  const [zeroQueryRows, sourceRows] = await Promise.all([
-    // (12) Most-repeated zero-result searches — demand we couldn't serve,
-    // i.e. the supply-recruitment shortlist.
-    db
-      .select({
-        query: sql<string>`coalesce(nullif(${analyticsEvents.searchQuery}, ''), 'unknown')`,
-        count: sql<number>`count(*)::int`,
-      })
-      .from(analyticsEvents)
-      .where(
-        and(
-          sql`${analyticsEvents.type} = 'search'`,
-          sql`${analyticsEvents.resultCount} = 0`,
-          gte(analyticsEvents.createdAt, cur.start),
-          lt(analyticsEvents.createdAt, cur.endExclusive),
-        ),
-      )
-      .groupBy(sql`1`)
-      .orderBy(sql`count(*) desc`)
-      .limit(6),
+  const [zeroQueryRows, sourceRows] = await wave('4', () =>
+    Promise.all([
+      // (12) Most-repeated zero-result searches — demand we couldn't serve,
+      // i.e. the supply-recruitment shortlist.
+      db
+        .select({
+          query: sql<string>`coalesce(nullif(${analyticsEvents.searchQuery}, ''), 'unknown')`,
+          count: sql<number>`count(*)::int`,
+        })
+        .from(analyticsEvents)
+        .where(
+          and(
+            sql`${analyticsEvents.type} = 'search'`,
+            sql`${analyticsEvents.resultCount} = 0`,
+            gte(analyticsEvents.createdAt, cur.start),
+            lt(analyticsEvents.createdAt, cur.endExclusive),
+          ),
+        )
+        .groupBy(sql`1`)
+        .orderBy(sql`count(*) desc`)
+        .limit(6),
 
-    // (13) Revenue bookings by first-touch acquisition source.
-    db
-      .select({
-        source: sql<string>`coalesce(nullif(${bookings.utmSource}, ''), 'organic')`,
-        bookings: sql<number>`count(*)::int`,
-        gmvSar: sql<number>`coalesce(sum(${bookings.totalAmount}), 0)::int`,
-      })
-      .from(bookings)
-      .where(
-        and(
-          sql`${bookings.status} in ('confirmed','completed')`,
-          gte(bookings.createdAt, cur.start),
-          lt(bookings.createdAt, cur.endExclusive),
-        ),
-      )
-      .groupBy(sql`1`)
-      .orderBy(sql`coalesce(sum(${bookings.totalAmount}), 0) desc`),
-  ]);
+      // (13) Revenue bookings by first-touch acquisition source.
+      db
+        .select({
+          source: sql<string>`coalesce(nullif(${bookings.utmSource}, ''), 'organic')`,
+          bookings: sql<number>`count(*)::int`,
+          gmvSar: sql<number>`coalesce(sum(${bookings.totalAmount}), 0)::int`,
+        })
+        .from(bookings)
+        .where(
+          and(
+            sql`${bookings.status} in ('confirmed','completed')`,
+            gte(bookings.createdAt, cur.start),
+            lt(bookings.createdAt, cur.endExclusive),
+          ),
+        )
+        .groupBy(sql`1`)
+        .orderBy(sql`coalesce(sum(${bookings.totalAmount}), 0) desc`),
+    ]),
+  );
 
   const s = scanRow[0];
   const o = otherRows[0];

@@ -74,3 +74,42 @@ export const db = new Proxy({} as Database, {
     return getDb()[prop as keyof Database];
   },
 });
+
+const globalForAnalyticsDb = globalThis as unknown as {
+  __gharmishAnalyticsPgClient?: ReturnType<typeof postgres>;
+};
+
+let analyticsInstance: Database | undefined;
+
+/**
+ * Separate tiny pool for fire-and-forget analytics writes (`after()`
+ * callbacks). Isolation is the point, not throughput: post-response work
+ * is where the serverless runtime can freeze the instance mid-socket-write,
+ * leaving a pooled connection with a half-sent statement. On the SHARED
+ * pool that poisoned slot then hangs whichever page query gets queued onto
+ * it next (seen in production as the admin dashboard never finishing —
+ * backends `active` waiting on `ClientRead` for minutes). Here a poisoned
+ * slot can only ever delay other analytics writes, and the short
+ * `max_lifetime` recycles it within minutes.
+ */
+export function getAnalyticsDb(): Database {
+  if (!analyticsInstance) {
+    if (!serverEnv.DATABASE_URL) {
+      throw new Error('DATABASE_URL is not set.');
+    }
+    const client =
+      globalForAnalyticsDb.__gharmishAnalyticsPgClient ??
+      postgres(serverEnv.DATABASE_URL, {
+        prepare: false,
+        idle_timeout: 10,
+        max_lifetime: 300,
+        connect_timeout: 15,
+        max: 1,
+      });
+    if (process.env.NODE_ENV !== 'production') {
+      globalForAnalyticsDb.__gharmishAnalyticsPgClient = client;
+    }
+    analyticsInstance = drizzle(client, { schema, casing: 'snake_case' });
+  }
+  return analyticsInstance;
+}

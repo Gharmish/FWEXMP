@@ -1,9 +1,10 @@
 import { after } from 'next/server';
 import { sql, type SQL } from 'drizzle-orm';
-import { db } from '@/lib/db';
+import { getAnalyticsDb } from '@/lib/db';
 import { analyticsEvents, experiences } from '@/db/schema';
 import { serverEnv } from '@/lib/env';
 import { reportError } from '@/lib/log';
+import { withDeadline } from '@/lib/deadline';
 import type { UtmParams } from '@/features/analytics/types';
 
 /**
@@ -50,7 +51,14 @@ function record(event: NewEvent): void {
   if (!serverEnv.DATABASE_URL) return;
   after(async () => {
     try {
-      await db.insert(analyticsEvents).values(event);
+      // Isolated pool + hard deadline: post-response writes must never be
+      // able to poison or hold the shared pool (see getAnalyticsDb), and a
+      // stuck write should surface in Sentry, not linger silently.
+      await withDeadline(
+        'analytics:insert',
+        5_000,
+        getAnalyticsDb().insert(analyticsEvents).values(event).execute(),
+      );
     } catch (error) {
       reportError(error, { surface: 'analytics:record', type: event.type });
     }

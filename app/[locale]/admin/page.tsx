@@ -10,6 +10,8 @@ import { Badge } from '@/components/ui/badge';
 import { Price } from '@/components/ui/price';
 import { FadeIn, Stagger, StaggerItem, HoverLift } from '@/components/ui/motion';
 import { AnimatedNumber } from '@/components/ui/animated-number';
+import { withDeadline } from '@/lib/deadline';
+import { reportError } from '@/lib/log';
 import { getAdminDashboard } from '@/features/admin/dashboard/queries';
 import { getDashboardMetrics } from '@/features/admin/dashboard/metrics-queries';
 import { listActivity } from '@/features/admin/activity/queries';
@@ -92,14 +94,25 @@ export default async function AdminIndexPage({
   const range = resolveDateRange({ preset: one(sp.preset), from: one(sp.from), to: one(sp.to) });
   const prev = comparison(range);
 
-  // Sequential on purpose. Each of these fans out its own statements
-  // (metrics alone runs 11 in parallel); firing all three at once puts
-  // ~22 concurrent statements on the 10-connection postgres-js pool and
-  // deadlocks it — the render then hangs forever, no error. Sequential
-  // keeps peak demand at one fan-out and measures ~2.8s total.
+  // Sequential on purpose, and every source bounded by a deadline. Firing
+  // all three at once overflows the postgres-js pool; and a statement queued
+  // onto a poisoned pooled connection (see lib/deadline.ts) never settles at
+  // all — without deadlines the render hangs forever with no error. Metrics
+  // retries internally then degrades to null (the "metrics unavailable"
+  // notice); the queue and timeline degrade to empty.
   const metrics = await getDashboardMetrics(range);
-  const dashboard = await getAdminDashboard();
-  const activity = await listActivity();
+  const dashboard = await withDeadline('admin:queue', 8_000, getAdminDashboard()).catch(
+    (error: unknown) => {
+      reportError(error, { surface: 'admin:pageData', source: 'queue' });
+      return null;
+    },
+  );
+  const activity = await withDeadline('admin:activity', 8_000, listActivity()).catch(
+    (error: unknown) => {
+      reportError(error, { surface: 'admin:pageData', source: 'activity' });
+      return [];
+    },
+  );
 
   const eyebrowClassName = cn(
     'text-sarat-black-600 text-[11px]',
