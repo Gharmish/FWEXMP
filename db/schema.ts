@@ -514,11 +514,17 @@ export const bookings = pgTable(
      */
     refundDueSar: integer(),
     /**
-     * When the day-before reminder email went out. Null = not sent
-     * (or guest has no email). The cron stamps it so re-runs in the
-     * same day never double-send.
+     * When the ~24h "get ready" reminder email went out. Null = not
+     * sent (or guest has no email). The cron stamps it so re-runs never
+     * double-send.
      */
     reminderSentAt: timestamp({ withTimezone: true }),
+    /**
+     * When the ~3h day-of "see you soon" reminder went out. Null = not
+     * sent. Separate flag from `reminderSentAt` so the two hourly-cron
+     * passes dedupe independently.
+     */
+    finalReminderSentAt: timestamp({ withTimezone: true }),
     /**
      * When the host was paid out for this booking. Null = still owed.
      * The payout amount is derived from the booking's snapshotted

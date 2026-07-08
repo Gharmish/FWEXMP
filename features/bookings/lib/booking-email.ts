@@ -13,7 +13,8 @@ import { reportError } from '@/lib/log';
 import { hostApplications } from '@/db/schema';
 import { getBookingByReference } from '@/features/bookings/queries';
 import { vatPortionSar, vatRatePercent } from '@/features/bookings/lib/vat';
-import { startInstant } from '@/features/bookings/lib/cancellation';
+import { startInstant, freeCancellationDeadline } from '@/features/bookings/lib/cancellation';
+import { getPlatformSettings } from '@/lib/platform-settings';
 import { splitCommission } from '@/features/bookings/lib/commission';
 import { zatcaQrPayload } from '@/features/bookings/lib/zatca-qr';
 import { renderInvoicePdf, type InvoicePdfRow } from '@/features/bookings/lib/invoice-pdf';
@@ -376,16 +377,38 @@ export async function sendBookingCancellationEmail(
   await sendEmail({ to: booking.guestEmail, subject: t('cancelSubject'), html, text });
 }
 
-/**
- * Day-before reminder to the guest. Same best-effort posture as the
- * receipt. The cron is the only caller and stamps `reminderSentAt`
- * after a successful send, so re-runs never double-send.
- */
-export async function sendBookingReminderEmail(reference: string, locale: Locale): Promise<void> {
-  if (!hasEmail()) return;
+/** Google Maps deep link to a coordinate — the guest-facing meeting point. */
+function googleMapsLink(lat: number, lng: number): string {
+  return `https://www.google.com/maps/search/?api=1&query=${lat},${lng}`;
+}
 
+interface ReminderData {
+  booking: NonNullable<Awaited<ReturnType<typeof getBookingByReference>>>;
+  /** Narrowed non-null guest email (the gather returns null otherwise). */
+  guestEmail: string;
+  experience: NonNullable<Awaited<ReturnType<typeof getExperienceBySlug>>> | undefined;
+  title: string | null;
+  placeName: string | null;
+  startsAt: Date;
+  /** Google Maps link for the meeting point, or null when the listing is gone. */
+  mapUrl: string | null;
+  /** Localized "what to bring", falling back to the English list. */
+  bringList: readonly string[];
+}
+
+/**
+ * Shared gather for both reminder emails: resolves the booking, its
+ * experience, and the locale-specific meeting point / map link / bring
+ * list. Returns null when the send should be skipped (no email on file).
+ */
+async function reminderData(reference: string, locale: Locale): Promise<ReminderData | null> {
   const booking = await getBookingByReference(reference);
-  if (!booking?.guestEmail) return;
+  if (!booking?.guestEmail) return null;
+  // Re-read guards against the gap between the cron's SELECT and this send:
+  // only remind a booking that is still confirmed. A booking cancelled,
+  // rescheduled to a new reference, or otherwise moved out of `confirmed`
+  // in that window must never receive a reminder describing a stale state.
+  if (booking.status !== 'confirmed') return null;
 
   const experience = booking.experienceSlug
     ? await getExperienceBySlug(booking.experienceSlug)
@@ -396,30 +419,134 @@ export async function sendBookingReminderEmail(reference: string, locale: Locale
       ? toArabicText(experience.placeName)
       : experience.placeName
     : null;
+  const mapUrl = experience ? googleMapsLink(experience.lat, experience.lng) : null;
+  const bringList =
+    locale === 'ar' && experience?.whatToBringAr.length
+      ? experience.whatToBringAr
+      : (experience?.whatToBring ?? []);
+
+  return {
+    booking,
+    guestEmail: booking.guestEmail,
+    experience,
+    title,
+    placeName,
+    startsAt: startInstant(booking.date, booking.startTime),
+    mapUrl,
+    bringList,
+  };
+}
+
+/**
+ * "Get ready" reminder (~24h before). Prep-focused: the essentials, the
+ * meeting point as a Google Maps button, what to bring, the host, and —
+ * only while it's still valid — the free-cancellation deadline. Same
+ * best-effort posture as the receipt; the cron stamps `reminderSentAt`
+ * after a successful send so re-runs never double-send.
+ */
+export async function sendBookingPrepareReminderEmail(
+  reference: string,
+  locale: Locale,
+): Promise<void> {
+  if (!hasEmail()) return;
+
+  const data = await reminderData(reference, locale);
+  if (!data) return;
+  const { booking, guestEmail, title, placeName, startsAt, mapUrl, bringList } = data;
 
   const t = await getTranslations({ locale, namespace: 'bookingEmail' });
-  const startsAt = startInstant(booking.date, booking.startTime);
+  const time = formatTime(startsAt, locale, KSA_TIME);
 
   const rows: ReceiptRow[] = [];
   if (title) rows.push({ label: t('experienceLabel'), value: title });
-  if (placeName) rows.push({ label: t('placeLabel'), value: placeName });
+  if (placeName) rows.push({ label: t('meetingPointLabel'), value: placeName });
   rows.push({ label: t('dateLabel'), value: formatDate(startsAt, locale, 'gregory', KSA_DATE) });
-  rows.push({ label: t('timeLabel'), value: formatTime(startsAt, locale, KSA_TIME) });
+  rows.push({ label: t('timeLabel'), value: time });
+  rows.push({ label: t('partyLabel'), value: formatInteger(booking.partySize, locale) });
+  rows.push({ label: t('referenceLabel'), value: booking.referenceCode });
+
+  // Free-cancellation line — shown only when the deadline is still ahead
+  // (with a 48h window it's usually already passed by the 24h mark, so we
+  // fall back to a plain "manage your booking" link).
+  const { cancellationWindowHours } = await getPlatformSettings();
+  const deadline = freeCancellationDeadline(
+    booking.date,
+    booking.startTime,
+    cancellationWindowHours,
+  );
+  const manageUrl = `${SITE_URL}/${locale}/book/confirmed/${reference}`;
+  const note =
+    Date.now() < deadline.getTime()
+      ? {
+          html: t('reminderManageWithDeadline', {
+            deadline: `${formatDate(deadline, locale, 'gregory', KSA_DATE)}, ${formatTime(deadline, locale, KSA_TIME)}`,
+            url: manageUrl,
+          }),
+        }
+      : { html: t('reminderManageNoDeadline', { url: manageUrl }) };
+
+  const { html, text } = renderReceiptEmail({
+    logoUrl: EMAIL_LOGO_URL,
+    subject: t('prepareSubject', { time }),
+    dir: locale === 'ar' ? 'rtl' : 'ltr',
+    greeting: t('greeting', { name: booking.guestName }),
+    intro: t('prepareIntro'),
+    rows,
+    cta: mapUrl ? { label: t('openMap'), url: mapUrl } : undefined,
+    bullets:
+      bringList.length > 0 ? { heading: t('whatToBringHeading'), items: bringList } : undefined,
+    host: data.experience
+      ? { name: data.experience.hostName, note: t('hostReminderNote') }
+      : undefined,
+    note,
+    closing: t('prepareClosing'),
+    footer: t('footer'),
+  });
+
+  await sendEmail({ to: guestEmail, subject: t('prepareSubject', { time }), html, text });
+}
+
+/**
+ * "See you soon" reminder (~3h before, day-of). A lean doorway email: the
+ * meeting point up top as a Google Maps button, the time (arrive early),
+ * and the host. Reply-to is the contact channel until messaging/SMS lands.
+ * The cron stamps `finalReminderSentAt` after a successful send.
+ */
+export async function sendBookingDepartureReminderEmail(
+  reference: string,
+  locale: Locale,
+): Promise<void> {
+  if (!hasEmail()) return;
+
+  const data = await reminderData(reference, locale);
+  if (!data) return;
+  const { booking, guestEmail, placeName, startsAt, mapUrl } = data;
+
+  const t = await getTranslations({ locale, namespace: 'bookingEmail' });
+  const time = formatTime(startsAt, locale, KSA_TIME);
+
+  const rows: ReceiptRow[] = [];
+  if (placeName) rows.push({ label: t('meetingPointLabel'), value: placeName });
+  rows.push({ label: t('timeLabel'), value: `${time} — ${t('arriveEarly')}` });
   rows.push({ label: t('partyLabel'), value: formatInteger(booking.partySize, locale) });
   rows.push({ label: t('referenceLabel'), value: booking.referenceCode });
 
   const { html, text } = renderReceiptEmail({
     logoUrl: EMAIL_LOGO_URL,
-    subject: t('reminderSubject'),
+    subject: t('departureSubject', { time }),
     dir: locale === 'ar' ? 'rtl' : 'ltr',
     greeting: t('greeting', { name: booking.guestName }),
-    intro: t('reminderIntro'),
+    intro: t('departureIntro'),
     rows,
-    closing: t('reminderClosing'),
+    cta: mapUrl ? { label: t('openMap'), url: mapUrl } : undefined,
+    host: data.experience
+      ? { name: data.experience.hostName, note: t('hostReminderNote') }
+      : undefined,
+    closing: t('departureClosing'),
     footer: t('footer'),
   });
 
-  await sendEmail({ to: booking.guestEmail, subject: t('reminderSubject'), html, text });
+  await sendEmail({ to: guestEmail, subject: t('departureSubject', { time }), html, text });
 }
 
 /**

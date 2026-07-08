@@ -17,9 +17,27 @@ export interface ReceiptContent {
   rows: readonly ReceiptRow[];
   /**
    * Optional action button between the rows and the closing — e.g.
-   * "View your invoice". Plain-text emails render it as `label: url`.
+   * "View your invoice" or "Open meeting point in Google Maps". Plain-text
+   * emails render it as `label: url`.
    */
   cta?: { label: string; url: string };
+  /**
+   * Optional bulleted list under the CTA — e.g. the reminder's "what to
+   * bring". Omitted entirely when absent or empty.
+   */
+  bullets?: { heading: string; items: readonly string[] };
+  /**
+   * Optional host line (name + a muted sub-line) so a reminder can show
+   * who's hosting without a full profile card.
+   */
+  host?: { name: string; note?: string };
+  /**
+   * Optional muted, boxed note just above the closing — e.g. the
+   * cancellation window / "manage your booking" line. `html` is trusted
+   * markup authored by us (a translated string with a single anchor), NOT
+   * user data, so it is emitted verbatim; never pass guest input here.
+   */
+  note?: { html: string };
   closing: string;
   footer: string;
   /**
@@ -77,15 +95,42 @@ export function renderReceiptEmail(content: ReceiptContent): { html: string; tex
     ? `<tr><td style="padding-top:20px;padding-bottom:8px"><a href="${esc(content.cta.url)}" style="display:inline-block;background:#F5B800;color:#0A0A0A;font-size:14px;font-weight:500;text-decoration:none;border-radius:100px;padding:12px 24px">${esc(content.cta.label)}</a></td></tr>\n`
     : '';
 
+  // "What to bring"-style list. A dash prefix (not a CSS bullet) keeps the
+  // marker on the start side in both LTR and RTL without list styling that
+  // email clients render inconsistently.
+  const bulletsHtml =
+    content.bullets && content.bullets.items.length > 0
+      ? `<tr><td style="padding-top:20px"><div style="font-size:13px;font-weight:600;color:#0A0A0A;padding-bottom:8px">${esc(content.bullets.heading)}</div>${content.bullets.items
+          .map(
+            (item) =>
+              `<div style="font-size:14px;color:#3f3f3f;line-height:1.6">— ${esc(item)}</div>`,
+          )
+          .join('')}</td></tr>\n`
+      : '';
+
+  // Host line: name in body colour, optional muted sub-line beneath.
+  const hostHtml = content.host
+    ? `<tr><td style="padding-top:20px"><div style="font-size:14px;font-weight:500;color:#0A0A0A">${esc(content.host.name)}</div>${content.host.note ? `<div style="font-size:13px;color:#6b6b6b">${esc(content.host.note)}</div>` : ''}</td></tr>\n`
+    : '';
+
+  // Boxed muted note (e.g. cancellation window). `html` is our own trusted
+  // markup — emitted verbatim so a single anchor renders — never guest data.
+  const noteHtml = content.note
+    ? `<tr><td style="padding-top:20px"><div style="background:#FAFAFA;border:1px solid rgba(10,10,10,0.08);border-radius:12px;padding:13px 15px;font-size:13px;color:#3f3f3f;line-height:1.6">${content.note.html}</div></td></tr>\n`
+    : '';
+
   const html = `<!doctype html><html dir="${content.dir}"><body style="margin:0;background:#FAFAFA;padding:32px 0">
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr><td align="center">
 <table role="presentation" width="480" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:20px;padding:32px;font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif">
 ${logoHtml}${sellerHtml}<tr><td style="font-size:24px;font-weight:500;color:#0A0A0A;padding-bottom:8px">${esc(content.greeting)}</td></tr>
 <tr><td style="font-size:16px;color:#3f3f3f;line-height:1.6;padding-bottom:20px">${esc(content.intro)}</td></tr>
 <tr><td style="border-top:1px solid rgba(10,10,10,0.08);padding-top:16px"><table role="presentation" width="100%" cellpadding="0" cellspacing="0">${rowsHtml}</table></td></tr>
-${ctaHtml}<tr><td style="border-top:1px solid rgba(10,10,10,0.08);padding-top:16px;font-size:14px;color:#3f3f3f;line-height:1.6">${esc(content.closing)}</td></tr>
+${ctaHtml}${bulletsHtml}${hostHtml}${noteHtml}<tr><td style="border-top:1px solid rgba(10,10,10,0.08);padding-top:16px;font-size:14px;color:#3f3f3f;line-height:1.6">${esc(content.closing)}</td></tr>
 <tr><td style="padding-top:24px;font-size:12px;color:#9a9a9a">${esc(content.footer)}</td></tr>
 </table></td></tr></table></body></html>`;
+
+  // Strip tags from the (trusted) note markup for the plain-text part.
+  const noteText = content.note ? content.note.html.replace(/<[^>]*>/g, '').trim() : '';
 
   const text = [
     ...(content.sellerLines?.length ? [...content.sellerLines, ''] : []),
@@ -96,6 +141,13 @@ ${ctaHtml}<tr><td style="border-top:1px solid rgba(10,10,10,0.08);padding-top:16
     ...content.rows.map((r) => `${r.label}: ${r.value}`),
     '',
     ...(content.cta ? [`${content.cta.label}: ${content.cta.url}`, ''] : []),
+    ...(content.bullets && content.bullets.items.length > 0
+      ? [content.bullets.heading, ...content.bullets.items.map((i) => `- ${i}`), '']
+      : []),
+    ...(content.host
+      ? [content.host.name, ...(content.host.note ? [content.host.note] : []), '']
+      : []),
+    ...(noteText ? [noteText, ''] : []),
     content.closing,
     '',
     content.footer,

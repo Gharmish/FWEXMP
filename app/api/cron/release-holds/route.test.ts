@@ -32,18 +32,30 @@ vi.mock('@/features/payments/settle', () => ({
 
 const sendBookingExpiredEmail = vi.fn(async () => undefined);
 const sendBookingPaymentLapsedEmail = vi.fn(async () => undefined);
-const sendBookingReminderEmail = vi.fn(async () => undefined);
+const sendBookingPrepareReminderEmail = vi.fn(async () => undefined);
+const sendBookingDepartureReminderEmail = vi.fn(async () => undefined);
 const sendHostHoldLapsedEmail = vi.fn(async () => undefined);
 vi.mock('@/features/bookings/lib/booking-email', () => ({
   sendBookingExpiredEmail: (...args: unknown[]) => sendBookingExpiredEmail(...(args as [])),
   sendBookingPaymentLapsedEmail: (...args: unknown[]) =>
     sendBookingPaymentLapsedEmail(...(args as [])),
-  sendBookingReminderEmail: (...args: unknown[]) => sendBookingReminderEmail(...(args as [])),
+  sendBookingPrepareReminderEmail: (...args: unknown[]) =>
+    sendBookingPrepareReminderEmail(...(args as [])),
+  sendBookingDepartureReminderEmail: (...args: unknown[]) =>
+    sendBookingDepartureReminderEmail(...(args as [])),
   sendHostHoldLapsedEmail: (...args: unknown[]) => sendHostHoldLapsedEmail(...(args as [])),
 }));
 
 vi.mock('@/features/bookings/lib/availability', () => ({
   addDays: (date: string) => date,
+}));
+
+// `startInstant` is used by the reminder pass to compute hours-until-start.
+// In tests we encode that offset directly in `startTime` (as a number of
+// hours from now) so each row's timing is deterministic and controllable.
+vi.mock('@/features/bookings/lib/cancellation', () => ({
+  startInstant: (_date: string, startTime: string) =>
+    new Date(Date.now() + Number(startTime) * 60 * 60 * 1000),
 }));
 
 vi.mock('@/features/bookings/lib/payout-sql', () => ({
@@ -59,8 +71,18 @@ let expiredRows: TerminalRow[] = [];
 let releasedRows: TerminalRow[] = [];
 let completedRows: Array<{ id: string }> = [];
 let stuckRows: Array<{ idempotencyKey: string }> = [];
-let reminderRows: Array<{ id: string; reference: string; preferredLanguage: 'en' | 'ar' }> = [];
+let reminderRows: Array<{
+  id: string;
+  reference: string;
+  preferredLanguage: 'en' | 'ar';
+  date: string;
+  /** Hours from now until start — see the `startInstant` mock above. */
+  startTime: string;
+  reminderSentAt: Date | null;
+  finalReminderSentAt: Date | null;
+}> = [];
 let reminderStamps = 0;
+let finalStamps = 0;
 let heartbeats = 0;
 let updateFailure: Error | null = null;
 
@@ -80,6 +102,12 @@ vi.mock('@/lib/db', () => ({
     update: () => ({
       set: (values: Record<string, unknown>) => ({
         where: () => {
+          // Departure stamps `finalReminderSentAt` (plus `reminderSentAt`);
+          // check it first so the two passes are counted distinctly.
+          if ('finalReminderSentAt' in values) {
+            finalStamps += 1;
+            return updateResult([]);
+          }
           if ('reminderSentAt' in values) {
             reminderStamps += 1;
             return updateResult([]);
@@ -130,6 +158,7 @@ beforeEach(() => {
   stuckRows = [];
   reminderRows = [];
   reminderStamps = 0;
+  finalStamps = 0;
   heartbeats = 0;
   updateFailure = null;
   env.DATABASE_URL = 'postgres://test';
@@ -199,24 +228,95 @@ describe('GET /api/cron/release-holds', () => {
     expect(body.settled).toBe(1);
   });
 
-  it('sends day-before reminders and stamps each booking once', async () => {
+  it('sends the ~24h get-ready reminder and stamps each booking once', async () => {
     reminderRows = [
-      { id: 'b5', reference: 'ref-5', preferredLanguage: 'ar' },
-      { id: 'b6', reference: 'ref-6', preferredLanguage: 'en' },
+      {
+        id: 'b5',
+        reference: 'ref-5',
+        preferredLanguage: 'ar',
+        date: 'd',
+        startTime: '10',
+        reminderSentAt: null,
+        finalReminderSentAt: null,
+      },
+      {
+        id: 'b6',
+        reference: 'ref-6',
+        preferredLanguage: 'en',
+        date: 'd',
+        startTime: '20',
+        reminderSentAt: null,
+        finalReminderSentAt: null,
+      },
     ];
     const response = await GET(cronRequest());
     expect((await response.json()).reminded).toBe(2);
-    expect(sendBookingReminderEmail).toHaveBeenCalledWith('ref-5', 'ar');
-    expect(sendBookingReminderEmail).toHaveBeenCalledWith('ref-6', 'en');
+    expect(sendBookingPrepareReminderEmail).toHaveBeenCalledWith('ref-5', 'ar');
+    expect(sendBookingPrepareReminderEmail).toHaveBeenCalledWith('ref-6', 'en');
+    expect(sendBookingDepartureReminderEmail).not.toHaveBeenCalled();
     expect(reminderStamps).toBe(2);
+  });
+
+  it('sends the ~3h day-of reminder for a booking starting soon', async () => {
+    reminderRows = [
+      // Already had the 24h reminder; now 2h out → only the departure fires.
+      {
+        id: 'b7',
+        reference: 'ref-7',
+        preferredLanguage: 'en',
+        date: 'd',
+        startTime: '2',
+        reminderSentAt: new Date(),
+        finalReminderSentAt: null,
+      },
+    ];
+    const response = await GET(cronRequest());
+    expect((await response.json()).reminded).toBe(1);
+    expect(sendBookingDepartureReminderEmail).toHaveBeenCalledWith('ref-7', 'en');
+    expect(sendBookingPrepareReminderEmail).not.toHaveBeenCalled();
+    expect(finalStamps).toBe(1);
+  });
+
+  it('skips a booking that has already started', async () => {
+    reminderRows = [
+      {
+        id: 'b8',
+        reference: 'ref-8',
+        preferredLanguage: 'en',
+        date: 'd',
+        startTime: '-1',
+        reminderSentAt: null,
+        finalReminderSentAt: null,
+      },
+    ];
+    const response = await GET(cronRequest());
+    expect((await response.json()).reminded).toBe(0);
+    expect(sendBookingPrepareReminderEmail).not.toHaveBeenCalled();
+    expect(sendBookingDepartureReminderEmail).not.toHaveBeenCalled();
   });
 
   it('does not stamp a booking whose reminder failed to send', async () => {
     reminderRows = [
-      { id: 'b5', reference: 'ref-5', preferredLanguage: 'ar' },
-      { id: 'b6', reference: 'ref-6', preferredLanguage: 'en' },
+      {
+        id: 'b5',
+        reference: 'ref-5',
+        preferredLanguage: 'ar',
+        date: 'd',
+        startTime: '10',
+        reminderSentAt: null,
+        finalReminderSentAt: null,
+      },
+      {
+        id: 'b6',
+        reference: 'ref-6',
+        preferredLanguage: 'en',
+        date: 'd',
+        startTime: '20',
+        reminderSentAt: null,
+        finalReminderSentAt: null,
+      },
     ];
-    sendBookingReminderEmail.mockRejectedValueOnce(new Error('smtp down'));
+    sendBookingPrepareReminderEmail.mockRejectedValueOnce(new Error('smtp down'));
     const response = await GET(cronRequest());
     expect((await response.json()).reminded).toBe(1);
     expect(reminderStamps).toBe(1);

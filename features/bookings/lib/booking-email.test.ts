@@ -49,6 +49,31 @@ describe('renderReceiptEmail', () => {
     expect(html).toContain('dir="rtl"');
   });
 
+  it('renders bullets, host, and a boxed note when provided', () => {
+    const { html, text } = renderReceiptEmail({
+      ...base,
+      cta: { label: 'Open meeting point in Google Maps', url: 'https://maps.example/?q=1,2' },
+      bullets: { heading: 'What to bring', items: ['Walking shoes', 'Water and a hat'] },
+      host: { name: 'Faisal Al-Qahtani', note: 'Your host for the evening' },
+      note: { html: 'Free cancellation until noon. <a href="https://g/manage">Manage</a>' },
+    });
+    expect(html).toContain('Open meeting point in Google Maps');
+    expect(html).toContain('What to bring');
+    expect(html).toContain('Walking shoes');
+    expect(html).toContain('Faisal Al-Qahtani');
+    // The note's anchor is trusted markup and must survive into the HTML.
+    expect(html).toContain('href="https://g/manage"');
+    // Plain-text strips the anchor tag but keeps its text.
+    expect(text).toContain('- Walking shoes');
+    expect(text).toContain('Free cancellation until noon. Manage');
+    expect(text).not.toContain('<a href');
+  });
+
+  it('omits optional blocks entirely when absent or empty', () => {
+    const { html } = renderReceiptEmail({ ...base, bullets: { heading: 'X', items: [] } });
+    expect(html).not.toContain('>X<');
+  });
+
   it('escapes HTML-significant characters to prevent injection', () => {
     const { html } = renderReceiptEmail({
       ...base,

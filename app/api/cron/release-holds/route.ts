@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from 'next/server';
-import { and, eq, inArray, isNull, isNotNull, lte, notInArray, sql } from 'drizzle-orm';
+import { and, eq, inArray, isNull, isNotNull, lte, notInArray, or, sql } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import { serverEnv } from '@/lib/env';
 import { bookings, guests, platformSettings } from '@/db/schema';
@@ -9,10 +9,12 @@ import { settleBooking } from '@/features/payments/settle';
 import {
   sendBookingExpiredEmail,
   sendBookingPaymentLapsedEmail,
-  sendBookingReminderEmail,
+  sendBookingPrepareReminderEmail,
+  sendBookingDepartureReminderEmail,
   sendHostHoldLapsedEmail,
 } from '@/features/bookings/lib/booking-email';
 import { addDays } from '@/features/bookings/lib/availability';
+import { startInstant } from '@/features/bookings/lib/cancellation';
 import { paymentCollected } from '@/features/bookings/lib/payout-sql';
 import {
   VAT_MANDATORY_THRESHOLD_SAR,
@@ -26,14 +28,17 @@ const RECONCILE_LIMIT = 100;
 const REMINDER_LIMIT = 100;
 
 /**
- * Scheduled release of expired payment holds (Vercel Cron — see vercel.json;
- * daily at 03:00 — the Hobby-plan ceiling. On Pro, tighten to hourly
- * (`0 * * * *`); until then capacity stays correct regardless (sums
- * exclude lapsed holds — see capacity-sql.ts), the cron only catches up
- * on status flips, emails, and reconciliation. An external scheduler
- * hitting this URL with the CRON_SECRET bearer token also works.
+ * Scheduled release of expired payment holds. Vercel Cron runs this DAILY
+ * (`0 3 * * *` in vercel.json — the Hobby-plan ceiling). The guest
+ * reminders in Pass 3 fire at per-booking offsets (~24h and ~3h before
+ * start) that a once-daily run can't hit, so an **external scheduler
+ * (Supabase pg_cron) hits this same URL hourly** with the CRON_SECRET
+ * bearer token — see supabase/ for the job. The route is idempotent and
+ * safe at any cadence: every pass is guarded by state + dedupe flags, so
+ * the daily Vercel run and the hourly external run never conflict or
+ * double-act.
  *
- * Four passes:
+ * Passes:
  *
  * 0. **Expire requests** — flips `pending` request-to-book rows past their
  *    approval deadline to `expired` (pay-after-approval: nothing was charged).
@@ -51,6 +56,11 @@ const REMINDER_LIMIT = 100;
  *    never cancels `processing`). This pass re-queries HyperPay — the source of
  *    truth — via the idempotent `settleBooking`, confirming paid bookings and
  *    failing rejected ones. It is the safety net for the missing OPPWA webhook.
+ *
+ * 3. **Reminders** — two per-booking guest emails: a ~24h "get ready"
+ *    (`reminderSentAt`) and a ~3h day-of "see you soon"
+ *    (`finalReminderSentAt`). Independent dedupe flags; timing computed
+ *    from each booking's Riyadh start instant.
  *
  * Auth: Vercel Cron sends `Authorization: Bearer <CRON_SECRET>`. With no
  * secret set the route rejects everything, so the job is inert until
@@ -153,41 +163,74 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       if (outcome === 'success') settled += 1;
     }
 
-    // Pass 3 — day-before reminders. Confirmed bookings happening
-    // tomorrow (Riyadh day) whose guest has an email and hasn't been
-    // reminded. `reminderSentAt` is stamped per booking so a re-run in
-    // the same day (manual trigger, retry) never double-sends.
+    // Pass 3 — guest reminders. Two hourly-precision reminders over
+    // confirmed, email-bearing bookings starting soon: a ~24h "get ready"
+    // and a ~3h day-of "see you soon". Each has its own dedupe flag
+    // (`reminderSentAt` / `finalReminderSentAt`), so the hourly cadence,
+    // manual triggers, and retries never double-send. Timing is computed
+    // per booking from its Riyadh start instant, not the calendar day, so
+    // an evening experience and a dawn one are each reminded on schedule.
+    const nowMs = Date.now();
+    const HOUR_MS = 60 * 60 * 1000;
     const todayRiyadh = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Riyadh' }).format(
       new Date(),
     );
-    const tomorrow = addDays(todayRiyadh, 1);
-    const dueReminders = await db
+    const tomorrowRiyadh = addDays(todayRiyadh, 1);
+    // Anything within 24h of start falls on the Riyadh "today" or
+    // "tomorrow" date; scoping to those two days keeps the scan small.
+    const reminderCandidates = await db
       .select({
         id: bookings.id,
         reference: bookings.idempotencyKey,
+        date: bookings.date,
+        startTime: bookings.startTime,
         preferredLanguage: guests.preferredLanguage,
+        reminderSentAt: bookings.reminderSentAt,
+        finalReminderSentAt: bookings.finalReminderSentAt,
       })
       .from(bookings)
       .innerJoin(guests, eq(bookings.guestId, guests.id))
       .where(
         and(
           eq(bookings.status, 'confirmed'),
-          eq(bookings.date, tomorrow),
-          isNull(bookings.reminderSentAt),
+          inArray(bookings.date, [todayRiyadh, tomorrowRiyadh]),
           isNotNull(guests.email),
+          or(isNull(bookings.reminderSentAt), isNull(bookings.finalReminderSentAt)),
         ),
       )
       .limit(REMINDER_LIMIT);
 
     let reminded = 0;
-    for (const row of dueReminders) {
+    for (const row of reminderCandidates) {
+      const hoursUntil = (startInstant(row.date, row.startTime).getTime() - nowMs) / HOUR_MS;
+      if (hoursUntil <= 0) continue; // already started — nothing to remind
+
       try {
-        await sendBookingReminderEmail(row.reference, row.preferredLanguage);
-        await db
-          .update(bookings)
-          .set({ reminderSentAt: new Date() })
-          .where(eq(bookings.id, row.id));
-        reminded += 1;
+        // Day-of "see you soon" (~3h). If this is due but the 24h "get
+        // ready" never went out (a booking made less than 24h before
+        // start), send only the departure email and stamp both flags —
+        // no point in two emails seconds apart.
+        if (row.finalReminderSentAt === null && hoursUntil <= 3) {
+          await sendBookingDepartureReminderEmail(row.reference, row.preferredLanguage);
+          await db
+            .update(bookings)
+            .set({
+              finalReminderSentAt: new Date(),
+              reminderSentAt: row.reminderSentAt ?? new Date(),
+            })
+            .where(eq(bookings.id, row.id));
+          reminded += 1;
+          continue;
+        }
+        // "Get ready" (~24h).
+        if (row.reminderSentAt === null && hoursUntil <= 24) {
+          await sendBookingPrepareReminderEmail(row.reference, row.preferredLanguage);
+          await db
+            .update(bookings)
+            .set({ reminderSentAt: new Date() })
+            .where(eq(bookings.id, row.id));
+          reminded += 1;
+        }
       } catch (error) {
         reportError(error, { surface: 'cron-reminders', reference: row.reference });
       }
