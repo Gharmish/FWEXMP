@@ -11,6 +11,16 @@ export const hostProfileSchema = z
   .object({
     name: z.string().trim().min(2, 'name_short').max(80, 'name_long'),
     bioEn: z.string().trim().min(40, 'bio_short').max(1200, 'bio_long'),
+    // Host-authored Arabic bio. Optional: an empty value keeps the
+    // English-fallback path (the action stores the TODO(ar) marker), so a
+    // host who only writes English never sees a required-field wall. When
+    // present it obeys the same length bounds as the English bio.
+    bioAr: z
+      .string()
+      .trim()
+      .max(1200, 'bio_ar_long')
+      .refine((v) => v.length === 0 || v.length >= 40, 'bio_ar_short')
+      .default(''),
     languages: z
       .array(z.enum(HOST_LANGUAGE_OPTIONS))
       .min(1, 'languages_required')

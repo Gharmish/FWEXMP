@@ -1,14 +1,14 @@
 /**
  * Host profile editing — the host-facing counterpart of the guest
  * account profile (features/account/profile). Covers exactly the
- * fields guests see on /hosts/[slug]: display name, English bio,
- * languages, and the profile photo. Derived surfaces (rating,
+ * fields guests see on /hosts/[slug]: display name, English + Arabic
+ * bio, languages, and the profile photo. Derived surfaces (rating,
  * response stats, joined year, verified badge) are not editable.
  */
 
 export type HostProfileErrorKey = 'no_db' | 'no_auth' | 'validation' | 'server';
 
-export type HostProfileField = 'name' | 'bioEn' | 'languages';
+export type HostProfileField = 'name' | 'bioEn' | 'bioAr' | 'languages';
 
 /** `useActionState` shape for the profile details form (discriminated union). */
 export type HostProfileFormState =
@@ -18,7 +18,7 @@ export type HostProfileFormState =
       status: 'error';
       message: HostProfileErrorKey;
       fields?: Partial<Record<HostProfileField, true>>;
-      values?: { name: string; bioEn: string; languages: string[] };
+      values?: { name: string; bioEn: string; bioAr: string; languages: string[] };
     };
 
 export type HostPhotoErrorKey =

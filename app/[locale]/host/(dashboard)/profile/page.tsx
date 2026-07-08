@@ -4,6 +4,7 @@ import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { redirect, Link } from '@/lib/i18n';
 import type { Locale } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
+import { isArPlaceholder } from '@/lib/ar-placeholder';
 import { SITE_URL } from '@/lib/site';
 import { Avatar } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
@@ -30,7 +31,7 @@ const sectionTitle = 'font-display text-xl font-medium tracking-[-0.02em]';
 /**
  * The host's public face, editable — everything a guest sees on
  * /hosts/[slug] that the host authors: photo, display name, English
- * bio, languages. Derived trust signals (rating, response stats,
+ * and Arabic bio, languages. Derived trust signals (rating, response stats,
  * joined year, verified badge) stay read-only by design.
  */
 export default async function HostProfileSettingsPage({
@@ -134,13 +135,21 @@ export default async function HostProfileSettingsPage({
       <Card className="flex flex-col gap-6 p-6 sm:p-8">
         <h2 className={sectionTitle}>{t('details.title')}</h2>
         <HostProfileForm
-          profile={{ name: host.name, bioEn: host.bioEn, languages: host.languages }}
+          profile={{
+            name: host.name,
+            bioEn: host.bioEn,
+            // Never seed the editor with the TODO(ar) marker — show an
+            // empty field so the host writes from scratch.
+            bioAr: isArPlaceholder(host.bioAr) ? '' : host.bioAr,
+            languages: host.languages,
+          }}
           copy={{
             nameLabel: t('details.nameLabel'),
             nameHint: t('details.nameHint'),
             bioLabel: t('details.bioLabel'),
             bioHint: t('details.bioHint'),
-            arabicNote: t('details.arabicNote'),
+            bioArLabel: t('details.bioArLabel'),
+            bioArHint: t('details.bioArHint'),
             languagesLabel: t('details.languagesLabel'),
             languageLabels: {
               ar: t('details.languages.ar'),
@@ -153,6 +162,7 @@ export default async function HostProfileSettingsPage({
             saved: t('details.saved'),
             nameError: t('details.nameError'),
             bioError: t('details.bioError'),
+            bioArError: t('details.bioArError'),
             languagesError: t('details.languagesError'),
             errors: {
               no_db: t('details.errors.noDb'),

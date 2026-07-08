@@ -34,7 +34,7 @@ async function getOwnHost() {
   if (!user) return null;
   return db.query.hosts.findFirst({
     where: (h) => eq(h.userId, user.id),
-    columns: { id: true, slug: true, bioEn: true, photoUrl: true },
+    columns: { id: true, slug: true, photoUrl: true },
   });
 }
 
@@ -47,12 +47,13 @@ function revalidateHostSurfaces() {
 }
 
 /**
- * Save the host's public identity (name, English bio, languages). The
- * slug is intentionally untouched — it's the stable public URL (see
- * db/schema.ts) — so renames never break shared links. When the English
- * bio changes, the Arabic bio is reset to the `TODO(ar)` marker: the
- * public page then falls back to English instead of showing a stale
- * translation, and the team re-translates out-of-band (BRIEF §4).
+ * Save the host's public identity (name, English bio, Arabic bio,
+ * languages). The slug is intentionally untouched — it's the stable
+ * public URL (see db/schema.ts) — so renames never break shared links.
+ * Hosts author their own Arabic bio directly (they're Arabic-first Saudis
+ * writing their own copy, not translating). Leaving it blank stores the
+ * `TODO(ar)` marker so the public page falls back to English via
+ * `pickLocalized` — the `bioAr` column is notNull.
  */
 export async function updateHostProfile(
   _previous: HostProfileFormState,
@@ -61,6 +62,7 @@ export async function updateHostProfile(
   const raw = {
     name: formValue(formData, 'name'),
     bioEn: formValue(formData, 'bioEn'),
+    bioAr: formValue(formData, 'bioAr'),
     languages: formData.getAll('languages').filter((v): v is string => typeof v === 'string'),
   };
 
@@ -69,7 +71,9 @@ export async function updateHostProfile(
     const fields: Partial<Record<HostProfileField, true>> = {};
     for (const issue of parsed.error.issues) {
       const key = issue.path[0];
-      if (key === 'name' || key === 'bioEn' || key === 'languages') fields[key] = true;
+      if (key === 'name' || key === 'bioEn' || key === 'bioAr' || key === 'languages') {
+        fields[key] = true;
+      }
     }
     return { status: 'error', message: 'validation', fields, values: raw };
   }
@@ -80,14 +84,15 @@ export async function updateHostProfile(
     const host = await getOwnHost();
     if (!host) return { status: 'error', message: 'no_auth', values: raw };
 
-    const bioChanged = parsed.data.bioEn !== host.bioEn;
     await db
       .update(hosts)
       .set({
         name: parsed.data.name,
         bioEn: parsed.data.bioEn,
+        // Blank Arabic → keep the fallback marker; otherwise store what
+        // the host wrote.
+        bioAr: parsed.data.bioAr.length > 0 ? parsed.data.bioAr : AR_PLACEHOLDER,
         languages: parsed.data.languages,
-        ...(bioChanged ? { bioAr: AR_PLACEHOLDER } : {}),
       })
       .where(eq(hosts.id, host.id));
   } catch (error) {

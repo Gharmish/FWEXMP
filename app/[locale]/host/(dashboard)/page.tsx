@@ -4,8 +4,11 @@ import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { redirect, Link } from '@/lib/i18n';
 import type { Locale } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
+import { pickLocalized } from '@/lib/ar-placeholder';
 import { buttonVariants } from '@/components/ui/button';
+import { Avatar } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
+import { Card } from '@/components/ui/card';
 import { EmptyState } from '@/components/ui/empty-state';
 import { Price } from '@/components/ui/price';
 import { formatDate } from '@/lib/format';
@@ -91,6 +94,17 @@ export default async function HostDashboardPage({
     loc === 'en' && 'tracking-[0.2em] uppercase',
   );
 
+  // Profile-card summary — the locale-appropriate bio (Arabic only when a
+  // real translation exists) and a human list of the host's languages.
+  const profileBio = pickLocalized(loc, host.bioEn, host.bioAr);
+  const languageNames = new Intl.DisplayNames(loc === 'ar' ? 'ar' : 'en', { type: 'language' });
+  const languagesLabel =
+    host.languages.length > 0
+      ? new Intl.ListFormat(loc, { style: 'long', type: 'conjunction' }).format(
+          host.languages.map((code) => languageNames.of(code) ?? code),
+        )
+      : null;
+
   return (
     <div className="flex w-full flex-col">
       <section className="pb-10">
@@ -133,6 +147,52 @@ export default async function HostDashboardPage({
             />
           </div>
         )}
+      </section>
+
+      {/* Profile card — the host's public face at a glance, with a jump to
+          edit. Mirrors the identity card on /host/profile. */}
+      <section className="border-sarat-black/8 [border-top-width:0.5px] py-10">
+        <div className="mb-6 flex items-baseline justify-between gap-4">
+          <h2 className="font-display text-3xl font-medium tracking-[-0.03em]">
+            {t('profileCard.title')}
+          </h2>
+          <Link
+            href="/host/profile"
+            className="text-sarat-black-600 text-sm font-medium underline-offset-4 hover:underline"
+          >
+            {t('profileCard.edit')}
+          </Link>
+        </div>
+        <Card className="p-6 sm:p-8">
+          <div className="flex flex-col gap-5 sm:flex-row sm:items-start sm:gap-6">
+            <Avatar
+              name={host.name}
+              src={host.photoUrl ?? undefined}
+              size="lg"
+              className="size-20 text-2xl"
+            />
+            <div className="flex flex-1 flex-col gap-3">
+              <div className="flex flex-col gap-2">
+                <p className="font-display text-2xl font-medium tracking-[-0.025em]">{host.name}</p>
+                <div className="flex flex-wrap items-center gap-2">
+                  {host.verified ? (
+                    <Badge variant="verified">{t('profileCard.verified')}</Badge>
+                  ) : (
+                    <Badge variant="neutral">{t('profileCard.pendingVerification')}</Badge>
+                  )}
+                  {languagesLabel && (
+                    <Badge variant="neutral">
+                      {t('profileCard.speaks', { languages: languagesLabel })}
+                    </Badge>
+                  )}
+                </div>
+              </div>
+              <p className="text-sarat-black-600 line-clamp-3 text-base leading-relaxed">
+                {profileBio}
+              </p>
+            </div>
+          </div>
+        </Card>
       </section>
 
       {/* Earnings KPIs — same numbers as /host/earnings, sans ledger. */}

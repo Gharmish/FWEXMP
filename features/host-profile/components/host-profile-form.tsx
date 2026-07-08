@@ -15,7 +15,8 @@ export interface HostProfileFormCopy {
   nameHint: string;
   bioLabel: string;
   bioHint: string;
-  arabicNote: string;
+  bioArLabel: string;
+  bioArHint: string;
   languagesLabel: string;
   /** Display label per offered language code. */
   languageLabels: Record<(typeof HOST_LANGUAGE_OPTIONS)[number], string>;
@@ -24,12 +25,13 @@ export interface HostProfileFormCopy {
   saved: string;
   nameError: string;
   bioError: string;
+  bioArError: string;
   languagesError: string;
   errors: Record<HostProfileErrorKey, string>;
 }
 
 export interface HostProfileFormProps {
-  profile: { name: string; bioEn: string; languages: readonly string[] };
+  profile: { name: string; bioEn: string; bioAr: string; languages: readonly string[] };
   copy: HostProfileFormCopy;
 }
 
@@ -45,8 +47,8 @@ function Submit({ copy }: { copy: HostProfileFormCopy }) {
 }
 
 /**
- * Edits the host-authored public fields — name, English bio, languages.
- * Same chassis as the guest ProfileForm: server action via
+ * Edits the host-authored public fields — name, English bio, Arabic bio,
+ * languages. Same chassis as the guest ProfileForm: server action via
  * `useActionState`, inline field errors, success toast. The language
  * chips are uncontrolled checkboxes styled through `has-[:checked]`,
  * matching the preferred-language picker on the guest form.
@@ -55,6 +57,7 @@ export function HostProfileForm({ profile, copy }: HostProfileFormProps) {
   const [state, action] = useActionState(updateHostProfile, initialState);
   const nameId = useId();
   const bioId = useId();
+  const bioArId = useId();
   const langId = useId();
 
   // Save feedback springs in as a toast; useActionState returns a fresh
@@ -66,6 +69,7 @@ export function HostProfileForm({ profile, copy }: HostProfileFormProps) {
   const errored = state.status === 'error' ? state : undefined;
   const nameError = errored?.fields?.name ? copy.nameError : undefined;
   const bioError = errored?.fields?.bioEn ? copy.bioError : undefined;
+  const bioArError = errored?.fields?.bioAr ? copy.bioArError : undefined;
   const languagesError = errored?.fields?.languages ? copy.languagesError : undefined;
   const generalError =
     errored && errored.message !== 'validation' ? copy.errors[errored.message] : undefined;
@@ -130,7 +134,37 @@ export function HostProfileForm({ profile, copy }: HostProfileFormProps) {
             {copy.bioHint}
           </p>
         )}
-        <p className="text-sarat-black-600 text-xs">{copy.arabicNote}</p>
+      </div>
+
+      <div className="flex flex-col gap-2">
+        <label htmlFor={bioArId} className="text-sm font-medium">
+          {copy.bioArLabel}
+        </label>
+        <textarea
+          id={bioArId}
+          name="bioAr"
+          rows={6}
+          maxLength={1200}
+          defaultValue={errored?.values?.bioAr ?? profile.bioAr}
+          // Host-authored Arabic copy — force RTL regardless of the UI locale.
+          dir="rtl"
+          lang="ar"
+          className={cn(
+            'rounded-input border-sarat-black/20 text-sarat-black w-full resize-y [border-width:0.5px] bg-white px-4 py-3 text-base',
+            'placeholder:text-sarat-black-600 disabled:pointer-events-none disabled:opacity-50',
+          )}
+          aria-invalid={bioArError ? true : undefined}
+          aria-describedby={bioArError ? `${bioArId}-error` : `${bioArId}-hint`}
+        />
+        {bioArError ? (
+          <p id={`${bioArId}-error`} className="text-al-qatt-red text-sm">
+            {bioArError}
+          </p>
+        ) : (
+          <p id={`${bioArId}-hint`} className="text-sarat-black-600 text-sm">
+            {copy.bioArHint}
+          </p>
+        )}
       </div>
 
       <div className="flex flex-col gap-2">

@@ -1215,6 +1215,13 @@
       "newExperience": "New experience",
       "pendingBadge": "{count, plural, one {# pending request} other {# pending requests}}"
     },
+    "profileCard": {
+      "title": "Your profile",
+      "edit": "Edit profile",
+      "verified": "Verified host",
+      "pendingVerification": "Verification pending",
+      "speaks": "Speaks {languages}"
+    },
     "earningsKpis": {
       "title": "Earnings",
       "viewAll": "View earnings"
@@ -1263,7 +1270,8 @@
       "nameHint": "Your name or your company's, exactly as guests should see it.",
       "bioLabel": "Bio (English)",
       "bioHint": "40–1200 characters. Who you are, what you host, and your connection to Aseer.",
-      "arabicNote": "The Gharmish team prepares the Arabic version of your bio after you update the English one.",
+      "bioArLabel": "Bio (Arabic)",
+      "bioArHint": "Optional. Write your bio in Arabic — this is what Arabic-speaking guests see. Leave blank to show the English version. 40–1200 characters.",
       "languagesLabel": "Languages you host in",
       "languages": {
         "ar": "Arabic",
@@ -1276,6 +1284,7 @@
       "saved": "Profile saved.",
       "nameError": "Enter a display name between 2 and 80 characters.",
       "bioError": "Your bio needs to be between 40 and 1200 characters.",
+      "bioArError": "Your Arabic bio needs to be between 40 and 1200 characters, or left blank.",
       "languagesError": "Pick at least one language.",
       "errors": {
         "noDb": "The database isn't reachable right now. Try again in a moment.",
