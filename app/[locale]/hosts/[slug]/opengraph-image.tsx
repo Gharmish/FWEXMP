@@ -1,8 +1,47 @@
 import { ImageResponse } from 'next/og';
 import { getExperiencesByHostSlug, getHostBySlug } from '@/features/hosts/queries';
 import { toArabicText } from '@/features/experiences/lib/arabic-content';
+import { pickLocalized } from '@/lib/ar-placeholder';
 import { loadOgFonts } from '@/lib/og/og-fonts';
 import { SITE_NAME } from '@/lib/site';
+
+/** First-two-word initials — mirrors components/ui/avatar's fallback. */
+function initialsOf(name: string): string {
+  return name
+    .trim()
+    .split(/\s+/)
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase() ?? '')
+    .join('');
+}
+
+/**
+ * Fetch the host photo and inline it as a data URI. Satori can't reach the
+ * network mid-render, and a failed remote <img> would crash the whole card —
+ * so we fetch defensively and fall back to initials (null) on any error.
+ */
+async function loadPhotoDataUri(photoUrl: string | null): Promise<string | null> {
+  if (!photoUrl) return null;
+  try {
+    const res = await fetch(photoUrl);
+    if (!res.ok) return null;
+    const contentType = res.headers.get('content-type') ?? 'image/jpeg';
+    // Guard against a 200 that isn't actually an image — Satori would throw on
+    // decode inside ImageResponse, past this try/catch, and 500 the route.
+    if (!contentType.startsWith('image/')) return null;
+    const bytes = Buffer.from(await res.arrayBuffer());
+    return `data:${contentType};base64,${bytes.toString('base64')}`;
+  } catch {
+    return null;
+  }
+}
+
+/** Trim a bio to a couple of tidy card lines, adding an ellipsis when clipped. */
+function truncateBio(bio: string, max = 128): string {
+  const clean = bio.trim().replace(/\s+/g, ' ');
+  if (clean.length <= max) return clean;
+  return `${clean.slice(0, max - 1).trimEnd()}…`;
+}
 
 // Queries the DB (Drizzle/postgres), so this must run on Node, not Edge.
 export const runtime = 'nodejs';
@@ -11,11 +50,13 @@ export const size = { width: 1200, height: 630 };
 export const contentType = 'image/png';
 
 /**
- * Per-host social card. Every shared host link renders its own branded
- * 1200×630 image — wordmark, a Saffron Gold "verified host" accent, the host
- * name in the brand face, and the count-weighted rating · experience count
- * (the same trust signals the profile header shows). Mirrors the per-experience
- * opengraph-image so shared profiles look as intentional as shared listings.
+ * Per-host social card. Every shared host link (WhatsApp, etc.) renders its own
+ * branded 1200×630 image — the Gharmish wordmark, a Saffron Gold "verified host"
+ * accent, the host's photo, name, and bio, and the count-weighted rating ·
+ * experience count (the same trust signals the profile header shows). The photo
+ * is fetched and inlined defensively, falling back to initials on any error.
+ * Mirrors the per-experience opengraph-image so shared profiles look as
+ * intentional as shared listings.
  */
 export default async function Image({
   params,
@@ -68,6 +109,10 @@ export default async function Image({
   }
 
   const name = isAr ? toArabicText(host.name) : host.name;
+  const bioRaw = pickLocalized(locale, host.bioEn, host.bioAr).trim();
+  const bio = bioRaw ? truncateBio(bioRaw) : null;
+  const photoDataUri = await loadPhotoDataUri(host.photoUrl);
+  const initials = initialsOf(host.name);
 
   // Host-level rating: count-weighted merge of each experience's aggregate —
   // the same derivation the profile header uses, so the card never disagrees
@@ -152,21 +197,84 @@ export default async function Image({
         </div>
       </div>
 
-      {/* Middle: host name */}
-      <div
-        style={{
-          display: 'block',
-          textAlign: isAr ? 'right' : 'left',
-          fontSize: name.length > 36 ? 68 : 80,
-          fontWeight: 600,
-          lineHeight: 1.1,
-          letterSpacing: isAr ? 0 : '-0.035em',
-          maxWidth: 1010,
-          maxHeight: 320,
-          overflow: 'hidden',
-        }}
-      >
-        {name}
+      {/* Middle: host photo + name + bio */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 44, maxHeight: 360 }}>
+        {photoDataUri ? (
+          <img
+            src={photoDataUri}
+            alt=""
+            width={224}
+            height={224}
+            style={{
+              width: 224,
+              height: 224,
+              borderRadius: 9999,
+              objectFit: 'cover',
+              flexShrink: 0,
+            }}
+          />
+        ) : (
+          <div
+            style={{
+              width: 224,
+              height: 224,
+              borderRadius: 9999,
+              backgroundColor: fg,
+              color: accent,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: 88,
+              fontWeight: 600,
+              flexShrink: 0,
+            }}
+          >
+            {initials}
+          </div>
+        )}
+
+        <div
+          style={{
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 18,
+            // Explicit width: content box (1056) − photo (224) − gap (44). Satori
+            // won't wrap text inside a flex child that has no definite width — it
+            // expands the child past the canvas instead — so we pin it.
+            width: 788,
+            textAlign: isAr ? 'right' : 'left',
+            overflow: 'hidden',
+          }}
+        >
+          <div
+            style={{
+              display: 'block',
+              fontSize: name.length > 28 ? 56 : 68,
+              fontWeight: 600,
+              lineHeight: 1.05,
+              letterSpacing: isAr ? 0 : '-0.035em',
+              maxHeight: 150,
+              overflow: 'hidden',
+            }}
+          >
+            {name}
+          </div>
+          {bio && (
+            <div
+              style={{
+                display: 'block',
+                fontSize: 28,
+                fontWeight: 400,
+                lineHeight: isAr ? 1.7 : 1.4,
+                color: muted,
+                maxHeight: 132,
+                overflow: 'hidden',
+              }}
+            >
+              {bio}
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Bottom: rating · experience count */}
