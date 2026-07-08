@@ -49,6 +49,15 @@ const nextConfig: NextConfig = {
   outputFileTracingIncludes: {
     '/[locale]/experiences/[slug]/opengraph-image': ['./lib/og/fonts/*.ttf'],
     '/[locale]/hosts/[slug]/opengraph-image': ['./lib/og/fonts/*.ttf'],
+    // The booking-receipt email renders the invoice PDF (@react-pdf) with
+    // the same brand TTFs off disk, plus the wordmark PNG in the header.
+    // Both settlement paths that send it must bundle those assets, or PDF
+    // generation ENOENTs in production.
+    '/[locale]/book/[reference]/pay/return': [
+      './lib/og/fonts/*.ttf',
+      './public/images/gharmish-wordmark.png',
+    ],
+    '/api/webhooks/hyperpay': ['./lib/og/fonts/*.ttf', './public/images/gharmish-wordmark.png'],
   },
   images: {
     /**

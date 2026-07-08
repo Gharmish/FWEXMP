@@ -5,14 +5,18 @@ import { getTranslations } from 'next-intl/server';
 import { db } from '@/lib/db';
 import { hasEmail, hasHyperpay } from '@/lib/env';
 import type { Locale } from '@/lib/i18n';
+import QRCode from 'qrcode';
 import { formatDate, formatInteger, formatSAR, formatTime } from '@/lib/format';
-import { sendEmail } from '@/lib/email';
-import { SITE_URL } from '@/lib/site';
+import { sendEmail, type EmailAttachment } from '@/lib/email';
+import { SITE_URL, SELLER_LEGAL_NAME, COMMERCIAL_REGISTRATION } from '@/lib/site';
+import { reportError } from '@/lib/log';
 import { hostApplications } from '@/db/schema';
 import { getBookingByReference } from '@/features/bookings/queries';
 import { vatPortionSar, vatRatePercent } from '@/features/bookings/lib/vat';
 import { startInstant } from '@/features/bookings/lib/cancellation';
 import { splitCommission } from '@/features/bookings/lib/commission';
+import { zatcaQrPayload } from '@/features/bookings/lib/zatca-qr';
+import { renderInvoicePdf, type InvoicePdfRow } from '@/features/bookings/lib/invoice-pdf';
 import { getExperienceBySlug } from '@/features/experiences/queries';
 import { toArabicText } from '@/features/experiences/lib/arabic-content';
 import { renderReceiptEmail, type ReceiptRow } from './booking-email-render';
@@ -39,6 +43,27 @@ const KSA_DATE: Intl.DateTimeFormatOptions = {
 };
 
 /**
+ * Numeric `dd/MM/yyyy`, always Latin. The PDF renderer can't mix an Arabic
+ * month name with Latin digits in one run without corrupting the shaping
+ * (see invoice-pdf.tsx), so PDF dates use this locale-independent form.
+ */
+const KSA_NUMERIC_DATE: Intl.DateTimeFormatOptions = {
+  day: '2-digit',
+  month: '2-digit',
+  year: 'numeric',
+  timeZone: 'Asia/Riyadh',
+};
+
+/** Card-scheme label, kept single-script so it's safe in the Arabic PDF. */
+function paymentBrandLabel(brand: string | null, locale: Locale): string | null {
+  if (!brand) return null;
+  if (brand === 'MADA') return locale === 'ar' ? 'مدى' : 'mada';
+  if (brand === 'VISA') return 'Visa';
+  if (brand === 'MASTER') return 'Mastercard';
+  return brand;
+}
+
+/**
  * Send the "payment received / booking confirmed" receipt for a settled
  * booking. Best-effort and fully gated: a no-op when email is unconfigured or
  * the guest has no email on file (phone-only guests). Never throws — the
@@ -49,12 +74,17 @@ export async function sendBookingReceiptEmail(reference: string, locale: Locale)
   if (!hasEmail()) return;
 
   const booking = await getBookingByReference(reference);
-  if (!booking?.guestEmail) return;
+  if (!booking?.guestEmail || !booking.paidAt) return;
 
   const experience = booking.experienceSlug
     ? await getExperienceBySlug(booking.experienceSlug)
     : undefined;
-  const title = experience ? (locale === 'ar' ? experience.titleAr : experience.titleEn) : null;
+  // Prefer the immutable settlement snapshot; fall back to the live title
+  // for rows settled before the snapshot columns existed (mirrors the
+  // on-site invoice page).
+  const snapshotTitle = locale === 'ar' ? booking.invoiceItemAr : booking.invoiceItemEn;
+  const liveTitle = experience ? (locale === 'ar' ? experience.titleAr : experience.titleEn) : null;
+  const title = snapshotTitle ?? liveTitle;
   const placeName = experience
     ? locale === 'ar'
       ? toArabicText(experience.placeName)
@@ -62,32 +92,77 @@ export async function sendBookingReceiptEmail(reference: string, locale: Locale)
     : null;
 
   const t = await getTranslations({ locale, namespace: 'bookingEmail' });
+  const ti = await getTranslations({ locale, namespace: 'invoice' });
   const startsAt = startInstant(booking.date, booking.startTime);
+  const paidAt = new Date(booking.paidAt);
 
-  const rows: ReceiptRow[] = [];
+  // VAT renders ONLY from the per-booking snapshot stamped at settlement —
+  // a receipt from before the platform's ZATCA registration never mentions
+  // VAT, no matter what the toggle says today.
+  const vat =
+    booking.vatRateBps && booking.vatRegistrationNumber
+      ? { rateBps: booking.vatRateBps, number: booking.vatRegistrationNumber }
+      : null;
+  const vatSar = vat ? vatPortionSar(booking.totalAmountSar, vat.rateBps) : 0;
+  const taxableSar = booking.totalAmountSar - vatSar;
+  const unitSar = Math.round(booking.totalAmountSar / booking.partySize);
+  const billedName = booking.billedName ?? booking.guestName;
+  const brandLabel = paymentBrandLabel(booking.paymentBrand, locale);
+  const documentTitle = vat ? ti('taxInvoiceTitle') : ti('receiptTitle');
+  const sellerLines = [ti('sellerRegion'), `${ti('crLabel')} ${COMMERCIAL_REGISTRATION}`];
+
+  // --- Email body: a complete receipt, not just a summary. ------------
+  const rows: ReceiptRow[] = [
+    { label: ti('invoiceNumberLabel'), value: booking.referenceCode },
+    { label: ti('issueDateLabel'), value: formatDate(paidAt, locale, 'gregory', KSA_DATE) },
+    { label: ti('billedToLabel'), value: billedName },
+  ];
+  if (vat) rows.push({ label: ti('vatNumberLabel'), value: vat.number });
   if (title) rows.push({ label: t('experienceLabel'), value: title });
   if (placeName) rows.push({ label: t('placeLabel'), value: placeName });
   rows.push({ label: t('dateLabel'), value: formatDate(startsAt, locale, 'gregory', KSA_DATE) });
   rows.push({ label: t('timeLabel'), value: formatTime(startsAt, locale, KSA_TIME) });
   rows.push({ label: t('partyLabel'), value: formatInteger(booking.partySize, locale) });
-  rows.push({ label: t('totalLabel'), value: formatSAR(booking.totalAmountSar, locale) });
-  // VAT renders ONLY from the per-booking snapshot stamped at settlement —
-  // a receipt from before the platform's ZATCA registration never
-  // mentions VAT, no matter what the toggle says today.
-  if (booking.vatRateBps) {
+  rows.push({ label: ti('unitPriceLabel'), value: formatSAR(unitSar, locale) });
+  if (vat) {
+    rows.push({ label: ti('taxableLabel'), value: formatSAR(taxableSar, locale) });
     rows.push({
-      label: t('vatIncludedLabel', { pct: vatRatePercent(booking.vatRateBps) }),
-      value: formatSAR(vatPortionSar(booking.totalAmountSar, booking.vatRateBps), locale),
+      label: ti('vatLabel', { pct: vatRatePercent(vat.rateBps) }),
+      value: formatSAR(vatSar, locale),
     });
+    rows.push({ label: ti('totalInclVatLabel'), value: formatSAR(booking.totalAmountSar, locale) });
+  } else {
+    rows.push({ label: ti('totalPaidLabel'), value: formatSAR(booking.totalAmountSar, locale) });
   }
-  rows.push({ label: t('referenceLabel'), value: booking.referenceCode });
+  if (brandLabel) rows.push({ label: ti('paymentMethodLabel'), value: brandLabel });
+  rows.push({ label: ti('paidOnLabel'), value: formatDate(paidAt, locale, 'gregory', KSA_DATE) });
+
+  // --- Invoice PDF attachment: the keepable document, delivered inline. -
+  const attachments = await buildInvoicePdfAttachment({
+    booking,
+    locale,
+    documentTitle,
+    title,
+    placeName,
+    startsAt,
+    paidAt,
+    vat,
+    vatSar,
+    taxableSar,
+    unitSar,
+    billedName,
+    brandLabel,
+    ti,
+    t,
+  });
 
   const { html, text } = renderReceiptEmail({
     logoUrl: EMAIL_LOGO_URL,
+    sellerLines,
     subject: t('subject'),
     dir: locale === 'ar' ? 'rtl' : 'ltr',
     greeting: t('greeting', { name: booking.guestName }),
-    intro: t('intro'),
+    intro: attachments.length > 0 ? t('introWithPdf') : t('intro'),
     rows,
     cta: {
       label: t('viewInvoice'),
@@ -97,7 +172,135 @@ export async function sendBookingReceiptEmail(reference: string, locale: Locale)
     footer: t('footer'),
   });
 
-  await sendEmail({ to: booking.guestEmail, subject: t('subject'), html, text });
+  await sendEmail({ to: booking.guestEmail, subject: t('subject'), html, text, attachments });
+}
+
+interface InvoicePdfAttachmentArgs {
+  booking: NonNullable<Awaited<ReturnType<typeof getBookingByReference>>>;
+  locale: Locale;
+  documentTitle: string;
+  title: string | null;
+  placeName: string | null;
+  startsAt: Date;
+  paidAt: Date;
+  vat: { rateBps: number; number: string } | null;
+  vatSar: number;
+  taxableSar: number;
+  unitSar: number;
+  billedName: string;
+  brandLabel: string | null;
+  ti: Awaited<ReturnType<typeof getTranslations<'invoice'>>>;
+  t: Awaited<ReturnType<typeof getTranslations<'bookingEmail'>>>;
+}
+
+/**
+ * Build the invoice PDF and return it as a one-element attachments array
+ * ready for `sendEmail`. Best-effort: PDF rendering (fonts, layout) must
+ * never break a receipt, so any failure logs and yields no attachment —
+ * the email still goes out with the full details in its body.
+ */
+async function buildInvoicePdfAttachment(
+  args: InvoicePdfAttachmentArgs,
+): Promise<EmailAttachment[]> {
+  const { booking, locale, vat, ti, t } = args;
+  try {
+    // Dates/times in the PDF are pure-Latin to avoid mixed-script shaping
+    // corruption (see invoice-pdf.tsx). Time uses the English 12-hour form
+    // ("9:00 AM") for the same reason — an Arabic ص/م beside Latin digits
+    // would mix scripts.
+    const numericDate = (d: Date) => formatDate(d, 'en', 'gregory', KSA_NUMERIC_DATE);
+    const latinTime = (d: Date) => formatTime(d, 'en', KSA_TIME);
+
+    // The CR is a two-cell row (Arabic label | Latin number), not a stacked
+    // seller line — a single run mixing "س.ت" with Latin digits corrupts the
+    // Arabic shaping.
+    const identityRows: InvoicePdfRow[] = [
+      { label: ti('crLabel'), value: COMMERCIAL_REGISTRATION },
+      { label: ti('invoiceNumberLabel'), value: booking.referenceCode },
+      { label: ti('issueDateLabel'), value: numericDate(args.paidAt) },
+      { label: ti('billedToLabel'), value: args.billedName },
+    ];
+    if (vat) identityRows.push({ label: ti('vatNumberLabel'), value: vat.number });
+
+    const itemRows: InvoicePdfRow[] = [
+      { label: t('dateLabel'), value: numericDate(args.startsAt) },
+      { label: t('timeLabel'), value: latinTime(args.startsAt) },
+      { label: t('partyLabel'), value: formatInteger(booking.partySize, locale) },
+      { label: ti('unitPriceLabel'), value: formatSAR(args.unitSar, locale) },
+    ];
+
+    const totalRows: InvoicePdfRow[] = vat
+      ? [
+          { label: ti('taxableLabel'), value: formatSAR(args.taxableSar, locale) },
+          {
+            label: ti('vatLabel', { pct: vatRatePercent(vat.rateBps) }),
+            value: formatSAR(args.vatSar, locale),
+          },
+          {
+            label: ti('totalInclVatLabel'),
+            value: formatSAR(booking.totalAmountSar, locale),
+            strong: true,
+          },
+        ]
+      : [
+          {
+            label: ti('totalPaidLabel'),
+            value: formatSAR(booking.totalAmountSar, locale),
+            strong: true,
+          },
+        ];
+
+    const paymentRows: InvoicePdfRow[] = [];
+    if (args.brandLabel) {
+      paymentRows.push({ label: ti('paymentMethodLabel'), value: args.brandLabel });
+    }
+    paymentRows.push({ label: ti('paidOnLabel'), value: numericDate(args.paidAt) });
+
+    // ZATCA QR only on a tax invoice (post VAT-registration).
+    const qr = vat
+      ? {
+          dataUrl: await QRCode.toDataURL(
+            zatcaQrPayload({
+              sellerName: SELLER_LEGAL_NAME,
+              vatNumber: vat.number,
+              timestamp: args.paidAt,
+              totalSar: booking.totalAmountSar,
+              vatSar: args.vatSar,
+            }),
+            { margin: 1, width: 240, errorCorrectionLevel: 'M' },
+          ),
+          caption: ti('qrCaption'),
+        }
+      : null;
+
+    const pdf = await renderInvoicePdf({
+      locale,
+      documentTitle: args.documentTitle,
+      sellerName: SELLER_LEGAL_NAME,
+      // CR moves to an identity row above; the header carries only the
+      // pure-script region line.
+      sellerLines: [ti('sellerRegion')],
+      identityRows,
+      itemLabel: ti('itemLabel'),
+      itemDescription: args.title ?? booking.referenceCode,
+      placeName: args.placeName,
+      itemRows,
+      totalRows,
+      paymentRows,
+      qr,
+    });
+
+    return [
+      {
+        filename: `Gharmish-${booking.referenceCode}.pdf`,
+        content: pdf.toString('base64'),
+        contentType: 'application/pdf',
+      },
+    ];
+  } catch (error) {
+    reportError(error, { surface: 'invoice-pdf', reference: booking.referenceCode });
+    return [];
+  }
 }
 
 /**

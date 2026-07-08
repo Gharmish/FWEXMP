@@ -18,6 +18,10 @@ export default defineConfig({
   resolve: {
     alias: {
       '@': projectRoot,
+      // `import 'server-only'` is a Next.js build-time guard with no npm
+      // package to resolve under Node — stub it so server modules (e.g. the
+      // invoice PDF renderer) are unit-testable.
+      'server-only': path.join(projectRoot, 'test/server-only-stub.ts'),
     },
   },
   test: {

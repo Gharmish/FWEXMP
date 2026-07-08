@@ -11,12 +11,23 @@ import { reportError } from '@/lib/log';
  * receipt must not break a confirmed booking; it's logged and swallowed.
  */
 
+export interface EmailAttachment {
+  /** File name the recipient sees, e.g. `Gharmish-GH-QTW3J9.pdf`. */
+  filename: string;
+  /** Base64-encoded file content (Resend's `attachments[].content` shape). */
+  content: string;
+  /** MIME type, e.g. `application/pdf`. Resend infers from the name if omitted. */
+  contentType?: string;
+}
+
 export interface SendEmailInput {
   to: string;
   subject: string;
   html: string;
   /** Plain-text fallback for clients that don't render HTML. */
   text?: string;
+  /** Optional file attachments (e.g. the invoice PDF). */
+  attachments?: readonly EmailAttachment[];
 }
 
 const RESEND_ENDPOINT = 'https://api.resend.com/emails';
@@ -37,6 +48,9 @@ export async function sendEmail(input: SendEmailInput): Promise<boolean> {
         subject: input.subject,
         html: input.html,
         ...(input.text ? { text: input.text } : {}),
+        ...(input.attachments && input.attachments.length > 0
+          ? { attachments: input.attachments }
+          : {}),
       }),
       cache: 'no-store',
       // A hung Resend socket must not stall a booking response (sends are

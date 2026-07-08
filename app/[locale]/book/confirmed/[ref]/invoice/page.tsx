@@ -8,7 +8,13 @@ import { cn } from '@/lib/utils';
 import { Link, redirect } from '@/lib/i18n';
 import type { Locale } from '@/lib/i18n';
 import { formatDate, formatInteger, formatTime } from '@/lib/format';
-import { SITE_URL, SITE_NAME, SUPPORT_EMAIL } from '@/lib/site';
+import {
+  SITE_URL,
+  SITE_NAME,
+  SUPPORT_EMAIL,
+  SELLER_LEGAL_NAME,
+  COMMERCIAL_REGISTRATION,
+} from '@/lib/site';
 import { whatsappShareLink } from '@/lib/whatsapp';
 import { buttonVariants } from '@/components/ui/button';
 import { Price } from '@/components/ui/price';
@@ -23,13 +29,6 @@ import { zatcaQrPayload } from '@/features/bookings/lib/zatca-qr';
 
 /** UUID v4 shape — the only thing we accept as a public reference. */
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-
-/**
- * Seller name printed on the document and encoded in the ZATCA QR. Must
- * match the name on the ZATCA certificate once registered — revisit on
- * registration day together with the real CR number in `footer.crLine`.
- */
-const SELLER_NAME = 'Gharmish | غارميش';
 
 const BRAND_NAMES: Record<string, string> = {
   MADA: 'mada',
@@ -119,7 +118,7 @@ export default async function BookingInvoicePage({ params }: PageParams) {
   const qrDataUrl = vat
     ? await QRCode.toDataURL(
         zatcaQrPayload({
-          sellerName: SELLER_NAME,
+          sellerName: SELLER_LEGAL_NAME,
           vatNumber: vat.registrationNumber,
           timestamp: paidAt,
           totalSar: booking.totalAmountSar,
@@ -145,7 +144,7 @@ export default async function BookingInvoicePage({ params }: PageParams) {
   const creditNoteQrDataUrl = creditNote
     ? await QRCode.toDataURL(
         zatcaQrPayload({
-          sellerName: SELLER_NAME,
+          sellerName: SELLER_LEGAL_NAME,
           vatNumber: creditNote.vatNumber,
           timestamp: creditNote.refundedAt,
           totalSar: booking.totalAmountSar,
@@ -181,6 +180,9 @@ export default async function BookingInvoicePage({ params }: PageParams) {
             <GharmishLogo className="h-7" />
           </div>
           <p className={labelClass}>{t('sellerRegion')}</p>
+          <p className={labelClass}>
+            {t('crLabel')} {COMMERCIAL_REGISTRATION}
+          </p>
         </div>
         <div className="flex flex-col items-end gap-1 text-end">
           <h1 className="font-display text-2xl font-medium tracking-[-0.025em]">
