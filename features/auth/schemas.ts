@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { isValidE164, normalizeToE164 } from '@/lib/phone';
+import { sanitizeNextPath } from '@/features/auth/lib/next-path';
 
 /**
  * Zod schemas for the sign-in flow. The two steps are separate forms,
@@ -17,12 +18,15 @@ import { isValidE164, normalizeToE164 } from '@/lib/phone';
  * the open-redirect surface — `next` flows straight into `redirect()`.
  * Gated flows (host dashboard, checkout) still land where they were
  * headed via an explicit `next`; a plain sign-in continues browsing.
+ *
+ * `sanitizeNextPath` also strips a leading locale segment so a
+ * locale-prefixed `next` doesn't double into `/en/en/…` once the
+ * locale-aware `redirect()` re-adds one.
  */
 const nextPath = z
   .string()
-  .trim()
   .default('/')
-  .transform((value) => (/^\/(?![/\\])/.test(value) ? value : '/'));
+  .transform((value) => sanitizeNextPath(value));
 
 export const requestOtpSchema = z.object({
   phone: z

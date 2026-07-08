@@ -5,6 +5,7 @@ import type { Locale } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
 import { hasSupabaseAuth } from '@/lib/env';
 import { getCurrentUser } from '@/features/auth/queries';
+import { sanitizeNextPath } from '@/features/auth/lib/next-path';
 import { SignInForm } from '@/app/[locale]/(auth)/sign-in/sign-in-form';
 
 export async function generateMetadata({
@@ -37,16 +38,15 @@ export default async function SignInPage({
   setRequestLocale(locale);
   const loc = locale as Locale;
   const { next: rawNext } = await searchParams;
+  // Locale-less, open-redirect-safe target. The locale-aware `redirect()`
+  // re-adds the active locale, so `next` must not carry one of its own.
+  const next = sanitizeNextPath(rawNext);
 
   // Already signed in? Send them straight to `next` (or home).
   const user = await getCurrentUser();
   if (user) {
-    redirect({ href: rawNext && rawNext.startsWith('/') ? rawNext : '/', locale: loc });
+    redirect({ href: next, locale: loc });
   }
-
-  // Only accept same-origin, relative `next` paths — never an
-  // attacker-controlled absolute URL.
-  const next = rawNext && rawNext.startsWith('/') && !rawNext.startsWith('//') ? rawNext : '/';
 
   const t = await getTranslations('auth');
   const eyebrowClassName = cn(
