@@ -5,6 +5,7 @@ import { cn } from '@/lib/utils';
 import { SUPPORT_EMAIL } from '@/lib/site';
 import { getPlatformSettings } from '@/lib/platform-settings';
 import { Wordmark } from '@/components/layout/wordmark';
+import { PaymentMarks } from '@/components/layout/payment-marks';
 import { Stagger, StaggerItem } from '@/components/ui/motion';
 
 /**
@@ -47,10 +48,6 @@ export async function Footer() {
     { href: '/terms', label: t('linkTerms') },
     { href: '/privacy', label: t('linkPrivacy') },
   ];
-
-  // Text pills, not brand logos: the palette rule (BRIEF §3) rules out the
-  // brands' own colours, and the checkout widget already shows the real marks.
-  const paymentBrands = [t('brandMada'), t('brandVisa'), t('brandMastercard'), t('brandApplePay')];
 
   const bottomLinkClassName =
     'text-sarat-black inline-flex min-h-11 items-center text-sm font-medium transition-opacity duration-200 hover:opacity-60';
@@ -103,16 +100,15 @@ export async function Footer() {
               {SUPPORT_EMAIL}
             </a>
           </nav>
-          <ul aria-label={t('paymentsLabel')} className="flex flex-wrap items-center gap-2">
-            {paymentBrands.map((brand) => (
-              <li
-                key={brand}
-                className="border-sarat-black/8 text-sarat-black-600 rounded-md [border-width:0.5px] px-2.5 py-1 text-xs font-medium"
-              >
-                {brand}
-              </li>
-            ))}
-          </ul>
+          <PaymentMarks
+            label={t('paymentsLabel')}
+            names={{
+              mada: t('brandMada'),
+              visa: t('brandVisa'),
+              mastercard: t('brandMastercard'),
+              applePay: t('brandApplePay'),
+            }}
+          />
           <div className="text-sarat-black-600 flex flex-col gap-1">
             <span>
               © {year} {brand}. {t('rights')}
