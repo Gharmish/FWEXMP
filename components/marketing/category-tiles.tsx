@@ -112,16 +112,27 @@ export function CategoryTiles({ locale, categories }: CategoryTilesProps) {
     let raf = 0;
     let paused = false;
     let resumeTimer: ReturnType<typeof setTimeout> | undefined;
+    // Track the position as a float. Mobile browsers (notably iOS Safari)
+    // round `scrollLeft` to an integer, so reading it back each frame and
+    // adding a sub-pixel step would floor away the drift and never move.
+    // Accumulating here keeps the sub-pixel step and only writes to the DOM.
+    let pos = el.scrollLeft;
 
     const step = () => {
       // Content is rendered twice; one full loop is half the scroll width.
       const half = el.scrollWidth / 2;
       if (half > 0) {
-        if (!paused) el.scrollLeft += DRIFT_SPEED * dir;
-        // Wrap seamlessly at either boundary so both the auto-drift and any
-        // manual overscroll loop without hitting a dead end.
-        if (el.scrollLeft >= half) el.scrollLeft -= half;
-        else if (el.scrollLeft <= -half) el.scrollLeft += half;
+        if (paused) {
+          // Follow the guest's manual scroll so we resume from where they left.
+          pos = el.scrollLeft;
+        } else {
+          pos += DRIFT_SPEED * dir;
+          // Wrap seamlessly at either boundary so the auto-drift never hits
+          // a dead end.
+          if (pos >= half) pos -= half;
+          else if (pos <= -half) pos += half;
+          el.scrollLeft = pos;
+        }
       }
       raf = requestAnimationFrame(step);
     };
