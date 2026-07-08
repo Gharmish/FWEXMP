@@ -998,7 +998,11 @@
       },
       "bio": {
         "label": "Short bio (English)",
-        "hint": "A paragraph or two on who you are and what you love about Aseer. We'll have it translated to Arabic with you. Minimum 40 characters."
+        "hint": "A paragraph or two on who you are and what you love about Aseer. Minimum 40 characters."
+      },
+      "bioAr": {
+        "label": "Short bio (Arabic)",
+        "hint": "Optional. The same bio in Arabic — this is what Arabic-speaking guests see. Leave it blank to show the English version. 40–1,200 characters."
       },
       "languages": {
         "label": "Languages you host in",
@@ -1107,6 +1111,8 @@
         "displayNameLong": "Keep this under 80 characters.",
         "bioShort": "Tell us a little more — at least 40 characters.",
         "bioLong": "Keep this under 1,200 characters.",
+        "bioArShort": "Add a little more Arabic — at least 40 characters, or leave it blank.",
+        "bioArLong": "Keep the Arabic bio under 1,200 characters.",
         "languagesRequired": "Pick at least one language.",
         "identityInvalid": "Enter a 10-digit national ID, Iqama, or CR number.",
         "emailInvalid": "Enter a valid email or leave this blank.",

@@ -36,6 +36,16 @@ export const hostApplicationSchema = z
   .object({
     displayName: z.string().trim().min(2, 'display_name_short').max(80, 'display_name_long'),
     bioEn: z.string().trim().min(40, 'bio_short').max(1200, 'bio_long'),
+    // Host-authored Arabic bio. Optional — an Arabic-first host can write
+    // it now, but a host who only has English copy isn't blocked (public
+    // surfaces fall back to English via `pickLocalized`). Same length
+    // bounds as the English bio when present.
+    bioAr: z
+      .string()
+      .trim()
+      .max(1200, 'bio_ar_long')
+      .refine((v) => v.length === 0 || v.length >= 40, 'bio_ar_short')
+      .default(''),
     languages: z
       .array(z.enum(HOST_LANGUAGE_OPTIONS))
       .min(1, 'languages_required')

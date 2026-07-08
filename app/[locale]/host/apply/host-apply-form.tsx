@@ -35,6 +35,8 @@ type ErrorKey =
   | 'display_name_long'
   | 'bio_short'
   | 'bio_long'
+  | 'bio_ar_short'
+  | 'bio_ar_long'
   | 'languages_required'
   | 'identity_invalid'
   | 'legal_name_short'
@@ -62,6 +64,8 @@ interface HostApplyCopy {
   displayNameHint: string;
   bioLabel: string;
   bioHint: string;
+  bioArLabel: string;
+  bioArHint: string;
   languagesLabel: string;
   languagesHint: string;
   identityTypeLabel: string;
@@ -107,6 +111,7 @@ export interface HostApplyExistingDocument {
 export interface HostApplyFormInitial {
   displayName: string;
   bioEn: string;
+  bioAr: string;
   languages: string[];
   identityType: HostIdentityType;
   identityNumber: string;
@@ -137,6 +142,7 @@ const initialState: HostApplyState = { success: false };
 const FIELDS_WITH_HINTS: ReadonlySet<HostApplyFieldName> = new Set([
   'displayName',
   'bioEn',
+  'bioAr',
   'languages',
   'identityNumber',
   'legalName',
@@ -149,6 +155,7 @@ const FIELDS_WITH_HINTS: ReadonlySet<HostApplyFieldName> = new Set([
 const FOCUS_ORDER: readonly HostApplyFieldName[] = [
   'displayName',
   'bioEn',
+  'bioAr',
   'languages',
   'identityType',
   'identityNumber',
@@ -356,6 +363,31 @@ export function HostApplyForm({
             {copy.bioHint}
           </p>
           <FieldError id={errorId('bioEn')} message={errorMessage(state.fields?.bioEn, copy)} />
+        </div>
+
+        <div className="flex flex-col gap-2">
+          <label htmlFor="apply-bioAr" className="text-sm font-medium">
+            {copy.bioArLabel}
+          </label>
+          <textarea
+            id="apply-bioAr"
+            name="bioAr"
+            rows={5}
+            maxLength={1200}
+            defaultValue={values.bioAr ?? initial?.bioAr}
+            // Host-authored Arabic copy — force RTL regardless of the UI locale.
+            dir="rtl"
+            lang="ar"
+            className={cn(
+              'rounded-input border-sarat-black/20 text-sarat-black w-full resize-y [border-width:0.5px] bg-white px-4 py-3 text-base',
+              'placeholder:text-sarat-black-600 disabled:pointer-events-none disabled:opacity-50',
+            )}
+            {...fieldProps('bioAr')}
+          />
+          <p id={hintId('bioAr')} className="text-sarat-black-600 text-sm">
+            {copy.bioArHint}
+          </p>
+          <FieldError id={errorId('bioAr')} message={errorMessage(state.fields?.bioAr, copy)} />
         </div>
 
         <div className="flex flex-col gap-2">

@@ -33,9 +33,11 @@ import {
  *
  *   - Approve: insert a `hosts` row (identity fields + bio), update the
  *     application to status='approved', link the new host_id, audit the
- *     reviewer. The `hosts.bioAr` is intentionally a placeholder — the
- *     partnership team adds the Arabic copy out-of-band before the host
- *     is publicly listed (BRIEF §4: no AI-authored Arabic).
+ *     reviewer. `hosts.bioAr` carries the host's own Arabic bio when they
+ *     wrote one during onboarding; when they didn't, it's seeded with a
+ *     `TODO(ar)` placeholder so the notNull column is valid and public
+ *     surfaces fall back to English. The host can edit it later at
+ *     /host/profile.
  *
  *   - Reject: status='rejected' + required reviewer note. The user can
  *     refile by re-submitting (`/host/apply` falls through to the form
@@ -162,8 +164,9 @@ export async function approveApplication(
           name: application.displayName,
           slug,
           bioEn: application.bioEn,
-          // Placeholder so the row is valid — partnership team fills the
-          // real Arabic copy before public listing.
+          // Host's own Arabic bio if they wrote one at onboarding;
+          // otherwise a placeholder so the notNull row is valid and the
+          // public page falls back to English.
           bioAr: application.bioAr ?? 'TODO(ar): bio pending translation',
           nationalId:
             application.identityType === 'national_id' ? application.identityNumber : null,

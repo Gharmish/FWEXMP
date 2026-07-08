@@ -623,8 +623,9 @@ export const hostApplications = pgTable(
     contactEmail: text(),
     /** Display name as the host would like to appear in the catalog. */
     displayName: text().notNull(),
-    /** English bio. Arabic is collected later (translation team / host edits). */
+    /** English bio (required). */
     bioEn: text().notNull(),
+    /** Host-authored Arabic bio. Optional — null when the host only wrote English. */
     bioAr: text(),
     /** Languages spoken, ISO-ish tags e.g. ['ar','en']. */
     languages: text().array().notNull().default([]),

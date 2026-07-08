@@ -54,6 +54,7 @@ import { HOST_LANGUAGE_OPTIONS } from '@/features/host-applications/types';
 export type HostApplyFieldName =
   | 'displayName'
   | 'bioEn'
+  | 'bioAr'
   | 'languages'
   | 'identityType'
   | 'identityNumber'
@@ -87,6 +88,7 @@ type ScalarFieldName = Exclude<HostApplyFieldName, 'languages'>;
 const FIELD_NAMES: readonly HostApplyFieldName[] = [
   'displayName',
   'bioEn',
+  'bioAr',
   'languages',
   'identityType',
   'identityNumber',
@@ -200,6 +202,7 @@ export async function submitHostApplication(
   const parsed = hostApplicationSchema.safeParse({
     displayName: formValue(formData, 'displayName'),
     bioEn: formValue(formData, 'bioEn'),
+    bioAr: formValue(formData, 'bioAr'),
     languages: formValues(formData, 'languages'),
     identityType: formValue(formData, 'identityType'),
     identityNumber: formValue(formData, 'identityNumber'),
@@ -241,7 +244,7 @@ export async function submitHostApplication(
       contactEmail: input.contactEmail ?? null,
       displayName: input.displayName,
       bioEn: input.bioEn,
-      bioAr: null,
+      bioAr: input.bioAr.length > 0 ? input.bioAr : null,
       languages: input.languages,
       identityType: input.identityType,
       identityNumber: input.identityNumber,
@@ -343,6 +346,9 @@ export async function submitHostApplication(
         contactEmail: input.contactEmail ?? null,
         displayName: input.displayName,
         bioEn: input.bioEn,
+        // Blank Arabic stays null — the approval step then seeds the host
+        // row's notNull bioAr with a fallback marker (admin-actions.ts).
+        bioAr: input.bioAr.length > 0 ? input.bioAr : null,
         languages: [...input.languages],
         identityType: input.identityType,
         identityNumber: input.identityNumber,
