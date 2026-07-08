@@ -1782,11 +1782,26 @@
       "title": "لا توجد تجارب تطابق هذه التصفية.",
       "description": "جرّب إزالة أحد عوامل التصفية، أو مسح البحث، أو تصفّح كل التجارب."
     },
-    "dateLegend": "التاريخ",
+    "dayLegend": "متى",
+    "day": {
+      "any": "أي يوم",
+      "weekend": "نهاية الأسبوع",
+      "weekday": "أيام الأسبوع"
+    },
     "groupLegend": "حجم المجموعة",
     "groupPlaceholder": "أي عدد",
+    "groupToken": "مجموعة من {count}",
+    "groupDecrease": "إنقاص حجم المجموعة",
+    "groupIncrease": "زيادة حجم المجموعة",
     "cityLegend": "المدينة",
-    "cityAll": "كل المدن"
+    "cityAll": "كل المدن",
+    "filtersButton": "التصفية",
+    "filtersTitle": "التصفية",
+    "showResults": "{count, plural, =0 {لا توجد تجارب} =1 {اعرض تجربة واحدة} two {اعرض تجربتين} few {اعرض # تجارب} many {اعرض # تجربة} other {اعرض # تجربة}}",
+    "clearAll": "مسح الكل",
+    "activeFiltersLabel": "عوامل التصفية النشطة",
+    "removeFilter": "إزالة عامل التصفية",
+    "originalsToken": "أصول غارميش"
   },
   "home": {
     "eyebrow": "أبها · عسير",

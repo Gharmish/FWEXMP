@@ -5,7 +5,7 @@ import { SITE_DESCRIPTION, SITE_NAME, SITE_URL } from '@/lib/site';
 import { routing, type Locale } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
 import { ExperienceCard } from '@/features/experiences/components/experience-card';
-import { FilterBar } from '@/features/experiences/components/filter-bar';
+import { FilterRail } from '@/features/experiences/components/filter-rail';
 import { SortSelect } from '@/features/experiences/components/sort-select';
 import { SearchInput } from '@/features/experiences/components/search-input';
 import { EmptyState } from '@/features/experiences/components/empty-state';
@@ -13,7 +13,11 @@ import { FadeSwap, MountFade, RiseIn, Stagger, StaggerItem } from '@/components/
 import { CATEGORIES } from '@/features/experiences/lib/sample-data';
 import { getEnabledCategories } from '@/lib/platform-settings';
 import { getExperiencesFiltered, getFeaturedExperiences } from '@/features/experiences/queries';
-import { parseSearchParams } from '@/features/experiences/lib/search';
+import {
+  EMPTY_CRITERIA,
+  parseSearchParams,
+  type FilterableExperience,
+} from '@/features/experiences/lib/search';
 import { trackSearch, utmFromSearchParams } from '@/features/analytics/capture';
 import { getWishlistSet } from '@/features/wishlist/queries';
 import { WishlistButton } from '@/features/wishlist/components/wishlist-button';
@@ -86,7 +90,7 @@ export default async function ExperiencesIndexPage({
     criteria.priceBucket === null &&
     criteria.durationBucket === null &&
     criteria.city.length === 0 &&
-    criteria.date === null &&
+    criteria.dayPreset === null &&
     criteria.groupSize === null;
 
   const [results, featured, savedSlugs, enabledCategories] = await Promise.all([
@@ -108,7 +112,7 @@ export default async function ExperiencesIndexPage({
       criteria.priceBucket && `price=${criteria.priceBucket}`,
       criteria.durationBucket && `duration=${criteria.durationBucket}`,
       criteria.city && `city=${criteria.city}`,
-      criteria.date && `date=${criteria.date}`,
+      criteria.dayPreset && `day=${criteria.dayPreset}`,
       criteria.groupSize !== null && `group=${criteria.groupSize}`,
     ].filter(Boolean);
     trackSearch({
@@ -125,13 +129,24 @@ export default async function ExperiencesIndexPage({
   const featuredSlugs = new Set(featured.map((e) => e.slug));
   const gridResults = showFeatured ? results.filter((e) => !featuredSlugs.has(e.slug)) : results;
 
-  // Distinct cities for the (expansion-ready) city filter, and today's
-  // Riyadh date as the date filter's lower bound.
-  const allForFacets = await getExperiencesFiltered({ ...criteria, city: '' });
-  const cities = Array.from(new Set(allForFacets.map((e) => e.city))).sort();
-  const todayRiyadh = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Riyadh' }).format(
-    new Date(),
-  );
+  // Full catalogue (criteria-independent) drives two facet needs: the
+  // distinct city list and the lightweight projection the filter sheet
+  // counts against for its live "Show N" preview.
+  const catalog = await getExperiencesFiltered(EMPTY_CRITERIA);
+  const cities = Array.from(new Set(catalog.map((e) => e.city))).sort();
+  const facets: FilterableExperience[] = catalog.map((e) => ({
+    category: e.category,
+    priceSar: e.priceSar,
+    durationMinutes: e.durationMinutes,
+    city: e.city,
+    maxGroupSize: e.maxGroupSize,
+    availabilityWeekdays: e.availabilityWeekdays,
+    featured: e.featured,
+    titleEn: e.titleEn,
+    titleAr: e.titleAr,
+    placeName: e.placeName,
+    hostName: e.hostName,
+  }));
 
   const url = `${SITE_URL}/${loc}/experiences`;
 
@@ -210,12 +225,12 @@ export default async function ExperiencesIndexPage({
               <SortSelect />
             </div>
 
-            <FilterBar
+            <FilterRail
               locale={loc}
               categories={categories}
               resultCount={results.length}
               cities={cities}
-              todayStr={todayRiyadh}
+              facets={facets}
             />
           </div>
 

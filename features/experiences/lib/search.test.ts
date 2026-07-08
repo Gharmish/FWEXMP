@@ -131,7 +131,7 @@ describe('toSearchParams', () => {
       priceBucket: '200-500',
       durationBucket: '2-4h',
       city: 'abha',
-      date: '2026-06-19',
+      dayPreset: 'weekend',
       groupSize: 4,
       sort: 'priceDesc',
     };
@@ -372,21 +372,22 @@ describe('city / date / group-size filters', () => {
     expect(out.map((e) => e.slug)).toEqual(['big-abha']);
   });
 
-  it('filters by date against the weekly schedule', () => {
-    // 2026-06-19 is a Friday (weekday 5).
-    const friday = filterExperiences(dataset, { ...EMPTY_CRITERIA, date: '2026-06-19' });
-    expect(friday.map((e) => e.slug)).toEqual(['small-abha', 'rijal']);
-    // 2026-06-21 is a Sunday (weekday 0).
-    const sunday = filterExperiences(dataset, { ...EMPTY_CRITERIA, date: '2026-06-21' });
-    expect(sunday.map((e) => e.slug)).toEqual(['big-abha']);
+  it('filters by day preset against the weekly schedule', () => {
+    // Weekend = Fri(5)/Sat(6): small-abha runs [5,6], rijal runs [5].
+    const weekend = filterExperiences(dataset, { ...EMPTY_CRITERIA, dayPreset: 'weekend' });
+    expect(weekend.map((e) => e.slug)).toEqual(['small-abha', 'rijal']);
+    // Weekday = Sun(0)–Thu(4): only big-abha runs [0,2].
+    const weekday = filterExperiences(dataset, { ...EMPTY_CRITERIA, dayPreset: 'weekday' });
+    expect(weekday.map((e) => e.slug)).toEqual(['big-abha']);
   });
 
-  it('parses and clamps the group param; rejects malformed dates', () => {
+  it('parses and clamps the group param; validates the day preset', () => {
     expect(parseSearchParams({ group: '3' }).groupSize).toBe(3);
     expect(parseSearchParams({ group: '999' }).groupSize).toBe(50);
     expect(parseSearchParams({ group: '0' }).groupSize).toBeNull();
     expect(parseSearchParams({ group: 'abc' }).groupSize).toBeNull();
-    expect(parseSearchParams({ date: '2026-06-19' }).date).toBe('2026-06-19');
-    expect(parseSearchParams({ date: 'not-a-date' }).date).toBeNull();
+    expect(parseSearchParams({ day: 'weekend' }).dayPreset).toBe('weekend');
+    expect(parseSearchParams({ day: 'weekday' }).dayPreset).toBe('weekday');
+    expect(parseSearchParams({ day: 'someday' }).dayPreset).toBeNull();
   });
 });

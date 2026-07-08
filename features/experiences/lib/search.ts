@@ -1,6 +1,5 @@
 import type { Category } from '@/lib/colors';
 import type { ExperienceSummary } from '@/features/experiences/types';
-import { weekdayOf } from '@/features/bookings/lib/availability';
 
 /**
  * Pure filter / sort helpers for the experiences catalog.
@@ -40,6 +39,22 @@ export type PriceBucket = (typeof PRICE_BUCKETS)[number];
 export const DURATION_BUCKETS = ['under-2h', '2-4h', 'half-day', 'full-day'] as const;
 export type DurationBucket = (typeof DURATION_BUCKETS)[number];
 
+/**
+ * When-to-go presets. The catalog only knows each experience's recurring
+ * weekly schedule (`availabilityWeekdays`), so a precise calendar date
+ * would over-promise (blackouts + capacity are a detail-page/DB concern).
+ * Honest presets map onto that weekly schedule instead: KSA weekend is
+ * Friday + Saturday, the working week is Sunday–Thursday. `null` = any day.
+ */
+export const DAY_PRESETS = ['weekend', 'weekday'] as const;
+export type DayPreset = (typeof DAY_PRESETS)[number];
+
+/** JS weekday sets per preset (`getUTCDay()`: 0=Sun … 6=Sat). */
+const PRESET_WEEKDAYS: Record<DayPreset, readonly number[]> = {
+  weekend: [5, 6],
+  weekday: [0, 1, 2, 3, 4],
+};
+
 export interface ExperienceCriteria {
   /** Free-text query, lower-cased, trimmed. Empty string when absent. */
   q: string;
@@ -54,11 +69,10 @@ export interface ExperienceCriteria {
   /** Operating city, lower-cased ('' = all cities). Abha-only at launch. */
   city: string;
   /**
-   * Desired date `YYYY-MM-DD`, or null. Filters to experiences whose
-   * weekly schedule runs that weekday — blackouts/capacity stay a
-   * detail-page concern (they need the DB).
+   * When-to-go preset, or null for any day. Keeps experiences whose weekly
+   * schedule runs on at least one day in the preset's weekday set.
    */
-  date: string | null;
+  dayPreset: DayPreset | null;
   /** Minimum group capacity, or null. Keeps experiences with room for N. */
   groupSize: number | null;
   sort: SortKey;
@@ -71,12 +85,11 @@ export const EMPTY_CRITERIA: ExperienceCriteria = {
   priceBucket: null,
   durationBucket: null,
   city: '',
-  date: null,
+  dayPreset: null,
   groupSize: null,
   sort: DEFAULT_SORT,
 };
 
-const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 /** Group-size filter ceiling — mirrors the largest maxGroupSize we allow. */
 const GROUP_SIZE_MAX = 50;
 
@@ -94,6 +107,7 @@ const VALID_CATEGORIES: readonly Category[] = [
 const VALID_SORTS = new Set<SortKey>(SORT_KEYS);
 const VALID_PRICE_BUCKETS = new Set<PriceBucket>(PRICE_BUCKETS);
 const VALID_DURATION_BUCKETS = new Set<DurationBucket>(DURATION_BUCKETS);
+const VALID_DAY_PRESETS = new Set<DayPreset>(DAY_PRESETS);
 
 type SearchParamValue = string | string[] | undefined;
 type SearchParamsObject = Readonly<Record<string, SearchParamValue>>;
@@ -125,8 +139,8 @@ export function parseSearchParams(searchParams: SearchParamsObject): ExperienceC
   const durationRaw = asString(searchParams.duration).trim() as DurationBucket;
   const durationBucket = VALID_DURATION_BUCKETS.has(durationRaw) ? durationRaw : null;
 
-  const dateRaw = asString(searchParams.date).trim();
-  const date = DATE_RE.test(dateRaw) && weekdayOf(dateRaw) !== null ? dateRaw : null;
+  const dayRaw = asString(searchParams.day).trim() as DayPreset;
+  const dayPreset = VALID_DAY_PRESETS.has(dayRaw) ? dayRaw : null;
 
   const groupRaw = Number.parseInt(asString(searchParams.group).trim(), 10);
   const groupSize =
@@ -139,7 +153,7 @@ export function parseSearchParams(searchParams: SearchParamsObject): ExperienceC
     priceBucket,
     durationBucket,
     city: asString(searchParams.city).trim().toLowerCase(),
-    date,
+    dayPreset,
     groupSize,
     sort,
   };
@@ -157,7 +171,7 @@ export function toSearchParams(criteria: ExperienceCriteria): URLSearchParams {
   if (criteria.priceBucket) params.set('price', criteria.priceBucket);
   if (criteria.durationBucket) params.set('duration', criteria.durationBucket);
   if (criteria.city) params.set('city', criteria.city);
-  if (criteria.date) params.set('date', criteria.date);
+  if (criteria.dayPreset) params.set('day', criteria.dayPreset);
   if (criteria.groupSize !== null) params.set('group', String(criteria.groupSize));
   if (criteria.sort !== DEFAULT_SORT) params.set('sort', criteria.sort);
   return params;
@@ -171,7 +185,7 @@ export function hasActiveFilters(criteria: ExperienceCriteria): boolean {
     criteria.priceBucket !== null ||
     criteria.durationBucket !== null ||
     criteria.city.length > 0 ||
-    criteria.date !== null ||
+    criteria.dayPreset !== null ||
     criteria.groupSize !== null ||
     criteria.sort !== DEFAULT_SORT
   );
@@ -213,7 +227,7 @@ function inDurationBucket(minutes: number, bucket: DurationBucket): boolean {
  * folded; no diacritics handling yet — that's a Meilisearch concern
  * (BRIEF §5) and not solvable for Arabic without ICU.
  */
-function matchesQuery(experience: ExperienceSummary, q: string): boolean {
+function matchesQuery(experience: FilterableExperience, q: string): boolean {
   if (!q) return true;
   const haystack = [
     experience.titleEn,
@@ -226,33 +240,64 @@ function matchesQuery(experience: ExperienceSummary, q: string): boolean {
   return haystack.includes(q);
 }
 
+/**
+ * Structural subset of an experience the filter predicate reads. Kept
+ * separate from {@link ExperienceSummary} so the client filter sheet can
+ * count matches from a lightweight projection (no need to ship every card
+ * field) while `filterExperiences` still passes full summaries.
+ */
+export interface FilterableExperience {
+  category: Category;
+  priceSar: number;
+  durationMinutes: number;
+  city: string;
+  maxGroupSize: number;
+  availabilityWeekdays: readonly number[];
+  featured: boolean;
+  titleEn: string;
+  titleAr: string;
+  placeName: string;
+  hostName: string;
+}
+
+/**
+ * The single source of truth for "does this experience match these
+ * criteria". Both the server list ({@link filterExperiences}) and the
+ * client sheet's live result count call this, so the count can never drift
+ * from what the grid actually shows.
+ */
+export function matchesCriteria(
+  experience: FilterableExperience,
+  criteria: ExperienceCriteria,
+): boolean {
+  if (criteria.originalsOnly && !experience.featured) return false;
+  if (criteria.categories.length > 0 && !criteria.categories.includes(experience.category)) {
+    return false;
+  }
+  if (criteria.priceBucket && !inPriceBucket(experience.priceSar, criteria.priceBucket)) {
+    return false;
+  }
+  if (
+    criteria.durationBucket &&
+    !inDurationBucket(experience.durationMinutes, criteria.durationBucket)
+  ) {
+    return false;
+  }
+  if (criteria.city && experience.city.toLowerCase() !== criteria.city) return false;
+  if (criteria.groupSize !== null && experience.maxGroupSize < criteria.groupSize) return false;
+  if (criteria.dayPreset) {
+    const days = PRESET_WEEKDAYS[criteria.dayPreset];
+    if (!experience.availabilityWeekdays.some((d) => days.includes(d))) return false;
+  }
+  if (!matchesQuery(experience, criteria.q)) return false;
+  return true;
+}
+
 export function filterExperiences(
   experiences: readonly ExperienceSummary[],
   criteria: ExperienceCriteria,
 ): ExperienceSummary[] {
-  return experiences.filter((experience) => {
-    if (criteria.originalsOnly && !experience.featured) return false;
-    if (criteria.categories.length > 0 && !criteria.categories.includes(experience.category)) {
-      return false;
-    }
-    if (criteria.priceBucket && !inPriceBucket(experience.priceSar, criteria.priceBucket)) {
-      return false;
-    }
-    if (
-      criteria.durationBucket &&
-      !inDurationBucket(experience.durationMinutes, criteria.durationBucket)
-    ) {
-      return false;
-    }
-    if (criteria.city && experience.city.toLowerCase() !== criteria.city) return false;
-    if (criteria.groupSize !== null && experience.maxGroupSize < criteria.groupSize) return false;
-    if (criteria.date) {
-      const weekday = weekdayOf(criteria.date);
-      if (weekday === null || !experience.availabilityWeekdays.includes(weekday)) return false;
-    }
-    if (!matchesQuery(experience, criteria.q)) return false;
-    return true;
-  });
+  return experiences.filter((experience) => matchesCriteria(experience, criteria));
 }
 
 /**

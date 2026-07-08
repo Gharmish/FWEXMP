@@ -1782,11 +1782,26 @@
       "title": "Nothing fits those filters yet.",
       "description": "Try removing a filter, clearing the search, or browsing every experience."
     },
-    "dateLegend": "Date",
+    "dayLegend": "When",
+    "day": {
+      "any": "Any day",
+      "weekend": "Weekend",
+      "weekday": "Weekday"
+    },
     "groupLegend": "Group size",
     "groupPlaceholder": "Any",
+    "groupToken": "Group of {count}",
+    "groupDecrease": "Decrease group size",
+    "groupIncrease": "Increase group size",
     "cityLegend": "City",
-    "cityAll": "All cities"
+    "cityAll": "All cities",
+    "filtersButton": "Filters",
+    "filtersTitle": "Filters",
+    "showResults": "{count, plural, =0 {No experiences} =1 {Show 1 experience} other {Show # experiences}}",
+    "clearAll": "Clear all",
+    "activeFiltersLabel": "Active filters",
+    "removeFilter": "Remove filter",
+    "originalsToken": "Originals"
   },
   "home": {
     "eyebrow": "Abha · Aseer",
