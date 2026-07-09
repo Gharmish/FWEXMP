@@ -118,7 +118,7 @@ export default async function AdminUsersPage({
           {rows.map((row) => (
             <li key={row.key}>
               <Link
-                href={`/admin/users/${encodeURIComponent(row.key)}`}
+                href={`/admin/users/${row.key}`}
                 className="group flex items-center justify-between gap-4 p-5 transition-colors duration-200 hover:bg-[var(--color-sarat-black)]/[0.02]"
               >
                 <div className="flex min-w-0 flex-col gap-1.5">
