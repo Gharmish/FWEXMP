@@ -1,7 +1,8 @@
 import { cn } from '@/lib/utils';
+import { MadaMark } from '@/components/layout/mada-mark';
 
 /**
- * Payment-network marks for the footer.
+ * Payment-network marks, shared by the footer and the checkout page.
  *
  * This is the ONE sanctioned exception to BRIEF §3's palette rule
  * (owner-approved 2026-07-08): Visa, Mastercard, and mada are trademarked marks
@@ -9,7 +10,8 @@ import { cn } from '@/lib/utils';
  * — the palette rule governs our surfaces, not third-party logos. Apple Pay is
  * drawn in `sarat-black`, which is already on-palette. Each mark sits on a white
  * tile so the colours stay legible on any surface, mirroring how the card badges
- * appear at checkout.
+ * appear at checkout. mada uses the official Saudi Payments lockup
+ * ({@link MadaMark}); the rest are drawn inline below.
  */
 
 interface PaymentMarksProps {
@@ -27,19 +29,6 @@ interface PaymentMarksProps {
 
 const tileClassName =
   'border-sarat-black/8 inline-flex h-7 items-center rounded-md border-[0.5px] bg-white px-2.5';
-
-function MadaMark({ name }: { name: string }) {
-  // mada wordmark — the network's teal-green, lowercase, tightly set.
-  return (
-    <span
-      role="img"
-      aria-label={name}
-      className="text-[13px] leading-none font-bold tracking-tight text-[#00A19A] lowercase"
-    >
-      mada
-    </span>
-  );
-}
 
 function VisaMark({ name }: { name: string }) {
   // Visa wordmark — the classic Visa blue, bold italic.

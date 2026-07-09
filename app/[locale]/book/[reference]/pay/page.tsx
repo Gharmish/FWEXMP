@@ -21,6 +21,7 @@ import {
 } from '@/features/payments/components/payment-details-form';
 import { PaymentDeadlineNote } from '@/features/payments/components/payment-deadline-note';
 import { PromoCodeField } from '@/features/promo-codes/components/promo-code-field';
+import { PaymentMarks } from '@/components/layout/payment-marks';
 import { cn } from '@/lib/utils';
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -81,6 +82,7 @@ export default async function PaymentPage({ params, searchParams }: PageParams) 
   const title = experience ? (loc === 'ar' ? experience.titleAr : experience.titleEn) : null;
 
   const t = await getTranslations('payment');
+  const tFooter = await getTranslations('footer');
   const copy: PaymentDetailsCopy = {
     heading: t('detailsHeading'),
     yourDetails: t('yourDetails'),
@@ -285,19 +287,25 @@ export default async function PaymentPage({ params, searchParams }: PageParams) 
       </section>
 
       {/* Secure-checkout reassurance — PCI posture in plain language plus
-          the accepted schemes (proper nouns, untranslated; mada stylised
-          lowercase per Saudi Payments brand guidance). */}
-      <section className="border-sarat-black/8 mt-8 flex flex-col gap-2 [border-top-width:0.5px] pt-6">
+          the accepted schemes as the real brand marks (same badges as the
+          footer, mirroring the card logos the widget shows). */}
+      <section className="border-sarat-black/8 mt-8 flex flex-col gap-3 [border-top-width:0.5px] pt-6">
         <p className="text-sarat-black-600 inline-flex items-start gap-2 text-sm leading-relaxed">
           <Lock className="mt-0.5 size-4 shrink-0" aria-hidden />
           {t('secureNote')}
         </p>
-        <p className="text-sarat-black-600 ms-6 text-sm">
-          {t('acceptedMethods')}{' '}
-          <span className="text-sarat-black font-medium">
-            mada · Visa · Mastercard · Apple&nbsp;Pay
-          </span>
-        </p>
+        <div className="ms-6 flex flex-col gap-2">
+          <p className="text-sarat-black-600 text-sm">{t('acceptedMethods')}</p>
+          <PaymentMarks
+            label={tFooter('paymentsLabel')}
+            names={{
+              mada: tFooter('brandMada'),
+              visa: tFooter('brandVisa'),
+              mastercard: tFooter('brandMastercard'),
+              applePay: tFooter('brandApplePay'),
+            }}
+          />
+        </div>
       </section>
     </article>
   );
