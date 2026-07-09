@@ -31,8 +31,10 @@ export interface AdminDashboard {
   featuredLive: number;
   /**
    * Platform net revenue (commission) on confirmed + completed bookings
-   * placed in the last 30 days — `sum(totalAmount * commissionBps/10000)`.
-   * The honest "take" figure: GMV is what flows through, this is what we keep.
+   * placed in the last 30 days — `sum(totalAmount * commissionBps/10000)`
+   * MINUS promo discounts funded in the window (platform-funded model).
+   * The honest "take" figure: GMV is what flows through, this is what we
+   * keep after paying hosts on the pre-discount price.
    */
   netRevenue30dSar: number;
   /**
@@ -94,10 +96,11 @@ export async function getAdminDashboard(): Promise<AdminDashboard | null> {
     ]);
     const [netRow, disputeRow, payoutRow, heartbeatRow] = await Promise.all([
       // Net commission on revenue bookings in the trailing 30 days, from
-      // the per-booking commission snapshot.
+      // the per-booking commission snapshot, net of promo discounts the
+      // platform funded in the same window (platform-funded model).
       db
         .select({
-          net: sql<number>`coalesce(sum(${bookings.totalAmount} * ${bookings.commissionBps} / 10000.0) filter (where ${bookings.status} in ('confirmed','completed') and ${bookings.createdAt} >= now() - interval '30 days'), 0)::int`,
+          net: sql<number>`coalesce(sum((${bookings.totalAmount} * ${bookings.commissionBps} / 10000.0) - coalesce(${bookings.discountSar}, 0)) filter (where ${bookings.status} in ('confirmed','completed') and ${bookings.createdAt} >= now() - interval '30 days'), 0)::int`,
         })
         .from(bookings),
       db

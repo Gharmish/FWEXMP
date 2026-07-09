@@ -795,6 +795,7 @@ export async function sendHostNewBookingEmail(reference: string): Promise<void> 
     booking.totalAmountSar,
     booking.commissionBps,
     booking.vatRateBps,
+    booking.discountSar,
   );
 
   const rows = hostRows(booking, host, t);
@@ -895,6 +896,7 @@ export async function sendHostPaymentReceivedEmail(reference: string): Promise<v
     booking.totalAmountSar,
     booking.commissionBps,
     booking.vatRateBps,
+    booking.discountSar,
   );
 
   const rows = hostRows(booking, host, t);

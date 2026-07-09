@@ -534,6 +534,24 @@ export const bookings = pgTable(
     /** The payout batch this booking was settled in. Null = not yet paid out. */
     payoutId: uuid(),
     /**
+     * Promo code redeemed on this booking, if any. `promoCodeId` links to
+     * the live row; `promoCode` is the UPPERCASE code SNAPSHOTTED at
+     * redemption so history survives an admin renaming or deactivating the
+     * promo (the FK is `set null` on delete for the same reason).
+     */
+    promoCodeId: uuid().references(() => promoCodes.id, { onDelete: 'set null' }),
+    promoCode: text(),
+    /**
+     * Whole-SAR discount applied by the promo code. `totalAmount` is the
+     * amount actually charged (post-discount); the pre-discount price is
+     * always `totalAmount + discountSar`. Platform-funded (owner decision):
+     * the host is paid as if the guest paid full price, so the payout base
+     * is `totalAmount + discountSar` and the platform absorbs the discount
+     * out of its commission — see `splitCommission` / `payoutExpr`. 0 = no
+     * promo.
+     */
+    discountSar: integer().notNull().default(0),
+    /**
      * Client IP at creation (first hop of x-forwarded-for). Used only
      * to rate-limit anonymous booking spam — bookings need no account
      * and no payment to hold capacity, so creation must be throttled.
@@ -1129,6 +1147,55 @@ export const platformSettings = pgTable('platform_settings', {
   lastCronRunAt: timestamp({ withTimezone: true }),
 });
 
+export const promoDiscountTypeEnum = pgEnum('promo_discount_type', ['percent', 'fixed']);
+
+/**
+ * Admin-managed checkout discount codes. A guest enters a code on the
+ * payment step; a valid one reduces the booking's charged total and is
+ * SNAPSHOTTED onto the booking (`bookings.promo_code` / `discount_sar`).
+ *
+ * Redemption counting is DERIVED from bookings (count of live bookings
+ * referencing the code), never a counter column here — the same
+ * anti-drift stance the capacity math takes. Codes are stored UPPERCASE
+ * and matched case-insensitively (the app upper-cases before lookup).
+ * A code with redemptions is deactivated, never deleted, so booking
+ * history keeps a live FK where possible.
+ */
+export const promoCodes = pgTable(
+  'promo_codes',
+  {
+    id: uuid().defaultRandom().primaryKey(),
+    /** Stored UPPERCASE; the unique constraint is the case-folded identity. */
+    code: text().notNull().unique(),
+    /** Internal admin note (e.g. "Eid launch — IG story"). Never shown to guests. */
+    label: text(),
+    discountType: promoDiscountTypeEnum().notNull(),
+    /**
+     * `percent`: whole 1–100 (% off the pre-discount total).
+     * `fixed`: whole SAR off the total.
+     * The applied amount is always clamped so the charged total stays ≥ 1 SAR.
+     */
+    discountValue: integer().notNull(),
+    /** Minimum pre-discount total (SAR) for the code to apply. Null = no minimum. */
+    minTotalSar: integer(),
+    /** Cap on total live redemptions across all guests. Null = unlimited. */
+    maxRedemptions: integer(),
+    /** Validity window (inclusive). A null bound is open-ended on that side. */
+    startsAt: timestamp({ withTimezone: true }),
+    endsAt: timestamp({ withTimezone: true }),
+    /** Master switch — deactivating retires a code without deleting its history. */
+    active: boolean().notNull().default(true),
+    /** Admin auth user id of the creator (not a FK — mirrors `updatedByAdminId`). */
+    createdByAdminId: text(),
+    createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    // The redemption/apply path filters on `active` first.
+    index('promo_codes_active_idx').on(t.active),
+  ],
+);
+
 /* --------------------------- Relations --------------------------- */
 
 export const hostsRelations = relations(hosts, ({ many }) => ({
@@ -1200,6 +1267,11 @@ export const bookingsRelations = relations(bookings, ({ one }) => ({
     references: [experiences.id],
   }),
   review: one(reviews),
+  promo: one(promoCodes, { fields: [bookings.promoCodeId], references: [promoCodes.id] }),
+}));
+
+export const promoCodesRelations = relations(promoCodes, ({ many }) => ({
+  bookings: many(bookings),
 }));
 
 export const reviewsRelations = relations(reviews, ({ one }) => ({
@@ -1264,3 +1336,5 @@ export type PaymentEvent = typeof paymentEvents.$inferSelect;
 export type NewPaymentEvent = typeof paymentEvents.$inferInsert;
 export type Payout = typeof payouts.$inferSelect;
 export type NewPayout = typeof payouts.$inferInsert;
+export type PromoCode = typeof promoCodes.$inferSelect;
+export type NewPromoCode = typeof promoCodes.$inferInsert;

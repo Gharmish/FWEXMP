@@ -30,12 +30,36 @@ describe('splitCommission', () => {
     });
   });
 
-  it('always reconciles: vat + commission + payout === total', () => {
+  it('pays the host on the pre-discount amount (platform-funded promo)', () => {
+    // 850 charged after a 150 discount, no VAT, 15% commission. Host is
+    // made whole to the 1000 full price: net 1000, commission 150,
+    // payout 850. The platform collected 850 but pays 850 → it funds the
+    // 150 discount out of its 150 commission (net take 0 here).
+    expect(splitCommission(850, 1500, null, 150)).toEqual({
+      commissionSar: 150,
+      payoutSar: 850,
+      vatSar: 0,
+    });
+  });
+
+  it('discount defaults to 0 (unchanged when omitted or null)', () => {
+    expect(splitCommission(1000, 1500)).toEqual(splitCommission(1000, 1500, null, 0));
+    expect(splitCommission(1000, 1500, null, null)).toEqual(splitCommission(1000, 1500, null, 0));
+  });
+
+  it('always reconciles: vat + commission + payout === charged + discount', () => {
     for (const total of [1, 7, 115, 320, 333, 540, 999, 1080, 1150, 375000]) {
       for (const vatRate of [null, 0, 500, 1500]) {
         for (const bps of [0, 1000, 1500, 2500]) {
-          const { commissionSar, payoutSar, vatSar } = splitCommission(total, bps, vatRate);
-          expect(vatSar + commissionSar + payoutSar).toBe(total);
+          for (const discount of [0, 25, 150, 999]) {
+            const { commissionSar, payoutSar, vatSar } = splitCommission(
+              total,
+              bps,
+              vatRate,
+              discount,
+            );
+            expect(vatSar + commissionSar + payoutSar).toBe(total + discount);
+          }
         }
       }
     }

@@ -317,6 +317,10 @@
       "vat": {
         "title": "VAT",
         "description": "Output VAT, credit notes, and net VAT due per period on the tax-point basis — plus the ZATCA registration-threshold monitor. This is the page a VAT return is prepared from."
+      },
+      "promoCodes": {
+        "title": "Promo codes",
+        "description": "Create checkout discount codes and track how they’re redeemed."
       }
     },
     "settings": {
@@ -977,6 +981,57 @@
       "signatory_id": "Authorized signatory ID",
       "vat_certificate": "VAT registration certificate",
       "iban_letter": "IBAN letter from the bank"
+    },
+    "promoCodes": {
+      "eyebrow": "Marketing",
+      "intro": "Create discount codes guests can apply at checkout. Discounts are platform-funded — hosts are always paid on the pre-discount price.",
+      "listTitle": "Active & past codes",
+      "listHint": "Redemptions and funded totals are counted live from bookings.",
+      "empty": "No promo codes yet. Create your first one below.",
+      "createTitle": "Create a code",
+      "createHint": "Codes are stored uppercase and matched case-insensitively.",
+      "discountLabel": "Discount",
+      "minLabel": "Min. total",
+      "redemptionsLabel": "Redemptions",
+      "fundedLabel": "Funded (paid)",
+      "percentValue": "{pct}% off",
+      "noWindow": "No date limits",
+      "openStart": "Anytime",
+      "openEnd": "No end",
+      "liveBadge": "Live",
+      "inactiveBadge": "Inactive",
+      "expiredBadge": "Expired",
+      "scheduledBadge": "Scheduled",
+      "activate": "Activate",
+      "deactivate": "Deactivate",
+      "saving": "Saving…",
+      "formServer": "Something went wrong. Please try again.",
+      "formForbidden": "You don’t have permission to do that.",
+      "form": {
+        "codeLabel": "Code",
+        "codeHint": "2–24 letters/numbers, e.g. EID25.",
+        "labelLabel": "Internal note",
+        "labelHint": "Only you see this — not guests.",
+        "typeLabel": "Discount type",
+        "typePercent": "Percentage off",
+        "typeFixed": "Fixed amount off (SAR)",
+        "valueLabel": "Amount",
+        "minTotalLabel": "Minimum total (SAR)",
+        "minTotalHint": "Code only applies at or above this total.",
+        "maxRedemptionsLabel": "Redemption limit",
+        "maxRedemptionsHint": "Total uses across all guests.",
+        "startsAtLabel": "Starts",
+        "endsAtLabel": "Ends",
+        "optional": "optional",
+        "submit": "Create code",
+        "submitPending": "Creating…",
+        "success": "Code created.",
+        "fieldInvalid": "Check this field.",
+        "codeTaken": "That code already exists.",
+        "formServer": "Something went wrong. Please try again.",
+        "formForbidden": "You don’t have permission to do that.",
+        "formValidation": "Please fix the highlighted fields."
+      }
     }
   },
   "hostApply": {
@@ -2070,7 +2125,10 @@
     "timeLabel": "Start time",
     "holdLapsedEyebrow": "Payment window closed",
     "holdLapsedTitle": "The payment window has closed",
-    "holdLapsedDescription": "We held your spot while payment was pending, but the window passed before it was completed. Nothing was charged and the spot has been released. You're welcome to book again."
+    "holdLapsedDescription": "We held your spot while payment was pending, but the window passed before it was completed. Nothing was charged and the spot has been released. You're welcome to book again.",
+    "subtotalLabel": "Subtotal",
+    "discountLabel": "Discount · {code}",
+    "discountLabelGeneric": "Discount"
   },
   "payment": {
     "eyebrow": "Secure payment",
@@ -2125,7 +2183,30 @@
     "secureNote": "Payments are processed securely by our payment provider with 3-D Secure. Your card details never touch Gharmish servers.",
     "acceptedMethods": "We accept",
     "deadlineNote": "Complete payment by {deadline} — we're holding your spot until then.",
-    "minutesLeft": "about {minutes} min left"
+    "minutesLeft": "about {minutes} min left",
+    "subtotalLabel": "Subtotal",
+    "promo": {
+      "label": "Have a promo code?",
+      "placeholder": "Enter code",
+      "apply": "Apply",
+      "applying": "Applying…",
+      "appliedPrefix": "Promo applied:",
+      "remove": "Remove",
+      "removing": "Removing…",
+      "discountLabel": "Discount · {code}",
+      "discountLabelGeneric": "Discount",
+      "errorBelowMin": "This code needs a booking total of at least {min}.",
+      "errors": {
+        "invalid": "That code isn't valid.",
+        "exhausted": "This code has reached its redemption limit.",
+        "alreadyPaid": "This booking is already paid.",
+        "unavailable": "This booking can't take a promo code right now.",
+        "notFound": "We couldn’t find this booking.",
+        "validation": "Please check the code and try again.",
+        "noDb": "Promo codes are temporarily unavailable.",
+        "server": "Something went wrong. Please try again."
+      }
+    }
   },
   "bookingEmail": {
     "subject": "Your Gharmish booking is confirmed",

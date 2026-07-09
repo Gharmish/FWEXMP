@@ -46,6 +46,7 @@ export async function listBookingsForAdmin(): Promise<readonly AdminBookingRow[]
         row.totalAmount,
         row.commissionBps,
         row.vatRateBps,
+        row.discountSar,
       );
       return {
         id: row.id,
@@ -106,6 +107,7 @@ export async function listBookingsForExport(): Promise<readonly AdminBookingExpo
         row.totalAmount,
         row.commissionBps,
         row.vatRateBps,
+        row.discountSar,
       );
       return {
         id: row.id,
@@ -158,6 +160,7 @@ export async function getAdminBookingById(id: string): Promise<AdminBookingRow |
       row.totalAmount,
       row.commissionBps,
       row.vatRateBps,
+      row.discountSar,
     );
     return {
       id: row.id,

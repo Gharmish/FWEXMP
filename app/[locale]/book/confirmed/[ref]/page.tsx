@@ -270,6 +270,24 @@ export default async function BookingConfirmedPage({ params, searchParams }: Pag
       label: t('partyLabel'),
       value: formatInteger(booking.partySize, loc),
     });
+    // Promo: subtotal (pre-discount) + a discount line above the charged
+    // total. `totalAmountSar` is always the post-discount amount.
+    if (booking.discountSar > 0) {
+      detailRows.push({
+        label: t('subtotalLabel'),
+        value: <Price amount={booking.totalAmountSar + booking.discountSar} locale={loc} />,
+      });
+      detailRows.push({
+        label: booking.promoCode
+          ? t('discountLabel', { code: booking.promoCode })
+          : t('discountLabelGeneric'),
+        value: (
+          <span className="text-juniper-green-800">
+            −<Price amount={booking.discountSar} locale={loc} />
+          </span>
+        ),
+      });
+    }
     detailRows.push({
       label: paymentView === 'paid' ? t('totalPaidLabel') : t('totalLabel'),
       value: <Price amount={booking.totalAmountSar} locale={loc} />,

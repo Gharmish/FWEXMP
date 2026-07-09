@@ -19,6 +19,7 @@ import {
   type PaymentDetailsCopy,
 } from '@/features/payments/components/payment-details-form';
 import { PaymentDeadlineNote } from '@/features/payments/components/payment-deadline-note';
+import { PromoCodeField } from '@/features/promo-codes/components/promo-code-field';
 import { cn } from '@/lib/utils';
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -120,6 +121,27 @@ export default async function PaymentPage({ params, searchParams }: PageParams) 
     orPayWithCard: t('orPayWithCard'),
   };
 
+  const promoCopy = {
+    label: t('promo.label'),
+    placeholder: t('promo.placeholder'),
+    apply: t('promo.apply'),
+    applying: t('promo.applying'),
+    appliedPrefix: t('promo.appliedPrefix'),
+    remove: t('promo.remove'),
+    removing: t('promo.removing'),
+    errorBelowMin: t('promo.errorBelowMin'),
+    errors: {
+      invalid: t('promo.errors.invalid'),
+      exhausted: t('promo.errors.exhausted'),
+      already_paid: t('promo.errors.alreadyPaid'),
+      unavailable: t('promo.errors.unavailable'),
+      not_found: t('promo.errors.notFound'),
+      validation: t('promo.errors.validation'),
+      no_db: t('promo.errors.noDb'),
+      server: t('promo.errors.server'),
+    },
+  };
+
   // Split the booking's guest name into given/surname to prefill the form
   // (the server echo still wins on a failed submit). Most names have a final
   // token as the surname; a single token prefills the given name only.
@@ -144,6 +166,24 @@ export default async function PaymentPage({ params, searchParams }: PageParams) 
   summary.push({ label: t('dateLabel'), value: formatDate(startsAt, loc) });
   summary.push({ label: t('timeLabel'), value: formatTime(startsAt, loc) });
   summary.push({ label: t('partyLabel'), value: formatInteger(booking.partySize, loc) });
+  // A promo shows as subtotal (pre-discount) + a discount line above the
+  // charged total. `totalAmountSar` is always the post-discount amount.
+  if (booking.discountSar > 0) {
+    summary.push({
+      label: t('subtotalLabel'),
+      value: <Price amount={booking.totalAmountSar + booking.discountSar} locale={loc} />,
+    });
+    summary.push({
+      label: booking.promoCode
+        ? t('promo.discountLabel', { code: booking.promoCode })
+        : t('promo.discountLabelGeneric'),
+      value: (
+        <span className="text-juniper-green-800">
+          −<Price amount={booking.discountSar} locale={loc} />
+        </span>
+      ),
+    });
+  }
   summary.push({
     label: t('totalLabel'),
     value: <Price amount={booking.totalAmountSar} locale={loc} />,
@@ -206,6 +246,15 @@ export default async function PaymentPage({ params, searchParams }: PageParams) 
             </div>
           ))}
         </dl>
+        <div className="border-sarat-black/8 [border-top-width:0.5px] pt-4">
+          <PromoCodeField
+            reference={reference}
+            slug={experienceSlug ?? ''}
+            locale={loc}
+            appliedCode={booking.promoCode}
+            copy={promoCopy}
+          />
+        </div>
       </section>
 
       {experienceSlug && (

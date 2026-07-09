@@ -27,7 +27,12 @@ export interface BookingDetail {
   status: Booking['status'];
   paymentStatus: Booking['paymentStatus'];
   partySize: number;
+  /** Amount actually charged (post-discount). Pre-discount = this + discountSar. */
   totalAmountSar: number;
+  /** Whole-SAR promo discount applied; 0 when no code was redeemed. */
+  discountSar: number;
+  /** UPPERCASE promo code snapshotted at redemption; null when none. */
+  promoCode: string | null;
   /** Commission rate snapshotted at booking time, basis points. */
   commissionBps: number;
   /**
@@ -87,6 +92,8 @@ export async function getBookingByReference(reference: string): Promise<BookingD
     paymentStatus: row.paymentStatus,
     partySize: row.partySize,
     totalAmountSar: row.totalAmount,
+    discountSar: row.discountSar,
+    promoCode: row.promoCode,
     commissionBps: row.commissionBps,
     vatRateBps: row.vatRateBps,
     vatRegistrationNumber: row.vatRegistrationNumber,
@@ -158,6 +165,8 @@ export async function getBookingsForGuest(guestId: string): Promise<GuestBooking
     paymentStatus: row.paymentStatus,
     partySize: row.partySize,
     totalAmountSar: row.totalAmount,
+    discountSar: row.discountSar,
+    promoCode: row.promoCode,
     commissionBps: row.commissionBps,
     vatRateBps: row.vatRateBps,
     vatRegistrationNumber: row.vatRegistrationNumber,

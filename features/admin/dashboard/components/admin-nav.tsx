@@ -3,6 +3,7 @@
 import type { ComponentType } from 'react';
 import {
   Activity,
+  BadgePercent,
   BarChart3,
   CalendarCheck,
   ClipboardCheck,
@@ -65,6 +66,7 @@ const GROUPS: readonly NavGroup[] = [
         sectionKey: 'experienceModeration',
       },
       { href: '/admin/payouts', Icon: Wallet, sectionKey: 'payouts' },
+      { href: '/admin/promo-codes', Icon: BadgePercent, sectionKey: 'promoCodes' },
       { href: '/admin/vat', Icon: Landmark, sectionKey: 'vat' },
       { href: '/admin/reviews', Icon: Star, sectionKey: 'reviews' },
       { href: '/admin/disputes', Icon: TriangleAlert, sectionKey: 'disputes' },

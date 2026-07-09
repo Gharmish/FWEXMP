@@ -21,15 +21,17 @@ export function vatPortionExpr(): SQL<number> {
 }
 
 /**
- * Per-booking host payout. VAT era (principal model, owner decision
- * 2026-07-07): commission applies to the ex-VAT net, and the host is
- * paid from the net — `net - round(net * clamp(bps)/10000)` where
- * `net = total - vatPortion`. Bookings without a VAT snapshot reduce to
- * the original `total - round(total * clamp(bps)/10000)`.
+ * Per-booking host payout. VAT era (2026-07-07) + promo era (2026-07-09,
+ * platform-funded): the host is paid on the PRE-DISCOUNT amount, so the
+ * net base adds the promo discount back before commission —
+ * `net = total + discount - vatPortion`, `payout = net - round(net *
+ * clamp(bps)/10000)`. VAT is carved from the actually-charged total
+ * (`vatPortionExpr` uses `total_amount`). A 0 discount and null VAT
+ * reduce to the original `total - round(total * clamp(bps)/10000)`.
  * Identical math to the unit-tested `splitCommission` — change BOTH.
  */
 export function payoutExpr(): SQL<number> {
-  const net = sql`(${bookings.totalAmount} - ${vatPortionExpr()})`;
+  const net = sql`(${bookings.totalAmount} + coalesce(${bookings.discountSar}, 0) - ${vatPortionExpr()})`;
   return sql<number>`(${net} - round(${net} * least(10000, greatest(0, ${bookings.commissionBps}))::numeric / 10000))::int`;
 }
 
