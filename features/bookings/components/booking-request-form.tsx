@@ -23,6 +23,8 @@ export type { BookableOption } from '@/features/bookings/types';
 
 interface BookingRequestCopy {
   title: string;
+  /** Expand action on the collapsed "booking as" summary. */
+  editDetails: string;
   name: string;
   phone: string;
   email: string;
@@ -74,11 +76,27 @@ interface BookingRequestCopy {
   nextMonth: string;
 }
 
+/**
+ * Contact details we already hold for this visitor (signed-in account or a
+ * returning guest resolved from the last-booking cookie). Any present field
+ * prefills its input; when all three are known the details block collapses to
+ * a "booking as" summary the guest can expand to edit. Type-only mirror of
+ * `KnownGuestDetails` so this client component never imports the server query.
+ */
+export interface BookingKnownGuest {
+  name?: string;
+  /** Canonical E.164 — `PhoneInput` re-hydrates the country + national parts. */
+  phone?: string;
+  email?: string;
+}
+
 export interface BookingRequestFormProps {
   experienceSlug: string;
   locale: Locale;
   maxGroupSize: string;
   priceSar: number;
+  /** Prefill for a known visitor — see {@link BookingKnownGuest}. */
+  known?: BookingKnownGuest;
   /** Inclusive booking window bounds, `YYYY-MM-DD` (today Riyadh → horizon). */
   minDate: string;
   maxDate: string;
@@ -185,6 +203,7 @@ export function BookingRequestForm({
   locale,
   maxGroupSize,
   priceSar,
+  known,
   minDate,
   maxDate,
   availableDates,
@@ -292,6 +311,21 @@ export function BookingRequestForm({
   const errorFor = (field: FieldName): string | undefined =>
     clientFields[field] ?? state.fields?.[field];
   const hasClientErrors = Object.keys(clientFields).length > 0;
+
+  // Prefill precedence for the contact fields: a failed-submit server echo
+  // (never lose what the guest typed) → what we already know about them.
+  const detailValue = (field: 'name' | 'phone' | 'email'): string | undefined =>
+    values[field] ?? known?.[field];
+  // When we hold all three contact fields and none is in error, the details
+  // block collapses to a "booking as" summary the guest can expand to edit —
+  // a returning guest confirms instead of retyping. A rejected value must
+  // never hide behind the summary, so any error forces the fields open.
+  const [editingDetails, setEditingDetails] = useState(false);
+  const detailsComplete = Boolean(
+    detailValue('name') && detailValue('phone') && detailValue('email'),
+  );
+  const detailsHaveError = Boolean(errorFor('name') || errorFor('phone') || errorFor('email'));
+  const detailsCollapsed = detailsComplete && !detailsHaveError && !editingDetails;
 
   // The success path on the server action redirects to
   // /book/confirmed/[ref] before this component ever sees a success
@@ -504,68 +538,100 @@ export function BookingRequestForm({
             ) : null}
           </div>
 
-          {/* 4 — Your details. */}
+          {/* 4 — Your details. Collapses to a summary for a returning guest
+              we already know; the fields (prefilled) reappear on Edit or if
+              any of them is rejected. Hidden inputs carry the known values
+              while collapsed so the summary still posts a complete form. */}
           <div className="border-sarat-black/8 flex flex-col gap-4 [border-top-width:0.5px] pt-4">
-            <div className="flex flex-col gap-2">
-              <label htmlFor="booking-name" className="text-sm font-medium">
-                {copy.name}
-              </label>
-              <Input
-                id="booking-name"
-                name="name"
-                autoComplete="name"
-                required
-                defaultValue={values.name}
-                {...fieldProps('name')}
-              />
-              <FieldError id={errorId('name')} message={errorFor('name') && copy.required} />
-            </div>
+            {detailsCollapsed ? (
+              <>
+                <div className="border-sarat-black/8 rounded-input flex items-center justify-between gap-4 [border-width:0.5px] px-4 py-3">
+                  <div className="flex min-w-0 flex-col gap-0.5 text-sm">
+                    <span className="font-medium">{detailValue('name')}</span>
+                    <span dir="ltr" className="text-sarat-black-600 truncate">
+                      {detailValue('phone')}
+                    </span>
+                    <span dir="ltr" className="text-sarat-black-600 truncate">
+                      {detailValue('email')}
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setEditingDetails(true)}
+                    className="shrink-0 text-sm font-medium underline underline-offset-4 transition-opacity duration-200 hover:opacity-70"
+                  >
+                    {copy.editDetails}
+                  </button>
+                </div>
+                <input type="hidden" name="name" value={detailValue('name') ?? ''} />
+                <input type="hidden" name="phone" value={detailValue('phone') ?? ''} />
+                <input type="hidden" name="email" value={detailValue('email') ?? ''} />
+              </>
+            ) : (
+              <>
+                <div className="flex flex-col gap-2">
+                  <label htmlFor="booking-name" className="text-sm font-medium">
+                    {copy.name}
+                  </label>
+                  <Input
+                    id="booking-name"
+                    name="name"
+                    autoComplete="name"
+                    required
+                    defaultValue={detailValue('name')}
+                    {...fieldProps('name')}
+                  />
+                  <FieldError id={errorId('name')} message={errorFor('name') && copy.required} />
+                </div>
 
-            <div className="flex flex-col gap-2">
-              <label htmlFor="booking-phone" className="text-sm font-medium">
-                {copy.phone}
-              </label>
-              <PhoneInput
-                id="booking-phone"
-                name="phone"
-                locale={locale}
-                defaultValue={values.phone}
-                required
-                placeholder={copy.phonePlaceholder}
-                countryLabel={copy.countryLabel}
-                invalid={Boolean(errorFor('phone'))}
-                aria-describedby={fieldProps('phone')['aria-describedby']}
-              />
-              <p id={hintId('phone')} className="text-sarat-black-600 text-sm">
-                {copy.phoneHint}
-              </p>
-              <FieldError
-                id={errorId('phone')}
-                message={messageForField('phone', errorFor('phone'), copy)}
-              />
-            </div>
+                <div className="flex flex-col gap-2">
+                  <label htmlFor="booking-phone" className="text-sm font-medium">
+                    {copy.phone}
+                  </label>
+                  <PhoneInput
+                    id="booking-phone"
+                    name="phone"
+                    locale={locale}
+                    defaultValue={detailValue('phone')}
+                    required
+                    placeholder={copy.phonePlaceholder}
+                    countryLabel={copy.countryLabel}
+                    invalid={Boolean(errorFor('phone'))}
+                    aria-describedby={fieldProps('phone')['aria-describedby']}
+                  />
+                  <p id={hintId('phone')} className="text-sarat-black-600 text-sm">
+                    {copy.phoneHint}
+                  </p>
+                  <FieldError
+                    id={errorId('phone')}
+                    message={messageForField('phone', errorFor('phone'), copy)}
+                  />
+                </div>
 
-            <div className="flex flex-col gap-2">
-              <label htmlFor="booking-email" className="text-sm font-medium">
-                {copy.email}
-              </label>
-              <Input
-                id="booking-email"
-                name="email"
-                type="email"
-                autoComplete="email"
-                dir="ltr"
-                defaultValue={values.email}
-                {...fieldProps('email')}
-              />
-              <p id={hintId('email')} className="text-sarat-black-600 text-sm">
-                {copy.emailHint}
-              </p>
-              <FieldError
-                id={errorId('email')}
-                message={messageForField('email', errorFor('email'), copy)}
-              />
-            </div>
+                <div className="flex flex-col gap-2">
+                  <label htmlFor="booking-email" className="text-sm font-medium">
+                    {copy.email}
+                  </label>
+                  <Input
+                    id="booking-email"
+                    name="email"
+                    type="email"
+                    autoComplete="email"
+                    dir="ltr"
+                    required
+                    defaultValue={detailValue('email')}
+                    {...fieldProps('email')}
+                  />
+                  <p id={hintId('email')} className="text-sarat-black-600 text-sm">
+                    {copy.emailHint}
+                  </p>
+                  <FieldError
+                    id={errorId('email')}
+                    message={messageForField('email', errorFor('email'), copy)}
+                  />
+                </div>
+              </>
+            )}
           </div>
 
           {formMessage && (

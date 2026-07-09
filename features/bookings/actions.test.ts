@@ -188,7 +188,7 @@ function form(overrides: Record<string, string> = {}): FormData {
     phone: '+966512345678',
     preferredDate: '2026-08-01',
     partySize: '2',
-    email: '',
+    email: 'guest@example.com',
     idempotencyKey: IDEMPOTENCY_KEY,
     ...overrides,
   };
@@ -350,5 +350,15 @@ describe('requestBooking — throttles & guards', () => {
       message: 'validation',
       fields: { partySize: 'too_large' },
     });
+  });
+
+  it('requires an email — an empty one fails validation before any write', async () => {
+    const state = await requestBooking(initial, form({ email: '' }));
+    expect(state).toMatchObject({
+      success: false,
+      message: 'validation',
+      fields: { email: 'required' },
+    });
+    expect(insertedBookings).toHaveLength(0);
   });
 });

@@ -119,6 +119,7 @@ export function PaymentDetailsForm({
   const values = state.values ?? {};
   const errorId = useId();
   const [editingIdentity, setEditingIdentity] = useState(false);
+  const [editingAddress, setEditingAddress] = useState(false);
 
   // Full, localized country list (Israel already excluded upstream in
   // lib/phone), sorted by display name in the active locale. Codes are the
@@ -168,6 +169,17 @@ export function PaymentDetailsForm({
   const identityHasError = IDENTITY_FIELDS.some((f) => Boolean(state.fields?.[f.name]));
   const identityComplete = IDENTITY_FIELDS.every((f) => Boolean(fieldValue(f.name)));
   const identityCollapsed = identityComplete && !identityHasError && !editingIdentity;
+
+  // The billing address collapses on the same rule: a stored address from a
+  // previous checkout is confirmed, not retyped. `state` is optional so it
+  // isn't part of completeness; `country` always has a value (defaults to
+  // SA). Any rejected address field forces the block open.
+  const addressHasError =
+    ADDRESS_FIELDS.some((f) => Boolean(state.fields?.[f.name])) || Boolean(state.fields?.country);
+  const addressComplete = Boolean(
+    fieldValue('street1') && fieldValue('city') && fieldValue('postcode'),
+  );
+  const addressCollapsed = addressComplete && !addressHasError && !editingAddress;
 
   const renderTextField = (field: TextField, opts?: { optional?: boolean; span2?: boolean }) => {
     const hasError = Boolean(state.fields?.[field.name]);
@@ -239,41 +251,68 @@ export function PaymentDetailsForm({
           <h3 className="text-base font-medium">{copy.billingAddressHeading}</h3>
           <p className="text-sarat-black-600 text-sm">{copy.billingWhy}</p>
         </div>
-        <div className="grid gap-4 sm:grid-cols-2">
-          {renderTextField(ADDRESS_FIELDS[0], { span2: true })}
-          {renderTextField(ADDRESS_FIELDS[1])}
-          {renderTextField(ADDRESS_FIELDS[2])}
-          {renderTextField(ADDRESS_FIELDS[3], { optional: true })}
-
-          <div className="flex flex-col gap-2">
-            <label htmlFor="pay-country" className="text-sm font-medium">
-              {copy.country}
-            </label>
-            <select
-              id="pay-country"
-              name="country"
-              autoComplete="country"
-              required
-              defaultValue={values.country ?? defaults?.country ?? 'SA'}
-              aria-invalid={state.fields?.country ? true : undefined}
-              className={cn(
-                'rounded-input border-sarat-black/20 text-sarat-black h-11 w-full [border-width:0.5px] bg-white px-4 text-base',
-                'aria-invalid:border-al-qatt-red',
-              )}
+        {addressCollapsed ? (
+          <div className="border-sarat-black/8 rounded-input flex items-center justify-between gap-4 [border-width:0.5px] px-4 py-3">
+            <div className="flex min-w-0 flex-col gap-0.5 text-sm">
+              <span className="font-medium">{fieldValue('street1')}</span>
+              <span className="text-sarat-black-600 truncate">
+                {[fieldValue('city'), fieldValue('postcode'), fieldValue('state')]
+                  .filter(Boolean)
+                  .join(', ')}
+              </span>
+              <span className="text-sarat-black-600 truncate">
+                {countryName(fieldValue('country') ?? 'SA', locale)}
+              </span>
+            </div>
+            <button
+              type="button"
+              onClick={() => setEditingAddress(true)}
+              className="shrink-0 text-sm font-medium underline underline-offset-4 transition-opacity duration-200 hover:opacity-70"
             >
-              {countryOptions.map((c) => (
-                // The localized name can differ between server and browser ICU
-                // builds; the value (alpha-2) is stable, so suppress the warning.
-                <option key={c.iso} value={c.iso} suppressHydrationWarning>
-                  {c.name}
-                </option>
-              ))}
-            </select>
-            {state.fields?.country && (
-              <p className="text-al-qatt-red-800 text-sm">{copy.invalid.country}</p>
-            )}
+              {copy.editDetails}
+            </button>
+            {ADDRESS_FIELDS.map((f) => (
+              <input key={f.name} type="hidden" name={f.name} value={fieldValue(f.name) ?? ''} />
+            ))}
+            <input type="hidden" name="country" value={fieldValue('country') ?? 'SA'} />
           </div>
-        </div>
+        ) : (
+          <div className="grid gap-4 sm:grid-cols-2">
+            {renderTextField(ADDRESS_FIELDS[0], { span2: true })}
+            {renderTextField(ADDRESS_FIELDS[1])}
+            {renderTextField(ADDRESS_FIELDS[2])}
+            {renderTextField(ADDRESS_FIELDS[3], { optional: true })}
+
+            <div className="flex flex-col gap-2">
+              <label htmlFor="pay-country" className="text-sm font-medium">
+                {copy.country}
+              </label>
+              <select
+                id="pay-country"
+                name="country"
+                autoComplete="country"
+                required
+                defaultValue={values.country ?? defaults?.country ?? 'SA'}
+                aria-invalid={state.fields?.country ? true : undefined}
+                className={cn(
+                  'rounded-input border-sarat-black/20 text-sarat-black h-11 w-full [border-width:0.5px] bg-white px-4 text-base',
+                  'aria-invalid:border-al-qatt-red',
+                )}
+              >
+                {countryOptions.map((c) => (
+                  // The localized name can differ between server and browser ICU
+                  // builds; the value (alpha-2) is stable, so suppress the warning.
+                  <option key={c.iso} value={c.iso} suppressHydrationWarning>
+                    {c.name}
+                  </option>
+                ))}
+              </select>
+              {state.fields?.country && (
+                <p className="text-al-qatt-red-800 text-sm">{copy.invalid.country}</p>
+              )}
+            </div>
+          </div>
+        )}
       </section>
 
       {formError && (

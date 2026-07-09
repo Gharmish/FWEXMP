@@ -2018,8 +2018,9 @@
     "runsOn": "Runs on {days}.",
     "vatIncluded": "Includes VAT ({pct}%)",
     "suspended": "Bookings are currently unavailable for this account. Contact us if you think this is a mistake.",
-    "email": "Email (optional)",
-    "emailHint": "We send your confirmation, payment link, and reminders here. Without an email, keep your booking page link handy.",
+    "email": "Email",
+    "emailHint": "We send your confirmation, payment link, and reminders here.",
+    "editDetails": "Edit",
     "emailInvalid": "Enter a valid email address.",
     "tooMany": "You have too many open bookings right now. Complete or cancel one, or try again later."
   },

@@ -10,6 +10,7 @@ import { hasHyperpay } from '@/lib/env';
 import { formatDate, formatInteger, formatTime } from '@/lib/format';
 import { Price } from '@/components/ui/price';
 import { getBookingByReferenceForViewer } from '@/features/bookings/queries';
+import { getStoredBillingForBooking } from '@/features/payments/queries';
 import { vatPortionSar, vatRatePercent } from '@/features/bookings/lib/vat';
 import { getPlatformSettings } from '@/lib/platform-settings';
 import { isHoldExpired } from '@/features/bookings/lib/availability';
@@ -154,10 +155,14 @@ export default async function PaymentPage({ params, searchParams }: PageParams) 
           givenName: fullName.slice(0, lastSpace).trim(),
           surname: fullName.slice(lastSpace + 1).trim(),
         };
+  // Billing address the guest saved on a previous checkout — so a returning
+  // guest confirms instead of retyping it. `country` falls back to KSA.
+  const storedBilling = await getStoredBillingForBooking(reference);
   const defaults = {
     ...nameDefaults,
     ...(booking.guestEmail ? { email: booking.guestEmail } : {}),
-    country: 'SA',
+    ...storedBilling,
+    country: storedBilling.country ?? 'SA',
   };
 
   const summary: Array<{ label: string; value: ReactNode }> = [];

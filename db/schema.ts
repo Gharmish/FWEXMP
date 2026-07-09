@@ -269,6 +269,18 @@ export const guests = pgTable('guests', {
   avatarUrl: text(),
   preferredLanguage: localeEnum().notNull().default('ar'),
   /**
+   * Last billing address the guest entered at checkout (HyperPay 3DS2
+   * requires it). Saved so a returning guest doesn't retype it — the
+   * payment step prefills these. All nullable: a guest who never reached
+   * a paid checkout has none, and `billingState` is optional for KSA.
+   * `billingCountry` is ISO 3166-1 alpha-2.
+   */
+  billingStreet1: text(),
+  billingCity: text(),
+  billingState: text(),
+  billingPostcode: text(),
+  billingCountry: text(),
+  /**
    * When an admin suspended this guest (abuse, chargebacks, no-shows).
    * Null = active. A suspended guest can still sign in and browse, but
    * the booking action refuses new bookings.

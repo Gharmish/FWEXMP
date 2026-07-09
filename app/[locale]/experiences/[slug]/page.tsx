@@ -23,6 +23,7 @@ import { routing } from '@/lib/i18n';
 import { SITE_URL, SITE_NAME } from '@/lib/site';
 import { JsonLd } from '@/components/seo/json-ld';
 import { BookingRequestForm } from '@/features/bookings/components/booking-request-form';
+import { getKnownGuestDetails } from '@/features/account/guest-prefill';
 import { HostCard } from '@/features/hosts/components/host-card';
 import { toArabicText } from '@/features/experiences/lib/arabic-content';
 import { CATEGORIES } from '@/features/experiences/lib/sample-data';
@@ -129,17 +130,30 @@ export default async function ExperienceDetailPage({
   const todayRiyadh = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Riyadh' }).format(
     new Date(),
   );
-  const [ratingAggregate, t, te, tb, schedule, settings, completedCount, hostResponseStats] =
-    await Promise.all([
-      getReviewAggregateForExperience(slug),
-      getTranslations('experienceDetail'),
-      getTranslations('experience'),
-      getTranslations('bookingRequest'),
-      getScheduleDataBySlug(slug, todayRiyadh, addDays(todayRiyadh, BOOKING_HORIZON_DAYS)),
-      getPlatformSettings(),
-      getCompletedBookingsCountForExperience(exp.slug),
-      getHostResponseStats(exp.hostSlug),
-    ]);
+  const [
+    ratingAggregate,
+    t,
+    te,
+    tb,
+    schedule,
+    settings,
+    completedCount,
+    hostResponseStats,
+    knownGuest,
+  ] = await Promise.all([
+    getReviewAggregateForExperience(slug),
+    getTranslations('experienceDetail'),
+    getTranslations('experience'),
+    getTranslations('bookingRequest'),
+    getScheduleDataBySlug(slug, todayRiyadh, addDays(todayRiyadh, BOOKING_HORIZON_DAYS)),
+    getPlatformSettings(),
+    getCompletedBookingsCountForExperience(exp.slug),
+    getHostResponseStats(exp.hostSlug),
+    // Prefill for a returning/signed-in guest so they don't retype contact
+    // details. Empty for a first-time visitor. Not needed in preview mode
+    // (booking form is disabled), but cheap enough to always resolve.
+    getKnownGuestDetails(),
+  ]);
   const availableDates = (
     schedule
       ? bookableDates({
@@ -190,6 +204,7 @@ export default async function ExperienceDetailPage({
   const minAge = formatInteger(exp.minAge, loc);
   const bookingCopy = {
     title: tb('title'),
+    editDetails: tb('editDetails'),
     name: tb('name'),
     phone: tb('phone'),
     email: tb('email'),
@@ -611,6 +626,7 @@ export default async function ExperienceDetailPage({
                 locale={loc}
                 maxGroupSize={String(exp.maxGroupSize)}
                 priceSar={exp.priceSar}
+                known={knownGuest}
                 minDate={todayRiyadh}
                 maxDate={addDays(todayRiyadh, BOOKING_HORIZON_DAYS)}
                 availableDates={availableDates}

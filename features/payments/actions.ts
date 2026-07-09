@@ -198,6 +198,21 @@ export async function createCheckout(
       .set({ email: input.email })
       .where(and(eq(guests.id, booking.guestId), isNull(guests.email)));
 
+    // Remember the billing address so a returning guest doesn't retype it —
+    // the next checkout's payment step prefills these. Always overwrites with
+    // the latest submitted address (unlike email): the guest just typed it, so
+    // it's the freshest one on file. `state` may be empty (optional for KSA).
+    await db
+      .update(guests)
+      .set({
+        billingStreet1: input.street1,
+        billingCity: input.city,
+        billingState: input.state || null,
+        billingPostcode: input.postcode,
+        billingCountry: input.country,
+      })
+      .where(eq(guests.id, booking.guestId));
+
     const origin = await requestOrigin();
     const returnUrl = `${origin}/${input.locale}/book/${input.reference}/pay/return?slug=${encodeURIComponent(input.slug)}`;
     const ready = (checkoutId: string): CreateCheckoutState => ({
