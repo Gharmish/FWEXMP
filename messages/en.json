@@ -953,11 +953,146 @@
       "closeMenu": "Close menu",
       "roleLabel": "Administrator",
       "dashboard": "Dashboard",
+      "people": "People",
       "groups": {
         "overview": "Overview",
         "operations": "Operations",
         "directory": "Directory",
         "setting": "Setting"
+      }
+    },
+    "users": {
+      "eyebrow": "Directory",
+      "title": "People",
+      "intro": "Everyone on Gharmish — guests, hosts, and applicants — in one place. Open a profile to see everything about them, and edit it.",
+      "search": "Search",
+      "searchPlaceholder": "Name, phone, or email",
+      "searchSubmit": "Search",
+      "empty": "No one matches that search.",
+      "shownCount": "{count} shown",
+      "back": "People",
+      "joinedOn": "Joined {date}",
+      "bookingsCount": "{count, plural, =0 {No bookings} =1 {1 booking} other {# bookings}}",
+      "roles": {
+        "admin": "Admin",
+        "host": "Host",
+        "applicant": "Applicant",
+        "guest": "Guest"
+      },
+      "detail": {
+        "eyebrow": "Profile",
+        "noAccount": "No sign-in account",
+        "guestHeading": "As guest",
+        "hostHeading": "As host",
+        "applicationHeading": "Host application",
+        "auditHeading": "Admin edits",
+        "auditEmpty": "No admin edits recorded.",
+        "suspended": "Suspended",
+        "phone": "Phone",
+        "email": "Email",
+        "language": "Language",
+        "totalSpent": "Total spent",
+        "bookings": "Bookings",
+        "saved": "Saved experiences",
+        "bookingsHeading": "Bookings",
+        "noBookings": "No bookings yet.",
+        "reviewsHeading": "Reviews written",
+        "noReviews": "No reviews written.",
+        "ratingValue": "{rating, plural, =1 {1 star} other {# stars}}",
+        "reviewHidden": "Hidden",
+        "disputesHeading": "Disputes filed",
+        "noDisputes": "No disputes filed.",
+        "disputeStatus": {
+          "open": "Open",
+          "resolved": "Resolved"
+        },
+        "slug": "Slug",
+        "cityRegion": "City · region",
+        "revenue": "Revenue (confirmed + completed)",
+        "liveBookings": "Confirmed bookings",
+        "languages": "Languages",
+        "nationalId": "National ID",
+        "crNumber": "CR number",
+        "payoutIban": "Payout IBAN",
+        "noIban": "No IBAN on file",
+        "openHostAdmin": "Open host record",
+        "experiencesHeading": "Experiences",
+        "noExperiences": "No experiences yet.",
+        "payoutsHeading": "Payouts received",
+        "payoutBookings": "{count, plural, =1 {1 booking} other {# bookings}}",
+        "ibanHistoryHeading": "IBAN changes",
+        "statusHistoryHeading": "Status history",
+        "openApplicationAdmin": "Open in applications",
+        "appStatus": {
+          "pending": "Pending",
+          "approved": "Approved",
+          "rejected": "Rejected"
+        },
+        "identityType": "Identity type",
+        "identityTypeValue": {
+          "national_id": "Individual (National ID)",
+          "cr": "Company (CR)"
+        },
+        "legalName": "Legal name",
+        "vatNumber": "VAT number",
+        "documentsHeading": "KYC documents"
+      },
+      "field": {
+        "guest": {
+          "name": "Name",
+          "email": "Email",
+          "phone": "Phone",
+          "preferredLanguage": "Preferred language",
+          "billingStreet1": "Billing street",
+          "billingCity": "Billing city",
+          "billingState": "Billing state",
+          "billingPostcode": "Billing postcode",
+          "billingCountry": "Billing country"
+        },
+        "host": {
+          "name": "Name",
+          "bioEn": "Bio (English)",
+          "bioAr": "Bio (Arabic)",
+          "contactEmail": "Contact email",
+          "city": "City",
+          "region": "Region",
+          "languages": "Languages",
+          "nationalId": "National ID",
+          "crNumber": "CR number",
+          "payoutIban": "Payout IBAN"
+        }
+      },
+      "edit": {
+        "guestToggle": "Edit guest profile",
+        "hostToggle": "Edit host profile",
+        "name": "Name",
+        "email": "Email",
+        "phone": "Phone",
+        "language": "Preferred language",
+        "billing": "Billing address",
+        "street1": "Street",
+        "city": "City",
+        "state": "State / province",
+        "postcode": "Postcode",
+        "country": "Country (2-letter)",
+        "bioEn": "Bio (English)",
+        "bioAr": "Bio (Arabic)",
+        "contactEmail": "Contact email",
+        "region": "Region",
+        "languages": "Languages",
+        "identityHint": "National ID / CR are stored for KYC. Editing the IBAN is checksum-validated and change-logged.",
+        "save": "Save changes",
+        "saving": "Saving",
+        "saved": "Saved.",
+        "errors": {
+          "forbidden": "You don't have permission to edit this.",
+          "noDb": "The database isn't configured.",
+          "notFound": "This record no longer exists.",
+          "validation": "Some fields need attention.",
+          "phoneTaken": "Another guest already uses that phone number.",
+          "ibanInvalid": "That IBAN isn't a valid Saudi IBAN.",
+          "server": "We couldn't save the changes. Try again."
+        }
       }
     },
     "documents": {
@@ -2536,6 +2671,20 @@
           "declined": "Declined by host",
           "expired": "Request expired"
         }
+      },
+      "reviews": {
+        "title": "Your reviews",
+        "ratingValue": "{rating, plural, =1 {1 star} other {# stars}}",
+        "hidden": "Hidden by moderation",
+        "empty": "You haven't written any reviews yet."
+      },
+      "disputes": {
+        "title": "Reported problems",
+        "status": {
+          "open": "Open",
+          "resolved": "Resolved"
+        },
+        "empty": "You haven't reported any problems."
       }
     },
     "payNow": "Complete payment"

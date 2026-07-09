@@ -1,12 +1,17 @@
 import type { Metadata } from 'next';
 import { Compass } from 'lucide-react';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
-import { redirect } from '@/lib/i18n';
+import { Link, redirect } from '@/lib/i18n';
 import type { Locale } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
 import { Avatar } from '@/components/ui/avatar';
+import { Badge } from '@/components/ui/badge';
 import { Card } from '@/components/ui/card';
 import { getMyProfile } from '@/features/account/profile/queries';
+import {
+  getDisputesFiledByGuest,
+  getReviewsWrittenByGuest,
+} from '@/features/account/profile/activity';
 import { getBookingsForGuest } from '@/features/bookings/queries';
 import { ProfileForm } from '@/features/account/profile/components/profile-form';
 import { AvatarUpload } from '@/features/account/profile/components/avatar-upload';
@@ -40,8 +45,10 @@ export default async function ProfilePage({ params }: { params: Promise<{ locale
     redirect({ href: '/sign-in?next=/me/profile', locale: loc });
   }
 
-  const [bookings, t] = await Promise.all([
+  const [bookings, reviewsWritten, disputesFiled, t] = await Promise.all([
     getBookingsForGuest(profile.id),
+    getReviewsWrittenByGuest(profile.id, loc),
+    getDisputesFiledByGuest(profile.id),
     getTranslations('me.profile'),
   ]);
 
@@ -178,6 +185,68 @@ export default async function ProfilePage({ params }: { params: Promise<{ locale
               </p>
             </div>
           </div>
+        )}
+      </Card>
+
+      {/* Reviews written */}
+      <Card className="flex flex-col gap-6 p-6 sm:p-8">
+        <h2 className={sectionTitle}>{t('reviews.title')}</h2>
+        {reviewsWritten.length === 0 ? (
+          <p className="text-sarat-black-600 text-sm leading-relaxed">{t('reviews.empty')}</p>
+        ) : (
+          <ul className="border-sarat-black/8 rounded-card flex flex-col divide-y divide-[var(--color-sarat-black)]/8 [border-width:0.5px]">
+            {reviewsWritten.map((r) => (
+              <li key={r.id} className="flex flex-col gap-1 p-5">
+                <div className="flex flex-wrap items-center gap-3">
+                  <span className="text-sm font-medium">
+                    {t('reviews.ratingValue', { rating: r.rating })}
+                  </span>
+                  <Link
+                    href={`/experiences/${r.experienceSlug}`}
+                    className="text-sarat-black-600 text-sm underline-offset-4 hover:underline"
+                  >
+                    {r.experienceTitle}
+                  </Link>
+                  {r.hidden && (
+                    <Badge className="bg-al-qatt-red/15 text-al-qatt-red">
+                      {t('reviews.hidden')}
+                    </Badge>
+                  )}
+                </div>
+                {r.text && <p className="text-sm leading-relaxed">{r.text}</p>}
+              </li>
+            ))}
+          </ul>
+        )}
+      </Card>
+
+      {/* Disputes filed */}
+      <Card className="flex flex-col gap-6 p-6 sm:p-8">
+        <h2 className={sectionTitle}>{t('disputes.title')}</h2>
+        {disputesFiled.length === 0 ? (
+          <p className="text-sarat-black-600 text-sm leading-relaxed">{t('disputes.empty')}</p>
+        ) : (
+          <ul className="border-sarat-black/8 rounded-card flex flex-col divide-y divide-[var(--color-sarat-black)]/8 [border-width:0.5px]">
+            {disputesFiled.map((d) => (
+              <li key={d.id} className="flex flex-col gap-1 p-5">
+                <div className="flex flex-wrap items-center gap-3">
+                  <span className="font-mono text-sm" dir="ltr">
+                    {d.bookingReference}
+                  </span>
+                  <Badge
+                    className={
+                      d.status === 'open'
+                        ? 'bg-saffron-gold/20 text-sarat-black'
+                        : 'bg-juniper-green/15 text-juniper-green'
+                    }
+                  >
+                    {t(`disputes.status.${d.status}`)}
+                  </Badge>
+                </div>
+                <p className="text-sm leading-relaxed">{d.message}</p>
+              </li>
+            ))}
+          </ul>
         )}
       </Card>
     </div>

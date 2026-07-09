@@ -1208,6 +1208,49 @@ export const promoCodes = pgTable(
   ],
 );
 
+/**
+ * Append-only audit log of admin edits to a person's profile
+ * (guest and/or host). Mirrors the other event tables (host status,
+ * IBAN, application) — newest row tells the story. One row PER CHANGED
+ * FIELD so the admin User-360 timeline renders a clean old→new diff.
+ *
+ * A person's identity is fragmented across `guests` (authUserId text),
+ * `hosts` (userId uuid) and `host_applications` (userId uuid); the same
+ * Supabase account can be both a guest and a host. We therefore anchor
+ * each row with whichever ids are known — `subjectAuthUserId` for a
+ * real account, plus the concrete `subjectGuestId` / `subjectHostId`
+ * of the row that was edited — and the detail query matches on any of
+ * them.
+ *
+ * Sensitive values (IBAN, national ID, CR, phone, email) are stored
+ * MASKED, never in the clear: the point is a tamper-evident trail of
+ * WHAT changed and by whom, not a second copy of the raw PII.
+ */
+export const userProfileEvents = pgTable(
+  'user_profile_events',
+  {
+    id: uuid().defaultRandom().primaryKey(),
+    /** Supabase auth id of the edited person, when they have an account. */
+    subjectAuthUserId: text(),
+    subjectGuestId: uuid().references(() => guests.id, { onDelete: 'set null' }),
+    subjectHostId: uuid().references(() => hosts.id, { onDelete: 'set null' }),
+    /** Supabase auth id of the admin who made the change. */
+    actorUserId: text().notNull(),
+    /** Dotted field key, e.g. `guest.name`, `host.payoutIban`. */
+    field: text().notNull(),
+    /** Prior value, masked for sensitive fields; null when it was unset. */
+    previousValue: text(),
+    /** New value, masked for sensitive fields; null when cleared. */
+    newValue: text(),
+    createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index('user_profile_events_guest_idx').on(t.subjectGuestId, t.createdAt),
+    index('user_profile_events_host_idx').on(t.subjectHostId, t.createdAt),
+    index('user_profile_events_auth_idx').on(t.subjectAuthUserId, t.createdAt),
+  ],
+);
+
 /* --------------------------- Relations --------------------------- */
 
 export const hostsRelations = relations(hosts, ({ many }) => ({
@@ -1350,3 +1393,5 @@ export type Payout = typeof payouts.$inferSelect;
 export type NewPayout = typeof payouts.$inferInsert;
 export type PromoCode = typeof promoCodes.$inferSelect;
 export type NewPromoCode = typeof promoCodes.$inferInsert;
+export type UserProfileEvent = typeof userProfileEvents.$inferSelect;
+export type NewUserProfileEvent = typeof userProfileEvents.$inferInsert;

@@ -953,11 +953,146 @@
       "closeMenu": "إغلاق القائمة",
       "roleLabel": "مشرف",
       "dashboard": "لوحة المعلومات",
+      "people": "الأشخاص",
       "groups": {
         "overview": "نظرة عامة",
         "operations": "العمليات",
         "directory": "الدليل",
         "setting": "الإعدادات"
+      }
+    },
+    "users": {
+      "eyebrow": "الدليل",
+      "title": "الأشخاص",
+      "intro": "كل من على غارميش — الضيوف والمضيفون والمتقدمون — في مكان واحد. افتح ملفًا لعرض كل ما يخصه وتعديله.",
+      "search": "بحث",
+      "searchPlaceholder": "الاسم أو الجوال أو البريد",
+      "searchSubmit": "بحث",
+      "empty": "لا أحد يطابق هذا البحث.",
+      "shownCount": "{count} معروض",
+      "back": "الأشخاص",
+      "joinedOn": "انضم في {date}",
+      "bookingsCount": "{count, plural, =0 {لا حجوزات} =1 {حجز واحد} =2 {حجزان} few {# حجوزات} many {# حجزًا} other {# حجز}}",
+      "roles": {
+        "admin": "مشرف",
+        "host": "مضيف",
+        "applicant": "متقدم",
+        "guest": "ضيف"
+      },
+      "detail": {
+        "eyebrow": "الملف",
+        "noAccount": "لا يوجد حساب دخول",
+        "guestHeading": "كضيف",
+        "hostHeading": "كمضيف",
+        "applicationHeading": "طلب استضافة",
+        "auditHeading": "تعديلات المشرف",
+        "auditEmpty": "لا توجد تعديلات مسجلة.",
+        "suspended": "موقوف",
+        "phone": "الجوال",
+        "email": "البريد",
+        "language": "اللغة",
+        "totalSpent": "إجمالي الإنفاق",
+        "bookings": "الحجوزات",
+        "saved": "التجارب المحفوظة",
+        "bookingsHeading": "الحجوزات",
+        "noBookings": "لا توجد حجوزات بعد.",
+        "reviewsHeading": "التقييمات المكتوبة",
+        "noReviews": "لم يكتب أي تقييم.",
+        "ratingValue": "{rating, plural, =1 {نجمة} =2 {نجمتان} few {# نجوم} many {# نجمة} other {# نجمة}}",
+        "reviewHidden": "مخفي",
+        "disputesHeading": "الشكاوى المقدمة",
+        "noDisputes": "لا توجد شكاوى.",
+        "disputeStatus": {
+          "open": "مفتوحة",
+          "resolved": "محلولة"
+        },
+        "slug": "المعرّف",
+        "cityRegion": "المدينة · المنطقة",
+        "revenue": "الإيراد (مؤكد + مكتمل)",
+        "liveBookings": "الحجوزات المؤكدة",
+        "languages": "اللغات",
+        "nationalId": "الهوية الوطنية",
+        "crNumber": "رقم السجل التجاري",
+        "payoutIban": "آيبان التحويل",
+        "noIban": "لا يوجد آيبان مسجل",
+        "openHostAdmin": "فتح سجل المضيف",
+        "experiencesHeading": "التجارب",
+        "noExperiences": "لا توجد تجارب بعد.",
+        "payoutsHeading": "التحويلات المستلمة",
+        "payoutBookings": "{count, plural, =1 {حجز واحد} =2 {حجزان} few {# حجوزات} many {# حجزًا} other {# حجز}}",
+        "ibanHistoryHeading": "تغييرات الآيبان",
+        "statusHistoryHeading": "سجل الحالة",
+        "openApplicationAdmin": "فتح في الطلبات",
+        "appStatus": {
+          "pending": "قيد المراجعة",
+          "approved": "مقبول",
+          "rejected": "مرفوض"
+        },
+        "identityType": "نوع الهوية",
+        "identityTypeValue": {
+          "national_id": "فرد (هوية وطنية)",
+          "cr": "شركة (سجل تجاري)"
+        },
+        "legalName": "الاسم النظامي",
+        "vatNumber": "الرقم الضريبي",
+        "documentsHeading": "مستندات التحقق"
+      },
+      "field": {
+        "guest": {
+          "name": "الاسم",
+          "email": "البريد",
+          "phone": "الجوال",
+          "preferredLanguage": "اللغة المفضلة",
+          "billingStreet1": "عنوان الفوترة",
+          "billingCity": "مدينة الفوترة",
+          "billingState": "منطقة الفوترة",
+          "billingPostcode": "الرمز البريدي",
+          "billingCountry": "دولة الفوترة"
+        },
+        "host": {
+          "name": "الاسم",
+          "bioEn": "النبذة (إنجليزي)",
+          "bioAr": "النبذة (عربي)",
+          "contactEmail": "بريد التواصل",
+          "city": "المدينة",
+          "region": "المنطقة",
+          "languages": "اللغات",
+          "nationalId": "الهوية الوطنية",
+          "crNumber": "رقم السجل التجاري",
+          "payoutIban": "آيبان التحويل"
+        }
+      },
+      "edit": {
+        "guestToggle": "تعديل ملف الضيف",
+        "hostToggle": "تعديل ملف المضيف",
+        "name": "الاسم",
+        "email": "البريد",
+        "phone": "الجوال",
+        "language": "اللغة المفضلة",
+        "billing": "عنوان الفوترة",
+        "street1": "الشارع",
+        "city": "المدينة",
+        "state": "المنطقة",
+        "postcode": "الرمز البريدي",
+        "country": "الدولة (حرفان)",
+        "bioEn": "النبذة (إنجليزي)",
+        "bioAr": "النبذة (عربي)",
+        "contactEmail": "بريد التواصل",
+        "region": "المنطقة",
+        "languages": "اللغات",
+        "identityHint": "تُحفظ الهوية / السجل التجاري لأغراض التحقق. تعديل الآيبان يُتحقق منه ويُسجّل.",
+        "save": "حفظ التغييرات",
+        "saving": "جارٍ الحفظ",
+        "saved": "تم الحفظ.",
+        "errors": {
+          "forbidden": "ليست لديك صلاحية التعديل.",
+          "noDb": "قاعدة البيانات غير مهيأة.",
+          "notFound": "لم يعد هذا السجل موجودًا.",
+          "validation": "بعض الحقول تحتاج إلى مراجعة.",
+          "phoneTaken": "رقم الجوال مستخدم من ضيف آخر.",
+          "ibanInvalid": "الآيبان غير صالح كآيبان سعودي.",
+          "server": "تعذّر حفظ التغييرات. حاول مرة أخرى."
+        }
       }
     },
     "documents": {
@@ -2536,6 +2671,20 @@
           "declined": "اعتذر المضيف",
           "expired": "انتهت صلاحية الطلب"
         }
+      },
+      "reviews": {
+        "title": "تقييماتك",
+        "ratingValue": "{rating, plural, =1 {نجمة} =2 {نجمتان} few {# نجوم} many {# نجمة} other {# نجمة}}",
+        "hidden": "مخفي بواسطة الإشراف",
+        "empty": "لم تكتب أي تقييم بعد."
+      },
+      "disputes": {
+        "title": "المشكلات المبلّغ عنها",
+        "status": {
+          "open": "مفتوحة",
+          "resolved": "محلولة"
+        },
+        "empty": "لم تبلّغ عن أي مشكلة."
       }
     },
     "payNow": "إكمال الدفع"
