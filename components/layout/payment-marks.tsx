@@ -11,7 +11,8 @@ import { MadaMark } from '@/components/layout/mada-mark';
  * drawn in `sarat-black`, which is already on-palette. Each mark sits on a white
  * tile so the colours stay legible on any surface, mirroring how the card badges
  * appear at checkout. mada uses the official Saudi Payments lockup
- * ({@link MadaMark}); the rest are drawn inline below.
+ * ({@link MadaMark}); Visa is its official vector wordmark, Mastercard its
+ * two-circle symbol + wordmark, all drawn inline below.
  */
 
 interface PaymentMarksProps {
@@ -31,25 +32,51 @@ const tileClassName =
   'border-sarat-black/8 inline-flex h-7 items-center rounded-md border-[0.5px] bg-white px-2.5';
 
 function VisaMark({ name }: { name: string }) {
-  // Visa wordmark — the classic Visa blue, bold italic.
+  // Official Visa wordmark, drawn as vector letterforms in Visa blue (#1434CB)
+  // so it reads as the real brand mark rather than styled text.
   return (
-    <span
+    <svg
       role="img"
       aria-label={name}
-      className="[font-family:Arial,Helvetica,sans-serif] text-[13px] font-bold tracking-wide text-[#1434CB] uppercase italic"
+      viewBox="0 0 750 244"
+      focusable={false}
+      className="h-3 w-auto"
     >
-      Visa
-    </span>
+      <path
+        fill="#1434CB"
+        d="M278.2 236.9H228L259.4 44h50.2l-31.4 192.9zM459.9 48.7c-9.9-3.9-25.6-8.3-45-8.3-49.6 0-84.5 26.4-84.7 64.1-.3 27.8 24.9 43.3 43.9 52.6 19.5 9.5 26 15.7 25.9 24.2-.1 13-15.7 19-30.2 19-20.2 0-30.9-2.9-47.5-10.2l-6.5-3.1-7.1 43.4c11.8 5.4 33.6 10.1 56.2 10.4 52.8 0 87.1-26.1 87.5-66.3.2-22.1-13.2-38.9-42.1-52.6-17.5-8.9-28.3-14.8-28.2-23.8 0-8 9-16.5 28.5-16.5 16.3-.3 28.1 3.5 37.2 7.4l4.5 2.2 6.8-42zM589 44h-38.8c-12 0-21 3.4-26.3 16l-74.6 176.9h52.8s8.6-23.9 10.5-29.1c5.8 0 57.1.1 64.4.1 1.5 6.8 6.1 29 6.1 29H640L589 44zM527.5 168.9c4.2-11.1 20-54.1 20-54.1-.3.5 4.1-11.2 6.7-18.5l3.4 16.7s9.6 46.2 11.6 56l-41.7-.1zM185.9 44l-49.1 131.6-5.2-26.9c-9.1-31-37.7-64.6-69.7-81.4l44.9 169.4 53.2-.1L238.8 44h-52.9z"
+      />
+      <path
+        fill="#1434CB"
+        d="M90.9 44H10L9.3 48c63 16.1 104.7 55 122 101.7L113.9 60.1C110.9 47.8 102.1 44.4 90.9 44z"
+        opacity="0.85"
+      />
+    </svg>
   );
 }
 
 function MastercardMark({ name }: { name: string }) {
-  // Two interlocking circles: red left, amber right, orange lens where they meet.
+  // Official Mastercard symbol: two interlocking circles (red left, amber
+  // right, orange lens where they overlap) with the lowercase wordmark beneath.
   return (
-    <svg role="img" aria-label={name} viewBox="0 0 40 25" focusable={false} className="h-4 w-auto">
-      <circle cx="15" cy="12.5" r="9.5" fill="#EB001B" />
-      <circle cx="25" cy="12.5" r="9.5" fill="#F79E1B" />
-      <path fill="#FF5F00" d="M20 4.42a9.5 9.5 0 0 1 0 16.16 9.5 9.5 0 0 1 0-16.16z" />
+    <svg
+      role="img"
+      aria-label={name}
+      viewBox="0 0 132 100"
+      focusable={false}
+      className="h-4 w-auto"
+    >
+      <circle cx="54" cy="40" r="34" fill="#EB001B" />
+      <circle cx="78" cy="40" r="34" fill="#F79E1B" />
+      <path fill="#FF5F00" d="M66 14.6a34 34 0 0 1 0 50.8 34 34 0 0 1 0-50.8z" />
+      <text
+        x="66"
+        y="96"
+        textAnchor="middle"
+        className="fill-sarat-black [font-family:Arial,Helvetica,sans-serif] text-[20px] font-medium lowercase"
+      >
+        mastercard
+      </text>
     </svg>
   );
 }
