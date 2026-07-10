@@ -1,6 +1,6 @@
 'use client';
 
-import { useActionState, useId, useMemo, useState } from 'react';
+import { useActionState, useId, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useFormStatus } from 'react-dom';
 import { createCheckout, type CreateCheckoutState } from '@/features/payments/actions';
 import { Button } from '@/components/ui/button';
@@ -43,6 +43,14 @@ export interface PaymentDetailsCopy {
   errorExpired: string;
   /** Request-to-book not yet accepted by the host (pay-after-approval). */
   errorNotApproved: string;
+  /**
+   * Clickwrap consent line with inline links to the Terms, Privacy, and
+   * Cancellation pages — built on the server (next-intl rich text) so the
+   * link order stays grammatical in both English and Arabic.
+   */
+  termsLabel: ReactNode;
+  /** Shown when the guest tries to pay without ticking the consent box. */
+  termsRequired: string;
   payHeading: string;
   widgetLoading: string;
   /** Shown if the HyperPay widget script fails to load. */
@@ -86,10 +94,35 @@ const ADDRESS_FIELDS: readonly TextField[] = [
 
 const initialState: CreateCheckoutState = { status: 'idle' };
 
-function SubmitButton({ copy }: { copy: PaymentDetailsCopy }) {
+function SubmitButton({
+  copy,
+  isAccepted,
+  onBlocked,
+}: {
+  copy: PaymentDetailsCopy;
+  /** Reads the (uncontrolled) consent checkbox at click time. */
+  isAccepted: () => boolean;
+  /** Called when submit is attempted without consent — cancels the submit. */
+  onBlocked: () => void;
+}) {
   const { pending } = useFormStatus();
   return (
-    <Button type="submit" variant="primary" size="lg" className="w-full" pending={pending}>
+    <Button
+      type="submit"
+      variant="primary"
+      size="lg"
+      className="w-full"
+      pending={pending}
+      onClick={(event) => {
+        // Keep the button reachable (focusable, not `disabled`) for
+        // accessibility, but stop the submit until the box is ticked and
+        // surface the reason instead of failing silently on the server.
+        if (!isAccepted()) {
+          event.preventDefault();
+          onBlocked();
+        }
+      }}
+    >
       {pending ? copy.pending : copy.submit}
     </Button>
   );
@@ -118,8 +151,18 @@ export function PaymentDetailsForm({
   const [state, formAction] = useActionState(createCheckout, initialState);
   const values = state.values ?? {};
   const errorId = useId();
+  const termsErrorId = useId();
   const [editingIdentity, setEditingIdentity] = useState(false);
   const [editingAddress, setEditingAddress] = useState(false);
+  const [consentBlocked, setConsentBlocked] = useState(false);
+  // Uncontrolled (like the address fields) so the tick survives React 19's
+  // post-action form reset: its checked state is read from the DOM at submit
+  // and re-defaulted from the server echo (`values.terms`) on a failed submit.
+  const termsRef = useRef<HTMLInputElement>(null);
+
+  // Show the consent error if the guest tried to submit without ticking
+  // (client guard) or if a JS-less/tampered submit was rejected server-side.
+  const termsError = consentBlocked || Boolean(state.fields?.terms);
 
   // Full, localized country list (Israel already excluded upstream in
   // lib/phone), sorted by display name in the active locale. Codes are the
@@ -321,7 +364,37 @@ export function PaymentDetailsForm({
         </p>
       )}
 
-      <SubmitButton copy={copy} />
+      <div className="flex flex-col gap-2">
+        <label className="flex cursor-pointer items-start gap-3">
+          <input
+            ref={termsRef}
+            type="checkbox"
+            name="terms"
+            defaultChecked={values.terms === 'on'}
+            onChange={(event) => {
+              if (event.target.checked) setConsentBlocked(false);
+            }}
+            aria-invalid={termsError ? true : undefined}
+            aria-describedby={termsError ? termsErrorId : undefined}
+            className="border-sarat-black/40 accent-sarat-black mt-0.5 size-5 shrink-0"
+          />
+          <span className="text-sm leading-relaxed">{copy.termsLabel}</span>
+        </label>
+        {termsError && (
+          <p id={termsErrorId} role="alert" className="text-al-qatt-red-800 ps-8 text-sm">
+            {copy.termsRequired}
+          </p>
+        )}
+      </div>
+
+      <SubmitButton
+        copy={copy}
+        isAccepted={() => termsRef.current?.checked ?? false}
+        onBlocked={() => {
+          setConsentBlocked(true);
+          termsRef.current?.focus();
+        }}
+      />
     </form>
   );
 }

@@ -89,8 +89,16 @@ async function writeLastBookingCookie(reference: string, experienceSlug: string)
 export interface BookingRequestState {
   success: false;
   message?: string;
-  fields?: Partial<Record<'name' | 'phone' | 'preferredDate' | 'partySize' | 'email', string>>;
-  values?: Partial<Record<'name' | 'phone' | 'preferredDate' | 'partySize' | 'email', string>>;
+  // `womenOnly` flags a missing eligibility acknowledgment on a women-only
+  // experience; it isn't one of the echoed value fields (client-held state).
+  fields?: Partial<
+    Record<'name' | 'phone' | 'preferredDate' | 'partySize' | 'email' | 'womenOnly', string>
+  >;
+  // `womenOnly` ('on' | '') is echoed too so the acknowledgment survives a
+  // failed-submit form reset (React 19 resets the form after the action).
+  values?: Partial<
+    Record<'name' | 'phone' | 'preferredDate' | 'partySize' | 'email' | 'womenOnly', string>
+  >;
 }
 
 const FIELD_NAMES = ['name', 'phone', 'preferredDate', 'partySize', 'email'] as const;
@@ -101,7 +109,11 @@ function formValue(formData: FormData, key: string): string {
 }
 
 function currentValues(formData: FormData): BookingRequestState['values'] {
-  return Object.fromEntries(FIELD_NAMES.map((key) => [key, formValue(formData, key)]));
+  return {
+    ...Object.fromEntries(FIELD_NAMES.map((key) => [key, formValue(formData, key)])),
+    // Echo the raw acknowledgment so the checkbox re-defaults to checked.
+    womenOnly: formValue(formData, 'womenOnly'),
+  };
 }
 
 export async function requestBooking(
@@ -206,6 +218,7 @@ export async function requestBooking(
         startTime: true,
         bookingMode: true,
         commissionBps: true,
+        category: true,
         availabilityWeekdays: true,
         blackoutDates: true,
         stopSellDates: true,
@@ -214,6 +227,19 @@ export async function requestBooking(
 
     if (!experience) {
       return { success: false, message: 'notFound', values: currentValues(formData) };
+    }
+
+    // Women-only experiences require an explicit eligibility acknowledgment
+    // before a booking can be created (owner decision 2026-07-08 category).
+    // Enforced server-side so an absent/tampered checkbox can never create a
+    // booking; the client gates on the same checkbox for instant feedback.
+    if (experience.category === 'women_only' && formValue(formData, 'womenOnly') !== 'on') {
+      return {
+        success: false,
+        message: 'validation',
+        fields: { womenOnly: 'required' },
+        values: currentValues(formData),
+      };
     }
 
     if (input.partySize > experience.maxGroupSize) {

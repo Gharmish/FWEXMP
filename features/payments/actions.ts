@@ -12,6 +12,7 @@ import { reportError } from '@/lib/log';
 import { paymentDetailsSchema } from '@/features/payments/schemas';
 import { hyperpayBaseUrl, prepareCheckout } from '@/features/payments/lib/hyperpay';
 import { latestPaymentEvent, recordPaymentEvent } from '@/features/payments/ledger';
+import { CURRENT_TERMS_VERSION } from '@/lib/legal';
 import { SITE_URL } from '@/lib/site';
 
 /**
@@ -50,6 +51,10 @@ const createCheckoutSchema = paymentDetailsSchema.extend({
   reference: z.string().regex(UUID_RE),
   locale: z.enum(['en', 'ar']),
   slug: z.string().min(1),
+  // Explicit clickwrap consent. The checkbox posts `on` only when ticked;
+  // an absent/other value fails here, so a tampered or scripted submit can
+  // never reach a checkout without the guest having accepted the terms.
+  terms: z.literal('on'),
 });
 
 export interface CheckoutReady {
@@ -70,10 +75,14 @@ export interface CreateCheckoutState {
   status: 'idle' | 'error' | 'ready';
   /** Form-level error code (translated client-side). */
   error?: string;
-  /** Per-field validation codes. */
-  fields?: Partial<Record<DetailField, string>>;
-  /** Echoed values so the form survives a failed submit. */
-  values?: Partial<Record<DetailField, string>>;
+  /** Per-field validation codes (`terms` flags a missing consent tick). */
+  fields?: Partial<Record<DetailField | 'terms', string>>;
+  /**
+   * Echoed values so the form survives a failed submit — includes `terms`
+   * ('on' | '') so the consent checkbox re-defaults to checked after React
+   * 19's post-action form reset.
+   */
+  values?: Partial<Record<DetailField | 'terms', string>>;
   /** Present only when `status === 'ready'`. */
   data?: CheckoutReady;
 }
@@ -84,7 +93,11 @@ function formValue(formData: FormData, key: string): string {
 }
 
 function echoValues(formData: FormData): CreateCheckoutState['values'] {
-  return Object.fromEntries(DETAIL_FIELDS.map((key) => [key, formValue(formData, key)]));
+  return {
+    ...Object.fromEntries(DETAIL_FIELDS.map((key) => [key, formValue(formData, key)])),
+    // Raw consent value so the checkbox re-defaults to checked on a failed submit.
+    terms: formValue(formData, 'terms'),
+  };
 }
 
 /**
@@ -126,13 +139,16 @@ export async function createCheckout(
     state: formValue(formData, 'state'),
     postcode: formValue(formData, 'postcode'),
     country: formValue(formData, 'country'),
+    terms: formValue(formData, 'terms'),
   });
 
   if (!parsed.success) {
     const fields: CreateCheckoutState['fields'] = {};
     for (const issue of parsed.error.issues) {
       const key = issue.path[0];
-      if (typeof key === 'string' && DETAIL_FIELDS.includes(key as DetailField)) {
+      if (key === 'terms') {
+        fields.terms = 'required';
+      } else if (typeof key === 'string' && DETAIL_FIELDS.includes(key as DetailField)) {
         fields[key as DetailField] = 'invalid';
       }
     }
@@ -212,6 +228,24 @@ export async function createCheckout(
         billingCountry: input.country,
       })
       .where(eq(guests.id, booking.guestId));
+
+    // Record the guest's clickwrap consent as append-only proof — who
+    // (bookingId → guest), when (createdAt), and which document version
+    // (gatewayId). The enforceable gate is the `terms` validation above;
+    // this row is the evidence, so it's best-effort like the other
+    // informative ledger writes and never blocks a valid payment.
+    try {
+      await recordPaymentEvent({
+        bookingId: booking.id,
+        type: 'terms_accepted',
+        gatewayId: CURRENT_TERMS_VERSION,
+      });
+    } catch (error) {
+      reportError(error, {
+        surface: 'payment-create-checkout:consent',
+        reference: input.reference,
+      });
+    }
 
     const origin = await requestOrigin();
     const returnUrl = `${origin}/${input.locale}/book/${input.reference}/pay/return?slug=${encodeURIComponent(input.slug)}`;

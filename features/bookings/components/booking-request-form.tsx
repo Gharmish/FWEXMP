@@ -74,6 +74,10 @@ interface BookingRequestCopy {
   /** Calendar month-navigation aria-labels. */
   prevMonth: string;
   nextMonth: string;
+  /** Women-only eligibility acknowledgment — only used when required. */
+  womenOnlyLabel: string;
+  /** Shown when the guest tries to book without the women-only acknowledgment. */
+  womenOnlyRequired: string;
 }
 
 /**
@@ -119,6 +123,12 @@ export interface BookingRequestFormProps {
    * off. Paired with `copy.vatIncluded` — both come from the server page.
    */
   vatRateBps?: number | null;
+  /**
+   * True for `women_only` experiences: renders a required eligibility
+   * acknowledgment the guest must tick before booking. The server enforces
+   * the same rule regardless of this flag.
+   */
+  requireWomenOnly?: boolean;
   copy: BookingRequestCopy;
 }
 
@@ -212,6 +222,7 @@ export function BookingRequestForm({
   initialDate,
   initialPartySize,
   vatRateBps,
+  requireWomenOnly = false,
   copy,
 }: BookingRequestFormProps) {
   const [state, formAction] = useActionState(requestBooking, initialState);
@@ -254,6 +265,16 @@ export function BookingRequestForm({
   // trip; an actual submit still validates server-side (and re-checks
   // availability, which the client can't know).
   const [clientFields, setClientFields] = useState<Partial<Record<FieldName, string>>>({});
+
+  // Women-only eligibility acknowledgment (only rendered when `requireWomenOnly`).
+  // An affirmative tick that blocks the submit until given; the server enforces
+  // it regardless. Kept UNCONTROLLED (like the contact fields) so the tick
+  // survives React 19's post-action form reset — its checked state is read from
+  // the form at submit and re-defaulted from the server echo on a failed submit.
+  const [womenOnlyBlocked, setWomenOnlyBlocked] = useState(false);
+  const womenOnlyRef = useRef<HTMLInputElement>(null);
+  // Client + server ('womenOnly' field code) both surface the same error.
+  const womenOnlyError = womenOnlyBlocked || state.fields?.womenOnly === 'required';
 
   // Mobile sticky CTA bar: visible only while the inline submit is scrolled
   // out of view. A sentinel at the inline button drives an Intersection
@@ -304,6 +325,7 @@ export function BookingRequestForm({
   const errorId = (field: FieldName) => `${errorPrefix}-${field}-error`;
   const hintId = (field: FieldName) => `${errorPrefix}-${field}-hint`;
   const formErrorId = `${errorPrefix}-form-error`;
+  const womenOnlyErrorId = `${errorPrefix}-women-only-error`;
 
   // A field is in error if the client flagged it (instant) or the server did
   // (after submit). The client clears its set on every valid submit, so the
@@ -390,19 +412,33 @@ export function BookingRequestForm({
       preferredDate: selectedDate,
       partySize: String(effectiveParty),
     });
-    if (parsed.success) {
+    // A women-only experience can't be booked without the eligibility tick —
+    // read straight from the (uncontrolled) checkbox in the submitted form.
+    const womenOnlyChecked =
+      (form.elements.namedItem('womenOnly') as HTMLInputElement | null)?.checked ?? false;
+    const womenOnlyMissing = requireWomenOnly && !womenOnlyChecked;
+    if (parsed.success && !womenOnlyMissing) {
       setClientFields({});
+      setWomenOnlyBlocked(false);
       return;
     }
     event.preventDefault();
-    const fields: Partial<Record<FieldName, string>> = {};
-    for (const issue of parsed.error.issues) {
-      const key = issue.path[0];
-      if (typeof key === 'string' && (FIELD_NAMES as readonly string[]).includes(key)) {
-        fields[key as FieldName] = String(issue.message);
+    if (parsed.success) {
+      setClientFields({});
+    } else {
+      const fields: Partial<Record<FieldName, string>> = {};
+      for (const issue of parsed.error.issues) {
+        const key = issue.path[0];
+        if (typeof key === 'string' && (FIELD_NAMES as readonly string[]).includes(key)) {
+          fields[key as FieldName] = String(issue.message);
+        }
       }
+      setClientFields(fields);
     }
-    setClientFields(fields);
+    setWomenOnlyBlocked(womenOnlyMissing);
+    // When the fields are otherwise valid, no field grabs focus — move it to
+    // the acknowledgment so the blocker is perceivable and reachable.
+    if (womenOnlyMissing && parsed.success) womenOnlyRef.current?.focus();
   }
 
   function fieldProps(field: FieldName) {
@@ -633,6 +669,31 @@ export function BookingRequestForm({
               </>
             )}
           </div>
+
+          {requireWomenOnly && (
+            <div className="border-sarat-black/8 flex flex-col gap-2 [border-top-width:0.5px] pt-4">
+              <label className="flex cursor-pointer items-start gap-3">
+                <input
+                  ref={womenOnlyRef}
+                  type="checkbox"
+                  name="womenOnly"
+                  defaultChecked={values.womenOnly === 'on'}
+                  onChange={(event) => {
+                    if (event.target.checked) setWomenOnlyBlocked(false);
+                  }}
+                  aria-invalid={womenOnlyError ? true : undefined}
+                  aria-describedby={womenOnlyError ? womenOnlyErrorId : undefined}
+                  className="border-sarat-black/40 accent-sarat-black mt-0.5 size-5 shrink-0"
+                />
+                <span className="text-sm leading-relaxed">{copy.womenOnlyLabel}</span>
+              </label>
+              {womenOnlyError && (
+                <p id={womenOnlyErrorId} role="alert" className="text-al-qatt-red-800 ps-8 text-sm">
+                  {copy.womenOnlyRequired}
+                </p>
+              )}
+            </div>
+          )}
 
           {formMessage && (
             <p
