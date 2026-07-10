@@ -83,6 +83,29 @@ export default async function PaymentPage({ params, searchParams }: PageParams) 
 
   const t = await getTranslations('payment');
   const tFooter = await getTranslations('footer');
+
+  // Clickwrap consent line with inline links to each binding document.
+  // Built here (rich text) so the link order reads naturally per locale.
+  const consentLinkClassName =
+    'font-medium underline underline-offset-4 transition-opacity duration-200 hover:opacity-60';
+  const termsLabel = t.rich('termsAgreement', {
+    terms: (chunks) => (
+      <Link href="/terms" className={consentLinkClassName}>
+        {chunks}
+      </Link>
+    ),
+    privacy: (chunks) => (
+      <Link href="/privacy" className={consentLinkClassName}>
+        {chunks}
+      </Link>
+    ),
+    cancellation: (chunks) => (
+      <Link href="/cancellation-policy" className={consentLinkClassName}>
+        {chunks}
+      </Link>
+    ),
+  });
+
   const copy: PaymentDetailsCopy = {
     heading: t('detailsHeading'),
     yourDetails: t('yourDetails'),
@@ -117,6 +140,8 @@ export default async function PaymentPage({ params, searchParams }: PageParams) 
     errorAlreadyPaid: t('errorAlreadyPaid'),
     errorExpired: t('errorExpired'),
     errorNotApproved: t('errorNotApproved'),
+    termsLabel,
+    termsRequired: t('termsRequired'),
     payHeading: t('payHeading'),
     widgetLoading: t('widgetLoading'),
     widgetError: t('widgetError'),

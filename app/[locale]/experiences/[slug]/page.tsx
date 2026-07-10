@@ -10,6 +10,7 @@ import {
   ShieldCheck,
   Sunrise,
   Users,
+  Venus,
   Zap,
 } from 'lucide-react';
 import { notFound } from 'next/navigation';
@@ -241,6 +242,8 @@ export default async function ExperienceDetailPage({
     noDates: tb('noDates'),
     prevMonth: tb('prevMonth'),
     nextMonth: tb('nextMonth'),
+    womenOnlyLabel: tb('womenOnlyLabel'),
+    womenOnlyRequired: tb('womenOnlyRequired'),
   };
   // The request-mode note names the real approval window so guest
   // expectations match the platform setting, not stale copy. The
@@ -406,6 +409,15 @@ export default async function ExperienceDetailPage({
             {placeName} · {location}
           </span>
         </p>
+        {/* Women-only experiences flag the restriction up front — before the
+            guest invests in the booking flow (the booking form also requires
+            an eligibility acknowledgment). Category tint per BRIEF §3. */}
+        {exp.category === 'women_only' && (
+          <Badge className="bg-tihama-coral/20 text-tihama-coral-800 self-start">
+            <Venus aria-hidden />
+            {t('womenOnlyBadge')}
+          </Badge>
+        )}
       </header>
 
       {/* Icon-led quick facts — duration / start time / group / min age were
@@ -635,6 +647,7 @@ export default async function ExperienceDetailPage({
                 initialDate={initialDate}
                 initialPartySize={initialPartySize}
                 vatRateBps={settings.vatEnabled ? settings.vatRateBps : null}
+                requireWomenOnly={exp.category === 'women_only'}
                 copy={bookingCopy}
               />
             )}

@@ -174,6 +174,8 @@ export const paymentEventTypeEnum = pgEnum('payment_event_type', [
   'refund_failed',
   /** Admin recorded an out-of-band reversal (HyperPay console). */
   'manual_refund_recorded',
+  /** Append-only proof the guest accepted the Terms/Privacy/Cancellation clickwrap before paying; `gatewayId` holds the accepted terms version. */
+  'terms_accepted',
 ]);
 
 /**
