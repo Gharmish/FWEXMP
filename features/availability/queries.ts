@@ -14,6 +14,8 @@ export interface ScheduleData {
   stopSellDates: string[];
   maxGroupSize: number;
   startTime: string;
+  /** Hours before start that bookings close for the day (host-settable). */
+  bookingCutoffHours: number;
   /** date `YYYY-MM-DD` → spots already taken by active bookings. */
   bookedByDate: Record<string, number>;
 }
@@ -66,6 +68,7 @@ async function scheduleDataById(
         stopSellDates: true,
         maxGroupSize: true,
         startTime: true,
+        bookingCutoffHours: true,
       },
     });
     if (!experience) return null;
@@ -96,6 +99,7 @@ async function scheduleDataById(
       stopSellDates: [...experience.stopSellDates],
       maxGroupSize: experience.maxGroupSize,
       startTime: experience.startTime,
+      bookingCutoffHours: experience.bookingCutoffHours,
       bookedByDate,
     };
   } catch (error) {

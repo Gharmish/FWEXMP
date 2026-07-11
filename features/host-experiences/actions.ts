@@ -92,6 +92,7 @@ function parseForm(formData: FormData) {
     cancellationPolicy: formValue(formData, 'cancellationPolicy'),
     availabilityWeekdays: formValues(formData, 'availabilityWeekdays'),
     startTime: formValue(formData, 'startTime'),
+    bookingCutoffHours: formValue(formData, 'bookingCutoffHours'),
     lat: formValue(formData, 'lat'),
     lng: formValue(formData, 'lng'),
     locale: formValue(formData, 'locale'),
@@ -155,6 +156,7 @@ function payloadForWrite(input: HostExperienceInput) {
     cancellationPolicy: input.cancellationPolicy,
     availabilityWeekdays: input.availabilityWeekdays,
     startTime: input.startTime,
+    bookingCutoffHours: input.bookingCutoffHours,
     lat: input.lat,
     lng: input.lng,
   };
@@ -541,6 +543,7 @@ export async function duplicateHostExperience(
               cancellationPolicy: source.cancellationPolicy,
               availabilityWeekdays: [...source.availabilityWeekdays],
               startTime: source.startTime,
+              bookingCutoffHours: source.bookingCutoffHours,
               bookingMode: source.bookingMode,
               // Same host, same partnership agreement — the rate carries over.
               commissionBps: source.commissionBps,

@@ -41,6 +41,8 @@ export interface HostExperienceRow {
   cancellationPolicy: string;
   availabilityWeekdays: number[];
   startTime: string;
+  /** Hours before start that bookings close (host-settable). */
+  bookingCutoffHours: number;
   lat: number;
   lng: number;
   status: (typeof experiences.$inferSelect)['status'];
@@ -74,6 +76,7 @@ function rowToView(row: typeof experiences.$inferSelect): HostExperienceRow {
     cancellationPolicy: row.cancellationPolicy,
     availabilityWeekdays: [...row.availabilityWeekdays],
     startTime: row.startTime,
+    bookingCutoffHours: row.bookingCutoffHours,
     lat: row.lat,
     lng: row.lng,
     status: row.status,

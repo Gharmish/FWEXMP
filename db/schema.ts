@@ -339,6 +339,15 @@ export const experiences = pgTable(
     /** Local start time for every occurrence, HH:MM (24h). */
     startTime: text().notNull().default('09:00'),
     /**
+     * Booking lead time: hours before `startTime` that new bookings close
+     * for a given day (host-settable — a sunrise hike needs more notice
+     * than a walk-in coffee). Enforced server-side in the booking action
+     * and mirrored in the guest date picker. Default 2 matches the former
+     * platform-wide `BOOKING_CUTOFF_MINUTES` (120) so existing listings are
+     * unchanged.
+     */
+    bookingCutoffHours: integer().notNull().default(2),
+    /**
      * How bookings are confirmed (BRIEF: curated marketplace). `request`
      * (default) → operator confirms manually; `instant` → auto-confirms
      * against the availability calendar + remaining capacity.

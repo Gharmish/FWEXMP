@@ -31,6 +31,19 @@ function todayInRiyadh(): string {
   return new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Riyadh' }).format(new Date());
 }
 
+/** Current wall-clock time as minutes since midnight in the KSA day. */
+function nowMinutesInRiyadh(): number {
+  // hourCycle h23 forces 00–23 (dodges the legacy '24' hour bug).
+  const hm = new Intl.DateTimeFormat('en-GB', {
+    timeZone: 'Asia/Riyadh',
+    hourCycle: 'h23',
+    hour: '2-digit',
+    minute: '2-digit',
+  }).format(new Date());
+  const [h, m] = hm.split(':').map(Number);
+  return h * 60 + m;
+}
+
 const LAST_BOOKING_COOKIE_MAX_AGE_SECONDS = 60 * 60 * 24 * 90; // 90 days
 
 /**
@@ -216,6 +229,7 @@ export async function requestBooking(
         priceSar: true,
         maxGroupSize: true,
         startTime: true,
+        bookingCutoffHours: true,
         bookingMode: true,
         commissionBps: true,
         category: true,
@@ -252,13 +266,19 @@ export async function requestBooking(
     }
 
     // The requested day must be open on the calendar for both modes — a
-    // request for a day the experience never runs is not actionable.
+    // request for a day the experience never runs is not actionable. The
+    // startTime + now-minutes + cutoff inputs also close today's slot once
+    // we're within the lead time of (or past) its local start, so a payment
+    // can never be taken for an experience that has already begun.
     const bookable = isDateBookable({
       dateStr: input.preferredDate,
       todayStr: todayInRiyadh(),
       availabilityWeekdays: experience.availabilityWeekdays,
       blackoutDates: experience.blackoutDates,
       stopSellDates: experience.stopSellDates,
+      startTime: experience.startTime,
+      nowMinutes: nowMinutesInRiyadh(),
+      cutoffMinutes: experience.bookingCutoffHours * 60,
     });
     if (!bookable.ok) {
       return {

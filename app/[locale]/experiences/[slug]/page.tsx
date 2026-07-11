@@ -131,6 +131,17 @@ export default async function ExperienceDetailPage({
   const todayRiyadh = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Riyadh' }).format(
     new Date(),
   );
+  // Current KSA wall-clock (minutes since midnight) so the picker greys out
+  // today's slot once it's within the booking cutoff of its start time —
+  // mirroring the same server-side gate in `requestBooking`.
+  const nowRiyadhHm = new Intl.DateTimeFormat('en-GB', {
+    timeZone: 'Asia/Riyadh',
+    hourCycle: 'h23',
+    hour: '2-digit',
+    minute: '2-digit',
+  }).format(new Date());
+  const [nowRiyadhH, nowRiyadhM] = nowRiyadhHm.split(':').map(Number);
+  const nowMinutesRiyadh = nowRiyadhH * 60 + nowRiyadhM;
   const [
     ratingAggregate,
     t,
@@ -165,6 +176,9 @@ export default async function ExperienceDetailPage({
           stopSellDates: schedule.stopSellDates,
           maxGroupSize: schedule.maxGroupSize,
           bookedByDate: schedule.bookedByDate,
+          startTime: schedule.startTime,
+          nowMinutes: nowMinutesRiyadh,
+          cutoffMinutes: schedule.bookingCutoffHours * 60,
         })
       : []
   ).map((d) => ({
@@ -229,6 +243,7 @@ export default async function ExperienceDetailPage({
     required: tb('required'),
     datePast: tb('datePast'),
     dateUnavailable: tb('dateUnavailable'),
+    dateCutoff: tb('dateCutoff'),
     dateFull: tb('dateFull'),
     partySizeTooLarge: tb('partySizeTooLarge'),
     datePlaceholder: tb('datePlaceholder'),

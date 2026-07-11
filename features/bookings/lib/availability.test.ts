@@ -1,9 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import {
+  BOOKING_CUTOFF_MINUTES,
   addDays,
   bookableDates,
   isDateBookable,
   isHoldExpired,
+  minutesOfDay,
   remainingCapacity,
   weekdayOf,
 } from '@/features/bookings/lib/availability';
@@ -93,6 +95,59 @@ describe('isDateBookable', () => {
       isDateBookable({ ...base, dateStr: '2026-05-30', stopSellDates: ['2026-06-06'] }),
     ).toEqual({ ok: true });
   });
+
+  describe('same-day cutoff', () => {
+    // Today is an open weekday (Fri 2026-05-29); the experience starts 09:00.
+    const today = { ...base, dateStr: '2026-05-29', startTime: '09:00', cutoffMinutes: 120 };
+
+    it('is open when now is comfortably before the cutoff', () => {
+      // 06:00 → cutoff is 07:00; still open.
+      expect(isDateBookable({ ...today, nowMinutes: 6 * 60 })).toEqual({ ok: true });
+    });
+
+    it('closes exactly at the cutoff (now === start - cutoff)', () => {
+      // 07:00 is exactly 120 min before the 09:00 start.
+      expect(isDateBookable({ ...today, nowMinutes: 7 * 60 })).toEqual({
+        ok: false,
+        reason: 'cutoff',
+      });
+    });
+
+    it('closes after the start time has passed', () => {
+      // 10:00, start was 09:00 — the exact P0 scenario (past-start booking).
+      expect(isDateBookable({ ...today, nowMinutes: 10 * 60 })).toEqual({
+        ok: false,
+        reason: 'cutoff',
+      });
+    });
+
+    it('does not apply the cutoff to a future day', () => {
+      // Even at 23:59 today, tomorrow-equivalent future date stays open.
+      expect(isDateBookable({ ...today, dateStr: '2026-05-30', nowMinutes: 23 * 60 + 59 })).toEqual(
+        { ok: true },
+      );
+    });
+
+    it('skips the gate entirely when time-of-day inputs are omitted', () => {
+      // Day-granularity callers (host/admin grids) keep the old behavior.
+      expect(isDateBookable({ ...base, dateStr: '2026-05-29' })).toEqual({ ok: true });
+    });
+  });
+});
+
+describe('minutesOfDay', () => {
+  it('parses HH:MM into minutes since midnight', () => {
+    expect(minutesOfDay('00:00')).toBe(0);
+    expect(minutesOfDay('09:00')).toBe(540);
+    expect(minutesOfDay('23:59')).toBe(1439);
+  });
+
+  it('returns null for malformed or out-of-range input', () => {
+    expect(minutesOfDay('9:00')).toBeNull();
+    expect(minutesOfDay('24:00')).toBeNull();
+    expect(minutesOfDay('09:60')).toBeNull();
+    expect(minutesOfDay('nope')).toBeNull();
+  });
 });
 
 describe('addDays', () => {
@@ -135,6 +190,27 @@ describe('bookableDates', () => {
     });
     // 05-29 full (8/8 → excluded), 05-30 blackout, 06-05 stop-sell → only 06-06 (3 left)
     expect(out).toEqual([{ date: '2026-06-06', remaining: 3 }]);
+  });
+
+  it('drops today once it is past the same-day cutoff, keeps future days', () => {
+    const out = bookableDates({
+      ...base,
+      startTime: '09:00',
+      // 10:00 — start already passed today; future Fri/Sat unaffected.
+      nowMinutes: 10 * 60,
+      cutoffMinutes: BOOKING_CUTOFF_MINUTES,
+    });
+    expect(out.map((d) => d.date)).toEqual(['2026-05-30', '2026-06-05', '2026-06-06']);
+  });
+
+  it('keeps today when it is still before the cutoff', () => {
+    const out = bookableDates({
+      ...base,
+      startTime: '09:00',
+      nowMinutes: 6 * 60, // 06:00, cutoff 07:00 → today still open
+      cutoffMinutes: BOOKING_CUTOFF_MINUTES,
+    });
+    expect(out.map((d) => d.date)).toContain('2026-05-29');
   });
 });
 

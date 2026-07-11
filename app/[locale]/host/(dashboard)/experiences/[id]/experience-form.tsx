@@ -13,7 +13,10 @@ import {
   updateHostExperience,
   type HostExperienceState,
 } from '@/features/host-experiences/actions';
-import { EXPERIENCE_CATEGORIES } from '@/features/host-experiences/schemas';
+import {
+  DEFAULT_BOOKING_CUTOFF_HOURS,
+  EXPERIENCE_CATEGORIES,
+} from '@/features/host-experiences/schemas';
 import type { HostExperienceRow } from '@/features/host-experiences/queries';
 
 /**
@@ -95,6 +98,10 @@ export interface ExperienceFormCopy {
   placeNameHint: string;
   startTimeLabel: string;
   startTimeHint: string;
+  bookingCutoffLabel: string;
+  bookingCutoffHint: string;
+  /** Preset cutoff choices, each with its localized label. */
+  bookingCutoffOptions: readonly { value: number; label: string }[];
   latLabel: string;
   lngLabel: string;
   coordsHint: string;
@@ -363,6 +370,25 @@ export function ExperienceForm({
           />
           <p className="text-sarat-black-600 text-sm">{copy.startTimeHint}</p>
           <FieldError id={eid('startTime')} message={fieldErrorMessage(fields.startTime, copy)} />
+        </div>
+
+        <div className="flex flex-col gap-2">
+          <label htmlFor="ex-bookingCutoffHours" className="text-sm font-medium">
+            {copy.bookingCutoffLabel}
+          </label>
+          <select
+            id="ex-bookingCutoffHours"
+            name="bookingCutoffHours"
+            defaultValue={experience?.bookingCutoffHours ?? DEFAULT_BOOKING_CUTOFF_HOURS}
+            className={SELECT_CLASS}
+          >
+            {copy.bookingCutoffOptions.map((o) => (
+              <option key={o.value} value={o.value}>
+                {o.label}
+              </option>
+            ))}
+          </select>
+          <p className="text-sarat-black-600 text-sm">{copy.bookingCutoffHint}</p>
         </div>
 
         <div className="flex flex-col gap-2">

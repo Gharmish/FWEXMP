@@ -73,6 +73,7 @@ vi.mock('@/features/bookings/lib/capacity-sql', () => ({
 vi.mock('@/features/bookings/lib/availability', () => ({
   ACTIVE_BOOKING_STATUSES: ['pending', 'confirmed', 'completed'],
   PAYMENT_HOLD_MINUTES: 25,
+  BOOKING_CUTOFF_MINUTES: 120,
   isDateBookable: () => ({ ok: true }),
   remainingCapacity: (max: number, booked: number) => Math.max(0, max - booked),
 }));
@@ -94,6 +95,7 @@ interface MockExperience {
   priceSar: number;
   maxGroupSize: number;
   startTime: string;
+  bookingCutoffHours: number;
   bookingMode: 'instant' | 'request';
   commissionBps: number;
   availabilityWeekdays: string[];
@@ -227,6 +229,7 @@ beforeEach(() => {
     priceSar: 260,
     maxGroupSize: 12,
     startTime: '09:00',
+    bookingCutoffHours: 2,
     bookingMode: 'instant',
     commissionBps: 1500,
     availabilityWeekdays: ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'],

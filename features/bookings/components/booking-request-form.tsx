@@ -55,6 +55,7 @@ interface BookingRequestCopy {
   /** Specific, actionable field messages. */
   datePast: string;
   dateUnavailable: string;
+  dateCutoff: string;
   dateFull: string;
   partySizeTooLarge: string;
   /** Empty-option label for the date picker. */
@@ -185,6 +186,7 @@ function messageForField(
   if (!code) return undefined;
   if (field === 'preferredDate') {
     if (code === 'date_past') return copy.datePast;
+    if (code === 'date_cutoff') return copy.dateCutoff;
     if (code === 'date_full') return copy.dateFull;
     if (
       code === 'date_closed_weekday' ||
