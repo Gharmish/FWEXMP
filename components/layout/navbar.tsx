@@ -50,7 +50,7 @@ export async function Navbar() {
               host entry point lives in the bar, not just the footer.
               Existing hosts see their dashboard instead. */}
           {!isHost && (
-            <Link href="/host/apply" className={navLinkClass} aria-label={t('becomeHost')}>
+            <Link href="/hosting" className={navLinkClass} aria-label={t('becomeHost')}>
               <Store className="size-5 shrink-0" strokeWidth={1.5} aria-hidden />
               <span className="hidden sm:inline">{t('becomeHost')}</span>
             </Link>

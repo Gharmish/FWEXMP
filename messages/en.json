@@ -1169,6 +1169,103 @@
       }
     }
   },
+  "hosting": {
+    "meta": {
+      "title": "Host with Gharmish",
+      "description": "Partner with Gharmish to host authentic Aseeri experiences. See who can host, how the partnership works, what to prepare, and how payouts work — then apply."
+    },
+    "hero": {
+      "eyebrow": "Host with us",
+      "title": "Host the Aseer you know.",
+      "intro": "Gharmish is a partnership marketplace, not a passive listing site. We work alongside a small circle of local hosts — with photography, training, and distribution — and share the upside fairly.",
+      "meta": "Applying doesn't list anything yet. Our partnerships team reviews every application and follows up to talk through payouts, licensing, and the experience you'd love to host.",
+      "primaryCta": "Apply to host",
+      "secondaryCta": "Browse experiences"
+    },
+    "audience": {
+      "heading": "Who can host",
+      "intro": "We partner with people who know Aseer firsthand — whether you host on your own or through a registered tourism business. You should have a genuine tie to the region's culture, landscape, or community.",
+      "individuals": {
+        "title": "Individuals",
+        "body": "Saudi nationals and residents with a national ID or Iqama, hosting in their own name. A tourism or freelance permit helps but we'll guide you on what's needed."
+      },
+      "companies": {
+        "title": "Registered companies",
+        "body": "Tour operators and activity businesses with a commercial registration and the relevant tourism licence, hosting under the company name."
+      }
+    },
+    "partnership": {
+      "heading": "How the partnership works",
+      "intro": "We co-create with you rather than just list you. That means real support behind every experience, so the quality stays high and the story stays yours.",
+      "photography": {
+        "title": "Photography",
+        "body": "We shoot your experience professionally so it looks its best across the marketplace."
+      },
+      "training": {
+        "title": "Training",
+        "body": "We help you shape the experience, set expectations, and deliver a consistent, memorable day."
+      },
+      "distribution": {
+        "title": "Distribution",
+        "body": "We bring guests who value the real thing — Saudi travelers first, international visitors as we grow."
+      }
+    },
+    "stages": {
+      "heading": "How applying works",
+      "apply": {
+        "title": "Apply",
+        "body": "Sign in and tell us about yourself, your languages, and how you'd like to host. It takes a few minutes."
+      },
+      "review": {
+        "title": "We review and verify",
+        "body": "Our partnerships team reviews your application and verifies your identity and licences. We follow up personally — no automated rejections."
+      },
+      "build": {
+        "title": "We build it together",
+        "body": "Once you're approved, we co-create the experience with you — photography, pricing, and the details that make it feel like Aseer."
+      },
+      "earn": {
+        "title": "Publish and earn",
+        "body": "Your experience goes live. You manage availability from your dashboard, and you have {approvalHours} hours to accept each booking request."
+      }
+    },
+    "documents": {
+      "heading": "What you'll need",
+      "intro": "Have these ready before you apply — you can upload them during the application, and our team reviews them before your first listing goes live.",
+      "identity": {
+        "title": "Identity",
+        "body": "National ID or Iqama for individuals; the authorized signatory's ID for companies."
+      },
+      "licence": {
+        "title": "Registration and licence",
+        "body": "Commercial registration and a tourism licence for companies; a tourism or freelance permit where you have one."
+      },
+      "vat": {
+        "title": "VAT certificate",
+        "body": "Your VAT registration certificate, if your business is VAT-registered. Optional otherwise."
+      },
+      "iban": {
+        "title": "Bank details",
+        "body": "A Saudi IBAN and, if we ask, an IBAN letter from your bank so we can pay your earnings."
+      },
+      "privacy": "Photos or PDFs, up to 4MB each. Documents are stored privately, used only to verify you and pay you, and never shown to guests."
+    },
+    "payout": {
+      "heading": "Payouts and responsibility",
+      "revenueShare": "Gharmish takes a fair revenue share, agreed with you as part of your partnership — we'll walk you through the numbers before anything is signed.",
+      "payouts": "You're paid when a booking is completed. We transfer what you're owed to your Saudi IBAN and record every transfer in the payout ledger in your dashboard, where you can update your IBAN anytime.",
+      "liability": "Hosts are solely responsible and fully liable for the experiences they deliver. Gharmish does not provide insurance — please make sure you're properly covered for the activities you host."
+    },
+    "faq": {
+      "heading": "Common questions"
+    },
+    "cta": {
+      "eyebrow": "Host with Gharmish",
+      "title": "Know Aseer like nobody else?",
+      "body": "Tell us about yourself and the experience you'd love to host. We'll take it from there.",
+      "button": "Apply to host"
+    }
+  },
   "hostApply": {
     "eyebrow": "Host with us",
     "title": "Co-create an experience with Gharmish.",

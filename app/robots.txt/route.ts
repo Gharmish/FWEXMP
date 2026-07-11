@@ -37,8 +37,15 @@ export function GET(): Response {
     .flatMap((l) => privatePaths.map((p) => `Disallow: /${l}/${p}`))
     .join('\n');
 
+  // `/host` is a Disallow prefix, so it would also shadow the public
+  // `/host`ing landing page. An explicit, longer Allow rule wins for
+  // crawlers that honor most-specific-match (Google), keeping the
+  // host-recruitment page crawlable.
+  const allows = routing.locales.map((l) => `Allow: /${l}/hosting`).join('\n');
+
   const body = `User-agent: *
 Allow: /
+${allows}
 ${disallows}
 
 Sitemap: ${SITE_URL}/sitemap.xml

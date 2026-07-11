@@ -43,7 +43,7 @@ export async function Footer() {
       links: [
         { href: '/experiences', label: t('linkExperiences') },
         { href: '/hosts', label: t('linkHosts') },
-        { href: '/host/apply', label: t('linkHostApply') },
+        { href: '/hosting', label: t('linkHostApply') },
       ],
     },
     {
