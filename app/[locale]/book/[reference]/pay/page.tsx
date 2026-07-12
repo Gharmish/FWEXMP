@@ -157,7 +157,10 @@ export default async function PaymentPage({ params, searchParams }: PageParams) 
     appliedPrefix: t('promo.appliedPrefix'),
     remove: t('promo.remove'),
     removing: t('promo.removing'),
-    errorBelowMin: t('promo.errorBelowMin'),
+    // Raw template — `{min}` is only known client-side after promo
+    // validation; PromoCodeField substitutes it (formatting it here would
+    // throw a FORMATTING_ERROR for the missing variable).
+    errorBelowMin: t.raw('promo.errorBelowMin'),
     errors: {
       invalid: t('promo.errors.invalid'),
       exhausted: t('promo.errors.exhausted'),
