@@ -36,6 +36,14 @@ export interface PrepareCheckoutInput {
 export interface HyperpayConfig {
   entityId: string;
   mode: 'test' | 'live';
+  /**
+   * Which acquirer the test server routes to. `external` = the real
+   * MPGS test terminal (requires `testMode=EXTERNAL` + the 3DS2 custom
+   * parameter); `internal` = OPPWA's built-in simulator (no test flags —
+   * the widget walks through a simulated 3DS/acquirer page instead).
+   * Ignored in live mode.
+   */
+  testConnector: 'external' | 'internal';
 }
 
 /** Result block returned on every OPPWA response. */

@@ -60,7 +60,8 @@ export function baseUrlFor(mode: HyperpayConfig['mode'], override: string): stri
  * A refund references the original debit by its payment id, so no
  * customer/billing details travel — just entity, amount, currency.
  * Same test-flag rule as checkouts: `testMode=EXTERNAL` never reaches
- * the live server.
+ * the live server, and travels only for the external test connector so
+ * a refund matches the routing of the debit it reverses.
  */
 export function buildRefundBody(amountSar: number, cfg: HyperpayConfig): URLSearchParams {
   const body = new URLSearchParams({
@@ -69,7 +70,7 @@ export function buildRefundBody(amountSar: number, cfg: HyperpayConfig): URLSear
     currency: 'SAR',
     paymentType: 'RF',
   });
-  if (cfg.mode === 'test') {
+  if (cfg.mode === 'test' && cfg.testConnector === 'external') {
     body.set('testMode', 'EXTERNAL');
   }
   return body;
@@ -80,7 +81,11 @@ export function buildRefundBody(amountSar: number, cfg: HyperpayConfig): URLSear
  * the test-flag gating and parameter set are unit-testable without env.
  *
  * `testMode=EXTERNAL` and `customParameters[3DS2_enrolled]=true` are
- * added **only in test mode** — they must never reach the live server.
+ * added **only in test mode with the `external` connector** — they must
+ * never reach the live server. Omitting them routes the test server to
+ * OPPWA's internal simulator (2026-07-12: HyperPay's external MPGS test
+ * terminal declines MADA/MASTER with 800.100.156 INVALID_REQUEST, so
+ * `internal` is the workaround until they fix their side).
  */
 export function buildCheckoutBody(
   input: PrepareCheckoutInput,
@@ -107,7 +112,7 @@ export function buildCheckoutBody(
     body.set('billing.state', input.billing.state);
   }
 
-  if (cfg.mode === 'test') {
+  if (cfg.mode === 'test' && cfg.testConnector === 'external') {
     body.set('testMode', 'EXTERNAL');
     body.set('customParameters[3DS2_enrolled]', 'true');
   }

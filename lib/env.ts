@@ -41,6 +41,18 @@ const serverSchema = z.object({
   ),
   // Optional explicit base URL override; derived from HYPERPAY_MODE when empty.
   HYPERPAY_BASE_URL: z.string().default(''),
+  // Test-server acquirer routing. `external` (default) sends
+  // `testMode=EXTERNAL` + `customParameters[3DS2_enrolled]` so transactions
+  // hit HyperPay's real MPGS test terminal; `internal` omits them and uses
+  // OPPWA's built-in simulator instead. Workaround switch for 2026-07-12:
+  // the external terminal declines MADA/MASTER with 800.100.156 — set
+  // `internal` to test those brands until HyperPay fixes their config.
+  // Ignored when HYPERPAY_MODE=live. Same empty-string-safe preprocess as
+  // HYPERPAY_MODE so a cleared Vercel var can't break boot.
+  HYPERPAY_TEST_CONNECTOR: z.preprocess(
+    (v) => (v === '' ? undefined : v),
+    z.enum(['external', 'internal']).default('external'),
+  ),
   // Shared secret (hex AES-256 key) for decrypting OPPWA webhook
   // notifications — `app/api/webhooks/hyperpay`. Empty → the route answers
   // 503 and settlement relies on the synchronous `/pay/return` check plus
@@ -109,6 +121,7 @@ export const serverEnv = parse(
     HYPERPAY_ENTITY_ID: process.env.HYPERPAY_ENTITY_ID,
     HYPERPAY_MODE: process.env.HYPERPAY_MODE,
     HYPERPAY_BASE_URL: process.env.HYPERPAY_BASE_URL,
+    HYPERPAY_TEST_CONNECTOR: process.env.HYPERPAY_TEST_CONNECTOR,
     HYPERPAY_WEBHOOK_SECRET: process.env.HYPERPAY_WEBHOOK_SECRET,
     RESEND_API_KEY: process.env.RESEND_API_KEY,
     RESEND_FROM: process.env.RESEND_FROM,

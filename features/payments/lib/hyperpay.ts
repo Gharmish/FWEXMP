@@ -61,7 +61,11 @@ async function parseJson<T>(res: Response, what: string): Promise<T> {
 }
 
 function config(): HyperpayConfig {
-  return { entityId: serverEnv.HYPERPAY_ENTITY_ID, mode: serverEnv.HYPERPAY_MODE };
+  return {
+    entityId: serverEnv.HYPERPAY_ENTITY_ID,
+    mode: serverEnv.HYPERPAY_MODE,
+    testConnector: serverEnv.HYPERPAY_TEST_CONNECTOR,
+  };
 }
 
 function authHeaders(): HeadersInit {
