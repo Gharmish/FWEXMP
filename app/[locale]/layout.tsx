@@ -14,6 +14,15 @@ import { getTranslations, setRequestLocale } from 'next-intl/server';
  * Static gains are minimal — every locale page already opts into
  * dynamic rendering via cookie/searchParams reads — and clean status
  * codes matter more for auth gates than a fractional render saving.
+ *
+ * force-dynamic alone is NOT sufficient for real 404s: a loading.tsx
+ * anywhere above a page is a Suspense boundary whose fallback flushes
+ * the 200 shell before the page's async work can throw `notFound()`
+ * (Next then streams the not-found UI with a noindex meta into the
+ * committed 200 — a soft-404). That's why there is deliberately no
+ * loading.tsx at this level and none above the public [slug] pages;
+ * loading files below auth-gated segments (admin, host dashboard,
+ * wishlist) are fine because those routes never need a crawlable 404.
  */
 export const dynamic = 'force-dynamic';
 import { bricolage, ibmPlexArabic } from '@/lib/fonts';
