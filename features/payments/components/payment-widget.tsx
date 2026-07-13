@@ -72,6 +72,11 @@ export function PaymentWidget({
         countryCode: 'SA',
         supportedNetworks: ['mada', 'masterCard', 'visa'],
         merchantCapabilities: ['supports3DS', 'supportsCredit', 'supportsDebit'],
+        // Apple Pay tokens carry no cardholder name unless the sheet is
+        // asked for it; without this the gateway receives holder "/" and
+        // declines with 100.100.401 (holder too short). The sheet
+        // auto-fills the name from the wallet card — no extra typing.
+        requiredBillingContactFields: ['name'],
         style: 'black',
       },
       onReady: () => {
