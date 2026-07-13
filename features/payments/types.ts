@@ -32,6 +32,16 @@ export interface PrepareCheckoutInput {
   billing: HyperpayBilling;
 }
 
+/**
+ * Which OPPWA entity a request is billed against. HyperPay provisions
+ * Apple Pay on its own entity id, so every gateway round-trip for a
+ * checkout must consistently use the channel it was created under —
+ * creation, status polling, and refunds alike. The channel is recorded
+ * on the `checkout_created` ledger event (`resultCode: 'APPLEPAY'`) and
+ * resolved from there by settle/refund.
+ */
+export type PaymentChannel = 'card' | 'applepay';
+
 /** Static config the request builder needs, decoupled from env for testing. */
 export interface HyperpayConfig {
   entityId: string;

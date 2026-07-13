@@ -1,6 +1,14 @@
 'use client';
 
-import { useActionState, useId, useMemo, useRef, useState, type ReactNode } from 'react';
+import {
+  useActionState,
+  useId,
+  useMemo,
+  useRef,
+  useState,
+  useSyncExternalStore,
+  type ReactNode,
+} from 'react';
 import { useFormStatus } from 'react-dom';
 import { createCheckout, type CreateCheckoutState } from '@/features/payments/actions';
 import { Button } from '@/components/ui/button';
@@ -9,6 +17,33 @@ import type { Locale } from '@/lib/i18n';
 import { COUNTRIES, countryName } from '@/lib/phone';
 import { cn } from '@/lib/utils';
 import { PaymentWidget } from './payment-widget';
+
+declare global {
+  interface Window {
+    /** Safari-only. Presence (+ canMakePayments) gates the Apple Pay option. */
+    ApplePaySession?: { canMakePayments(): boolean };
+  }
+}
+
+/**
+ * Apple Pay device capability, hydration-safe: the server snapshot is
+ * `false` (SSR can't know), the client snapshot reads ApplePaySession
+ * once the store is subscribed — React re-renders with the real value
+ * after hydration without a setState-in-effect. The capability never
+ * changes within a page's lifetime, so the subscription is inert.
+ */
+const noopSubscribe = () => () => {};
+function detectApplePay(): boolean {
+  try {
+    return Boolean(window.ApplePaySession?.canMakePayments());
+  } catch {
+    // Some engines expose ApplePaySession but throw off-https.
+    return false;
+  }
+}
+function useApplePayAvailable(): boolean {
+  return useSyncExternalStore(noopSubscribe, detectApplePay, () => false);
+}
 
 export interface PaymentDetailsCopy {
   heading: string;
@@ -59,6 +94,12 @@ export interface PaymentDetailsCopy {
   widgetRetry: string;
   /** Divider between the Apple Pay button and the card form. */
   orPayWithCard: string;
+  /** Payment-method choice (shown only on Apple Pay-capable devices). */
+  methodHeading: string;
+  methodApplePay: string;
+  methodCard: string;
+  /** Back-link under the mounted widget to pick the other method. */
+  changeMethod: string;
 }
 
 type DetailField =
@@ -134,6 +175,12 @@ export interface PaymentDetailsFormProps {
   slug: string;
   copy: PaymentDetailsCopy;
   /**
+   * Server flag: the dedicated Apple Pay gateway entity is configured.
+   * The Apple Pay option renders only when this AND the device support
+   * it (ApplePaySession) hold.
+   */
+  applePayEnabled?: boolean;
+  /**
    * Server-derived prefill (e.g. the booking's guest name). A failed-submit
    * server echo (`state.values`) always wins over these so the user never
    * loses what they typed.
@@ -146,6 +193,7 @@ export function PaymentDetailsForm({
   locale,
   slug,
   copy,
+  applePayEnabled = false,
   defaults,
 }: PaymentDetailsFormProps) {
   const [state, formAction] = useActionState(createCheckout, initialState);
@@ -159,6 +207,15 @@ export function PaymentDetailsForm({
   // post-action form reset: its checked state is read from the DOM at submit
   // and re-defaulted from the server echo (`values.terms`) on a failed submit.
   const termsRef = useRef<HTMLInputElement>(null);
+
+  // The method control renders only when the entity is configured AND
+  // the device can pay. State holds just the explicit user choice; the
+  // default derives from availability, so Apple Pay leads on capable
+  // devices — mirroring the old layout where its button sat on top.
+  const deviceCanApplePay = useApplePayAvailable();
+  const applePayAvailable = applePayEnabled && deviceCanApplePay;
+  const [chosenMethod, setChosenMethod] = useState<'card' | 'applepay' | null>(null);
+  const method = chosenMethod ?? (applePayAvailable ? 'applepay' : 'card');
 
   // Show the consent error if the guest tried to submit without ticking
   // (client guard) or if a JS-less/tampered submit was rejected server-side.
@@ -186,6 +243,19 @@ export function PaymentDetailsForm({
           retryLabel={copy.widgetRetry}
           orCardLabel={copy.orPayWithCard}
         />
+        {applePayAvailable && (
+          // Back out of the chosen method (e.g. Apple Pay sheet won't
+          // open). A full reload restarts at the details step; the next
+          // submit supersedes this checkout server-side, so nothing
+          // half-paid is left behind.
+          <button
+            type="button"
+            onClick={() => window.location.reload()}
+            className="self-start text-sm font-medium underline underline-offset-4 transition-opacity duration-200 hover:opacity-70"
+          >
+            {copy.changeMethod}
+          </button>
+        )}
       </div>
     );
   }
@@ -357,6 +427,41 @@ export function PaymentDetailsForm({
           </div>
         )}
       </section>
+
+      {applePayAvailable && (
+        <section className="flex flex-col gap-3" aria-label={copy.methodHeading}>
+          <h3 className="text-base font-medium">{copy.methodHeading}</h3>
+          <div
+            role="radiogroup"
+            aria-label={copy.methodHeading}
+            className="border-sarat-black/8 rounded-input grid grid-cols-2 gap-1 [border-width:0.5px] p-1"
+          >
+            {(
+              [
+                { value: 'applepay', label: copy.methodApplePay },
+                { value: 'card', label: copy.methodCard },
+              ] as const
+            ).map((option) => (
+              <button
+                key={option.value}
+                type="button"
+                role="radio"
+                aria-checked={method === option.value}
+                onClick={() => setChosenMethod(option.value)}
+                className={cn(
+                  'rounded-input h-10 text-sm font-medium transition-colors duration-200',
+                  method === option.value
+                    ? 'bg-sarat-black text-white'
+                    : 'text-sarat-black-600 hover:text-sarat-black',
+                )}
+              >
+                {option.label}
+              </button>
+            ))}
+          </div>
+        </section>
+      )}
+      <input type="hidden" name="method" value={applePayAvailable ? method : 'card'} />
 
       {formError && (
         <p id={errorId} role="alert" className="text-al-qatt-red-800 text-sm">

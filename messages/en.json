@@ -31,6 +31,8 @@
     "verifySubmit": "Sign in",
     "verifyPending": "Verifying",
     "changeIdentifier": "Use a different method",
+    "resend": "Resend code",
+    "resent": "We sent you a new code.",
     "errors": {
       "validation": "Check the highlighted fields and try again.",
       "invalidPhone": "Enter a valid mobile number for the selected country.",
@@ -236,6 +238,8 @@
       "settled": "All caught up",
       "paidToDate": "Paid to date: <amount></amount> ({count, plural, =1 {1 booking} other {# bookings}})",
       "markPaid": "Mark as paid",
+      "confirmTitle": "Record this payout as paid?",
+      "confirmBody": "This records a bank transfer of SAR {amount} to {host} and resets their owed balance. It can't be undone.",
       "marking": "Recording",
       "markError": "Couldn't record the payout. Try again.",
       "empty": {
@@ -804,7 +808,7 @@
     "bookingsList": {
       "eyebrow": "Bookings",
       "title": "Every booking, newest first.",
-      "intro": "A flat list. No filters, no detail page yet — the data is small enough to scan, and the reference id is right there if you need to dig deeper.",
+      "intro": "Filter by status or search by reference, guest, or experience — open a row's details for the full picture.",
       "stats": {
         "total": "Total"
       },
@@ -867,7 +871,8 @@
       "refundDue": "Refund due",
       "expiresIn": "Expires in {hours}h",
       "deadlinePassed": "Approval window passed",
-      "refundDueFilter": "Showing bookings with refunds owed"
+      "refundDueFilter": "Showing bookings with refunds owed",
+      "truncated": "Showing the latest {count} bookings — the counts above and the search cover only this window."
     },
     "bookingDetail": {
       "back": "All bookings",
@@ -929,6 +934,8 @@
       "notesLabel": "Resolution notes (internal)",
       "notesPlaceholder": "What was done — refund issued, host contacted…",
       "resolve": "Mark resolved",
+      "confirmTitle": "Mark this dispute resolved?",
+      "confirmBody": "This closes the report as handled. It can't be reopened — a new problem needs a new report.",
       "resolvePending": "Resolving…",
       "status": {
         "open": "Open",
@@ -958,7 +965,7 @@
         "overview": "Overview",
         "operations": "Operations",
         "directory": "Directory",
-        "setting": "Setting"
+        "setting": "Settings"
       }
     },
     "users": {
@@ -1084,6 +1091,7 @@
         "save": "Save changes",
         "saving": "Saving",
         "saved": "Saved.",
+        "fieldInvalid": "Check this field.",
         "errors": {
           "forbidden": "You don't have permission to edit this.",
           "noDb": "The database isn't configured.",
@@ -1548,7 +1556,7 @@
       "removing": "Removing…",
       "hint": "A clear, natural-light photo of you. JPG, PNG, or WebP.",
       "errors": {
-        "noDb": "The database isn't reachable right now. Try again in a moment.",
+        "noDb": "We couldn't save your photo — try again in a moment.",
         "noAuth": "Your session expired. Sign in again to continue.",
         "noStorage": "Photo storage isn't available right now. Try again in a moment.",
         "noFile": "Choose a photo first.",
@@ -1580,7 +1588,7 @@
       "bioArError": "Your Arabic bio needs to be between 40 and 1200 characters, or left blank.",
       "languagesError": "Pick at least one language.",
       "errors": {
-        "noDb": "The database isn't reachable right now. Try again in a moment.",
+        "noDb": "We couldn't save right now — try again in a moment.",
         "noAuth": "Your session expired. Sign in again to continue.",
         "validation": "Check the highlighted fields and try again.",
         "server": "We couldn't save your changes. Try again in a moment."
@@ -1647,7 +1655,7 @@
     "actionErrors": {
       "forbidden": "You don't have permission to do that.",
       "suspended": "Your host account is suspended — booking actions are disabled.",
-      "noDb": "The database isn't configured in this environment.",
+      "noDb": "We couldn't update the booking — try again in a moment.",
       "notFound": "We couldn't find that booking.",
       "wrongState": "This booking changed in another tab. Refresh to see its current state.",
       "overCapacity": "Accepting this request would exceed the group size for that date.",
@@ -1706,7 +1714,7 @@
       "success": "IBAN saved.",
       "errors": {
         "forbidden": "You don't have permission to do that.",
-        "noDb": "The database isn't configured in this environment.",
+        "noDb": "We couldn't save right now — try again in a moment.",
         "validation": "That doesn't look like a Saudi IBAN — 24 characters starting with SA.",
         "server": "Something went wrong on our side. Try again."
       }
@@ -1791,7 +1799,7 @@
       "success": "Reply posted. It now shows under the review.",
       "errors": {
         "forbidden": "You don't have permission to do that.",
-        "noDb": "The database isn't configured in this environment.",
+        "noDb": "We couldn't post your reply — try again in a moment.",
         "notFound": "We couldn't find that review.",
         "alreadyReplied": "This review already has a reply.",
         "validation": "Write a reply between 2 and 1000 characters.",
@@ -1845,7 +1853,7 @@
         "invalidType": "That file type isn't supported. Use JPG, PNG, WebP or AVIF.",
         "tooLarge": "That photo is too large even after compression. Try one under 15MB.",
         "noSupabase": "Photo uploads aren't available in this environment.",
-        "noDb": "Photo uploads require a database connection.",
+        "noDb": "We couldn't save your photo — try again in a moment.",
         "forbidden": "You're not authorised to edit this listing.",
         "notFound": "We couldn't find that listing.",
         "uploadFailed": "The upload didn't go through. Try again in a moment.",
@@ -1893,7 +1901,7 @@
         "cannotPublish": "Add at least one inclusion, pick at least one available weekday, and write a description of 60+ characters before submitting.",
         "notFound": "This experience no longer exists.",
         "forbidden": "You're not authorised to do that.",
-        "noDb": "Publishing requires a database connection.",
+        "noDb": "We couldn't update the listing — try again in a moment.",
         "server": "We couldn't complete that action. Try again in a moment.",
         "validation": "Check the form and try again.",
         "wrongState": "This experience can't be submitted from its current state — refresh to see the latest.",
@@ -1962,7 +1970,7 @@
         "server": "We couldn't save your changes. Try again in a moment.",
         "forbidden": "You're not authorised to edit this experience.",
         "notFound": "That experience doesn't exist anymore.",
-        "noDb": "Experience editing requires a database connection.",
+        "noDb": "We couldn't save right now — try again in a moment.",
         "cannotPublish": "Add at least one inclusion, pick at least one available weekday, and write a description of 60+ characters before publishing.",
         "fields": {
           "titleShort": "Title is too short — minimum 8 characters.",
@@ -2085,7 +2093,9 @@
     "empty": {
       "eyebrow": "No matches",
       "title": "Nothing fits those filters yet.",
-      "description": "Try removing a filter, clearing the search, or browsing every experience."
+      "description": "Try removing a filter, clearing the search, or browsing every experience.",
+      "noneTitle": "Nothing is live just yet.",
+      "noneDescription": "We're curating the first Aseer experiences with our hosts. Check back soon."
     },
     "dayLegend": "When",
     "day": {
@@ -2252,7 +2262,7 @@
     "noDates": "No open dates in the next 8 weeks. Check back soon, or message the host.",
     "prevMonth": "Previous month",
     "nextMonth": "Next month",
-    "modeInstant": "Instant Book — your spot is confirmed right away, subject to availability.",
+    "modeInstant": "Instant Book — pay now and your spot is confirmed right away.",
     "modeRequest": "Request to book — the host responds within {hours} hours. You won't be charged until they accept.",
     "runsOn": "Runs on {days}.",
     "vatIncluded": "Includes VAT ({pct}%)",
@@ -2307,14 +2317,14 @@
       "label": "Cancel booking",
       "pending": "Cancelling…",
       "confirm": "Cancel this booking? This can't be undone.",
-      "confirmForfeited": "Cancel this booking? The free-cancellation window has passed, so the payment will NOT be refunded. This can't be undone.",
+      "confirmForfeited": "Cancel this booking? The free-cancellation window has passed, so the payment won't be refunded. This can't be undone.",
       "doneUnpaid": "Your booking is cancelled. Nothing was charged.",
       "doneRefunded": "Your booking is cancelled and the refund has been issued to your card. Depending on your bank, it can take a few business days to appear.",
       "doneRefundPending": "Your booking is cancelled. Your refund is on its way — our team processes it manually and you'll see it on your card within a few business days.",
       "doneForfeited": "Your booking is cancelled. Because the free-cancellation window had already passed, the payment was not refunded.",
       "errors": {
         "forbidden": "You don't have permission to cancel this booking.",
-        "noDb": "The database isn't configured in this environment.",
+        "noDb": "We couldn't cancel right now — try again in a moment.",
         "notFound": "We couldn't find that booking.",
         "wrongState": "This booking changed in the meantime. Refresh to see its current state.",
         "alreadyStarted": "This experience has already started, so it can no longer be cancelled.",
@@ -2344,7 +2354,7 @@
       "success": "Thank you — your report is with our team. We'll be in touch.",
       "openNote": "You've reported a problem with this booking. Our team is on it and will be in touch.",
       "errors": {
-        "noDb": "The database isn't configured in this environment.",
+        "noDb": "We couldn't send your report — try again in a moment.",
         "notFound": "We couldn't find that booking.",
         "alreadyOpen": "There's already an open report on this booking — our team is on it.",
         "validation": "Write at least 10 characters so we can understand the issue.",
@@ -2397,7 +2407,7 @@
     "editBooking": "Change date or guests",
     "submit": "Continue to payment",
     "pending": "Preparing payment",
-    "termsAgreement": "I have read and agree to Gharmish's <terms>Terms & Conditions</terms>, <privacy>Privacy Policy</privacy>, and <cancellation>Cancellation Policy</cancellation>.",
+    "termsAgreement": "I have read and agree to Gharmish's <terms>terms of service</terms>, <privacy>privacy policy</privacy>, and <cancellation>cancellation policy</cancellation>.",
     "termsRequired": "Please accept the Terms & Conditions to continue.",
     "invalid": {
       "givenName": "Enter your first name.",
@@ -2420,6 +2430,10 @@
     "widgetError": "The secure payment form couldn't load. Check your connection and try again.",
     "widgetRetry": "Reload payment form",
     "orPayWithCard": "or pay with card",
+    "methodHeading": "Pay with",
+    "methodApplePay": "Apple Pay",
+    "methodCard": "Card",
+    "changeMethod": "Choose a different payment method",
     "vatIncludedLabel": "Includes VAT ({pct}%)",
     "errorNotApproved": "The host hasn't accepted this request yet. As soon as they do, you can complete your payment right here on this page.",
     "secureNote": "Payments are processed securely by our payment provider with 3-D Secure. Your card details never touch Gharmish servers.",
@@ -2467,7 +2481,7 @@
     "cancelSubject": "Your Gharmish booking is cancelled",
     "cancelIntroRefunded": "Your booking has been cancelled and your refund has been issued to your card. Depending on your bank, it can take a few business days to appear.",
     "cancelIntroRefundPending": "Your booking has been cancelled. Your refund is being processed by our team and will reach your card within a few business days.",
-    "cancelIntroForfeited": "Your booking has been cancelled. As the cancellation was inside the free-cancellation window, the payment was not refunded.",
+    "cancelIntroForfeited": "Your booking has been cancelled. Because the free-cancellation window had already passed, the payment was not refunded.",
     "cancelIntroUnpaid": "Your booking has been cancelled. Nothing was charged.",
     "cancelClosing": "We hope to host you another time.",
     "refundLabel": "Refund amount",
@@ -2695,7 +2709,7 @@
       "submit": "Submit review",
       "submitting": "Submitting",
       "errors": {
-        "noDb": "Reviews need a database connection.",
+        "noDb": "We couldn't submit your review — try again in a moment.",
         "notFound": "We couldn't find that booking.",
         "wrongState": "You can review an experience once your booking is complete.",
         "alreadyReviewed": "You've already reviewed this booking.",
@@ -2722,7 +2736,7 @@
         "removing": "Removing",
         "hint": "PNG, JPG or WebP, up to 2 MB.",
         "errors": {
-          "noDb": "Photos need a database connection.",
+          "noDb": "We couldn't save your photo — try again in a moment.",
           "noAuth": "Sign in to change your photo.",
           "noStorage": "Photo uploads aren't available in this environment.",
           "noFile": "Choose an image file to upload.",
@@ -2745,7 +2759,7 @@
         "nameError": "Enter your name (at least two characters).",
         "emailError": "Enter a valid email address.",
         "errors": {
-          "noDb": "Saving needs a database connection.",
+          "noDb": "We couldn't save right now — try again in a moment.",
           "noAuth": "Sign in to edit your profile.",
           "validation": "Something didn't validate. Check the form and try again.",
           "server": "We couldn't save your changes. Try again in a moment."
@@ -2896,7 +2910,7 @@
         "a": "Instant Book: at checkout, and your spot is confirmed immediately. Request to book: only after the host accepts — you'll get a secure payment link by email and on your booking page. A declined or expired request is never charged."
       },
       "pending": {
-        "q": "What does \"pending host approval\" mean?",
+        "q": "What does \"awaiting host confirmation\" mean?",
         "a": "Your request is with the host. They have {approvalHours} hours to accept or decline — if you shared an email, we'll notify you the moment they respond, and this page always shows the latest status. Until they accept, no money moves."
       },
       "cancel": {
@@ -3041,7 +3055,10 @@
   "common": {
     "close": "Close",
     "cancel": "Cancel",
-    "confirm": "Confirm"
+    "confirm": "Confirm",
+    "toastTone_success": "Success:",
+    "toastTone_error": "Error:",
+    "toastTone_info": "Notice:"
   },
   "reviewEmail": {
     "repliedSubject": "The host replied to your review",

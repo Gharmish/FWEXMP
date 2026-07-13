@@ -6,7 +6,7 @@ import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { Link } from '@/lib/i18n';
 import type { Locale } from '@/lib/i18n';
 import { MountFade } from '@/components/ui/motion';
-import { hasHyperpay } from '@/lib/env';
+import { hasHyperpay, hasHyperpayApplePay } from '@/lib/env';
 import { formatDate, formatInteger, formatTime } from '@/lib/format';
 import { Price } from '@/components/ui/price';
 import { getBookingByReferenceForViewer } from '@/features/bookings/queries';
@@ -15,6 +15,7 @@ import { vatPortionSar, vatRatePercent } from '@/features/bookings/lib/vat';
 import { getPlatformSettings } from '@/lib/platform-settings';
 import { isHoldExpired } from '@/features/bookings/lib/availability';
 import { getExperienceBySlug } from '@/features/experiences/queries';
+import { hyperpayBaseUrl } from '@/features/payments/lib/hyperpay';
 import {
   PaymentDetailsForm,
   type PaymentDetailsCopy,
@@ -147,6 +148,10 @@ export default async function PaymentPage({ params, searchParams }: PageParams) 
     widgetError: t('widgetError'),
     widgetRetry: t('widgetRetry'),
     orPayWithCard: t('orPayWithCard'),
+    methodHeading: t('methodHeading'),
+    methodApplePay: t('methodApplePay'),
+    methodCard: t('methodCard'),
+    changeMethod: t('changeMethod'),
   };
 
   const promoCopy = {
@@ -304,12 +309,19 @@ export default async function PaymentPage({ params, searchParams }: PageParams) 
         </Link>
       )}
 
+      {/* Warm up the COPYandPAY origin while the guest fills the form —
+          the widget script is injected client-side after hydration, so
+          without this the DNS+TLS handshake happens serially at the worst
+          moment. React hoists <link> into <head>. */}
+      {hasHyperpay() && <link rel="preconnect" href={new URL(hyperpayBaseUrl()).origin} />}
+
       <section className="mt-8">
         <PaymentDetailsForm
           reference={reference}
           locale={loc}
           slug={experienceSlug ?? ''}
           copy={copy}
+          applePayEnabled={hasHyperpayApplePay()}
           defaults={defaults}
         />
       </section>

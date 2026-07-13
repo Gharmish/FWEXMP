@@ -72,6 +72,7 @@ vi.mock('@/features/payments/ledger', () => ({
   recordPaymentEvent: async (input: Record<string, unknown>) => {
     ledgerEvents.push(input);
   },
+  resolvePaymentChannel: async () => 'card' as const,
 }));
 
 const executeRefund = vi.fn(async () => 'refunded' as const);

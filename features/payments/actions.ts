@@ -4,7 +4,7 @@ import { and, eq, isNull } from 'drizzle-orm';
 import { headers } from 'next/headers';
 import { z } from 'zod';
 import { db } from '@/lib/db';
-import { serverEnv, hasHyperpay } from '@/lib/env';
+import { serverEnv, hasHyperpay, hasHyperpayApplePay } from '@/lib/env';
 import { bookings, guests } from '@/db/schema';
 import { isHoldExpired } from '@/features/bookings/lib/availability';
 import { bookingViewerCanAccess } from '@/features/bookings/lib/access';
@@ -51,6 +51,11 @@ const createCheckoutSchema = paymentDetailsSchema.extend({
   reference: z.string().regex(UUID_RE),
   locale: z.enum(['en', 'ar']),
   slug: z.string().min(1),
+  // Payment method chosen before the widget mounts. Apple Pay lives on
+  // its own gateway entity, so it needs its own checkout; a tampered or
+  // stale 'applepay' submit degrades to 'card' below when the Apple Pay
+  // entity isn't configured.
+  method: z.enum(['card', 'applepay']).catch('card'),
   // Explicit clickwrap consent. The checkbox posts `on` only when ticked;
   // an absent/other value fails here, so a tampered or scripted submit can
   // never reach a checkout without the guest having accepted the terms.
@@ -64,9 +69,9 @@ export interface CheckoutReady {
   /** Absolute `shopperResultUrl` the widget posts back to. */
   returnUrl: string;
   /**
-   * Brand order for the widget: Apple Pay first (the widget hides it on
-   * devices that can't pay), then cards Mada-first as required by Saudi
-   * Payments.
+   * Brands for the widget. Card checkouts are Mada-first as required by
+   * Saudi Payments; an Apple Pay checkout carries only APPLEPAY (it lives
+   * on a separate gateway entity, so brands can't mix in one checkout).
    */
   brands: string;
 }
@@ -140,6 +145,7 @@ export async function createCheckout(
     postcode: formValue(formData, 'postcode'),
     country: formValue(formData, 'country'),
     terms: formValue(formData, 'terms'),
+    method: formValue(formData, 'method'),
   });
 
   if (!parsed.success) {
@@ -156,6 +162,12 @@ export async function createCheckout(
   }
 
   const input = parsed.data;
+  // Apple Pay requires its dedicated entity; without it, degrade to card
+  // so an out-of-date client can still pay.
+  const channel = input.method === 'applepay' && hasHyperpayApplePay() ? 'applepay' : 'card';
+  // Ledger tag on `checkout_created` — settle and refunds resolve the
+  // entity for this checkout from it (old rows without a tag are card).
+  const channelTag = channel === 'applepay' ? 'APPLEPAY' : null;
 
   try {
     const booking = await db.query.bookings.findFirst({
@@ -255,7 +267,7 @@ export async function createCheckout(
         checkoutId,
         scriptBaseUrl: hyperpayBaseUrl(),
         returnUrl,
-        brands: 'APPLEPAY MADA VISA MASTER',
+        brands: channel === 'applepay' ? 'APPLEPAY' : 'MADA VISA MASTER',
       },
     });
 
@@ -263,11 +275,14 @@ export async function createCheckout(
     // inside the gateway's validity window, hand the SAME id back
     // (second tab, re-submit) instead of overwriting it; if it has aged
     // out, log the supersession so a late capture on the old checkout
-    // can still be traced during reconciliation.
+    // can still be traced during reconciliation. The reuse must match
+    // the requested channel — an Apple Pay request can never reuse a
+    // card-entity checkout (or vice versa); a mismatch supersedes.
     if (booking.paymentStatus === 'processing' && booking.checkoutId) {
       const created = await latestPaymentEvent(booking.id, 'checkout_created');
       const fresh =
         created?.gatewayId === booking.checkoutId &&
+        (created.resultCode ?? null) === channelTag &&
         Date.now() - created.createdAt.getTime() < CHECKOUT_REUSE_MINUTES * 60_000;
       if (fresh) return ready(booking.checkoutId);
       try {
@@ -285,30 +300,35 @@ export async function createCheckout(
       }
     }
 
-    const checkout = await prepareCheckout({
-      merchantTransactionId: input.reference,
-      amountSar: booking.totalAmount,
-      customer: { email: input.email, givenName: input.givenName, surname: input.surname },
-      billing: {
-        street1: input.street1,
-        city: input.city,
-        state: input.state,
-        country: input.country,
-        postcode: input.postcode,
+    const checkout = await prepareCheckout(
+      {
+        merchantTransactionId: input.reference,
+        amountSar: booking.totalAmount,
+        customer: { email: input.email, givenName: input.givenName, surname: input.surname },
+        billing: {
+          street1: input.street1,
+          city: input.city,
+          state: input.state,
+          country: input.country,
+          postcode: input.postcode,
+        },
       },
-    });
+      channel,
+    );
 
     await db
       .update(bookings)
       .set({ checkoutId: checkout.id, paymentStatus: 'processing' })
       .where(eq(bookings.id, booking.id));
-    // The reuse window above keys off this event's timestamp.
+    // The reuse window above keys off this event's timestamp, and the
+    // channel tag tells settle/refund which entity to query.
     try {
       await recordPaymentEvent({
         bookingId: booking.id,
         type: 'checkout_created',
         amountSar: booking.totalAmount,
         gatewayId: checkout.id,
+        resultCode: channelTag,
       });
     } catch (error) {
       reportError(error, { surface: 'payment-create-checkout:ledger', reference: input.reference });

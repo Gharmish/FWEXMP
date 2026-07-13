@@ -138,8 +138,15 @@ export function PaymentWidget({
       {status === 'loading' && (
         <div className="flex flex-col gap-3" role="status" aria-live="polite">
           <p className="text-sarat-black-600 text-sm">{loadingLabel}</p>
-          {/* Field-shaped placeholders so the panel reads as "loading a form"
-              rather than looking broken on a slow connection. */}
+          {/* Placeholders shaped like the form COPYandPAY actually renders
+              (Apple Pay + divider + card fields + pay button). Two bare rows
+              reserved ~100px for a ~350px widget, so everything below the
+              fold jumped when the script landed — size the stand-in like
+              the real thing and the swap is calm. */}
+          <div className="bg-sarat-black/5 rounded-input h-11 w-full animate-pulse motion-reduce:animate-none" />
+          <div className="bg-sarat-black/10 mx-auto h-px w-2/3" aria-hidden />
+          <div className="bg-sarat-black/5 rounded-input h-11 w-full animate-pulse motion-reduce:animate-none" />
+          <div className="bg-sarat-black/5 rounded-input h-11 w-full animate-pulse motion-reduce:animate-none" />
           <div className="bg-sarat-black/5 rounded-input h-11 w-full animate-pulse motion-reduce:animate-none" />
           <div className="bg-sarat-black/5 rounded-input h-11 w-full animate-pulse motion-reduce:animate-none" />
         </div>
