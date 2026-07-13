@@ -291,7 +291,7 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
                           href={`/hosts/${host.slug}`}
                           className="rounded-card border-sarat-black/8 group flex h-full items-start gap-4 [border-width:0.5px] p-6 transition-transform duration-200 hover:-translate-y-0.5 focus-visible:-translate-y-0.5"
                         >
-                          <Avatar name={name} size="lg" />
+                          <Avatar name={name} src={host.photoUrl ?? undefined} size="lg" />
                           <div className="flex flex-1 flex-col gap-2">
                             <span className="text-lg font-medium">{name}</span>
                             <p className="text-sarat-black-600 line-clamp-3 text-sm">{bio}</p>
