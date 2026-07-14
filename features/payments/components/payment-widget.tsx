@@ -81,8 +81,14 @@ export function PaymentWidget({
         // `submitOnPaymentAuthorized` makes the widget actually append
         // the sheet's contact to the payment submission (the widget
         // discards it otherwise). Everything auto-fills from the wallet.
+        // ONLY 'customer' (the name) is submitted: our checkout already
+        // carries the full billing address (3DS requirement), and
+        // appending 'billing' again at payment time duplicates the
+        // parameters — the gateway then rejects with 200.300.404
+        // ("billing.country must be a valid 2-character code" on a
+        // perfectly valid SA — the doubled value is what's invalid).
         requiredBillingContactFields: ['postalAddress'],
-        submitOnPaymentAuthorized: ['customer', 'billing'],
+        submitOnPaymentAuthorized: ['customer'],
         style: 'black',
       },
       onReady: () => {
