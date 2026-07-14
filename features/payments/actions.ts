@@ -269,6 +269,10 @@ export async function createCheckout(
         returnUrl,
         brands: channel === 'applepay' ? 'APPLEPAY' : 'MADA VISA MASTER',
       },
+      // The widget step shows a recap of who's paying (and "Edit" reopens
+      // the form) — echo what was actually submitted so neither surface
+      // falls back to the booking-derived defaults.
+      values: echoValues(formData),
     });
 
     // A `processing` booking already holds a checkout. If it's still

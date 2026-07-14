@@ -31,6 +31,8 @@ export type PromoErrorCode =
   | 'below_min'
   | 'exhausted'
   | 'already_paid'
+  /** A fresh checkout is in flight — the total must not shift under it. */
+  | 'checkout_in_progress'
   | 'unavailable'
   | 'not_found'
   | 'validation'
@@ -41,10 +43,21 @@ export type PromoActionState =
   | { status: 'idle' }
   | { status: 'applied'; code: string; discountSar: number; totalSar: number }
   | { status: 'removed' }
-  | { status: 'error'; error: PromoErrorCode; minTotalSar?: number };
+  | {
+      status: 'error';
+      error: PromoErrorCode;
+      minTotalSar?: number;
+      /** The attempted code, echoed so a failed apply doesn't wipe the field. */
+      code?: string;
+    };
 
-function err(error: PromoErrorCode, minTotalSar?: number): PromoActionState {
-  return { status: 'error', error, ...(minTotalSar != null ? { minTotalSar } : {}) };
+function err(error: PromoErrorCode, minTotalSar?: number, code?: string): PromoActionState {
+  return {
+    status: 'error',
+    error,
+    ...(minTotalSar != null ? { minTotalSar } : {}),
+    ...(code ? { code } : {}),
+  };
 }
 
 /** True while a prepared checkout is still fresh — its amount must not shift under it. */
@@ -66,7 +79,13 @@ export async function applyPromo(
   _previous: PromoActionState,
   formData: FormData,
 ): Promise<PromoActionState> {
-  if (!serverEnv.DATABASE_URL) return err('no_db');
+  // Echo the attempted code on every failure — the uncontrolled input
+  // resets after the action, and retyping a code because of a typo in
+  // one character is checkout friction we don't need.
+  const raw = formData.get('code');
+  const attempted = typeof raw === 'string' ? raw : '';
+  const fail = (error: PromoErrorCode, minTotalSar?: number) => err(error, minTotalSar, attempted);
+  if (!serverEnv.DATABASE_URL) return fail('no_db');
 
   const parsed = applyPromoSchema.safeParse({
     reference: formData.get('reference'),
@@ -74,7 +93,7 @@ export async function applyPromo(
     slug: formData.get('slug') || undefined,
     locale: formData.get('locale'),
   });
-  if (!parsed.success) return err('validation');
+  if (!parsed.success) return fail('validation');
   const input = parsed.data;
 
   try {
@@ -91,21 +110,22 @@ export async function applyPromo(
         checkoutId: true,
       },
     });
-    if (!existing) return err('not_found');
-    if (!(await bookingViewerCanAccess(input.reference, existing.guestId))) return err('not_found');
-    if (existing.paymentStatus === 'paid') return err('already_paid');
-    if (existing.status !== 'confirmed') return err('unavailable');
+    if (!existing) return fail('not_found');
+    if (!(await bookingViewerCanAccess(input.reference, existing.guestId)))
+      return fail('not_found');
+    if (existing.paymentStatus === 'paid') return fail('already_paid');
+    if (existing.status !== 'confirmed') return fail('unavailable');
     if (
       (existing.paymentStatus === 'unpaid' || existing.paymentStatus === 'failed') &&
       isHoldExpired(existing.paymentDeadline, new Date())
     ) {
-      return err('unavailable');
+      return fail('unavailable');
     }
     if (
       existing.paymentStatus === 'processing' &&
       (await hasFreshCheckout(existing.id, existing.checkoutId))
     ) {
-      return err('unavailable');
+      return fail('checkout_in_progress');
     }
 
     const outcome = await db.transaction(async (tx) => {
@@ -122,9 +142,9 @@ export async function applyPromo(
         .from(bookings)
         .where(eq(bookings.idempotencyKey, input.reference))
         .for('update');
-      if (!booking) return err('not_found');
-      if (booking.paymentStatus === 'paid') return err('already_paid');
-      if (booking.status !== 'confirmed') return err('unavailable');
+      if (!booking) return fail('not_found');
+      if (booking.paymentStatus === 'paid') return fail('already_paid');
+      if (booking.status !== 'confirmed') return fail('unavailable');
 
       // Lock the promo row: the cap re-count below must serialize against
       // other checkouts redeeming the same code.
@@ -140,14 +160,14 @@ export async function applyPromo(
         (promo.startsAt && promo.startsAt.getTime() > now.getTime()) ||
         (promo.endsAt && promo.endsAt.getTime() <= now.getTime())
       ) {
-        return err('invalid');
+        return fail('invalid');
       }
 
       // Discount is computed on the PRE-discount base so re-applying or
       // swapping a code is idempotent.
       const baseSar = booking.totalAmount + booking.discountSar;
       if (promo.minTotalSar != null && baseSar < promo.minTotalSar) {
-        return err('below_min', promo.minTotalSar);
+        return fail('below_min', promo.minTotalSar);
       }
 
       if (promo.maxRedemptions != null) {
@@ -161,14 +181,14 @@ export async function applyPromo(
               ne(bookings.id, booking.id),
             ),
           );
-        if (used >= promo.maxRedemptions) return err('exhausted');
+        if (used >= promo.maxRedemptions) return fail('exhausted');
       }
 
       const discountSar = computeDiscountSar(baseSar, {
         discountType: promo.discountType,
         discountValue: promo.discountValue,
       });
-      if (discountSar <= 0) return err('invalid');
+      if (discountSar <= 0) return fail('invalid');
       const totalSar = baseSar - discountSar;
 
       await tx
@@ -183,7 +203,7 @@ export async function applyPromo(
     return outcome;
   } catch (error) {
     reportError(error, { surface: 'promo:apply', reference: input.reference });
-    return err('server');
+    return fail('server');
   }
 }
 
@@ -204,11 +224,20 @@ export async function removePromo(
   try {
     const existing = await db.query.bookings.findFirst({
       where: eq(bookings.idempotencyKey, input.reference),
-      columns: { id: true, guestId: true, paymentStatus: true },
+      columns: { id: true, guestId: true, paymentStatus: true, checkoutId: true },
     });
     if (!existing) return err('not_found');
     if (!(await bookingViewerCanAccess(input.reference, existing.guestId))) return err('not_found');
     if (existing.paymentStatus === 'paid') return err('already_paid');
+    // Same freshness guard as applyPromo, for the same reason in reverse:
+    // removing a code RAISES the total, and a checkout prepared for the
+    // discounted amount would settle short against it.
+    if (
+      existing.paymentStatus === 'processing' &&
+      (await hasFreshCheckout(existing.id, existing.checkoutId))
+    ) {
+      return err('checkout_in_progress');
+    }
 
     const outcome = await db.transaction(async (tx) => {
       const [booking] = await tx

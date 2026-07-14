@@ -13,6 +13,7 @@ import { useFormStatus } from 'react-dom';
 import { createCheckout, type CreateCheckoutState } from '@/features/payments/actions';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Price } from '@/components/ui/price';
 import type { Locale } from '@/lib/i18n';
 import { COUNTRIES, countryName } from '@/lib/phone';
 import { cn } from '@/lib/utils';
@@ -86,19 +87,26 @@ export interface PaymentDetailsCopy {
   termsLabel: ReactNode;
   /** Shown when the guest tries to pay without ticking the consent box. */
   termsRequired: string;
+  /**
+   * Concrete cancellation terms for THIS booking, formatted server-side —
+   * "Free cancellation until {deadline}…" or the inside-the-window
+   * warning. Sits next to the consent line so the linked policy has a
+   * plain-language anchor.
+   */
+  cancellationNote: string;
   payHeading: string;
+  /** Widget pay-button label with the charged amount, e.g. "Pay SAR 480". */
+  payAmount: string;
   widgetLoading: string;
   /** Shown if the HyperPay widget script fails to load. */
   widgetError: string;
   /** Retry action for the failed widget. */
   widgetRetry: string;
-  /** Divider between the Apple Pay button and the card form. */
-  orPayWithCard: string;
   /** Payment-method choice (shown only on Apple Pay-capable devices). */
   methodHeading: string;
   methodApplePay: string;
   methodCard: string;
-  /** Back-link under the mounted widget to pick the other method. */
+  /** Back-link under the mounted widget to the details step. */
   changeMethod: string;
 }
 
@@ -137,10 +145,15 @@ const initialState: CreateCheckoutState = { status: 'idle' };
 
 function SubmitButton({
   copy,
+  totalSar,
+  locale,
   isAccepted,
   onBlocked,
 }: {
   copy: PaymentDetailsCopy;
+  /** Charged total — the CTA carries the amount (the summary card is screens away). */
+  totalSar: number;
+  locale: Locale;
   /** Reads the (uncontrolled) consent checkbox at click time. */
   isAccepted: () => boolean;
   /** Called when submit is attempted without consent — cancels the submit. */
@@ -164,7 +177,17 @@ function SubmitButton({
         }
       }}
     >
-      {pending ? copy.pending : copy.submit}
+      {pending ? (
+        copy.pending
+      ) : (
+        <>
+          {copy.submit}
+          <span aria-hidden className="opacity-50">
+            ·
+          </span>
+          <Price amount={totalSar} locale={locale} />
+        </>
+      )}
     </Button>
   );
 }
@@ -173,6 +196,8 @@ export interface PaymentDetailsFormProps {
   reference: string;
   locale: Locale;
   slug: string;
+  /** Charged total in SAR — shown on the submit CTA. */
+  totalSar: number;
   copy: PaymentDetailsCopy;
   /**
    * Server flag: the dedicated Apple Pay gateway entity is configured.
@@ -192,6 +217,7 @@ export function PaymentDetailsForm({
   reference,
   locale,
   slug,
+  totalSar,
   copy,
   applePayEnabled = false,
   defaults,
@@ -232,25 +258,73 @@ export function PaymentDetailsForm({
     [locale],
   );
 
-  if (state.status === 'ready' && state.data) {
+  // Echoed submit values always win over the booking-derived prefill.
+  const fieldValue = (name: DetailField) => values[name] ?? defaults?.[name];
+
+  // Backing out of a mounted widget (checkout-audit P1: the widget step
+  // must not vaporize what the guest agreed to). "Edit" marks the current
+  // checkout dismissed and the details form re-renders — prefilled from
+  // the success echo — without a page reload. Re-submitting clears the
+  // dismissal BEFORE the action runs: a still-valid checkout is reused
+  // server-side (same id comes back), so the dismissal can't key off the
+  // id changing.
+  const [dismissedCheckoutId, setDismissedCheckoutId] = useState<string | null>(null);
+  const submitAction = (formData: FormData) => {
+    setDismissedCheckoutId(null);
+    formAction(formData);
+  };
+  const activeCheckout =
+    state.status === 'ready' && state.data && state.data.checkoutId !== dismissedCheckoutId
+      ? state.data
+      : null;
+
+  if (activeCheckout) {
     return (
       <div className="flex flex-col gap-4">
         <h2 className="font-display text-2xl font-medium tracking-[-0.025em]">{copy.payHeading}</h2>
+        {/* Who's paying, still on screen at the moment of payment — the
+            same recap card pattern as the details step. */}
+        <div className="border-sarat-black/8 rounded-input flex items-start justify-between gap-4 [border-width:0.5px] px-4 py-3">
+          <div className="flex min-w-0 flex-col gap-0.5 text-sm">
+            <span className="font-medium">
+              {fieldValue('givenName')} {fieldValue('surname')}
+            </span>
+            <span dir="ltr" className="text-sarat-black-600 truncate">
+              {fieldValue('email')}
+            </span>
+            <span className="text-sarat-black-600 truncate">
+              {[
+                fieldValue('street1'),
+                fieldValue('city'),
+                countryName(fieldValue('country') ?? 'SA', locale),
+              ]
+                .filter(Boolean)
+                .join(locale === 'ar' ? '، ' : ', ')}
+            </span>
+          </div>
+          <button
+            type="button"
+            onClick={() => setDismissedCheckoutId(activeCheckout.checkoutId)}
+            className="shrink-0 text-sm font-medium underline underline-offset-4 transition-opacity duration-200 hover:opacity-70"
+          >
+            {copy.editDetails}
+          </button>
+        </div>
         <PaymentWidget
-          checkout={state.data}
+          checkout={activeCheckout}
+          locale={locale}
+          payLabel={copy.payAmount}
           loadingLabel={copy.widgetLoading}
           errorLabel={copy.widgetError}
           retryLabel={copy.widgetRetry}
-          orCardLabel={copy.orPayWithCard}
         />
         {applePayAvailable && (
           // Back out of the chosen method (e.g. Apple Pay sheet won't
-          // open). A full reload restarts at the details step; the next
-          // submit supersedes this checkout server-side, so nothing
-          // half-paid is left behind.
+          // open) — same dismissal path as Edit, straight to the method
+          // control on the details step.
           <button
             type="button"
-            onClick={() => window.location.reload()}
+            onClick={() => setDismissedCheckoutId(activeCheckout.checkoutId)}
             className="self-start text-sm font-medium underline underline-offset-4 transition-opacity duration-200 hover:opacity-70"
           >
             {copy.changeMethod}
@@ -272,9 +346,6 @@ export function PaymentDetailsForm({
           notApproved: copy.errorNotApproved,
         }[state.error ?? 'server']
       : undefined;
-
-  // Echoed submit values always win over the booking-derived prefill.
-  const fieldValue = (name: DetailField) => values[name] ?? defaults?.[name];
 
   // The identity block collapses to a summary row only when the booking
   // supplied all three values and none of them failed validation — a
@@ -320,7 +391,7 @@ export function PaymentDetailsForm({
   };
 
   return (
-    <form action={formAction} noValidate className="flex flex-col gap-6">
+    <form action={submitAction} noValidate className="flex flex-col gap-6">
       <input type="hidden" name="reference" value={reference} />
       <input type="hidden" name="locale" value={locale} />
       <input type="hidden" name="slug" value={slug} />
@@ -470,6 +541,9 @@ export function PaymentDetailsForm({
       )}
 
       <div className="flex flex-col gap-2">
+        {/* The concrete terms for THIS booking, right where the guest
+            consents to the linked cancellation policy. */}
+        <p className="text-sarat-black-600 text-sm leading-relaxed">{copy.cancellationNote}</p>
         <label className="flex cursor-pointer items-start gap-3">
           <input
             ref={termsRef}
@@ -481,7 +555,10 @@ export function PaymentDetailsForm({
             }}
             aria-invalid={termsError ? true : undefined}
             aria-describedby={termsError ? termsErrorId : undefined}
-            className="border-sarat-black/40 accent-sarat-black mt-0.5 size-5 shrink-0"
+            // Native checkboxes ignore border utilities — the error state
+            // is a ring, so the fix-it target is visible, not just the
+            // message below (WCAG 3.3.1: identify the errored control).
+            className="border-sarat-black/40 accent-sarat-black aria-invalid:ring-al-qatt-red mt-0.5 size-5 shrink-0 aria-invalid:ring-2 aria-invalid:ring-offset-1"
           />
           <span className="text-sm leading-relaxed">{copy.termsLabel}</span>
         </label>
@@ -494,6 +571,8 @@ export function PaymentDetailsForm({
 
       <SubmitButton
         copy={copy}
+        totalSar={totalSar}
+        locale={locale}
         isAccepted={() => termsRef.current?.checked ?? false}
         onBlocked={() => {
           setConsentBlocked(true);

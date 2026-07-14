@@ -153,13 +153,17 @@ export function PromoCodeField({
           dir="ltr"
           autoCapitalize="characters"
           placeholder={copy.placeholder}
+          // A failed apply echoes the attempted code back so one bad
+          // character doesn't mean retyping the whole thing.
+          defaultValue={applyState.status === 'error' ? (applyState.code ?? '') : ''}
           className="w-full max-w-56 flex-1 uppercase"
           aria-invalid={applyState.status === 'error' ? true : undefined}
+          aria-describedby={applyState.status === 'error' ? `${uid}-code-error` : undefined}
         />
         <ApplyButton label={copy.apply} pending={copy.applying} />
       </div>
       {applyError && (
-        <p role="alert" className="text-al-qatt-red-800 text-sm">
+        <p id={`${uid}-code-error`} role="alert" className="text-al-qatt-red-800 text-sm">
           {applyError}
         </p>
       )}

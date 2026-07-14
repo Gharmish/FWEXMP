@@ -9,6 +9,10 @@ interface PaymentDeadlineNoteProps {
   note: string;
   /** Template with a `{minutes}` placeholder, resolved client-side. */
   minutesLeftTemplate: string;
+  /** Template with `{hours}` + `{minutes}` — used above 90 minutes, where "229 min" reads like machine output. */
+  hoursLeftTemplate: string;
+  /** Template with `{hours}` only — used on the exact hour ("2 hr 0 min" is noise). */
+  hoursOnlyLeftTemplate: string;
 }
 
 /**
@@ -21,6 +25,8 @@ export function PaymentDeadlineNote({
   deadlineIso,
   note,
   minutesLeftTemplate,
+  hoursLeftTemplate,
+  hoursOnlyLeftTemplate,
 }: PaymentDeadlineNoteProps) {
   const [minutes, setMinutes] = useState<number | null>(null);
 
@@ -34,12 +40,21 @@ export function PaymentDeadlineNote({
     return () => clearInterval(id);
   }, [deadlineIso]);
 
+  const remaining =
+    minutes !== null && minutes > 0
+      ? minutes > 90
+        ? minutes % 60 === 0
+          ? hoursOnlyLeftTemplate.replace('{hours}', String(minutes / 60))
+          : hoursLeftTemplate
+              .replace('{hours}', String(Math.floor(minutes / 60)))
+              .replace('{minutes}', String(minutes % 60))
+        : minutesLeftTemplate.replace('{minutes}', String(minutes))
+      : null;
+
   return (
     <p className="text-pending text-sm font-medium" role="status">
       {note}
-      {minutes !== null && minutes > 0
-        ? ` · ${minutesLeftTemplate.replace('{minutes}', String(minutes))}`
-        : ''}
+      {remaining ? ` · ${remaining}` : ''}
     </p>
   );
 }
