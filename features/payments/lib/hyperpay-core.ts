@@ -100,10 +100,6 @@ export function buildCheckoutBody(
     'customer.email': input.customer.email,
     'customer.givenName': input.customer.givenName,
     'customer.surname': input.customer.surname,
-    'billing.street1': input.billing.street1,
-    'billing.city': input.billing.city,
-    'billing.country': input.billing.country,
-    'billing.postcode': input.billing.postcode,
   });
 
   // Apple Pay tokens carry no cardholder name, and the gateway declines
@@ -115,10 +111,18 @@ export function buildCheckoutBody(
     body.set('card.holder', input.cardHolder);
   }
 
-  // billing.state is optional per the OPPWA 3DS2 guide; KSA addresses have
-  // none, so it only travels when the guest actually provided one.
-  if (input.billing.state) {
-    body.set('billing.state', input.billing.state);
+  // Billing is mandatory for card checkouts (3DS2 — enforced upstream by
+  // the schema) and absent for Apple Pay, where the wallet carries the
+  // address. Every field is set only when present; `state` is optional
+  // even for cards per the OPPWA 3DS2 guide (KSA addresses have none).
+  for (const [param, value] of [
+    ['billing.street1', input.billing.street1],
+    ['billing.city', input.billing.city],
+    ['billing.state', input.billing.state],
+    ['billing.postcode', input.billing.postcode],
+    ['billing.country', input.billing.country],
+  ] as const) {
+    if (value) body.set(param, value);
   }
 
   if (cfg.mode === 'test' && cfg.testConnector === 'external') {

@@ -27,6 +27,23 @@ declare global {
 }
 
 /**
+ * Apple Pay lockup for the method choice — the official Apple glyph +
+ * "Pay" wordmark (same drawing as the footer's payment marks), inheriting
+ * the button's current text colour so it reads correctly on both the
+ * selected (black) and unselected (white) states of the control.
+ */
+function ApplePayLockup() {
+  return (
+    <span aria-hidden className="inline-flex items-center gap-0.5 leading-none">
+      <svg viewBox="0 0 24 24" fill="currentColor" focusable={false} className="h-4 w-auto">
+        <path d="M17.05 12.04c-.03-2.4 1.96-3.55 2.05-3.61-1.12-1.63-2.86-1.86-3.48-1.88-1.48-.15-2.89.87-3.64.87-.75 0-1.91-.85-3.14-.83-1.62.02-3.11.94-3.94 2.39-1.68 2.91-.43 7.22 1.2 9.58.8 1.16 1.75 2.46 3 2.41 1.2-.05 1.66-.78 3.11-.78 1.45 0 1.86.78 3.13.75 1.29-.02 2.11-1.18 2.9-2.34.91-1.34 1.29-2.64 1.31-2.71-.03-.01-2.51-.96-2.54-3.83zM14.7 5.36c.66-.8 1.11-1.92.99-3.03-.95.04-2.11.63-2.79 1.43-.61.71-1.15 1.85-1 2.94 1.06.08 2.14-.54 2.8-1.34z" />
+      </svg>
+      <span className="text-base font-medium">Pay</span>
+    </span>
+  );
+}
+
+/**
  * Apple Pay device capability, hydration-safe: the server snapshot is
  * `false` (SSR can't know), the client snapshot reads ApplePaySession
  * once the store is subscribed — React re-renders with the real value
@@ -430,75 +447,6 @@ export function PaymentDetailsForm({
         )}
       </section>
 
-      <section className="flex flex-col gap-3" aria-label={copy.billingAddressHeading}>
-        <div className="flex flex-col gap-1">
-          <h3 className="text-base font-medium">{copy.billingAddressHeading}</h3>
-          <p className="text-sarat-black-600 text-sm">{copy.billingWhy}</p>
-        </div>
-        {addressCollapsed ? (
-          <div className="border-sarat-black/8 rounded-input flex items-center justify-between gap-4 [border-width:0.5px] px-4 py-3">
-            <div className="flex min-w-0 flex-col gap-0.5 text-sm">
-              <span className="font-medium">{fieldValue('street1')}</span>
-              <span className="text-sarat-black-600 truncate">
-                {[fieldValue('city'), fieldValue('postcode'), fieldValue('state')]
-                  .filter(Boolean)
-                  .join(', ')}
-              </span>
-              <span className="text-sarat-black-600 truncate">
-                {countryName(fieldValue('country') ?? 'SA', locale)}
-              </span>
-            </div>
-            <button
-              type="button"
-              onClick={() => setEditingAddress(true)}
-              className="shrink-0 text-sm font-medium underline underline-offset-4 transition-opacity duration-200 hover:opacity-70"
-            >
-              {copy.editDetails}
-            </button>
-            {ADDRESS_FIELDS.map((f) => (
-              <input key={f.name} type="hidden" name={f.name} value={fieldValue(f.name) ?? ''} />
-            ))}
-            <input type="hidden" name="country" value={fieldValue('country') ?? 'SA'} />
-          </div>
-        ) : (
-          <div className="grid gap-4 sm:grid-cols-2">
-            {renderTextField(ADDRESS_FIELDS[0], { span2: true })}
-            {renderTextField(ADDRESS_FIELDS[1])}
-            {renderTextField(ADDRESS_FIELDS[2])}
-            {renderTextField(ADDRESS_FIELDS[3], { optional: true })}
-
-            <div className="flex flex-col gap-2">
-              <label htmlFor="pay-country" className="text-sm font-medium">
-                {copy.country}
-              </label>
-              <select
-                id="pay-country"
-                name="country"
-                autoComplete="country"
-                required
-                defaultValue={values.country ?? defaults?.country ?? 'SA'}
-                aria-invalid={state.fields?.country ? true : undefined}
-                className={cn(
-                  'rounded-input border-sarat-black/20 text-sarat-black h-11 w-full [border-width:0.5px] bg-white px-4 text-base',
-                  'aria-invalid:border-al-qatt-red',
-                )}
-              >
-                {countryOptions.map((c) => (
-                  // The localized name can differ between server and browser ICU
-                  // builds; the value (alpha-2) is stable, so suppress the warning.
-                  <option key={c.iso} value={c.iso} suppressHydrationWarning>
-                    {c.name}
-                  </option>
-                ))}
-              </select>
-              {state.fields?.country && (
-                <p className="text-al-qatt-red-800 text-sm">{copy.invalid.country}</p>
-              )}
-            </div>
-          </div>
-        )}
-      </section>
-
       {applePayAvailable && (
         <section className="flex flex-col gap-3" aria-label={copy.methodHeading}>
           <h3 className="text-base font-medium">{copy.methodHeading}</h3>
@@ -507,29 +455,111 @@ export function PaymentDetailsForm({
             aria-label={copy.methodHeading}
             className="border-sarat-black/8 rounded-input grid grid-cols-2 gap-1 [border-width:0.5px] p-1"
           >
-            {(
-              [
-                { value: 'applepay', label: copy.methodApplePay },
-                { value: 'card', label: copy.methodCard },
-              ] as const
-            ).map((option) => (
-              <button
-                key={option.value}
-                type="button"
-                role="radio"
-                aria-checked={method === option.value}
-                onClick={() => setChosenMethod(option.value)}
-                className={cn(
-                  'rounded-input h-10 text-sm font-medium transition-colors duration-200',
-                  method === option.value
-                    ? 'bg-sarat-black text-white'
-                    : 'text-sarat-black-600 hover:text-sarat-black',
-                )}
-              >
-                {option.label}
-              </button>
-            ))}
+            <button
+              type="button"
+              role="radio"
+              aria-checked={method === 'applepay'}
+              aria-label={copy.methodApplePay}
+              onClick={() => setChosenMethod('applepay')}
+              className={cn(
+                'rounded-input flex h-10 items-center justify-center transition-colors duration-200',
+                method === 'applepay'
+                  ? 'bg-sarat-black text-white'
+                  : 'text-sarat-black-600 hover:text-sarat-black',
+              )}
+            >
+              <ApplePayLockup />
+            </button>
+            <button
+              type="button"
+              role="radio"
+              aria-checked={method === 'card'}
+              onClick={() => setChosenMethod('card')}
+              className={cn(
+                'rounded-input h-10 text-sm font-medium transition-colors duration-200',
+                method === 'card'
+                  ? 'bg-sarat-black text-white'
+                  : 'text-sarat-black-600 hover:text-sarat-black',
+              )}
+            >
+              {copy.methodCard}
+            </button>
           </div>
+        </section>
+      )}
+
+      {/* Apple Pay needs no billing address — the wallet carries it and the
+          gateway accepts an address-less checkout on the Apple Pay entity.
+          The section (and its inputs) unmounts entirely so nothing stale
+          posts; the server schema only mandates the address for cards. */}
+      {method !== 'applepay' && (
+        <section className="flex flex-col gap-3" aria-label={copy.billingAddressHeading}>
+          <div className="flex flex-col gap-1">
+            <h3 className="text-base font-medium">{copy.billingAddressHeading}</h3>
+            <p className="text-sarat-black-600 text-sm">{copy.billingWhy}</p>
+          </div>
+          {addressCollapsed ? (
+            <div className="border-sarat-black/8 rounded-input flex items-center justify-between gap-4 [border-width:0.5px] px-4 py-3">
+              <div className="flex min-w-0 flex-col gap-0.5 text-sm">
+                <span className="font-medium">{fieldValue('street1')}</span>
+                <span className="text-sarat-black-600 truncate">
+                  {[fieldValue('city'), fieldValue('postcode'), fieldValue('state')]
+                    .filter(Boolean)
+                    .join(', ')}
+                </span>
+                <span className="text-sarat-black-600 truncate">
+                  {countryName(fieldValue('country') ?? 'SA', locale)}
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setEditingAddress(true)}
+                className="shrink-0 text-sm font-medium underline underline-offset-4 transition-opacity duration-200 hover:opacity-70"
+              >
+                {copy.editDetails}
+              </button>
+              {ADDRESS_FIELDS.map((f) => (
+                <input key={f.name} type="hidden" name={f.name} value={fieldValue(f.name) ?? ''} />
+              ))}
+              <input type="hidden" name="country" value={fieldValue('country') ?? 'SA'} />
+            </div>
+          ) : (
+            <div className="grid gap-4 sm:grid-cols-2">
+              {renderTextField(ADDRESS_FIELDS[0], { span2: true })}
+              {renderTextField(ADDRESS_FIELDS[1])}
+              {renderTextField(ADDRESS_FIELDS[2])}
+              {renderTextField(ADDRESS_FIELDS[3], { optional: true })}
+
+              <div className="flex flex-col gap-2">
+                <label htmlFor="pay-country" className="text-sm font-medium">
+                  {copy.country}
+                </label>
+                <select
+                  id="pay-country"
+                  name="country"
+                  autoComplete="country"
+                  required
+                  defaultValue={values.country ?? defaults?.country ?? 'SA'}
+                  aria-invalid={state.fields?.country ? true : undefined}
+                  className={cn(
+                    'rounded-input border-sarat-black/20 text-sarat-black h-11 w-full [border-width:0.5px] bg-white px-4 text-base',
+                    'aria-invalid:border-al-qatt-red',
+                  )}
+                >
+                  {countryOptions.map((c) => (
+                    // The localized name can differ between server and browser ICU
+                    // builds; the value (alpha-2) is stable, so suppress the warning.
+                    <option key={c.iso} value={c.iso} suppressHydrationWarning>
+                      {c.name}
+                    </option>
+                  ))}
+                </select>
+                {state.fields?.country && (
+                  <p className="text-al-qatt-red-800 text-sm">{copy.invalid.country}</p>
+                )}
+              </div>
+            </div>
+          )}
         </section>
       )}
       <input type="hidden" name="method" value={applePayAvailable ? method : 'card'} />

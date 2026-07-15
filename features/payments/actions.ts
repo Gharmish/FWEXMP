@@ -47,20 +47,43 @@ type DetailField = (typeof DETAIL_FIELDS)[number];
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-const createCheckoutSchema = paymentDetailsSchema.extend({
-  reference: z.string().regex(UUID_RE),
-  locale: z.enum(['en', 'ar']),
-  slug: z.string().min(1),
-  // Payment method chosen before the widget mounts. Apple Pay lives on
-  // its own gateway entity, so it needs its own checkout; a tampered or
-  // stale 'applepay' submit degrades to 'card' below when the Apple Pay
-  // entity isn't configured.
-  method: z.enum(['card', 'applepay']).catch('card'),
-  // Explicit clickwrap consent. The checkbox posts `on` only when ticked;
-  // an absent/other value fails here, so a tampered or scripted submit can
-  // never reach a checkout without the guest having accepted the terms.
-  terms: z.literal('on'),
-});
+const createCheckoutSchema = paymentDetailsSchema
+  .extend({
+    reference: z.string().regex(UUID_RE),
+    locale: z.enum(['en', 'ar']),
+    slug: z.string().min(1),
+    // Payment method chosen before the widget mounts. Apple Pay lives on
+    // its own gateway entity, so it needs its own checkout; a tampered or
+    // stale 'applepay' submit degrades to 'card' below when the Apple Pay
+    // entity isn't configured.
+    method: z.enum(['card', 'applepay']).catch('card'),
+    // Explicit clickwrap consent. The checkbox posts `on` only when ticked;
+    // an absent/other value fails here, so a tampered or scripted submit can
+    // never reach a checkout without the guest having accepted the terms.
+    terms: z.literal('on'),
+    // Billing address is mandatory for CARD checkouts (3DS2/AVS per the
+    // HyperPay onboarding email) but not for Apple Pay — the wallet
+    // carries the address and the gateway accepts an address-less
+    // checkout on the Apple Pay entity. The base schema's per-field
+    // minimums are relaxed here and re-imposed for cards below.
+    street1: z.string().trim().max(50),
+    city: z.string().trim().max(45),
+    postcode: z.string().trim().max(30),
+    country: z
+      .string()
+      .trim()
+      .toUpperCase()
+      .regex(/^([A-Z]{2})?$/),
+  })
+  .superRefine((data, ctx) => {
+    if (data.method === 'applepay') return;
+    if (!data.street1) ctx.addIssue({ code: 'custom', path: ['street1'], message: 'required' });
+    if (data.city.length < 2) ctx.addIssue({ code: 'custom', path: ['city'], message: 'required' });
+    if (!data.postcode) ctx.addIssue({ code: 'custom', path: ['postcode'], message: 'required' });
+    if (!/^[A-Z]{2}$/.test(data.country)) {
+      ctx.addIssue({ code: 'custom', path: ['country'], message: 'required' });
+    }
+  });
 
 export interface CheckoutReady {
   checkoutId: string;
@@ -230,16 +253,20 @@ export async function createCheckout(
     // the next checkout's payment step prefills these. Always overwrites with
     // the latest submitted address (unlike email): the guest just typed it, so
     // it's the freshest one on file. `state` may be empty (optional for KSA).
-    await db
-      .update(guests)
-      .set({
-        billingStreet1: input.street1,
-        billingCity: input.city,
-        billingState: input.state || null,
-        billingPostcode: input.postcode,
-        billingCountry: input.country,
-      })
-      .where(eq(guests.id, booking.guestId));
+    // Apple Pay submits carry no address (the wallet holds it) — skip the
+    // write so an Apple Pay checkout can't blank a saved card address.
+    if (channel !== 'applepay') {
+      await db
+        .update(guests)
+        .set({
+          billingStreet1: input.street1,
+          billingCity: input.city,
+          billingState: input.state || null,
+          billingPostcode: input.postcode,
+          billingCountry: input.country,
+        })
+        .where(eq(guests.id, booking.guestId));
+    }
 
     // Record the guest's clickwrap consent as append-only proof — who
     // (bookingId → guest), when (createdAt), and which document version

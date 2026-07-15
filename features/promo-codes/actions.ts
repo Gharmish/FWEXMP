@@ -8,7 +8,7 @@ import { bookings, promoCodes } from '@/db/schema';
 import { reportError } from '@/lib/log';
 import { isHoldExpired } from '@/features/bookings/lib/availability';
 import { bookingViewerCanAccess } from '@/features/bookings/lib/access';
-import { latestPaymentEvent } from '@/features/payments/ledger';
+import { recordPaymentEvent } from '@/features/payments/ledger';
 import { computeDiscountSar } from '@/features/promo-codes/lib/discount';
 import { PROMO_REDEEMED_STATUSES } from '@/features/promo-codes/queries';
 import { applyPromoSchema, removePromoSchema } from '@/features/promo-codes/schemas';
@@ -17,14 +17,19 @@ import { applyPromoSchema, removePromoSchema } from '@/features/promo-codes/sche
  * Guest-facing promo apply / remove, driven from the payment step. Both
  * mutate the booking's charged `total_amount` and its promo snapshot, so
  * every guard the checkout enforces applies here too (viewer access, not
- * already paid, live hold, no fresh checkout in flight). The cap check
- * runs under a `FOR UPDATE` lock on the promo row so a redemption limit
- * can't be oversubscribed by concurrent checkouts — the same lock-anchor
- * pattern the overbook guard uses.
+ * already paid, live hold). The cap check runs under a `FOR UPDATE` lock
+ * on the promo row so a redemption limit can't be oversubscribed by
+ * concurrent checkouts — the same lock-anchor pattern the overbook guard
+ * uses.
+ *
+ * A live checkout is NOT a blocker: changing the total while one is in
+ * flight SUPERSEDES it — the booking drops from `processing` back to
+ * `unpaid`, the supersession is ledgered, and the client tears the stale
+ * widget down (`checkoutSuperseded` → reload), so the next "continue"
+ * prepares a fresh checkout at the new amount. If the old checkout is
+ * somehow still paid (second tab), settle's amount-mismatch guard
+ * refuses it and alerts the team — money never settles at a stale total.
  */
-
-/** A fresh COPYandPAY checkout is reusable ~25 min (mirrors createCheckout). */
-const FRESH_CHECKOUT_MINUTES = 25;
 
 export type PromoErrorCode =
   | 'invalid'
@@ -41,8 +46,15 @@ export type PromoErrorCode =
 
 export type PromoActionState =
   | { status: 'idle' }
-  | { status: 'applied'; code: string; discountSar: number; totalSar: number }
-  | { status: 'removed' }
+  | {
+      status: 'applied';
+      code: string;
+      discountSar: number;
+      totalSar: number;
+      /** A live checkout was superseded — the client must tear down the stale widget. */
+      checkoutSuperseded?: boolean;
+    }
+  | { status: 'removed'; checkoutSuperseded?: boolean }
   | {
       status: 'error';
       error: PromoErrorCode;
@@ -58,16 +70,6 @@ function err(error: PromoErrorCode, minTotalSar?: number, code?: string): PromoA
     ...(minTotalSar != null ? { minTotalSar } : {}),
     ...(code ? { code } : {}),
   };
-}
-
-/** True while a prepared checkout is still fresh — its amount must not shift under it. */
-async function hasFreshCheckout(bookingId: string, checkoutId: string | null): Promise<boolean> {
-  if (!checkoutId) return false;
-  const created = await latestPaymentEvent(bookingId, 'checkout_created');
-  return (
-    created?.gatewayId === checkoutId &&
-    Date.now() - created.createdAt.getTime() < FRESH_CHECKOUT_MINUTES * 60_000
-  );
 }
 
 function revalidateBookingSurfaces(): void {
@@ -121,12 +123,9 @@ export async function applyPromo(
     ) {
       return fail('unavailable');
     }
-    if (
-      existing.paymentStatus === 'processing' &&
-      (await hasFreshCheckout(existing.id, existing.checkoutId))
-    ) {
-      return fail('checkout_in_progress');
-    }
+    // Set inside the transaction when a live checkout is superseded;
+    // ledgered after commit (best-effort, mirrors createCheckout).
+    let superseded: { bookingId: string; checkoutId: string; amountSar: number } | null = null;
 
     const outcome = await db.transaction(async (tx) => {
       // Lock the booking and re-read the money-relevant fields so a
@@ -138,6 +137,7 @@ export async function applyPromo(
           discountSar: bookings.discountSar,
           paymentStatus: bookings.paymentStatus,
           status: bookings.status,
+          checkoutId: bookings.checkoutId,
         })
         .from(bookings)
         .where(eq(bookings.idempotencyKey, input.reference))
@@ -191,15 +191,56 @@ export async function applyPromo(
       if (discountSar <= 0) return fail('invalid');
       const totalSar = baseSar - discountSar;
 
+      // A live checkout was prepared at the old total — supersede it in
+      // the same locked write that changes the amount, so no window
+      // exists where the widget's checkout and the booking's total agree.
+      const superseding = booking.paymentStatus === 'processing';
+      if (superseding && booking.checkoutId) {
+        superseded = {
+          bookingId: booking.id,
+          checkoutId: booking.checkoutId,
+          amountSar: booking.totalAmount,
+        };
+      }
       await tx
         .update(bookings)
-        .set({ totalAmount: totalSar, discountSar, promoCodeId: promo.id, promoCode: promo.code })
+        .set({
+          totalAmount: totalSar,
+          discountSar,
+          promoCodeId: promo.id,
+          promoCode: promo.code,
+          ...(superseding ? { paymentStatus: 'unpaid' as const } : {}),
+        })
         .where(eq(bookings.id, booking.id));
 
-      return { status: 'applied', code: promo.code, discountSar, totalSar } as const;
+      return {
+        status: 'applied',
+        code: promo.code,
+        discountSar,
+        totalSar,
+        checkoutSuperseded: superseding,
+      } as const;
     });
 
-    if (outcome.status === 'applied') revalidateBookingSurfaces();
+    if (outcome.status === 'applied') {
+      // Ledger the supersession (best-effort, like createCheckout's) so a
+      // late capture on the old checkout stays traceable in reconciliation.
+      // (Widened const: TS can't see the assignment inside the tx closure.)
+      const s = superseded as { bookingId: string; checkoutId: string; amountSar: number } | null;
+      if (s) {
+        try {
+          await recordPaymentEvent({
+            bookingId: s.bookingId,
+            type: 'checkout_superseded',
+            amountSar: s.amountSar,
+            gatewayId: s.checkoutId,
+          });
+        } catch (error) {
+          reportError(error, { surface: 'promo:apply:ledger', reference: input.reference });
+        }
+      }
+      revalidateBookingSurfaces();
+    }
     return outcome;
   } catch (error) {
     reportError(error, { surface: 'promo:apply', reference: input.reference });
@@ -229,15 +270,11 @@ export async function removePromo(
     if (!existing) return err('not_found');
     if (!(await bookingViewerCanAccess(input.reference, existing.guestId))) return err('not_found');
     if (existing.paymentStatus === 'paid') return err('already_paid');
-    // Same freshness guard as applyPromo, for the same reason in reverse:
+
+    // Same supersession as applyPromo, for the same reason in reverse:
     // removing a code RAISES the total, and a checkout prepared for the
     // discounted amount would settle short against it.
-    if (
-      existing.paymentStatus === 'processing' &&
-      (await hasFreshCheckout(existing.id, existing.checkoutId))
-    ) {
-      return err('checkout_in_progress');
-    }
+    let superseded: { bookingId: string; checkoutId: string; amountSar: number } | null = null;
 
     const outcome = await db.transaction(async (tx) => {
       const [booking] = await tx
@@ -246,6 +283,7 @@ export async function removePromo(
           totalAmount: bookings.totalAmount,
           discountSar: bookings.discountSar,
           paymentStatus: bookings.paymentStatus,
+          checkoutId: bookings.checkoutId,
         })
         .from(bookings)
         .where(eq(bookings.idempotencyKey, input.reference))
@@ -255,6 +293,14 @@ export async function removePromo(
       // Nothing applied — a no-op success so the UI just settles.
       if (booking.discountSar === 0) return { status: 'removed' } as const;
 
+      const superseding = booking.paymentStatus === 'processing';
+      if (superseding && booking.checkoutId) {
+        superseded = {
+          bookingId: booking.id,
+          checkoutId: booking.checkoutId,
+          amountSar: booking.totalAmount,
+        };
+      }
       await tx
         .update(bookings)
         .set({
@@ -262,12 +308,28 @@ export async function removePromo(
           discountSar: 0,
           promoCodeId: null,
           promoCode: null,
+          ...(superseding ? { paymentStatus: 'unpaid' as const } : {}),
         })
         .where(eq(bookings.id, booking.id));
-      return { status: 'removed' } as const;
+      return { status: 'removed', checkoutSuperseded: superseding } as const;
     });
 
-    if (outcome.status === 'removed') revalidateBookingSurfaces();
+    if (outcome.status === 'removed') {
+      const s = superseded as { bookingId: string; checkoutId: string; amountSar: number } | null;
+      if (s) {
+        try {
+          await recordPaymentEvent({
+            bookingId: s.bookingId,
+            type: 'checkout_superseded',
+            amountSar: s.amountSar,
+            gatewayId: s.checkoutId,
+          });
+        } catch (error) {
+          reportError(error, { surface: 'promo:remove:ledger', reference: input.reference });
+        }
+      }
+      revalidateBookingSurfaces();
+    }
     return outcome;
   } catch (error) {
     reportError(error, { surface: 'promo:remove', reference: input.reference });

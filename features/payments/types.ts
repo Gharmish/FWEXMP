@@ -11,15 +11,19 @@ export interface HyperpayCustomer {
   surname: string;
 }
 
-/** Billing address required for 3DS2 (`billing.*`). */
+/**
+ * Billing address (`billing.*`). Mandatory for card checkouts (3DS2);
+ * optional for the Apple Pay channel, where the wallet supplies the
+ * address — empty fields are omitted from the request.
+ */
 export interface HyperpayBilling {
-  street1: string;
-  city: string;
+  street1?: string;
+  city?: string;
   /** Optional per the OPPWA 3DS2 guide — omitted from the request when empty. */
   state?: string;
   /** ISO 3166-1 alpha-2, e.g. `SA`. */
-  country: string;
-  postcode: string;
+  country?: string;
+  postcode?: string;
 }
 
 /** Everything needed to prepare a checkout for one booking. */
