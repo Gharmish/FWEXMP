@@ -316,6 +316,10 @@ export async function createCheckout(
           country: input.country,
           postcode: input.postcode,
         },
+        // Apple Pay: the wallet token carries no cardholder name, so the
+        // gateway needs it on the checkout (blank holder → 100.100.401).
+        cardHolder:
+          channel === 'applepay' ? `${input.givenName} ${input.surname}`.trim() : undefined,
       },
       channel,
     );

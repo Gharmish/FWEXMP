@@ -106,6 +106,15 @@ export function buildCheckoutBody(
     'billing.postcode': input.billing.postcode,
   });
 
+  // Apple Pay tokens carry no cardholder name, and the gateway declines
+  // a blank holder with 100.100.401. Supply it at checkout creation from
+  // the guest's own details — sheet-side injection is impossible (the
+  // widget's submitOnPaymentAuthorized duplicates parameters and the
+  // gateway rejects the submission outright).
+  if (input.cardHolder) {
+    body.set('card.holder', input.cardHolder);
+  }
+
   // billing.state is optional per the OPPWA 3DS2 guide; KSA addresses have
   // none, so it only travels when the guest actually provided one.
   if (input.billing.state) {

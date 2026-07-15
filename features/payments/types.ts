@@ -30,6 +30,13 @@ export interface PrepareCheckoutInput {
   amountSar: number;
   customer: HyperpayCustomer;
   billing: HyperpayBilling;
+  /**
+   * Cardholder name sent as `card.holder`. Required for the Apple Pay
+   * channel (the wallet token has no name and the gateway declines a
+   * blank holder); omitted for card checkouts, where the shopper types
+   * the holder into the widget.
+   */
+  cardHolder?: string;
 }
 
 /**

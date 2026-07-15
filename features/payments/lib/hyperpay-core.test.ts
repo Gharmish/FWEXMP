@@ -96,6 +96,12 @@ describe('buildCheckoutBody', () => {
     expect(body.get('billing.postcode')).toBe('62521');
   });
 
+  it('sends card.holder only when provided (Apple Pay channel)', () => {
+    expect(buildCheckoutBody(input, testCfg).has('card.holder')).toBe(false);
+    const body = buildCheckoutBody({ ...input, cardHolder: 'Sara Al Qahtani' }, testCfg);
+    expect(body.get('card.holder')).toBe('Sara Al Qahtani');
+  });
+
   it('omits billing.state when the guest left it blank (optional per 3DS2 guide)', () => {
     const body = buildCheckoutBody({ ...input, billing: { ...input.billing, state: '' } }, testCfg);
     expect(body.has('billing.state')).toBe(false);

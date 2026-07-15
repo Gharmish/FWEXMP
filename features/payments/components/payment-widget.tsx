@@ -113,23 +113,13 @@ export function PaymentWidget({
         countryCode: 'SA',
         supportedNetworks: ['mada', 'masterCard', 'visa'],
         merchantCapabilities: ['supports3DS', 'supportsCredit', 'supportsDebit'],
-        // Apple Pay tokens carry no cardholder name, so the gateway
-        // builds holder "/" and declines with 100.100.401 (holder too
-        // short). Per the HyperPay Apple Pay widget docs, BOTH options
-        // are required to supply it: `requiredBillingContactFields`
-        // supports ONLY 'postalAddress' (which returns the user's name
-        // along with the address — 'name' alone is not supported), and
-        // `submitOnPaymentAuthorized` makes the widget actually append
-        // the sheet's contact to the payment submission (the widget
-        // discards it otherwise). Everything auto-fills from the wallet.
-        // ONLY 'customer' (the name) is submitted: our checkout already
-        // carries the full billing address (3DS requirement), and
-        // appending 'billing' again at payment time duplicates the
-        // parameters — the gateway then rejects with 200.300.404
-        // ("billing.country must be a valid 2-character code" on a
-        // perfectly valid SA — the doubled value is what's invalid).
-        requiredBillingContactFields: ['postalAddress'],
-        submitOnPaymentAuthorized: ['customer'],
+        // Do NOT use requiredBillingContactFields/submitOnPaymentAuthorized
+        // here: appending sheet contacts at payment time duplicates the
+        // customer/billing parameters our checkout already carries, and
+        // the gateway rejects the whole submission with 200.300.404
+        // (verified 2026-07-14/15 across three variants). The cardholder
+        // name the Apple token lacks is supplied server-side instead —
+        // `card.holder` on the applepay-channel checkout (hyperpay-core).
         style: 'black',
       },
       onReady: () => {
