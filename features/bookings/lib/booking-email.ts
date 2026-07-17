@@ -3,11 +3,12 @@ import 'server-only';
 import { eq } from 'drizzle-orm';
 import { getTranslations } from 'next-intl/server';
 import { db } from '@/lib/db';
-import { hasEmail, hasHyperpay } from '@/lib/env';
+import { hasHyperpay } from '@/lib/env';
 import type { Locale } from '@/lib/i18n';
 import QRCode from 'qrcode';
 import { formatDate, formatInteger, formatSAR, formatTime } from '@/lib/format';
-import { sendEmail, type EmailAttachment } from '@/lib/email';
+import type { EmailAttachment } from '@/lib/email';
+import { dispatchNotification, notificationsConfigured } from '@/lib/notifications/dispatch';
 import { SITE_URL, SELLER_LEGAL_NAME, COMMERCIAL_REGISTRATION } from '@/lib/site';
 import { reportError } from '@/lib/log';
 import { hostApplications } from '@/db/schema';
@@ -72,10 +73,11 @@ function paymentBrandLabel(brand: string | null, locale: Locale): string | null 
  * receipt.
  */
 export async function sendBookingReceiptEmail(reference: string, locale: Locale): Promise<void> {
-  if (!hasEmail()) return;
+  if (!notificationsConfigured()) return;
 
   const booking = await getBookingByReference(reference);
-  if (!booking?.guestEmail || !booking.paidAt) return;
+  if (!booking?.paidAt) return;
+  if (!booking.guestEmail && !booking.guestPhone) return;
 
   const experience = booking.experienceSlug
     ? await getExperienceBySlug(booking.experienceSlug)
@@ -139,23 +141,27 @@ export async function sendBookingReceiptEmail(reference: string, locale: Locale)
   rows.push({ label: ti('paidOnLabel'), value: formatDate(paidAt, locale, 'gregory', KSA_DATE) });
 
   // --- Invoice PDF attachment: the keepable document, delivered inline. -
-  const attachments = await buildInvoicePdfAttachment({
-    booking,
-    locale,
-    documentTitle,
-    title,
-    placeName,
-    startsAt,
-    paidAt,
-    vat,
-    vatSar,
-    taxableSar,
-    unitSar,
-    billedName,
-    brandLabel,
-    ti,
-    t,
-  });
+  // Built only when there's an email to attach it to — phone-only guests
+  // get the WhatsApp confirmation with the invoice-page link instead.
+  const attachments = !booking.guestEmail
+    ? []
+    : await buildInvoicePdfAttachment({
+        booking,
+        locale,
+        documentTitle,
+        title,
+        placeName,
+        startsAt,
+        paidAt,
+        vat,
+        vatSar,
+        taxableSar,
+        unitSar,
+        billedName,
+        brandLabel,
+        ti,
+        t,
+      });
 
   const { html, text } = renderReceiptEmail({
     logoUrl: EMAIL_LOGO_URL,
@@ -173,7 +179,28 @@ export async function sendBookingReceiptEmail(reference: string, locale: Locale)
     footer: t('footer'),
   });
 
-  await sendEmail({ to: booking.guestEmail, subject: t('subject'), html, text, attachments });
+  await dispatchNotification({
+    type: 'booking_confirmed',
+    dedupeKey: `booking_confirmed:${booking.referenceCode}`,
+    bookingId: booking.id,
+    recipient: {
+      kind: 'guest',
+      email: booking.guestEmail,
+      phone: booking.guestPhone,
+      locale,
+    },
+    email: { subject: t('subject'), html, text, attachments },
+    whatsapp: {
+      template: 'booking_confirmed',
+      variables: {
+        '1': booking.guestName,
+        '2': title ?? booking.referenceCode,
+        '3': formatDate(startsAt, locale, 'gregory', KSA_DATE),
+        '4': formatTime(startsAt, locale, KSA_TIME),
+        '5': booking.referenceCode,
+      },
+    },
+  });
 }
 
 interface InvoicePdfAttachmentArgs {
@@ -196,7 +223,7 @@ interface InvoicePdfAttachmentArgs {
 
 /**
  * Build the invoice PDF and return it as a one-element attachments array
- * ready for `sendEmail`. Best-effort: PDF rendering (fonts, layout) must
+ * ready for the dispatcher's email payload. Best-effort: PDF rendering must
  * never break a receipt, so any failure logs and yields no attachment —
  * the email still goes out with the full details in its body.
  */
@@ -320,10 +347,11 @@ export async function sendBookingCancellationEmail(
   refund: 'none' | 'refunded' | 'refund_pending' | 'forfeited',
   options?: { cancelledBy?: 'guest' | 'operator' },
 ): Promise<void> {
-  if (!hasEmail()) return;
+  if (!notificationsConfigured()) return;
 
   const booking = await getBookingByReference(reference);
-  if (!booking?.guestEmail) return;
+  if (!booking) return;
+  if (!booking.guestEmail && !booking.guestPhone) return;
 
   const experience = booking.experienceSlug
     ? await getExperienceBySlug(booking.experienceSlug)
@@ -374,7 +402,28 @@ export async function sendBookingCancellationEmail(
     footer: t('footer'),
   });
 
-  await sendEmail({ to: booking.guestEmail, subject: t('cancelSubject'), html, text });
+  await dispatchNotification({
+    type: 'booking_cancelled',
+    dedupeKey: `booking_cancelled:${booking.referenceCode}`,
+    bookingId: booking.id,
+    recipient: {
+      kind: 'guest',
+      email: booking.guestEmail,
+      phone: booking.guestPhone,
+      locale,
+    },
+    email: { subject: t('cancelSubject'), html, text },
+    whatsapp: {
+      template: 'booking_cancelled',
+      variables: {
+        '1': booking.guestName,
+        '2': title ?? booking.referenceCode,
+        '3': formatDate(startsAt, locale, 'gregory', KSA_DATE),
+        '4': formatTime(startsAt, locale, KSA_TIME),
+        '5': booking.referenceCode,
+      },
+    },
+  });
 }
 
 /** Google Maps deep link to a coordinate — the guest-facing meeting point. */
@@ -384,8 +433,10 @@ function googleMapsLink(lat: number, lng: number): string {
 
 interface ReminderData {
   booking: NonNullable<Awaited<ReturnType<typeof getBookingByReference>>>;
-  /** Narrowed non-null guest email (the gather returns null otherwise). */
-  guestEmail: string;
+  /** Guest email; null for phone-only guests (WhatsApp covers them). */
+  guestEmail: string | null;
+  /** Guest E.164 phone; null for email-only guests. */
+  guestPhone: string | null;
   experience: NonNullable<Awaited<ReturnType<typeof getExperienceBySlug>>> | undefined;
   title: string | null;
   placeName: string | null;
@@ -397,13 +448,15 @@ interface ReminderData {
 }
 
 /**
- * Shared gather for both reminder emails: resolves the booking, its
+ * Shared gather for both reminders: resolves the booking, its
  * experience, and the locale-specific meeting point / map link / bring
- * list. Returns null when the send should be skipped (no email on file).
+ * list. Returns null when the send should be skipped (no email and no
+ * phone on file — nothing is addressable).
  */
 async function reminderData(reference: string, locale: Locale): Promise<ReminderData | null> {
   const booking = await getBookingByReference(reference);
-  if (!booking?.guestEmail) return null;
+  if (!booking) return null;
+  if (!booking.guestEmail && !booking.guestPhone) return null;
   // Re-read guards against the gap between the cron's SELECT and this send:
   // only remind a booking that is still confirmed. A booking cancelled,
   // rescheduled to a new reference, or otherwise moved out of `confirmed`
@@ -428,6 +481,7 @@ async function reminderData(reference: string, locale: Locale): Promise<Reminder
   return {
     booking,
     guestEmail: booking.guestEmail,
+    guestPhone: booking.guestPhone,
     experience,
     title,
     placeName,
@@ -448,11 +502,11 @@ export async function sendBookingPrepareReminderEmail(
   reference: string,
   locale: Locale,
 ): Promise<void> {
-  if (!hasEmail()) return;
+  if (!notificationsConfigured()) return;
 
   const data = await reminderData(reference, locale);
   if (!data) return;
-  const { booking, guestEmail, title, placeName, startsAt, mapUrl, bringList } = data;
+  const { booking, guestEmail, guestPhone, title, placeName, startsAt, mapUrl, bringList } = data;
 
   const t = await getTranslations({ locale, namespace: 'bookingEmail' });
   const time = formatTime(startsAt, locale, KSA_TIME);
@@ -503,7 +557,24 @@ export async function sendBookingPrepareReminderEmail(
     footer: t('footer'),
   });
 
-  await sendEmail({ to: guestEmail, subject: t('prepareSubject', { time }), html, text });
+  await dispatchNotification({
+    type: 'booking_reminder_24h',
+    dedupeKey: `booking_reminder_24h:${booking.referenceCode}`,
+    bookingId: booking.id,
+    recipient: { kind: 'guest', email: guestEmail, phone: guestPhone, locale },
+    email: { subject: t('prepareSubject', { time }), html, text },
+    whatsapp: {
+      template: 'booking_reminder_24h',
+      variables: {
+        '1': booking.guestName,
+        '2': title ?? booking.referenceCode,
+        '3': formatDate(startsAt, locale, 'gregory', KSA_DATE),
+        '4': time,
+        '5': placeName ?? title ?? booking.referenceCode,
+        '6': mapUrl ?? manageUrl,
+      },
+    },
+  });
 }
 
 /**
@@ -516,11 +587,11 @@ export async function sendBookingDepartureReminderEmail(
   reference: string,
   locale: Locale,
 ): Promise<void> {
-  if (!hasEmail()) return;
+  if (!notificationsConfigured()) return;
 
   const data = await reminderData(reference, locale);
   if (!data) return;
-  const { booking, guestEmail, placeName, startsAt, mapUrl } = data;
+  const { booking, guestEmail, guestPhone, title, placeName, startsAt, mapUrl } = data;
 
   const t = await getTranslations({ locale, namespace: 'bookingEmail' });
   const time = formatTime(startsAt, locale, KSA_TIME);
@@ -546,18 +617,41 @@ export async function sendBookingDepartureReminderEmail(
     footer: t('footer'),
   });
 
-  await sendEmail({ to: guestEmail, subject: t('departureSubject', { time }), html, text });
+  await dispatchNotification({
+    type: 'booking_reminder_3h',
+    dedupeKey: `booking_reminder_3h:${booking.referenceCode}`,
+    bookingId: booking.id,
+    recipient: { kind: 'guest', email: guestEmail, phone: guestPhone, locale },
+    email: { subject: t('departureSubject', { time }), html, text },
+    whatsapp: {
+      template: 'booking_reminder_3h',
+      variables: {
+        '1': booking.guestName,
+        '2': placeName ?? title ?? booking.referenceCode,
+        '3': time,
+        '4': mapUrl ?? `${SITE_URL}/${locale}/book/confirmed/${reference}`,
+      },
+    },
+  });
+}
+
+interface LifecycleDetails {
+  rows: ReceiptRow[];
+  /** Locale-resolved experience title; null when the listing is gone. */
+  title: string | null;
+  startsAt: Date;
 }
 
 /**
  * Standard detail rows (experience / date / time / party / reference)
- * shared by the request-lifecycle emails below. Locale-resolved titles.
+ * shared by the request-lifecycle senders below, plus the resolved
+ * title/start the WhatsApp template variables reuse.
  */
-async function lifecycleRows(
+async function lifecycleDetails(
   booking: NonNullable<Awaited<ReturnType<typeof getBookingByReference>>>,
   locale: Locale,
   t: Awaited<ReturnType<typeof getTranslations<'bookingEmail'>>>,
-): Promise<ReceiptRow[]> {
+): Promise<LifecycleDetails> {
   const experience = booking.experienceSlug
     ? await getExperienceBySlug(booking.experienceSlug)
     : undefined;
@@ -569,7 +663,22 @@ async function lifecycleRows(
   rows.push({ label: t('timeLabel'), value: formatTime(startsAt, locale, KSA_TIME) });
   rows.push({ label: t('partyLabel'), value: formatInteger(booking.partySize, locale) });
   rows.push({ label: t('referenceLabel'), value: booking.referenceCode });
-  return rows;
+  return { rows, title, startsAt };
+}
+
+/** Shared shorthand for the guest-side WhatsApp variable block. */
+function guestLifecycleVariables(
+  booking: NonNullable<Awaited<ReturnType<typeof getBookingByReference>>>,
+  details: LifecycleDetails,
+  locale: Locale,
+): Record<string, string> {
+  return {
+    '1': booking.guestName,
+    '2': details.title ?? booking.referenceCode,
+    '3': formatDate(details.startsAt, locale, 'gregory', KSA_DATE),
+    '4': formatTime(details.startsAt, locale, KSA_TIME),
+    '5': booking.referenceCode,
+  };
 }
 
 /**
@@ -582,12 +691,14 @@ export async function sendBookingRequestReceivedEmail(
   reference: string,
   locale: Locale,
 ): Promise<void> {
-  if (!hasEmail()) return;
+  if (!notificationsConfigured()) return;
   const booking = await getBookingByReference(reference);
-  if (!booking?.guestEmail || booking.status !== 'pending') return;
+  if (!booking || booking.status !== 'pending') return;
+  if (!booking.guestEmail && !booking.guestPhone) return;
 
   const t = await getTranslations({ locale, namespace: 'bookingEmail' });
-  const rows = await lifecycleRows(booking, locale, t);
+  const details = await lifecycleDetails(booking, locale, t);
+  const rows = details.rows;
   if (booking.approvalDeadline) {
     rows.push({
       label: t('approvalDeadlineLabel'),
@@ -605,7 +716,22 @@ export async function sendBookingRequestReceivedEmail(
     closing: t('requestReceivedClosing'),
     footer: t('footer'),
   });
-  await sendEmail({ to: booking.guestEmail, subject: t('requestReceivedSubject'), html, text });
+  await dispatchNotification({
+    type: 'booking_request_received',
+    dedupeKey: `booking_request_received:${booking.referenceCode}`,
+    bookingId: booking.id,
+    recipient: {
+      kind: 'guest',
+      email: booking.guestEmail,
+      phone: booking.guestPhone,
+      locale,
+    },
+    email: { subject: t('requestReceivedSubject'), html, text },
+    whatsapp: {
+      template: 'booking_request_received',
+      variables: guestLifecycleVariables(booking, details, locale),
+    },
+  });
 }
 
 /**
@@ -615,13 +741,15 @@ export async function sendBookingRequestReceivedEmail(
  * guest's preferred language (the action caller may be the host/admin).
  */
 export async function sendBookingApprovedEmail(reference: string): Promise<void> {
-  if (!hasEmail()) return;
+  if (!notificationsConfigured()) return;
   const booking = await getBookingByReference(reference);
-  if (!booking?.guestEmail || booking.status !== 'confirmed') return;
+  if (!booking || booking.status !== 'confirmed') return;
+  if (!booking.guestEmail && !booking.guestPhone) return;
 
   const locale = booking.guestPreferredLanguage;
   const t = await getTranslations({ locale, namespace: 'bookingEmail' });
-  const rows = await lifecycleRows(booking, locale, t);
+  const details = await lifecycleDetails(booking, locale, t);
+  const rows = details.rows;
   rows.push({ label: t('totalLabel'), value: formatSAR(booking.totalAmountSar, locale) });
 
   const needsPayment =
@@ -644,18 +772,41 @@ export async function sendBookingApprovedEmail(reference: string): Promise<void>
     closing: needsPayment ? t('approvedPayClosing') : t('approvedClosing'),
     footer: t('footer'),
   });
-  await sendEmail({ to: booking.guestEmail, subject: t('approvedSubject'), html, text });
+  await dispatchNotification({
+    type: 'booking_approved',
+    dedupeKey: `booking_approved:${booking.referenceCode}`,
+    bookingId: booking.id,
+    recipient: {
+      kind: 'guest',
+      email: booking.guestEmail,
+      phone: booking.guestPhone,
+      locale,
+    },
+    email: { subject: t('approvedSubject'), html, text },
+    whatsapp: {
+      template: 'booking_approved',
+      variables: {
+        ...guestLifecycleVariables(booking, details, locale),
+        // Var 5 is the action link: the payment page while payment is
+        // due, the booking page otherwise (the template copy reads
+        // "view your booking / complete payment" either way).
+        '5': needsPayment ? payUrl : `${SITE_URL}/${locale}/book/confirmed/${reference}`,
+      },
+    },
+  });
 }
 
 /** The host declined the request. Nothing was ever charged. */
 export async function sendBookingDeclinedEmail(reference: string): Promise<void> {
-  if (!hasEmail()) return;
+  if (!notificationsConfigured()) return;
   const booking = await getBookingByReference(reference);
-  if (!booking?.guestEmail || booking.status !== 'declined') return;
+  if (!booking || booking.status !== 'declined') return;
+  if (!booking.guestEmail && !booking.guestPhone) return;
 
   const locale = booking.guestPreferredLanguage;
   const t = await getTranslations({ locale, namespace: 'bookingEmail' });
-  const rows = await lifecycleRows(booking, locale, t);
+  const details = await lifecycleDetails(booking, locale, t);
+  const rows = details.rows;
 
   const { html, text } = renderReceiptEmail({
     logoUrl: EMAIL_LOGO_URL,
@@ -667,18 +818,33 @@ export async function sendBookingDeclinedEmail(reference: string): Promise<void>
     closing: t('declinedClosing'),
     footer: t('footer'),
   });
-  await sendEmail({ to: booking.guestEmail, subject: t('declinedSubject'), html, text });
+  await dispatchNotification({
+    type: 'booking_declined',
+    dedupeKey: `booking_declined:${booking.referenceCode}`,
+    bookingId: booking.id,
+    recipient: {
+      kind: 'guest',
+      email: booking.guestEmail,
+      phone: booking.guestPhone,
+      locale,
+    },
+    email: { subject: t('declinedSubject'), html, text },
+    whatsapp: {
+      template: 'booking_declined',
+      variables: guestLifecycleVariables(booking, details, locale),
+    },
+  });
 }
 
 /** The approval window lapsed with no host decision. Nothing was charged. */
 export async function sendBookingExpiredEmail(reference: string): Promise<void> {
-  if (!hasEmail()) return;
+  if (!notificationsConfigured()) return;
   const booking = await getBookingByReference(reference);
   if (!booking?.guestEmail || booking.status !== 'expired') return;
 
   const locale = booking.guestPreferredLanguage;
   const t = await getTranslations({ locale, namespace: 'bookingEmail' });
-  const rows = await lifecycleRows(booking, locale, t);
+  const { rows } = await lifecycleDetails(booking, locale, t);
 
   const { html, text } = renderReceiptEmail({
     logoUrl: EMAIL_LOGO_URL,
@@ -690,7 +856,15 @@ export async function sendBookingExpiredEmail(reference: string): Promise<void> 
     closing: t('expiredClosing'),
     footer: t('footer'),
   });
-  await sendEmail({ to: booking.guestEmail, subject: t('expiredSubject'), html, text });
+  // Email-only for now (no approved WhatsApp template planned for the
+  // expiry edge case) — still dispatched so the send is ledgered.
+  await dispatchNotification({
+    type: 'booking_expired',
+    dedupeKey: `booking_expired:${booking.referenceCode}`,
+    bookingId: booking.id,
+    recipient: { kind: 'guest', email: booking.guestEmail, locale },
+    email: { subject: t('expiredSubject'), html, text },
+  });
 }
 
 /**
@@ -699,13 +873,13 @@ export async function sendBookingExpiredEmail(reference: string): Promise<void> 
  * booking. Nothing was charged.
  */
 export async function sendBookingPaymentLapsedEmail(reference: string): Promise<void> {
-  if (!hasEmail()) return;
+  if (!notificationsConfigured()) return;
   const booking = await getBookingByReference(reference);
   if (!booking?.guestEmail || booking.status !== 'cancelled') return;
 
   const locale = booking.guestPreferredLanguage;
   const t = await getTranslations({ locale, namespace: 'bookingEmail' });
-  const rows = await lifecycleRows(booking, locale, t);
+  const { rows } = await lifecycleDetails(booking, locale, t);
 
   const { html, text } = renderReceiptEmail({
     logoUrl: EMAIL_LOGO_URL,
@@ -717,21 +891,31 @@ export async function sendBookingPaymentLapsedEmail(reference: string): Promise<
     closing: t('paymentLapsedClosing'),
     footer: t('footer'),
   });
-  await sendEmail({ to: booking.guestEmail, subject: t('paymentLapsedSubject'), html, text });
+  // Email-only for now — still dispatched so the send is ledgered.
+  await dispatchNotification({
+    type: 'booking_payment_lapsed',
+    dedupeKey: `booking_payment_lapsed:${booking.referenceCode}`,
+    bookingId: booking.id,
+    recipient: { kind: 'guest', email: booking.guestEmail, locale },
+    email: { subject: t('paymentLapsedSubject'), html, text },
+  });
 }
 
 interface HostEmailContext {
-  email: string;
+  email: string | null;
+  /** E.164 phone — the WhatsApp address. Null for seeded demo hosts. */
+  phone: string | null;
   locale: Locale;
   title: string;
 }
 
 /**
- * Resolve the notification contact for the host of an experience.
- * Prefers `hosts.contact_email` (copied from the application at
- * approval) and falls back to the application row for hosts approved
- * before that column existed. Seeded demo hosts have neither, so the
- * host senders below no-op for them.
+ * Resolve the notification contacts for the host of an experience.
+ * Prefers `hosts.contact_email` / `hosts.contact_phone` (copied from
+ * the application at approval) and falls back to the application row
+ * for hosts approved before those columns existed. Returns null when
+ * neither channel is addressable (seeded demo hosts), so the host
+ * senders below no-op for them.
  */
 async function hostEmailContext(experienceSlug: string): Promise<HostEmailContext | null> {
   // The public ExperienceSummary deliberately omits commission and host
@@ -739,23 +923,28 @@ async function hostEmailContext(experienceSlug: string): Promise<HostEmailContex
   const experience = await db.query.experiences.findFirst({
     where: (e) => eq(e.slug, experienceSlug),
     columns: { titleEn: true, titleAr: true },
-    with: { host: { columns: { id: true, languages: true, contactEmail: true } } },
+    with: {
+      host: { columns: { id: true, languages: true, contactEmail: true, contactPhone: true } },
+    },
   });
   if (!experience) return null;
 
   let email = experience.host.contactEmail;
-  if (!email) {
+  let phone = experience.host.contactPhone;
+  if (!email || !phone) {
     const application = await db.query.hostApplications.findFirst({
       where: eq(hostApplications.hostId, experience.host.id),
-      columns: { contactEmail: true },
+      columns: { contactEmail: true, contactPhone: true },
     });
-    email = application?.contactEmail ?? null;
+    email = email ?? application?.contactEmail ?? null;
+    phone = phone ?? application?.contactPhone ?? null;
   }
-  if (!email) return null;
+  if (!email && !phone) return null;
 
   const locale: Locale = experience.host.languages[0] === 'en' ? 'en' : 'ar';
   return {
     email,
+    phone,
     locale,
     title: locale === 'ar' ? experience.titleAr : experience.titleEn,
   };
@@ -781,7 +970,7 @@ function hostRows(
  * host's first listed language (Arabic-first default).
  */
 export async function sendHostNewBookingEmail(reference: string): Promise<void> {
-  if (!hasEmail()) return;
+  if (!notificationsConfigured()) return;
 
   const booking = await getBookingByReference(reference);
   if (!booking?.experienceSlug) return;
@@ -815,11 +1004,28 @@ export async function sendHostNewBookingEmail(reference: string): Promise<void> 
     footer: t('footer'),
   });
 
-  await sendEmail({
-    to: host.email,
-    subject: isRequest ? t('hostNewRequestSubject') : t('hostNewBookingSubject'),
-    html,
-    text,
+  const type = isRequest ? 'host_new_request' : 'host_new_booking';
+  const startsAt = startInstant(booking.date, booking.startTime);
+  await dispatchNotification({
+    type,
+    dedupeKey: `${type}:${booking.referenceCode}`,
+    bookingId: booking.id,
+    recipient: { kind: 'host', email: host.email, phone: host.phone, locale: host.locale },
+    email: {
+      subject: isRequest ? t('hostNewRequestSubject') : t('hostNewBookingSubject'),
+      html,
+      text,
+    },
+    whatsapp: {
+      template: type,
+      variables: {
+        '1': host.title,
+        '2': formatDate(startsAt, host.locale),
+        '3': formatTime(startsAt, host.locale),
+        '4': formatInteger(booking.partySize, host.locale),
+        '5': formatSAR(payoutSar, host.locale),
+      },
+    },
   });
 }
 
@@ -828,7 +1034,7 @@ export async function sendHostNewBookingEmail(reference: string): Promise<void> 
  * Sent for pending and confirmed bookings alike; best-effort, gated.
  */
 export async function sendHostGuestCancelledEmail(reference: string): Promise<void> {
-  if (!hasEmail()) return;
+  if (!notificationsConfigured()) return;
 
   const booking = await getBookingByReference(reference);
   if (!booking?.experienceSlug) return;
@@ -846,7 +1052,22 @@ export async function sendHostGuestCancelledEmail(reference: string): Promise<vo
     closing: t('hostNewClosing'),
     footer: t('footer'),
   });
-  await sendEmail({ to: host.email, subject: t('hostGuestCancelledSubject'), html, text });
+  const startsAt = startInstant(booking.date, booking.startTime);
+  await dispatchNotification({
+    type: 'host_guest_cancelled',
+    dedupeKey: `host_guest_cancelled:${booking.referenceCode}`,
+    bookingId: booking.id,
+    recipient: { kind: 'host', email: host.email, phone: host.phone, locale: host.locale },
+    email: { subject: t('hostGuestCancelledSubject'), html, text },
+    whatsapp: {
+      template: 'host_guest_cancelled',
+      variables: {
+        '1': host.title,
+        '2': formatDate(startsAt, host.locale),
+        '3': formatTime(startsAt, host.locale),
+      },
+    },
+  });
 }
 
 /**
@@ -855,7 +1076,7 @@ export async function sendHostGuestCancelledEmail(reference: string): Promise<vo
  * date silently diverges from reality.
  */
 export async function sendHostHoldLapsedEmail(reference: string): Promise<void> {
-  if (!hasEmail()) return;
+  if (!notificationsConfigured()) return;
 
   const booking = await getBookingByReference(reference);
   if (!booking?.experienceSlug) return;
@@ -873,7 +1094,14 @@ export async function sendHostHoldLapsedEmail(reference: string): Promise<void> 
     closing: t('hostNewClosing'),
     footer: t('footer'),
   });
-  await sendEmail({ to: host.email, subject: t('hostHoldLapsedSubject'), html, text });
+  // Email-only for now — still dispatched so the send is ledgered.
+  await dispatchNotification({
+    type: 'host_hold_lapsed',
+    dedupeKey: `host_hold_lapsed:${booking.referenceCode}`,
+    bookingId: booking.id,
+    recipient: { kind: 'host', email: host.email, locale: host.locale },
+    email: { subject: t('hostHoldLapsedSubject'), html, text },
+  });
 }
 
 /**
@@ -882,7 +1110,7 @@ export async function sendHostHoldLapsedEmail(reference: string): Promise<void> 
  * pre-payment) and then nothing again.
  */
 export async function sendHostPaymentReceivedEmail(reference: string): Promise<void> {
-  if (!hasEmail()) return;
+  if (!notificationsConfigured()) return;
 
   const booking = await getBookingByReference(reference);
   if (!booking?.experienceSlug) return;
@@ -912,5 +1140,21 @@ export async function sendHostPaymentReceivedEmail(reference: string): Promise<v
     closing: t('hostNewClosing'),
     footer: t('footer'),
   });
-  await sendEmail({ to: host.email, subject: t('hostPaymentReceivedSubject'), html, text });
+  const startsAt = startInstant(booking.date, booking.startTime);
+  await dispatchNotification({
+    type: 'host_payment_received',
+    dedupeKey: `host_payment_received:${booking.referenceCode}`,
+    bookingId: booking.id,
+    recipient: { kind: 'host', email: host.email, phone: host.phone, locale: host.locale },
+    email: { subject: t('hostPaymentReceivedSubject'), html, text },
+    whatsapp: {
+      template: 'host_payment_received',
+      variables: {
+        '1': host.title,
+        '2': formatDate(startsAt, host.locale),
+        '3': formatTime(startsAt, host.locale),
+        '4': formatSAR(payoutSar, host.locale),
+      },
+    },
+  });
 }

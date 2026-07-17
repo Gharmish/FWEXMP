@@ -164,8 +164,9 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     }
 
     // Pass 3 — guest reminders. Two hourly-precision reminders over
-    // confirmed, email-bearing bookings starting soon: a ~24h "get ready"
-    // and a ~3h day-of "see you soon". Each has its own dedupe flag
+    // confirmed, contactable (email OR phone — phone-only guests get the
+    // WhatsApp reminder once Twilio is live) bookings starting soon: a
+    // ~24h "get ready" and a ~3h day-of "see you soon". Each has its own dedupe flag
     // (`reminderSentAt` / `finalReminderSentAt`), so the hourly cadence,
     // manual triggers, and retries never double-send. Timing is computed
     // per booking from its Riyadh start instant, not the calendar day, so
@@ -194,7 +195,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         and(
           eq(bookings.status, 'confirmed'),
           inArray(bookings.date, [todayRiyadh, tomorrowRiyadh]),
-          isNotNull(guests.email),
+          or(isNotNull(guests.email), isNotNull(guests.phone)),
           or(isNull(bookings.reminderSentAt), isNull(bookings.finalReminderSentAt)),
         ),
       )

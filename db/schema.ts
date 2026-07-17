@@ -203,6 +203,27 @@ export const disputeStatusEnum = pgEnum('dispute_status', ['open', 'resolved']);
 /** OTP abuse events counted by the auth throttle (see that table). */
 export const authThrottleKindEnum = pgEnum('auth_throttle_kind', ['send', 'verify_failed']);
 
+/** Delivery channels the notification dispatcher can route to. */
+export const notificationChannelEnum = pgEnum('notification_channel', ['email', 'whatsapp']);
+
+/**
+ * Delivery lifecycle of one message on one channel. `queued` is the
+ * claim (row inserted before the provider call — the dedupe point);
+ * `sent` = accepted by the provider; `delivered`/`read` arrive later
+ * via provider webhooks (Twilio status callbacks; email stays at
+ * `sent` until Resend webhooks land). `failed` = provider rejected or
+ * errored; `suppressed` = we refused to send (recipient on the
+ * suppression list).
+ */
+export const notificationStatusEnum = pgEnum('notification_status', [
+  'queued',
+  'sent',
+  'delivered',
+  'read',
+  'failed',
+  'suppressed',
+]);
+
 /* ----------------------------- Tables ---------------------------- */
 
 export const hosts = pgTable('hosts', {
@@ -246,6 +267,14 @@ export const hosts = pgTable('hosts', {
    * surviving. Nullable for seeded demo hosts.
    */
   contactEmail: text(),
+  /**
+   * Notification phone for the host (E.164), the WhatsApp channel's
+   * address. Copied from the application's `contactPhone` at approval —
+   * same rationale as `contactEmail` — and backfilled from approved
+   * applications for hosts minted before this column existed. Nullable
+   * for seeded demo hosts.
+   */
+  contactPhone: text(),
   createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
 });
 
@@ -1262,6 +1291,91 @@ export const userProfileEvents = pgTable(
   ],
 );
 
+/**
+ * Delivery ledger — one row per (message, channel) attempt, written by
+ * the notification dispatcher (lib/notifications/dispatch.ts) BEFORE
+ * calling the provider. The `(dedupeKey, channel)` unique constraint is
+ * the idempotency point: the dispatcher claims by inserting with
+ * ON CONFLICT DO NOTHING, so double-fired flows (payment return route +
+ * HyperPay webhook, hourly cron re-runs) can never double-send. Replaces
+ * fire-and-forget over time — every send becomes observable, and
+ * provider webhooks (Twilio status callbacks) upgrade `sent` rows to
+ * `delivered`/`read`/`failed` by `providerMessageId`.
+ */
+export const notificationDeliveries = pgTable(
+  'notification_deliveries',
+  {
+    id: uuid().defaultRandom().primaryKey(),
+    /**
+     * Idempotency key for this logical message, e.g.
+     * `booking_confirmed:GH-7K3M9X`. Unique per channel — the same
+     * logical message may go out on both email and WhatsApp.
+     */
+    dedupeKey: text().notNull(),
+    channel: notificationChannelEnum().notNull(),
+    /**
+     * Notification type slug, e.g. `booking_confirmed`,
+     * `booking_reminder_24h`, `host_new_booking`. Plain text (not an
+     * enum) so adding a type never needs a migration.
+     */
+    type: text().notNull(),
+    /** Who this went to: `guest` / `host` / `applicant` / `admin`. */
+    recipientType: text().notNull(),
+    /** Channel address: email address or E.164 phone. For the audit trail. */
+    recipient: text().notNull(),
+    /** The booking this message is about, when there is one. */
+    bookingId: uuid().references(() => bookings.id, { onDelete: 'set null' }),
+    locale: localeEnum(),
+    status: notificationStatusEnum().notNull().default('queued'),
+    /** Provider message id (Twilio Message SID / Resend email id). */
+    providerMessageId: text(),
+    /** Provider error detail on failure (result code / HTTP body slice). */
+    error: text(),
+    createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
+    /** When the provider accepted the message. Null while queued/failed. */
+    sentAt: timestamp({ withTimezone: true }),
+    /** Last webhook-driven status change (delivered/read/failed). */
+    statusUpdatedAt: timestamp({ withTimezone: true }),
+  },
+  (t) => [
+    // THE dedupe point — see the table comment.
+    unique('notification_deliveries_dedupe_channel_uq').on(t.dedupeKey, t.channel),
+    // Twilio status callbacks look rows up by Message SID.
+    index('notification_deliveries_provider_idx')
+      .on(t.providerMessageId)
+      .where(sql`provider_message_id IS NOT NULL`),
+    // Per-booking notification timeline (admin/debug surfaces).
+    index('notification_deliveries_booking_idx')
+      .on(t.bookingId, t.createdAt)
+      .where(sql`booking_id IS NOT NULL`),
+    // Ops queries: recent failures, per-type volumes.
+    index('notification_deliveries_status_created_idx').on(t.status, t.createdAt),
+  ],
+);
+
+/**
+ * Do-not-contact list, per channel. A row here makes the dispatcher
+ * record `suppressed` instead of sending — checked before EVERY send,
+ * transactional included (a WhatsApp STOP is a legal opt-out, not a
+ * preference). Written by the Twilio inbound webhook (STOP keywords),
+ * and manually by admins; future Resend bounce/complaint webhooks land
+ * here too. Addresses are stored canonical: lowercased email, E.164
+ * phone.
+ */
+export const notificationSuppressions = pgTable(
+  'notification_suppressions',
+  {
+    id: uuid().defaultRandom().primaryKey(),
+    channel: notificationChannelEnum().notNull(),
+    /** Canonical address: lowercased email or E.164 phone. */
+    address: text().notNull(),
+    /** Why: `stop` (reply keyword), `bounce`, `complaint`, `manual`. */
+    reason: text().notNull(),
+    createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [unique('notification_suppressions_channel_address_uq').on(t.channel, t.address)],
+);
+
 /* --------------------------- Relations --------------------------- */
 
 export const hostsRelations = relations(hosts, ({ many }) => ({
@@ -1406,3 +1520,7 @@ export type PromoCode = typeof promoCodes.$inferSelect;
 export type NewPromoCode = typeof promoCodes.$inferInsert;
 export type UserProfileEvent = typeof userProfileEvents.$inferSelect;
 export type NewUserProfileEvent = typeof userProfileEvents.$inferInsert;
+export type NotificationDelivery = typeof notificationDeliveries.$inferSelect;
+export type NewNotificationDelivery = typeof notificationDeliveries.$inferInsert;
+export type NotificationSuppression = typeof notificationSuppressions.$inferSelect;
+export type NewNotificationSuppression = typeof notificationSuppressions.$inferInsert;

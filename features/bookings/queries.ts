@@ -57,6 +57,8 @@ export interface BookingDetail {
   guestName: string;
   /** Guest's email if known — prefills the payment-details step. */
   guestEmail: string | null;
+  /** Guest's E.164 phone if known — the WhatsApp notification address. */
+  guestPhone: string | null;
   /** Guest's preferred locale — decision emails are sent in it. */
   guestPreferredLanguage: 'en' | 'ar';
   /** Card scheme once settled (e.g. `MADA`, `VISA`, `MASTER`); null otherwise. */
@@ -80,7 +82,7 @@ export async function getBookingByReference(reference: string): Promise<BookingD
     where: eq(bookings.idempotencyKey, reference),
     with: {
       experience: { columns: { slug: true } },
-      guest: { columns: { name: true, email: true, preferredLanguage: true } },
+      guest: { columns: { name: true, email: true, phone: true, preferredLanguage: true } },
     },
   });
   if (!row) return undefined;
@@ -105,6 +107,7 @@ export async function getBookingByReference(reference: string): Promise<BookingD
     experienceSlug: row.experience.slug,
     guestName: row.guest.name,
     guestEmail: row.guest.email,
+    guestPhone: row.guest.phone,
     guestPreferredLanguage: row.guest.preferredLanguage,
     paymentBrand: row.paymentBrand,
     paidAt: row.paidAt?.toISOString() ?? null,
@@ -154,7 +157,7 @@ export async function getBookingsForGuest(guestId: string): Promise<GuestBooking
     orderBy: [desc(bookings.date), desc(bookings.createdAt)],
     with: {
       experience: { columns: { slug: true, titleEn: true, titleAr: true } },
-      guest: { columns: { name: true, email: true, preferredLanguage: true } },
+      guest: { columns: { name: true, email: true, phone: true, preferredLanguage: true } },
     },
   });
   return rows.map((row) => ({
@@ -178,6 +181,7 @@ export async function getBookingsForGuest(guestId: string): Promise<GuestBooking
     experienceSlug: row.experience.slug,
     guestName: row.guest.name,
     guestEmail: row.guest.email,
+    guestPhone: row.guest.phone,
     guestPreferredLanguage: row.guest.preferredLanguage,
     paymentBrand: row.paymentBrand,
     paidAt: row.paidAt?.toISOString() ?? null,

@@ -3,7 +3,7 @@ import 'server-only';
 import { getTranslations } from 'next-intl/server';
 import { hasEmail } from '@/lib/env';
 import type { Locale } from '@/lib/i18n';
-import { sendEmail } from '@/lib/email';
+import { dispatchNotification } from '@/lib/notifications/dispatch';
 import { SITE_URL } from '@/lib/site';
 import { renderReceiptEmail } from '@/features/bookings/lib/booking-email-render';
 
@@ -44,7 +44,13 @@ export async function sendApplicationApprovedEmail(
     closing: t('approvedClosing'),
     footer: t('footer'),
   });
-  await sendEmail({ to: recipient.contactEmail, subject: t('approvedSubject'), html, text });
+  // No dedupeKey on purpose: an application can be decided again after a
+  // resubmit cycle, and each decision deserves its notice. Still ledgered.
+  await dispatchNotification({
+    type: 'application_approved',
+    recipient: { kind: 'applicant', email: recipient.contactEmail, locale },
+    email: { subject: t('approvedSubject'), html, text },
+  });
 }
 
 /**
@@ -69,5 +75,10 @@ export async function sendApplicationRejectedEmail(
     closing: t('rejectedClosing'),
     footer: t('footer'),
   });
-  await sendEmail({ to: recipient.contactEmail, subject: t('rejectedSubject'), html, text });
+  // No dedupeKey — same resubmit-cycle rationale as the approval notice.
+  await dispatchNotification({
+    type: 'application_rejected',
+    recipient: { kind: 'applicant', email: recipient.contactEmail, locale },
+    email: { subject: t('rejectedSubject'), html, text },
+  });
 }

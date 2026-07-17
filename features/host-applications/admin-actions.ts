@@ -122,6 +122,7 @@ export async function approveApplication(
           city: hostApplications.city,
           region: hostApplications.region,
           contactEmail: hostApplications.contactEmail,
+          contactPhone: hostApplications.contactPhone,
         });
 
       if (claimed.length === 0) {
@@ -176,9 +177,10 @@ export async function approveApplication(
           city: application.city,
           region: application.region,
           payoutIban: application.iban,
-          // Copy the notification address onto the host so lifecycle
-          // emails don't depend on the application row surviving.
+          // Copy the notification addresses onto the host so lifecycle
+          // messages don't depend on the application row surviving.
           contactEmail: application.contactEmail,
+          contactPhone: application.contactPhone,
         })
         .returning({ id: hosts.id });
 
