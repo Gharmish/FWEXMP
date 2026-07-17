@@ -25,6 +25,10 @@ const eslintConfig = defineConfig([
     '.vercel/**',
     'out/**',
     'build/**',
+    // Vitest coverage HTML report (`pnpm test:coverage`) — generated, never linted.
+    'coverage/**',
+    'test-results/**',
+    'playwright-report/**',
     'next-env.d.ts',
   ]),
 ]);
