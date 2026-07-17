@@ -91,6 +91,8 @@ export default async function SignInPage({
           verifySubmit: t('verifySubmit'),
           verifyPending: t('verifyPending'),
           changeIdentifier: t('changeIdentifier'),
+          resend: t('resend'),
+          resent: t('resent'),
           errors: {
             validation: t('errors.validation'),
             invalidPhone: t('errors.invalidPhone'),

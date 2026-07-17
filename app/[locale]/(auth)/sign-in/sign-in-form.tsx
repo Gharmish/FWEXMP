@@ -39,6 +39,8 @@ interface SignInCopy {
   verifySubmit: string;
   verifyPending: string;
   changeIdentifier: string;
+  resend: string;
+  resent: string;
   errors: {
     validation: string;
     invalidPhone: string;
@@ -58,6 +60,8 @@ export interface SignInFormProps {
 
 const initialRequestState: RequestOtpState = { success: false, stage: 'phone', method: 'phone' };
 const initialVerifyState: VerifyOtpState = { success: false, stage: 'code', method: 'phone' };
+
+const RESEND_COOLDOWN_MS = 30_000;
 
 function SubmitButton({ pendingCopy, submitCopy }: { pendingCopy: string; submitCopy: string }) {
   const { pending } = useFormStatus();
@@ -116,6 +120,8 @@ export function SignInForm({ locale, next, isStubMode, copy }: SignInFormProps) 
   const [method, setMethod] = useState<AuthMethod>('phone');
   const [email, setEmail] = useState<string>('');
   const [showPhoneStep, setShowPhoneStep] = useState<boolean>(false);
+  // Client-side resend cooldown (the server rate-limits independently).
+  const [resendCoolingDown, setResendCoolingDown] = useState(false);
 
   const requestFields = requestState.success ? undefined : requestState.fields;
   const requestMessage = requestState.success ? undefined : requestState.message;
@@ -264,7 +270,15 @@ export function SignInForm({ locale, next, isStubMode, copy }: SignInFormProps) 
   }
 
   // ---------- stage 2: code ----------
-  const verifyMessage = verifyState.message === 'server' ? copy.errors.server : undefined;
+  // Every terminal verify failure must surface SOMETHING: invalid_code
+  // renders inline via fields.code, so the form-level slot covers the
+  // rest — a rate-limited verify previously rendered nothing at all.
+  const verifyMessage =
+    verifyState.message === 'rate_limited'
+      ? copy.errors.rateLimited
+      : verifyState.message === 'server'
+        ? copy.errors.server
+        : undefined;
 
   return (
     <StepTransition stepKey="code">
@@ -322,6 +336,28 @@ export function SignInForm({ locale, next, isStubMode, copy }: SignInFormProps) 
             id={codeErrorId}
             message={verifyState.fields?.code ? copy.errors.invalidCode : undefined}
           />
+          {/* Recovery path when the code never arrives. `formAction` reuses
+              the request action through this form's hidden identifier
+              fields; `formNoValidate` skips the required-but-empty code
+              input. A resend that fails server-side flips requestState back
+              to failure, returning the user to stage 1 where that error
+              already renders. */}
+          <button
+            type="submit"
+            formAction={requestAction}
+            formNoValidate
+            disabled={resendCoolingDown}
+            onClick={() => {
+              setResendCoolingDown(true);
+              setTimeout(() => setResendCoolingDown(false), RESEND_COOLDOWN_MS);
+            }}
+            className="text-sarat-black inline-flex min-h-11 items-center self-start text-sm font-medium underline underline-offset-2 transition-opacity duration-200 hover:opacity-60 disabled:no-underline disabled:opacity-50"
+          >
+            {copy.resend}
+          </button>
+          <p aria-live="polite" className="text-sarat-black-600 text-sm">
+            {resendCoolingDown ? copy.resent : null}
+          </p>
         </div>
 
         {verifyMessage && (
