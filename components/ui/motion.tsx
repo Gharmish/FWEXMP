@@ -9,7 +9,7 @@ import {
   type Transition,
   type Variants,
 } from 'framer-motion';
-import { Fragment, useEffect, useRef, useState, useSyncExternalStore, type ReactNode } from 'react';
+import { Fragment, useRef, useState, useSyncExternalStore, type ReactNode } from 'react';
 import { cn } from '@/lib/utils';
 
 /**
@@ -37,22 +37,32 @@ interface MotionPrimitiveProps {
 }
 
 /**
- * True only for components mounted during the initial document load. Framer
+ * True only for components hydrating from the initial server document. Framer
  * serialises `initial` into SSR styles, so an opacity-0 mount animation on
- * first paint hides content until hydration — an LCP hazard. Primitives that
- * must not do that (PageTransition, MountFade) render static on the very
- * first pass and only animate on client-side navigations.
+ * first paint hides content until hydration — an LCP hazard. And under
+ * `MotionConfig reducedMotion="user"` the server can't know the user's
+ * preference, so SSR output and the client's first render disagree — a React
+ * hydration mismatch that re-hides already-painted content. All primitives
+ * with an `initial` state (PageTransition, MountFade, FadeIn, Stagger,
+ * StaggerItem, Draw, TracePath) therefore render static on the very first
+ * pass and only animate on client-side navigations.
  *
- * Every consumer captures the flag during render (before any effect runs)
- * and flips it after mount, so all primitives in the first document agree.
+ * Detection rides `useSyncExternalStore`: the server snapshot (`false`) is
+ * what each component also sees during its own hydration render — including
+ * inside a Suspense boundary that hydrates after the rest of the page — so
+ * the static branch always matches the server HTML. (The previous module-
+ * level "first mount" flag broke exactly there: streamed sections hydrated
+ * after earlier components' effects had flipped the flag, and mismatched.)
  */
-let firstMountDone = false;
+const noopSubscribe = () => () => {};
 
 function useIsInitialDocumentLoad(): boolean {
-  const [isInitial] = useState(() => !firstMountDone);
-  useEffect(() => {
-    firstMountDone = true;
-  }, []);
+  const hydrated = useSyncExternalStore(
+    noopSubscribe,
+    () => true,
+    () => false,
+  );
+  const [isInitial] = useState(!hydrated);
   return isInitial;
 }
 
@@ -80,7 +90,8 @@ interface FadeInProps extends MotionPrimitiveProps {
 /** Reveal-on-scroll: fades + lifts into place once when scrolled into view. */
 export function FadeIn({ children, className, delay = 0, y = 8 }: FadeInProps) {
   const reduce = useReducedMotion();
-  if (reduce) return <div className={className}>{children}</div>;
+  const isInitial = useIsInitialDocumentLoad();
+  if (reduce || isInitial) return <div className={className}>{children}</div>;
   return (
     <motion.div
       className={className}
@@ -107,7 +118,8 @@ const staggerItem: Variants = {
 /** Container that reveals its <StaggerItem> children in sequence on scroll. */
 export function Stagger({ children, className }: MotionPrimitiveProps) {
   const reduce = useReducedMotion();
-  if (reduce) return <div className={className}>{children}</div>;
+  const isInitial = useIsInitialDocumentLoad();
+  if (reduce || isInitial) return <div className={className}>{children}</div>;
   return (
     <motion.div
       className={className}
@@ -124,7 +136,8 @@ export function Stagger({ children, className }: MotionPrimitiveProps) {
 /** A single item within a <Stagger> grid/list. */
 export function StaggerItem({ children, className }: MotionPrimitiveProps) {
   const reduce = useReducedMotion();
-  if (reduce) return <div className={className}>{children}</div>;
+  const isInitial = useIsInitialDocumentLoad();
+  if (reduce || isInitial) return <div className={className}>{children}</div>;
   return (
     <motion.div className={className} variants={staggerItem}>
       {children}
@@ -342,7 +355,8 @@ interface DrawProps extends MotionPrimitiveProps {
  */
 export function Draw({ children, className, axis = 'y', delay = 0 }: DrawProps) {
   const reduce = useReducedMotion();
-  if (reduce) return <div className={className}>{children}</div>;
+  const isInitial = useIsInitialDocumentLoad();
+  if (reduce || isInitial) return <div className={className}>{children}</div>;
   return (
     <motion.div
       className={cn(axis === 'y' ? 'origin-top' : 'origin-left rtl:origin-right', className)}
@@ -381,7 +395,8 @@ export function TracePath({ d, className, delay = 0 }: TracePathProps) {
     strokeLinejoin: 'round',
     vectorEffect: 'non-scaling-stroke',
   } as const;
-  if (reduce) return <path {...shared} />;
+  const isInitial = useIsInitialDocumentLoad();
+  if (reduce || isInitial) return <path {...shared} />;
   return (
     <motion.path
       {...shared}
