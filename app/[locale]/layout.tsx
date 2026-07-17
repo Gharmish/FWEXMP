@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import { Suspense } from 'react';
 import { notFound } from 'next/navigation';
 import { NextIntlClientProvider, hasLocale } from 'next-intl';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
@@ -29,6 +30,7 @@ import { bricolage, ibmPlexArabic } from '@/lib/fonts';
 import { routing, localeDirection, type Locale } from '@/lib/i18n';
 import { Navbar } from '@/components/layout/navbar';
 import { Footer } from '@/components/layout/footer';
+import { ScrollToTop } from '@/components/layout/scroll-to-top';
 import { CookieNotice } from '@/components/layout/cookie-notice';
 import { MarketingPixels } from '@/components/layout/marketing-pixels';
 import { UtmCapture } from '@/features/analytics/utm-capture';
@@ -105,6 +107,10 @@ export default async function LocaleLayout({
                 <CookieNotice />
                 <MarketingPixels />
                 <UtmCapture />
+                {/* useSearchParams consumer — Suspense keeps prerender happy. */}
+                <Suspense fallback={null}>
+                  <ScrollToTop />
+                </Suspense>
               </ToastProvider>
             </MotionProvider>
           </DirectionProvider>
