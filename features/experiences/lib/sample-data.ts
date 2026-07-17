@@ -21,6 +21,7 @@ type SampleExperience = Omit<
   | 'heroImage'
   | 'images'
   | 'bookingMode'
+  | 'cancellationTier'
   | 'availabilityWeekdays'
   | 'startTime'
   | 'hostSlug'
@@ -56,6 +57,7 @@ function attachRatings(e: SampleExperience): ExperienceDetail {
     images: [],
     // Offline demo defaults — the live DB path carries the real values.
     bookingMode: 'request',
+    cancellationTier: 'moderate',
     availabilityWeekdays: [4, 5, 6], // Thu–Sat
     startTime: '09:00',
     // Empty → the Arabic page uses the seed dictionary, same as before.

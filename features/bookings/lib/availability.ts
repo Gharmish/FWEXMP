@@ -152,6 +152,25 @@ export function remainingCapacity(maxGroupSize: number, bookedPartyTotal: number
 }
 
 /** Add `n` whole days to a `YYYY-MM-DD` string (UTC-safe). */
+/** Today as `YYYY-MM-DD` in the experience's local day (KSA at launch). */
+export function todayInRiyadh(): string {
+  // en-CA renders ISO `YYYY-MM-DD`; the time zone pins it to the KSA day.
+  return new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Riyadh' }).format(new Date());
+}
+
+/** Current wall-clock time as minutes since midnight in the KSA day. */
+export function nowMinutesInRiyadh(): number {
+  // hourCycle h23 forces 00–23 (dodges the legacy '24' hour bug).
+  const hm = new Intl.DateTimeFormat('en-GB', {
+    timeZone: 'Asia/Riyadh',
+    hourCycle: 'h23',
+    hour: '2-digit',
+    minute: '2-digit',
+  }).format(new Date());
+  const [h, m] = hm.split(':').map(Number);
+  return h * 60 + m;
+}
+
 export function addDays(dateStr: string, n: number): string {
   const d = new Date(`${dateStr}T12:00:00Z`);
   d.setUTCDate(d.getUTCDate() + n);

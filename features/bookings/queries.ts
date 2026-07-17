@@ -4,6 +4,7 @@ import { serverEnv } from '@/lib/env';
 import { bookings, experiences } from '@/db/schema';
 import type { Booking } from '@/db/schema';
 import { bookingViewerCanAccess } from '@/features/bookings/lib/access';
+import type { PolicySnapshot } from '@/features/bookings/lib/policy';
 import { reportError } from '@/lib/log';
 
 /**
@@ -73,7 +74,32 @@ export interface BookingDetail {
   paymentDeadline: string | null;
   /** When the booking was moved to `refunded`. ISO; null when never refunded. */
   refundedAt: string | null;
+  /**
+   * Cancellation-policy snapshot taken at booking creation — feeds
+   * `bookingOptions()`, which decides the cancel/reschedule actions a
+   * page may render for this booking.
+   */
+  policy: PolicySnapshot;
+  /** Self-service reschedules already used (`MAX_RESCHEDULES` caps this). */
+  rescheduleCount: number;
   createdAt: string;
+}
+
+/** The snapshot columns, shaped for `bookingOptions()`. */
+function policyOf(row: {
+  policyTier: PolicySnapshot['policyTier'];
+  freeCancelHours: number;
+  partialRefundHours: number;
+  partialRefundBps: number;
+  rescheduleCutoffHours: number;
+}): PolicySnapshot {
+  return {
+    policyTier: row.policyTier,
+    freeCancelHours: row.freeCancelHours,
+    partialRefundHours: row.partialRefundHours,
+    partialRefundBps: row.partialRefundBps,
+    rescheduleCutoffHours: row.rescheduleCutoffHours,
+  };
 }
 
 export async function getBookingByReference(reference: string): Promise<BookingDetail | undefined> {
@@ -115,6 +141,8 @@ export async function getBookingByReference(reference: string): Promise<BookingD
     approvedAt: row.approvedAt?.toISOString() ?? null,
     paymentDeadline: row.paymentDeadline?.toISOString() ?? null,
     refundedAt: row.refundedAt?.toISOString() ?? null,
+    policy: policyOf(row),
+    rescheduleCount: row.rescheduleCount,
     createdAt: row.createdAt.toISOString(),
   };
 }
@@ -189,6 +217,8 @@ export async function getBookingsForGuest(guestId: string): Promise<GuestBooking
     approvedAt: row.approvedAt?.toISOString() ?? null,
     paymentDeadline: row.paymentDeadline?.toISOString() ?? null,
     refundedAt: row.refundedAt?.toISOString() ?? null,
+    policy: policyOf(row),
+    rescheduleCount: row.rescheduleCount,
     experienceTitleEn: row.experience.titleEn,
     experienceTitleAr: row.experience.titleAr,
     createdAt: row.createdAt.toISOString(),

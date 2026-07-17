@@ -15,7 +15,6 @@ import { hostApplications } from '@/db/schema';
 import { getBookingByReference } from '@/features/bookings/queries';
 import { vatPortionSar, vatRatePercent } from '@/features/bookings/lib/vat';
 import { startInstant, freeCancellationDeadline } from '@/features/bookings/lib/cancellation';
-import { getPlatformSettings } from '@/lib/platform-settings';
 import { splitCommission } from '@/features/bookings/lib/commission';
 import { zatcaQrPayload } from '@/features/bookings/lib/zatca-qr';
 import { renderInvoicePdf, type InvoicePdfRow } from '@/features/bookings/lib/invoice-pdf';
@@ -345,7 +344,14 @@ export async function sendBookingCancellationEmail(
   reference: string,
   locale: Locale,
   refund: 'none' | 'refunded' | 'refund_pending' | 'forfeited',
-  options?: { cancelledBy?: 'guest' | 'operator' },
+  options?: {
+    cancelledBy?: 'guest' | 'operator';
+    /**
+     * Amount actually refunded (or queued) — pass it for partial
+     * policy refunds; defaults to the full charge when omitted.
+     */
+    refundAmountSar?: number;
+  },
 ): Promise<void> {
   if (!notificationsConfigured()) return;
 
@@ -366,7 +372,10 @@ export async function sendBookingCancellationEmail(
   rows.push({ label: t('dateLabel'), value: formatDate(startsAt, locale, 'gregory', KSA_DATE) });
   rows.push({ label: t('timeLabel'), value: formatTime(startsAt, locale, KSA_TIME) });
   if (refund === 'refunded' || refund === 'refund_pending') {
-    rows.push({ label: t('refundLabel'), value: formatSAR(booking.totalAmountSar, locale) });
+    rows.push({
+      label: t('refundLabel'),
+      value: formatSAR(options?.refundAmountSar ?? booking.totalAmountSar, locale),
+    });
   }
   rows.push({ label: t('referenceLabel'), value: booking.referenceCode });
 
@@ -422,6 +431,64 @@ export async function sendBookingCancellationEmail(
         '4': formatTime(startsAt, locale, KSA_TIME),
         '5': booking.referenceCode,
       },
+    },
+  });
+}
+
+/**
+ * The guest moved their booking to a new date. Sent AFTER the row was
+ * updated, so the standard detail rows carry the NEW date/time; the old
+ * date arrives as a parameter for the "moved from" line. Payment is
+ * untouched by a reschedule, so no money rows appear.
+ */
+export async function sendBookingRescheduledEmail(
+  reference: string,
+  oldDate: string,
+  locale: Locale,
+): Promise<void> {
+  if (!notificationsConfigured()) return;
+  const booking = await getBookingByReference(reference);
+  if (!booking) return;
+  if (!booking.guestEmail && !booking.guestPhone) return;
+
+  const t = await getTranslations({ locale, namespace: 'bookingEmail' });
+  const details = await lifecycleDetails(booking, locale, t);
+  const movedFrom = startInstant(oldDate, booking.startTime);
+  const rows = [
+    { label: t('movedFromLabel'), value: formatDate(movedFrom, locale, 'gregory', KSA_DATE) },
+    ...details.rows,
+  ];
+
+  const { html, text } = renderReceiptEmail({
+    logoUrl: EMAIL_LOGO_URL,
+    subject: t('rescheduledSubject'),
+    dir: locale === 'ar' ? 'rtl' : 'ltr',
+    greeting: t('greeting', { name: booking.guestName }),
+    intro: t('rescheduledIntro'),
+    rows,
+    cta: {
+      label: t('rescheduledCta'),
+      url: `${SITE_URL}/${locale}/book/confirmed/${reference}`,
+    },
+    closing: t('rescheduledClosing'),
+    footer: t('footer'),
+  });
+  await dispatchNotification({
+    type: 'booking_rescheduled',
+    // Scoped by the new date so a future policy allowing several moves
+    // still notifies each one.
+    dedupeKey: `booking_rescheduled:${booking.referenceCode}:${booking.date}`,
+    bookingId: booking.id,
+    recipient: {
+      kind: 'guest',
+      email: booking.guestEmail,
+      phone: booking.guestPhone,
+      locale,
+    },
+    email: { subject: t('rescheduledSubject'), html, text },
+    whatsapp: {
+      template: 'booking_rescheduled',
+      variables: guestLifecycleVariables(booking, details, locale),
     },
   });
 }
@@ -521,12 +588,12 @@ export async function sendBookingPrepareReminderEmail(
 
   // Free-cancellation line — shown only when the deadline is still ahead
   // (with a 48h window it's usually already passed by the 24h mark, so we
-  // fall back to a plain "manage your booking" link).
-  const { cancellationWindowHours } = await getPlatformSettings();
+  // fall back to a plain "manage your booking" link). The deadline comes
+  // from the booking's own policy snapshot, never the live platform rule.
   const deadline = freeCancellationDeadline(
     booking.date,
     booking.startTime,
-    cancellationWindowHours,
+    booking.policy.freeCancelHours,
   );
   const manageUrl = `${SITE_URL}/${locale}/book/confirmed/${reference}`;
   const note =
@@ -559,7 +626,9 @@ export async function sendBookingPrepareReminderEmail(
 
   await dispatchNotification({
     type: 'booking_reminder_24h',
-    dedupeKey: `booking_reminder_24h:${booking.referenceCode}`,
+    // Scoped by date: a rescheduled booking resets its reminder flags and
+    // must be remindable again for the NEW date — same reference, new key.
+    dedupeKey: `booking_reminder_24h:${booking.referenceCode}:${booking.date}`,
     bookingId: booking.id,
     recipient: { kind: 'guest', email: guestEmail, phone: guestPhone, locale },
     email: { subject: t('prepareSubject', { time }), html, text },
@@ -619,7 +688,7 @@ export async function sendBookingDepartureReminderEmail(
 
   await dispatchNotification({
     type: 'booking_reminder_3h',
-    dedupeKey: `booking_reminder_3h:${booking.referenceCode}`,
+    dedupeKey: `booking_reminder_3h:${booking.referenceCode}:${booking.date}`,
     bookingId: booking.id,
     recipient: { kind: 'guest', email: guestEmail, phone: guestPhone, locale },
     email: { subject: t('departureSubject', { time }), html, text },
@@ -1061,6 +1130,56 @@ export async function sendHostGuestCancelledEmail(reference: string): Promise<vo
     email: { subject: t('hostGuestCancelledSubject'), html, text },
     whatsapp: {
       template: 'host_guest_cancelled',
+      variables: {
+        '1': host.title,
+        '2': formatDate(startsAt, host.locale),
+        '3': formatTime(startsAt, host.locale),
+      },
+    },
+  });
+}
+
+/**
+ * The guest moved their booking — tell the host the old date has its
+ * spots back and the new date is now holding them. Mirrors the
+ * guest-cancelled notice; best-effort, gated.
+ */
+export async function sendHostBookingRescheduledEmail(
+  reference: string,
+  oldDate: string,
+): Promise<void> {
+  if (!notificationsConfigured()) return;
+
+  const booking = await getBookingByReference(reference);
+  if (!booking?.experienceSlug) return;
+  const host = await hostEmailContext(booking.experienceSlug);
+  if (!host) return;
+
+  const t = await getTranslations({ locale: host.locale, namespace: 'bookingEmail' });
+  const movedFrom = startInstant(oldDate, booking.startTime);
+  const rows = [
+    { label: t('movedFromLabel'), value: formatDate(movedFrom, host.locale) },
+    ...hostRows(booking, host, t),
+  ];
+  const { html, text } = renderReceiptEmail({
+    logoUrl: EMAIL_LOGO_URL,
+    subject: t('hostBookingRescheduledSubject'),
+    dir: host.locale === 'ar' ? 'rtl' : 'ltr',
+    greeting: t('hostNewGreeting'),
+    intro: t('hostBookingRescheduledIntro', { url: `${SITE_URL}/${host.locale}/host/bookings` }),
+    rows,
+    closing: t('hostNewClosing'),
+    footer: t('footer'),
+  });
+  const startsAt = startInstant(booking.date, booking.startTime);
+  await dispatchNotification({
+    type: 'host_booking_rescheduled',
+    dedupeKey: `host_booking_rescheduled:${booking.referenceCode}:${booking.date}`,
+    bookingId: booking.id,
+    recipient: { kind: 'host', email: host.email, phone: host.phone, locale: host.locale },
+    email: { subject: t('hostBookingRescheduledSubject'), html, text },
+    whatsapp: {
+      template: 'host_booking_rescheduled',
       variables: {
         '1': host.title,
         '2': formatDate(startsAt, host.locale),

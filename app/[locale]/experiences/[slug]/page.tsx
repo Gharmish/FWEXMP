@@ -38,6 +38,7 @@ import { MeetingPointMap } from '@/features/experiences/components/meeting-point
 import { trackExperienceView, utmFromSearchParams } from '@/features/analytics/capture';
 import { getScheduleDataBySlug } from '@/features/availability/queries';
 import { addDays, bookableDates } from '@/features/bookings/lib/availability';
+import { CANCELLATION_TIERS } from '@/features/bookings/lib/policy';
 import { vatRatePercent } from '@/features/bookings/lib/vat';
 import { getPlatformSettings } from '@/lib/platform-settings';
 import { getCompletedBookingsCountForExperience } from '@/features/bookings/queries';
@@ -194,6 +195,12 @@ export default async function ExperienceDetailPage({
     // client and formatting there breaks next-intl's placeholder handling.
     spotsLabel: tb('spotsLeft', { count: d.remaining }),
   }));
+
+  // The tier's parameters — what new bookings will snapshot; drives the
+  // cancellation section and the free-cancellation trust chip. The
+  // `moderate` fallback covers detail objects cached (unstable_cache)
+  // before the tier field existed.
+  const policyView = CANCELLATION_TIERS[exp.cancellationTier] ?? CANCELLATION_TIERS.moderate;
 
   const title = loc === 'ar' ? exp.titleAr : exp.titleEn;
   const description = loc === 'ar' ? exp.descriptionAr : exp.descriptionEn;
@@ -570,14 +577,21 @@ export default async function ExperienceDetailPage({
               {t('cancellation')}
             </h2>
             {/* Single source of truth: the line is DERIVED from the
-                platform window the cancel action actually enforces. The
-                host's free-text policy field is no longer rendered here —
-                sample listings promised 24/72h windows while enforcement
-                was 48h, a refund dispute waiting to happen. */}
+                experience's policy tier — the exact parameters every new
+                booking snapshots and the cancel/reschedule actions
+                enforce. Free text is never rendered here. */}
             <p className="text-sarat-black-600 text-base">
-              {settings.cancellationWindowHours > 0
-                ? t('cancellationPolicyLine', { hours: settings.cancellationWindowHours })
-                : t('cancellationPolicyNone')}
+              {policyView.partialRefundBps > 0
+                ? t('cancellationTierLine', {
+                    freeHours: policyView.freeCancelHours,
+                    partialPct: policyView.partialRefundBps / 100,
+                    partialHours: policyView.partialRefundHours,
+                    rescheduleHours: policyView.rescheduleCutoffHours,
+                  })
+                : t('cancellationTierLineNoPartial', {
+                    freeHours: policyView.freeCancelHours,
+                    rescheduleHours: policyView.rescheduleCutoffHours,
+                  })}
             </p>
           </section>
 
@@ -622,12 +636,10 @@ export default async function ExperienceDetailPage({
                   {t('requestBadge')}
                 </Badge>
               )}
-              {settings.cancellationWindowHours > 0 && (
-                <Badge className="bg-success-surface text-success">
-                  <ShieldCheck aria-hidden />
-                  {t('freeCancellation', { hours: settings.cancellationWindowHours })}
-                </Badge>
-              )}
+              <Badge className="bg-success-surface text-success">
+                <ShieldCheck aria-hidden />
+                {t('freeCancellation', { hours: policyView.freeCancelHours })}
+              </Badge>
               {bookedCountChip && (
                 <Badge variant="neutral">
                   <Users aria-hidden />

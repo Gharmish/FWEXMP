@@ -8,20 +8,21 @@ import { bookings } from '@/db/schema';
 import { reportError } from '@/lib/log';
 import { cancelBookingSchema } from '@/features/bookings/schemas';
 import { bookingViewerCanAccess } from '@/features/bookings/lib/access';
-import { cancelEligibility } from '@/features/bookings/lib/cancellation';
+import { bookingOptions } from '@/features/bookings/lib/policy';
 import { executeRefund } from '@/features/bookings/lib/refund';
 import {
   sendBookingCancellationEmail,
   sendHostGuestCancelledEmail,
 } from '@/features/bookings/lib/booking-email';
-import { getPlatformSettings } from '@/lib/platform-settings';
 
 /**
- * Guest self-service cancellation (owner decision, 2026-06-10):
- * cancellable any time before the experience starts; a *paid* booking
- * is refunded in full only when cancelled at least
- * `platform_settings.cancellation_window_hours` (default 48) before
- * the start. Inside the window the payment is forfeited.
+ * Guest self-service cancellation: cancellable any time before the
+ * experience starts; what happens to a *paid* booking's money (full /
+ * partial / forfeited refund) comes from the cancellation-policy
+ * snapshot stamped on the booking at creation — see
+ * `features/bookings/lib/policy.ts` for the tiers and the post-booking
+ * grace rule. The page renders the same `bookingOptions()` verdict this
+ * action re-checks, so the UI can never offer what the server refuses.
  *
  * Refund execution is gateway-first with a manual fallback: we try the
  * HyperPay refund API against the original payment; if the gateway
@@ -37,7 +38,14 @@ import { getPlatformSettings } from '@/lib/platform-settings';
  */
 
 export type CancelBookingState =
-  | { success: true; refund: 'none' | 'refunded' | 'refund_pending' | 'forfeited' }
+  | {
+      success: true;
+      refund: 'none' | 'refunded' | 'refund_pending' | 'forfeited';
+      /** True when the refund was the policy's partial fraction, not 100%. */
+      partial: boolean;
+      /** Whole SAR issued (or queued for manual reversal). 0 when nothing moves. */
+      refundAmountSar: number;
+    }
   | {
       success: false;
       message?:
@@ -81,6 +89,13 @@ export async function cancelBookingAsGuest(
         startTime: true,
         totalAmount: true,
         paymentReference: true,
+        createdAt: true,
+        policyTier: true,
+        freeCancelHours: true,
+        partialRefundHours: true,
+        partialRefundBps: true,
+        rescheduleCutoffHours: true,
+        rescheduleCount: true,
       },
     });
     if (!booking) return { success: false, message: 'not_found' };
@@ -89,17 +104,19 @@ export async function cancelBookingAsGuest(
       return { success: false, message: 'not_found' };
     }
 
-    const { cancellationWindowHours } = await getPlatformSettings();
-    const eligibility = cancelEligibility({
+    const { cancel } = bookingOptions({
       status: booking.status,
       paymentStatus: booking.paymentStatus,
       dateStr: booking.date,
       startTime: booking.startTime,
-      windowHours: cancellationWindowHours,
+      createdAt: booking.createdAt,
+      totalAmountSar: booking.totalAmount,
+      snapshot: booking,
+      rescheduleCount: booking.rescheduleCount,
       now: new Date(),
     });
-    if (!eligibility.canCancel) {
-      return { success: false, message: eligibility.reason };
+    if (!cancel.allowed) {
+      return { success: false, message: cancel.reason };
     }
 
     // Flip to cancelled conditionally on the status we just evaluated, so
@@ -111,15 +128,21 @@ export async function cancelBookingAsGuest(
       .returning({ id: bookings.id });
     if (updated.length === 0) return { success: false, message: 'wrong_state' };
 
-    if (eligibility.refund === 'full') {
+    if (cancel.refund === 'full' || cancel.refund === 'partial') {
+      // Partial refunds reverse only the policy's fraction; the gateway
+      // (and the manual fallback queue) take the amount verbatim.
       refundOutcome = {
         success: true,
-        refund: await executeRefund(booking.id, booking.paymentReference, booking.totalAmount),
+        refund: await executeRefund(booking.id, booking.paymentReference, cancel.amountSar),
+        partial: cancel.refund === 'partial',
+        refundAmountSar: cancel.amountSar,
       };
     } else {
       refundOutcome = {
         success: true,
-        refund: eligibility.refund === 'forfeited' ? 'forfeited' : 'none',
+        refund: cancel.refund === 'forfeited' ? 'forfeited' : 'none',
+        partial: false,
+        refundAmountSar: 0,
       };
     }
   } catch (error) {
@@ -129,7 +152,9 @@ export async function cancelBookingAsGuest(
 
   // Best-effort notifications — never fail a completed cancellation over email.
   try {
-    await sendBookingCancellationEmail(reference, locale, refundOutcome.refund);
+    await sendBookingCancellationEmail(reference, locale, refundOutcome.refund, {
+      refundAmountSar: refundOutcome.partial ? refundOutcome.refundAmountSar : undefined,
+    });
   } catch (error) {
     reportError(error, { surface: 'bookings:cancelEmail', reference });
   }

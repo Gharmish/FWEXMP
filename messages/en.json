@@ -641,6 +641,9 @@
       "whatToBring": "What to bring",
       "whatToBringHint": "One item per line.",
       "cancellationPolicy": "Cancellation policy",
+      "cancellationTierFlexible": "Flexible — full refund until 24 hours before the start",
+      "cancellationTierModerate": "Moderate — full refund until 48 hours before; 50% until 24 hours before",
+      "cancellationTierStrict": "Strict — full refund until 7 days before; 50% until 48 hours before",
       "availabilityWeekdays": "Available days",
       "blackoutHint": "Close or reopen specific dates on the availability calendar below.",
       "submit": "Save changes",
@@ -1940,7 +1943,10 @@
       "whatToBringPlaceholder": "Comfortable walking shoes\nA layer for the evening",
       "whatToBringHint": "One per line. Leave blank if nothing.",
       "cancellationLabel": "Cancellation policy",
-      "cancellationPlaceholder": "Free cancellation up to 24 hours before the experience. 50% refund if cancelled within 24 hours.",
+      "cancellationTierFlexible": "Flexible — full refund until 24 hours before the start",
+      "cancellationTierModerate": "Moderate — full refund until 48 hours before; 50% until 24 hours before",
+      "cancellationTierStrict": "Strict — full refund until 7 days before; 50% until 48 hours before",
+      "cancellationHint": "This is what guests see on your listing and what each booking enforces. Guests can also move a booking to another open date once, within the same policy.",
       "weekdaysLabel": "Available days (recurring)",
       "weekdaysHint": "Weekdays this experience runs. Close or reopen specific dates on the availability calendar.",
       "weekdays": {
@@ -2205,6 +2211,8 @@
     },
     "startsAt": "Starts at {time}",
     "cancellationPolicyLine": "Free cancellation up to {hours} hours before the start — you get a full refund. Closer than that, the payment is non-refundable. You can cancel any time from your booking page.",
+    "cancellationTierLine": "Free cancellation with a full refund until {freeHours} hours before the start, then a {partialPct}% refund until {partialHours} hours before. You can also move your booking to another open date once, up to {rescheduleHours} hours before — all from your booking page.",
+    "cancellationTierLineNoPartial": "Free cancellation with a full refund until {freeHours} hours before the start; closer than that, the payment is non-refundable. You can also move your booking to another open date once, up to {rescheduleHours} hours before — all from your booking page.",
     "cancellationPolicyNone": "You can cancel any time before the start from your booking page.",
     "preview": {
       "banner": "Preview — this is how your listing looks to guests. Only you (and the review team) can see this page until it's live.",
@@ -2322,13 +2330,17 @@
       "policyUnpaid": "You can cancel this request free of charge — nothing has been paid yet.",
       "policyRefundable": "Free cancellation with a full refund until {deadline}. After that, the payment is not refunded.",
       "policyForfeited": "The free-cancellation window has passed. You can still cancel, but the payment will not be refunded.",
+      "policyPartial": "The free-cancellation window has passed. Cancel before {deadline} and {amount} of the payment is refunded; after that, nothing is refunded.",
       "label": "Cancel booking",
       "pending": "Cancelling…",
       "confirm": "Cancel this booking? This can't be undone.",
       "confirmForfeited": "Cancel this booking? The free-cancellation window has passed, so the payment won't be refunded. This can't be undone.",
+      "confirmPartial": "Cancel this booking? Per the cancellation policy, {amount} will be refunded to your card. This can't be undone.",
       "doneUnpaid": "Your booking is cancelled. Nothing was charged.",
       "doneRefunded": "Your booking is cancelled and the refund has been issued to your card. Depending on your bank, it can take a few business days to appear.",
       "doneRefundPending": "Your booking is cancelled. Your refund is on its way — our team processes it manually and you'll see it on your card within a few business days.",
+      "donePartialRefunded": "Your booking is cancelled and {amount} has been refunded to your card per the cancellation policy. Depending on your bank, it can take a few business days to appear.",
+      "donePartialRefundPending": "Your booking is cancelled. Your {amount} refund is on its way — our team processes it manually and you'll see it on your card within a few business days.",
       "doneForfeited": "Your booking is cancelled. Because the free-cancellation window had already passed, the payment was not refunded.",
       "errors": {
         "forbidden": "You don't have permission to cancel this booking.",
@@ -2336,6 +2348,29 @@
         "notFound": "We couldn't find that booking.",
         "wrongState": "This booking changed in the meantime. Refresh to see its current state.",
         "alreadyStarted": "This experience has already started, so it can no longer be cancelled.",
+        "validation": "Something about this request was invalid. Refresh and try again.",
+        "server": "Something went wrong on our side. Try again."
+      }
+    },
+    "reschedule": {
+      "heading": "Need a different date?",
+      "policy": "You can move this booking to another available date free of charge until {deadline}. A booking can be moved once — your payment and reference stay the same.",
+      "noDates": "There are no other dates open for this experience right now. Check back later, or cancel below if the current date doesn't work.",
+      "label": "Change date",
+      "pending": "Moving…",
+      "confirm": "Move this booking to {date}? Your payment and reference stay the same.",
+      "done": "Your booking has been moved to {date}. We've emailed you the updated details.",
+      "prevMonth": "Previous month",
+      "nextMonth": "Next month",
+      "errors": {
+        "noDb": "We couldn't change the date right now — try again in a moment.",
+        "notFound": "We couldn't find that booking.",
+        "wrongState": "This booking changed in the meantime. Refresh to see its current state.",
+        "alreadyStarted": "This experience has already started, so it can no longer be moved.",
+        "windowPassed": "The window for changing the date has passed.",
+        "limitReached": "This booking has already been moved once, so it can't be moved again.",
+        "dateUnavailable": "That date is no longer open for booking. Pick another date.",
+        "dateFull": "That date just filled up. Pick another date.",
         "validation": "Something about this request was invalid. Refresh and try again.",
         "server": "Something went wrong on our side. Try again."
       }
@@ -2497,6 +2532,13 @@
     "cancelIntroForfeited": "Your booking has been cancelled. Because the free-cancellation window had already passed, the payment was not refunded.",
     "cancelIntroUnpaid": "Your booking has been cancelled. Nothing was charged.",
     "cancelClosing": "We hope to host you another time.",
+    "rescheduledSubject": "Your booking has a new date",
+    "rescheduledIntro": "Done — your booking has been moved to the new date below. Your payment and reference stay the same.",
+    "rescheduledCta": "View your booking",
+    "rescheduledClosing": "We look forward to seeing you there.",
+    "movedFromLabel": "Previous date",
+    "hostBookingRescheduledSubject": "A booking moved to a new date",
+    "hostBookingRescheduledIntro": "A guest moved their booking to the date below. The previous date has its spots back. See your bookings: {url}",
     "refundLabel": "Refund amount",
     "vatIncludedLabel": "Includes VAT ({pct}%)",
     "prepareSubject": "Tomorrow at {time}: get ready for your experience",
@@ -2886,11 +2928,11 @@
   "cancellationPolicyPage": {
     "eyebrow": "Cancellation & refunds",
     "title": "Plans change. Here's exactly what happens.",
-    "intro": "One platform-wide policy, in plain language — the same rules our system actually enforces, with no fine print.",
+    "intro": "Three clear policies, in plain language — the same rules our system actually enforces, fixed on your booking the moment you book, with no fine print.",
     "freeWindow": {
       "heading": "Free cancellation window",
-      "body1": "You can cancel any booking before it starts. If you cancel at least {hours} hours before the start time, a paid booking is refunded in full.",
-      "body2": "Inside the final {hours} hours the booking can still be cancelled, but the payment is not refunded — your host has already planned and turned others away."
+      "body1": "You can cancel any booking before it starts, from your booking page. Every experience shows one of three cancellation policies: Flexible (full refund until 24 hours before the start), Moderate (full refund until 48 hours before, then a 50% refund until 24 hours before) or Strict (full refund until 7 days before, then 50% until 48 hours before). The policy shown when you booked is the one that applies — it never changes after you book.",
+      "body2": "Two extras apply on top of any policy: cancel within 24 hours of booking (while the start is still at least 48 hours away) and you're always refunded in full; and you can move a booking to another open date once, free of charge, within the window your policy allows. Past a policy's last refund step the booking can still be cancelled, but the payment is not refunded — your host has already planned and turned others away."
     },
     "requests": {
       "heading": "Booking requests",
@@ -2928,7 +2970,7 @@
       },
       "cancel": {
         "q": "Can I cancel a booking?",
-        "a": "Yes — any time before the experience starts, from your booking page. Cancel at least {cancelHours} hours before the start and a paid booking refunds in full; closer than that, the payment is kept."
+        "a": "Yes — any time before the experience starts, from your booking page. Refunds follow the experience's cancellation policy (Flexible, Moderate or Strict) shown when you booked: a full refund up to that policy's deadline, and on Moderate and Strict a 50% refund for a while after. You can also move your booking to another open date once, free of charge."
       },
       "contactHost": {
         "q": "How do I reach my host?",
@@ -2986,7 +3028,7 @@
     },
     "cancellations": {
       "heading": "Cancellations and refunds",
-      "body": "One platform-wide policy applies to every booking: cancel at least {hours} hours before the start time and a paid booking is refunded in full; inside that window the payment is kept.",
+      "body": "Each experience carries one of three cancellation policies (Flexible, Moderate or Strict), shown on its page and fixed on your booking at the moment you book: a full refund up to the policy's deadline, a 50% refund for a further window on Moderate and Strict, and no refund past that. Cancelling within 24 hours of booking always refunds in full while the start is at least 48 hours away; one free date change is included within the policy's window.",
       "link": "Read the full cancellation policy"
     },
     "conduct": {

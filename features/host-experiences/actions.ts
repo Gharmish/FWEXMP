@@ -53,7 +53,7 @@ export interface HostExperienceState {
       | 'minAge'
       | 'priceSar'
       | 'placeName'
-      | 'cancellationPolicy'
+      | 'cancellationTier'
       | 'inclusionsRaw'
       | 'whatToBringRaw'
       | 'availabilityWeekdays'
@@ -83,7 +83,7 @@ export interface HostExperienceState {
       | 'region'
       | 'inclusionsRaw'
       | 'whatToBringRaw'
-      | 'cancellationPolicy'
+      | 'cancellationTier'
       | 'startTime'
       | 'bookingCutoffHours'
       | 'lat'
@@ -117,7 +117,7 @@ function collectValues(formData: FormData): NonNullable<HostExperienceState['val
     region: formValue(formData, 'region'),
     inclusionsRaw: formValue(formData, 'inclusionsRaw'),
     whatToBringRaw: formValue(formData, 'whatToBringRaw'),
-    cancellationPolicy: formValue(formData, 'cancellationPolicy'),
+    cancellationTier: formValue(formData, 'cancellationTier'),
     startTime: formValue(formData, 'startTime'),
     bookingCutoffHours: formValue(formData, 'bookingCutoffHours'),
     lat: formValue(formData, 'lat'),
@@ -140,7 +140,7 @@ function parseForm(formData: FormData) {
     region: formValue(formData, 'region') || 'Aseer',
     inclusionsRaw: formValue(formData, 'inclusionsRaw'),
     whatToBringRaw: formValue(formData, 'whatToBringRaw'),
-    cancellationPolicy: formValue(formData, 'cancellationPolicy'),
+    cancellationTier: formValue(formData, 'cancellationTier'),
     availabilityWeekdays: formValues(formData, 'availabilityWeekdays'),
     startTime: formValue(formData, 'startTime'),
     bookingCutoffHours: formValue(formData, 'bookingCutoffHours'),
@@ -204,7 +204,7 @@ function payloadForWrite(input: HostExperienceInput) {
     region: input.region,
     inclusions: input.inclusionsRaw,
     whatToBring: input.whatToBringRaw,
-    cancellationPolicy: input.cancellationPolicy,
+    cancellationTier: input.cancellationTier,
     availabilityWeekdays: input.availabilityWeekdays,
     startTime: input.startTime,
     bookingCutoffHours: input.bookingCutoffHours,
@@ -602,6 +602,7 @@ export async function duplicateHostExperience(
               inclusions: [...source.inclusions],
               whatToBring: [...source.whatToBring],
               cancellationPolicy: source.cancellationPolicy,
+              cancellationTier: source.cancellationTier,
               availabilityWeekdays: [...source.availabilityWeekdays],
               startTime: source.startTime,
               bookingCutoffHours: source.bookingCutoffHours,

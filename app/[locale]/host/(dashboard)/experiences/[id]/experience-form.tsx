@@ -124,7 +124,9 @@ export interface ExperienceFormCopy {
   whatToBringPlaceholder: string;
   whatToBringHint: string;
   cancellationLabel: string;
-  cancellationPlaceholder: string;
+  /** Plain-language label per policy preset, keyed by tier value. */
+  cancellationTiers: Record<'flexible' | 'moderate' | 'strict', string>;
+  cancellationHint: string;
   weekdaysLabel: string;
   weekdaysHint: string;
   /** Sun..Sat order, matching `availabilityWeekdays` index 0..6. */
@@ -585,26 +587,22 @@ export function ExperienceForm({
         </div>
 
         <div className="flex flex-col gap-2">
-          <label htmlFor="ex-cancellationPolicy" className="text-sm font-medium">
+          <label htmlFor="ex-cancellationTier" className="text-sm font-medium">
             {copy.cancellationLabel}
           </label>
-          <textarea
-            id="ex-cancellationPolicy"
-            name="cancellationPolicy"
-            rows={3}
-            required
-            minLength={20}
-            maxLength={1000}
-            defaultValue={v?.cancellationPolicy ?? experience?.cancellationPolicy}
-            placeholder={copy.cancellationPlaceholder}
-            className={TEXTAREA_CLASS}
-            aria-invalid={fields.cancellationPolicy ? 'true' : undefined}
-            aria-describedby={fields.cancellationPolicy ? eid('cancellationPolicy') : undefined}
-          />
-          <FieldError
-            id={eid('cancellationPolicy')}
-            message={fieldErrorMessage(fields.cancellationPolicy, copy)}
-          />
+          {/* Preset tiers only — the selected tier is what guests see on
+              the listing and what each booking snapshots and enforces. */}
+          <select
+            id="ex-cancellationTier"
+            name="cancellationTier"
+            defaultValue={v?.cancellationTier ?? experience?.cancellationTier ?? 'moderate'}
+            className={SELECT_CLASS}
+          >
+            <option value="flexible">{copy.cancellationTiers.flexible}</option>
+            <option value="moderate">{copy.cancellationTiers.moderate}</option>
+            <option value="strict">{copy.cancellationTiers.strict}</option>
+          </select>
+          <p className="text-sarat-black-600 text-sm">{copy.cancellationHint}</p>
         </div>
       </fieldset>
 

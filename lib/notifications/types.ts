@@ -23,6 +23,8 @@ export type WhatsAppTemplateKey =
   | 'booking_approved'
   | 'booking_declined'
   | 'booking_cancelled'
+  | 'booking_rescheduled'
+  | 'host_booking_rescheduled'
   | 'booking_reminder_24h'
   | 'booking_reminder_3h'
   | 'host_new_booking'

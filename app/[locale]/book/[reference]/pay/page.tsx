@@ -86,17 +86,16 @@ export default async function PaymentPage({ params, searchParams }: PageParams) 
   const t = await getTranslations('payment');
   const tFooter = await getTranslations('footer');
 
-  // Platform settings feed the consent-side cancellation note here and
-  // the VAT disclosure in the summary below.
-  const { vatEnabled, vatRateBps, cancellationWindowHours } = await getPlatformSettings();
+  // Platform settings feed the VAT disclosure in the summary below.
+  const { vatEnabled, vatRateBps } = await getPlatformSettings();
 
   // The consent line links to the generic policy page; this note states
-  // what the policy means for THIS booking (owner decision 2026-06-10:
-  // full refund up to `cancellationWindowHours` before start, kept after).
+  // what the policy means for THIS booking, from its own cancellation-
+  // policy snapshot (the tier's full-refund window at booking time).
   const freeCancelUntil = freeCancellationDeadline(
     booking.date,
     booking.startTime,
-    cancellationWindowHours,
+    booking.policy.freeCancelHours,
   );
   const cancellationNote =
     new Date().getTime() < freeCancelUntil.getTime()

@@ -61,7 +61,12 @@ export function buildExperienceFormCopy(t: Translator): ExperienceFormCopy {
     whatToBringPlaceholder: t('whatToBringPlaceholder'),
     whatToBringHint: t('whatToBringHint'),
     cancellationLabel: t('cancellationLabel'),
-    cancellationPlaceholder: t('cancellationPlaceholder'),
+    cancellationTiers: {
+      flexible: t('cancellationTierFlexible'),
+      moderate: t('cancellationTierModerate'),
+      strict: t('cancellationTierStrict'),
+    },
+    cancellationHint: t('cancellationHint'),
     weekdaysLabel: t('weekdaysLabel'),
     weekdaysHint: t('weekdaysHint'),
     weekdays: [

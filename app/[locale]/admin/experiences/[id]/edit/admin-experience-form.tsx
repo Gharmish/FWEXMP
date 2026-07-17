@@ -50,6 +50,8 @@ export interface AdminExperienceFormCopy {
   whatToBring: string;
   whatToBringHint: string;
   cancellationPolicy: string;
+  /** Plain-language label per policy preset, keyed by tier value. */
+  cancellationTiers: Record<'flexible' | 'moderate' | 'strict', string>;
   availabilityWeekdays: string;
   /** Note pointing the operator to the calendar for date exceptions. */
   blackoutHint: string;
@@ -84,7 +86,7 @@ const BLANK: Omit<AdminExperienceEdit, 'id' | 'slug' | 'heroImage' | 'images'> =
   region: 'Aseer',
   inclusions: [],
   whatToBring: [],
-  cancellationPolicy: '',
+  cancellationTier: 'moderate',
   availabilityWeekdays: [],
   blackoutDates: [],
   startTime: '09:00',
@@ -542,18 +544,20 @@ export function AdminExperienceForm({
           <p className={hintClass}>{copy.whatToBringHint}</p>
         </div>
         <div className="flex flex-col gap-2">
-          <label htmlFor="ex-cancel" className={labelClass}>
+          <label htmlFor="ex-cancellationTier" className={labelClass}>
             {copy.cancellationPolicy}
           </label>
-          <textarea
-            id="ex-cancel"
-            name="cancellationPolicy"
-            rows={3}
-            defaultValue={v?.cancellationPolicy ?? ex.cancellationPolicy}
-            className={TEXTAREA_CLASS}
-            {...aria('cancellationPolicy')}
-          />
-          {err('cancellationPolicy')}
+          {/* Preset tiers only — what guests see and every booking enforces. */}
+          <select
+            id="ex-cancellationTier"
+            name="cancellationTier"
+            defaultValue={v?.cancellationTier ?? ex.cancellationTier}
+            className={SELECT_CLASS}
+          >
+            <option value="flexible">{copy.cancellationTiers.flexible}</option>
+            <option value="moderate">{copy.cancellationTiers.moderate}</option>
+            <option value="strict">{copy.cancellationTiers.strict}</option>
+          </select>
         </div>
       </fieldset>
 

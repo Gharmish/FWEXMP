@@ -18,6 +18,7 @@ import {
 } from '@/features/bookings/lib/availability';
 import { holdStillCounts } from '@/features/bookings/lib/capacity-sql';
 import { generateReferenceCode } from '@/features/bookings/lib/reference-code';
+import { policySnapshotFor } from '@/features/bookings/lib/policy';
 import {
   LAST_BOOKING_COOKIE,
   parseLastBookingCookie,
@@ -344,6 +345,7 @@ export async function requestBooking(
         bookingCutoffHours: true,
         bookingMode: true,
         commissionBps: true,
+        cancellationTier: true,
         category: true,
         availabilityWeekdays: true,
         blackoutDates: true,
@@ -500,8 +502,10 @@ export async function requestBooking(
       startTime: experience.startTime,
       partySize: input.partySize,
       totalAmount: experience.priceSar * input.partySize,
-      // Snapshot — a later commission edit applies to future bookings only.
+      // Snapshots — a later commission or policy edit applies to future
+      // bookings only, never restating an existing booking's terms.
       commissionBps: experience.commissionBps,
+      ...policySnapshotFor(experience.cancellationTier),
       idempotencyKey: reference,
       // Human reference (GH-XXXXXX) — display identity only; the UUID
       // above stays the URL capability. Unique-constraint collision is

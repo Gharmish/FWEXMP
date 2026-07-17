@@ -65,7 +65,7 @@ export const hostExperienceInputSchema = z.object({
   region: z.string().trim().min(2).max(80).default('Aseer'),
   inclusionsRaw: z.string().transform(linesFromTextarea),
   whatToBringRaw: z.string().transform(linesFromTextarea),
-  cancellationPolicy: z.string().trim().min(20, 'policy_short').max(1000, 'policy_long'),
+  cancellationTier: z.enum(['flexible', 'moderate', 'strict']),
   availabilityWeekdays: z.array(z.string()).transform(weekdaysFromForm),
   /**
    * Local start time, HH:MM 24h. Host-settable: every booking, email,

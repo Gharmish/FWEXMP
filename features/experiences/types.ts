@@ -1,4 +1,5 @@
 import type { Category } from '@/lib/colors';
+import type { CancellationTier } from '@/features/bookings/lib/policy';
 
 export type { Category };
 
@@ -110,6 +111,12 @@ export interface ExperienceDetail extends ExperienceSummary {
   inclusionsAr: string[];
   whatToBringAr: string[];
   cancellationPolicy: string;
+  /**
+   * Structured policy preset — what the detail page RENDERS and what
+   * future bookings will snapshot. The free-text `cancellationPolicy`
+   * above is legacy and no longer shown to guests.
+   */
+  cancellationTier: CancellationTier;
   host: HostInfo;
   moments: MomentInfo[];
   /**

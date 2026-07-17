@@ -10,8 +10,19 @@ interface Copy {
   pending: string;
   /** Confirm-dialog body — varies with the refund consequence. */
   confirm: string;
-  /** Success notes keyed by the action's refund outcome. */
-  done: Record<'none' | 'refunded' | 'refund_pending' | 'forfeited', string>;
+  /**
+   * Success notes keyed by the action's refund outcome; `*_partial`
+   * variants render when only the policy's fraction came back.
+   */
+  done: Record<
+    | 'none'
+    | 'refunded'
+    | 'refunded_partial'
+    | 'refund_pending'
+    | 'refund_pending_partial'
+    | 'forfeited',
+    string
+  >;
   errors: Record<
     | 'forbidden'
     | 'no_db'
@@ -53,9 +64,13 @@ export function CancelBookingButton({ reference, locale, copy }: CancelBookingBu
   const [state, action] = useActionState(cancelBookingAsGuest, initialState);
 
   if (state.success) {
+    const doneKey =
+      state.partial && (state.refund === 'refunded' || state.refund === 'refund_pending')
+        ? (`${state.refund}_partial` as const)
+        : state.refund;
     return (
       <p role="status" className="text-sarat-black max-w-xl text-base leading-relaxed">
-        {copy.done[state.refund]}
+        {copy.done[doneKey]}
       </p>
     );
   }

@@ -158,6 +158,15 @@ export const paymentStatusEnum = pgEnum('payment_status', [
 ]);
 
 /**
+ * Host-selected cancellation policy preset. The tier is the ONLY
+ * enforceable policy input — the numeric windows/percentages it implies
+ * live in code (`features/bookings/lib/policy.ts`) and are SNAPSHOTTED
+ * onto each booking at creation, so a host switching tiers never
+ * changes the rights of an existing booking.
+ */
+export const cancellationTierEnum = pgEnum('cancellation_tier', ['flexible', 'moderate', 'strict']);
+
+/**
  * Append-only payment ledger event types. One row per money-touching
  * interaction with the gateway (or per manual money decision), so the
  * sequence of attempts survives — the mutable columns on `bookings`
@@ -347,7 +356,21 @@ export const experiences = pgTable(
     placeName: text().notNull(),
     inclusions: text().array().notNull().default([]),
     whatToBring: text().array().notNull().default([]),
-    cancellationPolicy: text().notNull(),
+    /**
+     * Legacy free-text policy. No guest surface renders it and the
+     * host/admin forms no longer collect it (the tier below replaced
+     * it); the empty-string default lets inserts omit it entirely.
+     */
+    cancellationPolicy: text().notNull().default(''),
+    /**
+     * Structured cancellation policy preset — the enforced counterpart
+     * to the free-text `cancellationPolicy` above (which is display
+     * legacy only and slated for removal once every surface renders the
+     * tier). Guest cancel/reschedule rights come from the tier's
+     * parameters snapshotted onto the booking, never from this column
+     * at cancel time.
+     */
+    cancellationTier: cancellationTierEnum().notNull().default('moderate'),
     /**
      * Admin-authored Arabic for the lists and policy. Empty means "not
      * written yet" — Arabic surfaces fall back to the seed-content
@@ -460,6 +483,39 @@ export const bookings = pgTable(
      * was already paid) for existing ones.
      */
     commissionBps: integer().notNull().default(1500),
+    /**
+     * Cancellation-policy snapshot, taken from the experience's
+     * `cancellationTier` at booking time (same discipline as
+     * `commissionBps`): the tier label plus the numeric parameters it
+     * implied THEN. Guest cancel/reschedule eligibility and refund
+     * amounts are computed from these columns only — a host or platform
+     * policy change never restates an existing booking's rights. The
+     * column defaults equal the `moderate` tier, which both backfills
+     * legacy rows with the rule they were sold under (48h full refund)
+     * and keeps any insert path that forgets the snapshot on the
+     * default tier.
+     */
+    policyTier: cancellationTierEnum().notNull().default('moderate'),
+    /** Cancelling ≥ this many hours before start refunds in full. */
+    freeCancelHours: integer().notNull().default(48),
+    /**
+     * After the full-refund deadline, cancelling ≥ this many hours
+     * before start refunds `partialRefundBps`; past it the payment is
+     * forfeited. Tiers without a partial step set bps to 0.
+     */
+    partialRefundHours: integer().notNull().default(24),
+    partialRefundBps: integer().notNull().default(5000),
+    /** Guests may move the booking ≥ this many hours before start. */
+    rescheduleCutoffHours: integer().notNull().default(24),
+    /**
+     * Self-service reschedule bookkeeping: when the guest last moved the
+     * booking, the date it moved FROM, and how many moves have been
+     * used (policy caps this — see `MAX_RESCHEDULES`). Money never moves
+     * on a reschedule, so payment columns are untouched by it.
+     */
+    rescheduledAt: timestamp({ withTimezone: true }),
+    rescheduledFromDate: date(),
+    rescheduleCount: integer().notNull().default(0),
     currency: text().notNull().default('SAR'),
     status: bookingStatusEnum().notNull().default('pending'),
     /**

@@ -39,6 +39,7 @@ export interface HostExperienceRow {
   inclusions: string[];
   whatToBring: string[];
   cancellationPolicy: string;
+  cancellationTier: 'flexible' | 'moderate' | 'strict';
   availabilityWeekdays: number[];
   startTime: string;
   /** Hours before start that bookings close (host-settable). */
@@ -74,6 +75,7 @@ function rowToView(row: typeof experiences.$inferSelect): HostExperienceRow {
     inclusions: [...row.inclusions],
     whatToBring: [...row.whatToBring],
     cancellationPolicy: row.cancellationPolicy,
+    cancellationTier: row.cancellationTier,
     availabilityWeekdays: [...row.availabilityWeekdays],
     startTime: row.startTime,
     bookingCutoffHours: row.bookingCutoffHours,
