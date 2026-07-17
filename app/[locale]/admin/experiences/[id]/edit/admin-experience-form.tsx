@@ -153,9 +153,13 @@ export function AdminExperienceForm({
     initialState,
   );
 
+  // Failed submits echo the raw values back (React 19 resets uncontrolled
+  // inputs after a form action) — always prefer the echo over the stored row.
+  const v = state.values;
+
   // City comes from the operating-cities registry; a legacy value stays
   // selectable so editing never silently relocates the experience.
-  const cityDefault = experience?.city ?? cityOptions[0]?.nameEn ?? BLANK.city;
+  const cityDefault = v?.city || (experience?.city ?? cityOptions[0]?.nameEn ?? BLANK.city);
   const cityChoices = cityOptions.some((o) => o.nameEn === cityDefault)
     ? cityOptions
     : [
@@ -163,7 +167,10 @@ export function AdminExperienceForm({
         ...cityOptions,
       ];
   const [region, setRegion] = useState(
-    experience?.region ?? cityChoices.find((o) => o.nameEn === cityDefault)?.region ?? BLANK.region,
+    v?.region ||
+      (experience?.region ??
+        cityChoices.find((o) => o.nameEn === cityDefault)?.region ??
+        BLANK.region),
   );
   const fields = state.fields ?? {};
   const errorPrefix = useId();
@@ -180,8 +187,8 @@ export function AdminExperienceForm({
     'aria-describedby': fields[name] ? eid(name) : undefined,
   });
 
-  const weekdaySet = new Set(ex.availabilityWeekdays);
-  const commissionPct = (ex.commissionBps / 100).toString();
+  const weekdaySet = new Set(v?.availabilityWeekdays?.map(Number) ?? ex.availabilityWeekdays);
+  const commissionPct = v?.commissionPct ?? (ex.commissionBps / 100).toString();
 
   const formError =
     state.message === 'server'
@@ -215,7 +222,7 @@ export function AdminExperienceForm({
             <select
               id="ex-host"
               name="hostId"
-              defaultValue=""
+              defaultValue={v?.hostId ?? ''}
               className={SELECT_CLASS}
               {...aria('hostId')}
             >
@@ -236,7 +243,12 @@ export function AdminExperienceForm({
             <label htmlFor="ex-status" className={labelClass}>
               {copy.status}
             </label>
-            <select id="ex-status" name="status" defaultValue={ex.status} className={SELECT_CLASS}>
+            <select
+              id="ex-status"
+              name="status"
+              defaultValue={v?.status ?? ex.status}
+              className={SELECT_CLASS}
+            >
               {copy.statuses.map((o) => (
                 <option key={o.value} value={o.value}>
                   {o.label}
@@ -251,7 +263,7 @@ export function AdminExperienceForm({
             <select
               id="ex-mode"
               name="bookingMode"
-              defaultValue={ex.bookingMode}
+              defaultValue={v?.bookingMode ?? ex.bookingMode}
               className={SELECT_CLASS}
             >
               {copy.modes.map((o) => (
@@ -287,14 +299,19 @@ export function AdminExperienceForm({
               id="ex-startTime"
               name="startTime"
               type="time"
-              defaultValue={ex.startTime}
+              defaultValue={v?.startTime ?? ex.startTime}
               {...aria('startTime')}
             />
             {err('startTime')}
           </div>
         </div>
         <label className="flex items-center gap-3 text-sm font-medium">
-          <input type="checkbox" name="featured" defaultChecked={ex.featured} className="size-5" />
+          <input
+            type="checkbox"
+            name="featured"
+            defaultChecked={v?.featured ?? ex.featured}
+            className="size-5"
+          />
           {copy.featured}
         </label>
         <p className={hintClass}>{copy.featuredHint}</p>
@@ -310,7 +327,12 @@ export function AdminExperienceForm({
             <label htmlFor="ex-titleEn" className={labelClass}>
               {copy.titleEn}
             </label>
-            <Input id="ex-titleEn" name="titleEn" defaultValue={ex.titleEn} {...aria('titleEn')} />
+            <Input
+              id="ex-titleEn"
+              name="titleEn"
+              defaultValue={v?.titleEn ?? ex.titleEn}
+              {...aria('titleEn')}
+            />
             {err('titleEn')}
           </div>
           <div className="flex flex-col gap-2">
@@ -321,7 +343,7 @@ export function AdminExperienceForm({
               id="ex-titleAr"
               name="titleAr"
               dir="rtl"
-              defaultValue={ex.titleAr}
+              defaultValue={v?.titleAr ?? ex.titleAr}
               {...aria('titleAr')}
             />
             {err('titleAr')}
@@ -335,7 +357,7 @@ export function AdminExperienceForm({
             id="ex-descEn"
             name="descriptionEn"
             rows={5}
-            defaultValue={ex.descriptionEn}
+            defaultValue={v?.descriptionEn ?? ex.descriptionEn}
             className={TEXTAREA_CLASS}
             {...aria('descriptionEn')}
           />
@@ -350,7 +372,7 @@ export function AdminExperienceForm({
             name="descriptionAr"
             rows={5}
             dir="rtl"
-            defaultValue={ex.descriptionAr}
+            defaultValue={v?.descriptionAr ?? ex.descriptionAr}
             className={TEXTAREA_CLASS}
             {...aria('descriptionAr')}
           />
@@ -363,7 +385,7 @@ export function AdminExperienceForm({
           <select
             id="ex-category"
             name="category"
-            defaultValue={ex.category}
+            defaultValue={v?.category ?? ex.category}
             className={SELECT_CLASS}
           >
             {copy.categories.map((o) => (
@@ -390,7 +412,7 @@ export function AdminExperienceForm({
               name="durationMinutes"
               type="number"
               min={30}
-              defaultValue={ex.durationMinutes}
+              defaultValue={v?.durationMinutes ?? ex.durationMinutes}
               {...aria('durationMinutes')}
             />
             {err('durationMinutes')}
@@ -404,7 +426,7 @@ export function AdminExperienceForm({
               name="maxGroupSize"
               type="number"
               min={1}
-              defaultValue={ex.maxGroupSize}
+              defaultValue={v?.maxGroupSize ?? ex.maxGroupSize}
               {...aria('maxGroupSize')}
             />
             {err('maxGroupSize')}
@@ -418,7 +440,7 @@ export function AdminExperienceForm({
               name="minAge"
               type="number"
               min={0}
-              defaultValue={ex.minAge}
+              defaultValue={v?.minAge ?? ex.minAge}
               {...aria('minAge')}
             />
             {err('minAge')}
@@ -432,7 +454,7 @@ export function AdminExperienceForm({
               name="priceSar"
               type="number"
               min={0}
-              defaultValue={ex.priceSar}
+              defaultValue={v?.priceSar ?? ex.priceSar}
               {...aria('priceSar')}
             />
             {err('priceSar')}
@@ -446,7 +468,7 @@ export function AdminExperienceForm({
             <Input
               id="ex-place"
               name="placeName"
-              defaultValue={ex.placeName}
+              defaultValue={v?.placeName ?? ex.placeName}
               {...aria('placeName')}
             />
             {err('placeName')}
@@ -501,7 +523,7 @@ export function AdminExperienceForm({
             id="ex-inclusions"
             name="inclusionsRaw"
             rows={4}
-            defaultValue={ex.inclusions.join('\n')}
+            defaultValue={v?.inclusionsRaw ?? ex.inclusions.join('\n')}
             className={TEXTAREA_CLASS}
           />
           <p className={hintClass}>{copy.inclusionsHint}</p>
@@ -514,7 +536,7 @@ export function AdminExperienceForm({
             id="ex-bring"
             name="whatToBringRaw"
             rows={4}
-            defaultValue={ex.whatToBring.join('\n')}
+            defaultValue={v?.whatToBringRaw ?? ex.whatToBring.join('\n')}
             className={TEXTAREA_CLASS}
           />
           <p className={hintClass}>{copy.whatToBringHint}</p>
@@ -527,7 +549,7 @@ export function AdminExperienceForm({
             id="ex-cancel"
             name="cancellationPolicy"
             rows={3}
-            defaultValue={ex.cancellationPolicy}
+            defaultValue={v?.cancellationPolicy ?? ex.cancellationPolicy}
             className={TEXTAREA_CLASS}
             {...aria('cancellationPolicy')}
           />

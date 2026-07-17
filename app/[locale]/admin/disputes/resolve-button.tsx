@@ -1,8 +1,7 @@
 'use client';
 
 import { useActionState } from 'react';
-import { useFormStatus } from 'react-dom';
-import { Button } from '@/components/ui/button';
+import { ConfirmSubmit } from '@/components/ui/confirm-dialog';
 import { resolveDispute, type ResolveDisputeState } from '@/features/disputes/actions';
 
 interface Copy {
@@ -10,6 +9,8 @@ interface Copy {
   notesPlaceholder: string;
   resolve: string;
   pending: string;
+  confirmTitle: string;
+  confirmBody: string;
   errors: Record<'forbidden' | 'no_db' | 'not_found' | 'wrong_state' | 'server', string>;
 }
 
@@ -19,15 +20,6 @@ export interface ResolveDisputeButtonProps {
 }
 
 const initialState: ResolveDisputeState = { success: false };
-
-function Submit({ copy }: { copy: Copy }) {
-  const { pending } = useFormStatus();
-  return (
-    <Button type="submit" variant="primary" size="sm" pending={pending}>
-      {pending ? copy.pending : copy.resolve}
-    </Button>
-  );
-}
 
 export function ResolveDisputeButton({ disputeId, copy }: ResolveDisputeButtonProps) {
   const [state, action] = useActionState(resolveDispute, initialState);
@@ -55,7 +47,18 @@ export function ResolveDisputeButton({ disputeId, copy }: ResolveDisputeButtonPr
         </p>
       )}
       <div>
-        <Submit copy={copy} />
+        {/* Resolution is one-way (the action rejects a second resolve) —
+            confirm instead of closing a guest report on a stray click. */}
+        <ConfirmSubmit
+          title={copy.confirmTitle}
+          description={copy.confirmBody}
+          confirmLabel={copy.resolve}
+          pendingLabel={copy.pending}
+          variant="primary"
+          size="sm"
+        >
+          {copy.resolve}
+        </ConfirmSubmit>
       </div>
     </form>
   );

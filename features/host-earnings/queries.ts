@@ -161,8 +161,10 @@ export async function getHostEarningsTotals(): Promise<HostEarningsTotals | null
       upcomingCount: totals?.upcomingCount ?? 0,
     };
   } catch (error) {
+    // Rethrow: null means "not a host", never "query failed" — a swallowed
+    // error rendered the zero-earnings empty state over real money.
     reportError(error, { surface: 'host-earnings:totals' });
-    return null;
+    throw error;
   }
 }
 
@@ -257,8 +259,9 @@ export async function getHostEarnings(range?: HostEarningsRange): Promise<HostEa
       monthly,
     };
   } catch (error) {
+    // Rethrow — see getHostEarningsTotals.
     reportError(error, { surface: 'host-earnings:get' });
-    return null;
+    throw error;
   }
 }
 
@@ -293,8 +296,9 @@ export async function getHostPayoutBatches(): Promise<readonly HostPayoutBatch[]
       .orderBy(desc(payouts.createdAt));
     return rows.map((r) => ({ ...r, createdAt: r.createdAt.toISOString() }));
   } catch (error) {
+    // Rethrow — see getHostEarningsTotals.
     reportError(error, { surface: 'host-earnings:payoutBatches' });
-    return null;
+    throw error;
   }
 }
 
@@ -347,7 +351,8 @@ export async function getHostPayoutStatement(
       })),
     };
   } catch (error) {
+    // Rethrow: null-on-error rendered this statement as a 404.
     reportError(error, { surface: 'host-earnings:payoutStatement', payoutId });
-    return null;
+    throw error;
   }
 }

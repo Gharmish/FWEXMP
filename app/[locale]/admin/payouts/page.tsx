@@ -146,6 +146,11 @@ export default async function AdminPayoutsPage({
                     expectedAmountSar={row.owedSar}
                     label={t('payoutsList.markPaid')}
                     pendingLabel={t('payoutsList.marking')}
+                    confirmTitle={t('payoutsList.confirmTitle')}
+                    confirmBody={t('payoutsList.confirmBody', {
+                      host: row.hostName,
+                      amount: String(row.owedSar),
+                    })}
                     errors={{
                       server: t('payoutsList.markError'),
                       no_iban: t('payoutsList.noIban'),

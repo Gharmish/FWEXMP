@@ -63,6 +63,34 @@ export interface HostExperienceState {
       string
     >
   >;
+  /**
+   * Raw submitted strings echoed back on failure. React 19 resets
+   * uncontrolled inputs after a form action, so without this a failed
+   * validation wipes everything the host typed (the longest form in the
+   * product). The form renders `values.x ?? experience?.x`.
+   */
+  values?: Partial<
+    Record<
+      | 'titleEn'
+      | 'descriptionEn'
+      | 'category'
+      | 'durationMinutes'
+      | 'maxGroupSize'
+      | 'minAge'
+      | 'priceSar'
+      | 'placeName'
+      | 'city'
+      | 'region'
+      | 'inclusionsRaw'
+      | 'whatToBringRaw'
+      | 'cancellationPolicy'
+      | 'startTime'
+      | 'bookingCutoffHours'
+      | 'lat'
+      | 'lng',
+      string
+    >
+  > & { availabilityWeekdays?: string[] };
 }
 
 const SLUG_INSERT_MAX_RETRIES = 5;
@@ -73,6 +101,29 @@ function formValue(formData: FormData, key: string): string {
 
 function formValues(formData: FormData, key: string): string[] {
   return formData.getAll(key).filter((v): v is string => typeof v === 'string');
+}
+
+function collectValues(formData: FormData): NonNullable<HostExperienceState['values']> {
+  return {
+    titleEn: formValue(formData, 'titleEn'),
+    descriptionEn: formValue(formData, 'descriptionEn'),
+    category: formValue(formData, 'category'),
+    durationMinutes: formValue(formData, 'durationMinutes'),
+    maxGroupSize: formValue(formData, 'maxGroupSize'),
+    minAge: formValue(formData, 'minAge'),
+    priceSar: formValue(formData, 'priceSar'),
+    placeName: formValue(formData, 'placeName'),
+    city: formValue(formData, 'city'),
+    region: formValue(formData, 'region'),
+    inclusionsRaw: formValue(formData, 'inclusionsRaw'),
+    whatToBringRaw: formValue(formData, 'whatToBringRaw'),
+    cancellationPolicy: formValue(formData, 'cancellationPolicy'),
+    startTime: formValue(formData, 'startTime'),
+    bookingCutoffHours: formValue(formData, 'bookingCutoffHours'),
+    lat: formValue(formData, 'lat'),
+    lng: formValue(formData, 'lng'),
+    availabilityWeekdays: formValues(formData, 'availabilityWeekdays'),
+  };
 }
 
 function parseForm(formData: FormData) {
@@ -173,7 +224,12 @@ export async function createDraftExperience(
 
   const parsed = parseForm(formData);
   if (!parsed.success) {
-    return { success: false, message: 'validation', fields: collectFieldErrors(parsed) };
+    return {
+      success: false,
+      message: 'validation',
+      fields: collectFieldErrors(parsed),
+      values: collectValues(formData),
+    };
   }
   const input = parsed.data;
   const writePayload = payloadForWrite(input);
@@ -204,12 +260,12 @@ export async function createDraftExperience(
       const code = (error as { code?: string })?.code;
       if (code === '23505') continue;
       reportError(error, { surface: 'host-experiences:create' });
-      return { success: false, message: 'server' };
+      return { success: false, message: 'server', values: collectValues(formData) };
     }
   }
   if (!newId) {
     reportError(new Error('exhausted slug retries'), { surface: 'host-experiences:create' });
-    return { success: false, message: 'server' };
+    return { success: false, message: 'server', values: collectValues(formData) };
   }
 
   revalidatePath('/[locale]/host', 'page');
@@ -228,7 +284,12 @@ export async function updateHostExperience(
 
   const parsed = parseForm(formData);
   if (!parsed.success) {
-    return { success: false, message: 'validation', fields: collectFieldErrors(parsed) };
+    return {
+      success: false,
+      message: 'validation',
+      fields: collectFieldErrors(parsed),
+      values: collectValues(formData),
+    };
   }
   const input = parsed.data;
 
@@ -301,7 +362,7 @@ export async function updateHostExperience(
     }
   } catch (error) {
     reportError(error, { surface: 'host-experiences:update', experienceId });
-    return { success: false, message: 'server' };
+    return { success: false, message: 'server', values: collectValues(formData) };
   }
 
   revalidateExperienceCaches();

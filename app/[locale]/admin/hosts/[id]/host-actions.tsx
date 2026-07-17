@@ -3,6 +3,7 @@
 import { useActionState, useId } from 'react';
 import { useFormStatus } from 'react-dom';
 import { Button } from '@/components/ui/button';
+import { ConfirmSubmit } from '@/components/ui/confirm-dialog';
 import { cn } from '@/lib/utils';
 import type { Locale } from '@/lib/i18n';
 import { suspendHost, unsuspendHost, type AdminHostResult } from '@/features/admin/hosts/actions';
@@ -36,21 +37,6 @@ export interface HostActionsProps {
 }
 
 const initialState: AdminHostResult = { success: false };
-
-function SuspendSubmit({ copy }: { copy: Copy }) {
-  const { pending } = useFormStatus();
-  return (
-    <Button
-      type="submit"
-      variant="secondary"
-      size="md"
-      pending={pending}
-      className="border-al-qatt-red/40 text-al-qatt-red-800"
-    >
-      {pending ? copy.suspendPending : copy.suspendLabel}
-    </Button>
-  );
-}
 
 function UnsuspendSubmit({ copy }: { copy: Copy }) {
   const { pending } = useFormStatus();
@@ -106,7 +92,20 @@ export function HostActions({ hostId, status, locale, copy }: HostActionsProps) 
             </p>
           )}
           <div className="flex justify-start">
-            <SuspendSubmit copy={copy} />
+            {/* Suspending pauses every live listing — confirm like the
+                guest-suspend flow does, instead of a one-click drop. */}
+            <ConfirmSubmit
+              title={copy.suspendLabel}
+              description={copy.suspendConfirm}
+              confirmLabel={copy.suspendLabel}
+              pendingLabel={copy.suspendPending}
+              destructive
+              variant="secondary"
+              size="md"
+              className="border-al-qatt-red/40 text-al-qatt-red-800"
+            >
+              {copy.suspendLabel}
+            </ConfirmSubmit>
           </div>
         </form>
       </div>

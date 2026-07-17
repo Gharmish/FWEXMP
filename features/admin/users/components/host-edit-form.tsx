@@ -27,6 +27,8 @@ export interface HostEditFormCopy {
   save: string;
   saving: string;
   saved: string;
+  /** Inline message under a field that failed validation. */
+  fieldInvalid: string;
   errors: Record<NonNullable<AdminUserEditState['message']>, string>;
 }
 
@@ -75,11 +77,18 @@ export function HostEditForm({ personKey, host, copy }: HostEditFormProps) {
     if (state.success) toast({ title: copy.saved, tone: 'success' });
   }, [state, copy.saved]);
 
+  // A failed submit echoes the typed values back; prefer them over the row.
+  const v = state.success ? undefined : state.values;
   const fieldErr = (name: string) => Boolean(state.fields?.[name]);
-  const generalError =
-    !state.success && state.message && state.message !== 'validation'
-      ? copy.errors[state.message]
-      : undefined;
+  const fieldError = (name: string) =>
+    fieldErr(name) ? (
+      <p role="alert" className="text-al-qatt-red-800 text-sm">
+        {copy.fieldInvalid}
+      </p>
+    ) : null;
+  // Every failure renders SOMETHING here — excluding 'validation' made a
+  // rejected save silently revert with no visible message.
+  const generalError = !state.success && state.message ? copy.errors[state.message] : undefined;
 
   return (
     <div className="flex flex-col gap-4">
@@ -107,10 +116,11 @@ export function HostEditForm({ personKey, host, copy }: HostEditFormProps) {
             <Input
               id={nameId}
               name="name"
-              defaultValue={host.name}
+              defaultValue={v?.name ?? host.name}
               maxLength={80}
               aria-invalid={fieldErr('name') ? true : undefined}
             />
+            {fieldError('name')}
           </div>
 
           <div className="flex flex-col gap-2">
@@ -123,10 +133,11 @@ export function HostEditForm({ personKey, host, copy }: HostEditFormProps) {
               rows={5}
               maxLength={1200}
               dir="ltr"
-              defaultValue={host.bioEn}
+              defaultValue={v?.bioEn ?? host.bioEn}
               className={textareaClass}
               aria-invalid={fieldErr('bioEn') ? true : undefined}
             />
+            {fieldError('bioEn')}
           </div>
 
           <div className="flex flex-col gap-2">
@@ -140,10 +151,11 @@ export function HostEditForm({ personKey, host, copy }: HostEditFormProps) {
               maxLength={1200}
               dir="rtl"
               lang="ar"
-              defaultValue={host.bioAr}
+              defaultValue={v?.bioAr ?? host.bioAr}
               className={textareaClass}
               aria-invalid={fieldErr('bioAr') ? true : undefined}
             />
+            {fieldError('bioAr')}
           </div>
 
           <div className="grid gap-5 sm:grid-cols-2">
@@ -153,7 +165,7 @@ export function HostEditForm({ personKey, host, copy }: HostEditFormProps) {
                 name="contactEmail"
                 type="email"
                 dir="ltr"
-                defaultValue={host.contactEmail ?? ''}
+                defaultValue={v?.contactEmail ?? host.contactEmail ?? ''}
                 maxLength={160}
               />
             </div>
@@ -161,14 +173,15 @@ export function HostEditForm({ personKey, host, copy }: HostEditFormProps) {
               <label className="text-sm font-medium">{copy.city}</label>
               <Input
                 name="city"
-                defaultValue={host.city}
+                defaultValue={v?.city ?? host.city}
                 maxLength={80}
                 aria-invalid={fieldErr('city') ? true : undefined}
               />
+              {fieldError('city')}
             </div>
             <div className="flex flex-col gap-2">
               <label className="text-sm font-medium">{copy.region}</label>
-              <Input name="region" defaultValue={host.region} maxLength={80} />
+              <Input name="region" defaultValue={v?.region ?? host.region} maxLength={80} />
             </div>
           </div>
 
@@ -187,7 +200,10 @@ export function HostEditForm({ personKey, host, copy }: HostEditFormProps) {
                     type="checkbox"
                     name="languages"
                     value={value}
-                    defaultChecked={host.languages.includes(value)}
+                    defaultChecked={
+                      (state.success ? undefined : state.valuesLanguages)?.includes(value) ??
+                      host.languages.includes(value)
+                    }
                     className="sr-only"
                   />
                   {value.toUpperCase()}
@@ -206,20 +222,22 @@ export function HostEditForm({ personKey, host, copy }: HostEditFormProps) {
                 <Input
                   name="nationalId"
                   dir="ltr"
-                  defaultValue={host.nationalId ?? ''}
+                  defaultValue={v?.nationalId ?? host.nationalId ?? ''}
                   maxLength={15}
                   aria-invalid={fieldErr('nationalId') ? true : undefined}
                 />
+                {fieldError('nationalId')}
               </div>
               <div className="flex flex-col gap-2">
                 <label className="text-sm font-medium">{copy.crNumber}</label>
                 <Input
                   name="crNumber"
                   dir="ltr"
-                  defaultValue={host.crNumber ?? ''}
+                  defaultValue={v?.crNumber ?? host.crNumber ?? ''}
                   maxLength={15}
                   aria-invalid={fieldErr('crNumber') ? true : undefined}
                 />
+                {fieldError('crNumber')}
               </div>
             </div>
             <div className="flex flex-col gap-2">
@@ -227,10 +245,11 @@ export function HostEditForm({ personKey, host, copy }: HostEditFormProps) {
               <Input
                 name="payoutIban"
                 dir="ltr"
-                defaultValue={host.payoutIban ?? ''}
+                defaultValue={v?.payoutIban ?? host.payoutIban ?? ''}
                 maxLength={40}
                 aria-invalid={fieldErr('payoutIban') ? true : undefined}
               />
+              {fieldError('payoutIban')}
             </div>
             <p className="text-sarat-black-600 text-sm">{copy.identityHint}</p>
           </fieldset>

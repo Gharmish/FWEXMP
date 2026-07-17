@@ -156,6 +156,7 @@ export default async function AdminUserDetailPage({
               save: t('users.edit.save'),
               saving: t('users.edit.saving'),
               saved: t('users.edit.saved'),
+              fieldInvalid: t('users.edit.fieldInvalid'),
               errors: {
                 forbidden: t('users.edit.errors.forbidden'),
                 no_db: t('users.edit.errors.noDb'),
@@ -341,6 +342,7 @@ export default async function AdminUserDetailPage({
               save: t('users.edit.save'),
               saving: t('users.edit.saving'),
               saved: t('users.edit.saved'),
+              fieldInvalid: t('users.edit.fieldInvalid'),
               errors: {
                 forbidden: t('users.edit.errors.forbidden'),
                 no_db: t('users.edit.errors.noDb'),

@@ -22,7 +22,7 @@ import { adminGuard } from '@/features/admin/guard';
 /** Safety cap on the unfiltered list. We assume hundreds at launch;
  * this is a hard ceiling so a misconfigured page never renders the
  * entire table. Promote to a filtered/paginated query when we cross it. */
-const BOOKINGS_LIST_LIMIT = 500;
+export const BOOKINGS_LIST_LIMIT = 500;
 
 export { isAdminAndDbReady } from '@/features/admin/guard';
 export type { AdminGuardFailure } from '@/features/admin/guard';
@@ -73,8 +73,10 @@ export async function listBookingsForAdmin(): Promise<readonly AdminBookingRow[]
       };
     });
   } catch (error) {
+    // Rethrow: an empty return rendered "No bookings yet" on DB failures,
+    // making the admin error boundary unreachable dead code.
     reportError(error, { surface: 'admin:listBookings' });
-    return [];
+    throw error;
   }
 }
 
@@ -138,8 +140,9 @@ export async function listBookingsForExport(): Promise<readonly AdminBookingExpo
       };
     });
   } catch (error) {
+    // Rethrow: a silently empty CSV export is worse than a failed one.
     reportError(error, { surface: 'admin:listBookingsForExport' });
-    return [];
+    throw error;
   }
 }
 
@@ -186,8 +189,9 @@ export async function getAdminBookingById(id: string): Promise<AdminBookingRow |
       guestPhone: row.guest.phone,
     };
   } catch (error) {
+    // Rethrow: undefined means "no such booking" — an error must not 404.
     reportError(error, { surface: 'admin:getBookingById', id });
-    return undefined;
+    throw error;
   }
 }
 

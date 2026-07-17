@@ -84,8 +84,12 @@ export const getHostDashboard = cache(
       if (!row) return null;
       return { host: toProfile(row) };
     } catch (error) {
+      // Rethrow: `null` must mean "not a host" ONLY. Swallowing a DB error
+      // here made every host page redirect a verified host to /host/apply
+      // during transient outages; throwing lets the error boundary render
+      // a retryable failure instead.
       reportError(error, { surface: 'host-dashboard:get', userId: user.id });
-      return null;
+      throw error;
     }
   },
 );

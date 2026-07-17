@@ -11,7 +11,7 @@ import { routing } from '@/lib/i18n';
 import { SITE_DESCRIPTION, SITE_NAME, SITE_URL } from '@/lib/site';
 import { toArabicText } from '@/features/experiences/lib/arabic-content';
 import { pickLocalized } from '@/lib/ar-placeholder';
-import { getAllHosts } from '@/features/hosts/queries';
+import { getAllHostsOrThrow } from '@/features/hosts/queries';
 import { EmptyState } from '@/components/ui/empty-state';
 import { HoverLift, MountFade, RiseIn, Stagger, StaggerItem } from '@/components/ui/motion';
 import { Users } from 'lucide-react';
@@ -54,7 +54,7 @@ export default async function HostsIndexPage({ params }: { params: Promise<{ loc
   const { locale } = await params;
   setRequestLocale(locale);
   const loc = locale as Locale;
-  const hosts = await getAllHosts();
+  const hosts = await getAllHostsOrThrow();
   const t = await getTranslations('hostsIndex');
   const th = await getTranslations('host');
 

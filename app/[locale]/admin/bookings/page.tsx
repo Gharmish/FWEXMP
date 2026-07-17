@@ -14,6 +14,7 @@ import {
   isAdminAndDbReady,
   listBookingsForAdmin,
   totalsFromRows,
+  BOOKINGS_LIST_LIMIT,
 } from '@/features/admin/bookings/queries';
 import type { AdminBookingStatus } from '@/features/admin/bookings/types';
 import { availableTransitions } from '@/features/bookings/lib/transitions';
@@ -179,6 +180,15 @@ export default async function AdminBookingsPage({
               eyebrowClassName={eyebrowClassName}
             />
           </dl>
+
+          {/* The list (and therefore the stats strip and the GET-form
+              search, which both run over these rows) is capped — say so
+              instead of presenting a windowed count as the total. */}
+          {rows.length >= BOOKINGS_LIST_LIMIT && (
+            <p className="bg-info-surface text-info rounded-input px-4 py-3 text-sm">
+              {t('bookingsList.truncated', { count: BOOKINGS_LIST_LIMIT })}
+            </p>
+          )}
 
           {rows.length === 0 ? (
             <div className="border-sarat-black/8 rounded-card flex flex-col items-start gap-4 [border-width:0.5px] p-10">

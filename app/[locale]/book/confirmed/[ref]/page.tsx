@@ -710,7 +710,13 @@ export default async function BookingConfirmedPage({ params, searchParams }: Pag
             <Link
               href="/experiences"
               className={cn(
-                buttonVariants({ variant: 'primary', size: 'lg' }),
+                // While payment is owed, "Complete payment" (header) is the
+                // one primary CTA on the page — the exploration link must
+                // not compete with it as a second solid button.
+                buttonVariants({
+                  variant: isAwaitingPayment ? 'secondary' : 'primary',
+                  size: 'lg',
+                }),
                 'inline-flex items-center gap-2',
               )}
             >

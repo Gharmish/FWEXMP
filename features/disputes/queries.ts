@@ -60,8 +60,9 @@ export async function listDisputesForAdmin(): Promise<readonly AdminDisputeRow[]
       resolvedAt: row.resolvedAt ? row.resolvedAt.toISOString() : null,
     }));
   } catch (error) {
+    // Rethrow — errors go to the admin boundary, not the empty state.
     reportError(error, { surface: 'disputes:listForAdmin' });
-    return [];
+    throw error;
   }
 }
 

@@ -201,7 +201,7 @@ function SubmitButton({ label, pendingLabel }: { label: string; pendingLabel: st
 function FieldError({ id, message }: { id: string; message?: string }) {
   if (!message) return null;
   return (
-    <p id={id} className="text-al-qatt-red-800 text-sm">
+    <p id={id} role="alert" className="text-al-qatt-red-800 text-sm">
       {message}
     </p>
   );
@@ -232,10 +232,14 @@ export function ExperienceForm({
   const action = mode === 'create' ? createDraftExperience : updateHostExperience;
   const [state, formAction] = useActionState(action, initialState);
 
+  // Failed submits echo the raw values back (React 19 resets uncontrolled
+  // inputs after a form action) — always prefer the echo over the stored row.
+  const v = state.values;
+
   // City comes from the operating-cities registry. A legacy row whose
   // city predates the registry (or was disabled since) keeps its value
   // as an extra option so editing never silently relocates it.
-  const cityDefault = experience?.city ?? cityOptions[0]?.nameEn ?? 'Abha';
+  const cityDefault = v?.city || (experience?.city ?? cityOptions[0]?.nameEn ?? 'Abha');
   const cityChoices = cityOptions.some((o) => o.nameEn === cityDefault)
     ? cityOptions
     : [
@@ -243,15 +247,18 @@ export function ExperienceForm({
         ...cityOptions,
       ];
   const [region, setRegion] = useState(
-    experience?.region ?? cityChoices.find((o) => o.nameEn === cityDefault)?.region ?? 'Aseer',
+    v?.region ||
+      (experience?.region ?? cityChoices.find((o) => o.nameEn === cityDefault)?.region ?? 'Aseer'),
   );
 
   const errorPrefix = useId();
   const eid = (k: string) => `${errorPrefix}-${k}-error`;
 
-  const inclusionsDefault = experience?.inclusions.join('\n') ?? '';
-  const whatToBringDefault = experience?.whatToBring.join('\n') ?? '';
-  const weekdaysDefault = new Set(experience?.availabilityWeekdays ?? []);
+  const inclusionsDefault = v?.inclusionsRaw ?? experience?.inclusions.join('\n') ?? '';
+  const whatToBringDefault = v?.whatToBringRaw ?? experience?.whatToBring.join('\n') ?? '';
+  const weekdaysDefault = new Set(
+    v?.availabilityWeekdays ?? (experience?.availabilityWeekdays ?? []).map(String),
+  );
 
   const fields = state.fields ?? {};
   const formError = formMessage(state, copy);
@@ -278,7 +285,7 @@ export function ExperienceForm({
             required
             minLength={8}
             maxLength={120}
-            defaultValue={experience?.titleEn}
+            defaultValue={v?.titleEn ?? experience?.titleEn}
             aria-invalid={fields.titleEn ? 'true' : undefined}
             aria-describedby={fields.titleEn ? eid('titleEn') : undefined}
           />
@@ -297,7 +304,7 @@ export function ExperienceForm({
             required
             minLength={60}
             maxLength={4000}
-            defaultValue={experience?.descriptionEn}
+            defaultValue={v?.descriptionEn ?? experience?.descriptionEn}
             className={TEXTAREA_CLASS}
             aria-invalid={fields.descriptionEn ? 'true' : undefined}
             aria-describedby={fields.descriptionEn ? eid('descriptionEn') : undefined}
@@ -316,7 +323,7 @@ export function ExperienceForm({
           <select
             id="ex-category"
             name="category"
-            defaultValue={experience?.category ?? 'heritage'}
+            defaultValue={v?.category ?? experience?.category ?? 'heritage'}
             className={SELECT_CLASS}
           >
             {EXPERIENCE_CATEGORIES.map((c) => (
@@ -344,7 +351,7 @@ export function ExperienceForm({
             min={30}
             max={1440}
             required
-            defaultValue={experience?.durationMinutes ?? 120}
+            defaultValue={v?.durationMinutes ?? experience?.durationMinutes ?? 120}
             aria-invalid={fields.durationMinutes ? 'true' : undefined}
             aria-describedby={fields.durationMinutes ? eid('durationMinutes') : undefined}
           />
@@ -364,7 +371,7 @@ export function ExperienceForm({
             type="time"
             required
             dir="ltr"
-            defaultValue={experience?.startTime ?? '09:00'}
+            defaultValue={v?.startTime ?? experience?.startTime ?? '09:00'}
             aria-invalid={fields.startTime ? 'true' : undefined}
             aria-describedby={fields.startTime ? eid('startTime') : undefined}
           />
@@ -379,7 +386,11 @@ export function ExperienceForm({
           <select
             id="ex-bookingCutoffHours"
             name="bookingCutoffHours"
-            defaultValue={experience?.bookingCutoffHours ?? DEFAULT_BOOKING_CUTOFF_HOURS}
+            defaultValue={
+              v?.bookingCutoffHours ??
+              experience?.bookingCutoffHours ??
+              DEFAULT_BOOKING_CUTOFF_HOURS
+            }
             className={SELECT_CLASS}
           >
             {copy.bookingCutoffOptions.map((o) => (
@@ -403,7 +414,7 @@ export function ExperienceForm({
             min={0}
             max={50000}
             required
-            defaultValue={experience?.priceSar ?? 200}
+            defaultValue={v?.priceSar ?? experience?.priceSar ?? 200}
             aria-invalid={fields.priceSar ? 'true' : undefined}
             aria-describedby={fields.priceSar ? eid('priceSar') : undefined}
           />
@@ -422,7 +433,7 @@ export function ExperienceForm({
             min={1}
             max={50}
             required
-            defaultValue={experience?.maxGroupSize ?? 8}
+            defaultValue={v?.maxGroupSize ?? experience?.maxGroupSize ?? 8}
             aria-invalid={fields.maxGroupSize ? 'true' : undefined}
             aria-describedby={fields.maxGroupSize ? eid('maxGroupSize') : undefined}
           />
@@ -444,7 +455,7 @@ export function ExperienceForm({
             min={0}
             max={99}
             required
-            defaultValue={experience?.minAge ?? 0}
+            defaultValue={v?.minAge ?? experience?.minAge ?? 0}
             aria-invalid={fields.minAge ? 'true' : undefined}
             aria-describedby={fields.minAge ? eid('minAge') : undefined}
           />
@@ -466,7 +477,7 @@ export function ExperienceForm({
             required
             minLength={2}
             maxLength={120}
-            defaultValue={experience?.placeName}
+            defaultValue={v?.placeName ?? experience?.placeName}
             aria-invalid={fields.placeName ? 'true' : undefined}
             aria-describedby={fields.placeName ? eid('placeName') : undefined}
           />
@@ -584,7 +595,7 @@ export function ExperienceForm({
             required
             minLength={20}
             maxLength={1000}
-            defaultValue={experience?.cancellationPolicy}
+            defaultValue={v?.cancellationPolicy ?? experience?.cancellationPolicy}
             placeholder={copy.cancellationPlaceholder}
             className={TEXTAREA_CLASS}
             aria-invalid={fields.cancellationPolicy ? 'true' : undefined}
@@ -603,15 +614,20 @@ export function ExperienceForm({
         <p className="text-sm font-medium">{copy.weekdaysLabel}</p>
         <div className="flex flex-wrap gap-2">
           {copy.weekdays.map((day, idx) => {
-            const checked = weekdaysDefault.has(idx);
+            const checked = weekdaysDefault.has(String(idx));
             return (
               <label
                 key={idx}
                 className={cn(
                   'rounded-button border-sarat-black/20 inline-flex min-h-11 cursor-pointer items-center gap-2 [border-width:0.5px] px-4 text-sm font-medium transition-colors duration-200',
-                  checked
-                    ? 'bg-sarat-black border-sarat-black text-white'
-                    : 'text-sarat-black hover:border-sarat-black/40',
+                  'text-sarat-black hover:border-sarat-black/40',
+                  // Style from the live :checked state, not the initial
+                  // value — a className branch on `defaultChecked` never
+                  // updates when the host toggles a day.
+                  'has-[:checked]:bg-sarat-black has-[:checked]:border-sarat-black has-[:checked]:text-white',
+                  // The checkbox is sr-only, so the global focus ring lands
+                  // on an invisible element — mirror it on the chip.
+                  'has-[:focus-visible]:shadow-[0_0_0_2px_var(--color-white),0_0_0_4px_rgb(10_10_10_/_0.55)]',
                 )}
               >
                 <input

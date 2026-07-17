@@ -124,10 +124,15 @@ export async function ExperienceCard({
               alt={title}
               locale={locale}
               href={href}
+              linkLabel={title}
               sizes="(min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw"
               aspectClassName="aspect-[16/9]"
               priority={priority || experience.featured}
               copy={carouselCopy}
+              // A grid of independently auto-cycling cards violates WCAG
+              // 2.2.2 (no pause mechanism) — cards stay still; swiping is
+              // manual.
+              autoAdvanceMs={0}
             />
           ) : (
             <div

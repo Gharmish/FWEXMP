@@ -54,7 +54,7 @@ export function CookieNotice() {
           animate={{ opacity: 1, y: 0 }}
           exit={reduce ? undefined : { opacity: 0, y: 12 }}
           transition={SPRING}
-          className="rounded-card border-sarat-black/8 fixed start-4 bottom-4 z-[60] w-[calc(100%-2rem)] max-w-sm [border-width:0.5px] bg-white p-4 shadow-[var(--shadow-overlay)] print:hidden"
+          className="rounded-card border-sarat-black/8 fixed start-4 bottom-[calc(1rem+var(--bottom-dock,0px))] z-[60] w-[calc(100%-2rem)] max-w-sm [border-width:0.5px] bg-white p-4 shadow-[var(--shadow-overlay)] print:hidden"
         >
           <p className="text-sarat-black text-sm leading-relaxed">
             {consentMode ? t('consentBody') : t('body')}

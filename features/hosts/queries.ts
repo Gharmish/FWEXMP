@@ -110,25 +110,42 @@ export async function getAllHostSlugs(): Promise<readonly string[]> {
   }
 }
 
+async function fetchVerifiedHosts(): Promise<readonly HostProfile[]> {
+  // Verified-only: home and /hosts are merchandising surfaces — a host
+  // pending review (or suspended after a complaint) must never be
+  // featured as part of the curated roster. (`?? []` guards the rare case
+  // where an interrupted pooled connection resolves without rows.)
+  const rows = await db.query.hosts.findMany({
+    where: (h) => eq(h.verificationStatus, 'verified'),
+    orderBy: (h) => asc(h.createdAt),
+  });
+  return (rows ?? []).map(toProfile);
+}
+
+/**
+ * Degrading variant for the home page ONLY: the hosts row is non-critical
+ * marketing content there — a transient DB/pooler failure must not 500 the
+ * landing page, so this returns an empty list (the section hides) and
+ * reports. Dedicated host surfaces use `getAllHostsOrThrow`.
+ */
 export async function getAllHosts(): Promise<readonly HostProfile[]> {
   if (!hasDb()) return sample.getAllHosts();
-  // The host directory is non-critical marketing content on the home page —
-  // a transient DB/pooler failure here must not 500 the landing page, so
-  // degrade to an empty list and report. (`?? []` also guards the rare case
-  // where an interrupted pooled connection resolves without rows.)
   try {
-    // Verified-only: home and /hosts are merchandising surfaces — a host
-    // pending review (or suspended after a complaint) must never be
-    // featured as part of the curated roster.
-    const rows = await db.query.hosts.findMany({
-      where: (h) => eq(h.verificationStatus, 'verified'),
-      orderBy: (h) => asc(h.createdAt),
-    });
-    return (rows ?? []).map(toProfile);
+    return await fetchVerifiedHosts();
   } catch (error) {
     reportError(error, { surface: 'hosts:getAllHosts' });
     return [];
   }
+}
+
+/**
+ * Strict variant for the /hosts directory: on that page an empty list
+ * renders "no hosts yet", so a swallowed error would present an outage as
+ * an empty marketplace. Let it throw to the route's error boundary.
+ */
+export async function getAllHostsOrThrow(): Promise<readonly HostProfile[]> {
+  if (!hasDb()) return sample.getAllHosts();
+  return fetchVerifiedHosts();
 }
 
 /**

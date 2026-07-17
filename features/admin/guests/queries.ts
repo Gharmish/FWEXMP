@@ -70,8 +70,9 @@ export async function listGuestsForAdmin(query?: string): Promise<readonly Admin
       createdAt: row.createdAt.toISOString(),
     }));
   } catch (error) {
+    // Rethrow — see admin bookings: errors go to the boundary, not "empty".
     reportError(error, { surface: 'admin:listGuests' });
-    return [];
+    throw error;
   }
 }
 
@@ -142,7 +143,8 @@ export async function getGuestDetail(id: string): Promise<AdminGuestDetail | und
       })),
     };
   } catch (error) {
+    // Rethrow: undefined means "no such guest" — an error must not 404.
     reportError(error, { surface: 'admin:getGuestDetail', id });
-    return undefined;
+    throw error;
   }
 }

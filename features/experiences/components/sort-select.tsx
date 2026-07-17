@@ -98,7 +98,7 @@ export function SortSelect() {
                   <Select.Item
                     key={key}
                     value={key}
-                    className="data-[highlighted]:bg-mist-deep flex min-h-11 cursor-pointer items-center gap-2 px-4 text-sm outline-none select-none"
+                    className="data-[highlighted]:bg-sarat-black flex min-h-11 cursor-pointer items-center gap-2 px-4 text-sm outline-none select-none data-[highlighted]:text-white"
                   >
                     <Select.ItemIndicator
                       render={<Check className="size-4 shrink-0" aria-hidden />}

@@ -73,9 +73,15 @@ function ToastCard({ item }: { item: ToastItem }) {
   const t = useTranslations('common');
   const reduce = useReducedMotion();
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Pause must not shorten the toast's life: track the unspent time so a
+  // hover near the end doesn't restart a longer clock, and a quick hover
+  // doesn't cut a fresh toast down to a 2s stub.
+  const remaining = useRef(AUTO_DISMISS_MS);
+  const startedAt = useRef(0);
 
   useEffect(() => {
-    timer.current = setTimeout(() => dismissToast(item.id), AUTO_DISMISS_MS);
+    startedAt.current = Date.now();
+    timer.current = setTimeout(() => dismissToast(item.id), remaining.current);
     return () => {
       if (timer.current) clearTimeout(timer.current);
     };
@@ -83,10 +89,13 @@ function ToastCard({ item }: { item: ToastItem }) {
 
   const pause = () => {
     if (timer.current) clearTimeout(timer.current);
+    remaining.current = Math.max(0, remaining.current - (Date.now() - startedAt.current));
   };
   const resume = () => {
-    pause();
-    timer.current = setTimeout(() => dismissToast(item.id), 2000);
+    if (timer.current) clearTimeout(timer.current);
+    startedAt.current = Date.now();
+    // A floor keeps a toast readable if the user un-hovers at the buzzer.
+    timer.current = setTimeout(() => dismissToast(item.id), Math.max(remaining.current, 1500));
   };
 
   return (
@@ -107,7 +116,11 @@ function ToastCard({ item }: { item: ToastItem }) {
         className={cn('mt-1.5 size-2 shrink-0 rounded-full', TONE_DOT[item.tone])}
       />
       <div className="min-w-0 flex-1">
-        <p className="text-sarat-black text-sm font-medium">{item.title}</p>
+        <p className="text-sarat-black text-sm font-medium">
+          {/* The colored dot is aria-hidden; give AT the tone in words. */}
+          <span className="sr-only">{t(`toastTone_${item.tone}`)} </span>
+          {item.title}
+        </p>
         {item.description ? (
           <p className="text-sarat-black-600 mt-1 text-sm">{item.description}</p>
         ) : null}
@@ -136,7 +149,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
       <div
         role="status"
         aria-live="polite"
-        className="pointer-events-none fixed end-4 bottom-4 z-[70] flex w-[calc(100%-2rem)] max-w-sm flex-col gap-2"
+        className="pointer-events-none fixed end-4 bottom-[calc(1rem+var(--bottom-dock,0px))] z-[70] flex w-[calc(100%-2rem)] max-w-sm flex-col gap-2"
       >
         <AnimatePresence>
           {visible.map((item) => (
