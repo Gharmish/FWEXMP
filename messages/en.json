@@ -2274,7 +2274,12 @@
     "emailHint": "We send your confirmation, payment link, and reminders here.",
     "editDetails": "Edit",
     "emailInvalid": "Enter a valid email address.",
-    "tooMany": "You have too many open bookings right now. Complete or cancel one, or try again later."
+    "tooMany": "You have too many open bookings right now. Complete or cancel one, or try again later.",
+    "tooManyFinish": "Finish this booking",
+    "tooManyHint": "Finish or cancel one of these to free a spot — then you can book this or any other experience.",
+    "tooManyStatusPayment": "Awaiting payment",
+    "tooManyStatusApproval": "Waiting for host approval",
+    "tooManyStatusConfirmed": "Confirmed"
   },
   "bookingConfirmed": {
     "eyebrow": "Request received",
