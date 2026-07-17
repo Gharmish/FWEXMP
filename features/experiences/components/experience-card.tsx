@@ -56,9 +56,20 @@ export interface ExperienceCardProps {
    * don't trigger card navigation.
    */
   actions?: React.ReactNode;
+  /**
+   * Eager-load the card's first photo. Set on cards rendered above the
+   * fold (e.g. the catalog grid's first row) so the LCP image isn't
+   * lazy-loaded. Featured cards are always eager.
+   */
+  priority?: boolean;
 }
 
-export async function ExperienceCard({ experience, locale, actions }: ExperienceCardProps) {
+export async function ExperienceCard({
+  experience,
+  locale,
+  actions,
+  priority = false,
+}: ExperienceCardProps) {
   const t = await getTranslations('experience');
   const tr = await getTranslations('reviews');
   const title = locale === 'ar' ? experience.titleAr : experience.titleEn;
@@ -115,7 +126,7 @@ export async function ExperienceCard({ experience, locale, actions }: Experience
               href={href}
               sizes="(min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw"
               aspectClassName="aspect-[16/9]"
-              priority={experience.featured}
+              priority={priority || experience.featured}
               copy={carouselCopy}
             />
           ) : (

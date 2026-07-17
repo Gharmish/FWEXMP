@@ -242,11 +242,14 @@ export default async function ExperiencesIndexPage({
               <EmptyState locale={loc} />
             ) : (
               <Stagger className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                {gridResults.map((experience) => (
+                {gridResults.map((experience, index) => (
                   <StaggerItem key={experience.slug}>
                     <ExperienceCard
                       experience={experience}
                       locale={loc}
+                      // First lg row sits above the fold — eager-load so the
+                      // catalog's LCP image isn't lazy (Next.js LCP warning).
+                      priority={index < 3}
                       actions={
                         <WishlistButton
                           slug={experience.slug}
