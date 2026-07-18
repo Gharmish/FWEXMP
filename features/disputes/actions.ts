@@ -10,7 +10,10 @@ import { notifyAdmin } from '@/lib/admin-alerts';
 import { getCurrentUser } from '@/features/auth/queries';
 import { isAdminUser } from '@/features/admin/auth';
 import { bookingViewerCanAccess } from '@/features/bookings/lib/access';
+import { executeRefund } from '@/features/bookings/lib/refund';
 import { createDisputeSchema, resolveDisputeSchema } from '@/features/disputes/schemas';
+import { sendDisputeResolvedEmail } from '@/features/disputes/lib/dispute-email';
+import { isDisputeRefundable } from '@/features/disputes/lib/refundable';
 
 /**
  * Disputes ("report a problem"). Guest side files against a booking
@@ -125,7 +128,14 @@ export type ResolveDisputeState =
   | { success: true }
   | {
       success: false;
-      message?: 'forbidden' | 'no_db' | 'not_found' | 'wrong_state' | 'validation' | 'server';
+      message?:
+        | 'forbidden'
+        | 'no_db'
+        | 'not_found'
+        | 'wrong_state'
+        | 'not_refundable'
+        | 'validation'
+        | 'server';
     };
 
 export async function resolveDispute(
@@ -139,6 +149,7 @@ export async function resolveDispute(
   const parsed = resolveDisputeSchema.safeParse({
     disputeId: formValue(formData, 'disputeId'),
     adminNotes: formValue(formData, 'adminNotes') || undefined,
+    issueRefund: formData.get('issueRefund') === 'on',
   });
   if (!parsed.success) {
     // Over-long notes are the admin's fixable mistake — say so instead
@@ -146,14 +157,47 @@ export async function resolveDispute(
     const notesTooLong = parsed.error.issues.some((issue) => issue.path[0] === 'adminNotes');
     return { success: false, message: notesTooLong ? 'validation' : 'not_found' };
   }
-  const { disputeId, adminNotes } = parsed.data;
+  const { disputeId, adminNotes, issueRefund } = parsed.data;
 
+  let refund: { bookingId: string; paymentReference: string | null; amountSar: number } | null =
+    null;
   try {
+    // Refund eligibility is checked BEFORE resolving so the admin never
+    // closes a report believing money moved when it couldn't.
+    if (issueRefund) {
+      const dispute = await db.query.disputes.findFirst({
+        where: eq(disputes.id, disputeId),
+        columns: { id: true },
+        with: {
+          booking: {
+            columns: {
+              id: true,
+              status: true,
+              paymentStatus: true,
+              paymentReference: true,
+              totalAmount: true,
+              refundDueSar: true,
+            },
+          },
+        },
+      });
+      if (!dispute) return { success: false, message: 'not_found' };
+      if (!isDisputeRefundable(dispute.booking)) {
+        return { success: false, message: 'not_refundable' };
+      }
+      refund = {
+        bookingId: dispute.booking.id,
+        paymentReference: dispute.booking.paymentReference,
+        amountSar: dispute.booking.totalAmount,
+      };
+    }
+
     const updated = await db
       .update(disputes)
       .set({
         status: 'resolved',
         adminNotes: adminNotes ?? null,
+        resolutionRefundSar: refund ? refund.amountSar : null,
         resolvedByUserId: admin.id,
         resolvedAt: new Date(),
       })
@@ -166,9 +210,23 @@ export async function resolveDispute(
       });
       return { success: false, message: exists ? 'wrong_state' : 'not_found' };
     }
+
+    // Money moves only AFTER winning the open→resolved flip, so a raced
+    // second resolve can never double-refund. executeRefund never
+    // throws: gateway-first, manual refund_due queue as the fallback.
+    if (refund) {
+      await executeRefund(refund.bookingId, refund.paymentReference, refund.amountSar, admin.id);
+    }
   } catch (error) {
     reportError(error, { surface: 'disputes:resolve', disputeId });
     return { success: false, message: 'server' };
+  }
+
+  // The guest resolution notice — best-effort, never blocks the resolve.
+  try {
+    await sendDisputeResolvedEmail(disputeId, refund ? refund.amountSar : null);
+  } catch (error) {
+    reportError(error, { surface: 'disputes:resolveEmail', disputeId });
   }
 
   revalidatePath('/[locale]/admin/disputes', 'page');

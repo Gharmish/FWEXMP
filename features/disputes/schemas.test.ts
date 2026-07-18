@@ -45,10 +45,13 @@ describe('createDisputeSchema', () => {
 
 describe('resolveDisputeSchema', () => {
   it('accepts with and without notes', () => {
-    expect(resolveDisputeSchema.safeParse({ disputeId: REF }).success).toBe(true);
+    expect(resolveDisputeSchema.safeParse({ disputeId: REF, issueRefund: false }).success).toBe(
+      true,
+    );
     const withNotes = resolveDisputeSchema.safeParse({
       disputeId: REF,
       adminNotes: ' Refunded in full. ',
+      issueRefund: true,
     });
     expect(withNotes.success).toBe(true);
     if (withNotes.success) expect(withNotes.data.adminNotes).toBe('Refunded in full.');
@@ -59,8 +62,11 @@ describe('resolveDisputeSchema', () => {
       resolveDisputeSchema.safeParse({
         disputeId: REF,
         adminNotes: 'x'.repeat(DISPUTE_MESSAGE_MAX + 1),
+        issueRefund: false,
       }).success,
     ).toBe(false);
-    expect(resolveDisputeSchema.safeParse({ disputeId: 'nope' }).success).toBe(false);
+    expect(resolveDisputeSchema.safeParse({ disputeId: 'nope', issueRefund: false }).success).toBe(
+      false,
+    );
   });
 });

@@ -43,8 +43,27 @@ vi.mock('@/features/bookings/lib/access', () => ({
   bookingViewerCanAccess: async () => viewerCanAccess,
 }));
 
+const executeRefund = vi.fn<(...args: unknown[]) => Promise<'refunded'>>(async () => 'refunded');
+vi.mock('@/features/bookings/lib/refund', () => ({
+  executeRefund: (...args: unknown[]) => executeRefund(...args),
+}));
+
+const sendDisputeResolvedEmail = vi.fn<(...args: unknown[]) => Promise<void>>(async () => {});
+vi.mock('@/features/disputes/lib/dispute-email', () => ({
+  sendDisputeResolvedEmail: (...args: unknown[]) => sendDisputeResolvedEmail(...args),
+}));
+
+interface RefundableBooking {
+  id: string;
+  status: string;
+  paymentStatus: string;
+  paymentReference: string | null;
+  totalAmount: number;
+  refundDueSar: number | null;
+}
+
 let bookingRow: { id: string; guestId: string; referenceCode: string } | undefined;
-let disputeRow: { id: string } | undefined;
+let disputeRow: { id: string; booking?: RefundableBooking } | undefined;
 let recentByGuest = 0;
 let insertError: unknown;
 const insertedDisputes: Array<Record<string, unknown>> = [];
@@ -99,9 +118,20 @@ function resolveForm(overrides: Record<string, string> = {}) {
   return form;
 }
 
+const PAID_BOOKING: RefundableBooking = {
+  id: 'booking-1',
+  status: 'completed',
+  paymentStatus: 'paid',
+  paymentReference: 'pay-1',
+  totalAmount: 450,
+  refundDueSar: null,
+};
+
 beforeEach(() => {
   reportError.mockClear();
   notifyAdmin.mockClear();
+  executeRefund.mockClear();
+  sendDisputeResolvedEmail.mockClear();
   currentUser = null;
   isAdmin = false;
   viewerCanAccess = true;
@@ -206,15 +236,48 @@ describe('resolveDispute', () => {
     expect(state).toEqual({ success: false, message: 'not_found' });
   });
 
-  it('resolves an open dispute and stamps the resolving admin', async () => {
+  it('resolves an open dispute, stamps the resolving admin, and notices the guest', async () => {
     const state = await resolveDispute({ success: false }, resolveForm());
     expect(state).toEqual({ success: true });
     expect(updateSet).toMatchObject({
       status: 'resolved',
       adminNotes: 'Called the guest, refunded in full.',
+      resolutionRefundSar: null,
       resolvedByUserId: 'admin-1',
     });
     expect(updateSet?.resolvedAt).toBeInstanceOf(Date);
+    expect(executeRefund).not.toHaveBeenCalled();
+    expect(sendDisputeResolvedEmail).toHaveBeenCalledWith(DISPUTE_ID, null);
+  });
+
+  it('resolves with a full refund: stamps the amount, moves the money, notices the guest', async () => {
+    disputeRow = { id: DISPUTE_ID, booking: PAID_BOOKING };
+    const state = await resolveDispute({ success: false }, resolveForm({ issueRefund: 'on' }));
+    expect(state).toEqual({ success: true });
+    expect(updateSet).toMatchObject({ status: 'resolved', resolutionRefundSar: 450 });
+    expect(executeRefund).toHaveBeenCalledWith('booking-1', 'pay-1', 450, 'admin-1');
+    expect(sendDisputeResolvedEmail).toHaveBeenCalledWith(DISPUTE_ID, 450);
+  });
+
+  it('refuses the refund (without resolving) when the booking is not refundable', async () => {
+    disputeRow = {
+      id: DISPUTE_ID,
+      booking: { ...PAID_BOOKING, paymentStatus: 'unpaid' },
+    };
+    const state = await resolveDispute({ success: false }, resolveForm({ issueRefund: 'on' }));
+    expect(state).toEqual({ success: false, message: 'not_refundable' });
+    expect(updateSet).toBeUndefined();
+    expect(executeRefund).not.toHaveBeenCalled();
+    expect(sendDisputeResolvedEmail).not.toHaveBeenCalled();
+  });
+
+  it('never refunds when losing the open→resolved race', async () => {
+    disputeRow = { id: DISPUTE_ID, booking: PAID_BOOKING };
+    updateReturning = [];
+    const state = await resolveDispute({ success: false }, resolveForm({ issueRefund: 'on' }));
+    expect(state).toEqual({ success: false, message: 'wrong_state' });
+    expect(executeRefund).not.toHaveBeenCalled();
+    expect(sendDisputeResolvedEmail).not.toHaveBeenCalled();
   });
 
   it('returns wrong_state when the dispute exists but is no longer open', async () => {

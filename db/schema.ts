@@ -1003,6 +1003,13 @@ export const disputes = pgTable(
     status: disputeStatusEnum().notNull().default('open'),
     /** Internal resolution notes — never shown to the guest. */
     adminNotes: text(),
+    /**
+     * Whole-SAR refund granted as part of resolving this dispute (the
+     * dispute→refund linkage). Null = resolved without a refund. Money
+     * truth stays in payment_events / the booking's own fields — this
+     * is the audit stamp of what the resolving admin granted.
+     */
+    resolutionRefundSar: integer(),
     /** Supabase auth id of the admin who resolved. */
     resolvedByUserId: uuid(),
     resolvedAt: timestamp({ withTimezone: true }),

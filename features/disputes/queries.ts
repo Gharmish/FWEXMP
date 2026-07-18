@@ -6,6 +6,7 @@ import { reportError } from '@/lib/log';
 import { getCurrentUser } from '@/features/auth/queries';
 import { isAdminUser } from '@/features/admin/auth';
 import { authKey, guestKey } from '@/features/admin/users/lib/keys';
+import { isDisputeRefundable } from '@/features/disputes/lib/refundable';
 
 /**
  * Dispute reads. The admin queue is the only list surface; the guest
@@ -30,6 +31,12 @@ export interface AdminDisputeRow {
   guestPhone: string | null;
   /** User-360 key: auth_<id> for claimed accounts, guest_<id> otherwise. */
   guestPersonKey: string;
+  /** Whether resolving may offer the full-refund checkbox. */
+  refundable: boolean;
+  /** Full booking amount — labels the refund checkbox. */
+  bookingAmountSar: number;
+  /** Refund granted at resolution time; null = resolved without one. */
+  resolutionRefundSar: number | null;
 }
 
 export const DISPUTES_LIST_LIMIT = 500;
@@ -46,6 +53,7 @@ export async function listDisputesForAdmin(): Promise<readonly AdminDisputeRow[]
         status: disputes.status,
         message: disputes.message,
         adminNotes: disputes.adminNotes,
+        resolutionRefundSar: disputes.resolutionRefundSar,
         createdAt: disputes.createdAt,
         resolvedAt: disputes.resolvedAt,
         bookingId: bookings.id,
@@ -60,6 +68,10 @@ export async function listDisputesForAdmin(): Promise<readonly AdminDisputeRow[]
         guestPhone: guests.phone,
         guestId: guests.id,
         guestAuthUserId: guests.authUserId,
+        bookingStatus: bookings.status,
+        bookingPaymentStatus: bookings.paymentStatus,
+        bookingAmountSar: bookings.totalAmount,
+        bookingRefundDueSar: bookings.refundDueSar,
       })
       .from(disputes)
       .innerJoin(bookings, eq(disputes.bookingId, bookings.id))
@@ -67,12 +79,26 @@ export async function listDisputesForAdmin(): Promise<readonly AdminDisputeRow[]
       .innerJoin(guests, eq(disputes.guestId, guests.id))
       .orderBy(desc(disputes.createdAt))
       .limit(DISPUTES_LIST_LIMIT);
-    return rows.map(({ guestId, guestAuthUserId, ...row }) => ({
-      ...row,
-      createdAt: row.createdAt.toISOString(),
-      resolvedAt: row.resolvedAt ? row.resolvedAt.toISOString() : null,
-      guestPersonKey: guestAuthUserId ? authKey(guestAuthUserId) : guestKey(guestId),
-    }));
+    return rows.map(
+      ({
+        guestId,
+        guestAuthUserId,
+        bookingStatus,
+        bookingPaymentStatus,
+        bookingRefundDueSar,
+        ...row
+      }) => ({
+        ...row,
+        createdAt: row.createdAt.toISOString(),
+        resolvedAt: row.resolvedAt ? row.resolvedAt.toISOString() : null,
+        guestPersonKey: guestAuthUserId ? authKey(guestAuthUserId) : guestKey(guestId),
+        refundable: isDisputeRefundable({
+          status: bookingStatus,
+          paymentStatus: bookingPaymentStatus,
+          refundDueSar: bookingRefundDueSar,
+        }),
+      }),
+    );
   } catch (error) {
     // Rethrow — errors go to the admin boundary, not the empty state.
     reportError(error, { surface: 'disputes:listForAdmin' });

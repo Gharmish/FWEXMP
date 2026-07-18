@@ -6,7 +6,7 @@ import type { Locale } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 import { EmptyState } from '@/components/ui/empty-state';
-import { formatDate } from '@/lib/format';
+import { formatDate, formatSAR } from '@/lib/format';
 import { pickLocalized } from '@/lib/ar-placeholder';
 import { DISPUTES_LIST_LIMIT, listDisputesForAdmin } from '@/features/disputes/queries';
 import { ResolveDisputeButton } from '@/app/[locale]/admin/disputes/resolve-button';
@@ -53,6 +53,7 @@ export default async function AdminDisputesPage({
       no_db: t('disputes.errors.noDb'),
       not_found: t('disputes.errors.notFound'),
       wrong_state: t('disputes.errors.wrongState'),
+      not_refundable: t('disputes.errors.notRefundable'),
       validation: t('disputes.errors.validation'),
       server: t('disputes.errors.server'),
     },
@@ -116,16 +117,31 @@ export default async function AdminDisputesPage({
         {row.message}
       </p>
       {row.status === 'open' ? (
-        <ResolveDisputeButton disputeId={row.id} copy={resolveCopy} />
+        <ResolveDisputeButton
+          disputeId={row.id}
+          refundLabel={
+            row.refundable
+              ? t('disputes.refundOption', { amount: formatSAR(row.bookingAmountSar, loc) })
+              : undefined
+          }
+          copy={resolveCopy}
+        />
       ) : (
-        row.adminNotes && (
-          <div className="border-sarat-black/8 bg-sarat-black/[0.02] rounded-input flex flex-col gap-1 [border-width:0.5px] p-4">
-            <p className={eyebrowClassName}>{t('disputes.resolutionNotes')}</p>
-            <p className="text-sarat-black-600 text-sm leading-relaxed whitespace-pre-line">
-              {row.adminNotes}
+        <>
+          {row.resolutionRefundSar !== null && (
+            <p className="text-juniper-green text-sm font-medium">
+              {t('disputes.refundGranted', { amount: formatSAR(row.resolutionRefundSar, loc) })}
             </p>
-          </div>
-        )
+          )}
+          {row.adminNotes && (
+            <div className="border-sarat-black/8 bg-sarat-black/[0.02] rounded-input flex flex-col gap-1 [border-width:0.5px] p-4">
+              <p className={eyebrowClassName}>{t('disputes.resolutionNotes')}</p>
+              <p className="text-sarat-black-600 text-sm leading-relaxed whitespace-pre-line">
+                {row.adminNotes}
+              </p>
+            </div>
+          )}
+        </>
       )}
     </li>
   );

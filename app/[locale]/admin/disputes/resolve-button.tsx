@@ -12,19 +12,27 @@ interface Copy {
   confirmTitle: string;
   confirmBody: string;
   errors: Record<
-    'forbidden' | 'no_db' | 'not_found' | 'wrong_state' | 'validation' | 'server',
+    | 'forbidden'
+    | 'no_db'
+    | 'not_found'
+    | 'wrong_state'
+    | 'not_refundable'
+    | 'validation'
+    | 'server',
     string
   >;
 }
 
 export interface ResolveDisputeButtonProps {
   disputeId: string;
+  /** Label for the full-refund checkbox; undefined = booking not refundable. */
+  refundLabel?: string;
   copy: Copy;
 }
 
 const initialState: ResolveDisputeState = { success: false };
 
-export function ResolveDisputeButton({ disputeId, copy }: ResolveDisputeButtonProps) {
+export function ResolveDisputeButton({ disputeId, refundLabel, copy }: ResolveDisputeButtonProps) {
   const [state, action] = useActionState(resolveDispute, initialState);
   const error =
     !state.success && state.message
@@ -44,6 +52,12 @@ export function ResolveDisputeButton({ disputeId, copy }: ResolveDisputeButtonPr
         placeholder={copy.notesPlaceholder}
         className="rounded-input border-sarat-black/20 text-sarat-black w-full [border-width:0.5px] bg-white p-3 text-sm"
       />
+      {refundLabel && (
+        <label className="text-sarat-black inline-flex min-h-11 cursor-pointer items-center gap-2 text-sm">
+          <input type="checkbox" name="issueRefund" className="accent-saffron-gold size-4" />
+          {refundLabel}
+        </label>
+      )}
       {error && (
         <p role="alert" className="text-al-qatt-red-800 text-sm">
           {error}

@@ -15,6 +15,8 @@ export const createDisputeSchema = z.object({
 export const resolveDisputeSchema = z.object({
   disputeId: z.string().uuid(),
   adminNotes: z.string().trim().max(DISPUTE_MESSAGE_MAX).optional(),
+  /** Grant a full refund of the booking as part of the resolution. */
+  issueRefund: z.boolean(),
 });
 
 export type CreateDisputeInput = z.infer<typeof createDisputeSchema>;
