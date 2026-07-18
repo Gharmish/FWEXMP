@@ -1,6 +1,6 @@
 'use client';
 
-import { useActionState, useEffect, useId, useState } from 'react';
+import { useActionState, useCallback, useEffect, useId, useRef, useState } from 'react';
 import { useFormStatus } from 'react-dom';
 import { ArrowLeft } from 'lucide-react';
 import { motion, useReducedMotion } from 'framer-motion';
@@ -18,6 +18,7 @@ import {
   type RequestOtpState,
   type VerifyOtpState,
 } from '@/features/auth/actions';
+import { useWebOtp } from '@/features/auth/lib/use-web-otp';
 
 interface SignInCopy {
   methodPhone: string;
@@ -131,6 +132,19 @@ export function SignInForm({ locale, next, isStubMode, copy }: SignInFormProps) 
 
   const stage: 'phone' | 'code' = requestState.success && !showPhoneStep ? 'code' : 'phone';
 
+  // One-tap OTP autofill. iOS fills via `autocomplete="one-time-code"`
+  // (suggestion above the keyboard); Android needs the WebOTP API. In
+  // both cases the form submits itself the moment a full 6-digit code
+  // lands, so tapping the suggestion is the only interaction.
+  const codeFormRef = useRef<HTMLFormElement>(null);
+  const codeInputRef = useRef<HTMLInputElement>(null);
+  const fillAndSubmitCode = useCallback((code: string) => {
+    const input = codeInputRef.current;
+    if (!input) return;
+    input.value = code;
+    codeFormRef.current?.requestSubmit();
+  }, []);
+
   const errorPrefix = useId();
   const phoneErrorId = `${errorPrefix}-phone-error`;
   const phoneHintId = `${errorPrefix}-phone-hint`;
@@ -138,6 +152,8 @@ export function SignInForm({ locale, next, isStubMode, copy }: SignInFormProps) 
   const emailHintId = `${errorPrefix}-email-hint`;
   const codeErrorId = `${errorPrefix}-code-error`;
   const codeHintId = `${errorPrefix}-code-hint`;
+
+  useWebOtp(stage === 'code' && method === 'phone', fillAndSubmitCode);
 
   useEffect(() => {
     if (stage === 'code') {
@@ -282,7 +298,7 @@ export function SignInForm({ locale, next, isStubMode, copy }: SignInFormProps) 
 
   return (
     <StepTransition stepKey="code">
-      <form action={verifyAction} noValidate className="flex flex-col gap-5">
+      <form ref={codeFormRef} action={verifyAction} noValidate className="flex flex-col gap-5">
         <input type="hidden" name="locale" value={locale} />
         <input type="hidden" name="next" value={next} />
         <input type="hidden" name="method" value={method} />
@@ -311,6 +327,7 @@ export function SignInForm({ locale, next, isStubMode, copy }: SignInFormProps) 
             {copy.codeLabel}
           </label>
           <Input
+            ref={codeInputRef}
             id="auth-code"
             name="code"
             type="text"
@@ -320,6 +337,11 @@ export function SignInForm({ locale, next, isStubMode, copy }: SignInFormProps) 
             maxLength={6}
             required
             dir="ltr"
+            onChange={(e) => {
+              // Auto-submit on a complete code — this is what makes a
+              // tapped keyboard suggestion (iOS) or paste one-step.
+              if (/^\d{6}$/.test(e.target.value)) codeFormRef.current?.requestSubmit();
+            }}
             aria-invalid={verifyState.fields?.code ? 'true' : undefined}
             aria-describedby={
               `${codeHintId} ${verifyState.fields?.code ? codeErrorId : ''}`.trim() || undefined
