@@ -133,6 +133,13 @@ export interface BookingOptionsInput {
   totalAmountSar: number;
   snapshot: PolicySnapshot;
   rescheduleCount: number;
+  /**
+   * The date (`YYYY-MM-DD`) this booking held before its last reschedule,
+   * or null/undefined if it was never moved. Refund deadlines anchor to
+   * the EARLIEST date the booking ever committed to, so moving a booking
+   * later can never buy back a refund the guest had already lost.
+   */
+  rescheduledFromDate?: string | null;
   now: Date;
 }
 
@@ -158,10 +165,28 @@ export function bookingOptions(input: BookingOptionsInput): BookingOptions {
 
 function cancelRefund(input: BookingOptionsInput, start: Date): CancelOption & { allowed: true } {
   const { snapshot, now, totalAmountSar } = input;
-  const freeDeadline = new Date(start.getTime() - snapshot.freeCancelHours * HOUR_MS);
+
+  // A reschedule must never IMPROVE the guest's refund position. Anchor
+  // every deadline to the EARLIEST start this booking ever committed to
+  // — the pre-move date when it was rescheduled later. Otherwise a guest
+  // already past the full-refund deadline could move the booking far into
+  // the future (allowed until the reschedule cutoff, which sits closer to
+  // start than the free-cancel deadline on every tier) and then cancel
+  // for a full refund they had already lost.
+  const refundStart =
+    input.rescheduledFromDate != null
+      ? new Date(
+          Math.min(
+            start.getTime(),
+            startInstant(input.rescheduledFromDate, input.startTime).getTime(),
+          ),
+        )
+      : start;
+
+  const freeDeadline = new Date(refundStart.getTime() - snapshot.freeCancelHours * HOUR_MS);
   const hasPartial = snapshot.partialRefundBps > 0;
   const partialDeadline = hasPartial
-    ? new Date(start.getTime() - snapshot.partialRefundHours * HOUR_MS)
+    ? new Date(refundStart.getTime() - snapshot.partialRefundHours * HOUR_MS)
     : null;
 
   if (input.paymentStatus !== 'paid') {
@@ -172,7 +197,7 @@ function cancelRefund(input: BookingOptionsInput, start: Date): CancelOption & {
   // enough away → full refund even where the tier would say otherwise.
   const inGrace =
     now.getTime() <= input.createdAt.getTime() + POST_BOOKING_GRACE_HOURS * HOUR_MS &&
-    start.getTime() - now.getTime() >= GRACE_MIN_LEAD_HOURS * HOUR_MS;
+    refundStart.getTime() - now.getTime() >= GRACE_MIN_LEAD_HOURS * HOUR_MS;
 
   if (inGrace || now.getTime() <= freeDeadline.getTime()) {
     return {

@@ -101,6 +101,45 @@ describe('bookingOptions — cancellation refunds', () => {
   });
 });
 
+describe('bookingOptions — reschedule cannot buy back a lost refund', () => {
+  // Regression: a guest already past the free-cancel deadline could move
+  // the booking far into the future (allowed until the reschedule cutoff)
+  // and then cancel for a FULL refund. Refund deadlines must anchor to the
+  // EARLIEST date the booking ever held (`rescheduledFromDate`), never the
+  // later current date.
+  it('anchors refunds to the pre-move date when rescheduled later', () => {
+    // Original start 2026-06-20 (base). Guest moved it a month out to
+    // 2026-07-20. Against the new date, `now` sits far before any deadline
+    // (would be full); against the original it is a 50% partial.
+    const { cancel } = at('2026-06-19T00:00:00Z', {
+      dateStr: '2026-07-20',
+      rescheduledFromDate: '2026-06-20',
+      rescheduleCount: 1,
+    });
+    expect(cancel).toMatchObject({ allowed: true, refund: 'partial', amountSar: 250 });
+  });
+
+  it('forfeits past the pre-move partial deadline despite a far-future new date', () => {
+    const { cancel } = at('2026-06-19T06:00:01Z', {
+      dateStr: '2026-07-20',
+      rescheduledFromDate: '2026-06-20',
+      rescheduleCount: 1,
+    });
+    expect(cancel).toMatchObject({ allowed: true, refund: 'forfeited', amountSar: 0 });
+  });
+
+  it('uses the nearer date when rescheduled earlier (worse-for-guest wins)', () => {
+    // Moved from 2026-06-20 to an earlier 2026-06-10; the nearer date is
+    // the worse refund position, so deadlines anchor there.
+    const { cancel } = at('2026-06-09T00:00:00Z', {
+      dateStr: '2026-06-10',
+      rescheduledFromDate: '2026-06-20',
+      rescheduleCount: 1,
+    });
+    expect(cancel).toMatchObject({ allowed: true, refund: 'partial', amountSar: 250 });
+  });
+});
+
 describe('bookingOptions — post-booking grace', () => {
   it('grants a full refund within 24h of booking when start is ≥48h away', () => {
     // strict tier, 5 days out — the tier alone would say partial (inside

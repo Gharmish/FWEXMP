@@ -82,6 +82,8 @@ export interface BookingDetail {
   policy: PolicySnapshot;
   /** Self-service reschedules already used (`MAX_RESCHEDULES` caps this). */
   rescheduleCount: number;
+  /** Pre-move date if the booking was rescheduled later; anchors refunds. */
+  rescheduledFromDate: string | null;
   createdAt: string;
 }
 
@@ -143,6 +145,7 @@ export async function getBookingByReference(reference: string): Promise<BookingD
     refundedAt: row.refundedAt?.toISOString() ?? null,
     policy: policyOf(row),
     rescheduleCount: row.rescheduleCount,
+    rescheduledFromDate: row.rescheduledFromDate,
     createdAt: row.createdAt.toISOString(),
   };
 }
@@ -219,6 +222,7 @@ export async function getBookingsForGuest(guestId: string): Promise<GuestBooking
     refundedAt: row.refundedAt?.toISOString() ?? null,
     policy: policyOf(row),
     rescheduleCount: row.rescheduleCount,
+    rescheduledFromDate: row.rescheduledFromDate,
     experienceTitleEn: row.experience.titleEn,
     experienceTitleAr: row.experience.titleAr,
     createdAt: row.createdAt.toISOString(),

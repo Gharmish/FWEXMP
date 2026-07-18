@@ -96,6 +96,7 @@ export async function cancelBookingAsGuest(
         partialRefundBps: true,
         rescheduleCutoffHours: true,
         rescheduleCount: true,
+        rescheduledFromDate: true,
       },
     });
     if (!booking) return { success: false, message: 'not_found' };
@@ -113,6 +114,7 @@ export async function cancelBookingAsGuest(
       totalAmountSar: booking.totalAmount,
       snapshot: booking,
       rescheduleCount: booking.rescheduleCount,
+      rescheduledFromDate: booking.rescheduledFromDate,
       now: new Date(),
     });
     if (!cancel.allowed) {

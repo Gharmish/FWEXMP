@@ -388,6 +388,7 @@ export default async function BookingConfirmedPage({ params, searchParams }: Pag
         totalAmountSar: booking.totalAmountSar,
         snapshot: booking.policy,
         rescheduleCount: booking.rescheduleCount,
+        rescheduledFromDate: booking.rescheduledFromDate,
         now: new Date(),
       })
     : null;
