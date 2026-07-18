@@ -71,6 +71,12 @@ const serverSchema = z.object({
   // "Gharmish <hello@send.gharmish.com>".
   RESEND_API_KEY: z.string().default(''),
   RESEND_FROM: z.string().default(''),
+  // Svix signing secret (`whsec_…`, from the Resend dashboard webhook
+  // config) for the delivery-status webhook `app/api/webhooks/resend`.
+  // Empty → the route answers 503 and email ledger rows simply stay at
+  // `sent` (no delivered/bounce feedback) — exactly the pre-webhook
+  // posture, so this is optional and independent of sending itself.
+  RESEND_WEBHOOK_SECRET: z.string().default(''),
   // Twilio WhatsApp Business API — transactional booking messages via
   // pre-approved Content templates. All optional, same boundary pattern
   // as `hasEmail()`: `hasWhatsApp()` gates the channel and every send is
@@ -147,6 +153,7 @@ export const serverEnv = parse(
     HYPERPAY_WEBHOOK_SECRET: process.env.HYPERPAY_WEBHOOK_SECRET,
     RESEND_API_KEY: process.env.RESEND_API_KEY,
     RESEND_FROM: process.env.RESEND_FROM,
+    RESEND_WEBHOOK_SECRET: process.env.RESEND_WEBHOOK_SECRET,
     TWILIO_ACCOUNT_SID: process.env.TWILIO_ACCOUNT_SID,
     TWILIO_AUTH_TOKEN: process.env.TWILIO_AUTH_TOKEN,
     TWILIO_WHATSAPP_FROM: process.env.TWILIO_WHATSAPP_FROM,

@@ -1383,6 +1383,14 @@ export const notificationDeliveries = pgTable(
     bookingId: uuid().references(() => bookings.id, { onDelete: 'set null' }),
     locale: localeEnum(),
     status: notificationStatusEnum().notNull().default('queued'),
+    /**
+     * Provider send attempts on this row. 1 on the first claim; the
+     * retry sweep (release-holds cron) re-claims a `failed` row —
+     * status back to `queued`, attempts + 1 — up to `MAX_SEND_ATTEMPTS`
+     * (lib/notifications/ledger.ts), so a transient provider outage
+     * heals itself while a hard reject can never loop forever.
+     */
+    attempts: integer().notNull().default(1),
     /** Provider message id (Twilio Message SID / Resend email id). */
     providerMessageId: text(),
     /** Provider error detail on failure (result code / HTTP body slice). */

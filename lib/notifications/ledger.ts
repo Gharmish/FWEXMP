@@ -1,6 +1,6 @@
 import 'server-only';
 
-import { and, eq } from 'drizzle-orm';
+import { and, eq, isNotNull, lt, sql } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import { serverEnv } from '@/lib/env';
 import { notificationDeliveries, notificationSuppressions } from '@/db/schema';
@@ -17,6 +17,14 @@ import { reportError } from '@/lib/log';
 const hasDb = (): boolean => Boolean(serverEnv.DATABASE_URL);
 
 type Channel = 'email' | 'whatsapp';
+
+/**
+ * Hard cap on provider send attempts per (dedupeKey, channel) row.
+ * Attempt 1 is the original send; the retry sweep gets two more shots
+ * (hourly cadence → a transient outage heals within ~2h) before the
+ * row is left `failed` for good.
+ */
+export const MAX_SEND_ATTEMPTS = 3;
 
 /** Delivery statuses a provider webhook may move a row to. */
 export type WebhookStatus = 'sent' | 'delivered' | 'read' | 'failed';
@@ -51,31 +59,56 @@ export type ClaimResult =
 
 /**
  * Claim a (dedupeKey, channel) slot by inserting the ledger row before
- * the provider call. `ON CONFLICT DO NOTHING` makes this THE dedupe
- * point: a second caller gets `duplicate` and sends nothing. Without a
- * DB the claim trivially succeeds (id null) so dev flows still send.
- * A ledger error also lets the send proceed — observability must never
- * cost a receipt.
+ * the provider call — THE dedupe point: a second caller gets
+ * `duplicate` and sends nothing. One deliberate exception: a row
+ * sitting at `failed` with attempts left is RE-claimable (status back
+ * to `queued`, attempts + 1, capped at {@link MAX_SEND_ATTEMPTS}), so
+ * the retry sweep — or a naturally double-fired flow — can re-drive a
+ * send the provider rejected, while anything `sent`/`delivered`/
+ * `suppressed` stays firmly deduped. Suppressed claims never re-claim:
+ * they only record the refusal. Without a DB the claim trivially
+ * succeeds (id null) so dev flows still send. A ledger error also lets
+ * the send proceed — observability must never cost a receipt.
  */
 export async function claimDelivery(input: ClaimInput): Promise<ClaimResult> {
   if (!hasDb()) return { claimed: true, id: null };
   try {
-    const rows = await db
-      .insert(notificationDeliveries)
-      .values({
-        dedupeKey: input.dedupeKey,
-        channel: input.channel,
-        type: input.type,
-        recipientType: input.recipientType,
-        recipient: input.recipient,
-        bookingId: input.bookingId ?? null,
-        locale: input.locale ?? null,
-        status: input.suppressed ? 'suppressed' : 'queued',
-      })
-      .onConflictDoNothing({
-        target: [notificationDeliveries.dedupeKey, notificationDeliveries.channel],
-      })
-      .returning({ id: notificationDeliveries.id });
+    const values = {
+      dedupeKey: input.dedupeKey,
+      channel: input.channel,
+      type: input.type,
+      recipientType: input.recipientType,
+      recipient: input.recipient,
+      bookingId: input.bookingId ?? null,
+      locale: input.locale ?? null,
+      status: input.suppressed ? ('suppressed' as const) : ('queued' as const),
+    };
+    const target = [notificationDeliveries.dedupeKey, notificationDeliveries.channel];
+    const rows = input.suppressed
+      ? await db
+          .insert(notificationDeliveries)
+          .values(values)
+          .onConflictDoNothing({ target })
+          .returning({ id: notificationDeliveries.id })
+      : await db
+          .insert(notificationDeliveries)
+          .values(values)
+          .onConflictDoUpdate({
+            target,
+            set: {
+              status: 'queued',
+              attempts: sql`${notificationDeliveries.attempts} + 1`,
+              error: null,
+              statusUpdatedAt: new Date(),
+            },
+            // Only a failed row with attempts left re-claims; otherwise
+            // the update is skipped and RETURNING is empty → duplicate.
+            setWhere: and(
+              eq(notificationDeliveries.status, 'failed'),
+              lt(notificationDeliveries.attempts, MAX_SEND_ATTEMPTS),
+            ),
+          })
+          .returning({ id: notificationDeliveries.id });
     if (rows.length === 0) return { claimed: false, reason: 'duplicate' };
     return { claimed: true, id: rows[0].id };
   } catch (error) {
@@ -141,6 +174,46 @@ export async function applyProviderStatus(
       .where(eq(notificationDeliveries.id, row.id));
   } catch (error) {
     reportError(error, { surface: 'notifications:applyProviderStatus', providerMessageId });
+  }
+}
+
+export interface RetryableDelivery {
+  bookingId: string;
+  type: string;
+  locale: 'en' | 'ar' | null;
+}
+
+/**
+ * Distinct (booking, type) messages with at least one channel row
+ * sitting at `failed` with attempts left, young enough to still be
+ * worth delivering (48h — a booking receipt three days late is noise).
+ * The retry sweep re-fires the original sender for each; per-channel
+ * re-claiming in {@link claimDelivery} keeps it send-safe. Best-effort:
+ * empty on DB errors, the sweep just does nothing this run.
+ */
+export async function listRetryableDeliveries(limit: number): Promise<RetryableDelivery[]> {
+  if (!hasDb()) return [];
+  try {
+    const rows = await db
+      .selectDistinct({
+        bookingId: notificationDeliveries.bookingId,
+        type: notificationDeliveries.type,
+        locale: notificationDeliveries.locale,
+      })
+      .from(notificationDeliveries)
+      .where(
+        and(
+          eq(notificationDeliveries.status, 'failed'),
+          lt(notificationDeliveries.attempts, MAX_SEND_ATTEMPTS),
+          isNotNull(notificationDeliveries.bookingId),
+          sql`${notificationDeliveries.createdAt} > now() - interval '48 hours'`,
+        ),
+      )
+      .limit(limit);
+    return rows.filter((row): row is RetryableDelivery => row.bookingId !== null);
+  } catch (error) {
+    reportError(error, { surface: 'notifications:listRetryable' });
+    return [];
   }
 }
 

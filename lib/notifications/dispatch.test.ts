@@ -22,7 +22,12 @@ vi.mock('@/lib/log', () => ({
   reportError: (...args: unknown[]) => reportError(...args),
 }));
 
-const sendEmail = vi.fn(async () => true);
+const sendEmail = vi.fn(
+  async (): Promise<{ ok: boolean; id: string | null }> => ({
+    ok: true,
+    id: 're-1',
+  }),
+);
 vi.mock('@/lib/email', () => ({
   sendEmail: (...args: unknown[]) => sendEmail(...(args as [])),
 }));
@@ -88,7 +93,7 @@ beforeEach(() => {
   whatsappResult = { ok: true, sid: 'SM-1' };
   flags.email = true;
   flags.whatsapp = true;
-  sendEmail.mockResolvedValue(true);
+  sendEmail.mockResolvedValue({ ok: true, id: 're-1' });
 });
 
 describe('notificationsConfigured', () => {
@@ -121,6 +126,8 @@ describe('dispatchNotification', () => {
     });
     expect(markDeliverySent).toHaveBeenCalledTimes(2);
     expect(markDeliverySent).toHaveBeenCalledWith('del-1', 'SM-1');
+    // The Resend id is stored too — the delivery webhook's correlation key.
+    expect(markDeliverySent).toHaveBeenCalledWith('del-1', 're-1');
   });
 
   it('ledgers the email claim lowercased and the WhatsApp claim as a bare phone', async () => {
@@ -191,7 +198,7 @@ describe('dispatchNotification', () => {
   });
 
   it('stamps the ledger failed when a provider rejects', async () => {
-    sendEmail.mockResolvedValue(false);
+    sendEmail.mockResolvedValue({ ok: false, id: null });
     whatsappResult = { ok: false, error: 'HTTP 400: template not approved' };
 
     await dispatchNotification(input());

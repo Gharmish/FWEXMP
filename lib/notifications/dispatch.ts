@@ -82,14 +82,14 @@ async function dispatchEmail(input: DispatchInput, dedupeKey: string): Promise<v
   const claim = await claimDelivery(base);
   if (!claim.claimed) return;
 
-  const ok = await sendEmail({
+  const result = await sendEmail({
     to: email,
     subject: input.email.subject,
     html: input.email.html,
     text: input.email.text,
     attachments: input.email.attachments,
   });
-  if (ok) await markDeliverySent(claim.id, null);
+  if (result.ok) await markDeliverySent(claim.id, result.id);
   else await markDeliveryFailed(claim.id, 'resend rejected or unreachable');
 }
 

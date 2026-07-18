@@ -1277,3 +1277,35 @@ export async function sendHostPaymentReceivedEmail(reference: string): Promise<v
     },
   });
 }
+
+/**
+ * Booking notifications the cron retry sweep can safely re-fire from
+ * (reference, locale) alone: each sender re-renders from current DB
+ * state and re-dispatches, and `claimDelivery` re-claims only channel
+ * rows still `failed` with attempts left — so re-calling a sender can
+ * never double-send anything that already went out.
+ *
+ * Deliberately absent: `booking_cancelled`, `booking_rescheduled`, and
+ * `host_booking_rescheduled` — their payloads need caller context (the
+ * refund verdict, the pre-reschedule date) that isn't re-derivable
+ * from the booking row, so a failed one stays failed and surfaces in
+ * the ledger instead of guessing.
+ */
+export const RETRYABLE_BOOKING_SENDERS: Readonly<
+  Record<string, (reference: string, locale: Locale) => Promise<void>>
+> = {
+  booking_confirmed: (reference, locale) => sendBookingReceiptEmail(reference, locale),
+  booking_request_received: (reference, locale) =>
+    sendBookingRequestReceivedEmail(reference, locale),
+  booking_approved: (reference) => sendBookingApprovedEmail(reference),
+  booking_declined: (reference) => sendBookingDeclinedEmail(reference),
+  booking_expired: (reference) => sendBookingExpiredEmail(reference),
+  booking_payment_lapsed: (reference) => sendBookingPaymentLapsedEmail(reference),
+  booking_reminder_24h: (reference, locale) => sendBookingPrepareReminderEmail(reference, locale),
+  booking_reminder_3h: (reference, locale) => sendBookingDepartureReminderEmail(reference, locale),
+  host_new_booking: (reference) => sendHostNewBookingEmail(reference),
+  host_new_request: (reference) => sendHostNewBookingEmail(reference),
+  host_guest_cancelled: (reference) => sendHostGuestCancelledEmail(reference),
+  host_hold_lapsed: (reference) => sendHostHoldLapsedEmail(reference),
+  host_payment_received: (reference) => sendHostPaymentReceivedEmail(reference),
+};

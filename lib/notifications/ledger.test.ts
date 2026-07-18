@@ -20,11 +20,14 @@ vi.mock('@/lib/log', () => ({
 
 const insertedValues: Array<Record<string, unknown>> = [];
 const updateSets: Array<Record<string, unknown>> = [];
+/** Which ON CONFLICT arm each insert used: `nothing` or `update`. */
+const conflictModes: string[] = [];
 let deleteCount = 0;
 let insertConflict = false;
 let dbFails = false;
 let deliveryRow: { id: string; status: string } | undefined;
 let suppressionRow: { id: string } | undefined;
+let retryableRows: Array<{ bookingId: string | null; type: string; locale: string | null }> = [];
 
 function insertResult(): Array<{ id: string }> {
   if (dbFails) throw new Error('db down');
@@ -40,21 +43,38 @@ vi.mock('@/lib/db', () => ({
           // `claimDelivery` awaits `.returning()`, `addSuppression`
           // awaits the builder itself — support both shapes lazily so
           // the unused path never creates a rejected promise.
-          onConflictDoNothing: () => ({
-            returning: async () => insertResult(),
-            then: (
-              resolve: (rows: Array<{ id: string }>) => void,
-              reject: (error: unknown) => void,
-            ) => {
-              try {
-                resolve(insertResult());
-              } catch (error) {
-                reject(error);
-              }
-            },
-          }),
+          onConflictDoNothing: () => {
+            conflictModes.push('nothing');
+            return {
+              returning: async () => insertResult(),
+              then: (
+                resolve: (rows: Array<{ id: string }>) => void,
+                reject: (error: unknown) => void,
+              ) => {
+                try {
+                  resolve(insertResult());
+                } catch (error) {
+                  reject(error);
+                }
+              },
+            };
+          },
+          onConflictDoUpdate: () => {
+            conflictModes.push('update');
+            return { returning: async () => insertResult() };
+          },
         };
       },
+    }),
+    selectDistinct: () => ({
+      from: () => ({
+        where: () => ({
+          limit: async () => {
+            if (dbFails) throw new Error('db down');
+            return retryableRows;
+          },
+        }),
+      }),
     }),
     update: () => ({
       set: (values: Record<string, unknown>) => {
@@ -94,6 +114,7 @@ import {
   applyProviderStatus,
   claimDelivery,
   isSuppressed,
+  listRetryableDeliveries,
   markDeliveryFailed,
   markDeliverySent,
   removeSuppression,
@@ -111,11 +132,13 @@ beforeEach(() => {
   vi.clearAllMocks();
   insertedValues.length = 0;
   updateSets.length = 0;
+  conflictModes.length = 0;
   deleteCount = 0;
   insertConflict = false;
   dbFails = false;
   deliveryRow = undefined;
   suppressionRow = undefined;
+  retryableRows = [];
   env.DATABASE_URL = 'postgres://test';
 });
 
@@ -155,6 +178,47 @@ describe('claimDelivery', () => {
     dbFails = true;
 
     expect(await claimDelivery(claim)).toEqual({ claimed: true, id: null });
+    expect(reportError).toHaveBeenCalledTimes(1);
+  });
+
+  it('claims via the re-claim arm (failed rows with attempts left are retryable)', async () => {
+    await claimDelivery(claim);
+
+    // A normal claim goes through ON CONFLICT DO UPDATE — the arm whose
+    // guard (`status = failed AND attempts < max`) re-opens failed rows.
+    expect(conflictModes).toEqual(['update']);
+  });
+
+  it('a suppressed claim only records — it never re-claims a failed row', async () => {
+    await claimDelivery({ ...claim, suppressed: true });
+
+    expect(conflictModes).toEqual(['nothing']);
+  });
+});
+
+describe('listRetryableDeliveries', () => {
+  it('returns retryable rows and drops any without a booking', async () => {
+    retryableRows = [
+      { bookingId: 'b-1', type: 'booking_confirmed', locale: 'en' },
+      { bookingId: null, type: 'application_decision', locale: null },
+    ];
+
+    const rows = await listRetryableDeliveries(50);
+
+    expect(rows).toEqual([{ bookingId: 'b-1', type: 'booking_confirmed', locale: 'en' }]);
+  });
+
+  it('is empty without a database', async () => {
+    env.DATABASE_URL = '';
+    retryableRows = [{ bookingId: 'b-1', type: 'booking_confirmed', locale: 'en' }];
+
+    expect(await listRetryableDeliveries(50)).toEqual([]);
+  });
+
+  it('is empty (and reports) on a DB error — the sweep just skips a run', async () => {
+    dbFails = true;
+
+    expect(await listRetryableDeliveries(50)).toEqual([]);
     expect(reportError).toHaveBeenCalledTimes(1);
   });
 });

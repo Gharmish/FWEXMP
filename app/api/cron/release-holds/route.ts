@@ -7,12 +7,14 @@ import { reportError } from '@/lib/log';
 import { notifyAdmin } from '@/lib/admin-alerts';
 import { settleBooking } from '@/features/payments/settle';
 import {
+  RETRYABLE_BOOKING_SENDERS,
   sendBookingExpiredEmail,
   sendBookingPaymentLapsedEmail,
   sendBookingPrepareReminderEmail,
   sendBookingDepartureReminderEmail,
   sendHostHoldLapsedEmail,
 } from '@/features/bookings/lib/booking-email';
+import { listRetryableDeliveries } from '@/lib/notifications/ledger';
 import { addDays } from '@/features/bookings/lib/availability';
 import { startInstant } from '@/features/bookings/lib/cancellation';
 import { paymentCollected } from '@/features/bookings/lib/payout-sql';
@@ -26,6 +28,9 @@ const RECONCILE_LIMIT = 100;
 
 /** Cap reminder sends per run for the same reason. */
 const REMINDER_LIMIT = 100;
+
+/** Cap notification retries per run for the same reason. */
+const RETRY_LIMIT = 50;
 
 /**
  * Scheduled release of expired payment holds. Vercel Cron runs this DAILY
@@ -61,6 +66,12 @@ const REMINDER_LIMIT = 100;
  *    (`reminderSentAt`) and a ~3h day-of "see you soon"
  *    (`finalReminderSentAt`). Independent dedupe flags; timing computed
  *    from each booking's Riyadh start instant.
+ *
+ * 3b. **Notification retries** — re-fires booking notifications whose
+ *    provider attempt failed (delivery-ledger rows at `failed` with
+ *    attempts left, ≤48h old). Senders re-render from current DB state;
+ *    `claimDelivery` re-claims per channel with an attempts cap, so the
+ *    sweep is idempotent and can never double-send.
  *
  * Auth: Vercel Cron sends `Authorization: Bearer <CRON_SECRET>`. With no
  * secret set the route rejects everything, so the job is inert until
@@ -237,6 +248,31 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       }
     }
 
+    // Pass 3b — retry failed notification sends. Only types in the
+    // retry map (re-derivable from the booking row) are re-fired; a
+    // sender whose booking no longer qualifies (e.g. refunded since)
+    // simply no-ops and the row ages out of the 48h window.
+    let retried = 0;
+    const retryable = await listRetryableDeliveries(RETRY_LIMIT);
+    if (retryable.length > 0) {
+      const refRows = await db.query.bookings.findMany({
+        where: inArray(bookings.id, [...new Set(retryable.map((row) => row.bookingId))]),
+        columns: { id: true, idempotencyKey: true },
+      });
+      const referenceById = new Map(refRows.map((b) => [b.id, b.idempotencyKey]));
+      for (const row of retryable) {
+        const sender = RETRYABLE_BOOKING_SENDERS[row.type];
+        const reference = referenceById.get(row.bookingId);
+        if (!sender || !reference) continue;
+        try {
+          await sender(reference, row.locale ?? 'ar');
+          retried += 1;
+        } catch (error) {
+          reportError(error, { surface: 'cron-notification-retry', reference, type: row.type });
+        }
+      }
+    }
+
     // Pass 4 — auto-complete. A confirmed, collected booking whose date
     // has passed becomes `completed` the next day (owner decision:
     // date + 1 day). Completion gates payouts AND reviews — relying on
@@ -341,6 +377,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       reconciled: stuck.length,
       settled,
       reminded,
+      retried,
       completed: completed.length,
     });
   } catch (error) {
