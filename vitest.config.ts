@@ -31,7 +31,14 @@ export default defineConfig({
     // disk but was silently excluded from every `pnpm test` run.
     // `app/**` covers route-handler tests (the release-holds cron).
     include: ['*.test.ts', 'app/**/*.test.ts', 'features/**/*.test.ts', 'lib/**/*.test.ts'],
-    exclude: ['node_modules/**', '.next/**', 'db/migrations/**', '.claude/**'],
+    exclude: ['node_modules/**', '.next/**', 'db/migrations/**', '.claude/**', 'e2e/**'],
     reporters: ['default'],
+    coverage: {
+      // Visibility only — no thresholds until we've seen the baseline.
+      provider: 'v8',
+      reporter: ['text', 'html'],
+      include: ['app/**', 'components/**', 'features/**', 'lib/**', 'db/**'],
+      exclude: ['**/*.test.ts', 'db/migrations/**'],
+    },
   },
 });

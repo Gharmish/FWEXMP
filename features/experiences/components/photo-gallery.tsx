@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import Image from 'next/image';
 import { motion, useReducedMotion } from 'framer-motion';
 import { ChevronLeft, ChevronRight, Images, X } from 'lucide-react';
@@ -64,6 +64,11 @@ function sideSpan(index: number, count: number): string {
 export function PhotoGallery({ heroImage, images, alt, locale, copy }: PhotoGalleryProps) {
   const reduce = useReducedMotion();
   const [openAt, setOpenAt] = useState<number | null>(null);
+  const dialogRef = useRef<HTMLDivElement>(null);
+  // The tile that opened the lightbox — focus returns there on close
+  // (aria-modal hides the page; without trap + restore, Tab walks
+  // content screen readers can't perceive).
+  const openerRef = useRef<HTMLElement | null>(null);
 
   // The lightbox sequence is hero-first, then the gallery images. Tile
   // index i therefore maps to lightbox index i (+1 when a hero leads).
@@ -71,19 +76,59 @@ export function PhotoGallery({ heroImage, images, alt, locale, copy }: PhotoGall
   const total = lightbox.length;
   const hasGallery = heroImage !== null && images.length > 0;
 
-  const close = useCallback(() => setOpenAt(null), []);
+  const openLightbox = useCallback((index: number) => {
+    openerRef.current =
+      document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    setOpenAt(index);
+  }, []);
+  const close = useCallback(() => {
+    setOpenAt(null);
+    openerRef.current?.focus();
+  }, []);
   const step = useCallback(
     (delta: number) => setOpenAt((i) => (i === null ? i : (i + delta + total) % total)),
     [total],
   );
 
-  // Keyboard nav + background scroll lock while the lightbox is open.
+  // Initial focus: the close button, once per open (not on prev/next).
+  const wasOpen = useRef(false);
+  useEffect(() => {
+    const isOpen = openAt !== null;
+    if (isOpen && !wasOpen.current) {
+      dialogRef.current?.querySelector<HTMLElement>('button')?.focus();
+    }
+    wasOpen.current = isOpen;
+  }, [openAt]);
+
+  // Physical arrow keys follow the on-screen (mirrored) chevrons in RTL —
+  // same convention as the booking calendar.
+  const arrowFactor = locale === 'ar' ? -1 : 1;
+
+  // Keyboard nav + focus trap + background scroll lock while open.
   useEffect(() => {
     if (openAt === null) return;
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') close();
-      else if (e.key === 'ArrowRight') step(1);
-      else if (e.key === 'ArrowLeft') step(-1);
+      else if (e.key === 'ArrowRight') step(arrowFactor);
+      else if (e.key === 'ArrowLeft') step(-arrowFactor);
+      else if (e.key === 'Tab') {
+        const root = dialogRef.current;
+        if (!root) return;
+        const focusables = root.querySelectorAll<HTMLElement>(
+          'button:not([disabled]), [href], [tabindex]:not([tabindex="-1"])',
+        );
+        if (focusables.length === 0) return;
+        const first = focusables[0];
+        const last = focusables[focusables.length - 1];
+        const active = document.activeElement;
+        if (e.shiftKey && (active === first || !root.contains(active))) {
+          e.preventDefault();
+          last.focus();
+        } else if (!e.shiftKey && (active === last || !root.contains(active))) {
+          e.preventDefault();
+          first.focus();
+        }
+      }
     };
     document.addEventListener('keydown', onKey);
     const previousOverflow = document.body.style.overflow;
@@ -92,7 +137,7 @@ export function PhotoGallery({ heroImage, images, alt, locale, copy }: PhotoGall
       document.removeEventListener('keydown', onKey);
       document.body.style.overflow = previousOverflow;
     };
-  }, [openAt, close, step]);
+  }, [openAt, close, step, arrowFactor]);
 
   const sideImages = images.slice(0, MAX_SIDE);
   // Photos that don't fit in the mosaic — surfaced as a "+N" overlay so the
@@ -123,8 +168,8 @@ export function PhotoGallery({ heroImage, images, alt, locale, copy }: PhotoGall
           <button
             type="button"
             aria-label={copy.open}
-            onClick={() => setOpenAt(0)}
-            className="group focus-visible:ring-saffron-gold absolute inset-0 z-10 cursor-pointer outline-none focus-visible:ring-2"
+            onClick={() => openLightbox(0)}
+            className="group absolute inset-0 z-10 cursor-pointer outline-none"
           >
             {countPill}
           </button>
@@ -148,12 +193,12 @@ export function PhotoGallery({ heroImage, images, alt, locale, copy }: PhotoGall
             images={lightbox}
             alt={alt}
             locale={locale}
-            sizes="100vw"
+            sizes="(min-width: 640px) 1px, 100vw"
             aspectClassName="aspect-[16/9]"
             roundedClassName="rounded-image"
             priority
             copy={{ prev: copy.prev, next: copy.next, goTo: copy.goTo }}
-            onSlideClick={(i) => setOpenAt(i)}
+            onSlideClick={(i) => openLightbox(i)}
             className="sm:hidden"
           />
 
@@ -168,14 +213,14 @@ export function PhotoGallery({ heroImage, images, alt, locale, copy }: PhotoGall
             <button
               type="button"
               aria-label={copy.open}
-              onClick={() => setOpenAt(0)}
-              className="rounded-image focus-visible:ring-saffron-gold relative block aspect-[16/9] w-full cursor-pointer overflow-hidden outline-none focus-visible:ring-2"
+              onClick={() => openLightbox(0)}
+              className="rounded-image relative block aspect-[16/9] w-full cursor-pointer overflow-hidden outline-none"
             >
               <Image
                 src={heroImage}
                 alt={alt}
                 fill
-                sizes="(min-width: 1024px) 560px, 50vw"
+                sizes="(min-width: 1024px) 560px, (min-width: 640px) 50vw, 1px"
                 className="object-cover transition-transform duration-200 group-hover:scale-[1.01]"
                 priority
               />
@@ -190,17 +235,17 @@ export function PhotoGallery({ heroImage, images, alt, locale, copy }: PhotoGall
                     key={src}
                     type="button"
                     aria-label={copy.open}
-                    onClick={() => setOpenAt(1 + i)}
+                    onClick={() => openLightbox(1 + i)}
                     className={cn(
-                      'rounded-image bg-sarat-black/5 focus-visible:ring-saffron-gold relative overflow-hidden outline-none focus-visible:ring-2',
+                      'rounded-image bg-sarat-black/5 relative overflow-hidden outline-none',
                       sideSpan(i, sideImages.length),
                     )}
                   >
                     <Image
                       src={src}
-                      alt={alt}
+                      alt=""
                       fill
-                      sizes="(min-width: 1024px) 280px, 25vw"
+                      sizes="(min-width: 1024px) 280px, (min-width: 640px) 25vw, 1px"
                       className="object-cover"
                     />
                     {isLast && (
@@ -219,6 +264,7 @@ export function PhotoGallery({ heroImage, images, alt, locale, copy }: PhotoGall
       {/* Lightbox */}
       {openAt !== null && (
         <div
+          ref={dialogRef}
           role="dialog"
           aria-modal="true"
           aria-label={copy.open}
@@ -246,7 +292,7 @@ export function PhotoGallery({ heroImage, images, alt, locale, copy }: PhotoGall
           >
             <Image
               src={lightbox[openAt]}
-              alt={alt}
+              alt={`${alt} — ${formatInteger(openAt + 1, locale)}/${formatInteger(total, locale)}`}
               fill
               sizes="100vw"
               className="object-contain"

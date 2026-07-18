@@ -21,6 +21,7 @@ type SampleExperience = Omit<
   | 'heroImage'
   | 'images'
   | 'bookingMode'
+  | 'cancellationTier'
   | 'availabilityWeekdays'
   | 'startTime'
   | 'hostSlug'
@@ -56,6 +57,7 @@ function attachRatings(e: SampleExperience): ExperienceDetail {
     images: [],
     // Offline demo defaults — the live DB path carries the real values.
     bookingMode: 'request',
+    cancellationTier: 'moderate',
     availabilityWeekdays: [4, 5, 6], // Thu–Sat
     startTime: '09:00',
     // Empty → the Arabic page uses the seed dictionary, same as before.
@@ -123,8 +125,13 @@ const ASIR_ADVENTURES: HostInfo = {
   languages: ['ar', 'en'],
 };
 
-/** Hero image URL for a given experience slug. */
-const heroFor = (slug: string): string => `${PHOTOS_BASE}/experiences/${slug}/hero.jpg`;
+/**
+ * Hero image URL for a given experience slug. Two listings' heroes exist in
+ * Storage as `hero.webp` (not `.jpg`) — the URL must match the real object.
+ */
+const WEBP_HERO_SLUGS = new Set(['soudah-cliff-via-ferrata', 'al-qatt-painting-rijal-almaa']);
+const heroFor = (slug: string): string =>
+  `${PHOTOS_BASE}/experiences/${slug}/hero.${WEBP_HERO_SLUGS.has(slug) ? 'webp' : 'jpg'}`;
 
 const EXPERIENCES: readonly SampleExperience[] = [
   {

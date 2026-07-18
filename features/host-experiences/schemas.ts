@@ -26,6 +26,15 @@ export const EXPERIENCE_CATEGORIES = [
   'women_only',
 ] as const;
 
+/**
+ * Booking-cutoff choices offered to the host, in hours before start.
+ * Presets (owner decision 2026-07-11) — no free-form entry. `2` is the
+ * default and matches the DB column default. The gate never lets a booking
+ * through after start regardless, so the smallest preset is a safe floor.
+ */
+export const BOOKING_CUTOFF_OPTIONS = [2, 6, 12, 24] as const;
+export const DEFAULT_BOOKING_CUTOFF_HOURS = 2;
+
 export const linesFromTextarea = (raw: string): string[] =>
   raw
     .split(/\r?\n/)
@@ -56,7 +65,7 @@ export const hostExperienceInputSchema = z.object({
   region: z.string().trim().min(2).max(80).default('Aseer'),
   inclusionsRaw: z.string().transform(linesFromTextarea),
   whatToBringRaw: z.string().transform(linesFromTextarea),
-  cancellationPolicy: z.string().trim().min(20, 'policy_short').max(1000, 'policy_long'),
+  cancellationTier: z.enum(['flexible', 'moderate', 'strict']),
   availabilityWeekdays: z.array(z.string()).transform(weekdaysFromForm),
   /**
    * Local start time, HH:MM 24h. Host-settable: every booking, email,
@@ -64,6 +73,20 @@ export const hostExperienceInputSchema = z.object({
    * wrong for everyone until an admin noticed.
    */
   startTime: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, 'time_invalid'),
+  /**
+   * Hours before `startTime` that bookings close. One of
+   * `BOOKING_CUTOFF_OPTIONS`. Defaulted so the admin schema (which extends
+   * this one but doesn't render the field) parses without it, and so an
+   * absent value falls back to the platform default rather than erroring.
+   */
+  bookingCutoffHours: z.coerce
+    .number()
+    .int()
+    .refine((h): h is (typeof BOOKING_CUTOFF_OPTIONS)[number] =>
+      (BOOKING_CUTOFF_OPTIONS as readonly number[]).includes(h),
+    )
+    .catch(DEFAULT_BOOKING_CUTOFF_HOURS)
+    .default(DEFAULT_BOOKING_CUTOFF_HOURS),
   /**
    * Meeting-point coordinates. Host-entered (paste from Google/Apple
    * Maps) until an interactive picker lands — without them every map

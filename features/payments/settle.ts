@@ -6,10 +6,10 @@ import { reportError } from '@/lib/log';
 import { notifyAdmin } from '@/lib/admin-alerts';
 import { getPlatformSettingsStrict } from '@/lib/platform-settings';
 import { classifyResult, getPaymentStatus } from '@/features/payments/lib/hyperpay';
-import { recordPaymentEvent } from '@/features/payments/ledger';
+import { recordPaymentEvent, resolvePaymentChannel } from '@/features/payments/ledger';
 import { executeRefund } from '@/features/bookings/lib/refund';
 import { sendHostPaymentReceivedEmail } from '@/features/bookings/lib/booking-email';
-import type { PaymentOutcome } from '@/features/payments/types';
+import type { PaymentChannel, PaymentOutcome } from '@/features/payments/types';
 
 /**
  * Result of a settle call. `already_settled` is the idempotent no-op —
@@ -32,12 +32,13 @@ const DEAD_STATUSES = ['cancelled', 'refunded', 'declined', 'expired'] as const;
  */
 async function getPaymentStatusWithRetry(
   checkoutId: string,
+  channel: PaymentChannel,
 ): Promise<ReturnType<typeof getPaymentStatus>> {
   try {
-    return await getPaymentStatus(checkoutId);
+    return await getPaymentStatus(checkoutId, channel);
   } catch {
     await new Promise((resolve) => setTimeout(resolve, 750));
-    return getPaymentStatus(checkoutId);
+    return getPaymentStatus(checkoutId, channel);
   }
 }
 
@@ -73,7 +74,8 @@ export async function settleBooking(reference: string): Promise<SettleOutcome> {
     if (!booking || !booking.checkoutId) return 'error';
     if (booking.paymentStatus === 'paid') return 'already_settled';
 
-    const status = await getPaymentStatusWithRetry(booking.checkoutId);
+    const channel = await resolvePaymentChannel(booking.id, booking.checkoutId);
+    const status = await getPaymentStatusWithRetry(booking.checkoutId, channel);
     const outcome = classifyResult(status.result.code);
 
     if (outcome === 'success') {

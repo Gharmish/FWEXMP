@@ -175,8 +175,11 @@ export async function listBookingsForHost(
       pastPage,
     };
   } catch (error) {
+    // Rethrow: rendering the friendly "no bookings" empty state on a DB
+    // error told hosts nothing was scheduled during outages. The route's
+    // error boundary owns failures.
     reportError(error, { surface: 'host-bookings:list' });
-    return empty;
+    throw error;
   }
 }
 

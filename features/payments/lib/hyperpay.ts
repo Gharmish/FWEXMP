@@ -8,6 +8,7 @@ import {
 } from '@/features/payments/lib/hyperpay-core';
 import type {
   HyperpayConfig,
+  PaymentChannel,
   PaymentStatusResponse,
   PrepareCheckoutInput,
   PrepareCheckoutResponse,
@@ -60,8 +61,20 @@ async function parseJson<T>(res: Response, what: string): Promise<T> {
   }
 }
 
-function config(): HyperpayConfig {
-  return { entityId: serverEnv.HYPERPAY_ENTITY_ID, mode: serverEnv.HYPERPAY_MODE };
+/**
+ * Config for a channel. Apple Pay lives on its own entity id; falling
+ * back to the card entity when it's unset keeps old code paths (and
+ * pre-Apple-Pay ledger rows, which resolve to 'card') working.
+ */
+function config(channel: PaymentChannel = 'card'): HyperpayConfig {
+  return {
+    entityId:
+      channel === 'applepay' && serverEnv.HYPERPAY_APPLEPAY_ENTITY_ID
+        ? serverEnv.HYPERPAY_APPLEPAY_ENTITY_ID
+        : serverEnv.HYPERPAY_ENTITY_ID,
+    mode: serverEnv.HYPERPAY_MODE,
+    testConnector: serverEnv.HYPERPAY_TEST_CONNECTOR,
+  };
 }
 
 function authHeaders(): HeadersInit {
@@ -74,11 +87,12 @@ function authHeaders(): HeadersInit {
 /** Step 1 — prepare a checkout and return its id for the widget. */
 export async function prepareCheckout(
   input: PrepareCheckoutInput,
+  channel: PaymentChannel = 'card',
 ): Promise<PrepareCheckoutResponse> {
   const res = await fetch(`${hyperpayBaseUrl()}v1/checkouts`, {
     method: 'POST',
     headers: { ...authHeaders(), 'Content-Type': 'application/x-www-form-urlencoded' },
-    body: buildCheckoutBody(input, config()).toString(),
+    body: buildCheckoutBody(input, config(channel)).toString(),
     cache: 'no-store',
     signal: AbortSignal.timeout(HYPERPAY_TIMEOUT_MS),
   });
@@ -98,11 +112,12 @@ export async function prepareCheckout(
 export async function refundPayment(
   paymentId: string,
   amountSar: number,
+  channel: PaymentChannel = 'card',
 ): Promise<{ resultCode: string }> {
   const res = await fetch(`${hyperpayBaseUrl()}v1/payments/${encodeURIComponent(paymentId)}`, {
     method: 'POST',
     headers: { ...authHeaders(), 'Content-Type': 'application/x-www-form-urlencoded' },
-    body: buildRefundBody(amountSar, config()).toString(),
+    body: buildRefundBody(amountSar, config(channel)).toString(),
     cache: 'no-store',
     signal: AbortSignal.timeout(HYPERPAY_TIMEOUT_MS),
   });
@@ -114,9 +129,12 @@ export async function refundPayment(
 }
 
 /** Step 3 — read the payment status for a prepared checkout. */
-export async function getPaymentStatus(checkoutId: string): Promise<PaymentStatusResponse> {
+export async function getPaymentStatus(
+  checkoutId: string,
+  channel: PaymentChannel = 'card',
+): Promise<PaymentStatusResponse> {
   const url = new URL(`${hyperpayBaseUrl()}v1/checkouts/${encodeURIComponent(checkoutId)}/payment`);
-  url.searchParams.set('entityId', config().entityId);
+  url.searchParams.set('entityId', config(channel).entityId);
   const res = await fetch(url, {
     headers: authHeaders(),
     cache: 'no-store',

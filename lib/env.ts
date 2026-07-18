@@ -41,6 +41,23 @@ const serverSchema = z.object({
   ),
   // Optional explicit base URL override; derived from HYPERPAY_MODE when empty.
   HYPERPAY_BASE_URL: z.string().default(''),
+  // Separate OPPWA entity for the Apple Pay channel (HyperPay activates
+  // Apple Pay on its own entity id, distinct from the card entity).
+  // Empty → Apple Pay is not offered and checkout is card-only, exactly
+  // as before — same boundary pattern as the other optional services.
+  HYPERPAY_APPLEPAY_ENTITY_ID: z.string().default(''),
+  // Test-server acquirer routing. `external` (default) sends
+  // `testMode=EXTERNAL` + `customParameters[3DS2_enrolled]` so transactions
+  // hit HyperPay's real MPGS test terminal; `internal` omits them and uses
+  // OPPWA's built-in simulator instead. Workaround switch for 2026-07-12:
+  // the external terminal declines MADA/MASTER with 800.100.156 — set
+  // `internal` to test those brands until HyperPay fixes their config.
+  // Ignored when HYPERPAY_MODE=live. Same empty-string-safe preprocess as
+  // HYPERPAY_MODE so a cleared Vercel var can't break boot.
+  HYPERPAY_TEST_CONNECTOR: z.preprocess(
+    (v) => (v === '' ? undefined : v),
+    z.enum(['external', 'internal']).default('external'),
+  ),
   // Shared secret (hex AES-256 key) for decrypting OPPWA webhook
   // notifications — `app/api/webhooks/hyperpay`. Empty → the route answers
   // 503 and settlement relies on the synchronous `/pay/return` check plus
@@ -54,6 +71,28 @@ const serverSchema = z.object({
   // "Gharmish <hello@send.gharmish.com>".
   RESEND_API_KEY: z.string().default(''),
   RESEND_FROM: z.string().default(''),
+  // Svix signing secret (`whsec_…`, from the Resend dashboard webhook
+  // config) for the delivery-status webhook `app/api/webhooks/resend`.
+  // Empty → the route answers 503 and email ledger rows simply stay at
+  // `sent` (no delivered/bounce feedback) — exactly the pre-webhook
+  // posture, so this is optional and independent of sending itself.
+  RESEND_WEBHOOK_SECRET: z.string().default(''),
+  // Twilio WhatsApp Business API — transactional booking messages via
+  // pre-approved Content templates. All optional, same boundary pattern
+  // as `hasEmail()`: `hasWhatsApp()` gates the channel and every send is
+  // a silent skip until the three core vars arrive — no code change at
+  // go-live. Account SID + auth token are server-only secrets (Vercel
+  // Sensitive). `TWILIO_WHATSAPP_FROM` is the WhatsApp-enabled sender in
+  // E.164 (`+9665XXXXXXXX`); the `whatsapp:` prefix is added in code.
+  TWILIO_ACCOUNT_SID: z.string().default(''),
+  TWILIO_AUTH_TOKEN: z.string().default(''),
+  TWILIO_WHATSAPP_FROM: z.string().default(''),
+  // JSON map of Meta-approved Content SIDs keyed `<template>.<locale>`,
+  // e.g. {"booking_confirmed.ar":"HX…","booking_confirmed.en":"HX…"}.
+  // A missing key skips that template's WhatsApp send (email still goes
+  // out), so templates can go live one by one as Meta approves them —
+  // update the env var, no deploy. See docs/notifications/twilio-setup.md.
+  TWILIO_WHATSAPP_CONTENT_SIDS: z.string().default(''),
   // Operational alerts inbox (new applications, disputes, refunds owed,
   // settlement anomalies, cron failures). Optional — `notifyAdmin()` is a
   // silent no-op until it's set, same boundary pattern as `hasEmail()`.
@@ -107,11 +146,18 @@ export const serverEnv = parse(
     ADMIN_PHONES: process.env.ADMIN_PHONES,
     HYPERPAY_ACCESS_TOKEN: process.env.HYPERPAY_ACCESS_TOKEN,
     HYPERPAY_ENTITY_ID: process.env.HYPERPAY_ENTITY_ID,
+    HYPERPAY_APPLEPAY_ENTITY_ID: process.env.HYPERPAY_APPLEPAY_ENTITY_ID,
     HYPERPAY_MODE: process.env.HYPERPAY_MODE,
     HYPERPAY_BASE_URL: process.env.HYPERPAY_BASE_URL,
+    HYPERPAY_TEST_CONNECTOR: process.env.HYPERPAY_TEST_CONNECTOR,
     HYPERPAY_WEBHOOK_SECRET: process.env.HYPERPAY_WEBHOOK_SECRET,
     RESEND_API_KEY: process.env.RESEND_API_KEY,
     RESEND_FROM: process.env.RESEND_FROM,
+    RESEND_WEBHOOK_SECRET: process.env.RESEND_WEBHOOK_SECRET,
+    TWILIO_ACCOUNT_SID: process.env.TWILIO_ACCOUNT_SID,
+    TWILIO_AUTH_TOKEN: process.env.TWILIO_AUTH_TOKEN,
+    TWILIO_WHATSAPP_FROM: process.env.TWILIO_WHATSAPP_FROM,
+    TWILIO_WHATSAPP_CONTENT_SIDS: process.env.TWILIO_WHATSAPP_CONTENT_SIDS,
     ADMIN_ALERT_EMAIL: process.env.ADMIN_ALERT_EMAIL,
     CRON_SECRET: process.env.CRON_SECRET,
     SUPABASE_SERVICE_ROLE_KEY: process.env.SUPABASE_SERVICE_ROLE_KEY,
@@ -177,6 +223,15 @@ export function hasHyperpay(): boolean {
 }
 
 /**
+ * Is the dedicated Apple Pay entity configured (on top of the card
+ * entity)? Gates the Apple Pay option in checkout: unset → the payment
+ * step is card-only and no Apple Pay checkout can be prepared.
+ */
+export function hasHyperpayApplePay(): boolean {
+  return hasHyperpay() && Boolean(serverEnv.HYPERPAY_APPLEPAY_ENTITY_ID);
+}
+
+/**
  * Is transactional email (Resend) configured? Same boundary as
  * `hasHyperpay()`: every email send checks this first and is a silent no-op
  * when false, so the booking flow works without it. Flips the moment the API
@@ -184,4 +239,18 @@ export function hasHyperpay(): boolean {
  */
 export function hasEmail(): boolean {
   return Boolean(serverEnv.RESEND_API_KEY && serverEnv.RESEND_FROM);
+}
+
+/**
+ * Is the Twilio WhatsApp channel configured? Same boundary as
+ * `hasEmail()`: the notification dispatcher checks this per send and
+ * skips the WhatsApp channel silently when false, so every flow works
+ * email-only until the Twilio account + WhatsApp sender arrive — no
+ * code change at go-live. Per-template availability is gated separately
+ * by `TWILIO_WHATSAPP_CONTENT_SIDS` (Meta approves templates one by one).
+ */
+export function hasWhatsApp(): boolean {
+  return Boolean(
+    serverEnv.TWILIO_ACCOUNT_SID && serverEnv.TWILIO_AUTH_TOKEN && serverEnv.TWILIO_WHATSAPP_FROM,
+  );
 }

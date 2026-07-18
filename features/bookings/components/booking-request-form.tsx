@@ -3,15 +3,20 @@
 import { useActionState, useEffect, useId, useRef, useState } from 'react';
 import { useFormStatus } from 'react-dom';
 import { motion, useReducedMotion } from 'framer-motion';
-import { Minus, Plus } from 'lucide-react';
-import { requestBooking, type BookingRequestState } from '@/features/bookings/actions';
+import { ArrowRight, Minus, Plus } from 'lucide-react';
+import {
+  requestBooking,
+  type BookingRequestState,
+  type OpenBookingSummary,
+} from '@/features/bookings/actions';
 import { bookingRequestSchema } from '@/features/bookings/schemas';
 import { vatPortionSar } from '@/features/bookings/lib/vat';
 import { Button } from '@/components/ui/button';
 import { FieldError as SpringFieldError } from '@/components/ui/field-error';
 import { Input } from '@/components/ui/input';
 import { Pop, SPRING } from '@/components/ui/motion';
-import type { Locale } from '@/lib/i18n';
+import { Link, type Locale } from '@/lib/i18n';
+import { formatDate } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import { PhoneInput } from '@/components/ui/phone-input';
 import { Price } from '@/components/ui/price';
@@ -51,10 +56,23 @@ interface BookingRequestCopy {
   suspended: string;
   /** Rate-limited: too many open bookings/requests from this caller. */
   tooMany: string;
+  /** CTA on each open-booking card shown under the `tooMany` error. */
+  tooManyFinish: string;
+  /** Closing guidance under the open-booking cards. */
+  tooManyHint: string;
+  /** Status lines on the open-booking cards, keyed by what the row awaits. */
+  tooManyStatusPayment: string;
+  tooManyStatusApproval: string;
+  tooManyStatusConfirmed: string;
   required: string;
+  /** Per-field empty-submit messages — `required` is only the fallback. */
+  nameRequired: string;
+  phoneRequired: string;
+  emailRequired: string;
   /** Specific, actionable field messages. */
   datePast: string;
   dateUnavailable: string;
+  dateCutoff: string;
   dateFull: string;
   partySizeTooLarge: string;
   /** Empty-option label for the date picker. */
@@ -176,6 +194,13 @@ function FieldError({ id, message }: { id: string; message?: string }) {
   );
 }
 
+/** Status line for an open-booking card under the throttle error. */
+function statusLabel(booking: OpenBookingSummary, copy: BookingRequestCopy): string {
+  if (booking.state === 'payment') return copy.tooManyStatusPayment;
+  if (booking.state === 'approval') return copy.tooManyStatusApproval;
+  return copy.tooManyStatusConfirmed;
+}
+
 /** Map a server field-error code to its user-facing message. */
 function messageForField(
   field: FieldName,
@@ -185,6 +210,7 @@ function messageForField(
   if (!code) return undefined;
   if (field === 'preferredDate') {
     if (code === 'date_past') return copy.datePast;
+    if (code === 'date_cutoff') return copy.dateCutoff;
     if (code === 'date_full') return copy.dateFull;
     if (
       code === 'date_closed_weekday' ||
@@ -199,11 +225,14 @@ function messageForField(
   if (field === 'partySize') {
     return code === 'too_large' ? copy.partySizeTooLarge : copy.required;
   }
+  if (field === 'name') {
+    return copy.nameRequired;
+  }
   if (field === 'phone') {
-    return code === 'invalid_phone' ? copy.phoneInvalid : copy.required;
+    return code === 'invalid_phone' ? copy.phoneInvalid : copy.phoneRequired;
   }
   if (field === 'email') {
-    return code === 'invalid_email' ? copy.emailInvalid : copy.required;
+    return code === 'invalid_email' ? copy.emailInvalid : copy.emailRequired;
   }
   return copy.required;
 }
@@ -237,6 +266,7 @@ export function BookingRequestForm({
     formAction(formData);
   };
   const values = state.values ?? {};
+  const openBookings = state.openBookings ?? [];
   const formRef = useRef<HTMLFormElement>(null);
   // Idempotency key, minted once per form mount (BRIEF §6 — safe retries):
   // a double-tap or a network-layer re-POST re-sends the same key and the
@@ -366,6 +396,17 @@ export function BookingRequestForm({
               ? copy.validation
               : undefined;
 
+  // Bring an invalid control into view, centred, then focus it. A bare
+  // focus() only scrolls until the element clears the viewport edge — on
+  // mobile that strip sits behind the fixed sticky CTA bar, so a blocked
+  // submit from the bar looked like a dead tap with the error off-screen.
+  // Instant (not smooth) on purpose: a smooth scroll can be silently
+  // cancelled by concurrent scroll work, which re-creates the dead tap.
+  const revealInvalid = (el: HTMLElement) => {
+    el.scrollIntoView({ block: 'center' });
+    el.focus({ preventScroll: true });
+  };
+
   // After a failed submit (client or server), move focus to the first invalid
   // field — or, failing that, to the form-level error region. WCAG 3.3.1 (Error
   // Identification) + 3.3.3 (Error Suggestion): the user must be able to
@@ -385,13 +426,20 @@ export function BookingRequestForm({
           ? form.querySelector<HTMLElement>('input[autocomplete="tel-national"]')
           : (form.elements.namedItem(field) as HTMLElement | null);
       if (el instanceof HTMLElement && el.getAttribute('type') !== 'hidden') {
-        el.focus();
+        revealInvalid(el);
         return;
       }
     }
 
+    // Server-side women-only rejection (JS validation bypassed or stale form):
+    // the acknowledgment isn't in FIELD_NAMES, so reveal it explicitly.
+    if (state.fields?.womenOnly && womenOnlyRef.current) {
+      revealInvalid(womenOnlyRef.current);
+      return;
+    }
+
     const alert = form.querySelector<HTMLElement>('[data-form-error]');
-    alert?.focus();
+    if (alert) revealInvalid(alert);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state, formMessage, clientFields]);
 
@@ -436,9 +484,12 @@ export function BookingRequestForm({
       setClientFields(fields);
     }
     setWomenOnlyBlocked(womenOnlyMissing);
-    // When the fields are otherwise valid, no field grabs focus — move it to
-    // the acknowledgment so the blocker is perceivable and reachable.
-    if (womenOnlyMissing && parsed.success) womenOnlyRef.current?.focus();
+    // When the fields are otherwise valid, no field grabs focus — scroll the
+    // acknowledgment into view (clear of the sticky CTA bar) and focus it so
+    // the blocker is perceivable and reachable.
+    if (womenOnlyMissing && parsed.success && womenOnlyRef.current) {
+      revealInvalid(womenOnlyRef.current);
+    }
   }
 
   function fieldProps(field: FieldName) {
@@ -514,11 +565,17 @@ export function BookingRequestForm({
             />
           </div>
 
-          {/* 2 — Choose party size. */}
-          <div className="border-sarat-black/8 flex flex-col gap-2 [border-top-width:0.5px] pt-4">
-            <label htmlFor="booking-party-size" className="text-sm font-medium">
+          {/* 2 — Choose party size. `role="group"` + labelledby replaces the
+              old `<label for>` pointing at a span (spans aren't labelable, so
+              that association was void); the live region announces +/- taps. */}
+          <div
+            role="group"
+            aria-labelledby="booking-party-size-label"
+            className="border-sarat-black/8 flex flex-col gap-2 [border-top-width:0.5px] pt-4"
+          >
+            <span id="booking-party-size-label" className="text-sm font-medium">
               {copy.partySize}
-            </label>
+            </span>
             {/* Stepper — keeps the value within [1, capacity] without a keyboard. */}
             <div className="border-sarat-black/20 rounded-input flex h-11 items-center justify-between [border-width:0.5px] px-1">
               <button
@@ -530,7 +587,11 @@ export function BookingRequestForm({
               >
                 <Minus className="size-4" aria-hidden />
               </button>
-              <span id="booking-party-size" className="text-base font-medium tabular-nums">
+              <span
+                id="booking-party-size"
+                aria-live="polite"
+                className="text-base font-medium tabular-nums"
+              >
                 {effectiveParty}
               </span>
               <button
@@ -617,7 +678,10 @@ export function BookingRequestForm({
                     defaultValue={detailValue('name')}
                     {...fieldProps('name')}
                   />
-                  <FieldError id={errorId('name')} message={errorFor('name') && copy.required} />
+                  <FieldError
+                    id={errorId('name')}
+                    message={messageForField('name', errorFor('name'), copy)}
+                  />
                 </div>
 
                 <div className="flex flex-col gap-2">
@@ -707,6 +771,38 @@ export function BookingRequestForm({
             </p>
           )}
 
+          {/* The throttle error becomes a way forward: each verified open
+              booking links to its own page, where the guest can complete
+              payment or cancel to free the spot. Only ownership-verified
+              bookings ever arrive here (see the server action). */}
+          {state.message === 'too_many' && !hasClientErrors && openBookings.length > 0 && (
+            <div className="flex flex-col gap-2">
+              {openBookings.map((booking) => (
+                <Link
+                  key={booking.reference}
+                  href={`/book/confirmed/${booking.reference}?slug=${encodeURIComponent(booking.experienceSlug)}`}
+                  className="border-sarat-black/8 rounded-input hover:bg-sarat-black/5 flex items-center justify-between gap-3 [border-width:0.5px] px-4 py-3 transition-colors duration-200"
+                >
+                  <span className="flex min-w-0 flex-col gap-0.5">
+                    <span className="truncate text-sm font-medium">{booking.title}</span>
+                    <span className="text-sarat-black-600 text-sm">
+                      {formatDate(new Date(`${booking.date}T00:00:00`), locale, 'gregory', {
+                        day: 'numeric',
+                        month: 'long',
+                      })}{' '}
+                      · {statusLabel(booking, copy)}
+                    </span>
+                  </span>
+                  <span className="inline-flex shrink-0 items-center gap-1.5 text-sm font-medium">
+                    {copy.tooManyFinish}
+                    <ArrowRight className="size-4 shrink-0 rtl:rotate-180" aria-hidden />
+                  </span>
+                </Link>
+              ))}
+              <p className="text-sarat-black-600 text-sm">{copy.tooManyHint}</p>
+            </div>
+          )}
+
           <div ref={inlineSubmitRef}>
             <SubmitButton copy={copy} />
           </div>
@@ -717,6 +813,7 @@ export function BookingRequestForm({
               order and a11y tree while retracted. */}
           <motion.div
             inert={!stickyBarVisible}
+            data-bottom-dock
             initial={false}
             animate={{ y: reduce ? 0 : stickyBarVisible ? 0 : '110%' }}
             transition={SPRING}

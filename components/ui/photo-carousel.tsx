@@ -37,6 +37,12 @@ export interface PhotoCarouselProps {
    * track and only a tap activates. Mutually exclusive.
    */
   href?: string;
+  /**
+   * Accessible name for the `href` tap layer (e.g. the experience title).
+   * Without it the navigation link falls back to the "go to photo {n}"
+   * template, which describes the dots — not where the link goes.
+   */
+  linkLabel?: string;
   onSlideClick?: (index: number) => void;
   /**
    * Auto-advance to the next slide every N ms (wrapping). Defaults to 5s.
@@ -66,6 +72,7 @@ export function PhotoCarousel({
   priority,
   copy,
   href,
+  linkLabel,
   onSlideClick,
   autoAdvanceMs = 5000,
   className,
@@ -184,8 +191,8 @@ export function PhotoCarousel({
             {href ? (
               <Link
                 href={href}
-                aria-label={label(i)}
-                className="focus-visible:ring-saffron-gold absolute inset-0 outline-none focus-visible:ring-2 focus-visible:ring-inset"
+                aria-label={linkLabel ?? label(i)}
+                className="absolute inset-0 outline-none"
               />
             ) : onSlideClick ? (
               <button
@@ -195,7 +202,7 @@ export function PhotoCarousel({
                   halt(e);
                   onSlideClick(i);
                 }}
-                className="focus-visible:ring-saffron-gold absolute inset-0 cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-inset"
+                className="absolute inset-0 cursor-pointer outline-none"
               />
             ) : null}
           </div>
@@ -212,9 +219,9 @@ export function PhotoCarousel({
                 halt(e);
                 goTo(active - 1);
               }}
-              className="text-sarat-black border-sarat-black/10 focus-visible:ring-saffron-gold absolute start-3 top-1/2 z-10 hidden -translate-y-1/2 rounded-full [border-width:0.5px] bg-white/90 p-2 opacity-0 transition-opacity duration-200 outline-none group-hover/carousel:opacity-100 focus-visible:opacity-100 focus-visible:ring-2 sm:flex"
+              className="text-sarat-black border-sarat-black/10 absolute start-3 top-1/2 z-10 hidden -translate-y-1/2 rounded-full [border-width:0.5px] bg-white/90 p-3 opacity-0 transition-opacity duration-200 outline-none group-hover/carousel:opacity-100 focus-visible:opacity-100 sm:flex"
             >
-              <ChevronLeft className="size-4 rtl:rotate-180" aria-hidden />
+              <ChevronLeft className="size-5 rtl:rotate-180" aria-hidden />
             </button>
           )}
           {active < count - 1 && (
@@ -225,9 +232,9 @@ export function PhotoCarousel({
                 halt(e);
                 goTo(active + 1);
               }}
-              className="text-sarat-black border-sarat-black/10 focus-visible:ring-saffron-gold absolute end-3 top-1/2 z-10 hidden -translate-y-1/2 rounded-full [border-width:0.5px] bg-white/90 p-2 opacity-0 transition-opacity duration-200 outline-none group-hover/carousel:opacity-100 focus-visible:opacity-100 focus-visible:ring-2 sm:flex"
+              className="text-sarat-black border-sarat-black/10 absolute end-3 top-1/2 z-10 hidden -translate-y-1/2 rounded-full [border-width:0.5px] bg-white/90 p-3 opacity-0 transition-opacity duration-200 outline-none group-hover/carousel:opacity-100 focus-visible:opacity-100 sm:flex"
             >
-              <ChevronRight className="size-4 rtl:rotate-180" aria-hidden />
+              <ChevronRight className="size-5 rtl:rotate-180" aria-hidden />
             </button>
           )}
 

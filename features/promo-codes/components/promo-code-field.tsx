@@ -97,11 +97,19 @@ export function PromoCodeField({
   const [removeState, removeAction] = useActionState(removePromo, initialState);
 
   useEffect(() => {
-    if (applyState.status === 'applied') router.refresh();
+    if (applyState.status !== 'applied') return;
+    // A total change superseded a live checkout — the mounted widget is
+    // client state a refresh can't reset, and paying through it would
+    // charge the OLD amount. A full reload is the only reliable teardown;
+    // the next "continue" prepares a fresh checkout at the new total.
+    if (applyState.checkoutSuperseded) window.location.reload();
+    else router.refresh();
   }, [applyState, router]);
 
   useEffect(() => {
-    if (removeState.status === 'removed') router.refresh();
+    if (removeState.status !== 'removed') return;
+    if (removeState.checkoutSuperseded) window.location.reload();
+    else router.refresh();
   }, [removeState, router]);
 
   const applyError = errorMessage(applyState, locale, copy);
@@ -153,13 +161,17 @@ export function PromoCodeField({
           dir="ltr"
           autoCapitalize="characters"
           placeholder={copy.placeholder}
+          // A failed apply echoes the attempted code back so one bad
+          // character doesn't mean retyping the whole thing.
+          defaultValue={applyState.status === 'error' ? (applyState.code ?? '') : ''}
           className="w-full max-w-56 flex-1 uppercase"
           aria-invalid={applyState.status === 'error' ? true : undefined}
+          aria-describedby={applyState.status === 'error' ? `${uid}-code-error` : undefined}
         />
         <ApplyButton label={copy.apply} pending={copy.applying} />
       </div>
       {applyError && (
-        <p role="alert" className="text-al-qatt-red-800 text-sm">
+        <p id={`${uid}-code-error`} role="alert" className="text-al-qatt-red-800 text-sm">
           {applyError}
         </p>
       )}

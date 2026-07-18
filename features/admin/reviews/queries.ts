@@ -62,7 +62,8 @@ export async function listReviewsForAdmin(): Promise<readonly AdminReviewRow[]> 
       createdAt: row.createdAt.toISOString(),
     }));
   } catch (error) {
+    // Rethrow — errors go to the admin boundary, not the empty state.
     reportError(error, { surface: 'admin:listReviews' });
-    return [];
+    throw error;
   }
 }

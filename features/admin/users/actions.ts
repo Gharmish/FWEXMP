@@ -71,6 +71,39 @@ function revalidateUser(key: string): void {
   void key;
 }
 
+const GUEST_ECHO_KEYS = [
+  'name',
+  'email',
+  'phone',
+  'preferredLanguage',
+  'billingStreet1',
+  'billingCity',
+  'billingState',
+  'billingPostcode',
+  'billingCountry',
+] as const;
+const HOST_ECHO_KEYS = [
+  'name',
+  'bioEn',
+  'bioAr',
+  'contactEmail',
+  'city',
+  'region',
+  'nationalId',
+  'crNumber',
+  'payoutIban',
+] as const;
+
+function echoValues(formData: FormData, keys: readonly string[]): Record<string, string> {
+  const values: Record<string, string> = {};
+  for (const key of keys) values[key] = formValue(formData, key);
+  return values;
+}
+
+function echoLanguages(formData: FormData): string[] {
+  return formData.getAll('languages').filter((v): v is string => typeof v === 'string');
+}
+
 export async function updateGuestProfile(
   _previous: AdminUserEditState,
   formData: FormData,
@@ -96,7 +129,12 @@ export async function updateGuestProfile(
       const k = issue.path[0];
       if (typeof k === 'string') fields[k] = true;
     }
-    return { success: false, message: 'validation', fields };
+    return {
+      success: false,
+      message: 'validation',
+      fields,
+      values: echoValues(formData, GUEST_ECHO_KEYS),
+    };
   }
 
   try {
@@ -147,7 +185,12 @@ export async function updateGuestProfile(
         .where(eq(guests.id, targets.guestId));
     } catch (error) {
       if (isUniqueViolation(error)) {
-        return { success: false, message: 'phone_taken', fields: { phone: true } };
+        return {
+          success: false,
+          message: 'phone_taken',
+          fields: { phone: true },
+          values: echoValues(formData, GUEST_ECHO_KEYS),
+        };
       }
       throw error;
     }
@@ -155,7 +198,7 @@ export async function updateGuestProfile(
     await logProfileEdits(targets, guard.adminUserId, diffFields(before, after));
   } catch (error) {
     reportError(error, { surface: 'admin:updateGuestProfile', key });
-    return { success: false, message: 'server' };
+    return { success: false, message: 'server', values: echoValues(formData, GUEST_ECHO_KEYS) };
   }
 
   revalidateUser(key);
@@ -188,7 +231,13 @@ export async function updateHostProfile(
       const k = issue.path[0];
       if (typeof k === 'string') fields[k] = true;
     }
-    return { success: false, message: 'validation', fields };
+    return {
+      success: false,
+      message: 'validation',
+      fields,
+      values: echoValues(formData, HOST_ECHO_KEYS),
+      valuesLanguages: echoLanguages(formData),
+    };
   }
 
   const next = parsed.data;
@@ -198,7 +247,13 @@ export async function updateHostProfile(
   if (next.payoutIban && next.payoutIban.length > 0) {
     normalizedIban = normalizeIban(next.payoutIban);
     if (!isValidSaudiIban(normalizedIban)) {
-      return { success: false, message: 'iban_invalid', fields: { payoutIban: true } };
+      return {
+        success: false,
+        message: 'iban_invalid',
+        fields: { payoutIban: true },
+        values: echoValues(formData, HOST_ECHO_KEYS),
+        valuesLanguages: echoLanguages(formData),
+      };
     }
   }
 
@@ -265,7 +320,12 @@ export async function updateHostProfile(
     await logProfileEdits(targets, guard.adminUserId, diffFields(before, after));
   } catch (error) {
     reportError(error, { surface: 'admin:updateHostProfile', key });
-    return { success: false, message: 'server' };
+    return {
+      success: false,
+      message: 'server',
+      values: echoValues(formData, HOST_ECHO_KEYS),
+      valuesLanguages: echoLanguages(formData),
+    };
   }
 
   revalidateUser(key);

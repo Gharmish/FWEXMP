@@ -6,7 +6,7 @@ import { hasHyperpay } from '@/lib/env';
 import { bookings } from '@/db/schema';
 import { reportError } from '@/lib/log';
 import { notifyAdmin } from '@/lib/admin-alerts';
-import { recordPaymentEvent } from '@/features/payments/ledger';
+import { recordPaymentEvent, resolvePaymentChannel } from '@/features/payments/ledger';
 import { isSuccessfulResult, refundPayment } from '@/features/payments/lib/hyperpay';
 
 /**
@@ -40,6 +40,11 @@ export async function executeRefund(
 ): Promise<RefundOutcome> {
   if (hasHyperpay() && paymentReference) {
     try {
+      // A refund must hit the same gateway entity that captured the
+      // debit — an Apple Pay payment can only be reversed on the Apple
+      // Pay entity. Only the payment id survives on the booking, so the
+      // channel comes from the newest checkout tag (null checkoutId).
+      const channel = await resolvePaymentChannel(bookingId, null);
       await recordPaymentEvent({
         bookingId,
         type: 'refund_attempted',
@@ -47,7 +52,7 @@ export async function executeRefund(
         gatewayId: paymentReference,
         actorUserId: actorUserId ?? null,
       });
-      const { resultCode } = await refundPayment(paymentReference, amountSar);
+      const { resultCode } = await refundPayment(paymentReference, amountSar, channel);
       if (isSuccessfulResult(resultCode)) {
         try {
           await recordPaymentEvent({

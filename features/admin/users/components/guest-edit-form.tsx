@@ -25,6 +25,8 @@ export interface GuestEditFormCopy {
   save: string;
   saving: string;
   saved: string;
+  /** Inline message under a field that failed validation. */
+  fieldInvalid: string;
   errors: Record<NonNullable<AdminUserEditState['message']>, string>;
 }
 
@@ -50,7 +52,7 @@ function Field({
   label,
   name,
   defaultValue,
-  invalid,
+  error,
   dir,
   type,
   maxLength,
@@ -58,12 +60,14 @@ function Field({
   label: string;
   name: string;
   defaultValue: string;
-  invalid?: boolean;
+  /** Inline validation message; presence marks the field invalid. */
+  error?: string;
   dir?: 'ltr';
   type?: string;
   maxLength?: number;
 }) {
   const id = useId();
+  const errorId = `${id}-error`;
   return (
     <div className="flex flex-col gap-2">
       <label htmlFor={id} className="text-sm font-medium">
@@ -76,8 +80,14 @@ function Field({
         dir={dir}
         maxLength={maxLength}
         defaultValue={defaultValue}
-        aria-invalid={invalid ? true : undefined}
+        aria-invalid={error ? true : undefined}
+        aria-describedby={error ? errorId : undefined}
       />
+      {error && (
+        <p id={errorId} role="alert" className="text-al-qatt-red-800 text-sm">
+          {error}
+        </p>
+      )}
     </div>
   );
 }
@@ -91,11 +101,12 @@ export function GuestEditForm({ personKey, guest, copy }: GuestEditFormProps) {
     if (state.success) toast({ title: copy.saved, tone: 'success' });
   }, [state, copy.saved]);
 
-  const fieldErr = (name: string) => Boolean(state.fields?.[name]);
-  const generalError =
-    !state.success && state.message && state.message !== 'validation'
-      ? copy.errors[state.message]
-      : undefined;
+  // A failed submit echoes the typed values back; prefer them over the row.
+  const v = state.success ? undefined : state.values;
+  const fieldError = (name: string) => (state.fields?.[name] ? copy.fieldInvalid : undefined);
+  // Every failure renders SOMETHING here — excluding 'validation' made a
+  // rejected save silently revert with no visible message.
+  const generalError = !state.success && state.message ? copy.errors[state.message] : undefined;
 
   return (
     <div className="flex flex-col gap-4">
@@ -119,8 +130,8 @@ export function GuestEditForm({ personKey, guest, copy }: GuestEditFormProps) {
             <Field
               label={copy.name}
               name="name"
-              defaultValue={guest.name}
-              invalid={fieldErr('name')}
+              defaultValue={v?.name ?? guest.name}
+              error={fieldError('name')}
               maxLength={80}
             />
             <Field
@@ -128,16 +139,16 @@ export function GuestEditForm({ personKey, guest, copy }: GuestEditFormProps) {
               name="email"
               type="email"
               dir="ltr"
-              defaultValue={guest.email ?? ''}
-              invalid={fieldErr('email')}
+              defaultValue={v?.email ?? guest.email ?? ''}
+              error={fieldError('email')}
               maxLength={160}
             />
             <Field
               label={copy.phone}
               name="phone"
               dir="ltr"
-              defaultValue={guest.phone ?? ''}
-              invalid={fieldErr('phone')}
+              defaultValue={v?.phone ?? guest.phone ?? ''}
+              error={fieldError('phone')}
               maxLength={16}
             />
             <fieldset className="flex flex-col gap-2">
@@ -152,7 +163,7 @@ export function GuestEditForm({ personKey, guest, copy }: GuestEditFormProps) {
                       type="radio"
                       name="preferredLanguage"
                       value={value}
-                      defaultChecked={guest.preferredLanguage === value}
+                      defaultChecked={(v?.preferredLanguage ?? guest.preferredLanguage) === value}
                       className="sr-only"
                     />
                     {value.toUpperCase()}
@@ -169,33 +180,38 @@ export function GuestEditForm({ personKey, guest, copy }: GuestEditFormProps) {
             <Field
               label={copy.street1}
               name="billingStreet1"
-              defaultValue={guest.billing.street1 ?? ''}
+              defaultValue={v?.billingStreet1 ?? guest.billing.street1 ?? ''}
+              error={fieldError('billingStreet1')}
               maxLength={160}
             />
             <div className="grid gap-5 sm:grid-cols-2">
               <Field
                 label={copy.city}
                 name="billingCity"
-                defaultValue={guest.billing.city ?? ''}
+                defaultValue={v?.billingCity ?? guest.billing.city ?? ''}
+                error={fieldError('billingCity')}
                 maxLength={80}
               />
               <Field
                 label={copy.state}
                 name="billingState"
-                defaultValue={guest.billing.state ?? ''}
+                defaultValue={v?.billingState ?? guest.billing.state ?? ''}
+                error={fieldError('billingState')}
                 maxLength={80}
               />
               <Field
                 label={copy.postcode}
                 name="billingPostcode"
-                defaultValue={guest.billing.postcode ?? ''}
+                defaultValue={v?.billingPostcode ?? guest.billing.postcode ?? ''}
+                error={fieldError('billingPostcode')}
                 maxLength={20}
               />
               <Field
                 label={copy.country}
                 name="billingCountry"
                 dir="ltr"
-                defaultValue={guest.billing.country ?? ''}
+                defaultValue={v?.billingCountry ?? guest.billing.country ?? ''}
+                error={fieldError('billingCountry')}
                 maxLength={2}
               />
             </div>

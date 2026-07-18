@@ -235,8 +235,10 @@ export async function listUsersForAdmin(query?: string): Promise<readonly AdminU
         createdAt: r.createdAt.toISOString(),
       }));
   } catch (error) {
+    // Rethrow: empty-on-error made a DB failure indistinguishable from
+    // an empty directory.
     reportError(error, { surface: 'admin:listUsers' });
-    return [];
+    throw error;
   }
 }
 
@@ -587,8 +589,9 @@ export async function getUserDetailForAdmin(key: string): Promise<AdminUserDetai
       profileEdits,
     };
   } catch (error) {
+    // Rethrow: undefined means "no such person" — an error must not 404.
     reportError(error, { surface: 'admin:getUserDetail', key });
-    return undefined;
+    throw error;
   }
 }
 

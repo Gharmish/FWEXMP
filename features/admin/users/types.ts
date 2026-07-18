@@ -189,6 +189,14 @@ export interface AdminUserEditState {
     | 'server';
   /** Field keys that failed validation, for inline highlighting. */
   fields?: Record<string, true>;
+  /**
+   * Raw submitted strings echoed back on failure — React 19 resets
+   * uncontrolled inputs after a form action, so without this a failed
+   * save silently reverts the admin's edits to the stored values.
+   */
+  values?: Record<string, string>;
+  /** Echo for the multi-select languages checkboxes (host form). */
+  valuesLanguages?: string[];
 }
 
 export interface AdminUserDetail {

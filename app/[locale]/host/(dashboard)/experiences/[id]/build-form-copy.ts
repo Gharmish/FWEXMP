@@ -1,5 +1,6 @@
 import type { getTranslations } from 'next-intl/server';
 import type { ExperienceFormCopy } from '@/app/[locale]/host/(dashboard)/experiences/[id]/experience-form';
+import { BOOKING_CUTOFF_OPTIONS } from '@/features/host-experiences/schemas';
 
 /**
  * Build the form's `copy` payload from the `hostExperiences.form`
@@ -32,6 +33,12 @@ export function buildExperienceFormCopy(t: Translator): ExperienceFormCopy {
     placeNameHint: t('placeNameHint'),
     startTimeLabel: t('startTimeLabel'),
     startTimeHint: t('startTimeHint'),
+    bookingCutoffLabel: t('bookingCutoffLabel'),
+    bookingCutoffHint: t('bookingCutoffHint'),
+    bookingCutoffOptions: BOOKING_CUTOFF_OPTIONS.map((hours) => ({
+      value: hours,
+      label: t('bookingCutoffOption', { hours }),
+    })),
     latLabel: t('latLabel'),
     lngLabel: t('lngLabel'),
     coordsHint: t('coordsHint'),
@@ -54,7 +61,12 @@ export function buildExperienceFormCopy(t: Translator): ExperienceFormCopy {
     whatToBringPlaceholder: t('whatToBringPlaceholder'),
     whatToBringHint: t('whatToBringHint'),
     cancellationLabel: t('cancellationLabel'),
-    cancellationPlaceholder: t('cancellationPlaceholder'),
+    cancellationTiers: {
+      flexible: t('cancellationTierFlexible'),
+      moderate: t('cancellationTierModerate'),
+      strict: t('cancellationTierStrict'),
+    },
+    cancellationHint: t('cancellationHint'),
     weekdaysLabel: t('weekdaysLabel'),
     weekdaysHint: t('weekdaysHint'),
     weekdays: [

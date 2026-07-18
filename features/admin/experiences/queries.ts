@@ -69,7 +69,7 @@ export interface AdminExperienceEdit {
   region: string;
   inclusions: string[];
   whatToBring: string[];
-  cancellationPolicy: string;
+  cancellationTier: 'flexible' | 'moderate' | 'strict';
   availabilityWeekdays: number[];
   blackoutDates: string[];
   startTime: string;
@@ -108,7 +108,7 @@ export async function getAdminExperienceForEdit(
     region: row.region,
     inclusions: [...row.inclusions],
     whatToBring: [...row.whatToBring],
-    cancellationPolicy: row.cancellationPolicy,
+    cancellationTier: row.cancellationTier,
     availabilityWeekdays: [...row.availabilityWeekdays],
     blackoutDates: [...row.blackoutDates],
     startTime: row.startTime,

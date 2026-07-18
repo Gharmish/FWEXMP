@@ -36,6 +36,15 @@ export interface AdminExperienceEditState {
   success: false;
   message?: 'forbidden' | 'no_db' | 'not_found' | 'validation' | 'server';
   fields?: Record<string, string>;
+  /**
+   * Raw submitted strings echoed back on failure — React 19 resets
+   * uncontrolled inputs after a form action, so without this a failed
+   * save reverts the admin's bilingual edits to the stored row.
+   */
+  values?: Partial<Record<string, string>> & {
+    availabilityWeekdays?: string[];
+    featured?: boolean;
+  };
 }
 
 function formValue(formData: FormData, key: string): string {
@@ -45,6 +54,37 @@ function formValue(formData: FormData, key: string): string {
 
 function formValues(formData: FormData, key: string): string[] {
   return formData.getAll(key).filter((v): v is string => typeof v === 'string');
+}
+
+const ECHO_KEYS = [
+  'hostId',
+  'titleEn',
+  'titleAr',
+  'descriptionEn',
+  'descriptionAr',
+  'category',
+  'durationMinutes',
+  'maxGroupSize',
+  'minAge',
+  'priceSar',
+  'placeName',
+  'city',
+  'region',
+  'inclusionsRaw',
+  'whatToBringRaw',
+  'cancellationTier',
+  'startTime',
+  'bookingMode',
+  'commissionPct',
+  'status',
+] as const;
+
+function collectValues(formData: FormData): NonNullable<AdminExperienceEditState['values']> {
+  const values: NonNullable<AdminExperienceEditState['values']> = {};
+  for (const key of ECHO_KEYS) values[key] = formValue(formData, key);
+  values.availabilityWeekdays = formValues(formData, 'availabilityWeekdays');
+  values.featured = formData.get('featured') != null;
+  return values;
 }
 
 async function requireAdmin(): Promise<
@@ -77,7 +117,7 @@ export async function adminUpdateExperience(
     region: formValue(formData, 'region') || 'Aseer',
     inclusionsRaw: formValue(formData, 'inclusionsRaw'),
     whatToBringRaw: formValue(formData, 'whatToBringRaw'),
-    cancellationPolicy: formValue(formData, 'cancellationPolicy'),
+    cancellationTier: formValue(formData, 'cancellationTier'),
     availabilityWeekdays: formValues(formData, 'availabilityWeekdays'),
     locale: formValue(formData, 'locale'),
     titleAr: formValue(formData, 'titleAr'),
@@ -95,7 +135,7 @@ export async function adminUpdateExperience(
       const key = issue.path[0];
       if (typeof key === 'string') fields[key] = issue.message;
     }
-    return { success: false, message: 'validation', fields };
+    return { success: false, message: 'validation', fields, values: collectValues(formData) };
   }
   const input = parsed.data;
   const locale = input.locale;
@@ -125,7 +165,7 @@ export async function adminUpdateExperience(
         region: input.region,
         inclusions: input.inclusionsRaw,
         whatToBring: input.whatToBringRaw,
-        cancellationPolicy: input.cancellationPolicy,
+        cancellationTier: input.cancellationTier,
         availabilityWeekdays: input.availabilityWeekdays,
         startTime: input.startTime,
         bookingMode: input.bookingMode,
@@ -145,7 +185,7 @@ export async function adminUpdateExperience(
     });
   } catch (error) {
     reportError(error, { surface: 'admin:updateExperience', experienceId });
-    return { success: false, message: 'server' };
+    return { success: false, message: 'server', values: collectValues(formData) };
   }
 
   revalidateExperienceCaches();
@@ -185,7 +225,7 @@ export async function adminCreateExperience(
     region: formValue(formData, 'region') || 'Aseer',
     inclusionsRaw: formValue(formData, 'inclusionsRaw'),
     whatToBringRaw: formValue(formData, 'whatToBringRaw'),
-    cancellationPolicy: formValue(formData, 'cancellationPolicy'),
+    cancellationTier: formValue(formData, 'cancellationTier'),
     availabilityWeekdays: formValues(formData, 'availabilityWeekdays'),
     locale: formValue(formData, 'locale'),
     titleAr: formValue(formData, 'titleAr'),
@@ -204,7 +244,7 @@ export async function adminCreateExperience(
       const key = issue.path[0];
       if (typeof key === 'string') fields[key] = issue.message;
     }
-    return { success: false, message: 'validation', fields };
+    return { success: false, message: 'validation', fields, values: collectValues(formData) };
   }
   const input = parsed.data;
   const locale = input.locale;
@@ -236,7 +276,7 @@ export async function adminCreateExperience(
             region: input.region,
             inclusions: input.inclusionsRaw,
             whatToBring: input.whatToBringRaw,
-            cancellationPolicy: input.cancellationPolicy,
+            cancellationTier: input.cancellationTier,
             availabilityWeekdays: input.availabilityWeekdays,
             startTime: input.startTime,
             bookingMode: input.bookingMode,
@@ -255,7 +295,7 @@ export async function adminCreateExperience(
     }
     if (!newId) {
       reportError(new Error('exhausted slug retries'), { surface: 'admin:createExperience' });
-      return { success: false, message: 'server' };
+      return { success: false, message: 'server', values: collectValues(formData) };
     }
     await db.insert(experienceModerationEvents).values({
       experienceId: newId,
@@ -266,7 +306,7 @@ export async function adminCreateExperience(
     });
   } catch (error) {
     reportError(error, { surface: 'admin:createExperience' });
-    return { success: false, message: 'server' };
+    return { success: false, message: 'server', values: collectValues(formData) };
   }
 
   revalidateExperienceCaches();

@@ -1,6 +1,6 @@
 'use server';
 
-import { and, eq, gte, inArray, ne, sql } from 'drizzle-orm';
+import { and, desc, eq, gte, inArray, ne, sql } from 'drizzle-orm';
 import { after } from 'next/server';
 import { cookies, headers } from 'next/headers';
 import { db } from '@/lib/db';
@@ -18,7 +18,12 @@ import {
 } from '@/features/bookings/lib/availability';
 import { holdStillCounts } from '@/features/bookings/lib/capacity-sql';
 import { generateReferenceCode } from '@/features/bookings/lib/reference-code';
-import { LAST_BOOKING_COOKIE, serializeLastBookingCookie } from '@/features/account/cookie';
+import { policySnapshotFor } from '@/features/bookings/lib/policy';
+import {
+  LAST_BOOKING_COOKIE,
+  parseLastBookingCookie,
+  serializeLastBookingCookie,
+} from '@/features/account/cookie';
 import {
   sendBookingRequestReceivedEmail,
   sendHostNewBookingEmail,
@@ -29,6 +34,19 @@ import { getPlatformSettings } from '@/lib/platform-settings';
 function todayInRiyadh(): string {
   // en-CA renders ISO `YYYY-MM-DD`; the time zone pins it to the KSA day.
   return new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Riyadh' }).format(new Date());
+}
+
+/** Current wall-clock time as minutes since midnight in the KSA day. */
+function nowMinutesInRiyadh(): number {
+  // hourCycle h23 forces 00–23 (dodges the legacy '24' hour bug).
+  const hm = new Intl.DateTimeFormat('en-GB', {
+    timeZone: 'Asia/Riyadh',
+    hourCycle: 'h23',
+    hour: '2-digit',
+    minute: '2-digit',
+  }).format(new Date());
+  const [h, m] = hm.split(':').map(Number);
+  return h * 60 + m;
 }
 
 const LAST_BOOKING_COOKIE_MAX_AGE_SECONDS = 60 * 60 * 24 * 90; // 90 days
@@ -69,6 +87,90 @@ async function clientIp(): Promise<string | null> {
   return first && first.length > 0 ? first : null;
 }
 
+/**
+ * The per-phone throttle's definition of a booking that still holds a
+ * spot without payment. Shared by the count that trips `too_many` and
+ * the lookup that shows the guest which bookings are holding it.
+ */
+function activePhoneHolds(phone: string) {
+  return and(
+    eq(guests.phone, phone),
+    inArray(bookings.status, ['pending', 'confirmed']),
+    ne(bookings.paymentStatus, 'paid'),
+    holdStillCounts(),
+    sql`not (${bookings.status} = 'pending' and ${bookings.approvalDeadline} is not null and ${bookings.approvalDeadline} <= now())`,
+  );
+}
+
+/**
+ * The open bookings behind a tripped throttle, but only when the caller
+ * verifiably owns them: a signed-in account whose linked guest row holds
+ * the submitted phone sees all of them; otherwise the device's
+ * last-booking cookie vouches for (at most) the one booking it points
+ * at. Anything less verified returns [] and the form stays generic —
+ * typing someone else's phone number must never list their bookings.
+ * Best-effort: any failure degrades to the generic message.
+ */
+async function verifiedOpenBookings(
+  phone: string,
+  locale: 'en' | 'ar',
+): Promise<OpenBookingSummary[]> {
+  try {
+    const rows = await db
+      .select({
+        reference: bookings.idempotencyKey,
+        referenceCode: bookings.referenceCode,
+        experienceSlug: experiences.slug,
+        titleEn: experiences.titleEn,
+        titleAr: experiences.titleAr,
+        date: bookings.date,
+        status: bookings.status,
+        paymentDeadline: bookings.paymentDeadline,
+      })
+      .from(bookings)
+      .innerJoin(guests, eq(bookings.guestId, guests.id))
+      .innerJoin(experiences, eq(bookings.experienceId, experiences.id))
+      .where(activePhoneHolds(phone))
+      .orderBy(desc(bookings.createdAt))
+      .limit(5);
+    if (rows.length === 0) return [];
+
+    const toSummary = (row: (typeof rows)[number]): OpenBookingSummary => ({
+      reference: row.reference,
+      referenceCode: row.referenceCode,
+      experienceSlug: row.experienceSlug,
+      title: locale === 'ar' ? row.titleAr : row.titleEn,
+      date: row.date,
+      // A pending row awaits the host; a confirmed row with a payment
+      // deadline awaits payment; confirmed without one (payments off)
+      // just sits until its date — nothing to pay, only cancellable.
+      state:
+        row.status === 'pending'
+          ? 'approval'
+          : row.paymentDeadline !== null
+            ? 'payment'
+            : 'confirmed',
+    });
+
+    const user = await getCurrentUser();
+    if (user) {
+      const own = await db.query.guests.findFirst({
+        where: (g) => eq(g.authUserId, user.id),
+        columns: { phone: true },
+      });
+      if (own?.phone === phone) return rows.map(toSummary);
+    }
+
+    const store = await cookies();
+    const hint = parseLastBookingCookie(store.get(LAST_BOOKING_COOKIE)?.value);
+    const cookieRow = hint ? rows.find((row) => row.reference === hint.reference) : undefined;
+    return cookieRow ? [toSummary(cookieRow)] : [];
+  } catch (error) {
+    reportError(error, { surface: 'bookings:verifiedOpenBookings' });
+    return [];
+  }
+}
+
 async function writeLastBookingCookie(reference: string, experienceSlug: string): Promise<void> {
   const store = await cookies();
   store.set(LAST_BOOKING_COOKIE, serializeLastBookingCookie({ reference, experienceSlug }), {
@@ -81,6 +183,28 @@ async function writeLastBookingCookie(reference: string, experienceSlug: string)
 }
 
 /**
+ * An open booking shown back to a throttled guest so the `too_many`
+ * error is a way forward (finish or cancel it) instead of a dead end.
+ * Only bookings whose ownership is verifiable server-side — the
+ * signed-in account's own guest row, or this device's last-booking
+ * cookie — are ever returned: the submitted phone alone is unverified
+ * input and must not let anyone enumerate someone else's bookings.
+ */
+export interface OpenBookingSummary {
+  /** Unguessable booking capability (idempotencyKey) — keys the /book/confirmed URL. */
+  reference: string;
+  /** Human reference (GH-XXXXXX), display only. */
+  referenceCode: string;
+  experienceSlug: string;
+  /** Experience title, already picked for the form's locale. */
+  title: string;
+  /** Experience date, `YYYY-MM-DD`. */
+  date: string;
+  /** What "open" means for this row — drives the status line in the form. */
+  state: 'payment' | 'approval' | 'confirmed';
+}
+
+/**
  * The success path throws (Next.js `redirect`) before the action ever
  * returns — so observable state is always one of the error shapes.
  * `success` is kept on the type only to satisfy the useActionState
@@ -89,6 +213,8 @@ async function writeLastBookingCookie(reference: string, experienceSlug: string)
 export interface BookingRequestState {
   success: false;
   message?: string;
+  /** Set with `message: 'too_many'` when ownership could be verified. */
+  openBookings?: OpenBookingSummary[];
   // `womenOnly` flags a missing eligibility acknowledgment on a women-only
   // experience; it isn't one of the echoed value fields (client-held state).
   fields?: Partial<
@@ -216,8 +342,10 @@ export async function requestBooking(
         priceSar: true,
         maxGroupSize: true,
         startTime: true,
+        bookingCutoffHours: true,
         bookingMode: true,
         commissionBps: true,
+        cancellationTier: true,
         category: true,
         availabilityWeekdays: true,
         blackoutDates: true,
@@ -252,13 +380,19 @@ export async function requestBooking(
     }
 
     // The requested day must be open on the calendar for both modes — a
-    // request for a day the experience never runs is not actionable.
+    // request for a day the experience never runs is not actionable. The
+    // startTime + now-minutes + cutoff inputs also close today's slot once
+    // we're within the lead time of (or past) its local start, so a payment
+    // can never be taken for an experience that has already begun.
     const bookable = isDateBookable({
       dateStr: input.preferredDate,
       todayStr: todayInRiyadh(),
       availabilityWeekdays: experience.availabilityWeekdays,
       blackoutDates: experience.blackoutDates,
       stopSellDates: experience.stopSellDates,
+      startTime: experience.startTime,
+      nowMinutes: nowMinutesInRiyadh(),
+      cutoffMinutes: experience.bookingCutoffHours * 60,
     });
     if (!bookable.ok) {
       return {
@@ -271,21 +405,24 @@ export async function requestBooking(
 
     // Throttle creation before any write. Bookings hold capacity with
     // no account and no payment, so both axes are capped: active unpaid
-    // holds per phone, and creations per IP per hour.
+    // holds per phone, and creations per IP per hour. Lapsed holds are
+    // excluded the same way capacity sums exclude them (`holdStillCounts`,
+    // plus requests past their approval deadline): the release cron flips
+    // them to cancelled/expired only on its own cadence, and until then an
+    // abandoned checkout must not lock the guest out of booking again.
     const ip = await clientIp();
     const [{ activeForPhone }] = await db
       .select({ activeForPhone: sql<number>`count(*)::int` })
       .from(bookings)
       .innerJoin(guests, eq(bookings.guestId, guests.id))
-      .where(
-        and(
-          eq(guests.phone, input.phone),
-          inArray(bookings.status, ['pending', 'confirmed']),
-          ne(bookings.paymentStatus, 'paid'),
-        ),
-      );
+      .where(activePhoneHolds(input.phone));
     if (activeForPhone >= MAX_ACTIVE_HOLDS_PER_PHONE) {
-      return { success: false, message: 'too_many', values: currentValues(formData) };
+      return {
+        success: false,
+        message: 'too_many',
+        openBookings: await verifiedOpenBookings(input.phone, input.locale),
+        values: currentValues(formData),
+      };
     }
     if (ip) {
       const [{ recentForIp }] = await db
@@ -365,8 +502,10 @@ export async function requestBooking(
       startTime: experience.startTime,
       partySize: input.partySize,
       totalAmount: experience.priceSar * input.partySize,
-      // Snapshot — a later commission edit applies to future bookings only.
+      // Snapshots — a later commission or policy edit applies to future
+      // bookings only, never restating an existing booking's terms.
       commissionBps: experience.commissionBps,
+      ...policySnapshotFor(experience.cancellationTier),
       idempotencyKey: reference,
       // Human reference (GH-XXXXXX) — display identity only; the UUID
       // above stays the URL capability. Unique-constraint collision is

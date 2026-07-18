@@ -7,7 +7,7 @@ import { cn } from '@/lib/utils';
 import { Link } from '@/lib/i18n';
 import type { Locale } from '@/lib/i18n';
 import { buttonVariants } from '@/components/ui/button';
-import { formatDate, formatInteger, formatTime } from '@/lib/format';
+import { formatDate, formatInteger, formatSAR, formatTime } from '@/lib/format';
 import { Price } from '@/components/ui/price';
 import { getExperienceBySlug } from '@/features/experiences/queries';
 import {
@@ -22,10 +22,18 @@ import { ReviewForm } from '@/features/reviews/components/review-form';
 import { getReviewForBooking } from '@/features/reviews/queries';
 import { hasOpenDisputeForBooking } from '@/features/disputes/queries';
 import { CancelBookingButton } from '@/features/bookings/components/cancel-booking-button';
-import { cancelEligibility, freeCancellationDeadline } from '@/features/bookings/lib/cancellation';
-import { isHoldExpired } from '@/features/bookings/lib/availability';
+import { RescheduleBooking } from '@/features/bookings/components/reschedule-booking';
+import { bookingOptions } from '@/features/bookings/lib/policy';
+import {
+  addDays,
+  bookableDates,
+  isHoldExpired,
+  nowMinutesInRiyadh,
+  todayInRiyadh,
+} from '@/features/bookings/lib/availability';
+import { getScheduleDataBySlug } from '@/features/availability/queries';
+import type { BookableOption } from '@/features/bookings/types';
 import { vatPortionSar, vatRatePercent } from '@/features/bookings/lib/vat';
-import { getPlatformSettings } from '@/lib/platform-settings';
 import { PendingPaymentRefresh } from '@/features/payments/components/pending-payment-refresh';
 import { PurchaseConversion } from '@/features/bookings/components/purchase-conversion';
 import { toArabicText } from '@/features/experiences/lib/arabic-content';
@@ -365,30 +373,77 @@ export default async function BookingConfirmedPage({ params, searchParams }: Pag
     ? whatsappLink(hostPhone, t('whatsapp.prefill', { reference: booking?.referenceCode ?? ref }))
     : null;
 
-  // Guest cancellation. Computed server-side so the page shows the true
-  // consequence (full refund vs forfeited) before the guest commits.
-  let cancelView: { refund: 'none_needed' | 'full' | 'forfeited'; deadline: Date } | null = null;
-  if (booking) {
-    const { cancellationWindowHours } = await getPlatformSettings();
-    const eligibility = cancelEligibility({
-      status: booking.status,
-      paymentStatus: booking.paymentStatus,
-      dateStr: booking.date,
-      startTime: booking.startTime,
-      windowHours: cancellationWindowHours,
-      now: new Date(),
-    });
-    if (eligibility.canCancel) {
-      cancelView = {
-        refund: eligibility.refund,
-        deadline: freeCancellationDeadline(
-          booking.date,
-          booking.startTime,
-          cancellationWindowHours,
-        ),
-      };
+  // Guest cancellation & rescheduling, from the booking's own policy
+  // snapshot. Computed server-side so the page shows the true consequence
+  // (full / partial / forfeited refund) before the guest commits — and so
+  // an option is only ever rendered when the server action (which re-runs
+  // the same `bookingOptions`) would also allow it.
+  const options = booking
+    ? bookingOptions({
+        status: booking.status,
+        paymentStatus: booking.paymentStatus,
+        dateStr: booking.date,
+        startTime: booking.startTime,
+        createdAt: new Date(booking.createdAt),
+        totalAmountSar: booking.totalAmountSar,
+        snapshot: booking.policy,
+        rescheduleCount: booking.rescheduleCount,
+        rescheduledFromDate: booking.rescheduledFromDate,
+        now: new Date(),
+      })
+    : null;
+  const cancelView = options && options.cancel.allowed ? options.cancel : null;
+  const rescheduleView = options && options.reschedule.allowed ? options.reschedule : null;
+
+  // Target dates for a reschedule — the same bookable-days computation the
+  // experience page feeds its calendar, minus the booking's current date
+  // and any day without room for this party. Only built when the option
+  // will actually render.
+  let rescheduleDates: BookableOption[] = [];
+  if (booking && rescheduleView && !isHoldLapsed) {
+    const RESCHEDULE_HORIZON_DAYS = 60;
+    const todayRiyadh = todayInRiyadh();
+    const [schedule, tb] = await Promise.all([
+      getScheduleDataBySlug(
+        booking.experienceSlug,
+        todayRiyadh,
+        addDays(todayRiyadh, RESCHEDULE_HORIZON_DAYS),
+      ),
+      getTranslations('bookingRequest'),
+    ]);
+    if (schedule) {
+      rescheduleDates = bookableDates({
+        fromStr: todayRiyadh,
+        days: RESCHEDULE_HORIZON_DAYS + 1,
+        availabilityWeekdays: schedule.availabilityWeekdays,
+        blackoutDates: schedule.blackoutDates,
+        stopSellDates: schedule.stopSellDates,
+        maxGroupSize: schedule.maxGroupSize,
+        bookedByDate: schedule.bookedByDate,
+        startTime: schedule.startTime,
+        nowMinutes: nowMinutesInRiyadh(),
+        cutoffMinutes: schedule.bookingCutoffHours * 60,
+      })
+        .filter((d) => d.date !== booking.date && d.remaining >= booking.partySize)
+        .map((d) => ({
+          value: d.date,
+          label: formatDate(new Date(`${d.date}T12:00:00Z`), loc, 'gregory', {
+            weekday: 'short',
+            day: 'numeric',
+            month: 'long',
+            timeZone: 'UTC',
+          }),
+          remaining: d.remaining,
+          spotsLabel: tb('spotsLeft', { count: d.remaining }),
+        }));
     }
   }
+  // The partial-step amount is deterministic from the snapshot, so the
+  // confirm/done copy can quote it regardless of which refund state the
+  // page happened to render in.
+  const partialAmountSar = booking
+    ? Math.floor((booking.totalAmountSar * booking.policy.partialRefundBps) / 10_000)
+    : 0;
 
   return (
     <article className="mx-auto w-full max-w-3xl px-6 py-20">
@@ -632,6 +687,59 @@ export default async function BookingConfirmedPage({ params, searchParams }: Pag
         </section>
       )}
 
+      {/* Reschedule — rendered ONLY when the booking's policy snapshot
+          allows a move right now (same gate the server action re-checks).
+          A lapsed hold is about to be released; moving it would imply the
+          spot is still held. */}
+      {rescheduleView && !isHoldLapsed && (
+        <section className="border-sarat-black/8 rounded-card mt-10 flex flex-col gap-3 [border-width:0.5px] p-6 print:hidden">
+          <h2 className="font-display text-2xl font-medium tracking-[-0.025em]">
+            {t('reschedule.heading')}
+          </h2>
+          <p className="text-sarat-black-600 max-w-2xl text-base leading-relaxed">
+            {t('reschedule.policy', { deadline: formatDeadline(rescheduleView.deadline) })}
+          </p>
+          {rescheduleDates.length === 0 ? (
+            <p className="text-sarat-black-600 max-w-2xl text-base leading-relaxed">
+              {t('reschedule.noDates')}
+            </p>
+          ) : (
+            <RescheduleBooking
+              reference={ref}
+              locale={loc}
+              minDate={todayInRiyadh()}
+              maxDate={addDays(todayInRiyadh(), 60)}
+              options={rescheduleDates}
+              copy={{
+                label: t('reschedule.label'),
+                pending: t('reschedule.pending'),
+                confirmTitle: t('reschedule.heading'),
+                // Raw templates — the client substitutes {date} with the
+                // chosen option's pre-formatted label.
+                confirm: t.raw('reschedule.confirm'),
+                done: t.raw('reschedule.done'),
+                calendar: {
+                  prevMonth: t('reschedule.prevMonth'),
+                  nextMonth: t('reschedule.nextMonth'),
+                },
+                errors: {
+                  no_db: t('reschedule.errors.noDb'),
+                  not_found: t('reschedule.errors.notFound'),
+                  wrong_state: t('reschedule.errors.wrongState'),
+                  already_started: t('reschedule.errors.alreadyStarted'),
+                  window_passed: t('reschedule.errors.windowPassed'),
+                  limit_reached: t('reschedule.errors.limitReached'),
+                  date_unavailable: t('reschedule.errors.dateUnavailable'),
+                  date_full: t('reschedule.errors.dateFull'),
+                  validation: t('reschedule.errors.validation'),
+                  server: t('reschedule.errors.server'),
+                },
+              }}
+            />
+          )}
+        </section>
+      )}
+
       {/* Cancellation — only while the booking can still be cancelled.
           A lapsed hold is about to be released anyway; offering "cancel"
           there would imply the spot is still held. */}
@@ -645,9 +753,14 @@ export default async function BookingConfirmedPage({ params, searchParams }: Pag
               ? t('cancel.policyUnpaid')
               : cancelView.refund === 'full'
                 ? t('cancel.policyRefundable', {
-                    deadline: formatDeadline(cancelView.deadline),
+                    deadline: formatDeadline(cancelView.freeDeadline),
                   })
-                : t('cancel.policyForfeited')}
+                : cancelView.refund === 'partial' && cancelView.partialDeadline
+                  ? t('cancel.policyPartial', {
+                      amount: formatSAR(cancelView.amountSar, loc),
+                      deadline: formatDeadline(cancelView.partialDeadline),
+                    })
+                  : t('cancel.policyForfeited')}
           </p>
           <CancelBookingButton
             reference={ref}
@@ -658,11 +771,21 @@ export default async function BookingConfirmedPage({ params, searchParams }: Pag
               confirm:
                 cancelView.refund === 'forfeited'
                   ? t('cancel.confirmForfeited')
-                  : t('cancel.confirm'),
+                  : cancelView.refund === 'partial'
+                    ? t('cancel.confirmPartial', {
+                        amount: formatSAR(cancelView.amountSar, loc),
+                      })
+                    : t('cancel.confirm'),
               done: {
                 none: t('cancel.doneUnpaid'),
                 refunded: t('cancel.doneRefunded'),
+                refunded_partial: t('cancel.donePartialRefunded', {
+                  amount: formatSAR(partialAmountSar, loc),
+                }),
                 refund_pending: t('cancel.doneRefundPending'),
+                refund_pending_partial: t('cancel.donePartialRefundPending', {
+                  amount: formatSAR(partialAmountSar, loc),
+                }),
                 forfeited: t('cancel.doneForfeited'),
               },
               errors: {
@@ -710,7 +833,13 @@ export default async function BookingConfirmedPage({ params, searchParams }: Pag
             <Link
               href="/experiences"
               className={cn(
-                buttonVariants({ variant: 'primary', size: 'lg' }),
+                // While payment is owed, "Complete payment" (header) is the
+                // one primary CTA on the page — the exploration link must
+                // not compete with it as a second solid button.
+                buttonVariants({
+                  variant: isAwaitingPayment ? 'secondary' : 'primary',
+                  size: 'lg',
+                }),
                 'inline-flex items-center gap-2',
               )}
             >

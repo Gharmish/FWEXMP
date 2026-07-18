@@ -120,7 +120,8 @@ export async function listActivity(): Promise<readonly ActivityItem[]> {
     items.sort((a, b) => b.at.localeCompare(a.at));
     return items.slice(0, FEED_LIMIT);
   } catch (error) {
+    // Rethrow — errors go to the admin boundary, not the empty state.
     reportError(error, { surface: 'admin:listActivity' });
-    return [];
+    throw error;
   }
 }

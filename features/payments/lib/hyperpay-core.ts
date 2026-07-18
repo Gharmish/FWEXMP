@@ -60,7 +60,8 @@ export function baseUrlFor(mode: HyperpayConfig['mode'], override: string): stri
  * A refund references the original debit by its payment id, so no
  * customer/billing details travel — just entity, amount, currency.
  * Same test-flag rule as checkouts: `testMode=EXTERNAL` never reaches
- * the live server.
+ * the live server, and travels only for the external test connector so
+ * a refund matches the routing of the debit it reverses.
  */
 export function buildRefundBody(amountSar: number, cfg: HyperpayConfig): URLSearchParams {
   const body = new URLSearchParams({
@@ -69,7 +70,7 @@ export function buildRefundBody(amountSar: number, cfg: HyperpayConfig): URLSear
     currency: 'SAR',
     paymentType: 'RF',
   });
-  if (cfg.mode === 'test') {
+  if (cfg.mode === 'test' && cfg.testConnector === 'external') {
     body.set('testMode', 'EXTERNAL');
   }
   return body;
@@ -80,7 +81,11 @@ export function buildRefundBody(amountSar: number, cfg: HyperpayConfig): URLSear
  * the test-flag gating and parameter set are unit-testable without env.
  *
  * `testMode=EXTERNAL` and `customParameters[3DS2_enrolled]=true` are
- * added **only in test mode** — they must never reach the live server.
+ * added **only in test mode with the `external` connector** — they must
+ * never reach the live server. Omitting them routes the test server to
+ * OPPWA's internal simulator (2026-07-12: HyperPay's external MPGS test
+ * terminal declines MADA/MASTER with 800.100.156 INVALID_REQUEST, so
+ * `internal` is the workaround until they fix their side).
  */
 export function buildCheckoutBody(
   input: PrepareCheckoutInput,
@@ -95,19 +100,32 @@ export function buildCheckoutBody(
     'customer.email': input.customer.email,
     'customer.givenName': input.customer.givenName,
     'customer.surname': input.customer.surname,
-    'billing.street1': input.billing.street1,
-    'billing.city': input.billing.city,
-    'billing.country': input.billing.country,
-    'billing.postcode': input.billing.postcode,
   });
 
-  // billing.state is optional per the OPPWA 3DS2 guide; KSA addresses have
-  // none, so it only travels when the guest actually provided one.
-  if (input.billing.state) {
-    body.set('billing.state', input.billing.state);
+  // Apple Pay tokens carry no cardholder name, and the gateway declines
+  // a blank holder with 100.100.401. Supply it at checkout creation from
+  // the guest's own details — sheet-side injection is impossible (the
+  // widget's submitOnPaymentAuthorized duplicates parameters and the
+  // gateway rejects the submission outright).
+  if (input.cardHolder) {
+    body.set('card.holder', input.cardHolder);
   }
 
-  if (cfg.mode === 'test') {
+  // Billing is mandatory for card checkouts (3DS2 — enforced upstream by
+  // the schema) and absent for Apple Pay, where the wallet carries the
+  // address. Every field is set only when present; `state` is optional
+  // even for cards per the OPPWA 3DS2 guide (KSA addresses have none).
+  for (const [param, value] of [
+    ['billing.street1', input.billing.street1],
+    ['billing.city', input.billing.city],
+    ['billing.state', input.billing.state],
+    ['billing.postcode', input.billing.postcode],
+    ['billing.country', input.billing.country],
+  ] as const) {
+    if (value) body.set(param, value);
+  }
+
+  if (cfg.mode === 'test' && cfg.testConnector === 'external') {
     body.set('testMode', 'EXTERNAL');
     body.set('customParameters[3DS2_enrolled]', 'true');
   }

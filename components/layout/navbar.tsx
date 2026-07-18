@@ -1,3 +1,4 @@
+import { Suspense } from 'react';
 import { getLocale, getTranslations } from 'next-intl/server';
 import { Compass, LogIn, Store, User } from 'lucide-react';
 import { Link } from '@/lib/i18n';
@@ -31,11 +32,7 @@ const navLinkClass =
  */
 export async function Navbar() {
   const locale = (await getLocale()) as Locale;
-  const [t, user, isHost] = await Promise.all([
-    getTranslations('nav'),
-    getCurrentUser(),
-    currentUserIsHost(),
-  ]);
+  const t = await getTranslations('nav');
 
   return (
     <NavShell>
@@ -46,41 +43,64 @@ export async function Navbar() {
             <Compass className="size-5 shrink-0" strokeWidth={1.5} aria-hidden />
             <span className="hidden sm:inline">{t('discover')}</span>
           </Link>
-          {/* Supply acquisition is the scarcest pre-launch resource — the
-              host entry point lives in the bar, not just the footer.
-              Existing hosts see their dashboard instead. */}
-          {!isHost && (
-            <Link href="/hosting" className={navLinkClass} aria-label={t('becomeHost')}>
-              <Store className="size-5 shrink-0" strokeWidth={1.5} aria-hidden />
-              <span className="hidden sm:inline">{t('becomeHost')}</span>
-            </Link>
-          )}
-          {user ? (
-            <>
-              {isHost && (
-                <Link href="/host" className={navLinkClass} aria-label={t('hostDashboard')}>
-                  <Store className="size-5 shrink-0" strokeWidth={1.5} aria-hidden />
-                  <span className="hidden sm:inline">{t('hostDashboard')}</span>
-                </Link>
-              )}
-              <Link href="/me/profile" className={navLinkClass} aria-label={t('account')}>
-                <User className="size-5 shrink-0" strokeWidth={1.5} aria-hidden />
-                <span className="hidden sm:inline">{t('account')}</span>
-                <span className="text-sarat-black-600 hidden text-xs sm:inline" dir="ltr">
-                  {phoneTail(user.phone)}
-                </span>
-              </Link>
-              <SignOutButton locale={locale} label={t('signOut')} />
-            </>
-          ) : (
-            <Link href="/sign-in" className={navLinkClass} aria-label={t('signIn')}>
-              <LogIn className="size-5 shrink-0 rtl:rotate-180" strokeWidth={1.5} aria-hidden />
-              <span className="hidden sm:inline">{t('signIn')}</span>
-            </Link>
-          )}
+          {/* The auth-dependent links need two DB round-trips
+              (getCurrentUser + currentUserIsHost). Streaming them behind
+              Suspense keeps every page's first byte off that critical path
+              — previously the whole app waited on the navbar. The page
+              itself stays OUTSIDE any boundary, so notFound()/redirect()
+              status codes are unaffected (see the locale layout comment). */}
+          <Suspense fallback={<span className="min-h-11 min-w-11" aria-hidden />}>
+            <AuthNavLinks locale={locale} />
+          </Suspense>
           <LanguageSwitcher />
         </div>
       </nav>
     </NavShell>
+  );
+}
+
+/** The signed-in/out section of the nav — the only part that hits the DB. */
+async function AuthNavLinks({ locale }: { locale: Locale }) {
+  const [t, user, isHost] = await Promise.all([
+    getTranslations('nav'),
+    getCurrentUser(),
+    currentUserIsHost(),
+  ]);
+
+  return (
+    <>
+      {/* Supply acquisition is the scarcest pre-launch resource — the
+          host entry point lives in the bar, not just the footer.
+          Existing hosts see their dashboard instead. */}
+      {!isHost && (
+        <Link href="/hosting" className={navLinkClass} aria-label={t('becomeHost')}>
+          <Store className="size-5 shrink-0" strokeWidth={1.5} aria-hidden />
+          <span className="hidden sm:inline">{t('becomeHost')}</span>
+        </Link>
+      )}
+      {user ? (
+        <>
+          {isHost && (
+            <Link href="/host" className={navLinkClass} aria-label={t('hostDashboard')}>
+              <Store className="size-5 shrink-0" strokeWidth={1.5} aria-hidden />
+              <span className="hidden sm:inline">{t('hostDashboard')}</span>
+            </Link>
+          )}
+          <Link href="/me/profile" className={navLinkClass} aria-label={t('account')}>
+            <User className="size-5 shrink-0" strokeWidth={1.5} aria-hidden />
+            <span className="hidden sm:inline">{t('account')}</span>
+            <span className="text-sarat-black-600 hidden text-xs sm:inline" dir="ltr">
+              {phoneTail(user.phone)}
+            </span>
+          </Link>
+          <SignOutButton locale={locale} label={t('signOut')} />
+        </>
+      ) : (
+        <Link href="/sign-in" className={navLinkClass} aria-label={t('signIn')}>
+          <LogIn className="size-5 shrink-0 rtl:rotate-180" strokeWidth={1.5} aria-hidden />
+          <span className="hidden sm:inline">{t('signIn')}</span>
+        </Link>
+      )}
+    </>
   );
 }

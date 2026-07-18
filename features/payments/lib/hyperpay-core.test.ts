@@ -24,8 +24,13 @@ const input: PrepareCheckoutInput = {
   },
 };
 
-const testCfg: HyperpayConfig = { entityId: 'ent_test', mode: 'test' };
-const liveCfg: HyperpayConfig = { entityId: 'ent_live', mode: 'live' };
+const testCfg: HyperpayConfig = { entityId: 'ent_test', mode: 'test', testConnector: 'external' };
+const internalCfg: HyperpayConfig = {
+  entityId: 'ent_test',
+  mode: 'test',
+  testConnector: 'internal',
+};
+const liveCfg: HyperpayConfig = { entityId: 'ent_live', mode: 'live', testConnector: 'external' };
 
 describe('classifyResult', () => {
   it('treats the standard success groups as success', () => {
@@ -91,16 +96,31 @@ describe('buildCheckoutBody', () => {
     expect(body.get('billing.postcode')).toBe('62521');
   });
 
+  it('sends card.holder only when provided (Apple Pay channel)', () => {
+    expect(buildCheckoutBody(input, testCfg).has('card.holder')).toBe(false);
+    const body = buildCheckoutBody({ ...input, cardHolder: 'Sara Al Qahtani' }, testCfg);
+    expect(body.get('card.holder')).toBe('Sara Al Qahtani');
+  });
+
   it('omits billing.state when the guest left it blank (optional per 3DS2 guide)', () => {
     const body = buildCheckoutBody({ ...input, billing: { ...input.billing, state: '' } }, testCfg);
     expect(body.has('billing.state')).toBe(false);
     expect(body.get('billing.street1')).toBe('12 King Fahd Rd');
   });
 
-  it('adds the test-only flags in test mode', () => {
+  it('adds the test-only flags in test mode with the external connector', () => {
     const body = buildCheckoutBody(input, testCfg);
     expect(body.get('testMode')).toBe('EXTERNAL');
     expect(body.get('customParameters[3DS2_enrolled]')).toBe('true');
+  });
+
+  it('omits the test-only flags for the internal simulator connector', () => {
+    const body = buildCheckoutBody(input, internalCfg);
+    expect(body.get('testMode')).toBeNull();
+    expect(body.get('customParameters[3DS2_enrolled]')).toBeNull();
+    // Everything else is unchanged — only the routing flags differ.
+    expect(body.get('entityId')).toBe('ent_test');
+    expect(body.get('merchantTransactionId')).toBe(input.merchantTransactionId);
   });
 
   it('NEVER adds the test-only flags in live mode', () => {
@@ -122,8 +142,9 @@ describe('buildRefundBody', () => {
     expect(body.get('merchantTransactionId')).toBeNull();
   });
 
-  it('adds the test flag in test mode and NEVER in live mode', () => {
+  it('adds the test flag only for the external test connector, NEVER in live mode', () => {
     expect(buildRefundBody(100, testCfg).get('testMode')).toBe('EXTERNAL');
+    expect(buildRefundBody(100, internalCfg).get('testMode')).toBeNull();
     expect(buildRefundBody(100, liveCfg).get('testMode')).toBeNull();
   });
 });

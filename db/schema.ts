@@ -158,6 +158,15 @@ export const paymentStatusEnum = pgEnum('payment_status', [
 ]);
 
 /**
+ * Host-selected cancellation policy preset. The tier is the ONLY
+ * enforceable policy input — the numeric windows/percentages it implies
+ * live in code (`features/bookings/lib/policy.ts`) and are SNAPSHOTTED
+ * onto each booking at creation, so a host switching tiers never
+ * changes the rights of an existing booking.
+ */
+export const cancellationTierEnum = pgEnum('cancellation_tier', ['flexible', 'moderate', 'strict']);
+
+/**
  * Append-only payment ledger event types. One row per money-touching
  * interaction with the gateway (or per manual money decision), so the
  * sequence of attempts survives — the mutable columns on `bookings`
@@ -203,6 +212,27 @@ export const disputeStatusEnum = pgEnum('dispute_status', ['open', 'resolved']);
 /** OTP abuse events counted by the auth throttle (see that table). */
 export const authThrottleKindEnum = pgEnum('auth_throttle_kind', ['send', 'verify_failed']);
 
+/** Delivery channels the notification dispatcher can route to. */
+export const notificationChannelEnum = pgEnum('notification_channel', ['email', 'whatsapp']);
+
+/**
+ * Delivery lifecycle of one message on one channel. `queued` is the
+ * claim (row inserted before the provider call — the dedupe point);
+ * `sent` = accepted by the provider; `delivered`/`read` arrive later
+ * via provider webhooks (Twilio status callbacks; email stays at
+ * `sent` until Resend webhooks land). `failed` = provider rejected or
+ * errored; `suppressed` = we refused to send (recipient on the
+ * suppression list).
+ */
+export const notificationStatusEnum = pgEnum('notification_status', [
+  'queued',
+  'sent',
+  'delivered',
+  'read',
+  'failed',
+  'suppressed',
+]);
+
 /* ----------------------------- Tables ---------------------------- */
 
 export const hosts = pgTable('hosts', {
@@ -246,6 +276,14 @@ export const hosts = pgTable('hosts', {
    * surviving. Nullable for seeded demo hosts.
    */
   contactEmail: text(),
+  /**
+   * Notification phone for the host (E.164), the WhatsApp channel's
+   * address. Copied from the application's `contactPhone` at approval —
+   * same rationale as `contactEmail` — and backfilled from approved
+   * applications for hosts minted before this column existed. Nullable
+   * for seeded demo hosts.
+   */
+  contactPhone: text(),
   createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
 });
 
@@ -318,7 +356,21 @@ export const experiences = pgTable(
     placeName: text().notNull(),
     inclusions: text().array().notNull().default([]),
     whatToBring: text().array().notNull().default([]),
-    cancellationPolicy: text().notNull(),
+    /**
+     * Legacy free-text policy. No guest surface renders it and the
+     * host/admin forms no longer collect it (the tier below replaced
+     * it); the empty-string default lets inserts omit it entirely.
+     */
+    cancellationPolicy: text().notNull().default(''),
+    /**
+     * Structured cancellation policy preset — the enforced counterpart
+     * to the free-text `cancellationPolicy` above (which is display
+     * legacy only and slated for removal once every surface renders the
+     * tier). Guest cancel/reschedule rights come from the tier's
+     * parameters snapshotted onto the booking, never from this column
+     * at cancel time.
+     */
+    cancellationTier: cancellationTierEnum().notNull().default('moderate'),
     /**
      * Admin-authored Arabic for the lists and policy. Empty means "not
      * written yet" — Arabic surfaces fall back to the seed-content
@@ -338,6 +390,15 @@ export const experiences = pgTable(
     stopSellDates: date().array().notNull().default([]),
     /** Local start time for every occurrence, HH:MM (24h). */
     startTime: text().notNull().default('09:00'),
+    /**
+     * Booking lead time: hours before `startTime` that new bookings close
+     * for a given day (host-settable — a sunrise hike needs more notice
+     * than a walk-in coffee). Enforced server-side in the booking action
+     * and mirrored in the guest date picker. Default 2 matches the former
+     * platform-wide `BOOKING_CUTOFF_MINUTES` (120) so existing listings are
+     * unchanged.
+     */
+    bookingCutoffHours: integer().notNull().default(2),
     /**
      * How bookings are confirmed (BRIEF: curated marketplace). `request`
      * (default) → operator confirms manually; `instant` → auto-confirms
@@ -422,6 +483,39 @@ export const bookings = pgTable(
      * was already paid) for existing ones.
      */
     commissionBps: integer().notNull().default(1500),
+    /**
+     * Cancellation-policy snapshot, taken from the experience's
+     * `cancellationTier` at booking time (same discipline as
+     * `commissionBps`): the tier label plus the numeric parameters it
+     * implied THEN. Guest cancel/reschedule eligibility and refund
+     * amounts are computed from these columns only — a host or platform
+     * policy change never restates an existing booking's rights. The
+     * column defaults equal the `moderate` tier, which both backfills
+     * legacy rows with the rule they were sold under (48h full refund)
+     * and keeps any insert path that forgets the snapshot on the
+     * default tier.
+     */
+    policyTier: cancellationTierEnum().notNull().default('moderate'),
+    /** Cancelling ≥ this many hours before start refunds in full. */
+    freeCancelHours: integer().notNull().default(48),
+    /**
+     * After the full-refund deadline, cancelling ≥ this many hours
+     * before start refunds `partialRefundBps`; past it the payment is
+     * forfeited. Tiers without a partial step set bps to 0.
+     */
+    partialRefundHours: integer().notNull().default(24),
+    partialRefundBps: integer().notNull().default(5000),
+    /** Guests may move the booking ≥ this many hours before start. */
+    rescheduleCutoffHours: integer().notNull().default(24),
+    /**
+     * Self-service reschedule bookkeeping: when the guest last moved the
+     * booking, the date it moved FROM, and how many moves have been
+     * used (policy caps this — see `MAX_RESCHEDULES`). Money never moves
+     * on a reschedule, so payment columns are untouched by it.
+     */
+    rescheduledAt: timestamp({ withTimezone: true }),
+    rescheduledFromDate: date(),
+    rescheduleCount: integer().notNull().default(0),
     currency: text().notNull().default('SAR'),
     status: bookingStatusEnum().notNull().default('pending'),
     /**
@@ -1253,6 +1347,99 @@ export const userProfileEvents = pgTable(
   ],
 );
 
+/**
+ * Delivery ledger — one row per (message, channel) attempt, written by
+ * the notification dispatcher (lib/notifications/dispatch.ts) BEFORE
+ * calling the provider. The `(dedupeKey, channel)` unique constraint is
+ * the idempotency point: the dispatcher claims by inserting with
+ * ON CONFLICT DO NOTHING, so double-fired flows (payment return route +
+ * HyperPay webhook, hourly cron re-runs) can never double-send. Replaces
+ * fire-and-forget over time — every send becomes observable, and
+ * provider webhooks (Twilio status callbacks) upgrade `sent` rows to
+ * `delivered`/`read`/`failed` by `providerMessageId`.
+ */
+export const notificationDeliveries = pgTable(
+  'notification_deliveries',
+  {
+    id: uuid().defaultRandom().primaryKey(),
+    /**
+     * Idempotency key for this logical message, e.g.
+     * `booking_confirmed:GH-7K3M9X`. Unique per channel — the same
+     * logical message may go out on both email and WhatsApp.
+     */
+    dedupeKey: text().notNull(),
+    channel: notificationChannelEnum().notNull(),
+    /**
+     * Notification type slug, e.g. `booking_confirmed`,
+     * `booking_reminder_24h`, `host_new_booking`. Plain text (not an
+     * enum) so adding a type never needs a migration.
+     */
+    type: text().notNull(),
+    /** Who this went to: `guest` / `host` / `applicant` / `admin`. */
+    recipientType: text().notNull(),
+    /** Channel address: email address or E.164 phone. For the audit trail. */
+    recipient: text().notNull(),
+    /** The booking this message is about, when there is one. */
+    bookingId: uuid().references(() => bookings.id, { onDelete: 'set null' }),
+    locale: localeEnum(),
+    status: notificationStatusEnum().notNull().default('queued'),
+    /**
+     * Provider send attempts on this row. 1 on the first claim; the
+     * retry sweep (release-holds cron) re-claims a `failed` row —
+     * status back to `queued`, attempts + 1 — up to `MAX_SEND_ATTEMPTS`
+     * (lib/notifications/ledger.ts), so a transient provider outage
+     * heals itself while a hard reject can never loop forever.
+     */
+    attempts: integer().notNull().default(1),
+    /** Provider message id (Twilio Message SID / Resend email id). */
+    providerMessageId: text(),
+    /** Provider error detail on failure (result code / HTTP body slice). */
+    error: text(),
+    createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
+    /** When the provider accepted the message. Null while queued/failed. */
+    sentAt: timestamp({ withTimezone: true }),
+    /** Last webhook-driven status change (delivered/read/failed). */
+    statusUpdatedAt: timestamp({ withTimezone: true }),
+  },
+  (t) => [
+    // THE dedupe point — see the table comment.
+    unique('notification_deliveries_dedupe_channel_uq').on(t.dedupeKey, t.channel),
+    // Twilio status callbacks look rows up by Message SID.
+    index('notification_deliveries_provider_idx')
+      .on(t.providerMessageId)
+      .where(sql`provider_message_id IS NOT NULL`),
+    // Per-booking notification timeline (admin/debug surfaces).
+    index('notification_deliveries_booking_idx')
+      .on(t.bookingId, t.createdAt)
+      .where(sql`booking_id IS NOT NULL`),
+    // Ops queries: recent failures, per-type volumes.
+    index('notification_deliveries_status_created_idx').on(t.status, t.createdAt),
+  ],
+);
+
+/**
+ * Do-not-contact list, per channel. A row here makes the dispatcher
+ * record `suppressed` instead of sending — checked before EVERY send,
+ * transactional included (a WhatsApp STOP is a legal opt-out, not a
+ * preference). Written by the Twilio inbound webhook (STOP keywords),
+ * and manually by admins; future Resend bounce/complaint webhooks land
+ * here too. Addresses are stored canonical: lowercased email, E.164
+ * phone.
+ */
+export const notificationSuppressions = pgTable(
+  'notification_suppressions',
+  {
+    id: uuid().defaultRandom().primaryKey(),
+    channel: notificationChannelEnum().notNull(),
+    /** Canonical address: lowercased email or E.164 phone. */
+    address: text().notNull(),
+    /** Why: `stop` (reply keyword), `bounce`, `complaint`, `manual`. */
+    reason: text().notNull(),
+    createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [unique('notification_suppressions_channel_address_uq').on(t.channel, t.address)],
+);
+
 /* --------------------------- Relations --------------------------- */
 
 export const hostsRelations = relations(hosts, ({ many }) => ({
@@ -1397,3 +1584,7 @@ export type PromoCode = typeof promoCodes.$inferSelect;
 export type NewPromoCode = typeof promoCodes.$inferInsert;
 export type UserProfileEvent = typeof userProfileEvents.$inferSelect;
 export type NewUserProfileEvent = typeof userProfileEvents.$inferInsert;
+export type NotificationDelivery = typeof notificationDeliveries.$inferSelect;
+export type NewNotificationDelivery = typeof notificationDeliveries.$inferInsert;
+export type NotificationSuppression = typeof notificationSuppressions.$inferSelect;
+export type NewNotificationSuppression = typeof notificationSuppressions.$inferInsert;

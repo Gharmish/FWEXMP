@@ -6,9 +6,10 @@ import { reportError } from '@/lib/log';
 /**
  * Transactional email via Resend's REST API (called with `fetch`, no SDK —
  * same lean pattern as the HyperPay client). Gated by `hasEmail()`: a no-op
- * that returns `false` when unconfigured, so booking flows work unchanged
- * until `RESEND_API_KEY` + `RESEND_FROM` arrive. Never throws — a failed
- * receipt must not break a confirmed booking; it's logged and swallowed.
+ * that returns `{ ok: false }` when unconfigured, so booking flows work
+ * unchanged until `RESEND_API_KEY` + `RESEND_FROM` arrive. Never throws — a
+ * failed receipt must not break a confirmed booking; it's logged and
+ * swallowed.
  */
 
 export interface EmailAttachment {
@@ -32,8 +33,18 @@ export interface SendEmailInput {
 
 const RESEND_ENDPOINT = 'https://api.resend.com/emails';
 
-export async function sendEmail(input: SendEmailInput): Promise<boolean> {
-  if (!hasEmail()) return false;
+export interface SendEmailResult {
+  ok: boolean;
+  /**
+   * Resend email id when the send was accepted — stored on the delivery
+   * ledger as `providerMessageId`, the key the Resend delivery webhook
+   * (`app/api/webhooks/resend`) correlates status events back with.
+   */
+  id: string | null;
+}
+
+export async function sendEmail(input: SendEmailInput): Promise<SendEmailResult> {
+  if (!hasEmail()) return { ok: false, id: null };
 
   try {
     const res = await fetch(RESEND_ENDPOINT, {
@@ -64,11 +75,12 @@ export async function sendEmail(input: SendEmailInput): Promise<boolean> {
         surface: 'email-send',
         detail: detail.slice(0, 300),
       });
-      return false;
+      return { ok: false, id: null };
     }
-    return true;
+    const body = (await res.json().catch(() => null)) as { id?: string } | null;
+    return { ok: true, id: body?.id ?? null };
   } catch (error) {
     reportError(error, { surface: 'email-send' });
-    return false;
+    return { ok: false, id: null };
   }
 }

@@ -205,10 +205,17 @@ body {
  * element's own radius (pills get a pill ring, inputs a 12px one) —
  * forcing 4px visibly reshaped pill buttons while focused. */
 :focus-visible {
-  outline: none;
+  /* Transparent (not `none`): forced-colors mode suppresses box-shadows
+   * and repaints outlines in the Highlight system color, so this is the
+   * ONLY focus indicator Windows High Contrast users get. Invisible
+   * everywhere else. */
+  outline: 2px solid transparent;
+  outline-offset: 2px;
+  /* 0.55 alpha → ~#7c7c7c on white ≈ 3.9:1 — clears the 3:1 focus-
+   * indicator contrast floor (WCAG 1.4.11); 0.4 composited to 2.7:1. */
   box-shadow:
     0 0 0 2px var(--color-white),
-    0 0 0 4px rgb(10 10 10 / 0.4);
+    0 0 0 4px rgb(10 10 10 / 0.55);
 }
 
 /* HyperPay COPYandPAY Apple Pay button. The widget owns this element, so
@@ -225,29 +232,142 @@ body {
   border-radius: var(--radius-input);
 }
 
-/* The widget renders the card container BEFORE the APPLEPAY one
- * regardless of data-brands order (and replaces our form with unclassed
- * markup — `.payment-widget-mount` is our own wrapper, see
- * payment-widget.tsx). Flex `order` puts Apple Pay (and the injected
- * divider) visually first without moving DOM nodes — re-parenting the
- * APPLEPAY container would reload its iframe and break the widget. */
+/* `.payment-widget-mount` is our own wrapper around the COPYandPAY form
+ * (the widget replaces our form with unclassed markup, so this is the
+ * only stable hook — see payment-widget.tsx). Since the dual-entity
+ * split, one checkout renders ONE payment option (Apple Pay on its own
+ * entity, or the card form), so no cross-option ordering is needed. */
 .payment-widget-mount {
   display: flex;
   flex-direction: column;
 }
-.payment-widget-mount .wpwl-container-virtualAccount-APPLEPAY {
-  order: -2;
+
+/* COPYandPAY card form, themed to the design system (checkout audit
+ * 2026-07: the stock widget — grey panel, brand <select>, green button —
+ * read as a third-party interstitial at the highest-anxiety step). The
+ * widget loads with wpwlOptions.style="plain" (payment-widget.tsx), so
+ * these rules own the card form's entire look. The PAN and CVV inputs
+ * live in cross-origin iframes this stylesheet can't reach — those are
+ * styled via wpwlOptions.iframeStyles. The widget's own stylesheet uses
+ * floats and fixed widths; the resets below (float, width, box-shadow)
+ * neutralise it rather than fight it rule-by-rule. */
+.payment-widget-mount .wpwl-form {
+  margin: 0;
+  max-width: none;
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  font-family: inherit;
 }
-.payment-widget-mount [data-pay-divider] {
-  order: -1;
+.payment-widget-mount .wpwl-group {
+  margin-block-end: 1rem;
+}
+.payment-widget-mount .wpwl-label {
+  float: none;
+  display: block;
+  width: 100%;
+  padding: 0;
+  margin-block-end: 0.5rem;
+  font-family: inherit;
+  font-size: 0.875rem;
+  font-weight: 500;
+  line-height: 1.25rem;
+  color: var(--color-sarat-black);
+}
+.payment-widget-mount .wpwl-wrapper {
+  float: none;
+  display: block;
+  width: 100%;
+}
+.payment-widget-mount .wpwl-control {
+  height: 2.75rem; /* input tokens: h-11 / rounded-input / 0.5px hairline */
+  width: 100%;
+  padding-inline: 1rem;
+  border: 0.5px solid color-mix(in srgb, var(--color-sarat-black) 20%, transparent);
+  border-radius: var(--radius-input);
+  background: var(--color-white);
+  box-shadow: none;
+  font-family: inherit;
+  font-size: 1rem;
+  color: var(--color-sarat-black);
+}
+.payment-widget-mount .wpwl-control::placeholder {
+  color: var(--color-sarat-black-600);
+  opacity: 1;
+}
+/* The brand <select> goes away — wpwlOptions.brandDetection (binlist)
+ * reads the scheme off the typed PAN, so asking first is redundant (and
+ * mis-picking routes a Mada card as VISA). The group's brand sprite
+ * (.wpwl-brand-card — the widget swaps its class as detection changes)
+ * is kept as the visual confirmation, docked at the end of the card
+ * number field: 20px label row + 8px gap + half of the 44px control,
+ * minus half the 18px sprite. */
+.payment-widget-mount .wpwl-label-brand,
+.payment-widget-mount .wpwl-wrapper-brand {
+  display: none;
+}
+.payment-widget-mount .wpwl-group-brand {
+  position: relative;
+  height: 0;
+  margin-block-end: 0;
+}
+.payment-widget-mount .wpwl-brand-card {
+  position: absolute;
+  top: calc(1.25rem + 0.5rem + 1.375rem - 9px);
+  inset-inline-end: 0.75rem;
+  margin: 0;
+}
+/* Validation state — same red hairline + small message as our fields. */
+.payment-widget-mount .wpwl-has-error .wpwl-control,
+.payment-widget-mount .wpwl-control.wpwl-has-error {
+  border-color: var(--color-al-qatt-red);
+}
+.payment-widget-mount .wpwl-hint {
+  margin-block-start: 0.5rem;
+  font-size: 0.875rem;
+  color: var(--color-error);
+}
+/* Primary CTA — Button variant "primary", size "lg" (52px pill). The
+ * hover lift matches components/ui/button.tsx; background repeats on
+ * hover/focus/active because the widget's stylesheet sets its own green
+ * on each of those states. */
+.payment-widget-mount .wpwl-button-pay,
+.payment-widget-mount .wpwl-button-pay:hover,
+.payment-widget-mount .wpwl-button-pay:focus,
+.payment-widget-mount .wpwl-button-pay:active {
+  float: none;
+  width: 100%;
+  height: 3.25rem;
+  padding-inline: 2rem;
+  border: none;
+  border-radius: var(--radius-button);
+  background-color: var(--color-sarat-black);
+  color: var(--color-white);
+  font-family: inherit;
+  font-size: 1rem;
+  font-weight: 500;
+  transition: transform 200ms;
+}
+.payment-widget-mount .wpwl-button-pay:hover:not(:disabled) {
+  transform: translateY(-1px);
+}
+.payment-widget-mount .wpwl-button-pay:disabled {
+  opacity: 0.5;
+  pointer-events: none;
 }
 
-/* Belt for the injected "or pay with card" divider (payment-widget.tsx):
- * if the widget drops the Apple Pay button after the divider was added,
- * hide the divider too — it must never appear above the card form with
- * nothing on the other side of the "or". */
-.payment-widget-mount:not(:has(.wpwl-apple-pay-button)) [data-pay-divider] {
-  display: none;
+/* Bottom overlay stack. Pages that render the mobile sticky booking bar
+ * mark it with [data-bottom-dock]; fixed bottom overlays (cookie notice,
+ * toast viewport) add var(--bottom-dock) to their offset so they stack
+ * ABOVE the bar instead of covering the Book CTA (the bar is lg:hidden,
+ * so the offset only applies below the lg breakpoint). The offset is the
+ * bar's full height (pt-3 + content + pb) so overlays clear it whether
+ * it is extended or retracted — a constant offset beats one that jumps
+ * with the bar's scroll-linked spring. */
+@media (max-width: 63.9375rem) {
+  :root:has([data-bottom-dock]) {
+    --bottom-dock: calc(4.5rem + env(safe-area-inset-bottom, 0px));
+  }
 }
 
 /* Honor reduced-motion globally (BRIEF.md motion + accessibility). */

@@ -45,6 +45,8 @@ export default async function AdminDisputesPage({
     notesPlaceholder: t('disputes.notesPlaceholder'),
     resolve: t('disputes.resolve'),
     pending: t('disputes.resolvePending'),
+    confirmTitle: t('disputes.confirmTitle'),
+    confirmBody: t('disputes.confirmBody'),
     errors: {
       forbidden: t('disputes.errors.forbidden'),
       no_db: t('disputes.errors.noDb'),

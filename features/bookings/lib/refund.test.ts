@@ -38,6 +38,7 @@ vi.mock('@/features/payments/ledger', () => ({
     if (ledgerShouldThrow) throw new Error('ledger down');
     ledgerEvents.push(input);
   },
+  resolvePaymentChannel: async () => 'card' as const,
 }));
 
 const setCalls: Array<Record<string, unknown>> = [];

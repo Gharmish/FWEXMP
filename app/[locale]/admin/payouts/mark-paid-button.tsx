@@ -1,8 +1,7 @@
 'use client';
 
 import { useActionState } from 'react';
-import { useFormStatus } from 'react-dom';
-import { Button } from '@/components/ui/button';
+import { ConfirmSubmit } from '@/components/ui/confirm-dialog';
 import { markHostPaid, type MarkPaidState } from '@/features/admin/payouts/actions';
 
 interface MarkPaidButtonProps {
@@ -11,26 +10,22 @@ interface MarkPaidButtonProps {
   expectedAmountSar: number;
   label: string;
   pendingLabel: string;
+  /** Confirm-dialog copy — recording a payout is irreversible. */
+  confirmTitle: string;
+  confirmBody: string;
   /** Keyed messages for the action's failure codes; `server` is the fallback. */
   errors: Partial<Record<NonNullable<MarkPaidState['message']>, string>> & { server: string };
 }
 
 const initialState: MarkPaidState = { success: false };
 
-function Submit({ label, pendingLabel }: { label: string; pendingLabel: string }) {
-  const { pending } = useFormStatus();
-  return (
-    <Button type="submit" variant="secondary" size="md" pending={pending}>
-      {pending ? pendingLabel : label}
-    </Button>
-  );
-}
-
 export function MarkPaidButton({
   hostId,
   expectedAmountSar,
   label,
   pendingLabel,
+  confirmTitle,
+  confirmBody,
   errors,
 }: MarkPaidButtonProps) {
   const [state, action] = useActionState(markHostPaid, initialState);
@@ -38,7 +33,18 @@ export function MarkPaidButton({
     <form action={action} className="flex flex-col items-end gap-1">
       <input type="hidden" name="hostId" value={hostId} />
       <input type="hidden" name="expectedAmountSar" value={expectedAmountSar} />
-      <Submit label={label} pendingLabel={pendingLabel} />
+      {/* Recording a transfer of real money is one-way — confirm it like
+          every other irreversible admin action. */}
+      <ConfirmSubmit
+        title={confirmTitle}
+        description={confirmBody}
+        confirmLabel={label}
+        pendingLabel={pendingLabel}
+        variant="secondary"
+        size="md"
+      >
+        {label}
+      </ConfirmSubmit>
       {!state.success && state.message && (
         <p role="alert" className="text-al-qatt-red-800 text-sm">
           {errors[state.message] ?? errors.server}

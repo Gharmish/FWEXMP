@@ -61,8 +61,12 @@ async function seed() {
     'soudah-cliff-via-ferrata',
     'al-qatt-painting-rijal-almaa',
   ];
+  // Two heroes exist in Storage as .webp, the rest as .jpg — match the real objects.
+  const WEBP_HERO_SLUGS = new Set(['soudah-cliff-via-ferrata', 'al-qatt-painting-rijal-almaa']);
   const demoGallery = (slug: string): string[] =>
-    ALL_SLUGS.filter((s) => s !== slug).map((s) => `${PHOTOS_BASE}/experiences/${s}/hero.jpg`);
+    ALL_SLUGS.filter((s) => s !== slug).map(
+      (s) => `${PHOTOS_BASE}/experiences/${s}/hero.${WEBP_HERO_SLUGS.has(s) ? 'webp' : 'jpg'}`,
+    );
 
   const data: NewExperience[] = [
     {

@@ -31,6 +31,8 @@
     "verifySubmit": "Sign in",
     "verifyPending": "Verifying",
     "changeIdentifier": "Use a different method",
+    "resend": "Resend code",
+    "resent": "We sent you a new code.",
     "errors": {
       "validation": "Check the highlighted fields and try again.",
       "invalidPhone": "Enter a valid mobile number for the selected country.",
@@ -236,6 +238,8 @@
       "settled": "All caught up",
       "paidToDate": "Paid to date: <amount></amount> ({count, plural, =1 {1 booking} other {# bookings}})",
       "markPaid": "Mark as paid",
+      "confirmTitle": "Record this payout as paid?",
+      "confirmBody": "This records a bank transfer of SAR {amount} to {host} and resets their owed balance. It can't be undone.",
       "marking": "Recording",
       "markError": "Couldn't record the payout. Try again.",
       "empty": {
@@ -637,6 +641,9 @@
       "whatToBring": "What to bring",
       "whatToBringHint": "One item per line.",
       "cancellationPolicy": "Cancellation policy",
+      "cancellationTierFlexible": "Flexible — full refund until 24 hours before the start",
+      "cancellationTierModerate": "Moderate — full refund until 48 hours before; 50% until 24 hours before",
+      "cancellationTierStrict": "Strict — full refund until 7 days before; 50% until 48 hours before",
       "availabilityWeekdays": "Available days",
       "blackoutHint": "Close or reopen specific dates on the availability calendar below.",
       "submit": "Save changes",
@@ -804,7 +811,7 @@
     "bookingsList": {
       "eyebrow": "Bookings",
       "title": "Every booking, newest first.",
-      "intro": "A flat list. No filters, no detail page yet — the data is small enough to scan, and the reference id is right there if you need to dig deeper.",
+      "intro": "Filter by status or search by reference, guest, or experience — open a row's details for the full picture.",
       "stats": {
         "total": "Total"
       },
@@ -867,7 +874,8 @@
       "refundDue": "Refund due",
       "expiresIn": "Expires in {hours}h",
       "deadlinePassed": "Approval window passed",
-      "refundDueFilter": "Showing bookings with refunds owed"
+      "refundDueFilter": "Showing bookings with refunds owed",
+      "truncated": "Showing the latest {count} bookings — the counts above and the search cover only this window."
     },
     "bookingDetail": {
       "back": "All bookings",
@@ -929,6 +937,8 @@
       "notesLabel": "Resolution notes (internal)",
       "notesPlaceholder": "What was done — refund issued, host contacted…",
       "resolve": "Mark resolved",
+      "confirmTitle": "Mark this dispute resolved?",
+      "confirmBody": "This closes the report as handled. It can't be reopened — a new problem needs a new report.",
       "resolvePending": "Resolving…",
       "status": {
         "open": "Open",
@@ -958,7 +968,7 @@
         "overview": "Overview",
         "operations": "Operations",
         "directory": "Directory",
-        "setting": "Setting"
+        "setting": "Settings"
       }
     },
     "users": {
@@ -1084,6 +1094,7 @@
         "save": "Save changes",
         "saving": "Saving",
         "saved": "Saved.",
+        "fieldInvalid": "Check this field.",
         "errors": {
           "forbidden": "You don't have permission to edit this.",
           "noDb": "The database isn't configured.",
@@ -1548,7 +1559,7 @@
       "removing": "Removing…",
       "hint": "A clear, natural-light photo of you. JPG, PNG, or WebP.",
       "errors": {
-        "noDb": "The database isn't reachable right now. Try again in a moment.",
+        "noDb": "We couldn't save your photo — try again in a moment.",
         "noAuth": "Your session expired. Sign in again to continue.",
         "noStorage": "Photo storage isn't available right now. Try again in a moment.",
         "noFile": "Choose a photo first.",
@@ -1580,7 +1591,7 @@
       "bioArError": "Your Arabic bio needs to be between 40 and 1200 characters, or left blank.",
       "languagesError": "Pick at least one language.",
       "errors": {
-        "noDb": "The database isn't reachable right now. Try again in a moment.",
+        "noDb": "We couldn't save right now — try again in a moment.",
         "noAuth": "Your session expired. Sign in again to continue.",
         "validation": "Check the highlighted fields and try again.",
         "server": "We couldn't save your changes. Try again in a moment."
@@ -1647,7 +1658,7 @@
     "actionErrors": {
       "forbidden": "You don't have permission to do that.",
       "suspended": "Your host account is suspended — booking actions are disabled.",
-      "noDb": "The database isn't configured in this environment.",
+      "noDb": "We couldn't update the booking — try again in a moment.",
       "notFound": "We couldn't find that booking.",
       "wrongState": "This booking changed in another tab. Refresh to see its current state.",
       "overCapacity": "Accepting this request would exceed the group size for that date.",
@@ -1706,7 +1717,7 @@
       "success": "IBAN saved.",
       "errors": {
         "forbidden": "You don't have permission to do that.",
-        "noDb": "The database isn't configured in this environment.",
+        "noDb": "We couldn't save right now — try again in a moment.",
         "validation": "That doesn't look like a Saudi IBAN — 24 characters starting with SA.",
         "server": "Something went wrong on our side. Try again."
       }
@@ -1791,7 +1802,7 @@
       "success": "Reply posted. It now shows under the review.",
       "errors": {
         "forbidden": "You don't have permission to do that.",
-        "noDb": "The database isn't configured in this environment.",
+        "noDb": "We couldn't post your reply — try again in a moment.",
         "notFound": "We couldn't find that review.",
         "alreadyReplied": "This review already has a reply.",
         "validation": "Write a reply between 2 and 1000 characters.",
@@ -1845,7 +1856,7 @@
         "invalidType": "That file type isn't supported. Use JPG, PNG, WebP or AVIF.",
         "tooLarge": "That photo is too large even after compression. Try one under 15MB.",
         "noSupabase": "Photo uploads aren't available in this environment.",
-        "noDb": "Photo uploads require a database connection.",
+        "noDb": "We couldn't save your photo — try again in a moment.",
         "forbidden": "You're not authorised to edit this listing.",
         "notFound": "We couldn't find that listing.",
         "uploadFailed": "The upload didn't go through. Try again in a moment.",
@@ -1893,7 +1904,7 @@
         "cannotPublish": "Add at least one inclusion, pick at least one available weekday, and write a description of 60+ characters before submitting.",
         "notFound": "This experience no longer exists.",
         "forbidden": "You're not authorised to do that.",
-        "noDb": "Publishing requires a database connection.",
+        "noDb": "We couldn't update the listing — try again in a moment.",
         "server": "We couldn't complete that action. Try again in a moment.",
         "validation": "Check the form and try again.",
         "wrongState": "This experience can't be submitted from its current state — refresh to see the latest.",
@@ -1932,7 +1943,10 @@
       "whatToBringPlaceholder": "Comfortable walking shoes\nA layer for the evening",
       "whatToBringHint": "One per line. Leave blank if nothing.",
       "cancellationLabel": "Cancellation policy",
-      "cancellationPlaceholder": "Free cancellation up to 24 hours before the experience. 50% refund if cancelled within 24 hours.",
+      "cancellationTierFlexible": "Flexible — full refund until 24 hours before the start",
+      "cancellationTierModerate": "Moderate — full refund until 48 hours before; 50% until 24 hours before",
+      "cancellationTierStrict": "Strict — full refund until 7 days before; 50% until 48 hours before",
+      "cancellationHint": "This is what guests see on your listing and what each booking enforces. Guests can also move a booking to another open date once, within the same policy.",
       "weekdaysLabel": "Available days (recurring)",
       "weekdaysHint": "Weekdays this experience runs. Close or reopen specific dates on the availability calendar.",
       "weekdays": {
@@ -1962,7 +1976,7 @@
         "server": "We couldn't save your changes. Try again in a moment.",
         "forbidden": "You're not authorised to edit this experience.",
         "notFound": "That experience doesn't exist anymore.",
-        "noDb": "Experience editing requires a database connection.",
+        "noDb": "We couldn't save right now — try again in a moment.",
         "cannotPublish": "Add at least one inclusion, pick at least one available weekday, and write a description of 60+ characters before publishing.",
         "fields": {
           "titleShort": "Title is too short — minimum 8 characters.",
@@ -1984,6 +1998,9 @@
       },
       "startTimeLabel": "Start time",
       "startTimeHint": "Local start time of every occurrence. Guests see it before booking and on their ticket.",
+      "bookingCutoffLabel": "Booking cutoff",
+      "bookingCutoffHint": "How far before the start time bookings close for that day. Guests can never book once an experience has started.",
+      "bookingCutoffOption": "{hours, plural, one {# hour before start} other {# hours before start}}",
       "latLabel": "Latitude",
       "lngLabel": "Longitude",
       "coordsHint": "Meeting-point coordinates — long-press the spot in Google Maps and copy the two numbers. They drive the map on your listing.",
@@ -2082,7 +2099,9 @@
     "empty": {
       "eyebrow": "No matches",
       "title": "Nothing fits those filters yet.",
-      "description": "Try removing a filter, clearing the search, or browsing every experience."
+      "description": "Try removing a filter, clearing the search, or browsing every experience.",
+      "noneTitle": "Nothing is live just yet.",
+      "noneDescription": "We're curating the first Aseer experiences with our hosts. Check back soon."
     },
     "dayLegend": "When",
     "day": {
@@ -2192,6 +2211,8 @@
     },
     "startsAt": "Starts at {time}",
     "cancellationPolicyLine": "Free cancellation up to {hours} hours before the start — you get a full refund. Closer than that, the payment is non-refundable. You can cancel any time from your booking page.",
+    "cancellationTierLine": "Free cancellation with a full refund until {freeHours} hours before the start, then a {partialPct}% refund until {partialHours} hours before. You can also move your booking to another open date once, up to {rescheduleHours} hours before — all from your booking page.",
+    "cancellationTierLineNoPartial": "Free cancellation with a full refund until {freeHours} hours before the start; closer than that, the payment is non-refundable. You can also move your booking to another open date once, up to {rescheduleHours} hours before — all from your booking page.",
     "cancellationPolicyNone": "You can cancel any time before the start from your booking page.",
     "preview": {
       "banner": "Preview — this is how your listing looks to guests. Only you (and the review team) can see this page until it's live.",
@@ -2234,10 +2255,14 @@
     "server": "We could not save the request. Try again in a moment.",
     "notFound": "This experience is no longer available.",
     "required": "Enter a valid value.",
+    "nameRequired": "Enter your full name.",
+    "phoneRequired": "Enter your mobile number.",
+    "emailRequired": "Enter your email address.",
     "womenOnlyLabel": "I confirm this booking is for women only, as this experience requires.",
     "womenOnlyRequired": "Please confirm this booking is for women only to continue.",
     "datePast": "Pick a date in the future.",
     "dateUnavailable": "This experience doesn't run on that day. Pick another date.",
+    "dateCutoff": "Booking has closed for today — it's too close to the start time. Pick another day.",
     "dateFull": "That date is fully booked. Try another day.",
     "partySizeTooLarge": "That's more guests than this experience can host.",
     "datePlaceholder": "Select a date",
@@ -2248,7 +2273,7 @@
     "noDates": "No open dates in the next 8 weeks. Check back soon, or message the host.",
     "prevMonth": "Previous month",
     "nextMonth": "Next month",
-    "modeInstant": "Instant Book — your spot is confirmed right away, subject to availability.",
+    "modeInstant": "Instant Book — pay now and your spot is confirmed right away.",
     "modeRequest": "Request to book — the host responds within {hours} hours. You won't be charged until they accept.",
     "runsOn": "Runs on {days}.",
     "vatIncluded": "Includes VAT ({pct}%)",
@@ -2257,7 +2282,12 @@
     "emailHint": "We send your confirmation, payment link, and reminders here.",
     "editDetails": "Edit",
     "emailInvalid": "Enter a valid email address.",
-    "tooMany": "You have too many open bookings right now. Complete or cancel one, or try again later."
+    "tooMany": "You have too many open bookings right now. Complete or cancel one, or try again later.",
+    "tooManyFinish": "Finish this booking",
+    "tooManyHint": "Finish or cancel one of these to free a spot — then you can book this or any other experience.",
+    "tooManyStatusPayment": "Awaiting payment",
+    "tooManyStatusApproval": "Waiting for host approval",
+    "tooManyStatusConfirmed": "Confirmed"
   },
   "bookingConfirmed": {
     "eyebrow": "Request received",
@@ -2300,20 +2330,47 @@
       "policyUnpaid": "You can cancel this request free of charge — nothing has been paid yet.",
       "policyRefundable": "Free cancellation with a full refund until {deadline}. After that, the payment is not refunded.",
       "policyForfeited": "The free-cancellation window has passed. You can still cancel, but the payment will not be refunded.",
+      "policyPartial": "The free-cancellation window has passed. Cancel before {deadline} and {amount} of the payment is refunded; after that, nothing is refunded.",
       "label": "Cancel booking",
       "pending": "Cancelling…",
       "confirm": "Cancel this booking? This can't be undone.",
-      "confirmForfeited": "Cancel this booking? The free-cancellation window has passed, so the payment will NOT be refunded. This can't be undone.",
+      "confirmForfeited": "Cancel this booking? The free-cancellation window has passed, so the payment won't be refunded. This can't be undone.",
+      "confirmPartial": "Cancel this booking? Per the cancellation policy, {amount} will be refunded to your card. This can't be undone.",
       "doneUnpaid": "Your booking is cancelled. Nothing was charged.",
       "doneRefunded": "Your booking is cancelled and the refund has been issued to your card. Depending on your bank, it can take a few business days to appear.",
       "doneRefundPending": "Your booking is cancelled. Your refund is on its way — our team processes it manually and you'll see it on your card within a few business days.",
+      "donePartialRefunded": "Your booking is cancelled and {amount} has been refunded to your card per the cancellation policy. Depending on your bank, it can take a few business days to appear.",
+      "donePartialRefundPending": "Your booking is cancelled. Your {amount} refund is on its way — our team processes it manually and you'll see it on your card within a few business days.",
       "doneForfeited": "Your booking is cancelled. Because the free-cancellation window had already passed, the payment was not refunded.",
       "errors": {
         "forbidden": "You don't have permission to cancel this booking.",
-        "noDb": "The database isn't configured in this environment.",
+        "noDb": "We couldn't cancel right now — try again in a moment.",
         "notFound": "We couldn't find that booking.",
         "wrongState": "This booking changed in the meantime. Refresh to see its current state.",
         "alreadyStarted": "This experience has already started, so it can no longer be cancelled.",
+        "validation": "Something about this request was invalid. Refresh and try again.",
+        "server": "Something went wrong on our side. Try again."
+      }
+    },
+    "reschedule": {
+      "heading": "Need a different date?",
+      "policy": "You can move this booking to another available date free of charge until {deadline}. A booking can be moved once — your payment and reference stay the same.",
+      "noDates": "There are no other dates open for this experience right now. Check back later, or cancel below if the current date doesn't work.",
+      "label": "Change date",
+      "pending": "Moving…",
+      "confirm": "Move this booking to {date}? Your payment and reference stay the same.",
+      "done": "Your booking has been moved to {date}. We've emailed you the updated details.",
+      "prevMonth": "Previous month",
+      "nextMonth": "Next month",
+      "errors": {
+        "noDb": "We couldn't change the date right now — try again in a moment.",
+        "notFound": "We couldn't find that booking.",
+        "wrongState": "This booking changed in the meantime. Refresh to see its current state.",
+        "alreadyStarted": "This experience has already started, so it can no longer be moved.",
+        "windowPassed": "The window for changing the date has passed.",
+        "limitReached": "This booking has already been moved once, so it can't be moved again.",
+        "dateUnavailable": "That date is no longer open for booking. Pick another date.",
+        "dateFull": "That date just filled up. Pick another date.",
         "validation": "Something about this request was invalid. Refresh and try again.",
         "server": "Something went wrong on our side. Try again."
       }
@@ -2340,7 +2397,7 @@
       "success": "Thank you — your report is with our team. We'll be in touch.",
       "openNote": "You've reported a problem with this booking. Our team is on it and will be in touch.",
       "errors": {
-        "noDb": "The database isn't configured in this environment.",
+        "noDb": "We couldn't send your report — try again in a moment.",
         "notFound": "We couldn't find that booking.",
         "alreadyOpen": "There's already an open report on this booking — our team is on it.",
         "validation": "Write at least 10 characters so we can understand the issue.",
@@ -2393,8 +2450,10 @@
     "editBooking": "Change date or guests",
     "submit": "Continue to payment",
     "pending": "Preparing payment",
-    "termsAgreement": "I have read and agree to Gharmish's <terms>Terms & Conditions</terms>, <privacy>Privacy Policy</privacy>, and <cancellation>Cancellation Policy</cancellation>.",
+    "termsAgreement": "I have read and agree to Gharmish's <terms>terms of service</terms>, <privacy>privacy policy</privacy>, and <cancellation>cancellation policy</cancellation>.",
     "termsRequired": "Please accept the Terms & Conditions to continue.",
+    "cancellationFreeUntil": "Free cancellation until {deadline} — cancel before then for a full refund.",
+    "cancellationInsideWindow": "This experience starts soon, so payments are no longer refundable if you cancel.",
     "invalid": {
       "givenName": "Enter your first name.",
       "surname": "Enter your last name.",
@@ -2412,16 +2471,22 @@
     "errorAlreadyPaid": "This booking is already paid.",
     "errorExpired": "This booking's payment window has passed and the spot was released. Please book again.",
     "payHeading": "Pay securely",
+    "payAmount": "Pay {amount}",
     "widgetLoading": "Loading secure payment…",
     "widgetError": "The secure payment form couldn't load. Check your connection and try again.",
     "widgetRetry": "Reload payment form",
-    "orPayWithCard": "or pay with card",
+    "methodHeading": "Pay with",
+    "methodApplePay": "Apple Pay",
+    "methodCard": "Card",
+    "changeMethod": "Choose a different payment method",
     "vatIncludedLabel": "Includes VAT ({pct}%)",
     "errorNotApproved": "The host hasn't accepted this request yet. As soon as they do, you can complete your payment right here on this page.",
     "secureNote": "Payments are processed securely by our payment provider with 3-D Secure. Your card details never touch Gharmish servers.",
     "acceptedMethods": "We accept",
     "deadlineNote": "Complete payment by {deadline} — we're holding your spot until then.",
     "minutesLeft": "about {minutes} min left",
+    "hoursLeft": "about {hours} hr {minutes} min left",
+    "hoursOnlyLeft": "about {hours} hr left",
     "subtotalLabel": "Subtotal",
     "promo": {
       "label": "Have a promo code?",
@@ -2438,6 +2503,7 @@
         "invalid": "That code isn't valid.",
         "exhausted": "This code has reached its redemption limit.",
         "alreadyPaid": "This booking is already paid.",
+        "checkoutInProgress": "A payment is already in progress, so the total can't change now. Finish paying, or try the code again in a few minutes.",
         "unavailable": "This booking can't take a promo code right now.",
         "notFound": "We couldn’t find this booking.",
         "validation": "Please check the code and try again.",
@@ -2463,9 +2529,16 @@
     "cancelSubject": "Your Gharmish booking is cancelled",
     "cancelIntroRefunded": "Your booking has been cancelled and your refund has been issued to your card. Depending on your bank, it can take a few business days to appear.",
     "cancelIntroRefundPending": "Your booking has been cancelled. Your refund is being processed by our team and will reach your card within a few business days.",
-    "cancelIntroForfeited": "Your booking has been cancelled. As the cancellation was inside the free-cancellation window, the payment was not refunded.",
+    "cancelIntroForfeited": "Your booking has been cancelled. Because the free-cancellation window had already passed, the payment was not refunded.",
     "cancelIntroUnpaid": "Your booking has been cancelled. Nothing was charged.",
     "cancelClosing": "We hope to host you another time.",
+    "rescheduledSubject": "Your booking has a new date",
+    "rescheduledIntro": "Done — your booking has been moved to the new date below. Your payment and reference stay the same.",
+    "rescheduledCta": "View your booking",
+    "rescheduledClosing": "We look forward to seeing you there.",
+    "movedFromLabel": "Previous date",
+    "hostBookingRescheduledSubject": "A booking moved to a new date",
+    "hostBookingRescheduledIntro": "A guest moved their booking to the date below. The previous date has its spots back. See your bookings: {url}",
     "refundLabel": "Refund amount",
     "vatIncludedLabel": "Includes VAT ({pct}%)",
     "prepareSubject": "Tomorrow at {time}: get ready for your experience",
@@ -2691,7 +2764,7 @@
       "submit": "Submit review",
       "submitting": "Submitting",
       "errors": {
-        "noDb": "Reviews need a database connection.",
+        "noDb": "We couldn't submit your review — try again in a moment.",
         "notFound": "We couldn't find that booking.",
         "wrongState": "You can review an experience once your booking is complete.",
         "alreadyReviewed": "You've already reviewed this booking.",
@@ -2718,7 +2791,7 @@
         "removing": "Removing",
         "hint": "PNG, JPG or WebP, up to 2 MB.",
         "errors": {
-          "noDb": "Photos need a database connection.",
+          "noDb": "We couldn't save your photo — try again in a moment.",
           "noAuth": "Sign in to change your photo.",
           "noStorage": "Photo uploads aren't available in this environment.",
           "noFile": "Choose an image file to upload.",
@@ -2741,7 +2814,7 @@
         "nameError": "Enter your name (at least two characters).",
         "emailError": "Enter a valid email address.",
         "errors": {
-          "noDb": "Saving needs a database connection.",
+          "noDb": "We couldn't save right now — try again in a moment.",
           "noAuth": "Sign in to edit your profile.",
           "validation": "Something didn't validate. Check the form and try again.",
           "server": "We couldn't save your changes. Try again in a moment."
@@ -2855,11 +2928,11 @@
   "cancellationPolicyPage": {
     "eyebrow": "Cancellation & refunds",
     "title": "Plans change. Here's exactly what happens.",
-    "intro": "One platform-wide policy, in plain language — the same rules our system actually enforces, with no fine print.",
+    "intro": "Three clear policies, in plain language — the same rules our system actually enforces, fixed on your booking the moment you book, with no fine print.",
     "freeWindow": {
       "heading": "Free cancellation window",
-      "body1": "You can cancel any booking before it starts. If you cancel at least {hours} hours before the start time, a paid booking is refunded in full.",
-      "body2": "Inside the final {hours} hours the booking can still be cancelled, but the payment is not refunded — your host has already planned and turned others away."
+      "body1": "You can cancel any booking before it starts, from your booking page. Every experience shows one of three cancellation policies: Flexible (full refund until 24 hours before the start), Moderate (full refund until 48 hours before, then a 50% refund until 24 hours before) or Strict (full refund until 7 days before, then 50% until 48 hours before). The policy shown when you booked is the one that applies — it never changes after you book.",
+      "body2": "Two extras apply on top of any policy: cancel within 24 hours of booking (while the start is still at least 48 hours away) and you're always refunded in full; and you can move a booking to another open date once, free of charge, within the window your policy allows. Past a policy's last refund step the booking can still be cancelled, but the payment is not refunded — your host has already planned and turned others away."
     },
     "requests": {
       "heading": "Booking requests",
@@ -2892,12 +2965,12 @@
         "a": "Instant Book: at checkout, and your spot is confirmed immediately. Request to book: only after the host accepts — you'll get a secure payment link by email and on your booking page. A declined or expired request is never charged."
       },
       "pending": {
-        "q": "What does \"pending host approval\" mean?",
+        "q": "What does \"awaiting host confirmation\" mean?",
         "a": "Your request is with the host. They have {approvalHours} hours to accept or decline — if you shared an email, we'll notify you the moment they respond, and this page always shows the latest status. Until they accept, no money moves."
       },
       "cancel": {
         "q": "Can I cancel a booking?",
-        "a": "Yes — any time before the experience starts, from your booking page. Cancel at least {cancelHours} hours before the start and a paid booking refunds in full; closer than that, the payment is kept."
+        "a": "Yes — any time before the experience starts, from your booking page. Refunds follow the experience's cancellation policy (Flexible, Moderate or Strict) shown when you booked: a full refund up to that policy's deadline, and on Moderate and Strict a 50% refund for a while after. You can also move your booking to another open date once, free of charge."
       },
       "contactHost": {
         "q": "How do I reach my host?",
@@ -2955,7 +3028,7 @@
     },
     "cancellations": {
       "heading": "Cancellations and refunds",
-      "body": "One platform-wide policy applies to every booking: cancel at least {hours} hours before the start time and a paid booking is refunded in full; inside that window the payment is kept.",
+      "body": "Each experience carries one of three cancellation policies (Flexible, Moderate or Strict), shown on its page and fixed on your booking at the moment you book: a full refund up to the policy's deadline, a 50% refund for a further window on Moderate and Strict, and no refund past that. Cancelling within 24 hours of booking always refunds in full while the start is at least 48 hours away; one free date change is included within the policy's window.",
       "link": "Read the full cancellation policy"
     },
     "conduct": {
@@ -3037,7 +3110,10 @@
   "common": {
     "close": "Close",
     "cancel": "Cancel",
-    "confirm": "Confirm"
+    "confirm": "Confirm",
+    "toastTone_success": "Success:",
+    "toastTone_error": "Error:",
+    "toastTone_info": "Notice:"
   },
   "reviewEmail": {
     "repliedSubject": "The host replied to your review",

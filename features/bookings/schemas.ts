@@ -81,3 +81,11 @@ export const cancelBookingSchema = z.object({
 });
 
 export type CancelBookingInput = z.infer<typeof cancelBookingSchema>;
+
+export const rescheduleBookingSchema = z.object({
+  reference: z.string().uuid(),
+  locale: z.enum(['en', 'ar']),
+  newDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+});
+
+export type RescheduleBookingInput = z.infer<typeof rescheduleBookingSchema>;

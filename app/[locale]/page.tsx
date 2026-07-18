@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import { Suspense } from 'react';
 import { ArrowRight } from 'lucide-react';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { cn } from '@/lib/utils';
@@ -11,6 +12,8 @@ import { SITE_URL, SITE_NAME, SITE_DESCRIPTION } from '@/lib/site';
 import { buttonVariants } from '@/components/ui/button';
 import { JsonLd } from '@/components/seo/json-ld';
 import { ExperienceCard } from '@/features/experiences/components/experience-card';
+import { ExperienceCardSkeleton } from '@/features/experiences/components/experience-card-skeleton';
+import { Skeleton } from '@/components/ui/skeleton';
 import Image from 'next/image';
 import {
   FadeIn,
@@ -73,19 +76,12 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
     loc === 'en' && 'tracking-[0.2em] uppercase',
   );
 
-  const [experiences, featured, hosts, savedSlugs, settings] = await Promise.all([
-    getExperiences(),
-    getFeaturedExperiences(),
-    getAllHosts(),
-    getWishlistSet(),
-    getPlatformSettings(),
-  ]);
+  // Only what the above-the-fold hero needs blocks first byte; featured,
+  // wishlist, and hosts stream in behind Suspense below (with a
+  // force-dynamic layout and no root loading.tsx, everything awaited here
+  // is white-screen time on every visit).
+  const [experiences, settings] = await Promise.all([getExperiences(), getPlatformSettings()]);
   const categories = CATEGORIES.filter((c) => settings.enabledCategories.includes(c.key));
-  // "All experiences" excludes what the Originals row above already
-  // shows — the same card twice in one viewport reads as a bug, not
-  // merchandising.
-  const featuredSlugs = new Set(featured.map((e) => e.slug));
-  const restOfCatalog = experiences.filter((e) => !featuredSlugs.has(e.slug));
   // Editorial hero photograph — the most on-brand landscape available
   // (nature first, then adventure, then heritage, then anything shot).
   // Null degrades to the type-only hero, so thin photography never
@@ -128,10 +124,7 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
       <JsonLd data={jsonLd} />
       {/* Admin announcement band — plain text, dismiss-free by design. */}
       {announcement && (
-        <p
-          role="status"
-          className="border-habala-mist-200 bg-info-surface text-info [border-bottom-width:0.5px] px-6 py-3 text-center text-sm leading-relaxed"
-        >
+        <p className="border-habala-mist-200 bg-info-surface text-info [border-bottom-width:0.5px] px-6 py-3 text-center text-sm leading-relaxed">
           {announcement}
         </p>
       )}
@@ -203,116 +196,187 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
         </div>
       </section>
 
-      {/* Originals — featured, dark cards */}
-      <section className="mx-auto w-full max-w-6xl px-6 py-20">
-        <FadeIn className="mb-8 flex flex-col gap-2">
-          <h2 className="font-display text-3xl font-medium tracking-[-0.03em]">
-            {t('originalsTitle')}
-          </h2>
-          <p className="text-sarat-black-600 text-base">{t('originalsSub')}</p>
-        </FadeIn>
-        <Stagger className="grid gap-4 sm:grid-cols-2">
-          {featured.map((e) => (
-            <StaggerItem key={e.slug}>
-              <ExperienceCard
-                experience={e}
-                locale={loc}
-                actions={
-                  <WishlistButton
-                    slug={e.slug}
-                    isSaved={savedSlugs.has(e.slug)}
-                    surface={e.featured ? 'dark' : 'light'}
-                  />
-                }
-              />
-            </StaggerItem>
-          ))}
-        </Stagger>
-      </section>
-
-      {/* All experiences */}
-      <section className="mx-auto w-full max-w-6xl px-6 pb-24">
-        <FadeIn className="mb-8 flex items-baseline justify-between gap-4">
-          <h2 className="font-display text-3xl font-medium tracking-[-0.03em]">{t('allTitle')}</h2>
-          <Link
-            href="/experiences"
-            className="inline-flex min-h-11 items-center gap-2 text-sm font-medium transition-opacity duration-200 hover:opacity-60"
-          >
-            {t('viewAll')}
-            <ArrowRight className="size-4 shrink-0 rtl:rotate-180" aria-hidden />
-          </Link>
-        </FadeIn>
-        <Stagger className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {restOfCatalog.map((e) => (
-            <StaggerItem key={e.slug}>
-              <ExperienceCard
-                experience={e}
-                locale={loc}
-                actions={
-                  <WishlistButton
-                    slug={e.slug}
-                    isSaved={savedSlugs.has(e.slug)}
-                    surface={e.featured ? 'dark' : 'light'}
-                  />
-                }
-              />
-            </StaggerItem>
-          ))}
-        </Stagger>
-      </section>
+      {/* Originals + all experiences — streamed: they wait on the featured
+          and wishlist queries, which shouldn't hold the hero back. */}
+      <Suspense fallback={<CatalogSectionsFallback />}>
+        <CatalogSections locale={loc} experiences={experiences} />
+      </Suspense>
 
       {/* Why Gharmish — the three brand pillars as guest-facing promises. */}
       <WhyGharmish locale={loc} />
 
       {/* Social proof — latest high-rated guest reviews (renders nothing
           until reviews exist). */}
-      <SocialProofStrip locale={loc} />
+      <Suspense fallback={null}>
+        <SocialProofStrip locale={loc} />
+      </Suspense>
 
-      {/* Hosts row — surfaces /hosts/[slug] from the home page. */}
-      {hosts.length > 0 && (
-        <section className="border-sarat-black/8 [border-top-width:0.5px]">
-          <div className="mx-auto w-full max-w-6xl px-6 py-20">
-            <FadeIn className="mb-8 flex flex-col gap-2">
-              <p className={eyebrowClassName}>{t('hostsEyebrow')}</p>
-              <h2 className="font-display text-3xl font-medium tracking-[-0.03em]">
-                {t('hostsTitle')}
-              </h2>
-              <p className="text-sarat-black-600 max-w-xl text-base">{t('hostsIntro')}</p>
-            </FadeIn>
-            <Stagger>
-              <ul className="grid gap-4 sm:grid-cols-2">
-                {hosts.map((host) => {
-                  const name = loc === 'ar' ? toArabicText(host.name) : host.name;
-                  const bio = pickLocalized(loc, host.bioEn, host.bioAr);
-                  return (
-                    <li key={host.slug}>
-                      <StaggerItem className="h-full">
-                        <Link
-                          href={`/hosts/${host.slug}`}
-                          className="rounded-card border-sarat-black/8 group flex h-full items-start gap-4 [border-width:0.5px] p-6 transition-transform duration-200 hover:-translate-y-0.5 focus-visible:-translate-y-0.5"
-                        >
-                          <Avatar name={name} size="lg" />
-                          <div className="flex flex-1 flex-col gap-2">
-                            <span className="text-lg font-medium">{name}</span>
-                            <p className="text-sarat-black-600 line-clamp-3 text-sm">{bio}</p>
-                            <span className="text-sarat-black inline-flex items-center gap-1 text-sm font-medium opacity-0 transition-opacity duration-200 group-hover:opacity-100 group-focus-visible:opacity-100">
-                              {t('hostsView')}
-                              <ArrowRight className="size-4 shrink-0 rtl:rotate-180" aria-hidden />
-                            </span>
-                          </div>
-                        </Link>
-                      </StaggerItem>
-                    </li>
-                  );
-                })}
-              </ul>
-            </Stagger>
-          </div>
-        </section>
-      )}
+      {/* Hosts row — surfaces /hosts/[slug] from the home page. Streams
+          behind Suspense; hides entirely when there are no hosts (or while
+          loading — it is below the fold). */}
+      <Suspense fallback={null}>
+        <HostsRow locale={loc} />
+      </Suspense>
 
       {/* Host recruitment — the page closes on the partnership pitch. */}
       <HostCta locale={loc} />
     </div>
+  );
+}
+/** Streams the Originals + "All experiences" sections behind Suspense. */
+async function CatalogSections({
+  locale,
+  experiences,
+}: {
+  locale: Locale;
+  experiences: Awaited<ReturnType<typeof getExperiences>>;
+}) {
+  const [t, featured, savedSlugs] = await Promise.all([
+    getTranslations('home'),
+    getFeaturedExperiences(),
+    getWishlistSet(),
+  ]);
+  // "All experiences" excludes what the Originals row above already
+  // shows — the same card twice in one viewport reads as a bug, not
+  // merchandising.
+  const featuredSlugs = new Set(featured.map((e) => e.slug));
+  const restOfCatalog = experiences.filter((e) => !featuredSlugs.has(e.slug));
+
+  return (
+    <>
+      {/* Originals — featured, dark cards. The heading renders only with
+          content: an empty DB must not show orphaned section titles. */}
+      {featured.length > 0 && (
+        <section className="mx-auto w-full max-w-6xl px-6 py-20">
+          <FadeIn className="mb-8 flex flex-col gap-2">
+            <h2 className="font-display text-3xl font-medium tracking-[-0.03em]">
+              {t('originalsTitle')}
+            </h2>
+            <p className="text-sarat-black-600 text-base">{t('originalsSub')}</p>
+          </FadeIn>
+          <Stagger className="grid gap-4 sm:grid-cols-2">
+            {featured.map((e) => (
+              <StaggerItem key={e.slug}>
+                <ExperienceCard
+                  experience={e}
+                  locale={locale}
+                  actions={
+                    <WishlistButton
+                      slug={e.slug}
+                      isSaved={savedSlugs.has(e.slug)}
+                      surface={e.featured ? 'dark' : 'light'}
+                    />
+                  }
+                />
+              </StaggerItem>
+            ))}
+          </Stagger>
+        </section>
+      )}
+
+      {/* All experiences */}
+      {restOfCatalog.length > 0 && (
+        <section className="mx-auto w-full max-w-6xl px-6 pb-24">
+          <FadeIn className="mb-8 flex items-baseline justify-between gap-4">
+            <h2 className="font-display text-3xl font-medium tracking-[-0.03em]">
+              {t('allTitle')}
+            </h2>
+            <Link
+              href="/experiences"
+              className="inline-flex min-h-11 items-center gap-2 text-sm font-medium transition-opacity duration-200 hover:opacity-60"
+            >
+              {t('viewAll')}
+              <ArrowRight className="size-4 shrink-0 rtl:rotate-180" aria-hidden />
+            </Link>
+          </FadeIn>
+          <Stagger className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {restOfCatalog.map((e) => (
+              <StaggerItem key={e.slug}>
+                <ExperienceCard
+                  experience={e}
+                  locale={locale}
+                  actions={
+                    <WishlistButton
+                      slug={e.slug}
+                      isSaved={savedSlugs.has(e.slug)}
+                      surface={e.featured ? 'dark' : 'light'}
+                    />
+                  }
+                />
+              </StaggerItem>
+            ))}
+          </Stagger>
+        </section>
+      )}
+    </>
+  );
+}
+
+/** Card-shaped placeholders matching the Originals grid — no layout shift. */
+function CatalogSectionsFallback() {
+  return (
+    <section className="mx-auto w-full max-w-6xl px-6 py-20" aria-busy="true">
+      <div className="mb-8 flex flex-col gap-2">
+        <Skeleton className="h-8 w-64" />
+        <Skeleton className="h-4 w-80 max-w-full" />
+      </div>
+      <div className="grid gap-4 sm:grid-cols-2">
+        {Array.from({ length: 2 }).map((_, i) => (
+          <ExperienceCardSkeleton key={i} />
+        ))}
+      </div>
+    </section>
+  );
+}
+
+/** Streams the verified-hosts row; renders nothing when there are none. */
+async function HostsRow({ locale }: { locale: Locale }) {
+  const [t, hosts] = await Promise.all([getTranslations('home'), getAllHosts()]);
+  if (hosts.length === 0) return null;
+  const eyebrowClassName = cn(
+    'text-sarat-black-600 text-[11px]',
+    locale === 'en' && 'tracking-[0.2em] uppercase',
+  );
+
+  return (
+    <section className="border-sarat-black/8 [border-top-width:0.5px]">
+      <div className="mx-auto w-full max-w-6xl px-6 py-20">
+        <FadeIn className="mb-8 flex flex-col gap-2">
+          <p className={eyebrowClassName}>{t('hostsEyebrow')}</p>
+          <h2 className="font-display text-3xl font-medium tracking-[-0.03em]">
+            {t('hostsTitle')}
+          </h2>
+          <p className="text-sarat-black-600 max-w-xl text-base">{t('hostsIntro')}</p>
+        </FadeIn>
+        <Stagger>
+          <ul className="grid gap-4 sm:grid-cols-2">
+            {hosts.map((host) => {
+              const name = locale === 'ar' ? toArabicText(host.name) : host.name;
+              const bio = pickLocalized(locale, host.bioEn, host.bioAr);
+              return (
+                <li key={host.slug}>
+                  <StaggerItem className="h-full">
+                    <Link
+                      href={`/hosts/${host.slug}`}
+                      className="rounded-card border-sarat-black/8 group flex h-full items-start gap-4 [border-width:0.5px] p-6 transition-transform duration-200 hover:-translate-y-0.5 focus-visible:-translate-y-0.5"
+                    >
+                      <Avatar name={name} src={host.photoUrl ?? undefined} size="lg" />
+                      <div className="flex flex-1 flex-col gap-2">
+                        <span className="text-lg font-medium">{name}</span>
+                        <p className="text-sarat-black-600 line-clamp-3 text-sm">{bio}</p>
+                        <span className="text-sarat-black inline-flex items-center gap-1 text-sm font-medium opacity-0 transition-opacity duration-200 group-hover:opacity-100 group-focus-visible:opacity-100">
+                          {t('hostsView')}
+                          <ArrowRight className="size-4 shrink-0 rtl:rotate-180" aria-hidden />
+                        </span>
+                      </div>
+                    </Link>
+                  </StaggerItem>
+                </li>
+              );
+            })}
+          </ul>
+        </Stagger>
+      </div>
+    </section>
   );
 }

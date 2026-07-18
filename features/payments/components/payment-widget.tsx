@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
+import type { Locale } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
 import type { CheckoutReady } from '@/features/payments/actions';
 
@@ -13,14 +14,16 @@ declare global {
 
 export interface PaymentWidgetProps {
   checkout: CheckoutReady;
+  /** Widget UI language — COPYandPAY ships its own ar/en field labels. */
+  locale: Locale;
+  /** Pay-button label carrying the charged amount, e.g. "Pay SAR 480". */
+  payLabel: string;
   /** Loading copy shown until the widget script renders. */
   loadingLabel: string;
-  /** Shown if the widget script fails to load (e.g. flaky network). */
+  /** Shown if the HyperPay widget script fails to load (e.g. flaky network). */
   errorLabel: string;
   /** Retry action label. */
   retryLabel: string;
-  /** Divider between the Apple Pay button and the card form ("or pay with card"). */
-  orCardLabel: string;
 }
 
 /**
@@ -32,24 +35,20 @@ export interface PaymentWidgetProps {
  *
  * `window.wpwlOptions` is set with `paymentTarget: "_top"` (full-page 3DS
  * redirect, per the HyperPay onboarding email) *before* the script loads.
- * Brand order is Apple Pay first, then cards Mada-first as required by
- * Saudi Payments.
- *
- * Apple Pay renders as its own button above the card fields (the two
- * checkout options). The widget hides the APPLEPAY container on devices
- * that can't pay (non-Safari, no wallet), so `onReady` only injects the
- * "or pay with card" divider when the button is actually visible —
- * everyone else just sees the card form.
+ * A checkout carries ONE brand set — APPLEPAY on its own entity, or the
+ * Mada-first card brands (Saudi Payments rule) — so the widget renders a
+ * single payment option; the method choice lives on the details step.
  *
  * If the script fails to load we surface a retry rather than leaving the
  * shopper stuck on a loading label forever — `attempt` re-runs the effect.
  */
 export function PaymentWidget({
   checkout,
+  locale,
+  payLabel,
   loadingLabel,
   errorLabel,
   retryLabel,
-  orCardLabel,
 }: PaymentWidgetProps) {
   const mountRef = useRef<HTMLDivElement>(null);
   const [status, setStatus] = useState<'loading' | 'ready' | 'error'>('loading');
@@ -62,6 +61,48 @@ export function PaymentWidget({
     setStatus('loading');
     window.wpwlOptions = {
       paymentTarget: '_top',
+      // Widget chrome language (field labels, validation hints) — ships
+      // its own Arabic translations and flips the fields RTL.
+      locale,
+      // "plain" drops the widget's grey card mock-up and brand <select>;
+      // the fields become bare label+input rows that the `.wpwl-*` rules
+      // in globals.css restyle to the design system (BRIEF §3).
+      style: 'plain',
+      // With the brand select gone the scheme is detected from the PAN.
+      // `binlist` is required for Mada BIN ranges (Saudi Payments rule:
+      // Mada-first, and a Mada card must never be routed as VISA/MASTER).
+      brandDetection: true,
+      brandDetectionType: 'binlist',
+      brandDetectionPriority: ['MADA', 'VISA', 'MASTER'],
+      // The PAN + CVV inputs live in cross-origin iframes our stylesheet
+      // can't reach; the widget forwards these rules inside. Literal hex
+      // mirrors the palette tokens (sarat-black / sarat-black-600 —
+      // globals.css) because CSS variables don't cross the iframe
+      // boundary; next/font Bricolage can't either, so the stack matches
+      // the token fallback. 16px also keeps iOS Safari from zooming the
+      // field on focus.
+      iframeStyles: {
+        'card-number': {
+          color: '#0a0a0a',
+          'font-size': '16px',
+          'font-family': 'ui-sans-serif, system-ui, sans-serif',
+        },
+        cvv: {
+          color: '#0a0a0a',
+          'font-size': '16px',
+          'font-family': 'ui-sans-serif, system-ui, sans-serif',
+        },
+        'card-number-placeholder': {
+          color: '#686868',
+          'font-size': '16px',
+          'font-family': 'ui-sans-serif, system-ui, sans-serif',
+        },
+        'cvv-placeholder': {
+          color: '#686868',
+          'font-size': '16px',
+          'font-family': 'ui-sans-serif, system-ui, sans-serif',
+        },
+      },
       // Passed through to Apple's PaymentRequest by the widget; the amount
       // itself comes from the prepared checkout, never from the browser.
       applePay: {
@@ -72,35 +113,21 @@ export function PaymentWidget({
         countryCode: 'SA',
         supportedNetworks: ['mada', 'masterCard', 'visa'],
         merchantCapabilities: ['supports3DS', 'supportsCredit', 'supportsDebit'],
+        // Do NOT use requiredBillingContactFields/submitOnPaymentAuthorized
+        // here: appending sheet contacts at payment time duplicates the
+        // customer/billing parameters our checkout already carries, and
+        // the gateway rejects the whole submission with 200.300.404
+        // (verified 2026-07-14/15 across three variants). The cardholder
+        // name the Apple token lacks is supplied server-side instead —
+        // `card.holder` on the applepay-channel checkout (hyperpay-core).
         style: 'black',
       },
       onReady: () => {
-        // Divider between the Apple Pay button and the card fields — only
-        // when the widget actually renders the button. On non-Apple
-        // browsers the APPLEPAY container stays in the DOM (visible but
-        // zero-height, holding only a hidden iframe), so the container
-        // alone is not a signal; the `.wpwl-apple-pay-button` element is.
-        // A `:has()` rule in globals.css hides the divider again if the
-        // button disappears after injection, and flex `order` rules put
-        // the Apple Pay container and divider visually above the card
-        // form (the widget's own DOM order is card-first).
-        const applePayButton = mount.querySelector('.wpwl-apple-pay-button');
-        const card = mount.querySelector('.wpwl-container-card');
-        if (!applePayButton || !card || mount.querySelector('[data-pay-divider]')) return;
-        const divider = document.createElement('div');
-        divider.setAttribute('data-pay-divider', '');
-        divider.className = 'my-3 flex items-center gap-3';
-        const line = () => {
-          const el = document.createElement('span');
-          el.className = 'bg-sarat-black/10 h-px flex-1';
-          el.setAttribute('aria-hidden', 'true');
-          return el;
-        };
-        const label = document.createElement('span');
-        label.className = 'text-sarat-black-600 text-sm';
-        label.textContent = orCardLabel;
-        divider.append(line(), label, line());
-        card.parentElement?.insertBefore(divider, card);
+        // The moment money leaves is where the amount must be visible —
+        // the widget's stock "Pay now" becomes "Pay SAR 480" (localized).
+        // Guarded: an Apple Pay-only checkout renders no card pay button.
+        const payButton = mount.querySelector('.wpwl-button-pay');
+        if (payButton) payButton.textContent = payLabel;
       },
     };
 
@@ -129,7 +156,8 @@ export function PaymentWidget({
     checkout.scriptBaseUrl,
     checkout.brands,
     checkout.returnUrl,
-    orCardLabel,
+    locale,
+    payLabel,
     attempt,
   ]);
 
@@ -138,10 +166,16 @@ export function PaymentWidget({
       {status === 'loading' && (
         <div className="flex flex-col gap-3" role="status" aria-live="polite">
           <p className="text-sarat-black-600 text-sm">{loadingLabel}</p>
-          {/* Field-shaped placeholders so the panel reads as "loading a form"
-              rather than looking broken on a slow connection. */}
+          {/* Placeholders shaped like the form COPYandPAY actually renders
+              (four labeled card fields + pay button). Two bare rows
+              reserved ~100px for a ~350px widget, so everything below the
+              fold jumped when the script landed — size the stand-in like
+              the real thing and the swap is calm. */}
           <div className="bg-sarat-black/5 rounded-input h-11 w-full animate-pulse motion-reduce:animate-none" />
           <div className="bg-sarat-black/5 rounded-input h-11 w-full animate-pulse motion-reduce:animate-none" />
+          <div className="bg-sarat-black/5 rounded-input h-11 w-full animate-pulse motion-reduce:animate-none" />
+          <div className="bg-sarat-black/5 rounded-input h-11 w-full animate-pulse motion-reduce:animate-none" />
+          <div className="bg-sarat-black/5 rounded-button h-13 w-full animate-pulse motion-reduce:animate-none" />
         </div>
       )}
 
@@ -161,9 +195,9 @@ export function PaymentWidget({
 
       {/* COPYandPAY mounts its fields into the form we append here. React
           owns this div but never its children — see the comment above.
-          `payment-widget-mount` anchors the globals.css rules that order
-          Apple Pay above the card form (the widget replaces our form with
-          unclassed markup, so there is no widget-owned hook to target). */}
+          `payment-widget-mount` anchors the globals.css theming rules (the
+          widget replaces our form with unclassed markup, so there is no
+          widget-owned hook to target). */}
       <div ref={mountRef} className={cn('payment-widget-mount', status === 'error' && 'hidden')} />
     </div>
   );

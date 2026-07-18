@@ -100,6 +100,11 @@ export default async function AdminExperienceNewPage({
     whatToBring: tE('whatToBring'),
     whatToBringHint: tE('whatToBringHint'),
     cancellationPolicy: tE('cancellationPolicy'),
+    cancellationTiers: {
+      flexible: tE('cancellationTierFlexible'),
+      moderate: tE('cancellationTierModerate'),
+      strict: tE('cancellationTierStrict'),
+    },
     availabilityWeekdays: tE('availabilityWeekdays'),
     blackoutHint: tE('blackoutHint'),
     submit: tE('createSubmit'),

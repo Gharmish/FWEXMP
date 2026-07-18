@@ -11,15 +11,19 @@ export interface HyperpayCustomer {
   surname: string;
 }
 
-/** Billing address required for 3DS2 (`billing.*`). */
+/**
+ * Billing address (`billing.*`). Mandatory for card checkouts (3DS2);
+ * optional for the Apple Pay channel, where the wallet supplies the
+ * address — empty fields are omitted from the request.
+ */
 export interface HyperpayBilling {
-  street1: string;
-  city: string;
+  street1?: string;
+  city?: string;
   /** Optional per the OPPWA 3DS2 guide — omitted from the request when empty. */
   state?: string;
   /** ISO 3166-1 alpha-2, e.g. `SA`. */
-  country: string;
-  postcode: string;
+  country?: string;
+  postcode?: string;
 }
 
 /** Everything needed to prepare a checkout for one booking. */
@@ -30,12 +34,37 @@ export interface PrepareCheckoutInput {
   amountSar: number;
   customer: HyperpayCustomer;
   billing: HyperpayBilling;
+  /**
+   * Cardholder name sent as `card.holder`. Required for the Apple Pay
+   * channel (the wallet token has no name and the gateway declines a
+   * blank holder); omitted for card checkouts, where the shopper types
+   * the holder into the widget.
+   */
+  cardHolder?: string;
 }
+
+/**
+ * Which OPPWA entity a request is billed against. HyperPay provisions
+ * Apple Pay on its own entity id, so every gateway round-trip for a
+ * checkout must consistently use the channel it was created under —
+ * creation, status polling, and refunds alike. The channel is recorded
+ * on the `checkout_created` ledger event (`resultCode: 'APPLEPAY'`) and
+ * resolved from there by settle/refund.
+ */
+export type PaymentChannel = 'card' | 'applepay';
 
 /** Static config the request builder needs, decoupled from env for testing. */
 export interface HyperpayConfig {
   entityId: string;
   mode: 'test' | 'live';
+  /**
+   * Which acquirer the test server routes to. `external` = the real
+   * MPGS test terminal (requires `testMode=EXTERNAL` + the 3DS2 custom
+   * parameter); `internal` = OPPWA's built-in simulator (no test flags —
+   * the widget walks through a simulated 3DS/acquirer page instead).
+   * Ignored in live mode.
+   */
+  testConnector: 'external' | 'internal';
 }
 
 /** Result block returned on every OPPWA response. */

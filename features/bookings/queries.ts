@@ -4,6 +4,7 @@ import { serverEnv } from '@/lib/env';
 import { bookings, experiences } from '@/db/schema';
 import type { Booking } from '@/db/schema';
 import { bookingViewerCanAccess } from '@/features/bookings/lib/access';
+import type { PolicySnapshot } from '@/features/bookings/lib/policy';
 import { reportError } from '@/lib/log';
 
 /**
@@ -57,6 +58,8 @@ export interface BookingDetail {
   guestName: string;
   /** Guest's email if known — prefills the payment-details step. */
   guestEmail: string | null;
+  /** Guest's E.164 phone if known — the WhatsApp notification address. */
+  guestPhone: string | null;
   /** Guest's preferred locale — decision emails are sent in it. */
   guestPreferredLanguage: 'en' | 'ar';
   /** Card scheme once settled (e.g. `MADA`, `VISA`, `MASTER`); null otherwise. */
@@ -71,7 +74,34 @@ export interface BookingDetail {
   paymentDeadline: string | null;
   /** When the booking was moved to `refunded`. ISO; null when never refunded. */
   refundedAt: string | null;
+  /**
+   * Cancellation-policy snapshot taken at booking creation — feeds
+   * `bookingOptions()`, which decides the cancel/reschedule actions a
+   * page may render for this booking.
+   */
+  policy: PolicySnapshot;
+  /** Self-service reschedules already used (`MAX_RESCHEDULES` caps this). */
+  rescheduleCount: number;
+  /** Pre-move date if the booking was rescheduled later; anchors refunds. */
+  rescheduledFromDate: string | null;
   createdAt: string;
+}
+
+/** The snapshot columns, shaped for `bookingOptions()`. */
+function policyOf(row: {
+  policyTier: PolicySnapshot['policyTier'];
+  freeCancelHours: number;
+  partialRefundHours: number;
+  partialRefundBps: number;
+  rescheduleCutoffHours: number;
+}): PolicySnapshot {
+  return {
+    policyTier: row.policyTier,
+    freeCancelHours: row.freeCancelHours,
+    partialRefundHours: row.partialRefundHours,
+    partialRefundBps: row.partialRefundBps,
+    rescheduleCutoffHours: row.rescheduleCutoffHours,
+  };
 }
 
 export async function getBookingByReference(reference: string): Promise<BookingDetail | undefined> {
@@ -80,7 +110,7 @@ export async function getBookingByReference(reference: string): Promise<BookingD
     where: eq(bookings.idempotencyKey, reference),
     with: {
       experience: { columns: { slug: true } },
-      guest: { columns: { name: true, email: true, preferredLanguage: true } },
+      guest: { columns: { name: true, email: true, phone: true, preferredLanguage: true } },
     },
   });
   if (!row) return undefined;
@@ -105,6 +135,7 @@ export async function getBookingByReference(reference: string): Promise<BookingD
     experienceSlug: row.experience.slug,
     guestName: row.guest.name,
     guestEmail: row.guest.email,
+    guestPhone: row.guest.phone,
     guestPreferredLanguage: row.guest.preferredLanguage,
     paymentBrand: row.paymentBrand,
     paidAt: row.paidAt?.toISOString() ?? null,
@@ -112,6 +143,9 @@ export async function getBookingByReference(reference: string): Promise<BookingD
     approvedAt: row.approvedAt?.toISOString() ?? null,
     paymentDeadline: row.paymentDeadline?.toISOString() ?? null,
     refundedAt: row.refundedAt?.toISOString() ?? null,
+    policy: policyOf(row),
+    rescheduleCount: row.rescheduleCount,
+    rescheduledFromDate: row.rescheduledFromDate,
     createdAt: row.createdAt.toISOString(),
   };
 }
@@ -154,7 +188,7 @@ export async function getBookingsForGuest(guestId: string): Promise<GuestBooking
     orderBy: [desc(bookings.date), desc(bookings.createdAt)],
     with: {
       experience: { columns: { slug: true, titleEn: true, titleAr: true } },
-      guest: { columns: { name: true, email: true, preferredLanguage: true } },
+      guest: { columns: { name: true, email: true, phone: true, preferredLanguage: true } },
     },
   });
   return rows.map((row) => ({
@@ -178,6 +212,7 @@ export async function getBookingsForGuest(guestId: string): Promise<GuestBooking
     experienceSlug: row.experience.slug,
     guestName: row.guest.name,
     guestEmail: row.guest.email,
+    guestPhone: row.guest.phone,
     guestPreferredLanguage: row.guest.preferredLanguage,
     paymentBrand: row.paymentBrand,
     paidAt: row.paidAt?.toISOString() ?? null,
@@ -185,6 +220,9 @@ export async function getBookingsForGuest(guestId: string): Promise<GuestBooking
     approvedAt: row.approvedAt?.toISOString() ?? null,
     paymentDeadline: row.paymentDeadline?.toISOString() ?? null,
     refundedAt: row.refundedAt?.toISOString() ?? null,
+    policy: policyOf(row),
+    rescheduleCount: row.rescheduleCount,
+    rescheduledFromDate: row.rescheduledFromDate,
     experienceTitleEn: row.experience.titleEn,
     experienceTitleAr: row.experience.titleAr,
     createdAt: row.createdAt.toISOString(),

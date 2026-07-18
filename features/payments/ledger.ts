@@ -3,6 +3,7 @@ import 'server-only';
 import { and, desc, eq } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import { paymentEvents, type NewPaymentEvent, type PaymentEvent } from '@/db/schema';
+import type { PaymentChannel } from '@/features/payments/types';
 
 /**
  * Append-only payment ledger access. One write helper, two read
@@ -33,6 +34,25 @@ export async function latestPaymentEvent(
     where: and(eq(paymentEvents.bookingId, bookingId), eq(paymentEvents.type, type)),
     orderBy: desc(paymentEvents.createdAt),
   });
+}
+
+/**
+ * Which gateway entity a booking's checkout was created under.
+ * `createCheckout` tags Apple Pay checkouts on their `checkout_created`
+ * event (`resultCode: 'APPLEPAY'`); anything else — including every
+ * pre-Apple-Pay row — resolves to the card entity. When the caller
+ * knows the live checkout id, pass it so a stale tag from a superseded
+ * checkout can't be read; pass null to accept the newest tag (refunds,
+ * where only the payment id survives on the booking).
+ */
+export async function resolvePaymentChannel(
+  bookingId: string,
+  checkoutId: string | null,
+): Promise<PaymentChannel> {
+  const created = await latestPaymentEvent(bookingId, 'checkout_created');
+  if (!created || created.resultCode !== 'APPLEPAY') return 'card';
+  if (checkoutId !== null && created.gatewayId !== checkoutId) return 'card';
+  return 'applepay';
 }
 
 /** Full money timeline for a booking, oldest first. */

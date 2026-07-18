@@ -137,6 +137,7 @@ function toDetail(
     inclusionsAr: row.inclusionsAr,
     whatToBringAr: row.whatToBringAr,
     cancellationPolicy: row.cancellationPolicy,
+    cancellationTier: row.cancellationTier,
     host: toHostInfo(row.host),
     moments: [...row.moments].sort((a, b) => a.orderIndex - b.orderIndex).map(toMomentInfo),
     images: row.images,

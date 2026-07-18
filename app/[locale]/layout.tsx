@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import { Suspense } from 'react';
 import { notFound } from 'next/navigation';
 import { NextIntlClientProvider, hasLocale } from 'next-intl';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
@@ -14,12 +15,22 @@ import { getTranslations, setRequestLocale } from 'next-intl/server';
  * Static gains are minimal — every locale page already opts into
  * dynamic rendering via cookie/searchParams reads — and clean status
  * codes matter more for auth gates than a fractional render saving.
+ *
+ * force-dynamic alone is NOT sufficient for real 404s: a loading.tsx
+ * anywhere above a page is a Suspense boundary whose fallback flushes
+ * the 200 shell before the page's async work can throw `notFound()`
+ * (Next then streams the not-found UI with a noindex meta into the
+ * committed 200 — a soft-404). That's why there is deliberately no
+ * loading.tsx at this level and none above the public [slug] pages;
+ * loading files below auth-gated segments (admin, host dashboard,
+ * wishlist) are fine because those routes never need a crawlable 404.
  */
 export const dynamic = 'force-dynamic';
 import { bricolage, ibmPlexArabic } from '@/lib/fonts';
 import { routing, localeDirection, type Locale } from '@/lib/i18n';
 import { Navbar } from '@/components/layout/navbar';
 import { Footer } from '@/components/layout/footer';
+import { ScrollToTop } from '@/components/layout/scroll-to-top';
 import { CookieNotice } from '@/components/layout/cookie-notice';
 import { MarketingPixels } from '@/components/layout/marketing-pixels';
 import { UtmCapture } from '@/features/analytics/utm-capture';
@@ -96,6 +107,10 @@ export default async function LocaleLayout({
                 <CookieNotice />
                 <MarketingPixels />
                 <UtmCapture />
+                {/* useSearchParams consumer — Suspense keeps prerender happy. */}
+                <Suspense fallback={null}>
+                  <ScrollToTop />
+                </Suspense>
               </ToastProvider>
             </MotionProvider>
           </DirectionProvider>

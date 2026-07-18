@@ -1,4 +1,13 @@
-export default function LocaleLoading() {
+/**
+ * Catalog-grid skeleton for /experiences. This used to live at the
+ * [locale] root, but a loading.tsx there wraps EVERY child page in a
+ * Suspense boundary whose fallback flushes a 200 shell before any
+ * page-level notFound() can throw — turning missing experience/host
+ * slugs into soft-404s. Scoped here via the (catalog) route group so it
+ * covers only the index page, which never 404s. Do not add a loading.tsx
+ * at [locale] or above the [slug] segments.
+ */
+export default function CatalogLoading() {
   return (
     <section className="mx-auto w-full max-w-6xl px-6 py-20 sm:py-24" aria-busy="true">
       <div className="flex max-w-3xl flex-col gap-6">

@@ -53,7 +53,7 @@ export interface HostExperienceState {
       | 'minAge'
       | 'priceSar'
       | 'placeName'
-      | 'cancellationPolicy'
+      | 'cancellationTier'
       | 'inclusionsRaw'
       | 'whatToBringRaw'
       | 'availabilityWeekdays'
@@ -63,6 +63,34 @@ export interface HostExperienceState {
       string
     >
   >;
+  /**
+   * Raw submitted strings echoed back on failure. React 19 resets
+   * uncontrolled inputs after a form action, so without this a failed
+   * validation wipes everything the host typed (the longest form in the
+   * product). The form renders `values.x ?? experience?.x`.
+   */
+  values?: Partial<
+    Record<
+      | 'titleEn'
+      | 'descriptionEn'
+      | 'category'
+      | 'durationMinutes'
+      | 'maxGroupSize'
+      | 'minAge'
+      | 'priceSar'
+      | 'placeName'
+      | 'city'
+      | 'region'
+      | 'inclusionsRaw'
+      | 'whatToBringRaw'
+      | 'cancellationTier'
+      | 'startTime'
+      | 'bookingCutoffHours'
+      | 'lat'
+      | 'lng',
+      string
+    >
+  > & { availabilityWeekdays?: string[] };
 }
 
 const SLUG_INSERT_MAX_RETRIES = 5;
@@ -73,6 +101,29 @@ function formValue(formData: FormData, key: string): string {
 
 function formValues(formData: FormData, key: string): string[] {
   return formData.getAll(key).filter((v): v is string => typeof v === 'string');
+}
+
+function collectValues(formData: FormData): NonNullable<HostExperienceState['values']> {
+  return {
+    titleEn: formValue(formData, 'titleEn'),
+    descriptionEn: formValue(formData, 'descriptionEn'),
+    category: formValue(formData, 'category'),
+    durationMinutes: formValue(formData, 'durationMinutes'),
+    maxGroupSize: formValue(formData, 'maxGroupSize'),
+    minAge: formValue(formData, 'minAge'),
+    priceSar: formValue(formData, 'priceSar'),
+    placeName: formValue(formData, 'placeName'),
+    city: formValue(formData, 'city'),
+    region: formValue(formData, 'region'),
+    inclusionsRaw: formValue(formData, 'inclusionsRaw'),
+    whatToBringRaw: formValue(formData, 'whatToBringRaw'),
+    cancellationTier: formValue(formData, 'cancellationTier'),
+    startTime: formValue(formData, 'startTime'),
+    bookingCutoffHours: formValue(formData, 'bookingCutoffHours'),
+    lat: formValue(formData, 'lat'),
+    lng: formValue(formData, 'lng'),
+    availabilityWeekdays: formValues(formData, 'availabilityWeekdays'),
+  };
 }
 
 function parseForm(formData: FormData) {
@@ -89,9 +140,10 @@ function parseForm(formData: FormData) {
     region: formValue(formData, 'region') || 'Aseer',
     inclusionsRaw: formValue(formData, 'inclusionsRaw'),
     whatToBringRaw: formValue(formData, 'whatToBringRaw'),
-    cancellationPolicy: formValue(formData, 'cancellationPolicy'),
+    cancellationTier: formValue(formData, 'cancellationTier'),
     availabilityWeekdays: formValues(formData, 'availabilityWeekdays'),
     startTime: formValue(formData, 'startTime'),
+    bookingCutoffHours: formValue(formData, 'bookingCutoffHours'),
     lat: formValue(formData, 'lat'),
     lng: formValue(formData, 'lng'),
     locale: formValue(formData, 'locale'),
@@ -152,9 +204,10 @@ function payloadForWrite(input: HostExperienceInput) {
     region: input.region,
     inclusions: input.inclusionsRaw,
     whatToBring: input.whatToBringRaw,
-    cancellationPolicy: input.cancellationPolicy,
+    cancellationTier: input.cancellationTier,
     availabilityWeekdays: input.availabilityWeekdays,
     startTime: input.startTime,
+    bookingCutoffHours: input.bookingCutoffHours,
     lat: input.lat,
     lng: input.lng,
   };
@@ -171,7 +224,12 @@ export async function createDraftExperience(
 
   const parsed = parseForm(formData);
   if (!parsed.success) {
-    return { success: false, message: 'validation', fields: collectFieldErrors(parsed) };
+    return {
+      success: false,
+      message: 'validation',
+      fields: collectFieldErrors(parsed),
+      values: collectValues(formData),
+    };
   }
   const input = parsed.data;
   const writePayload = payloadForWrite(input);
@@ -202,12 +260,12 @@ export async function createDraftExperience(
       const code = (error as { code?: string })?.code;
       if (code === '23505') continue;
       reportError(error, { surface: 'host-experiences:create' });
-      return { success: false, message: 'server' };
+      return { success: false, message: 'server', values: collectValues(formData) };
     }
   }
   if (!newId) {
     reportError(new Error('exhausted slug retries'), { surface: 'host-experiences:create' });
-    return { success: false, message: 'server' };
+    return { success: false, message: 'server', values: collectValues(formData) };
   }
 
   revalidatePath('/[locale]/host', 'page');
@@ -226,7 +284,12 @@ export async function updateHostExperience(
 
   const parsed = parseForm(formData);
   if (!parsed.success) {
-    return { success: false, message: 'validation', fields: collectFieldErrors(parsed) };
+    return {
+      success: false,
+      message: 'validation',
+      fields: collectFieldErrors(parsed),
+      values: collectValues(formData),
+    };
   }
   const input = parsed.data;
 
@@ -299,7 +362,7 @@ export async function updateHostExperience(
     }
   } catch (error) {
     reportError(error, { surface: 'host-experiences:update', experienceId });
-    return { success: false, message: 'server' };
+    return { success: false, message: 'server', values: collectValues(formData) };
   }
 
   revalidateExperienceCaches();
@@ -539,8 +602,10 @@ export async function duplicateHostExperience(
               inclusions: [...source.inclusions],
               whatToBring: [...source.whatToBring],
               cancellationPolicy: source.cancellationPolicy,
+              cancellationTier: source.cancellationTier,
               availabilityWeekdays: [...source.availabilityWeekdays],
               startTime: source.startTime,
+              bookingCutoffHours: source.bookingCutoffHours,
               bookingMode: source.bookingMode,
               // Same host, same partnership agreement — the rate carries over.
               commissionBps: source.commissionBps,

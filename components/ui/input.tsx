@@ -5,7 +5,7 @@ import { cn } from '@/lib/utils';
  * The visible focus ring is provided globally by :focus-visible
  * (app/globals.css); no shadow (BRIEF §3).
  */
-export type InputProps = React.InputHTMLAttributes<HTMLInputElement>;
+export type InputProps = React.ComponentProps<'input'>;
 
 export function Input({ className, type = 'text', ...props }: InputProps) {
   return (

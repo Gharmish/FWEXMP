@@ -28,6 +28,31 @@ export const ACTIVE_BOOKING_STATUSES = ['pending', 'confirmed', 'completed'] as 
 export const PAYMENT_HOLD_MINUTES = 30;
 
 /**
+ * How long before an experience's local start time it stops accepting new
+ * bookings. Owner decision 2026-07-11 (P0 — same-day past-start bookings
+ * were possible): 120 minutes, the least-restrictive value in the agreed
+ * 2–12h range. The hard floor is "never after start", which this subsumes.
+ * A single tunable knob today; promote to a platform setting if hosts ever
+ * need per-experience control.
+ */
+export const BOOKING_CUTOFF_MINUTES = 120;
+
+const TIME_RE = /^([0-2]\d):([0-5]\d)$/;
+
+/**
+ * Minutes since local midnight for an `HH:MM` string, or null if malformed.
+ * Used for the same-day booking cutoff — comparing wall-clock time-of-day
+ * within the experience's local day.
+ */
+export function minutesOfDay(hhmm: string): number | null {
+  const m = TIME_RE.exec(hhmm);
+  if (!m) return null;
+  const hours = Number(m[1]);
+  if (hours > 23) return null;
+  return hours * 60 + Number(m[2]);
+}
+
+/**
  * Has a payment hold expired? `deadline` is null for bookings that never
  * require online payment (request-to-book, payment-off) — those never expire.
  */
@@ -54,9 +79,26 @@ export interface BookableInput {
   blackoutDates: readonly string[];
   /** Dates closed to new bookings (existing honored). `YYYY-MM-DD`. */
   stopSellDates?: readonly string[];
+  /**
+   * Same-day cutoff inputs. Provide all three to close today's slot once
+   * we're within `cutoffMinutes` of (or past) the local start time. Omit
+   * them for day-granularity-only callers (e.g. host/admin month grids) —
+   * the cutoff is then skipped and only future days matter.
+   */
+  startTime?: string;
+  /** "Now" as minutes since local midnight, in the experience's local day. */
+  nowMinutes?: number;
+  /** Lead time before start, in minutes. Defaults to 0 when omitted. */
+  cutoffMinutes?: number;
 }
 
-export type BookableReason = 'malformed' | 'past' | 'closed_weekday' | 'blackout' | 'stop_sell';
+export type BookableReason =
+  | 'malformed'
+  | 'past'
+  | 'cutoff'
+  | 'closed_weekday'
+  | 'blackout'
+  | 'stop_sell';
 
 export type BookableResult = { ok: true } | { ok: false; reason: BookableReason };
 
@@ -73,6 +115,21 @@ export function isDateBookable(input: BookableInput): BookableResult {
   }
   // String compare is valid for ISO `YYYY-MM-DD` (lexicographic === chronological).
   if (input.dateStr < input.todayStr) return { ok: false, reason: 'past' };
+  // Same-day cutoff: a slot closes for new bookings once now is within
+  // `cutoffMinutes` of its local start time (which subsumes "past start").
+  // Only today's slot can be affected — a future day's start is always far
+  // enough out — so we gate on dateStr === todayStr and skip it entirely
+  // when the caller didn't supply time-of-day inputs.
+  if (
+    input.dateStr === input.todayStr &&
+    input.startTime !== undefined &&
+    input.nowMinutes !== undefined
+  ) {
+    const start = minutesOfDay(input.startTime);
+    if (start !== null && input.nowMinutes >= start - (input.cutoffMinutes ?? 0)) {
+      return { ok: false, reason: 'cutoff' };
+    }
+  }
   if (!input.availabilityWeekdays.includes(weekday)) {
     return { ok: false, reason: 'closed_weekday' };
   }
@@ -95,6 +152,25 @@ export function remainingCapacity(maxGroupSize: number, bookedPartyTotal: number
 }
 
 /** Add `n` whole days to a `YYYY-MM-DD` string (UTC-safe). */
+/** Today as `YYYY-MM-DD` in the experience's local day (KSA at launch). */
+export function todayInRiyadh(): string {
+  // en-CA renders ISO `YYYY-MM-DD`; the time zone pins it to the KSA day.
+  return new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Riyadh' }).format(new Date());
+}
+
+/** Current wall-clock time as minutes since midnight in the KSA day. */
+export function nowMinutesInRiyadh(): number {
+  // hourCycle h23 forces 00–23 (dodges the legacy '24' hour bug).
+  const hm = new Intl.DateTimeFormat('en-GB', {
+    timeZone: 'Asia/Riyadh',
+    hourCycle: 'h23',
+    hour: '2-digit',
+    minute: '2-digit',
+  }).format(new Date());
+  const [h, m] = hm.split(':').map(Number);
+  return h * 60 + m;
+}
+
 export function addDays(dateStr: string, n: number): string {
   const d = new Date(`${dateStr}T12:00:00Z`);
   d.setUTCDate(d.getUTCDate() + n);
@@ -120,6 +196,10 @@ export function bookableDates(input: {
   stopSellDates?: readonly string[];
   maxGroupSize: number;
   bookedByDate: Readonly<Record<string, number>>;
+  /** Same-day cutoff inputs — see `BookableInput`. Omit to skip the gate. */
+  startTime?: string;
+  nowMinutes?: number;
+  cutoffMinutes?: number;
 }): BookableDate[] {
   const out: BookableDate[] = [];
   for (let i = 0; i < input.days; i++) {
@@ -130,6 +210,9 @@ export function bookableDates(input: {
       availabilityWeekdays: input.availabilityWeekdays,
       blackoutDates: input.blackoutDates,
       stopSellDates: input.stopSellDates,
+      startTime: input.startTime,
+      nowMinutes: input.nowMinutes,
+      cutoffMinutes: input.cutoffMinutes,
     });
     if (!open.ok) continue;
     const remaining = remainingCapacity(input.maxGroupSize, input.bookedByDate[date] ?? 0);

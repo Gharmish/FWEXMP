@@ -1,6 +1,6 @@
 'use client';
 
-import { useActionState, useEffect, useId, useState } from 'react';
+import { useActionState, useCallback, useEffect, useId, useRef, useState } from 'react';
 import { useFormStatus } from 'react-dom';
 import { ArrowLeft } from 'lucide-react';
 import { motion, useReducedMotion } from 'framer-motion';
@@ -18,6 +18,7 @@ import {
   type RequestOtpState,
   type VerifyOtpState,
 } from '@/features/auth/actions';
+import { useWebOtp } from '@/features/auth/lib/use-web-otp';
 
 interface SignInCopy {
   methodPhone: string;
@@ -39,6 +40,8 @@ interface SignInCopy {
   verifySubmit: string;
   verifyPending: string;
   changeIdentifier: string;
+  resend: string;
+  resent: string;
   errors: {
     validation: string;
     invalidPhone: string;
@@ -58,6 +61,8 @@ export interface SignInFormProps {
 
 const initialRequestState: RequestOtpState = { success: false, stage: 'phone', method: 'phone' };
 const initialVerifyState: VerifyOtpState = { success: false, stage: 'code', method: 'phone' };
+
+const RESEND_COOLDOWN_MS = 30_000;
 
 function SubmitButton({ pendingCopy, submitCopy }: { pendingCopy: string; submitCopy: string }) {
   const { pending } = useFormStatus();
@@ -116,6 +121,8 @@ export function SignInForm({ locale, next, isStubMode, copy }: SignInFormProps) 
   const [method, setMethod] = useState<AuthMethod>('phone');
   const [email, setEmail] = useState<string>('');
   const [showPhoneStep, setShowPhoneStep] = useState<boolean>(false);
+  // Client-side resend cooldown (the server rate-limits independently).
+  const [resendCoolingDown, setResendCoolingDown] = useState(false);
 
   const requestFields = requestState.success ? undefined : requestState.fields;
   const requestMessage = requestState.success ? undefined : requestState.message;
@@ -125,6 +132,19 @@ export function SignInForm({ locale, next, isStubMode, copy }: SignInFormProps) 
 
   const stage: 'phone' | 'code' = requestState.success && !showPhoneStep ? 'code' : 'phone';
 
+  // One-tap OTP autofill. iOS fills via `autocomplete="one-time-code"`
+  // (suggestion above the keyboard); Android needs the WebOTP API. In
+  // both cases the form submits itself the moment a full 6-digit code
+  // lands, so tapping the suggestion is the only interaction.
+  const codeFormRef = useRef<HTMLFormElement>(null);
+  const codeInputRef = useRef<HTMLInputElement>(null);
+  const fillAndSubmitCode = useCallback((code: string) => {
+    const input = codeInputRef.current;
+    if (!input) return;
+    input.value = code;
+    codeFormRef.current?.requestSubmit();
+  }, []);
+
   const errorPrefix = useId();
   const phoneErrorId = `${errorPrefix}-phone-error`;
   const phoneHintId = `${errorPrefix}-phone-hint`;
@@ -132,6 +152,8 @@ export function SignInForm({ locale, next, isStubMode, copy }: SignInFormProps) 
   const emailHintId = `${errorPrefix}-email-hint`;
   const codeErrorId = `${errorPrefix}-code-error`;
   const codeHintId = `${errorPrefix}-code-hint`;
+
+  useWebOtp(stage === 'code' && method === 'phone', fillAndSubmitCode);
 
   useEffect(() => {
     if (stage === 'code') {
@@ -264,11 +286,19 @@ export function SignInForm({ locale, next, isStubMode, copy }: SignInFormProps) 
   }
 
   // ---------- stage 2: code ----------
-  const verifyMessage = verifyState.message === 'server' ? copy.errors.server : undefined;
+  // Every terminal verify failure must surface SOMETHING: invalid_code
+  // renders inline via fields.code, so the form-level slot covers the
+  // rest — a rate-limited verify previously rendered nothing at all.
+  const verifyMessage =
+    verifyState.message === 'rate_limited'
+      ? copy.errors.rateLimited
+      : verifyState.message === 'server'
+        ? copy.errors.server
+        : undefined;
 
   return (
     <StepTransition stepKey="code">
-      <form action={verifyAction} noValidate className="flex flex-col gap-5">
+      <form ref={codeFormRef} action={verifyAction} noValidate className="flex flex-col gap-5">
         <input type="hidden" name="locale" value={locale} />
         <input type="hidden" name="next" value={next} />
         <input type="hidden" name="method" value={method} />
@@ -297,6 +327,7 @@ export function SignInForm({ locale, next, isStubMode, copy }: SignInFormProps) 
             {copy.codeLabel}
           </label>
           <Input
+            ref={codeInputRef}
             id="auth-code"
             name="code"
             type="text"
@@ -306,6 +337,11 @@ export function SignInForm({ locale, next, isStubMode, copy }: SignInFormProps) 
             maxLength={6}
             required
             dir="ltr"
+            onChange={(e) => {
+              // Auto-submit on a complete code — this is what makes a
+              // tapped keyboard suggestion (iOS) or paste one-step.
+              if (/^\d{6}$/.test(e.target.value)) codeFormRef.current?.requestSubmit();
+            }}
             aria-invalid={verifyState.fields?.code ? 'true' : undefined}
             aria-describedby={
               `${codeHintId} ${verifyState.fields?.code ? codeErrorId : ''}`.trim() || undefined
@@ -322,6 +358,28 @@ export function SignInForm({ locale, next, isStubMode, copy }: SignInFormProps) 
             id={codeErrorId}
             message={verifyState.fields?.code ? copy.errors.invalidCode : undefined}
           />
+          {/* Recovery path when the code never arrives. `formAction` reuses
+              the request action through this form's hidden identifier
+              fields; `formNoValidate` skips the required-but-empty code
+              input. A resend that fails server-side flips requestState back
+              to failure, returning the user to stage 1 where that error
+              already renders. */}
+          <button
+            type="submit"
+            formAction={requestAction}
+            formNoValidate
+            disabled={resendCoolingDown}
+            onClick={() => {
+              setResendCoolingDown(true);
+              setTimeout(() => setResendCoolingDown(false), RESEND_COOLDOWN_MS);
+            }}
+            className="text-sarat-black inline-flex min-h-11 items-center self-start text-sm font-medium underline underline-offset-2 transition-opacity duration-200 hover:opacity-60 disabled:no-underline disabled:opacity-50"
+          >
+            {copy.resend}
+          </button>
+          <p aria-live="polite" className="text-sarat-black-600 text-sm">
+            {resendCoolingDown ? copy.resent : null}
+          </p>
         </div>
 
         {verifyMessage && (

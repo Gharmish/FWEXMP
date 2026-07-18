@@ -1,14 +1,67 @@
 'use client';
 
-import { useActionState, useId, useMemo, useRef, useState, type ReactNode } from 'react';
+import {
+  useActionState,
+  useId,
+  useMemo,
+  useRef,
+  useState,
+  useSyncExternalStore,
+  type ReactNode,
+} from 'react';
 import { useFormStatus } from 'react-dom';
 import { createCheckout, type CreateCheckoutState } from '@/features/payments/actions';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Price } from '@/components/ui/price';
 import type { Locale } from '@/lib/i18n';
 import { COUNTRIES, countryName } from '@/lib/phone';
 import { cn } from '@/lib/utils';
 import { PaymentWidget } from './payment-widget';
+
+declare global {
+  interface Window {
+    /** Safari-only. Presence (+ canMakePayments) gates the Apple Pay option. */
+    ApplePaySession?: { canMakePayments(): boolean };
+  }
+}
+
+/**
+ * Apple Pay lockup for the method choice — the official Apple glyph +
+ * "Pay" wordmark (same drawing as the footer's payment marks), inheriting
+ * the button's current text colour so it reads correctly on both the
+ * selected (black) and unselected (white) states of the control.
+ */
+function ApplePayLockup() {
+  return (
+    <span aria-hidden className="inline-flex items-center gap-0.5 leading-none">
+      <svg viewBox="0 0 24 24" fill="currentColor" focusable={false} className="h-4 w-auto">
+        <path d="M17.05 12.04c-.03-2.4 1.96-3.55 2.05-3.61-1.12-1.63-2.86-1.86-3.48-1.88-1.48-.15-2.89.87-3.64.87-.75 0-1.91-.85-3.14-.83-1.62.02-3.11.94-3.94 2.39-1.68 2.91-.43 7.22 1.2 9.58.8 1.16 1.75 2.46 3 2.41 1.2-.05 1.66-.78 3.11-.78 1.45 0 1.86.78 3.13.75 1.29-.02 2.11-1.18 2.9-2.34.91-1.34 1.29-2.64 1.31-2.71-.03-.01-2.51-.96-2.54-3.83zM14.7 5.36c.66-.8 1.11-1.92.99-3.03-.95.04-2.11.63-2.79 1.43-.61.71-1.15 1.85-1 2.94 1.06.08 2.14-.54 2.8-1.34z" />
+      </svg>
+      <span className="text-base font-medium">Pay</span>
+    </span>
+  );
+}
+
+/**
+ * Apple Pay device capability, hydration-safe: the server snapshot is
+ * `false` (SSR can't know), the client snapshot reads ApplePaySession
+ * once the store is subscribed — React re-renders with the real value
+ * after hydration without a setState-in-effect. The capability never
+ * changes within a page's lifetime, so the subscription is inert.
+ */
+const noopSubscribe = () => () => {};
+function detectApplePay(): boolean {
+  try {
+    return Boolean(window.ApplePaySession?.canMakePayments());
+  } catch {
+    // Some engines expose ApplePaySession but throw off-https.
+    return false;
+  }
+}
+function useApplePayAvailable(): boolean {
+  return useSyncExternalStore(noopSubscribe, detectApplePay, () => false);
+}
 
 export interface PaymentDetailsCopy {
   heading: string;
@@ -51,14 +104,27 @@ export interface PaymentDetailsCopy {
   termsLabel: ReactNode;
   /** Shown when the guest tries to pay without ticking the consent box. */
   termsRequired: string;
+  /**
+   * Concrete cancellation terms for THIS booking, formatted server-side —
+   * "Free cancellation until {deadline}…" or the inside-the-window
+   * warning. Sits next to the consent line so the linked policy has a
+   * plain-language anchor.
+   */
+  cancellationNote: string;
   payHeading: string;
+  /** Widget pay-button label with the charged amount, e.g. "Pay SAR 480". */
+  payAmount: string;
   widgetLoading: string;
   /** Shown if the HyperPay widget script fails to load. */
   widgetError: string;
   /** Retry action for the failed widget. */
   widgetRetry: string;
-  /** Divider between the Apple Pay button and the card form. */
-  orPayWithCard: string;
+  /** Payment-method choice (shown only on Apple Pay-capable devices). */
+  methodHeading: string;
+  methodApplePay: string;
+  methodCard: string;
+  /** Back-link under the mounted widget to the details step. */
+  changeMethod: string;
 }
 
 type DetailField =
@@ -96,10 +162,15 @@ const initialState: CreateCheckoutState = { status: 'idle' };
 
 function SubmitButton({
   copy,
+  totalSar,
+  locale,
   isAccepted,
   onBlocked,
 }: {
   copy: PaymentDetailsCopy;
+  /** Charged total — the CTA carries the amount (the summary card is screens away). */
+  totalSar: number;
+  locale: Locale;
   /** Reads the (uncontrolled) consent checkbox at click time. */
   isAccepted: () => boolean;
   /** Called when submit is attempted without consent — cancels the submit. */
@@ -123,7 +194,17 @@ function SubmitButton({
         }
       }}
     >
-      {pending ? copy.pending : copy.submit}
+      {pending ? (
+        copy.pending
+      ) : (
+        <>
+          {copy.submit}
+          <span aria-hidden className="opacity-50">
+            ·
+          </span>
+          <Price amount={totalSar} locale={locale} />
+        </>
+      )}
     </Button>
   );
 }
@@ -132,7 +213,15 @@ export interface PaymentDetailsFormProps {
   reference: string;
   locale: Locale;
   slug: string;
+  /** Charged total in SAR — shown on the submit CTA. */
+  totalSar: number;
   copy: PaymentDetailsCopy;
+  /**
+   * Server flag: the dedicated Apple Pay gateway entity is configured.
+   * The Apple Pay option renders only when this AND the device support
+   * it (ApplePaySession) hold.
+   */
+  applePayEnabled?: boolean;
   /**
    * Server-derived prefill (e.g. the booking's guest name). A failed-submit
    * server echo (`state.values`) always wins over these so the user never
@@ -145,7 +234,9 @@ export function PaymentDetailsForm({
   reference,
   locale,
   slug,
+  totalSar,
   copy,
+  applePayEnabled = false,
   defaults,
 }: PaymentDetailsFormProps) {
   const [state, formAction] = useActionState(createCheckout, initialState);
@@ -159,6 +250,15 @@ export function PaymentDetailsForm({
   // post-action form reset: its checked state is read from the DOM at submit
   // and re-defaulted from the server echo (`values.terms`) on a failed submit.
   const termsRef = useRef<HTMLInputElement>(null);
+
+  // The method control renders only when the entity is configured AND
+  // the device can pay. State holds just the explicit user choice; the
+  // default derives from availability, so Apple Pay leads on capable
+  // devices — mirroring the old layout where its button sat on top.
+  const deviceCanApplePay = useApplePayAvailable();
+  const applePayAvailable = applePayEnabled && deviceCanApplePay;
+  const [chosenMethod, setChosenMethod] = useState<'card' | 'applepay' | null>(null);
+  const method = chosenMethod ?? (applePayAvailable ? 'applepay' : 'card');
 
   // Show the consent error if the guest tried to submit without ticking
   // (client guard) or if a JS-less/tampered submit was rejected server-side.
@@ -175,17 +275,78 @@ export function PaymentDetailsForm({
     [locale],
   );
 
-  if (state.status === 'ready' && state.data) {
+  // Echoed submit values always win over the booking-derived prefill.
+  const fieldValue = (name: DetailField) => values[name] ?? defaults?.[name];
+
+  // Backing out of a mounted widget (checkout-audit P1: the widget step
+  // must not vaporize what the guest agreed to). "Edit" marks the current
+  // checkout dismissed and the details form re-renders — prefilled from
+  // the success echo — without a page reload. Re-submitting clears the
+  // dismissal BEFORE the action runs: a still-valid checkout is reused
+  // server-side (same id comes back), so the dismissal can't key off the
+  // id changing.
+  const [dismissedCheckoutId, setDismissedCheckoutId] = useState<string | null>(null);
+  const submitAction = (formData: FormData) => {
+    setDismissedCheckoutId(null);
+    formAction(formData);
+  };
+  const activeCheckout =
+    state.status === 'ready' && state.data && state.data.checkoutId !== dismissedCheckoutId
+      ? state.data
+      : null;
+
+  if (activeCheckout) {
     return (
       <div className="flex flex-col gap-4">
         <h2 className="font-display text-2xl font-medium tracking-[-0.025em]">{copy.payHeading}</h2>
+        {/* Who's paying, still on screen at the moment of payment — the
+            same recap card pattern as the details step. */}
+        <div className="border-sarat-black/8 rounded-input flex items-start justify-between gap-4 [border-width:0.5px] px-4 py-3">
+          <div className="flex min-w-0 flex-col gap-0.5 text-sm">
+            <span className="font-medium">
+              {fieldValue('givenName')} {fieldValue('surname')}
+            </span>
+            <span dir="ltr" className="text-sarat-black-600 truncate">
+              {fieldValue('email')}
+            </span>
+            <span className="text-sarat-black-600 truncate">
+              {[
+                fieldValue('street1'),
+                fieldValue('city'),
+                countryName(fieldValue('country') ?? 'SA', locale),
+              ]
+                .filter(Boolean)
+                .join(locale === 'ar' ? '، ' : ', ')}
+            </span>
+          </div>
+          <button
+            type="button"
+            onClick={() => setDismissedCheckoutId(activeCheckout.checkoutId)}
+            className="shrink-0 text-sm font-medium underline underline-offset-4 transition-opacity duration-200 hover:opacity-70"
+          >
+            {copy.editDetails}
+          </button>
+        </div>
         <PaymentWidget
-          checkout={state.data}
+          checkout={activeCheckout}
+          locale={locale}
+          payLabel={copy.payAmount}
           loadingLabel={copy.widgetLoading}
           errorLabel={copy.widgetError}
           retryLabel={copy.widgetRetry}
-          orCardLabel={copy.orPayWithCard}
         />
+        {applePayAvailable && (
+          // Back out of the chosen method (e.g. Apple Pay sheet won't
+          // open) — same dismissal path as Edit, straight to the method
+          // control on the details step.
+          <button
+            type="button"
+            onClick={() => setDismissedCheckoutId(activeCheckout.checkoutId)}
+            className="self-start text-sm font-medium underline underline-offset-4 transition-opacity duration-200 hover:opacity-70"
+          >
+            {copy.changeMethod}
+          </button>
+        )}
       </div>
     );
   }
@@ -202,9 +363,6 @@ export function PaymentDetailsForm({
           notApproved: copy.errorNotApproved,
         }[state.error ?? 'server']
       : undefined;
-
-  // Echoed submit values always win over the booking-derived prefill.
-  const fieldValue = (name: DetailField) => values[name] ?? defaults?.[name];
 
   // The identity block collapses to a summary row only when the booking
   // supplied all three values and none of them failed validation — a
@@ -250,7 +408,7 @@ export function PaymentDetailsForm({
   };
 
   return (
-    <form action={formAction} noValidate className="flex flex-col gap-6">
+    <form action={submitAction} noValidate className="flex flex-col gap-6">
       <input type="hidden" name="reference" value={reference} />
       <input type="hidden" name="locale" value={locale} />
       <input type="hidden" name="slug" value={slug} />
@@ -289,74 +447,122 @@ export function PaymentDetailsForm({
         )}
       </section>
 
-      <section className="flex flex-col gap-3" aria-label={copy.billingAddressHeading}>
-        <div className="flex flex-col gap-1">
-          <h3 className="text-base font-medium">{copy.billingAddressHeading}</h3>
-          <p className="text-sarat-black-600 text-sm">{copy.billingWhy}</p>
-        </div>
-        {addressCollapsed ? (
-          <div className="border-sarat-black/8 rounded-input flex items-center justify-between gap-4 [border-width:0.5px] px-4 py-3">
-            <div className="flex min-w-0 flex-col gap-0.5 text-sm">
-              <span className="font-medium">{fieldValue('street1')}</span>
-              <span className="text-sarat-black-600 truncate">
-                {[fieldValue('city'), fieldValue('postcode'), fieldValue('state')]
-                  .filter(Boolean)
-                  .join(', ')}
-              </span>
-              <span className="text-sarat-black-600 truncate">
-                {countryName(fieldValue('country') ?? 'SA', locale)}
-              </span>
-            </div>
+      {applePayAvailable && (
+        <section className="flex flex-col gap-3" aria-label={copy.methodHeading}>
+          <h3 className="text-base font-medium">{copy.methodHeading}</h3>
+          <div
+            role="radiogroup"
+            aria-label={copy.methodHeading}
+            className="border-sarat-black/8 rounded-input grid grid-cols-2 gap-1 [border-width:0.5px] p-1"
+          >
             <button
               type="button"
-              onClick={() => setEditingAddress(true)}
-              className="shrink-0 text-sm font-medium underline underline-offset-4 transition-opacity duration-200 hover:opacity-70"
-            >
-              {copy.editDetails}
-            </button>
-            {ADDRESS_FIELDS.map((f) => (
-              <input key={f.name} type="hidden" name={f.name} value={fieldValue(f.name) ?? ''} />
-            ))}
-            <input type="hidden" name="country" value={fieldValue('country') ?? 'SA'} />
-          </div>
-        ) : (
-          <div className="grid gap-4 sm:grid-cols-2">
-            {renderTextField(ADDRESS_FIELDS[0], { span2: true })}
-            {renderTextField(ADDRESS_FIELDS[1])}
-            {renderTextField(ADDRESS_FIELDS[2])}
-            {renderTextField(ADDRESS_FIELDS[3], { optional: true })}
-
-            <div className="flex flex-col gap-2">
-              <label htmlFor="pay-country" className="text-sm font-medium">
-                {copy.country}
-              </label>
-              <select
-                id="pay-country"
-                name="country"
-                autoComplete="country"
-                required
-                defaultValue={values.country ?? defaults?.country ?? 'SA'}
-                aria-invalid={state.fields?.country ? true : undefined}
-                className={cn(
-                  'rounded-input border-sarat-black/20 text-sarat-black h-11 w-full [border-width:0.5px] bg-white px-4 text-base',
-                  'aria-invalid:border-al-qatt-red',
-                )}
-              >
-                {countryOptions.map((c) => (
-                  // The localized name can differ between server and browser ICU
-                  // builds; the value (alpha-2) is stable, so suppress the warning.
-                  <option key={c.iso} value={c.iso} suppressHydrationWarning>
-                    {c.name}
-                  </option>
-                ))}
-              </select>
-              {state.fields?.country && (
-                <p className="text-al-qatt-red-800 text-sm">{copy.invalid.country}</p>
+              role="radio"
+              aria-checked={method === 'applepay'}
+              aria-label={copy.methodApplePay}
+              onClick={() => setChosenMethod('applepay')}
+              className={cn(
+                'rounded-input flex h-10 items-center justify-center transition-colors duration-200',
+                method === 'applepay'
+                  ? 'bg-sarat-black text-white'
+                  : 'text-sarat-black-600 hover:text-sarat-black',
               )}
-            </div>
+            >
+              <ApplePayLockup />
+            </button>
+            <button
+              type="button"
+              role="radio"
+              aria-checked={method === 'card'}
+              onClick={() => setChosenMethod('card')}
+              className={cn(
+                'rounded-input h-10 text-sm font-medium transition-colors duration-200',
+                method === 'card'
+                  ? 'bg-sarat-black text-white'
+                  : 'text-sarat-black-600 hover:text-sarat-black',
+              )}
+            >
+              {copy.methodCard}
+            </button>
           </div>
-        )}
-      </section>
+        </section>
+      )}
+
+      {/* Apple Pay needs no billing address — the wallet carries it and the
+          gateway accepts an address-less checkout on the Apple Pay entity.
+          The section (and its inputs) unmounts entirely so nothing stale
+          posts; the server schema only mandates the address for cards. */}
+      {method !== 'applepay' && (
+        <section className="flex flex-col gap-3" aria-label={copy.billingAddressHeading}>
+          <div className="flex flex-col gap-1">
+            <h3 className="text-base font-medium">{copy.billingAddressHeading}</h3>
+            <p className="text-sarat-black-600 text-sm">{copy.billingWhy}</p>
+          </div>
+          {addressCollapsed ? (
+            <div className="border-sarat-black/8 rounded-input flex items-center justify-between gap-4 [border-width:0.5px] px-4 py-3">
+              <div className="flex min-w-0 flex-col gap-0.5 text-sm">
+                <span className="font-medium">{fieldValue('street1')}</span>
+                <span className="text-sarat-black-600 truncate">
+                  {[fieldValue('city'), fieldValue('postcode'), fieldValue('state')]
+                    .filter(Boolean)
+                    .join(', ')}
+                </span>
+                <span className="text-sarat-black-600 truncate">
+                  {countryName(fieldValue('country') ?? 'SA', locale)}
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setEditingAddress(true)}
+                className="shrink-0 text-sm font-medium underline underline-offset-4 transition-opacity duration-200 hover:opacity-70"
+              >
+                {copy.editDetails}
+              </button>
+              {ADDRESS_FIELDS.map((f) => (
+                <input key={f.name} type="hidden" name={f.name} value={fieldValue(f.name) ?? ''} />
+              ))}
+              <input type="hidden" name="country" value={fieldValue('country') ?? 'SA'} />
+            </div>
+          ) : (
+            <div className="grid gap-4 sm:grid-cols-2">
+              {renderTextField(ADDRESS_FIELDS[0], { span2: true })}
+              {renderTextField(ADDRESS_FIELDS[1])}
+              {renderTextField(ADDRESS_FIELDS[2])}
+              {renderTextField(ADDRESS_FIELDS[3], { optional: true })}
+
+              <div className="flex flex-col gap-2">
+                <label htmlFor="pay-country" className="text-sm font-medium">
+                  {copy.country}
+                </label>
+                <select
+                  id="pay-country"
+                  name="country"
+                  autoComplete="country"
+                  required
+                  defaultValue={values.country ?? defaults?.country ?? 'SA'}
+                  aria-invalid={state.fields?.country ? true : undefined}
+                  className={cn(
+                    'rounded-input border-sarat-black/20 text-sarat-black h-11 w-full [border-width:0.5px] bg-white px-4 text-base',
+                    'aria-invalid:border-al-qatt-red',
+                  )}
+                >
+                  {countryOptions.map((c) => (
+                    // The localized name can differ between server and browser ICU
+                    // builds; the value (alpha-2) is stable, so suppress the warning.
+                    <option key={c.iso} value={c.iso} suppressHydrationWarning>
+                      {c.name}
+                    </option>
+                  ))}
+                </select>
+                {state.fields?.country && (
+                  <p className="text-al-qatt-red-800 text-sm">{copy.invalid.country}</p>
+                )}
+              </div>
+            </div>
+          )}
+        </section>
+      )}
+      <input type="hidden" name="method" value={applePayAvailable ? method : 'card'} />
 
       {formError && (
         <p id={errorId} role="alert" className="text-al-qatt-red-800 text-sm">
@@ -365,6 +571,9 @@ export function PaymentDetailsForm({
       )}
 
       <div className="flex flex-col gap-2">
+        {/* The concrete terms for THIS booking, right where the guest
+            consents to the linked cancellation policy. */}
+        <p className="text-sarat-black-600 text-sm leading-relaxed">{copy.cancellationNote}</p>
         <label className="flex cursor-pointer items-start gap-3">
           <input
             ref={termsRef}
@@ -376,7 +585,10 @@ export function PaymentDetailsForm({
             }}
             aria-invalid={termsError ? true : undefined}
             aria-describedby={termsError ? termsErrorId : undefined}
-            className="border-sarat-black/40 accent-sarat-black mt-0.5 size-5 shrink-0"
+            // Native checkboxes ignore border utilities — the error state
+            // is a ring, so the fix-it target is visible, not just the
+            // message below (WCAG 3.3.1: identify the errored control).
+            className="border-sarat-black/40 accent-sarat-black aria-invalid:ring-al-qatt-red mt-0.5 size-5 shrink-0 aria-invalid:ring-2 aria-invalid:ring-offset-1"
           />
           <span className="text-sm leading-relaxed">{copy.termsLabel}</span>
         </label>
@@ -389,6 +601,8 @@ export function PaymentDetailsForm({
 
       <SubmitButton
         copy={copy}
+        totalSar={totalSar}
+        locale={locale}
         isAccepted={() => termsRef.current?.checked ?? false}
         onBlocked={() => {
           setConsentBlocked(true);

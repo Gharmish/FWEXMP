@@ -5,7 +5,7 @@ import { getTranslations } from 'next-intl/server';
 import { db } from '@/lib/db';
 import { hasEmail } from '@/lib/env';
 import type { Locale } from '@/lib/i18n';
-import { sendEmail } from '@/lib/email';
+import { dispatchNotification } from '@/lib/notifications/dispatch';
 import { SITE_URL } from '@/lib/site';
 import { renderReceiptEmail } from '@/features/bookings/lib/booking-email-render';
 
@@ -43,5 +43,10 @@ export async function sendHostRepliedEmail(reviewId: string): Promise<void> {
     closing: t('repliedClosing'),
     footer: t('footer'),
   });
-  await sendEmail({ to: review.guest.email, subject: t('repliedSubject'), html, text });
+  await dispatchNotification({
+    type: 'review_replied',
+    dedupeKey: `review_replied:${reviewId}`,
+    recipient: { kind: 'guest', email: review.guest.email, locale },
+    email: { subject: t('repliedSubject'), html, text },
+  });
 }
