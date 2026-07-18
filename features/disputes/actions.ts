@@ -1,6 +1,6 @@
 'use server';
 
-import { and, eq } from 'drizzle-orm';
+import { and, eq, gte, sql } from 'drizzle-orm';
 import { revalidatePath } from 'next/cache';
 import { db } from '@/lib/db';
 import { serverEnv } from '@/lib/env';
@@ -25,12 +25,32 @@ export type CreateDisputeState =
   | { success: true }
   | {
       success: false;
-      message?: 'no_db' | 'not_found' | 'already_open' | 'validation' | 'server';
+      message?: 'no_db' | 'not_found' | 'already_open' | 'throttled' | 'validation' | 'server';
     };
+
+/**
+ * Dispute-spam throttle (same posture as the review throttle, 2026-07
+ * audit M1). One OPEN dispute per booking is the hard gate, but a guest
+ * holding several bookings — or ping-ponging resolve→refile on one —
+ * could still flood the queue and the alert inbox. Generous enough
+ * that no honest guest ever sees it.
+ */
+const MAX_DISPUTES_PER_GUEST_PER_HOUR = 5;
+const DISPUTE_THROTTLE_WINDOW_MS = 60 * 60 * 1000;
 
 function formValue(formData: FormData, key: string): string {
   const value = formData.get(key);
   return typeof value === 'string' ? value : '';
+}
+
+/**
+ * postgres.js surfaces unique violations as code 23505 with the
+ * constraint name; matched by name (like the booking idempotency
+ * catch) so an unrelated collision still reports as 'server'.
+ */
+function isOpenDisputeCollision(error: unknown): boolean {
+  const pg = error as { code?: unknown; constraint_name?: unknown };
+  return pg?.code === '23505' && pg?.constraint_name === 'disputes_one_open_per_booking';
 }
 
 export async function createDispute(
@@ -40,23 +60,24 @@ export async function createDispute(
   const parsed = createDisputeSchema.safeParse({
     reference: formValue(formData, 'reference'),
     message: formValue(formData, 'message'),
-    locale: formValue(formData, 'locale'),
   });
   if (!parsed.success) return { success: false, message: 'validation' };
   const { reference, message } = parsed.data;
 
   if (!serverEnv.DATABASE_URL) return { success: false, message: 'no_db' };
 
+  let referenceCode: string;
   try {
     const booking = await db.query.bookings.findFirst({
       where: eq(bookings.idempotencyKey, reference),
-      columns: { id: true, guestId: true },
+      columns: { id: true, guestId: true, referenceCode: true },
     });
     if (!booking) return { success: false, message: 'not_found' };
     if (!(await bookingViewerCanAccess(reference, booking.guestId))) {
       // Indistinguishable from missing — references can't be probed.
       return { success: false, message: 'not_found' };
     }
+    referenceCode = booking.referenceCode;
 
     const open = await db.query.disputes.findFirst({
       where: and(eq(disputes.bookingId, booking.id), eq(disputes.status, 'open')),
@@ -64,19 +85,37 @@ export async function createDispute(
     });
     if (open) return { success: false, message: 'already_open' };
 
+    const [{ recentByGuest }] = await db
+      .select({ recentByGuest: sql<number>`count(*)::int` })
+      .from(disputes)
+      .where(
+        and(
+          eq(disputes.guestId, booking.guestId),
+          gte(disputes.createdAt, new Date(Date.now() - DISPUTE_THROTTLE_WINDOW_MS)),
+        ),
+      );
+    if (recentByGuest >= MAX_DISPUTES_PER_GUEST_PER_HOUR) {
+      return { success: false, message: 'throttled' };
+    }
+
     await db.insert(disputes).values({
       bookingId: booking.id,
       guestId: booking.guestId,
       message,
     });
   } catch (error) {
+    // The partial unique index closes the pre-check's race window: the
+    // loser of two concurrent submits lands here, not on a second row.
+    if (isOpenDisputeCollision(error)) return { success: false, message: 'already_open' };
     reportError(error, { surface: 'disputes:create', reference });
     return { success: false, message: 'server' };
   }
 
   // "A real person in Abha will reply" only works if a real person
   // hears about it — alert the team inbox. Best-effort, never blocks.
-  await notifyAdmin('dispute_opened', { reference });
+  // The GH- code, not the UUID capability: it's what /admin/bookings
+  // and every guest-facing surface call the booking.
+  await notifyAdmin('dispute_opened', { reference: referenceCode });
 
   revalidatePath('/[locale]/admin/disputes', 'page');
   return { success: true };
@@ -84,7 +123,10 @@ export async function createDispute(
 
 export type ResolveDisputeState =
   | { success: true }
-  | { success: false; message?: 'forbidden' | 'no_db' | 'not_found' | 'wrong_state' | 'server' };
+  | {
+      success: false;
+      message?: 'forbidden' | 'no_db' | 'not_found' | 'wrong_state' | 'validation' | 'server';
+    };
 
 export async function resolveDispute(
   _previous: ResolveDisputeState,
@@ -98,7 +140,12 @@ export async function resolveDispute(
     disputeId: formValue(formData, 'disputeId'),
     adminNotes: formValue(formData, 'adminNotes') || undefined,
   });
-  if (!parsed.success) return { success: false, message: 'not_found' };
+  if (!parsed.success) {
+    // Over-long notes are the admin's fixable mistake — say so instead
+    // of the misleading not_found a tampered/missing id gets.
+    const notesTooLong = parsed.error.issues.some((issue) => issue.path[0] === 'adminNotes');
+    return { success: false, message: notesTooLong ? 'validation' : 'not_found' };
+  }
   const { disputeId, adminNotes } = parsed.data;
 
   try {

@@ -10,7 +10,6 @@ export const DISPUTE_MESSAGE_MAX = 2000;
 export const createDisputeSchema = z.object({
   reference: z.string().uuid(),
   message: z.string().trim().min(10).max(DISPUTE_MESSAGE_MAX),
-  locale: z.enum(['en', 'ar']),
 });
 
 export const resolveDisputeSchema = z.object({

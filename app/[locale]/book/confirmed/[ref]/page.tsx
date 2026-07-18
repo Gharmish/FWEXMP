@@ -642,7 +642,6 @@ export default async function BookingConfirmedPage({ params, searchParams }: Pag
           ) : (
             <ReportProblemForm
               reference={ref}
-              locale={loc}
               copy={{
                 summary: t('dispute.summary'),
                 label: t('dispute.label'),
@@ -654,6 +653,7 @@ export default async function BookingConfirmedPage({ params, searchParams }: Pag
                   no_db: t('dispute.errors.noDb'),
                   not_found: t('dispute.errors.notFound'),
                   already_open: t('dispute.errors.alreadyOpen'),
+                  throttled: t('dispute.errors.throttled'),
                   validation: t('dispute.errors.validation'),
                   server: t('dispute.errors.server'),
                 },

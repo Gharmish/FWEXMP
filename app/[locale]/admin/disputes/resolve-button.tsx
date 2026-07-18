@@ -11,7 +11,10 @@ interface Copy {
   pending: string;
   confirmTitle: string;
   confirmBody: string;
-  errors: Record<'forbidden' | 'no_db' | 'not_found' | 'wrong_state' | 'server', string>;
+  errors: Record<
+    'forbidden' | 'no_db' | 'not_found' | 'wrong_state' | 'validation' | 'server',
+    string
+  >;
 }
 
 export interface ResolveDisputeButtonProps {

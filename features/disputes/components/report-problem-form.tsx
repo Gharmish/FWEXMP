@@ -2,7 +2,6 @@
 
 import { useActionState } from 'react';
 import { useFormStatus } from 'react-dom';
-import type { Locale } from '@/lib/i18n';
 import { Button } from '@/components/ui/button';
 import { createDispute, type CreateDisputeState } from '@/features/disputes/actions';
 import { DISPUTE_MESSAGE_MAX } from '@/features/disputes/schemas';
@@ -14,12 +13,14 @@ interface Copy {
   submit: string;
   pending: string;
   success: string;
-  errors: Record<'no_db' | 'not_found' | 'already_open' | 'validation' | 'server', string>;
+  errors: Record<
+    'no_db' | 'not_found' | 'already_open' | 'throttled' | 'validation' | 'server',
+    string
+  >;
 }
 
 export interface ReportProblemFormProps {
   reference: string;
-  locale: Locale;
   copy: Copy;
 }
 
@@ -34,7 +35,7 @@ function Submit({ copy }: { copy: Copy }) {
   );
 }
 
-export function ReportProblemForm({ reference, locale, copy }: ReportProblemFormProps) {
+export function ReportProblemForm({ reference, copy }: ReportProblemFormProps) {
   const [state, action] = useActionState(createDispute, initialState);
 
   if (state.success) {
@@ -57,7 +58,6 @@ export function ReportProblemForm({ reference, locale, copy }: ReportProblemForm
       </summary>
       <form action={action} className="mt-3 flex flex-col gap-2">
         <input type="hidden" name="reference" value={reference} />
-        <input type="hidden" name="locale" value={locale} />
         <label htmlFor="dispute-message" className="text-sm font-medium">
           {copy.label}
         </label>

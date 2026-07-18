@@ -10,6 +10,7 @@ import {
   text,
   timestamp,
   unique,
+  uniqueIndex,
   uuid,
 } from 'drizzle-orm/pg-core';
 
@@ -988,12 +989,15 @@ export const disputes = pgTable(
   'disputes',
   {
     id: uuid().defaultRandom().primaryKey(),
+    // RESTRICT, not cascade (matches payment_events): a complaint trail
+    // can justify refunds — deleting the booking or guest must not
+    // silently erase it.
     bookingId: uuid()
       .notNull()
-      .references(() => bookings.id, { onDelete: 'cascade' }),
+      .references(() => bookings.id, { onDelete: 'restrict' }),
     guestId: uuid()
       .notNull()
-      .references(() => guests.id, { onDelete: 'cascade' }),
+      .references(() => guests.id, { onDelete: 'restrict' }),
     /** The guest's own words. Free text, length-capped in the action. */
     message: text().notNull(),
     status: disputeStatusEnum().notNull().default('open'),
@@ -1009,6 +1013,12 @@ export const disputes = pgTable(
     index('disputes_status_created_idx').on(t.status, t.createdAt),
     // "Has this booking been reported already?" on the guest page.
     index('disputes_booking_idx').on(t.bookingId),
+    // One OPEN dispute per booking — the DB-level backstop for the
+    // check-then-insert in createDispute (two tabs / a network retry
+    // would otherwise both pass the pre-check).
+    uniqueIndex('disputes_one_open_per_booking')
+      .on(t.bookingId)
+      .where(sql`status = 'open'`),
   ],
 );
 

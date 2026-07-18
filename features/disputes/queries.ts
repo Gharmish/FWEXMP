@@ -5,6 +5,7 @@ import { bookings, disputes, experiences, guests } from '@/db/schema';
 import { reportError } from '@/lib/log';
 import { getCurrentUser } from '@/features/auth/queries';
 import { isAdminUser } from '@/features/admin/auth';
+import { authKey, guestKey } from '@/features/admin/users/lib/keys';
 
 /**
  * Dispute reads. The admin queue is the only list surface; the guest
@@ -19,19 +20,25 @@ export interface AdminDisputeRow {
   adminNotes: string | null;
   createdAt: string;
   resolvedAt: string | null;
+  bookingId: string;
   bookingReference: string;
   bookingDate: string;
   experienceTitleEn: string;
+  experienceTitleAr: string;
   experienceSlug: string;
   guestName: string;
   guestPhone: string | null;
+  /** User-360 key: auth_<id> for claimed accounts, guest_<id> otherwise. */
+  guestPersonKey: string;
 }
 
-const DISPUTES_LIST_LIMIT = 500;
+export const DISPUTES_LIST_LIMIT = 500;
 
-export async function listDisputesForAdmin(): Promise<readonly AdminDisputeRow[]> {
+/** Null = no database configured (page shows the noDb notice, not "all clear"). */
+export async function listDisputesForAdmin(): Promise<readonly AdminDisputeRow[] | null> {
   const user = await getCurrentUser();
-  if (!isAdminUser(user) || !serverEnv.DATABASE_URL) return [];
+  if (!isAdminUser(user)) return [];
+  if (!serverEnv.DATABASE_URL) return null;
   try {
     const rows = await db
       .select({
@@ -41,12 +48,18 @@ export async function listDisputesForAdmin(): Promise<readonly AdminDisputeRow[]
         adminNotes: disputes.adminNotes,
         createdAt: disputes.createdAt,
         resolvedAt: disputes.resolvedAt,
-        bookingReference: bookings.idempotencyKey,
+        bookingId: bookings.id,
+        // The GH- display code — what /admin/bookings and the guest's
+        // email call it; the UUID capability stays out of admin chrome.
+        bookingReference: bookings.referenceCode,
         bookingDate: bookings.date,
         experienceTitleEn: experiences.titleEn,
+        experienceTitleAr: experiences.titleAr,
         experienceSlug: experiences.slug,
         guestName: guests.name,
         guestPhone: guests.phone,
+        guestId: guests.id,
+        guestAuthUserId: guests.authUserId,
       })
       .from(disputes)
       .innerJoin(bookings, eq(disputes.bookingId, bookings.id))
@@ -54,10 +67,11 @@ export async function listDisputesForAdmin(): Promise<readonly AdminDisputeRow[]
       .innerJoin(guests, eq(disputes.guestId, guests.id))
       .orderBy(desc(disputes.createdAt))
       .limit(DISPUTES_LIST_LIMIT);
-    return rows.map((row) => ({
+    return rows.map(({ guestId, guestAuthUserId, ...row }) => ({
       ...row,
       createdAt: row.createdAt.toISOString(),
       resolvedAt: row.resolvedAt ? row.resolvedAt.toISOString() : null,
+      guestPersonKey: guestAuthUserId ? authKey(guestAuthUserId) : guestKey(guestId),
     }));
   } catch (error) {
     // Rethrow — errors go to the admin boundary, not the empty state.

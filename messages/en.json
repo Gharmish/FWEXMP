@@ -933,6 +933,7 @@
       "openHeading": "Open",
       "openEmpty": "Nothing waiting on you.",
       "resolvedHeading": "Resolved",
+      "truncated": "Showing the latest {count} reports — older ones are not listed.",
       "resolutionNotes": "Resolution notes",
       "notesLabel": "Resolution notes (internal)",
       "notesPlaceholder": "What was done — refund issued, host contacted…",
@@ -954,6 +955,7 @@
         "noDb": "The database isn't configured in this environment.",
         "notFound": "We couldn't find that report.",
         "wrongState": "This report changed in another tab. Refresh to see its current state.",
+        "validation": "Notes are too long — keep them under 2,000 characters.",
         "server": "Something went wrong on our side. Try again."
       }
     },
@@ -2400,6 +2402,7 @@
         "noDb": "We couldn't send your report — try again in a moment.",
         "notFound": "We couldn't find that booking.",
         "alreadyOpen": "There's already an open report on this booking — our team is on it.",
+        "throttled": "You've sent several reports in a short time. Please try again in a little while.",
         "validation": "Write at least 10 characters so we can understand the issue.",
         "server": "Something went wrong on our side. Try again."
       }

@@ -7,7 +7,8 @@ import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 import { EmptyState } from '@/components/ui/empty-state';
 import { formatDate } from '@/lib/format';
-import { listDisputesForAdmin } from '@/features/disputes/queries';
+import { pickLocalized } from '@/lib/ar-placeholder';
+import { DISPUTES_LIST_LIMIT, listDisputesForAdmin } from '@/features/disputes/queries';
 import { ResolveDisputeButton } from '@/app/[locale]/admin/disputes/resolve-button';
 
 export async function generateMetadata({
@@ -32,8 +33,8 @@ export default async function AdminDisputesPage({
   const loc = locale as Locale;
 
   const [t, rows] = await Promise.all([getTranslations('admin'), listDisputesForAdmin()]);
-  const open = rows.filter((r) => r.status === 'open');
-  const resolved = rows.filter((r) => r.status === 'resolved');
+  const open = (rows ?? []).filter((r) => r.status === 'open');
+  const resolved = (rows ?? []).filter((r) => r.status === 'resolved');
 
   const eyebrowClassName = cn(
     'text-sarat-black-600 text-[11px]',
@@ -52,11 +53,12 @@ export default async function AdminDisputesPage({
       no_db: t('disputes.errors.noDb'),
       not_found: t('disputes.errors.notFound'),
       wrong_state: t('disputes.errors.wrongState'),
+      validation: t('disputes.errors.validation'),
       server: t('disputes.errors.server'),
     },
   };
 
-  const renderRow = (row: (typeof rows)[number]) => (
+  const renderRow = (row: NonNullable<typeof rows>[number]) => (
     <li
       key={row.id}
       className="border-sarat-black/8 rounded-card flex flex-col gap-3 [border-width:0.5px] p-6"
@@ -66,7 +68,7 @@ export default async function AdminDisputesPage({
           href={`/experiences/${row.experienceSlug}`}
           className="text-sarat-black text-base font-medium underline-offset-4 hover:underline"
         >
-          {row.experienceTitleEn}
+          {pickLocalized(loc, row.experienceTitleEn, row.experienceTitleAr)}
         </Link>
         <Badge
           className={
@@ -79,19 +81,34 @@ export default async function AdminDisputesPage({
         </Badge>
       </div>
       <div className="text-sarat-black-600 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
-        <span>{row.guestName}</span>
+        <Link
+          href={`/admin/users/${row.guestPersonKey}`}
+          className="underline-offset-4 hover:underline"
+        >
+          {row.guestName}
+        </Link>
         {row.guestPhone && (
           <>
             <span aria-hidden>·</span>
-            <span dir="ltr">{row.guestPhone}</span>
+            <a
+              href={`tel:${row.guestPhone}`}
+              dir="ltr"
+              className="underline-offset-4 hover:underline"
+            >
+              {row.guestPhone}
+            </a>
           </>
         )}
         <span aria-hidden>·</span>
         <span>{formatDate(new Date(row.bookingDate), loc)}</span>
         <span aria-hidden>·</span>
-        <span className="font-mono text-[11px]" dir="ltr">
+        <Link
+          href={`/admin/bookings/${row.bookingId}`}
+          className="font-mono text-[11px] underline-offset-4 hover:underline"
+          dir="ltr"
+        >
           {row.bookingReference}
-        </span>
+        </Link>
         <span aria-hidden>·</span>
         <span>{t('disputes.filedOn', { date: formatDate(new Date(row.createdAt), loc) })}</span>
       </div>
@@ -132,7 +149,16 @@ export default async function AdminDisputesPage({
         </p>
       </div>
 
-      {rows.length === 0 ? (
+      {rows === null ? (
+        // No DB configured — an explicit notice, never a reassuring "all clear".
+        <div className="border-sarat-black/8 rounded-card flex flex-col items-start gap-4 [border-width:0.5px] p-10">
+          <p className={eyebrowClassName}>{t('noDb.eyebrow')}</p>
+          <h2 className="font-display text-2xl font-medium tracking-[-0.025em]">
+            {t('noDb.title')}
+          </h2>
+          <p className="text-sarat-black-600 max-w-xl text-base">{t('noDb.description')}</p>
+        </div>
+      ) : rows.length === 0 ? (
         <EmptyState
           icon={LifeBuoy}
           eyebrow={t('disputes.empty.eyebrow')}
@@ -163,6 +189,11 @@ export default async function AdminDisputesPage({
               </h2>
               <ul className="flex flex-col gap-4">{resolved.map(renderRow)}</ul>
             </section>
+          )}
+          {rows.length >= DISPUTES_LIST_LIMIT && (
+            <p className="text-sarat-black-600 text-sm">
+              {t('disputes.truncated', { count: DISPUTES_LIST_LIMIT })}
+            </p>
           )}
         </>
       )}
