@@ -1,5 +1,6 @@
 import { and, asc, eq, isNotNull, sql } from 'drizzle-orm';
 import { db } from '@/lib/db';
+import { boundedQuery } from '@/lib/deadline';
 import { serverEnv } from '@/lib/env';
 import { reportError } from '@/lib/log';
 import type { Host } from '@/db/schema';
@@ -39,9 +40,11 @@ export async function getHostBySlug(slug: string): Promise<HostProfile | undefin
   // Public profile pages are verified-only: a pending host isn't part of
   // the curated marketplace yet, and a suspended host must not keep a
   // public storefront while under review.
-  const row = await db.query.hosts.findFirst({
-    where: (h) => and(eq(h.slug, slug), eq(h.verificationStatus, 'verified')),
-  });
+  const row = await boundedQuery('hosts:bySlug', () =>
+    db.query.hosts.findFirst({
+      where: (h) => and(eq(h.slug, slug), eq(h.verificationStatus, 'verified')),
+    }),
+  );
   return row ? toProfile(row) : undefined;
 }
 
@@ -65,20 +68,22 @@ const RESPONSE_STATS_MIN_REQUESTS = 3;
 export async function getHostResponseStats(slug: string): Promise<HostResponseStats | null> {
   if (!hasDb()) return null;
   try {
-    const [row] = await db
-      .select({
-        answered: sql<number>`count(*) filter (where ${bookings.approvedAt} is not null or ${bookings.status} = 'declined')::int`,
-        expired: sql<number>`count(*) filter (where ${bookings.status} = 'expired')::int`,
-        avgHours: sql<
-          string | null
-        >`avg(extract(epoch from (${bookings.approvedAt} - ${bookings.createdAt})) / 3600.0) filter (where ${bookings.approvedAt} is not null)`,
-      })
-      .from(bookings)
-      .innerJoin(experiences, eq(bookings.experienceId, experiences.id))
-      .innerJoin(hosts, eq(experiences.hostId, hosts.id))
-      // approvalDeadline marks request-mode bookings; instant bookings
-      // never enter the approval funnel and must not skew the stats.
-      .where(and(eq(hosts.slug, slug), isNotNull(bookings.approvalDeadline)));
+    const [row] = await boundedQuery('hosts:responseStats', () =>
+      db
+        .select({
+          answered: sql<number>`count(*) filter (where ${bookings.approvedAt} is not null or ${bookings.status} = 'declined')::int`,
+          expired: sql<number>`count(*) filter (where ${bookings.status} = 'expired')::int`,
+          avgHours: sql<
+            string | null
+          >`avg(extract(epoch from (${bookings.approvedAt} - ${bookings.createdAt})) / 3600.0) filter (where ${bookings.approvedAt} is not null)`,
+        })
+        .from(bookings)
+        .innerJoin(experiences, eq(bookings.experienceId, experiences.id))
+        .innerJoin(hosts, eq(experiences.hostId, hosts.id))
+        // approvalDeadline marks request-mode bookings; instant bookings
+        // never enter the approval funnel and must not skew the stats.
+        .where(and(eq(hosts.slug, slug), isNotNull(bookings.approvalDeadline))),
+    );
 
     const answered = row?.answered ?? 0;
     const total = answered + (row?.expired ?? 0);
@@ -115,10 +120,12 @@ async function fetchVerifiedHosts(): Promise<readonly HostProfile[]> {
   // pending review (or suspended after a complaint) must never be
   // featured as part of the curated roster. (`?? []` guards the rare case
   // where an interrupted pooled connection resolves without rows.)
-  const rows = await db.query.hosts.findMany({
-    where: (h) => eq(h.verificationStatus, 'verified'),
-    orderBy: (h) => asc(h.createdAt),
-  });
+  const rows = await boundedQuery('hosts:verified', () =>
+    db.query.hosts.findMany({
+      where: (h) => eq(h.verificationStatus, 'verified'),
+      orderBy: (h) => asc(h.createdAt),
+    }),
+  );
   return (rows ?? []).map(toProfile);
 }
 

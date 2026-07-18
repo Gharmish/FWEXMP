@@ -1,5 +1,6 @@
 import { and, eq, gte, inArray, lte, sql } from 'drizzle-orm';
 import { db } from '@/lib/db';
+import { boundedQuery } from '@/lib/deadline';
 import { serverEnv } from '@/lib/env';
 import { reportError } from '@/lib/log';
 import { bookings } from '@/db/schema';
@@ -42,10 +43,15 @@ export async function getScheduleDataBySlug(
 ): Promise<ScheduleData | null> {
   if (!serverEnv.DATABASE_URL) return null;
   try {
-    const exp = await db.query.experiences.findFirst({
-      where: (e) => eq(e.slug, slug),
-      columns: { id: true },
-    });
+    // Deadline-bounded: this feeds the detail page's parallel fan-out, so a
+    // pooler hang would otherwise stall the whole render (the catch below
+    // only fires on rejection — a hang never rejects on its own).
+    const exp = await boundedQuery('availability:slugLookup', () =>
+      db.query.experiences.findFirst({
+        where: (e) => eq(e.slug, slug),
+        columns: { id: true },
+      }),
+    );
     if (!exp) return null;
     return scheduleDataById(exp.id, fromStr, toStr);
   } catch (error) {
@@ -60,35 +66,39 @@ async function scheduleDataById(
   toStr: string,
 ): Promise<ScheduleData | null> {
   try {
-    const experience = await db.query.experiences.findFirst({
-      where: (e) => eq(e.id, experienceId),
-      columns: {
-        availabilityWeekdays: true,
-        blackoutDates: true,
-        stopSellDates: true,
-        maxGroupSize: true,
-        startTime: true,
-        bookingCutoffHours: true,
-      },
-    });
+    const experience = await boundedQuery('availability:experience', () =>
+      db.query.experiences.findFirst({
+        where: (e) => eq(e.id, experienceId),
+        columns: {
+          availabilityWeekdays: true,
+          blackoutDates: true,
+          stopSellDates: true,
+          maxGroupSize: true,
+          startTime: true,
+          bookingCutoffHours: true,
+        },
+      }),
+    );
     if (!experience) return null;
 
-    const rows = await db
-      .select({
-        date: bookings.date,
-        booked: sql<number>`coalesce(sum(${bookings.partySize}), 0)::int`,
-      })
-      .from(bookings)
-      .where(
-        and(
-          eq(bookings.experienceId, experienceId),
-          gte(bookings.date, fromStr),
-          lte(bookings.date, toStr),
-          inArray(bookings.status, [...ACTIVE_STATUSES]),
-          holdStillCounts(),
-        ),
-      )
-      .groupBy(bookings.date);
+    const rows = await boundedQuery('availability:bookedByDate', () =>
+      db
+        .select({
+          date: bookings.date,
+          booked: sql<number>`coalesce(sum(${bookings.partySize}), 0)::int`,
+        })
+        .from(bookings)
+        .where(
+          and(
+            eq(bookings.experienceId, experienceId),
+            gte(bookings.date, fromStr),
+            lte(bookings.date, toStr),
+            inArray(bookings.status, [...ACTIVE_STATUSES]),
+            holdStillCounts(),
+          ),
+        )
+        .groupBy(bookings.date),
+    );
 
     const bookedByDate: Record<string, number> = {};
     for (const row of rows) bookedByDate[row.date] = row.booked;

@@ -1,5 +1,6 @@
 import { eq } from 'drizzle-orm';
 import { db } from '@/lib/db';
+import { boundedQuery } from '@/lib/deadline';
 import { serverEnv } from '@/lib/env';
 import { reportError } from '@/lib/log';
 import { platformSettings } from '@/db/schema';
@@ -68,22 +69,26 @@ export const DEFAULT_SETTINGS: PlatformSettings = {
 export async function getPlatformSettings(): Promise<PlatformSettings> {
   if (!serverEnv.DATABASE_URL) return DEFAULT_SETTINGS;
   try {
-    const [row] = await db
-      .select({
-        defaultCommissionBps: platformSettings.defaultCommissionBps,
-        enabledCategories: platformSettings.enabledCategories,
-        cancellationWindowHours: platformSettings.cancellationWindowHours,
-        approvalWindowHours: platformSettings.approvalWindowHours,
-        approvalPaymentWindowHours: platformSettings.approvalPaymentWindowHours,
-        announcementEn: platformSettings.announcementEn,
-        announcementAr: platformSettings.announcementAr,
-        vatEnabled: platformSettings.vatEnabled,
-        vatRateBps: platformSettings.vatRateBps,
-        vatRegistrationNumber: platformSettings.vatRegistrationNumber,
-      })
-      .from(platformSettings)
-      .where(eq(platformSettings.id, 'platform'))
-      .limit(1);
+    // Deadline-bounded: read on nearly every public render — a pooler
+    // hang must degrade to defaults via the catch, not stall the page.
+    const [row] = await boundedQuery('platform-settings:get', () =>
+      db
+        .select({
+          defaultCommissionBps: platformSettings.defaultCommissionBps,
+          enabledCategories: platformSettings.enabledCategories,
+          cancellationWindowHours: platformSettings.cancellationWindowHours,
+          approvalWindowHours: platformSettings.approvalWindowHours,
+          approvalPaymentWindowHours: platformSettings.approvalPaymentWindowHours,
+          announcementEn: platformSettings.announcementEn,
+          announcementAr: platformSettings.announcementAr,
+          vatEnabled: platformSettings.vatEnabled,
+          vatRateBps: platformSettings.vatRateBps,
+          vatRegistrationNumber: platformSettings.vatRegistrationNumber,
+        })
+        .from(platformSettings)
+        .where(eq(platformSettings.id, 'platform'))
+        .limit(1),
+    );
     if (!row) return DEFAULT_SETTINGS;
     const enabled = (row.enabledCategories as Category[] | null) ?? [];
     return {
@@ -116,22 +121,26 @@ export async function getPlatformSettings(): Promise<PlatformSettings> {
  */
 export async function getPlatformSettingsStrict(): Promise<PlatformSettings> {
   if (!serverEnv.DATABASE_URL) return DEFAULT_SETTINGS;
-  const [row] = await db
-    .select({
-      defaultCommissionBps: platformSettings.defaultCommissionBps,
-      enabledCategories: platformSettings.enabledCategories,
-      cancellationWindowHours: platformSettings.cancellationWindowHours,
-      approvalWindowHours: platformSettings.approvalWindowHours,
-      approvalPaymentWindowHours: platformSettings.approvalPaymentWindowHours,
-      announcementEn: platformSettings.announcementEn,
-      announcementAr: platformSettings.announcementAr,
-      vatEnabled: platformSettings.vatEnabled,
-      vatRateBps: platformSettings.vatRateBps,
-      vatRegistrationNumber: platformSettings.vatRegistrationNumber,
-    })
-    .from(platformSettings)
-    .where(eq(platformSettings.id, 'platform'))
-    .limit(1);
+  // Deadline-bounded but still throwing: a hang becomes a DeadlineError
+  // the settlement path treats like any other read failure.
+  const [row] = await boundedQuery('platform-settings:strict', () =>
+    db
+      .select({
+        defaultCommissionBps: platformSettings.defaultCommissionBps,
+        enabledCategories: platformSettings.enabledCategories,
+        cancellationWindowHours: platformSettings.cancellationWindowHours,
+        approvalWindowHours: platformSettings.approvalWindowHours,
+        approvalPaymentWindowHours: platformSettings.approvalPaymentWindowHours,
+        announcementEn: platformSettings.announcementEn,
+        announcementAr: platformSettings.announcementAr,
+        vatEnabled: platformSettings.vatEnabled,
+        vatRateBps: platformSettings.vatRateBps,
+        vatRegistrationNumber: platformSettings.vatRegistrationNumber,
+      })
+      .from(platformSettings)
+      .where(eq(platformSettings.id, 'platform'))
+      .limit(1),
+  );
   if (!row) return DEFAULT_SETTINGS;
   const enabled = (row.enabledCategories as Category[] | null) ?? [];
   return {

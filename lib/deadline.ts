@@ -14,6 +14,8 @@
  * stays occupied until the pool recycles it — so callers should retry at
  * most once and then degrade, not loop.
  */
+import { reportError } from '@/lib/log';
+
 export class DeadlineError extends Error {
   constructor(label: string, ms: number) {
     super(`${label} exceeded ${ms}ms deadline`);
@@ -31,5 +33,37 @@ export async function withDeadline<T>(label: string, ms: number, promise: Promis
     return await Promise.race([promise, timeout]);
   } finally {
     clearTimeout(timer);
+  }
+}
+
+/** Per-statement budget for public render paths (matches the admin waves). */
+const QUERY_DEADLINE_MS = 8_000;
+
+/**
+ * Bound one DB read with a deadline, retrying ONCE on timeout.
+ *
+ * The public-page counterpart of the admin dashboard's `wave()`: without
+ * it, a statement queued onto a poisoned pooled connection hangs the RSC
+ * render until Vercel's function timeout (seen in production as 300s
+ * hangs on the experience-detail and booking-confirmation pages — the
+ * per-query catch/degrade paths never fire because a hang never
+ * rejects). The retry re-issues a fresh statement, which the pool queues
+ * onto a healthy slot; after that the error propagates to the caller's
+ * existing degrade-or-throw handling.
+ *
+ * `run` must build a NEW query each call — passing a started promise
+ * would make the retry await the same hung socket. `Promise.resolve`
+ * upgrades Drizzle's thenable query builders to real promises.
+ */
+export async function boundedQuery<T>(
+  label: string,
+  run: () => Promise<T> | PromiseLike<T>,
+): Promise<T> {
+  try {
+    return await withDeadline(label, QUERY_DEADLINE_MS, Promise.resolve(run()));
+  } catch (error) {
+    if (!(error instanceof DeadlineError)) throw error;
+    reportError(error, { surface: 'db:boundedQueryRetry', label });
+    return await withDeadline(`${label}:retry`, QUERY_DEADLINE_MS, Promise.resolve(run()));
   }
 }

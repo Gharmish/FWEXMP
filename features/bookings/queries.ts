@@ -1,5 +1,6 @@
 import { and, desc, eq, sql } from 'drizzle-orm';
 import { db } from '@/lib/db';
+import { boundedQuery } from '@/lib/deadline';
 import { serverEnv } from '@/lib/env';
 import { bookings, experiences } from '@/db/schema';
 import type { Booking } from '@/db/schema';
@@ -106,13 +107,19 @@ function policyOf(row: {
 
 export async function getBookingByReference(reference: string): Promise<BookingDetail | undefined> {
   if (!hasDb()) return undefined;
-  const row = await db.query.bookings.findFirst({
-    where: eq(bookings.idempotencyKey, reference),
-    with: {
-      experience: { columns: { slug: true } },
-      guest: { columns: { name: true, email: true, phone: true, preferredLanguage: true } },
-    },
-  });
+  // Deadline-bounded: this renders the post-payment confirmation page —
+  // production showed 300s hangs here when the pooled connection was
+  // poisoned. A persistent failure now throws (bounded) to the route's
+  // error boundary instead of stalling a guest who has just paid.
+  const row = await boundedQuery('bookings:byReference', () =>
+    db.query.bookings.findFirst({
+      where: eq(bookings.idempotencyKey, reference),
+      with: {
+        experience: { columns: { slug: true } },
+        guest: { columns: { name: true, email: true, phone: true, preferredLanguage: true } },
+      },
+    }),
+  );
   if (!row) return undefined;
   return {
     id: row.id,
@@ -162,10 +169,12 @@ export async function getBookingByReferenceForViewer(
   reference: string,
 ): Promise<BookingDetail | undefined> {
   if (!hasDb()) return undefined;
-  const owner = await db.query.bookings.findFirst({
-    where: eq(bookings.idempotencyKey, reference),
-    columns: { guestId: true },
-  });
+  const owner = await boundedQuery('bookings:viewerLookup', () =>
+    db.query.bookings.findFirst({
+      where: eq(bookings.idempotencyKey, reference),
+      columns: { guestId: true },
+    }),
+  );
   if (!owner) return undefined;
   if (!(await bookingViewerCanAccess(reference, owner.guestId))) return undefined;
   return getBookingByReference(reference);
@@ -239,16 +248,20 @@ export async function getBookingsForGuest(guestId: string): Promise<GuestBooking
 export async function getHostContactPhoneForBooking(reference: string): Promise<string | null> {
   if (!hasDb()) return null;
   try {
-    const row = await db.query.bookings.findFirst({
-      where: eq(bookings.idempotencyKey, reference),
-      columns: { status: true },
-      with: { experience: { columns: { hostId: true } } },
-    });
+    const row = await boundedQuery('bookings:hostContact:booking', () =>
+      db.query.bookings.findFirst({
+        where: eq(bookings.idempotencyKey, reference),
+        columns: { status: true },
+        with: { experience: { columns: { hostId: true } } },
+      }),
+    );
     if (!row || (row.status !== 'confirmed' && row.status !== 'completed')) return null;
-    const application = await db.query.hostApplications.findFirst({
-      where: (a) => eq(a.hostId, row.experience.hostId),
-      columns: { contactPhone: true },
-    });
+    const application = await boundedQuery('bookings:hostContact:application', () =>
+      db.query.hostApplications.findFirst({
+        where: (a) => eq(a.hostId, row.experience.hostId),
+        columns: { contactPhone: true },
+      }),
+    );
     return application?.contactPhone ?? null;
   } catch (error) {
     reportError(error, { surface: 'bookings:getHostContact', reference });
@@ -265,11 +278,13 @@ export async function getHostContactPhoneForBooking(reference: string): Promise<
 export async function getCompletedBookingsCountForExperience(slug: string): Promise<number> {
   if (!hasDb()) return 0;
   try {
-    const [row] = await db
-      .select({ count: sql<number>`count(*)::int` })
-      .from(bookings)
-      .innerJoin(experiences, eq(bookings.experienceId, experiences.id))
-      .where(and(eq(experiences.slug, slug), eq(bookings.status, 'completed')));
+    const [row] = await boundedQuery('bookings:completedCount', () =>
+      db
+        .select({ count: sql<number>`count(*)::int` })
+        .from(bookings)
+        .innerJoin(experiences, eq(bookings.experienceId, experiences.id))
+        .where(and(eq(experiences.slug, slug), eq(bookings.status, 'completed'))),
+    );
     return row?.count ?? 0;
   } catch (error) {
     reportError(error, { surface: 'bookings:completedCount', slug });

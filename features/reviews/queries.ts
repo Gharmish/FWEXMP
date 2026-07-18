@@ -2,6 +2,7 @@ import { cache } from 'react';
 import { unstable_cache } from 'next/cache';
 import { and, avg, count, desc, eq, gte, isNull } from 'drizzle-orm';
 import { db } from '@/lib/db';
+import { boundedQuery } from '@/lib/deadline';
 import { serverEnv } from '@/lib/env';
 import { REVIEWS_CACHE_TAG } from '@/lib/cache-tags';
 import { experiences, guests, hosts, reviews as reviewsTable } from '@/db/schema';
@@ -56,22 +57,33 @@ export async function getReviewsForExperience(
     rows.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
     return typeof limit === 'number' ? rows.slice(0, limit) : rows;
   }
-  const exp = await db.query.experiences.findFirst({
-    where: (e) => eq(e.slug, slug),
-    columns: { id: true },
-  });
-  if (!exp) return [];
-  const rows = await db.query.reviews.findMany({
-    // Hidden (admin-moderated) reviews never reach the public listing.
-    where: (r) => and(eq(r.experienceId, exp.id), isNull(r.hiddenAt)),
-    with: { guest: true },
-    orderBy: (r) => desc(r.createdAt),
-    // Bound the listing — the page renders only the first page of reviews
-    // (the full count/average comes from the aggregate query below, not
-    // from hydrating every row). Omitted limit = all (sample path only).
-    ...(typeof limit === 'number' ? { limit } : {}),
-  });
-  return rows.map((row) => toSummary(row, slug));
+  // Deadline-bounded + degrade-to-empty, matching the aggregate above:
+  // a failed listing renders as "no reviews yet", never a hung page.
+  try {
+    const exp = await boundedQuery('reviews:list:lookup', () =>
+      db.query.experiences.findFirst({
+        where: (e) => eq(e.slug, slug),
+        columns: { id: true },
+      }),
+    );
+    if (!exp) return [];
+    const rows = await boundedQuery('reviews:list:rows', () =>
+      db.query.reviews.findMany({
+        // Hidden (admin-moderated) reviews never reach the public listing.
+        where: (r) => and(eq(r.experienceId, exp.id), isNull(r.hiddenAt)),
+        with: { guest: true },
+        orderBy: (r) => desc(r.createdAt),
+        // Bound the listing — the page renders only the first page of reviews
+        // (the full count/average comes from the aggregate query below, not
+        // from hydrating every row). Omitted limit = all (sample path only).
+        ...(typeof limit === 'number' ? { limit } : {}),
+      }),
+    );
+    return rows.map((row) => toSummary(row, slug));
+  } catch (error) {
+    reportError(error, { surface: 'reviews:getReviewsForExperience', slug });
+    return [];
+  }
 }
 
 const EMPTY_DISTRIBUTION: ReviewAggregate['distribution'] = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
@@ -80,31 +92,43 @@ export async function getReviewAggregateForExperience(slug: string): Promise<Rev
   if (!hasDb()) {
     return aggregateReviews(sample.getReviewsForExperience(slug));
   }
-  const exp = await db.query.experiences.findFirst({
-    where: (e) => eq(e.slug, slug),
-    columns: { id: true },
-  });
-  if (!exp) return { count: 0, average: null, distribution: { ...EMPTY_DISTRIBUTION } };
+  // Deadline-bounded + degrade-to-empty: the aggregate is decorative
+  // (JSON-LD stars + the reviews header) and feeds the detail page's
+  // parallel fan-out — a pooler hang here must not stall the whole render.
+  try {
+    const exp = await boundedQuery('reviews:aggregate:lookup', () =>
+      db.query.experiences.findFirst({
+        where: (e) => eq(e.slug, slug),
+        columns: { id: true },
+      }),
+    );
+    if (!exp) return { count: 0, average: null, distribution: { ...EMPTY_DISTRIBUTION } };
 
-  // One bounded GROUP BY rating query (≤5 rows) for count + average +
-  // distribution, rather than loading every review row to aggregate in JS.
-  const rows = await db
-    .select({ rating: reviewsTable.rating, n: count(reviewsTable.id) })
-    .from(reviewsTable)
-    .where(and(eq(reviewsTable.experienceId, exp.id), isNull(reviewsTable.hiddenAt)))
-    .groupBy(reviewsTable.rating);
+    // One bounded GROUP BY rating query (≤5 rows) for count + average +
+    // distribution, rather than loading every review row to aggregate in JS.
+    const rows = await boundedQuery('reviews:aggregate:groupBy', () =>
+      db
+        .select({ rating: reviewsTable.rating, n: count(reviewsTable.id) })
+        .from(reviewsTable)
+        .where(and(eq(reviewsTable.experienceId, exp.id), isNull(reviewsTable.hiddenAt)))
+        .groupBy(reviewsTable.rating),
+    );
 
-  const distribution = { ...EMPTY_DISTRIBUTION };
-  let total = 0;
-  let weighted = 0;
-  for (const row of rows) {
-    const rating = clampRating(row.rating);
-    const n = Number(row.n);
-    distribution[rating] += n;
-    total += n;
-    weighted += rating * n;
+    const distribution = { ...EMPTY_DISTRIBUTION };
+    let total = 0;
+    let weighted = 0;
+    for (const row of rows) {
+      const rating = clampRating(row.rating);
+      const n = Number(row.n);
+      distribution[rating] += n;
+      total += n;
+      weighted += rating * n;
+    }
+    return { count: total, average: total > 0 ? weighted / total : null, distribution };
+  } catch (error) {
+    reportError(error, { surface: 'reviews:getReviewAggregateForExperience', slug });
+    return { count: 0, average: null, distribution: { ...EMPTY_DISTRIBUTION } };
   }
-  return { count: total, average: total > 0 ? weighted / total : null, distribution };
 }
 
 /**
@@ -160,19 +184,24 @@ export async function getReviewForBooking(bookingId: string): Promise<{
  * trips its value — a Map would come back empty on a cache hit.
  */
 const loadRatingRows = unstable_cache(
+  // Deadline-bounded INSIDE the cached fn so a poisoned-pooler hang
+  // settles (as a throw) instead of pinning the cache entry's promise —
+  // the throw is never cached, and the caller's catch degrades.
   async (): Promise<{ slug: string; count: number; avg: string | null }[]> =>
-    db
-      .select({
-        slug: experiences.slug,
-        count: count(reviewsTable.id),
-        // avg() returns a string in Drizzle (PG numeric), so we coerce
-        // to a number after the query.
-        avg: avg(reviewsTable.rating),
-      })
-      .from(reviewsTable)
-      .innerJoin(experiences, eq(reviewsTable.experienceId, experiences.id))
-      .where(isNull(reviewsTable.hiddenAt))
-      .groupBy(experiences.slug),
+    boundedQuery('reviews:ratingsBySlug', () =>
+      db
+        .select({
+          slug: experiences.slug,
+          count: count(reviewsTable.id),
+          // avg() returns a string in Drizzle (PG numeric), so we coerce
+          // to a number after the query.
+          avg: avg(reviewsTable.rating),
+        })
+        .from(reviewsTable)
+        .innerJoin(experiences, eq(reviewsTable.experienceId, experiences.id))
+        .where(isNull(reviewsTable.hiddenAt))
+        .groupBy(experiences.slug),
+    ),
   ['ratings-by-slug'],
   { revalidate: 60, tags: [REVIEWS_CACHE_TAG] },
 );

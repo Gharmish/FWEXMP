@@ -1,6 +1,7 @@
 import { cookies } from 'next/headers';
 import { eq } from 'drizzle-orm';
 import { db } from '@/lib/db';
+import { boundedQuery } from '@/lib/deadline';
 import { serverEnv } from '@/lib/env';
 import { bookings, guests } from '@/db/schema';
 import { getCurrentUser } from '@/features/auth/queries';
@@ -60,16 +61,22 @@ export async function getKnownGuestDetails(): Promise<KnownGuestDetails> {
         // for a returning phone-OTP guest whose row isn't linked yet (created
         // at booking time, claimed on first profile visit). Read-only — this
         // is a browse page, so unlike getMyProfile we never claim the row here.
+        // (`userPhone` hoisted so the narrowing survives the query closure.)
+        const userPhone = user.phone;
         const guest =
-          (await db.query.guests.findFirst({
-            where: eq(guests.authUserId, user.id),
-            columns: { name: true, phone: true, email: true },
-          })) ??
-          (user.phone
-            ? await db.query.guests.findFirst({
-                where: eq(guests.phone, user.phone),
-                columns: { name: true, phone: true, email: true },
-              })
+          (await boundedQuery('account:prefill:byAuthUser', () =>
+            db.query.guests.findFirst({
+              where: eq(guests.authUserId, user.id),
+              columns: { name: true, phone: true, email: true },
+            }),
+          )) ??
+          (userPhone
+            ? await boundedQuery('account:prefill:byPhone', () =>
+                db.query.guests.findFirst({
+                  where: eq(guests.phone, userPhone),
+                  columns: { name: true, phone: true, email: true },
+                }),
+              )
             : undefined);
         if (guest) {
           return clean({
@@ -89,13 +96,15 @@ export async function getKnownGuestDetails(): Promise<KnownGuestDetails> {
     const hint = parseLastBookingCookie(store.get(LAST_BOOKING_COOKIE)?.value);
     if (!hint) return {};
 
-    const row = await db.query.bookings.findFirst({
-      where: eq(bookings.idempotencyKey, hint.reference),
-      // Minimal selection: an empty `columns` object would select every
-      // bookings column, and we only need the guest relation.
-      columns: { id: true },
-      with: { guest: { columns: { name: true, phone: true, email: true } } },
-    });
+    const row = await boundedQuery('account:prefill:lastBooking', () =>
+      db.query.bookings.findFirst({
+        where: eq(bookings.idempotencyKey, hint.reference),
+        // Minimal selection: an empty `columns` object would select every
+        // bookings column, and we only need the guest relation.
+        columns: { id: true },
+        with: { guest: { columns: { name: true, phone: true, email: true } } },
+      }),
+    );
     if (!row) return {};
     return clean({ name: row.guest.name, phone: row.guest.phone, email: row.guest.email });
   } catch (error) {

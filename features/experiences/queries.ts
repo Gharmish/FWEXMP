@@ -2,6 +2,7 @@ import { cache } from 'react';
 import { unstable_cache } from 'next/cache';
 import { and, asc, eq } from 'drizzle-orm';
 import { db } from '@/lib/db';
+import { boundedQuery } from '@/lib/deadline';
 import { serverEnv } from '@/lib/env';
 import { EXPERIENCES_CACHE_TAG, REVIEWS_CACHE_TAG } from '@/lib/cache-tags';
 import { reportError } from '@/lib/log';
@@ -159,12 +160,18 @@ function toDetail(
  */
 const loadLiveSummaries = unstable_cache(
   async (): Promise<ExperienceSummary[]> => {
+    // boundedQuery converts a poisoned-pooler hang into a bounded throw —
+    // a thrown load is never cached, so the next request retries. The
+    // ratings arm is NOT wrapped: getRatingsBySlug is bounded internally
+    // and degrades to empty on failure.
     const [rows, ratings] = await Promise.all([
-      db.query.experiences.findMany({
-        where: (e) => eq(e.status, 'live'),
-        with: { host: true },
-        orderBy: (e) => asc(e.createdAt),
-      }),
+      boundedQuery('experiences:liveSummaries', () =>
+        db.query.experiences.findMany({
+          where: (e) => eq(e.status, 'live'),
+          with: { host: true },
+          orderBy: (e) => asc(e.createdAt),
+        }),
+      ),
       getRatingsBySlug(),
     ]);
     return rows.map((row) => toSummary(row, ratings));
@@ -197,10 +204,12 @@ export const getFeaturedExperiences = cache(async (): Promise<readonly Experienc
 const loadDetailBySlug = unstable_cache(
   async (slug: string): Promise<ExperienceDetail | null> => {
     const [row, ratings] = await Promise.all([
-      db.query.experiences.findFirst({
-        where: (e) => and(eq(e.slug, slug), eq(e.status, 'live')),
-        with: { host: true, moments: true },
-      }),
+      boundedQuery('experiences:detailBySlug', () =>
+        db.query.experiences.findFirst({
+          where: (e) => and(eq(e.slug, slug), eq(e.status, 'live')),
+          with: { host: true, moments: true },
+        }),
+      ),
       getRatingsBySlug(),
     ]);
     return row ? toDetail(row, ratings) : null;
@@ -231,10 +240,12 @@ export async function getExperienceBySlugForOwnerPreview(
   if (!user) return undefined;
   try {
     const [row, ratings] = await Promise.all([
-      db.query.experiences.findFirst({
-        where: (e) => eq(e.slug, slug),
-        with: { host: true, moments: true },
-      }),
+      boundedQuery('experiences:ownerPreview', () =>
+        db.query.experiences.findFirst({
+          where: (e) => eq(e.slug, slug),
+          with: { host: true, moments: true },
+        }),
+      ),
       getRatingsBySlug(),
     ]);
     if (!row) return undefined;
