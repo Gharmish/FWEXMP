@@ -144,7 +144,9 @@ The only place real money disappears today.
 
 ## Deferred P2 backlog (not scheduled)
 
-WhatsApp Business API track (if D1 chooses it, it becomes Phase 2.5) · admin `user_roles` + 2FA + admin-action audit table · PII masking at the Sentry boundary · suspended-host write guard centralization · client-supplied idempotency keys · no-show status · chargeback flow · dispute→refund linkage + guest resolution notice · reschedule flow · host growth stats + day-of roster · per-route loading/error boundaries · focus-ring contrast + star touch targets · admin sub-nav · language-switcher label · multi-slot availability model · Meilisearch · MCP server/OpenAPI/pgvector (or amend BRIEF §6) · GMV gating on paid · VAT snapshot per booking.
+WhatsApp Business API track (if D1 chooses it, it becomes Phase 2.5) · admin `user_roles` + 2FA + admin-action audit table · PII masking at the Sentry boundary · suspended-host write guard centralization · client-supplied idempotency keys · no-show status · chargeback flow · reschedule flow · host growth stats + day-of roster · per-route loading/error boundaries · focus-ring contrast + star touch targets · admin sub-nav · language-switcher label · multi-slot availability model · Meilisearch · MCP server/OpenAPI/pgvector (or amend BRIEF §6) · GMV gating on paid · VAT snapshot per booking.
+
+Shipped from this backlog: dispute→refund linkage + guest resolution notice (2026-07-19, `feat(disputes)` — resolve-with-refund checkbox via the shared `executeRefund`, `resolution_refund_sar` audit stamp, localized `dispute_resolved` email through the notifications dispatcher).
 
 ---
 
