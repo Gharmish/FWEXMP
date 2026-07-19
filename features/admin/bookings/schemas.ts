@@ -27,3 +27,20 @@ export const transitionBookingSchema = z.object({
 });
 
 export type TransitionBookingInput = z.infer<typeof transitionBookingSchema>;
+
+/** Cap on the mandatory emergency-cancellation note. */
+export const EMERGENCY_REASON_MAX = 500;
+
+/**
+ * Emergency cancellation (force majeure: weather, host no-show, safety).
+ * The reason is MANDATORY — the note lands on the booking row and in the
+ * guest's wallet ledger entry, so "why was this called off" always has
+ * an answer.
+ */
+export const emergencyCancelSchema = z.object({
+  bookingId: z.string().uuid(),
+  reason: z.string().trim().min(1, 'reason_required').max(EMERGENCY_REASON_MAX, 'reason_long'),
+  locale: localeSchema,
+});
+
+export type EmergencyCancelInput = z.infer<typeof emergencyCancelSchema>;

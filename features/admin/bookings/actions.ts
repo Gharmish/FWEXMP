@@ -4,16 +4,23 @@ import { and, eq, inArray, or } from 'drizzle-orm';
 import { revalidatePath } from 'next/cache';
 import { db } from '@/lib/db';
 import { serverEnv, hasHyperpay } from '@/lib/env';
-import { bookings } from '@/db/schema';
+import { bookings, disputes } from '@/db/schema';
 import { redirect } from '@/lib/i18n';
 import { reportError } from '@/lib/log';
+import { notifyAdmin } from '@/lib/admin-alerts';
 import { getCurrentUser } from '@/features/auth/queries';
 import { isAdminUser } from '@/features/admin/auth';
-import { refundBookingSchema, transitionBookingSchema } from '@/features/admin/bookings/schemas';
+import {
+  emergencyCancelSchema,
+  refundBookingSchema,
+  transitionBookingSchema,
+} from '@/features/admin/bookings/schemas';
 import { executeBookingTransition } from '@/features/bookings/lib/transition-executor';
 import { isSuccessfulResult, refundPayment } from '@/features/payments/lib/hyperpay';
 import { latestPaymentEvent, recordPaymentEvent } from '@/features/payments/ledger';
 import { sendBookingCancellationEmail } from '@/features/bookings/lib/booking-email';
+import { creditWallet } from '@/features/wallet/ledger';
+import { releaseWalletReservationTx } from '@/features/wallet/reservation';
 
 /**
  * Admin booking actions.
@@ -38,8 +45,11 @@ export interface AdminBookingActionResult {
     | 'not_found'
     | 'wrong_state'
     | 'over_capacity'
+    | 'dispute_open'
     | 'validation'
     | 'server';
+  /** Echoed field values (the emergency form's reason survives a failure). */
+  values?: Record<string, string>;
 }
 
 function formValue(formData: FormData, key: string): string {
@@ -143,7 +153,12 @@ export async function refundBooking(
 
     const updated = await db
       .update(bookings)
-      .set({ status: 'refunded', refundedAt: new Date(), refundDueSar: null })
+      .set({
+        status: 'refunded',
+        refundedAt: new Date(),
+        refundDueSar: null,
+        refundMethod: 'manual',
+      })
       .where(
         and(
           eq(bookings.id, bookingId),
@@ -189,6 +204,177 @@ export async function refundBooking(
   revalidatePath('/[locale]/admin/bookings', 'page');
   revalidatePath('/[locale]/admin/analytics', 'page');
   redirect({ href: '/admin/bookings', locale });
+}
+
+/**
+ * Emergency cancellation — force majeure (weather, host no-show, safety
+ * issue): the experience cannot start or finish, so the platform calls
+ * the booking off with a MANDATORY reason and, when the guest had paid,
+ * returns the FULL payment (card charge + any redeemed credit) as
+ * Gharmish Credit, bypassing the cancellation-policy tiers entirely —
+ * the guest is never at fault for an emergency.
+ *
+ * Money path: one `refund_credit` ledger entry keyed `refund:<bookingId>`
+ * (the unique index makes a double submit idempotent), then the booking
+ * flips to `refunded` with `refundMethod='wallet'`. From there the guest
+ * chooses: spend the credit at checkout, or move the card-charged share
+ * back to their original payment method (`requestRefundToCard`). If the
+ * ledger write fails, the booking stays `cancelled` with `refundDueSar`
+ * stamped — the same manual queue every failed refund lands in.
+ *
+ * A booking with an OPEN dispute is refused: the dispute's resolve flow
+ * owns that booking's money, and two admins must not refund it twice.
+ */
+export async function emergencyCancelBooking(
+  _previous: AdminBookingActionResult,
+  formData: FormData,
+): Promise<AdminBookingActionResult> {
+  const guard = await requireAdmin();
+  if ('error' in guard) return guard.error;
+
+  const parsed = emergencyCancelSchema.safeParse({
+    bookingId: formValue(formData, 'bookingId'),
+    reason: formValue(formData, 'reason'),
+    locale: formValue(formData, 'locale'),
+  });
+  if (!parsed.success) {
+    return {
+      success: false,
+      message: 'validation',
+      values: { reason: formValue(formData, 'reason') },
+    };
+  }
+  const { bookingId, reason, locale } = parsed.data;
+  const echo = { reason };
+
+  try {
+    const openDispute = await db.query.disputes.findFirst({
+      where: and(eq(disputes.bookingId, bookingId), eq(disputes.status, 'open')),
+      columns: { id: true },
+    });
+    if (openDispute) return { success: false, message: 'dispute_open', values: echo };
+
+    const outcome = await db.transaction(async (tx) => {
+      const booking = await tx.query.bookings.findFirst({
+        where: (b) => eq(b.id, bookingId),
+        columns: {
+          id: true,
+          guestId: true,
+          status: true,
+          paymentStatus: true,
+          totalAmount: true,
+          walletAppliedSar: true,
+          idempotencyKey: true,
+        },
+        with: { guest: { columns: { preferredLanguage: true } } },
+      });
+      if (!booking) return 'not_found' as const;
+      // `completed` stays with the disputes flow; terminal states are terminal.
+      if (booking.status !== 'pending' && booking.status !== 'confirmed') {
+        return 'wrong_state' as const;
+      }
+      const updated = await tx
+        .update(bookings)
+        .set({
+          status: 'cancelled',
+          cancelledAt: new Date(),
+          cancellationKind: 'emergency',
+          cancellationReason: reason,
+        })
+        .where(and(eq(bookings.id, bookingId), eq(bookings.status, booking.status)))
+        .returning({ id: bookings.id });
+      if (updated.length === 0) return 'wrong_state' as const;
+      const wasPaid = booking.paymentStatus === 'paid';
+      // An UNPAID booking with applied credit only holds a reservation —
+      // return it in the same transaction.
+      if (!wasPaid && booking.walletAppliedSar > 0) {
+        await releaseWalletReservationTx(tx, bookingId);
+      }
+      return {
+        guestId: booking.guestId,
+        wasPaid,
+        totalAmount: booking.totalAmount,
+        walletAppliedSar: booking.walletAppliedSar,
+        reference: booking.idempotencyKey,
+        guestLocale: booking.guest.preferredLanguage,
+      };
+    });
+    if (typeof outcome === 'string') return { success: false, message: outcome, values: echo };
+
+    let creditSar = 0;
+    if (outcome.wasPaid) {
+      // Full paid base as ONE wallet entry: the card charge plus any
+      // redeemed credit (paid bookings never release their redemption).
+      creditSar = outcome.totalAmount + outcome.walletAppliedSar;
+      try {
+        try {
+          await creditWallet({
+            guestId: outcome.guestId,
+            type: 'refund_credit',
+            amountSar: creditSar,
+            bookingId,
+            idempotencyKey: `refund:${bookingId}`,
+            // The guest's own money — never expires.
+            expiresAt: null,
+            actorUserId: guard.adminUserId,
+            note: reason,
+          });
+        } catch (error) {
+          // The unique idempotency key already landed — the earlier attempt won.
+          if (!isUniqueViolation(error)) throw error;
+        }
+        await db
+          .update(bookings)
+          .set({
+            status: 'refunded',
+            refundedAt: new Date(),
+            refundMethod: 'wallet',
+            refundDueSar: null,
+          })
+          .where(and(eq(bookings.id, bookingId), eq(bookings.status, 'cancelled')));
+      } catch (error) {
+        // Credit failed: the booking stays `cancelled` and the card-
+        // refundable share joins the manual queue — owed money is never
+        // silent.
+        reportError(error, { surface: 'admin:emergencyCancel:wallet', bookingId });
+        await db
+          .update(bookings)
+          .set({ refundDueSar: outcome.totalAmount })
+          .where(eq(bookings.id, bookingId));
+        await notifyAdmin('refund_due', { bookingId, amountSar: outcome.totalAmount });
+      }
+    }
+
+    // Tell the guest — best-effort, never fails the cancellation.
+    try {
+      await sendBookingCancellationEmail(
+        outcome.reference,
+        outcome.guestLocale,
+        outcome.wasPaid ? 'wallet_credited' : 'none',
+        { cancelledBy: 'operator', refundAmountSar: creditSar > 0 ? creditSar : undefined },
+      );
+    } catch (error) {
+      reportError(error, { surface: 'admin:emergencyCancel:email', bookingId });
+    }
+  } catch (error) {
+    reportError(error, { surface: 'admin:emergencyCancel', bookingId });
+    return { success: false, message: 'server', values: echo };
+  }
+
+  revalidatePath('/[locale]/admin/bookings', 'page');
+  revalidatePath('/[locale]/admin/analytics', 'page');
+  revalidatePath('/[locale]/me/profile', 'page');
+  redirect({ href: '/admin/bookings', locale });
+}
+
+/** Postgres unique-violation SQLSTATE. */
+function isUniqueViolation(error: unknown): boolean {
+  return (
+    typeof error === 'object' &&
+    error !== null &&
+    'code' in error &&
+    (error as { code?: unknown }).code === '23505'
+  );
 }
 
 /**

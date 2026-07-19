@@ -43,8 +43,11 @@ vi.mock('@/features/payments/ledger', () => ({
 
 const setCalls: Array<Record<string, unknown>> = [];
 let updateShouldThrow = false;
+/** The booking row the executor reads for the card/credit split. */
+let refundBooking: { guestId: string; totalAmount: number; walletAppliedSar: number } | undefined;
 vi.mock('@/lib/db', () => ({
   db: {
+    query: { bookings: { findFirst: async () => refundBooking } },
     update: () => ({
       set: (values: Record<string, unknown>) => {
         setCalls.push(values);
@@ -60,6 +63,11 @@ vi.mock('@/lib/db', () => ({
   },
 }));
 
+const creditWalletRefund = vi.fn(async (...args: unknown[]) => void args);
+vi.mock('@/features/wallet/reservation', () => ({
+  creditWalletRefund: (...args: unknown[]) => creditWalletRefund(...args),
+}));
+
 import { executeRefund } from './refund';
 
 beforeEach(() => {
@@ -69,6 +77,7 @@ beforeEach(() => {
   hyperpayOn = true;
   updateShouldThrow = false;
   ledgerShouldThrow = false;
+  refundBooking = { guestId: 'g-1', totalAmount: 480, walletAppliedSar: 0 };
 });
 
 describe('executeRefund', () => {
@@ -141,6 +150,41 @@ describe('executeRefund', () => {
 
     expect(outcome).toBe('refund_pending');
     expect(refundPayment).not.toHaveBeenCalled();
+  });
+
+  it('splits a wallet-assisted refund: card leg to the gateway, credit leg to the wallet', async () => {
+    refundBooking = { guestId: 'g-9', totalAmount: 100, walletAppliedSar: 50 };
+    refundPayment.mockResolvedValue({ resultCode: '000.000.000' });
+
+    // Full paid base 150: card-first → 100 to the gateway, 50 as credit.
+    const outcome = await executeRefund('b-9', 'pay-ref-9', 150);
+
+    expect(outcome).toBe('refunded');
+    expect(creditWalletRefund).toHaveBeenCalledWith('b-9', 'g-9', 50);
+    expect(refundPayment).toHaveBeenCalledWith('pay-ref-9', 100);
+    expect(setCalls[0]).toMatchObject({ status: 'refunded', refundMethod: 'gateway' });
+  });
+
+  it('marks a fully wallet-covered refund refunded without touching the gateway', async () => {
+    refundBooking = { guestId: 'g-9', totalAmount: 0, walletAppliedSar: 200 };
+
+    const outcome = await executeRefund('b-10', null, 200);
+
+    expect(outcome).toBe('refunded');
+    expect(creditWalletRefund).toHaveBeenCalledWith('b-10', 'g-9', 200);
+    expect(refundPayment).not.toHaveBeenCalled();
+    expect(setCalls[0]).toMatchObject({ status: 'refunded', refundMethod: 'wallet' });
+  });
+
+  it('never credits the wallet on card_only rails (caller already debited)', async () => {
+    refundBooking = { guestId: 'g-9', totalAmount: 100, walletAppliedSar: 50 };
+    refundPayment.mockResolvedValue({ resultCode: '000.000.000' });
+
+    const outcome = await executeRefund('b-11', 'pay-ref-11', 100, null, 'card_only');
+
+    expect(outcome).toBe('refunded');
+    expect(creditWalletRefund).not.toHaveBeenCalled();
+    expect(refundPayment).toHaveBeenCalledWith('pay-ref-11', 100);
   });
 
   it('falls back to the manual queue when the DB write fails after a gateway success (known double-refund window — closed by the payment ledger in Phase 3)', async () => {

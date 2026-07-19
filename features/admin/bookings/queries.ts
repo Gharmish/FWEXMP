@@ -47,6 +47,7 @@ export async function listBookingsForAdmin(): Promise<readonly AdminBookingRow[]
         row.commissionBps,
         row.vatRateBps,
         row.discountSar,
+        row.walletAppliedSar,
       );
       return {
         id: row.id,
@@ -66,6 +67,10 @@ export async function listBookingsForAdmin(): Promise<readonly AdminBookingRow[]
         currency: row.currency,
         paymentReference: row.paymentReference,
         createdAt: row.createdAt.toISOString(),
+        cancellationKind: row.cancellationKind,
+        cancellationReason: row.cancellationReason,
+        refundMethod: row.refundMethod,
+        walletAppliedSar: row.walletAppliedSar,
         experienceSlug: row.experience.slug,
         experienceTitleEn: row.experience.titleEn,
         guestName: row.guest.name,
@@ -110,6 +115,7 @@ export async function listBookingsForExport(): Promise<readonly AdminBookingExpo
         row.commissionBps,
         row.vatRateBps,
         row.discountSar,
+        row.walletAppliedSar,
       );
       return {
         id: row.id,
@@ -129,6 +135,10 @@ export async function listBookingsForExport(): Promise<readonly AdminBookingExpo
         currency: row.currency,
         paymentReference: row.paymentReference,
         createdAt: row.createdAt.toISOString(),
+        cancellationKind: row.cancellationKind,
+        cancellationReason: row.cancellationReason,
+        refundMethod: row.refundMethod,
+        walletAppliedSar: row.walletAppliedSar,
         experienceSlug: row.experience.slug,
         experienceTitleEn: row.experience.titleEn,
         guestName: row.guest.name,
@@ -164,6 +174,7 @@ export async function getAdminBookingById(id: string): Promise<AdminBookingRow |
       row.commissionBps,
       row.vatRateBps,
       row.discountSar,
+      row.walletAppliedSar,
     );
     return {
       id: row.id,
@@ -183,6 +194,10 @@ export async function getAdminBookingById(id: string): Promise<AdminBookingRow |
       currency: row.currency,
       paymentReference: row.paymentReference,
       createdAt: row.createdAt.toISOString(),
+      cancellationKind: row.cancellationKind,
+      cancellationReason: row.cancellationReason,
+      refundMethod: row.refundMethod,
+      walletAppliedSar: row.walletAppliedSar,
       experienceSlug: row.experience.slug,
       experienceTitleEn: row.experience.titleEn,
       guestName: row.guest.name,

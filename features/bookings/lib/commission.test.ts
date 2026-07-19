@@ -64,4 +64,41 @@ describe('splitCommission', () => {
       }
     }
   });
+
+  it('wallet credit joins the payout base exactly like the promo discount', () => {
+    // Host paid on the full price whether the reduction came from a
+    // promo, from credit, or from both.
+    expect(splitCommission(850, 1500, null, 0, 150)).toEqual(splitCommission(850, 1500, null, 150));
+    expect(splitCommission(700, 1500, null, 150, 150)).toEqual(
+      splitCommission(700, 1500, null, 300),
+    );
+  });
+
+  it('credit defaults to 0 (unchanged when omitted or null)', () => {
+    expect(splitCommission(1000, 1500, null, 0)).toEqual(splitCommission(1000, 1500, null, 0, 0));
+    expect(splitCommission(1000, 1500, null, 0, null)).toEqual(
+      splitCommission(1000, 1500, null, 0, 0),
+    );
+  });
+
+  it('always reconciles with credit: vat + commission + payout === charged + discount + credit', () => {
+    for (const total of [1, 115, 540, 1080]) {
+      for (const vatRate of [null, 1500]) {
+        for (const bps of [0, 1500]) {
+          for (const discount of [0, 150]) {
+            for (const credit of [0, 25, 299]) {
+              const { commissionSar, payoutSar, vatSar } = splitCommission(
+                total,
+                bps,
+                vatRate,
+                discount,
+                credit,
+              );
+              expect(vatSar + commissionSar + payoutSar).toBe(total + discount + credit);
+            }
+          }
+        }
+      }
+    }
+  });
 });

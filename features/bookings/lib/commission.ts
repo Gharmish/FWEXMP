@@ -28,18 +28,27 @@ import { vatPortionSar } from '@/features/bookings/lib/vat';
  * A null/0 VAT rate and a 0 discount degenerate to the original formula
  * — history is never restated. Mirrored in SQL by `payoutExpr()`
  * (payout-sql.ts); change BOTH or the surfaces diverge.
+ *
+ * Gharmish Credit era (owner decision 2026-07-19, PLATFORM-FUNDED like
+ * promo): credit redeemed at checkout reduces the charged total the
+ * same way, and the host is likewise paid as if the guest paid full
+ * price — the payout base adds `walletCreditSar` back next to the
+ * discount, and the identity becomes
+ * `vat + commission + payout === charged + discount + credit`.
  */
 
-/** Whole-SAR split of a booking's PRE-DISCOUNT value into VAT + commission + host payout. */
+/** Whole-SAR split of a booking's FULL-PRICE value into VAT + commission + host payout. */
 export function splitCommission(
   chargedAmountSar: number,
   commissionBps: number,
   vatRateBps?: number | null,
   discountSar?: number | null,
+  walletCreditSar?: number | null,
 ): { commissionSar: number; payoutSar: number; vatSar: number } {
   const clampedBps = Math.min(10000, Math.max(0, Math.round(commissionBps)));
   const vatSar = vatPortionSar(chargedAmountSar, vatRateBps ?? 0);
-  const netSar = chargedAmountSar + Math.max(0, discountSar ?? 0) - vatSar;
+  const netSar =
+    chargedAmountSar + Math.max(0, discountSar ?? 0) + Math.max(0, walletCreditSar ?? 0) - vatSar;
   const commissionSar = Math.round((netSar * clampedBps) / 10000);
   return { commissionSar, payoutSar: netSar - commissionSar, vatSar };
 }

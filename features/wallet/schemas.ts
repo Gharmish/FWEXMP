@@ -4,6 +4,19 @@ import { z } from 'zod';
 export const WALLET_MAX_PER_ACTION_SAR = 500;
 export const WALLET_NOTE_MAX = 500;
 
+const localeSchema = z.enum(['en', 'ar']);
+
+/** Guest checkout: apply available credit to a booking (referenced by its UUID). */
+export const applyWalletCreditSchema = z.object({
+  reference: z.string().uuid(),
+  locale: localeSchema,
+});
+
+export const removeWalletCreditSchema = z.object({
+  reference: z.string().uuid(),
+  locale: localeSchema,
+});
+
 /**
  * Optional `datetime-local` bound from the form (`YYYY-MM-DDTHH:MM`) or
  * empty. Kept as a string here; the action converts to a Date. An empty

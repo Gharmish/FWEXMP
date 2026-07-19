@@ -64,6 +64,7 @@ function toRow(row: {
     row.booking.commissionBps,
     row.booking.vatRateBps,
     row.booking.discountSar,
+    row.booking.walletAppliedSar,
   );
   const contactVisible = CONTACT_VISIBLE_STATUSES.includes(row.booking.status);
   return {

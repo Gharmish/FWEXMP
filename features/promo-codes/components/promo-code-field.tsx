@@ -25,6 +25,8 @@ export interface PromoCodeFieldCopy {
   removing: string;
   /** `{min}` is replaced with the formatted SAR minimum. */
   errorBelowMin: string;
+  /** Shown when a promo change released applied wallet credit — the guest re-taps. */
+  creditReleased: string;
   errors: Record<Exclude<PromoErrorCode, 'below_min'>, string>;
 }
 
@@ -114,6 +116,16 @@ export function PromoCodeField({
 
   const applyError = errorMessage(applyState, locale, copy);
   const removeError = errorMessage(removeState, locale, copy);
+  // Promo math runs on the pre-credit base, so a promo change releases
+  // any applied wallet credit — tell the guest to re-tap it.
+  const creditReleased =
+    (applyState.status === 'applied' && applyState.walletCreditReleased) ||
+    (removeState.status === 'removed' && removeState.walletCreditReleased);
+  const creditReleasedNote = creditReleased ? (
+    <p role="status" className="text-sarat-black-600 text-sm">
+      {copy.creditReleased}
+    </p>
+  ) : null;
 
   if (appliedCode) {
     return (
@@ -138,6 +150,7 @@ export function PromoCodeField({
             {removeError}
           </p>
         )}
+        {creditReleasedNote}
       </form>
     );
   }
@@ -175,6 +188,7 @@ export function PromoCodeField({
           {applyError}
         </p>
       )}
+      {creditReleasedNote}
     </form>
   );
 }

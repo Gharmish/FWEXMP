@@ -41,6 +41,7 @@ interface MockBooking {
   status: string;
   paymentStatus: string;
   totalAmount: number;
+  walletAppliedSar: number;
   paymentReference: string | null;
   approvalDeadline: Date | null;
   idempotencyKey: string;
@@ -105,6 +106,7 @@ beforeEach(() => {
     status: 'pending',
     paymentStatus: 'unpaid',
     totalAmount: 480,
+    walletAppliedSar: 0,
     paymentReference: null,
     approvalDeadline: null,
     idempotencyKey: 'ref-1',

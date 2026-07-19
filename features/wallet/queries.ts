@@ -1,10 +1,36 @@
 import 'server-only';
 
+import { eq } from 'drizzle-orm';
+import { db } from '@/lib/db';
+import { guests } from '@/db/schema';
 import { serverEnv } from '@/lib/env';
 import { reportError } from '@/lib/log';
+import { getCurrentUser } from '@/features/auth/queries';
 import { adminGuard } from '@/features/admin/guard';
 import { getWalletBalanceSar, listWalletEntries } from '@/features/wallet/ledger';
 import type { WalletAdminView } from '@/features/wallet/types';
+
+/**
+ * The guest row owned by the signed-in session, or null. This is the
+ * WALLET ownership gate: unlike `bookingViewerCanAccess` it has no
+ * cookie fallback — an account-less viewer holding the booking cookie
+ * can pay, but never sees or spends a wallet.
+ */
+export async function getSessionGuestId(): Promise<string | null> {
+  if (!serverEnv.DATABASE_URL) return null;
+  const user = await getCurrentUser();
+  if (!user) return null;
+  try {
+    const guest = await db.query.guests.findFirst({
+      where: eq(guests.authUserId, user.id),
+      columns: { id: true },
+    });
+    return guest?.id ?? null;
+  } catch (error) {
+    reportError(error, { surface: 'wallet:sessionGuest' });
+    return null;
+  }
+}
 
 /** Balance + full ledger for the admin person-360 panel. Degrades to null. */
 export async function getWalletAdminView(guestId: string): Promise<WalletAdminView | null> {

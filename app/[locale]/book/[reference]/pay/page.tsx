@@ -23,6 +23,9 @@ import {
 } from '@/features/payments/components/payment-details-form';
 import { PaymentDeadlineNote } from '@/features/payments/components/payment-deadline-note';
 import { PromoCodeField } from '@/features/promo-codes/components/promo-code-field';
+import { WalletCheckoutField } from '@/features/wallet/components/wallet-checkout-field';
+import { getSessionGuestId } from '@/features/wallet/queries';
+import { getWalletBalanceSar } from '@/features/wallet/ledger';
 import { PaymentMarks } from '@/components/layout/payment-marks';
 import { cn } from '@/lib/utils';
 
@@ -85,6 +88,16 @@ export default async function PaymentPage({ params, searchParams }: PageParams) 
 
   const t = await getTranslations('payment');
   const tFooter = await getTranslations('footer');
+
+  // Wallet credit is strictly session-owned — a cookie-only viewer can
+  // pay, but never sees another account's balance. Balance is read at
+  // render; the apply action re-reads it under lock, so staleness here
+  // only affects the button label, never the money.
+  const sessionGuestId = await getSessionGuestId();
+  const walletOwner = sessionGuestId !== null && sessionGuestId === booking.guestId;
+  const walletBalanceSar =
+    walletOwner && booking.walletAppliedSar === 0 ? await getWalletBalanceSar(booking.guestId) : 0;
+  const showWalletField = walletOwner && (walletBalanceSar > 0 || booking.walletAppliedSar > 0);
 
   // Platform settings feed the VAT disclosure in the summary below.
   const { vatEnabled, vatRateBps } = await getPlatformSettings();
@@ -187,6 +200,7 @@ export default async function PaymentPage({ params, searchParams }: PageParams) 
     appliedPrefix: t('promo.appliedPrefix'),
     remove: t('promo.remove'),
     removing: t('promo.removing'),
+    creditReleased: t('promo.creditReleased'),
     // Raw template — `{min}` is only known client-side after promo
     // validation; PromoCodeField substitutes it (formatting it here would
     // throw a FORMATTING_ERROR for the missing variable).
@@ -315,26 +329,37 @@ export default async function PaymentPage({ params, searchParams }: PageParams) 
               ))}
             </dl>
             <div className="border-sarat-black/8 flex flex-col gap-2 [border-top-width:0.5px] pt-4">
-              {/* A promo shows as subtotal (pre-discount) + a discount line
-                  above the charged total. `totalAmountSar` is always the
-                  post-discount amount. */}
+              {/* A promo or applied credit shows as subtotal (full base) +
+                  reduction lines above the charged total. `totalAmountSar`
+                  is always the amount the card is charged. */}
+              {(booking.discountSar > 0 || booking.walletAppliedSar > 0) && (
+                <p className="flex items-baseline justify-between gap-4 text-sm">
+                  <span className="text-sarat-black-600">{t('subtotalLabel')}</span>
+                  <Price
+                    amount={booking.totalAmountSar + booking.discountSar + booking.walletAppliedSar}
+                    locale={loc}
+                  />
+                </p>
+              )}
               {booking.discountSar > 0 && (
-                <>
-                  <p className="flex items-baseline justify-between gap-4 text-sm">
-                    <span className="text-sarat-black-600">{t('subtotalLabel')}</span>
-                    <Price amount={booking.totalAmountSar + booking.discountSar} locale={loc} />
-                  </p>
-                  <p className="text-juniper-green-800 flex items-baseline justify-between gap-4 text-sm">
-                    <span>
-                      {booking.promoCode
-                        ? t('promo.discountLabel', { code: booking.promoCode })
-                        : t('promo.discountLabelGeneric')}
-                    </span>
-                    <span>
-                      −<Price amount={booking.discountSar} locale={loc} />
-                    </span>
-                  </p>
-                </>
+                <p className="text-juniper-green-800 flex items-baseline justify-between gap-4 text-sm">
+                  <span>
+                    {booking.promoCode
+                      ? t('promo.discountLabel', { code: booking.promoCode })
+                      : t('promo.discountLabelGeneric')}
+                  </span>
+                  <span>
+                    −<Price amount={booking.discountSar} locale={loc} />
+                  </span>
+                </p>
+              )}
+              {booking.walletAppliedSar > 0 && (
+                <p className="text-juniper-green-800 flex items-baseline justify-between gap-4 text-sm">
+                  <span>{t('walletCredit.summaryLabel')}</span>
+                  <span>
+                    −<Price amount={booking.walletAppliedSar} locale={loc} />
+                  </span>
+                </p>
               )}
               <p className="flex items-baseline justify-between gap-4 text-base font-medium">
                 <span>{t('totalLabel')}</span>
@@ -351,6 +376,36 @@ export default async function PaymentPage({ params, searchParams }: PageParams) 
                 </p>
               )}
             </div>
+            {showWalletField && (
+              <div className="border-sarat-black/8 [border-top-width:0.5px] pt-4">
+                <WalletCheckoutField
+                  reference={reference}
+                  locale={loc}
+                  balanceSar={walletBalanceSar}
+                  appliedSar={booking.walletAppliedSar}
+                  copy={{
+                    // Raw template — `{amount}` is substituted client-side
+                    // (same trap as promo.errorBelowMin: formatting it here
+                    // would throw for the missing variable).
+                    available: t.raw('walletCredit.available'),
+                    apply: t('walletCredit.apply'),
+                    applying: t('walletCredit.applying'),
+                    appliedPrefix: t('walletCredit.appliedPrefix'),
+                    remove: t('walletCredit.remove'),
+                    removing: t('walletCredit.removing'),
+                    errors: {
+                      nothing_to_apply: t('walletCredit.errors.nothingToApply'),
+                      already_paid: t('walletCredit.errors.alreadyPaid'),
+                      unavailable: t('walletCredit.errors.unavailable'),
+                      not_found: t('walletCredit.errors.notFound'),
+                      validation: t('walletCredit.errors.validation'),
+                      no_db: t('walletCredit.errors.noDb'),
+                      server: t('walletCredit.errors.server'),
+                    },
+                  }}
+                />
+              </div>
+            )}
             <div className="border-sarat-black/8 [border-top-width:0.5px] pt-4">
               <PromoCodeField
                 reference={reference}

@@ -10,6 +10,7 @@ import { cancelBookingSchema } from '@/features/bookings/schemas';
 import { bookingViewerCanAccess } from '@/features/bookings/lib/access';
 import { bookingOptions } from '@/features/bookings/lib/policy';
 import { executeRefund } from '@/features/bookings/lib/refund';
+import { releaseWalletReservation } from '@/features/wallet/reservation';
 import {
   sendBookingCancellationEmail,
   sendHostGuestCancelledEmail,
@@ -88,6 +89,7 @@ export async function cancelBookingAsGuest(
         date: true,
         startTime: true,
         totalAmount: true,
+        walletAppliedSar: true,
         paymentReference: true,
         createdAt: true,
         policyTier: true,
@@ -111,7 +113,10 @@ export async function cancelBookingAsGuest(
       dateStr: booking.date,
       startTime: booking.startTime,
       createdAt: booking.createdAt,
-      totalAmountSar: booking.totalAmount,
+      // The refund base is everything the guest actually paid: the card
+      // charge plus any Gharmish Credit redeemed at checkout. The
+      // executor routes each share back down its own rail.
+      totalAmountSar: booking.totalAmount + booking.walletAppliedSar,
       snapshot: booking,
       rescheduleCount: booking.rescheduleCount,
       rescheduledFromDate: booking.rescheduledFromDate,
@@ -125,10 +130,17 @@ export async function cancelBookingAsGuest(
     // a concurrent host/admin transition can't be silently overwritten.
     const updated = await db
       .update(bookings)
-      .set({ status: 'cancelled' })
+      .set({ status: 'cancelled', cancelledAt: new Date(), cancellationKind: 'guest' })
       .where(and(eq(bookings.id, booking.id), inArray(bookings.status, ['pending', 'confirmed'])))
       .returning({ id: bookings.id });
     if (updated.length === 0) return { success: false, message: 'wrong_state' };
+
+    // An unpaid booking with checkout-applied credit only held a
+    // reservation — return it (no-ops when nothing was applied; paid
+    // credit travels through the refund executor's split instead).
+    if (booking.paymentStatus !== 'paid' && booking.walletAppliedSar > 0) {
+      await releaseWalletReservation(booking.id);
+    }
 
     if (cancel.refund === 'full' || cancel.refund === 'partial') {
       // Partial refunds reverse only the policy's fraction; the gateway

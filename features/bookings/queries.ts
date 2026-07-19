@@ -23,6 +23,8 @@ const hasDb = (): boolean => Boolean(serverEnv.DATABASE_URL);
 
 export interface BookingDetail {
   id: string;
+  /** Owning guest row — server-side only; used for wallet ownership checks. */
+  guestId: string;
   reference: string;
   /** Short human reference (`GH-7K3M9X`) — what guests see and quote. */
   referenceCode: string;
@@ -35,6 +37,11 @@ export interface BookingDetail {
   discountSar: number;
   /** UPPERCASE promo code snapshotted at redemption; null when none. */
   promoCode: string | null;
+  /**
+   * Gharmish Credit redeemed against this booking, whole SAR; 0 when
+   * none. Pre-credit amount = totalAmountSar + walletAppliedSar.
+   */
+  walletAppliedSar: number;
   /** Commission rate snapshotted at booking time, basis points. */
   commissionBps: number;
   /**
@@ -75,6 +82,10 @@ export interface BookingDetail {
   paymentDeadline: string | null;
   /** When the booking was moved to `refunded`. ISO; null when never refunded. */
   refundedAt: string | null;
+  /** How the refund travelled (`wallet` = credited to Gharmish Credit). Null = never refunded. */
+  refundMethod: Booking['refundMethod'];
+  /** Who called the booking off (`emergency` = admin force-majeure flow). Null = not cancelled. */
+  cancellationKind: Booking['cancellationKind'];
   /**
    * Cancellation-policy snapshot taken at booking creation — feeds
    * `bookingOptions()`, which decides the cancel/reschedule actions a
@@ -123,6 +134,7 @@ export async function getBookingByReference(reference: string): Promise<BookingD
   if (!row) return undefined;
   return {
     id: row.id,
+    guestId: row.guestId,
     reference: row.idempotencyKey,
     referenceCode: row.referenceCode,
     status: row.status,
@@ -131,6 +143,7 @@ export async function getBookingByReference(reference: string): Promise<BookingD
     totalAmountSar: row.totalAmount,
     discountSar: row.discountSar,
     promoCode: row.promoCode,
+    walletAppliedSar: row.walletAppliedSar,
     commissionBps: row.commissionBps,
     vatRateBps: row.vatRateBps,
     vatRegistrationNumber: row.vatRegistrationNumber,
@@ -150,6 +163,8 @@ export async function getBookingByReference(reference: string): Promise<BookingD
     approvedAt: row.approvedAt?.toISOString() ?? null,
     paymentDeadline: row.paymentDeadline?.toISOString() ?? null,
     refundedAt: row.refundedAt?.toISOString() ?? null,
+    refundMethod: row.refundMethod,
+    cancellationKind: row.cancellationKind,
     policy: policyOf(row),
     rescheduleCount: row.rescheduleCount,
     rescheduledFromDate: row.rescheduledFromDate,
@@ -202,6 +217,7 @@ export async function getBookingsForGuest(guestId: string): Promise<GuestBooking
   });
   return rows.map((row) => ({
     id: row.id,
+    guestId: row.guestId,
     reference: row.idempotencyKey,
     referenceCode: row.referenceCode,
     status: row.status,
@@ -210,6 +226,7 @@ export async function getBookingsForGuest(guestId: string): Promise<GuestBooking
     totalAmountSar: row.totalAmount,
     discountSar: row.discountSar,
     promoCode: row.promoCode,
+    walletAppliedSar: row.walletAppliedSar,
     commissionBps: row.commissionBps,
     vatRateBps: row.vatRateBps,
     vatRegistrationNumber: row.vatRegistrationNumber,
@@ -229,6 +246,8 @@ export async function getBookingsForGuest(guestId: string): Promise<GuestBooking
     approvedAt: row.approvedAt?.toISOString() ?? null,
     paymentDeadline: row.paymentDeadline?.toISOString() ?? null,
     refundedAt: row.refundedAt?.toISOString() ?? null,
+    refundMethod: row.refundMethod,
+    cancellationKind: row.cancellationKind,
     policy: policyOf(row),
     rescheduleCount: row.rescheduleCount,
     rescheduledFromDate: row.rescheduledFromDate,

@@ -334,16 +334,17 @@ async function buildInvoicePdfAttachment(
  * Send the cancellation notice after a booking is called off. `refund`
  * mirrors the cancel action's outcome: `refunded` (gateway refund
  * issued), `refund_pending` (we owe it, transfer is manual),
- * `forfeited` (inside the window, payment kept), `none` (nothing was
- * paid). `cancelledBy` selects the framing: `guest` ("you cancelled")
- * vs `operator` (host/admin called it off — always refunded in full
- * when paid, never forfeited). Same best-effort posture as the receipt:
- * gated, never throws upward.
+ * `wallet_credited` (emergency cancellation — the full payment landed
+ * as Gharmish Credit), `forfeited` (inside the window, payment kept),
+ * `none` (nothing was paid). `cancelledBy` selects the framing: `guest`
+ * ("you cancelled") vs `operator` (host/admin called it off — always
+ * refunded in full when paid, never forfeited). Same best-effort
+ * posture as the receipt: gated, never throws upward.
  */
 export async function sendBookingCancellationEmail(
   reference: string,
   locale: Locale,
-  refund: 'none' | 'refunded' | 'refund_pending' | 'forfeited',
+  refund: 'none' | 'refunded' | 'refund_pending' | 'wallet_credited' | 'forfeited',
   options?: {
     cancelledBy?: 'guest' | 'operator';
     /**
@@ -371,9 +372,9 @@ export async function sendBookingCancellationEmail(
   if (title) rows.push({ label: t('experienceLabel'), value: title });
   rows.push({ label: t('dateLabel'), value: formatDate(startsAt, locale, 'gregory', KSA_DATE) });
   rows.push({ label: t('timeLabel'), value: formatTime(startsAt, locale, KSA_TIME) });
-  if (refund === 'refunded' || refund === 'refund_pending') {
+  if (refund === 'refunded' || refund === 'refund_pending' || refund === 'wallet_credited') {
     rows.push({
-      label: t('refundLabel'),
+      label: t(refund === 'wallet_credited' ? 'walletCreditLabel' : 'refundLabel'),
       value: formatSAR(options?.refundAmountSar ?? booking.totalAmountSar, locale),
     });
   }
@@ -385,15 +386,25 @@ export async function sendBookingCancellationEmail(
       ? t(byOperator ? 'cancelByHostIntroRefunded' : 'cancelIntroRefunded')
       : refund === 'refund_pending'
         ? t(byOperator ? 'cancelByHostIntroRefundPending' : 'cancelIntroRefundPending')
-        : refund === 'forfeited'
-          ? t('cancelIntroForfeited')
-          : t(byOperator ? 'cancelByHostIntroUnpaid' : 'cancelIntroUnpaid');
+        : refund === 'wallet_credited'
+          ? t('cancelIntroWalletCredited')
+          : refund === 'forfeited'
+            ? t('cancelIntroForfeited')
+            : t(byOperator ? 'cancelByHostIntroUnpaid' : 'cancelIntroUnpaid');
 
   // Refunded (or refund-owed) payments get a link to the invoice page,
   // which carries the credit note for VAT-stamped bookings and the
-  // refunded receipt otherwise. Forfeited/unpaid cancellations have no
-  // money document to show.
+  // refunded receipt otherwise. Wallet credits link to the booking page
+  // instead — that's where the guest chooses "spend it" vs "back to my
+  // card". Forfeited/unpaid cancellations have no money document.
   const showDocument = refund === 'refunded' || refund === 'refund_pending';
+  const walletCta =
+    refund === 'wallet_credited'
+      ? {
+          label: t('viewWalletCredit'),
+          url: `${SITE_URL}/${locale}/book/confirmed/${reference}`,
+        }
+      : undefined;
   const { html, text } = renderReceiptEmail({
     logoUrl: EMAIL_LOGO_URL,
     subject: t('cancelSubject'),
@@ -406,7 +417,7 @@ export async function sendBookingCancellationEmail(
           label: booking.vatRateBps ? t('viewCreditNote') : t('viewReceipt'),
           url: `${SITE_URL}/${locale}/book/confirmed/${reference}/invoice`,
         }
-      : undefined,
+      : walletCta,
     closing: t('cancelClosing'),
     footer: t('footer'),
   });
@@ -1054,6 +1065,7 @@ export async function sendHostNewBookingEmail(reference: string): Promise<void> 
     booking.commissionBps,
     booking.vatRateBps,
     booking.discountSar,
+    booking.walletAppliedSar,
   );
 
   const rows = hostRows(booking, host, t);
@@ -1244,6 +1256,7 @@ export async function sendHostPaymentReceivedEmail(reference: string): Promise<v
     booking.commissionBps,
     booking.vatRateBps,
     booking.discountSar,
+    booking.walletAppliedSar,
   );
 
   const rows = hostRows(booking, host, t);

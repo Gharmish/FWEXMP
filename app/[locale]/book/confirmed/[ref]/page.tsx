@@ -23,6 +23,8 @@ import { getReviewForBooking } from '@/features/reviews/queries';
 import { hasOpenDisputeForBooking } from '@/features/disputes/queries';
 import { CancelBookingButton } from '@/features/bookings/components/cancel-booking-button';
 import { RescheduleBooking } from '@/features/bookings/components/reschedule-booking';
+import { RefundToCardButton } from '@/features/wallet/components/refund-to-card-button';
+import { getSessionGuestId } from '@/features/wallet/queries';
 import { bookingOptions } from '@/features/bookings/lib/policy';
 import {
   addDays,
@@ -146,6 +148,15 @@ export default async function BookingConfirmedPage({ params, searchParams }: Pag
   // and expired requests likewise own it (nothing was ever charged in
   // the pay-after-approval model).
   const isCancelled = booking?.status === 'cancelled' || booking?.status === 'refunded';
+  // Emergency-cancelled with the payment returned as Gharmish Credit —
+  // the page adds the guest's choice: spend the credit, or move the
+  // card-charged share back to the original payment method. The to-card
+  // action is wallet-scoped, so it renders only for the wallet's OWNER
+  // (signed-in account), never for a cookie-only viewer.
+  const isWalletRefunded = booking?.status === 'refunded' && booking.refundMethod === 'wallet';
+  const walletOwner =
+    isWalletRefunded && booking ? (await getSessionGuestId()) === booking.guestId : false;
+  const walletCreditSar = booking ? booking.totalAmountSar + booking.walletAppliedSar : 0;
   const isDeclined = booking?.status === 'declined';
   const isExpired = booking?.status === 'expired';
   // Any confirmed-but-unpaid booking inside a live payment window —
@@ -232,9 +243,11 @@ export default async function BookingConfirmedPage({ params, searchParams }: Pag
                   ? t('titleConfirmed')
                   : t('title');
   const headerDescription = isCancelled
-    ? booking?.status === 'refunded'
-      ? t('cancelledDescriptionRefunded')
-      : t('cancelledDescription')
+    ? isWalletRefunded
+      ? t('cancelledDescriptionWalletCredit', { amount: formatSAR(walletCreditSar, loc) })
+      : booking?.status === 'refunded'
+        ? t('cancelledDescriptionRefunded')
+        : t('cancelledDescription')
     : isDeclined
       ? t('declinedDescription')
       : isExpired
@@ -292,6 +305,18 @@ export default async function BookingConfirmedPage({ params, searchParams }: Pag
         value: (
           <span className="text-juniper-green-800">
             −<Price amount={booking.discountSar} locale={loc} />
+          </span>
+        ),
+      });
+    }
+    // Gharmish Credit redeemed at checkout — its own line above the
+    // charged total, mirroring the promo treatment.
+    if (booking.walletAppliedSar > 0) {
+      detailRows.push({
+        label: t('walletAppliedLabel'),
+        value: (
+          <span className="text-juniper-green-800">
+            −<Price amount={booking.walletAppliedSar} locale={loc} />
           </span>
         ),
       });
@@ -385,7 +410,9 @@ export default async function BookingConfirmedPage({ params, searchParams }: Pag
         dateStr: booking.date,
         startTime: booking.startTime,
         createdAt: new Date(booking.createdAt),
-        totalAmountSar: booking.totalAmountSar,
+        // Full paid base (card + redeemed credit) — matches the server
+        // action, so the quoted refund equals what actually comes back.
+        totalAmountSar: booking.totalAmountSar + booking.walletAppliedSar,
         snapshot: booking.policy,
         rescheduleCount: booking.rescheduleCount,
         rescheduledFromDate: booking.rescheduledFromDate,
@@ -442,7 +469,10 @@ export default async function BookingConfirmedPage({ params, searchParams }: Pag
   // confirm/done copy can quote it regardless of which refund state the
   // page happened to render in.
   const partialAmountSar = booking
-    ? Math.floor((booking.totalAmountSar * booking.policy.partialRefundBps) / 10_000)
+    ? Math.floor(
+        ((booking.totalAmountSar + booking.walletAppliedSar) * booking.policy.partialRefundBps) /
+          10_000,
+      )
     : 0;
 
   return (
@@ -553,6 +583,55 @@ export default async function BookingConfirmedPage({ params, searchParams }: Pag
             </div>
           )}
       </section>
+
+      {/* Emergency-cancellation credit: the money already sits in the
+          guest's wallet — this panel is where they choose what happens
+          next. "Back to my card" only renders while the card-charged
+          share is still reversible (it disappears once requested, when
+          refundMethod flips to gateway). */}
+      {isWalletRefunded && booking && (
+        <section className="border-sarat-black/8 rounded-card mt-10 flex flex-col gap-4 [border-width:0.5px] p-6 print:hidden">
+          <h2 className="font-display text-2xl font-medium tracking-[-0.025em]">
+            {t('walletCredit.heading')}
+          </h2>
+          <p className="text-sarat-black-600 text-base leading-relaxed">
+            {t('walletCredit.description', { amount: formatSAR(walletCreditSar, loc) })}
+          </p>
+          <div className="flex flex-wrap items-center gap-3">
+            <Link
+              href="/experiences"
+              className={cn(buttonVariants({ variant: 'primary', size: 'md' }))}
+            >
+              {t('walletCredit.browse')}
+            </Link>
+            {walletOwner && booking.totalAmountSar > 0 && (
+              <RefundToCardButton
+                reference={ref}
+                locale={loc}
+                copy={{
+                  label: t('walletCredit.toCard'),
+                  pending: t('walletCredit.toCardPending'),
+                  confirmTitle: t('walletCredit.confirmTitle'),
+                  confirmDescription: t('walletCredit.confirmDescription', {
+                    amount: formatSAR(booking.totalAmountSar, loc),
+                  }),
+                  doneRefunded: t('walletCredit.doneRefunded'),
+                  doneRefundPending: t('walletCredit.doneRefundPending'),
+                  errors: {
+                    not_found: t('walletCredit.errors.notFound'),
+                    not_eligible: t('walletCredit.errors.notEligible'),
+                    insufficient_balance: t('walletCredit.errors.insufficientBalance'),
+                    already_requested: t('walletCredit.errors.alreadyRequested'),
+                    validation: t('walletCredit.errors.server'),
+                    no_db: t('walletCredit.errors.server'),
+                    server: t('walletCredit.errors.server'),
+                  },
+                }}
+              />
+            )}
+          </div>
+        </section>
+      )}
 
       {/* The success "what happens next" steps only make sense once the
           booking is actually settled — suppress them while a payment failed

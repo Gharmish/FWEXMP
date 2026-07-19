@@ -891,7 +891,34 @@
       "noPayment": "Not paid online",
       "created": "Requested",
       "reference": "Reference",
-      "actions": "Actions"
+      "actions": "Actions",
+      "walletApplied": "Gharmish Credit applied",
+      "cancellationKind": "Cancelled by",
+      "cancellationKinds": {
+        "guest": "Guest (self-service)",
+        "operator": "Host / admin",
+        "emergency": "Admin — emergency"
+      },
+      "cancellationReason": "Cancellation reason",
+      "refundMethod": "Refund method",
+      "refundMethods": {
+        "gateway": "Card (gateway reversal)",
+        "wallet": "Gharmish Credit",
+        "manual": "Manual (recorded)"
+      }
+    },
+    "emergencyCancel": {
+      "heading": "Emergency cancellation",
+      "description": "For emergencies only — weather, host no-show, safety: the experience can't start or finish. This bypasses the cancellation policy and returns the guest's full payment as Gharmish Credit, from where they can spend it or move it back to their card. The reason is recorded on the booking and shown in the wallet ledger.",
+      "reasonLabel": "Reason (required — kept on record)",
+      "reasonPlaceholder": "e.g. Flash flooding at the meeting point — host called off the departure.",
+      "label": "Emergency cancel & refund to credit",
+      "pending": "Cancelling…",
+      "confirmTitle": "Emergency cancellation",
+      "confirmDescription": "This cancels the booking immediately and moves the guest's full payment into their Gharmish Credit. It can't be undone.",
+      "errors": {
+        "disputeOpen": "This booking has an open dispute — resolve it from the disputes queue instead, so the money is only moved once."
+      }
     },
     "bookingStatus": {
       "pending": "Pending",
@@ -2422,6 +2449,7 @@
     "cancelledTitle": "This booking is cancelled.",
     "cancelledDescription": "This booking was cancelled. If a refund is due, our team processes it within a few business days.",
     "cancelledDescriptionRefunded": "This booking was cancelled and the payment was refunded to the card used. Depending on your bank, it can take a few business days to appear.",
+    "cancelledDescriptionWalletCredit": "Due to an emergency, this experience couldn't go ahead and the booking was cancelled. Your full payment of {amount} has been added to your Gharmish Credit — use it on any experience, or move it back to your card below.",
     "vatIncludedLabel": "Includes VAT ({pct}%)",
     "whatsapp": {
       "heading": "Questions for your host?",
@@ -2465,7 +2493,26 @@
     "holdLapsedDescription": "We held your spot while payment was pending, but the window passed before it was completed. Nothing was charged and the spot has been released. You're welcome to book again.",
     "subtotalLabel": "Subtotal",
     "discountLabel": "Discount · {code}",
-    "discountLabelGeneric": "Discount"
+    "discountLabelGeneric": "Discount",
+    "walletAppliedLabel": "Gharmish Credit",
+    "walletCredit": {
+      "heading": "Your refund, your choice",
+      "description": "{amount} is in your Gharmish Credit right now. Spend it on any experience at checkout — or move the card-charged amount back to your original payment method.",
+      "browse": "Browse experiences",
+      "toCard": "Move it back to my card",
+      "toCardPending": "Requesting refund…",
+      "confirmTitle": "Refund to your card?",
+      "confirmDescription": "{amount} will be returned to the card you paid with and removed from your Gharmish Credit. Depending on your bank, it can take a few business days to appear.",
+      "doneRefunded": "Done — your refund is on its way to your card. Banks can take a few business days to show it.",
+      "doneRefundPending": "Your refund request is with our team — we'll return it to your card within a few business days.",
+      "errors": {
+        "notFound": "We couldn't find this booking. Sign in with the account you booked with and try again.",
+        "notEligible": "This booking's refund can't be moved to a card.",
+        "insufficientBalance": "Part of this credit has already been spent, so it can no longer be moved back to your card.",
+        "alreadyRequested": "This refund has already been requested — it's on its way.",
+        "server": "Something went wrong. Please try again."
+      }
+    }
   },
   "payment": {
     "eyebrow": "Secure payment",
@@ -2542,6 +2589,7 @@
       "removing": "Removing…",
       "discountLabel": "Discount · {code}",
       "discountLabelGeneric": "Discount",
+      "creditReleased": "Changing the promo code removed your applied credit — tap Apply credit to use it again.",
       "errorBelowMin": "This code needs a booking total of at least {min}.",
       "errors": {
         "invalid": "That code isn't valid.",
@@ -2552,6 +2600,24 @@
         "notFound": "We couldn’t find this booking.",
         "validation": "Please check the code and try again.",
         "noDb": "Promo codes are temporarily unavailable.",
+        "server": "Something went wrong. Please try again."
+      }
+    },
+    "walletCredit": {
+      "available": "You have {amount} in Gharmish Credit",
+      "apply": "Apply credit",
+      "applying": "Applying…",
+      "appliedPrefix": "Gharmish Credit applied:",
+      "remove": "Remove",
+      "removing": "Removing…",
+      "summaryLabel": "Gharmish Credit",
+      "errors": {
+        "nothingToApply": "There's no credit available to apply to this booking.",
+        "alreadyPaid": "This booking is already paid.",
+        "unavailable": "Credit can't be applied to this booking right now.",
+        "notFound": "We couldn’t find this booking.",
+        "validation": "Something didn't look right. Please try again.",
+        "noDb": "Gharmish Credit is temporarily unavailable.",
         "server": "Something went wrong. Please try again."
       }
     }
@@ -2627,6 +2693,9 @@
     "cancelByHostIntroRefunded": "Your host couldn't run this booking, so we've cancelled it and refunded your payment in full. Refunds usually arrive within a few business days, depending on your bank.",
     "cancelByHostIntroRefundPending": "Your host couldn't run this booking, so we've cancelled it. Your full refund is on its way — our team processes it by hand, so it can take a few business days.",
     "cancelByHostIntroUnpaid": "Your host couldn't run this booking, so we've cancelled it. Nothing was charged.",
+    "cancelIntroWalletCredited": "Due to an emergency, this experience couldn't go ahead — we're sorry. Your full payment has been added to your Gharmish Credit: spend it on any experience at checkout, or open your booking page to move it back to your card.",
+    "walletCreditLabel": "Added to your Gharmish Credit",
+    "viewWalletCredit": "View your refund options",
     "hostGuestCancelledSubject": "A guest cancelled their booking",
     "hostGuestCancelledIntro": "A guest has cancelled the booking below — those spots are open again. Your bookings page has the latest: {url}",
     "hostHoldLapsedSubject": "A booking lapsed unpaid",
@@ -2867,7 +2936,7 @@
       "wallet": {
         "title": "Wallet",
         "balanceLabel": "Balance",
-        "note": "Credit issued by our support team appears here. Spending it at checkout is coming soon."
+        "note": "Your Gharmish Credit balance. Apply it on the payment page the next time you book."
       },
       "payment": {
         "title": "Payment methods",

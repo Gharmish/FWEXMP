@@ -7,6 +7,7 @@ import { sourcesFor, type BookingTransitionTarget } from '@/features/bookings/li
 import { ACTIVE_BOOKING_STATUSES, remainingCapacity } from '@/features/bookings/lib/availability';
 import { holdStillCounts } from '@/features/bookings/lib/capacity-sql';
 import { executeRefund } from '@/features/bookings/lib/refund';
+import { releaseWalletReservationTx } from '@/features/wallet/reservation';
 import { getPlatformSettings } from '@/lib/platform-settings';
 import {
   sendBookingApprovedEmail,
@@ -77,6 +78,7 @@ export async function executeBookingTransition(
         status: true,
         paymentStatus: true,
         totalAmount: true,
+        walletAppliedSar: true,
         paymentReference: true,
         approvalDeadline: true,
         idempotencyKey: true,
@@ -116,6 +118,9 @@ export async function executeBookingTransition(
     let stamp: Partial<typeof bookings.$inferInsert> = { status: to };
     if (to === 'declined' && booking.status === 'pending') {
       stamp = { status: to, declinedAt: new Date() };
+    }
+    if (to === 'cancelled') {
+      stamp = { status: to, cancelledAt: new Date(), cancellationKind: 'operator' };
     }
     if (isApproval) {
       const needsPayment = hasHyperpay() && booking.paymentStatus === 'unpaid';
@@ -160,12 +165,21 @@ export async function executeBookingTransition(
       .where(and(eq(bookings.id, bookingId), eq(bookings.status, booking.status)))
       .returning({ id: bookings.id });
     if (updated.length === 0) return 'wrong_state' as const;
+
+    // Cancelling an UNPAID booking with checkout-applied credit only
+    // kills a reservation — return it atomically with the status flip
+    // (PAID credit travels through the refund executor below instead).
+    if (to === 'cancelled' && booking.paymentStatus !== 'paid' && booking.walletAppliedSar > 0) {
+      await releaseWalletReservationTx(tx, bookingId);
+    }
     return {
       decided: to,
       reference: booking.idempotencyKey,
       isApproval,
       wasPaid: booking.paymentStatus === 'paid',
-      totalAmount: booking.totalAmount,
+      // Full paid base: card charge + any redeemed Gharmish Credit —
+      // the refund executor splits it back across the two rails.
+      paidBaseSar: booking.totalAmount + booking.walletAppliedSar,
       paymentReference: booking.paymentReference,
       guestLocale: booking.guest.preferredLanguage,
     } as const;
@@ -193,7 +207,7 @@ export async function executeBookingTransition(
     refund = await executeRefund(
       bookingId,
       outcome.paymentReference,
-      outcome.totalAmount,
+      outcome.paidBaseSar,
       actor.kind === 'admin' ? actor.actorUserId : undefined,
     );
   }

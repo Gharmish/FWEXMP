@@ -13,6 +13,7 @@ import { getAdminBookingById, isAdminAndDbReady } from '@/features/admin/booking
 import { availableTransitions } from '@/features/bookings/lib/transitions';
 import { RefundButton } from '@/app/[locale]/admin/bookings/refund-button';
 import { TransitionButton } from '@/app/[locale]/admin/bookings/transition-button';
+import { EmergencyCancelButton } from '@/app/[locale]/admin/bookings/emergency-cancel-button';
 
 export async function generateMetadata({
   params,
@@ -85,9 +86,33 @@ export default async function AdminBookingDetailPage({
     { label: t('bookingDetail.created'), value: formatDate(new Date(booking.createdAt), loc) },
     { label: t('bookingDetail.reference'), value: booking.referenceCode, dir: 'ltr' },
   ];
+  if (booking.walletAppliedSar > 0) {
+    rows.push({
+      label: t('bookingDetail.walletApplied'),
+      value: <Price amount={booking.walletAppliedSar} locale={loc} />,
+    });
+  }
+  if (booking.cancellationKind) {
+    rows.push({
+      label: t('bookingDetail.cancellationKind'),
+      value: t(`bookingDetail.cancellationKinds.${booking.cancellationKind}`),
+    });
+  }
+  if (booking.cancellationReason) {
+    rows.push({ label: t('bookingDetail.cancellationReason'), value: booking.cancellationReason });
+  }
+  if (booking.refundMethod) {
+    rows.push({
+      label: t('bookingDetail.refundMethod'),
+      value: t(`bookingDetail.refundMethods.${booking.refundMethod}`),
+    });
+  }
 
   const transitions = availableTransitions(booking.status);
   const canRefund = booking.status === 'confirmed' || booking.status === 'completed';
+  // Emergency cancellation applies to live bookings only — `completed`
+  // stays with the disputes flow, terminal states are terminal.
+  const canEmergencyCancel = booking.status === 'pending' || booking.status === 'confirmed';
 
   return (
     <div className="flex flex-col gap-10">
@@ -163,6 +188,24 @@ export default async function AdminBookingDetailPage({
             )}
           </div>
         </section>
+      )}
+
+      {canEmergencyCancel && (
+        <EmergencyCancelButton
+          bookingId={booking.id}
+          locale={loc}
+          copy={{
+            heading: t('emergencyCancel.heading'),
+            description: t('emergencyCancel.description'),
+            reasonLabel: t('emergencyCancel.reasonLabel'),
+            reasonPlaceholder: t('emergencyCancel.reasonPlaceholder'),
+            label: t('emergencyCancel.label'),
+            pending: t('emergencyCancel.pending'),
+            confirmTitle: t('emergencyCancel.confirmTitle'),
+            confirmDescription: t('emergencyCancel.confirmDescription'),
+            errors: { ...actionErrors, dispute_open: t('emergencyCancel.errors.disputeOpen') },
+          }}
+        />
       )}
     </div>
   );

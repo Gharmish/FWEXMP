@@ -31,6 +31,14 @@ export interface AdminBookingRow {
   currency: string;
   paymentReference: string | null;
   createdAt: string;
+  /** Who called the booking off; null = never cancelled (or legacy row). */
+  cancellationKind: (typeof bookings.$inferSelect)['cancellationKind'];
+  /** The mandatory emergency note (also on guest/operator rows when set). */
+  cancellationReason: string | null;
+  /** How the refund travelled; null = never refunded. */
+  refundMethod: (typeof bookings.$inferSelect)['refundMethod'];
+  /** Gharmish Credit redeemed against this booking at checkout. */
+  walletAppliedSar: number;
 
   experienceSlug: string;
   experienceTitleEn: string;

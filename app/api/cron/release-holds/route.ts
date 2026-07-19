@@ -17,6 +17,7 @@ import {
 import { listRetryableDeliveries } from '@/lib/notifications/ledger';
 import { addDays } from '@/features/bookings/lib/availability';
 import { startInstant } from '@/features/bookings/lib/cancellation';
+import { releaseWalletReservation } from '@/features/wallet/reservation';
 import { paymentCollected } from '@/features/bookings/lib/payout-sql';
 import {
   VAT_MANDATORY_THRESHOLD_SAR,
@@ -118,7 +119,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     // once the hold has lapsed, so a released seat can never be charged.
     const released = await db
       .update(bookings)
-      .set({ status: 'cancelled' })
+      .set({ status: 'cancelled', cancelledAt: new Date() })
       .where(
         and(
           inArray(bookings.paymentStatus, ['unpaid', 'failed']),
@@ -133,11 +134,25 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
           ]),
         ),
       )
-      .returning({ id: bookings.id, reference: bookings.idempotencyKey });
+      .returning({
+        id: bookings.id,
+        reference: bookings.idempotencyKey,
+        walletAppliedSar: bookings.walletAppliedSar,
+      });
     // An approved-then-never-paid request (or an abandoned instant hold)
     // was just released — tell the guest the hold lapsed, and the host
     // that the booking they were notified about evaporated. Best-effort.
     for (const row of released) {
+      // A lapsed hold with checkout-applied credit was only a
+      // reservation — return it before the emails (never silently
+      // strand a guest's credit on a booking they can no longer pay).
+      if (row.walletAppliedSar > 0) {
+        try {
+          await releaseWalletReservation(row.id);
+        } catch (error) {
+          reportError(error, { surface: 'cron-release-holds:wallet', reference: row.reference });
+        }
+      }
       try {
         await sendBookingPaymentLapsedEmail(row.reference);
       } catch (error) {

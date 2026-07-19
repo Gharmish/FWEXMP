@@ -168,6 +168,24 @@ export const paymentStatusEnum = pgEnum('payment_status', [
 export const cancellationTierEnum = pgEnum('cancellation_tier', ['flexible', 'moderate', 'strict']);
 
 /**
+ * Who called a booking off. `guest` = self-service cancellation,
+ * `operator` = host/admin lifecycle cancel, `emergency` = the admin
+ * emergency flow (force-majeure: weather, host no-show, safety) — which
+ * bypasses the policy tiers and always returns the full payment as
+ * Gharmish Credit. Null on rows cancelled before this column existed.
+ */
+export const cancellationKindEnum = pgEnum('cancellation_kind', ['guest', 'operator', 'emergency']);
+
+/**
+ * How a refunded booking's money went back: `gateway` = automatic
+ * HyperPay reversal to the original card, `wallet` = credited to the
+ * guest's Gharmish Credit ledger, `manual` = admin reversed the charge
+ * out-of-band (HyperPay console) and recorded it. Null when never
+ * refunded (or refunded before this column existed).
+ */
+export const refundMethodEnum = pgEnum('refund_method', ['gateway', 'wallet', 'manual']);
+
+/**
  * Append-only payment ledger event types. One row per money-touching
  * interaction with the gateway (or per manual money decision), so the
  * sequence of attempts survives — the mutable columns on `bookings`
@@ -613,6 +631,27 @@ export const bookings = pgTable(
      * that were already `refunded` before this column existed.
      */
     refundedAt: timestamp({ withTimezone: true }),
+    /**
+     * Cancellation bookkeeping: when the booking was called off, by whom
+     * (`cancellationKind`), and — for the emergency flow, where the note
+     * is mandatory — why. All null on rows cancelled before these
+     * columns existed and on never-cancelled bookings.
+     */
+    cancelledAt: timestamp({ withTimezone: true }),
+    cancellationKind: cancellationKindEnum(),
+    cancellationReason: text(),
+    /** How the refund travelled (see `refundMethodEnum`). Null = never refunded. */
+    refundMethod: refundMethodEnum(),
+    /**
+     * Whole-SAR Gharmish Credit redeemed against this booking at
+     * checkout. `totalAmount` stays the amount actually CHARGED to the
+     * card/Mada, so the full paid base of a wallet-assisted booking is
+     * `totalAmount + walletAppliedSar` (and pre-discount list price is
+     * that plus `discountSar`). The wallet ledger row (`type=redemption`,
+     * idempotency key `redemption:<bookingId>`) is written at payment
+     * settlement — an applied-but-abandoned checkout never debits.
+     */
+    walletAppliedSar: integer().notNull().default(0),
     /**
      * Whole-SAR amount we still owe back to the guest after a
      * cancellation whose automatic gateway refund failed (or wasn't

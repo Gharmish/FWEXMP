@@ -12,6 +12,7 @@ import { recordPaymentEvent } from '@/features/payments/ledger';
 import { computeDiscountSar } from '@/features/promo-codes/lib/discount';
 import { PROMO_REDEEMED_STATUSES } from '@/features/promo-codes/queries';
 import { applyPromoSchema, removePromoSchema } from '@/features/promo-codes/schemas';
+import { releaseWalletReservationTx } from '@/features/wallet/reservation';
 
 /**
  * Guest-facing promo apply / remove, driven from the payment step. Both
@@ -53,8 +54,10 @@ export type PromoActionState =
       totalSar: number;
       /** A live checkout was superseded — the client must tear down the stale widget. */
       checkoutSuperseded?: boolean;
+      /** Applied wallet credit was released (promo math runs on the full base) — the guest re-taps. */
+      walletCreditReleased?: boolean;
     }
-  | { status: 'removed'; checkoutSuperseded?: boolean }
+  | { status: 'removed'; checkoutSuperseded?: boolean; walletCreditReleased?: boolean }
   | {
       status: 'error';
       error: PromoErrorCode;
@@ -135,6 +138,7 @@ export async function applyPromo(
           id: bookings.id,
           totalAmount: bookings.totalAmount,
           discountSar: bookings.discountSar,
+          walletAppliedSar: bookings.walletAppliedSar,
           paymentStatus: bookings.paymentStatus,
           status: bookings.status,
           checkoutId: bookings.checkoutId,
@@ -145,6 +149,17 @@ export async function applyPromo(
       if (!booking) return fail('not_found');
       if (booking.paymentStatus === 'paid') return fail('already_paid');
       if (booking.status !== 'confirmed') return fail('unavailable');
+
+      // Applied Gharmish Credit is released FIRST: a promo percentage
+      // must never compute on a post-credit amount, and partial credit
+      // reversals aren't a thing — the guest re-taps "Apply credit" on
+      // the refreshed page (the release restores the total in this same
+      // transaction, so the base below is the true pre-credit amount).
+      let creditReleasedSar = 0;
+      if (booking.walletAppliedSar > 0) {
+        const released = await releaseWalletReservationTx(tx, booking.id);
+        if (released.released) creditReleasedSar = released.amountSar;
+      }
 
       // Lock the promo row: the cap re-count below must serialize against
       // other checkouts redeeming the same code.
@@ -163,9 +178,9 @@ export async function applyPromo(
         return fail('invalid');
       }
 
-      // Discount is computed on the PRE-discount base so re-applying or
-      // swapping a code is idempotent.
-      const baseSar = booking.totalAmount + booking.discountSar;
+      // Discount is computed on the PRE-discount, PRE-credit base so
+      // re-applying or swapping a code is idempotent.
+      const baseSar = booking.totalAmount + creditReleasedSar + booking.discountSar;
       if (promo.minTotalSar != null && baseSar < promo.minTotalSar) {
         return fail('below_min', promo.minTotalSar);
       }
@@ -219,6 +234,7 @@ export async function applyPromo(
         discountSar,
         totalSar,
         checkoutSuperseded: superseding,
+        walletCreditReleased: creditReleasedSar > 0,
       } as const;
     });
 
@@ -282,6 +298,7 @@ export async function removePromo(
           id: bookings.id,
           totalAmount: bookings.totalAmount,
           discountSar: bookings.discountSar,
+          walletAppliedSar: bookings.walletAppliedSar,
           paymentStatus: bookings.paymentStatus,
           checkoutId: bookings.checkoutId,
         })
@@ -292,6 +309,14 @@ export async function removePromo(
       if (booking.paymentStatus === 'paid') return err('already_paid');
       // Nothing applied — a no-op success so the UI just settles.
       if (booking.discountSar === 0) return { status: 'removed' } as const;
+
+      // Same rule as apply: credit is the LAST reduction, so a promo
+      // change releases it first and the guest re-taps.
+      let creditReleasedSar = 0;
+      if (booking.walletAppliedSar > 0) {
+        const released = await releaseWalletReservationTx(tx, booking.id);
+        if (released.released) creditReleasedSar = released.amountSar;
+      }
 
       const superseding = booking.paymentStatus === 'processing';
       if (superseding && booking.checkoutId) {
@@ -304,14 +329,18 @@ export async function removePromo(
       await tx
         .update(bookings)
         .set({
-          totalAmount: booking.totalAmount + booking.discountSar,
+          totalAmount: booking.totalAmount + creditReleasedSar + booking.discountSar,
           discountSar: 0,
           promoCodeId: null,
           promoCode: null,
           ...(superseding ? { paymentStatus: 'unpaid' as const } : {}),
         })
         .where(eq(bookings.id, booking.id));
-      return { status: 'removed', checkoutSuperseded: superseding } as const;
+      return {
+        status: 'removed',
+        checkoutSuperseded: superseding,
+        walletCreditReleased: creditReleasedSar > 0,
+      } as const;
     });
 
     if (outcome.status === 'removed') {
