@@ -108,6 +108,16 @@ pnpm db:generate   # generate migration from schema diff
 
 ---
 
+## Shared checkout — commit & deploy discipline
+
+Several Claude sessions (and I) often work in this ONE checkout at the same time. A real collision happened on 2026-07-19: one session's staged files were swept into another session's bare `git commit`.
+
+- Expect foreign files in `git status`. Never `git add .`.
+- Commit with explicit pathspecs (`git commit <your files> -m ...`) — never a bare `git commit`, even right after `git add`; another session can stage files in between.
+- If a shared file (especially `db/schema.ts`) contains hunks that aren't yours, stage only your hunks (`git apply --cached` with a filtered patch).
+- After committing, verify with `git show --stat HEAD` that nothing foreign was swept in.
+- Never `vercel deploy --prod` from a dirty tree — it uploads the whole directory, including other sessions' half-finished work. Deploy from a clean export: `git archive HEAD | tar -x -C <scratch>/deploy` + copy only `.vercel/project.json` into a fresh `.vercel/` there.
+
 ## How we handle disagreement
 
 If you think I'm wrong about something — design, architecture, scope, anything — say so. Explain why. I'd rather you push back than silently build the wrong thing.
