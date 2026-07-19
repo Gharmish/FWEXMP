@@ -21,8 +21,12 @@ export interface WalletCardProps {
  * Gharmish Credit balance (owner-approved 2026-07 deviation from BRIEF
  * §8). Credit is platform-issued and non-withdrawable — no top-ups, no
  * cash-out — which keeps it outside SAMA stored-value licensing; a
- * legal read on that model is still an owner to-do. P0 shows
- * support-issued credit only; spending at checkout ships later.
+ * legal read on that model is still an owner to-do. One owner-blessed
+ * bounded exception (2026-07-19): after an emergency cancellation
+ * refunded to credit, the guest may move the CARD-CHARGED share back to
+ * the original payment method (refund-to-source of the original
+ * capture — see features/wallet/refund-out-actions.ts). Credit spends
+ * at checkout via the pay page's one-tap apply.
  */
 export function WalletCard({ locale, balanceSar, copy }: WalletCardProps) {
   return (

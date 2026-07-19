@@ -176,6 +176,7 @@ export async function resolveDispute(
               paymentStatus: true,
               paymentReference: true,
               totalAmount: true,
+              walletAppliedSar: true,
               refundDueSar: true,
             },
           },
@@ -188,7 +189,10 @@ export async function resolveDispute(
       refund = {
         bookingId: dispute.booking.id,
         paymentReference: dispute.booking.paymentReference,
-        amountSar: dispute.booking.totalAmount,
+        // Full paid base (card + redeemed credit) — executeRefund's auto
+        // rails split it back across the gateway and the wallet, and
+        // `resolutionRefundSar` records what the guest actually gets.
+        amountSar: dispute.booking.totalAmount + dispute.booking.walletAppliedSar,
       };
     }
 

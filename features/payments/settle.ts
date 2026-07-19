@@ -62,7 +62,14 @@ export async function settleBooking(reference: string): Promise<SettleOutcome> {
   try {
     const booking = await db.query.bookings.findFirst({
       where: eq(bookings.idempotencyKey, reference),
-      columns: { id: true, checkoutId: true, paymentStatus: true, status: true, totalAmount: true },
+      columns: {
+        id: true,
+        checkoutId: true,
+        paymentStatus: true,
+        status: true,
+        totalAmount: true,
+        walletAppliedSar: true,
+      },
       // Invoice-immutability snapshots: the issued invoice must keep the
       // item description and buyer name as they were at payment time.
       with: {
@@ -167,11 +174,14 @@ export async function settleBooking(reference: string): Promise<SettleOutcome> {
       // longer exists for the guest. Refund it right back (gateway-first,
       // manual fallback) and tell the team.
       if ((DEAD_STATUSES as readonly string[]).includes(booking.status)) {
-        const refund = await executeRefund(booking.id, status.id, booking.totalAmount);
+        // Full paid base: the card capture plus any redeemed credit —
+        // executeRefund's auto rails return each leg down its own rail.
+        const paidBaseSar = booking.totalAmount + booking.walletAppliedSar;
+        const refund = await executeRefund(booking.id, status.id, paidBaseSar);
         await notifyAdmin('settle_anomaly', {
           problem: `payment captured on a ${booking.status} booking`,
           reference,
-          amountSar: booking.totalAmount,
+          amountSar: paidBaseSar,
           autoRefund: refund,
         });
         return 'success';

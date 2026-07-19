@@ -31,6 +31,7 @@ interface MockBooking {
   paymentStatus: string;
   status: string;
   totalAmount: number;
+  walletAppliedSar: number;
   experience: { titleEn: string; titleAr: string };
   guest: { name: string };
 }
@@ -109,6 +110,7 @@ beforeEach(() => {
     paymentStatus: 'processing',
     status: 'confirmed',
     totalAmount: 480,
+    walletAppliedSar: 0,
     experience: { titleEn: 'Dawn walk', titleAr: 'مشي الفجر' },
     guest: { name: 'Aziz' },
   };
@@ -238,6 +240,16 @@ describe('settleBooking', () => {
     // The capture is recorded first, then immediately reversed.
     expect(setCalls[0]).toMatchObject({ paymentStatus: 'paid' });
     expect(executeRefund).toHaveBeenCalledWith('b-1', 'pay-1', 480);
+  });
+
+  it('dead-booking auto-refund covers the full paid base including redeemed credit', async () => {
+    booking = { ...booking!, status: 'cancelled', walletAppliedSar: 50 };
+
+    const outcome = await settleBooking('ref-1');
+
+    expect(outcome).toBe('success');
+    // 480 card + 50 credit — executeRefund's auto rails split the legs.
+    expect(executeRefund).toHaveBeenCalledWith('b-1', 'pay-1', 530);
     expect(notifyAdmin).toHaveBeenCalledWith(
       'settle_anomaly',
       expect.objectContaining({ autoRefund: 'refunded' }),

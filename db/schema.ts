@@ -653,9 +653,18 @@ export const bookings = pgTable(
      * checkout. `totalAmount` stays the amount actually CHARGED to the
      * card/Mada, so the full paid base of a wallet-assisted booking is
      * `totalAmount + walletAppliedSar` (and pre-discount list price is
-     * that plus `discountSar`). The wallet ledger row (`type=redemption`,
-     * idempotency key `redemption:<bookingId>`) is written at payment
-     * settlement — an applied-but-abandoned checkout never debits.
+     * that plus `discountSar`).
+     *
+     * Debit-at-APPLY (owner arbitration 2026-07-19): the redemption
+     * ledger row (`redeem:<bookingId>:<n>`, cycle-suffixed because
+     * apply→remove→re-apply is legal) commits in the same transaction
+     * that reduces `totalAmount`, so a balance can never be promised to
+     * two bookings. Every UNPAID death (remove, promo change, hold
+     * lapse, cancel/decline) RELEASES the reservation via a `reversal`
+     * row (features/wallet/reservation.ts); paid bookings keep the
+     * stamp — it feeds payout math, and refunds return the credit leg
+     * as `refund_credit` through executeRefund's card-first split.
+     * Platform-funded like `discountSar`: the payout base adds it back.
      */
     walletAppliedSar: integer().notNull().default(0),
     /**

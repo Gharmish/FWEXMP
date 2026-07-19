@@ -33,7 +33,11 @@ export interface AdminDisputeRow {
   guestPersonKey: string;
   /** Whether resolving may offer the full-refund checkbox. */
   refundable: boolean;
-  /** Full booking amount — labels the refund checkbox. */
+  /**
+   * Full paid base (card + redeemed credit) — labels the refund
+   * checkbox with the same amount the resolve action refunds and the
+   * guest notice reports.
+   */
   bookingAmountSar: number;
   /** Refund granted at resolution time; null = resolved without one. */
   resolutionRefundSar: number | null;
@@ -70,7 +74,8 @@ export async function listDisputesForAdmin(): Promise<readonly AdminDisputeRow[]
         guestAuthUserId: guests.authUserId,
         bookingStatus: bookings.status,
         bookingPaymentStatus: bookings.paymentStatus,
-        bookingAmountSar: bookings.totalAmount,
+        bookingTotalAmountSar: bookings.totalAmount,
+        bookingWalletAppliedSar: bookings.walletAppliedSar,
         bookingRefundDueSar: bookings.refundDueSar,
       })
       .from(disputes)
@@ -85,6 +90,8 @@ export async function listDisputesForAdmin(): Promise<readonly AdminDisputeRow[]
         guestAuthUserId,
         bookingStatus,
         bookingPaymentStatus,
+        bookingTotalAmountSar,
+        bookingWalletAppliedSar,
         bookingRefundDueSar,
         ...row
       }) => ({
@@ -92,6 +99,7 @@ export async function listDisputesForAdmin(): Promise<readonly AdminDisputeRow[]
         createdAt: row.createdAt.toISOString(),
         resolvedAt: row.resolvedAt ? row.resolvedAt.toISOString() : null,
         guestPersonKey: guestAuthUserId ? authKey(guestAuthUserId) : guestKey(guestId),
+        bookingAmountSar: bookingTotalAmountSar + bookingWalletAppliedSar,
         refundable: isDisputeRefundable({
           status: bookingStatus,
           paymentStatus: bookingPaymentStatus,

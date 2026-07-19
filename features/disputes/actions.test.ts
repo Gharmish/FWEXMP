@@ -59,6 +59,7 @@ interface RefundableBooking {
   paymentStatus: string;
   paymentReference: string | null;
   totalAmount: number;
+  walletAppliedSar: number;
   refundDueSar: number | null;
 }
 
@@ -124,6 +125,7 @@ const PAID_BOOKING: RefundableBooking = {
   paymentStatus: 'paid',
   paymentReference: 'pay-1',
   totalAmount: 450,
+  walletAppliedSar: 0,
   refundDueSar: null,
 };
 
@@ -257,6 +259,16 @@ describe('resolveDispute', () => {
     expect(updateSet).toMatchObject({ status: 'resolved', resolutionRefundSar: 450 });
     expect(executeRefund).toHaveBeenCalledWith('booking-1', 'pay-1', 450, 'admin-1');
     expect(sendDisputeResolvedEmail).toHaveBeenCalledWith(DISPUTE_ID, 450);
+  });
+
+  it('refunds the full paid base when the booking redeemed Gharmish Credit', async () => {
+    disputeRow = { id: DISPUTE_ID, booking: { ...PAID_BOOKING, walletAppliedSar: 50 } };
+    const state = await resolveDispute({ success: false }, resolveForm({ issueRefund: 'on' }));
+    expect(state).toEqual({ success: true });
+    // 450 card + 50 credit — the guest is told the whole amount.
+    expect(updateSet).toMatchObject({ status: 'resolved', resolutionRefundSar: 500 });
+    expect(executeRefund).toHaveBeenCalledWith('booking-1', 'pay-1', 500, 'admin-1');
+    expect(sendDisputeResolvedEmail).toHaveBeenCalledWith(DISPUTE_ID, 500);
   });
 
   it('refuses the refund (without resolving) when the booking is not refundable', async () => {
