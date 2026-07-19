@@ -174,7 +174,13 @@ export const cancellationTierEnum = pgEnum('cancellation_tier', ['flexible', 'mo
  * bypasses the policy tiers and always returns the full payment as
  * Gharmish Credit. Null on rows cancelled before this column existed.
  */
-export const cancellationKindEnum = pgEnum('cancellation_kind', ['guest', 'operator', 'emergency']);
+export const cancellationKindEnum = pgEnum('cancellation_kind', [
+  'guest',
+  'operator',
+  'emergency',
+  /** Automatic releases — e.g. a lapsed payment hold cancelled by the cron. */
+  'system',
+]);
 
 /**
  * How a refunded booking's money went back: `gateway` = automatic
@@ -1176,7 +1182,12 @@ export const walletEntryTypeEnum = pgEnum('wallet_entry_type', [
  * own audit record (actor, note, timestamp). Credit here is
  * platform-issued and non-withdrawable: guests can never deposit or
  * cash out, which is what keeps this outside SAMA stored-value
- * licensing. Written by features/wallet/ledger.ts only.
+ * licensing. ONE owner-blessed exception (2026-07-19): `refund_credit`
+ * from the guest's OWN captured payment may travel back to the original
+ * payment method via the refund-out flow — refund-to-source only,
+ * capped at the card-charged amount, never a transfer to an arbitrary
+ * account. Goodwill/promo credit stays non-withdrawable. Written by
+ * features/wallet/ledger.ts only.
  */
 export const walletLedger = pgTable(
   'wallet_ledger',

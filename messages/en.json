@@ -897,7 +897,8 @@
       "cancellationKinds": {
         "guest": "Guest (self-service)",
         "operator": "Host / admin",
-        "emergency": "Admin — emergency"
+        "emergency": "Admin — emergency",
+        "system": "System (payment hold lapsed)"
       },
       "cancellationReason": "Cancellation reason",
       "refundMethod": "Refund method",
@@ -2499,6 +2500,7 @@
       "heading": "Your refund, your choice",
       "description": "{amount} is in your Gharmish Credit right now. Spend it on any experience at checkout — or move the card-charged amount back to your original payment method.",
       "browse": "Browse experiences",
+      "signInHint": "Sign in with the phone number you booked with to see your balance or move the refund back to your card.",
       "toCard": "Move it back to my card",
       "toCardPending": "Requesting refund…",
       "confirmTitle": "Refund to your card?",

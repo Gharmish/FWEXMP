@@ -96,11 +96,12 @@ export async function getAdminDashboard(): Promise<AdminDashboard | null> {
     ]);
     const [netRow, disputeRow, payoutRow, heartbeatRow] = await Promise.all([
       // Net commission on revenue bookings in the trailing 30 days, from
-      // the per-booking commission snapshot, net of promo discounts the
-      // platform funded in the same window (platform-funded model).
+      // the per-booking commission snapshot, net of promo discounts AND
+      // redeemed Gharmish Credit the platform funded in the same window
+      // (both platform-funded — the host is paid on the full base).
       db
         .select({
-          net: sql<number>`coalesce(sum((${bookings.totalAmount} * ${bookings.commissionBps} / 10000.0) - coalesce(${bookings.discountSar}, 0)) filter (where ${bookings.status} in ('confirmed','completed') and ${bookings.createdAt} >= now() - interval '30 days'), 0)::int`,
+          net: sql<number>`coalesce(sum((${bookings.totalAmount} * ${bookings.commissionBps} / 10000.0) - coalesce(${bookings.discountSar}, 0) - coalesce(${bookings.walletAppliedSar}, 0)) filter (where ${bookings.status} in ('confirmed','completed') and ${bookings.createdAt} >= now() - interval '30 days'), 0)::int`,
         })
         .from(bookings),
       db

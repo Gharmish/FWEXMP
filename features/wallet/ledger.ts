@@ -28,19 +28,6 @@ export type WalletEntryInput = Pick<
 >;
 
 /**
- * Whether a ledger row with this idempotency key exists — the
- * self-verifying check money flows use before assuming a movement
- * happened (e.g. "was this booking's redemption actually debited?").
- */
-export async function hasWalletEntry(idempotencyKey: string): Promise<boolean> {
-  const row = await db.query.walletLedger.findFirst({
-    where: eq(walletLedger.idempotencyKey, idempotencyKey),
-    columns: { id: true },
-  });
-  return Boolean(row);
-}
-
-/**
  * Whether any redemption row exists for a booking — the proof its
  * wallet application actually debited the ledger. Keyed by booking id,
  * not idempotency key: apply/remove cycles suffix their keys

@@ -119,7 +119,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     // once the hold has lapsed, so a released seat can never be charged.
     const released = await db
       .update(bookings)
-      .set({ status: 'cancelled', cancelledAt: new Date() })
+      .set({ status: 'cancelled', cancelledAt: new Date(), cancellationKind: 'system' })
       .where(
         and(
           inArray(bookings.paymentStatus, ['unpaid', 'failed']),

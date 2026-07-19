@@ -1,0 +1,1 @@
+ALTER TYPE "public"."cancellation_kind" ADD VALUE 'system';

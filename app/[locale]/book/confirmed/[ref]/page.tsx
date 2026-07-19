@@ -604,6 +604,11 @@ export default async function BookingConfirmedPage({ params, searchParams }: Pag
             >
               {t('walletCredit.browse')}
             </Link>
+            {!walletOwner && (
+              // Wallet actions are session-owned — tell a signed-out (or
+              // cookie-only) viewer to sign in rather than look broken.
+              <p className="text-sarat-black-600 text-sm">{t('walletCredit.signInHint')}</p>
+            )}
             {walletOwner && booking.totalAmountSar > 0 && (
               <RefundToCardButton
                 reference={ref}
