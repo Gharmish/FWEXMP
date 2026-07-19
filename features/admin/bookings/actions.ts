@@ -1,6 +1,6 @@
 'use server';
 
-import { and, eq, inArray, or } from 'drizzle-orm';
+import { and, eq, inArray, isNotNull, or, sql } from 'drizzle-orm';
 import { revalidatePath } from 'next/cache';
 import { db } from '@/lib/db';
 import { serverEnv, hasHyperpay } from '@/lib/env';
@@ -94,6 +94,7 @@ export async function refundBooking(
         paymentStatus: true,
         paymentReference: true,
         totalAmount: true,
+        refundDueSar: true,
         idempotencyKey: true,
       },
       with: { guest: { columns: { preferredLanguage: true } } },
@@ -101,16 +102,25 @@ export async function refundBooking(
     if (!booking) return { success: false, message: 'not_found' };
 
     // Eligibility mirrors the conditional UPDATE below: `pending`
-    // bookings haven't taken money yet (cancel, don't refund) and
-    // `refunded` is terminal. `cancelled` is refundable only when the
-    // guest had paid — the cancellation flows leave a paid booking
-    // `cancelled` + `refundDueSar` when the automatic gateway refund
-    // failed; this action settles that queue.
+    // bookings haven't taken money yet (cancel, don't refund).
+    // `cancelled` is refundable only when the guest had paid — the
+    // cancellation flows leave a paid booking `cancelled` +
+    // `refundDueSar` when the automatic gateway refund failed; this
+    // action settles that queue. `refunded` is terminal EXCEPT while it
+    // still owes money: a failed refund-to-card on a wallet-refunded
+    // booking stamps `refundDueSar` on an already-`refunded` row, and
+    // this record-only arm is the only way to close that queue entry.
     const refundable =
       booking.status === 'confirmed' ||
       booking.status === 'completed' ||
-      (booking.status === 'cancelled' && booking.paymentStatus === 'paid');
+      (booking.status === 'cancelled' && booking.paymentStatus === 'paid') ||
+      (booking.status === 'refunded' && booking.refundDueSar !== null);
     if (!refundable) return { success: false, message: 'wrong_state' };
+
+    // What's actually owed: the stamped manual-queue amount when one
+    // exists (it may be a partial-policy or card-leg share, less than
+    // the full charge), the full charge otherwise.
+    const owedSar = booking.refundDueSar ?? booking.totalAmount;
 
     // Gateway-first: try the automated reversal before recording — but
     // never twice: if the ledger already holds a `refund_succeeded` for
@@ -126,15 +136,15 @@ export async function refundBooking(
           await recordPaymentEvent({
             bookingId: booking.id,
             type: 'refund_attempted',
-            amountSar: booking.totalAmount,
+            amountSar: owedSar,
             gatewayId: booking.paymentReference,
             actorUserId: guard.adminUserId,
           });
-          const { resultCode } = await refundPayment(booking.paymentReference, booking.totalAmount);
+          const { resultCode } = await refundPayment(booking.paymentReference, owedSar);
           await recordPaymentEvent({
             bookingId: booking.id,
             type: isSuccessfulResult(resultCode) ? 'refund_succeeded' : 'refund_failed',
-            amountSar: booking.totalAmount,
+            amountSar: owedSar,
             gatewayId: booking.paymentReference,
             resultCode,
             actorUserId: guard.adminUserId,
@@ -155,7 +165,10 @@ export async function refundBooking(
       .update(bookings)
       .set({
         status: 'refunded',
-        refundedAt: new Date(),
+        // Keep the ORIGINAL refund date on the record-only arm (an
+        // already-`refunded` booking was windowed into analytics then);
+        // fresh refunds stamp now.
+        refundedAt: sql`coalesce(${bookings.refundedAt}, now())`,
         refundDueSar: null,
         refundMethod: 'manual',
       })
@@ -165,6 +178,7 @@ export async function refundBooking(
           or(
             inArray(bookings.status, ['confirmed', 'completed']),
             and(eq(bookings.status, 'cancelled'), eq(bookings.paymentStatus, 'paid')),
+            and(eq(bookings.status, 'refunded'), isNotNull(bookings.refundDueSar)),
           ),
         ),
       )
@@ -178,7 +192,7 @@ export async function refundBooking(
       await recordPaymentEvent({
         bookingId: booking.id,
         type: 'manual_refund_recorded',
-        amountSar: booking.totalAmount,
+        amountSar: owedSar,
         actorUserId: guard.adminUserId,
       });
     } catch (error) {

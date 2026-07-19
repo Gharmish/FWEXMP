@@ -109,7 +109,13 @@ export default async function AdminBookingDetailPage({
   }
 
   const transitions = availableTransitions(booking.status);
-  const canRefund = booking.status === 'confirmed' || booking.status === 'completed';
+  const canRefund =
+    booking.status === 'confirmed' ||
+    booking.status === 'completed' ||
+    (booking.status === 'cancelled' && booking.paymentStatus === 'paid') ||
+    // Already refunded but still owing (failed refund-to-card) — the
+    // refund action's record-only arm clears the manual queue.
+    (booking.status === 'refunded' && booking.refundDueSar !== null);
   // Emergency cancellation applies to live bookings only — `completed`
   // stays with the disputes flow, terminal states are terminal.
   const canEmergencyCancel = booking.status === 'pending' || booking.status === 'confirmed';

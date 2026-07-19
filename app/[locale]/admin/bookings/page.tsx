@@ -374,7 +374,10 @@ export default async function AdminBookingsPage({
                           ))}
                           {(row.status === 'confirmed' ||
                             row.status === 'completed' ||
-                            (row.status === 'cancelled' && row.paymentStatus === 'paid')) && (
+                            (row.status === 'cancelled' && row.paymentStatus === 'paid') ||
+                            // Already refunded but still owing (failed
+                            // refund-to-card) — the record-only arm.
+                            (row.status === 'refunded' && row.refundDueSar !== null)) && (
                             <RefundButton
                               bookingId={row.id}
                               locale={loc}
