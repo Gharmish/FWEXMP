@@ -12,16 +12,19 @@ export interface WalletCardCopy {
 
 export interface WalletCardProps {
   locale: Locale;
+  /** Whole SAR — SUM of the guest's wallet_ledger entries. */
+  balanceSar: number;
   copy: WalletCardCopy;
 }
 
 /**
- * Display-only wallet. BRIEF §8 has no wallet in the domain model and a
- * real stored balance is SAMA-regulated, so this shows a fixed SAR 0 with
- * a "coming soon" note — no ledger, no money movement. Replace with a real
- * balance read only once a licensed wallet exists.
+ * Gharmish Credit balance (owner-approved 2026-07 deviation from BRIEF
+ * §8). Credit is platform-issued and non-withdrawable — no top-ups, no
+ * cash-out — which keeps it outside SAMA stored-value licensing; a
+ * legal read on that model is still an owner to-do. P0 shows
+ * support-issued credit only; spending at checkout ships later.
  */
-export function WalletCard({ locale, copy }: WalletCardProps) {
+export function WalletCard({ locale, balanceSar, copy }: WalletCardProps) {
   return (
     <Card variant="dark" className="flex flex-col gap-6 p-6 sm:p-8">
       <div className="flex items-center justify-between">
@@ -40,7 +43,7 @@ export function WalletCard({ locale, copy }: WalletCardProps) {
         >
           {copy.balanceLabel}
         </span>
-        <Price amount={0} locale={locale} className="text-3xl text-white" />
+        <Price amount={balanceSar} locale={locale} className="text-3xl text-white" />
       </div>
       <p className="text-xs leading-relaxed text-white/60">{copy.note}</p>
     </Card>

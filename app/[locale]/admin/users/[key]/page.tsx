@@ -17,6 +17,8 @@ import { UserRoleChips } from '@/features/admin/users/components/user-role-chips
 import { GuestEditForm } from '@/features/admin/users/components/guest-edit-form';
 import { HostEditForm } from '@/features/admin/users/components/host-edit-form';
 import type { UserRole } from '@/features/admin/users/types';
+import { getWalletAdminView } from '@/features/wallet/queries';
+import { WalletAdminForms } from '@/features/wallet/components/wallet-admin-forms';
 
 export async function generateMetadata({
   params,
@@ -68,6 +70,9 @@ export default async function AdminUserDetailPage({
 
   const user = block?.reason === 'no_db' ? undefined : await getUserDetailForAdmin(key);
   if (!user) notFound();
+
+  // Degrades to null — the wallet block is quietly absent on a DB hiccup.
+  const wallet = user.guest ? await getWalletAdminView(user.guest.id) : null;
 
   const roleLabels: Record<UserRole, string> = {
     admin: t('users.roles.admin'),
@@ -168,6 +173,100 @@ export default async function AdminUserDetailPage({
               },
             }}
           />
+
+          {/* Gharmish Credit wallet */}
+          {wallet && (
+            <div className="flex flex-col gap-3">
+              <h3 className={eyebrow}>{t('users.wallet.heading')}</h3>
+              <dl className={factGrid}>
+                {fact(
+                  t('users.wallet.balanceLabel'),
+                  <Price amount={wallet.balanceSar} locale={loc} />,
+                )}
+                {fact(t('users.wallet.entriesLabel'), wallet.entries.length)}
+              </dl>
+              <WalletAdminForms
+                personKey={user.key}
+                idempotencyKeys={{ issue: crypto.randomUUID(), adjust: crypto.randomUUID() }}
+                copy={{
+                  issueToggle: t('users.wallet.issueToggle'),
+                  adjustToggle: t('users.wallet.adjustToggle'),
+                  amount: t('users.wallet.amount'),
+                  amountHint: t('users.wallet.amountHint'),
+                  note: t('users.wallet.note'),
+                  noteOptional: t('users.wallet.noteOptional'),
+                  adjustNote: t('users.wallet.adjustNote'),
+                  expiry: t('users.wallet.expiry'),
+                  expiryHint: t('users.wallet.expiryHint'),
+                  issueSubmit: t('users.wallet.issueSubmit'),
+                  issuing: t('users.wallet.issuing'),
+                  issued: t('users.wallet.issued'),
+                  issueConfirmTitle: t('users.wallet.issueConfirmTitle'),
+                  issueConfirmBody: t('users.wallet.issueConfirmBody'),
+                  adjustSubmit: t('users.wallet.adjustSubmit'),
+                  adjusting: t('users.wallet.adjusting'),
+                  adjusted: t('users.wallet.adjusted'),
+                  adjustConfirmTitle: t('users.wallet.adjustConfirmTitle'),
+                  adjustConfirmBody: t('users.wallet.adjustConfirmBody'),
+                  fieldInvalid: t('users.edit.fieldInvalid'),
+                  errors: {
+                    forbidden: t('users.edit.errors.forbidden'),
+                    no_db: t('users.edit.errors.noDb'),
+                    not_found: t('users.edit.errors.notFound'),
+                    validation: t('users.edit.errors.validation'),
+                    insufficient_balance: t('users.wallet.errors.insufficientBalance'),
+                    server: t('users.edit.errors.server'),
+                  },
+                }}
+              />
+              {wallet.entries.length === 0 ? (
+                <p className="text-sarat-black-600 text-sm">{t('users.wallet.empty')}</p>
+              ) : (
+                <ol className="border-sarat-black/8 rounded-card flex flex-col divide-y divide-[var(--color-sarat-black)]/8 [border-width:0.5px]">
+                  {wallet.entries.map((e) => (
+                    <li
+                      key={e.id}
+                      className="flex flex-wrap items-center justify-between gap-4 p-5"
+                    >
+                      <div className="flex min-w-0 flex-col gap-1">
+                        <div className="flex flex-wrap items-center gap-3">
+                          <Badge
+                            className={
+                              e.amountSar > 0
+                                ? 'bg-juniper-green/15 text-juniper-green'
+                                : 'bg-al-qatt-red/15 text-al-qatt-red'
+                            }
+                          >
+                            {t(`users.wallet.entryType.${e.type}`)}
+                          </Badge>
+                          <span className="text-sarat-black-600 text-sm">
+                            {formatDate(new Date(e.createdAt), loc)}
+                          </span>
+                        </div>
+                        {e.note && <p className="text-sm leading-relaxed">{e.note}</p>}
+                        {e.expiresAt && (
+                          <span className="text-sarat-black-600 text-sm">
+                            {t('users.wallet.expires', {
+                              date: formatDate(new Date(e.expiresAt), loc),
+                            })}
+                          </span>
+                        )}
+                      </div>
+                      {/* Explicit sign in an isolated LTR run — a bare negative
+                          number misplaces its minus inside RTL text flow. */}
+                      <span
+                        className="inline-flex items-center gap-1 text-base font-medium"
+                        dir="ltr"
+                      >
+                        {e.amountSar < 0 ? '−' : '+'}
+                        <Price amount={Math.abs(e.amountSar)} locale={loc} />
+                      </span>
+                    </li>
+                  ))}
+                </ol>
+              )}
+            </div>
+          )}
 
           {/* Bookings */}
           <div className="flex flex-col gap-3">

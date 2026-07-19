@@ -8,6 +8,7 @@ import { Avatar } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Card } from '@/components/ui/card';
 import { getMyProfile } from '@/features/account/profile/queries';
+import { getMyWalletBalanceSar } from '@/features/wallet/queries';
 import {
   getDisputesFiledByGuest,
   getReviewsWrittenByGuest,
@@ -45,10 +46,11 @@ export default async function ProfilePage({ params }: { params: Promise<{ locale
     redirect({ href: '/sign-in?next=/me/profile', locale: loc });
   }
 
-  const [bookings, reviewsWritten, disputesFiled, t] = await Promise.all([
+  const [bookings, reviewsWritten, disputesFiled, walletBalanceSar, t] = await Promise.all([
     getBookingsForGuest(profile.id),
     getReviewsWrittenByGuest(profile.id, loc),
     getDisputesFiledByGuest(profile.id),
+    getMyWalletBalanceSar(profile.id),
     getTranslations('me.profile'),
   ]);
 
@@ -143,6 +145,7 @@ export default async function ProfilePage({ params }: { params: Promise<{ locale
       <div className="grid items-stretch gap-6 sm:grid-cols-2">
         <WalletCard
           locale={loc}
+          balanceSar={walletBalanceSar}
           copy={{
             title: t('wallet.title'),
             balanceLabel: t('wallet.balanceLabel'),

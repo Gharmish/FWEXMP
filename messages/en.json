@@ -1109,6 +1109,44 @@
           "ibanInvalid": "That IBAN isn't a valid Saudi IBAN.",
           "server": "We couldn't save the changes. Try again."
         }
+      },
+      "wallet": {
+        "heading": "Wallet credit",
+        "balanceLabel": "Balance",
+        "entriesLabel": "Ledger entries",
+        "empty": "No wallet activity yet.",
+        "expires": "Expires {date}",
+        "entryType": {
+          "refund_credit": "Refund credit",
+          "goodwill": "Goodwill credit",
+          "promo": "Promo credit",
+          "redemption": "Redeemed at checkout",
+          "expiry": "Expired",
+          "admin_adjustment": "Adjustment",
+          "reversal": "Reversal"
+        },
+        "issueToggle": "Issue credit",
+        "adjustToggle": "Adjust / revoke",
+        "amount": "Amount (SAR)",
+        "amountHint": "Whole riyals, up to SAR 500 per action.",
+        "note": "Note",
+        "noteOptional": "optional",
+        "adjustNote": "Reason note",
+        "expiry": "Expiry",
+        "expiryHint": "Optional — leave empty for no expiry. Takes effect once spending launches.",
+        "issueSubmit": "Issue credit",
+        "issuing": "Issuing",
+        "issued": "Credit issued.",
+        "issueConfirmTitle": "Issue credit?",
+        "issueConfirmBody": "This immediately adds credit to the guest's wallet.",
+        "adjustSubmit": "Remove credit",
+        "adjusting": "Removing",
+        "adjusted": "Credit removed.",
+        "adjustConfirmTitle": "Remove credit?",
+        "adjustConfirmBody": "This deducts from the guest's balance. It can't take the balance below zero.",
+        "errors": {
+          "insufficientBalance": "That's more than the guest's current balance."
+        }
       }
     },
     "documents": {
@@ -2829,7 +2867,7 @@
       "wallet": {
         "title": "Wallet",
         "balanceLabel": "Balance",
-        "note": "Your Gharmish wallet is coming soon. There's nothing to top up or spend yet."
+        "note": "Credit issued by our support team appears here. Spending it at checkout is coming soon."
       },
       "payment": {
         "title": "Payment methods",

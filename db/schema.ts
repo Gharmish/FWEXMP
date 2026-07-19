@@ -1115,6 +1115,61 @@ export const payouts = pgTable(
   (t) => [index('payouts_host_idx').on(t.hostId, t.createdAt)],
 );
 
+/**
+ * Gharmish Credit entry kinds. The full lifecycle ships in the enum up
+ * front so later phases (checkout redemption, refund-to-credit, expiry
+ * sweep) never need an ALTER TYPE on a hot table — P0 writes only
+ * `goodwill` and `admin_adjustment`.
+ */
+export const walletEntryTypeEnum = pgEnum('wallet_entry_type', [
+  'refund_credit',
+  'goodwill',
+  'promo',
+  'redemption',
+  'expiry',
+  'admin_adjustment',
+  'reversal',
+]);
+
+/**
+ * Append-only Gharmish Credit ledger. Never UPDATE or DELETE rows —
+ * the balance is always SUM(amount_sar) per guest, and each row is its
+ * own audit record (actor, note, timestamp). Credit here is
+ * platform-issued and non-withdrawable: guests can never deposit or
+ * cash out, which is what keeps this outside SAMA stored-value
+ * licensing. Written by features/wallet/ledger.ts only.
+ */
+export const walletLedger = pgTable(
+  'wallet_ledger',
+  {
+    id: uuid().defaultRandom().primaryKey(),
+    guestId: uuid()
+      .notNull()
+      .references(() => guests.id, { onDelete: 'restrict' }),
+    type: walletEntryTypeEnum().notNull(),
+    /** Whole SAR. Positive = credit, negative = debit; never zero (SQL CHECK). */
+    amountSar: integer().notNull(),
+    /** Auth user id of the admin actor; null for guest/system flows. Not a FK — mirrors payment_events. */
+    actorUserId: text(),
+    note: text(),
+    /** Credit-lot expiry. Recorded from P0, enforced once redemption/sweep ship. */
+    expiresAt: timestamp({ withTimezone: true }),
+    bookingId: uuid().references(() => bookings.id, { onDelete: 'restrict' }),
+    disputeId: uuid().references(() => disputes.id, { onDelete: 'restrict' }),
+    /**
+     * Dedupe for at-most-once issuance: admin forms send a per-render
+     * uuid; later system flows use deterministic keys ('refund:<bookingId>').
+     */
+    idempotencyKey: text().unique(),
+    createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    // Balance (SUM per guest) and the newest-first admin listing are
+    // both left-anchored on this one index.
+    index('wallet_ledger_guest_idx').on(t.guestId, t.createdAt),
+  ],
+);
+
 /** Guest wishlist (BRIEF §8: "Saved experiences"). */
 export const savedExperiences = pgTable(
   'saved_experiences',
@@ -1597,6 +1652,8 @@ export type PaymentEvent = typeof paymentEvents.$inferSelect;
 export type NewPaymentEvent = typeof paymentEvents.$inferInsert;
 export type Payout = typeof payouts.$inferSelect;
 export type NewPayout = typeof payouts.$inferInsert;
+export type WalletLedgerEntry = typeof walletLedger.$inferSelect;
+export type NewWalletLedgerEntry = typeof walletLedger.$inferInsert;
 export type PromoCode = typeof promoCodes.$inferSelect;
 export type NewPromoCode = typeof promoCodes.$inferInsert;
 export type UserProfileEvent = typeof userProfileEvents.$inferSelect;
