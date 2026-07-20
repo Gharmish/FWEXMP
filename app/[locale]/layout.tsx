@@ -57,6 +57,9 @@ export const metadata: Metadata = {
     title: SITE_NAME,
     description: SITE_DESCRIPTION,
   },
+  verification: {
+    other: { 'facebook-domain-verification': '9wb750bssvguoass0jugvtadqj5ecl' },
+  },
 };
 
 export function generateStaticParams() {
