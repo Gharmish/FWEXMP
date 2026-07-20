@@ -2,6 +2,7 @@ import 'server-only';
 
 import { sql, type SQL } from 'drizzle-orm';
 import { bookings } from '@/db/schema';
+import { hasHyperpay } from '@/lib/env';
 
 /**
  * Shared SQL for payout math, so the host earnings page, the admin
@@ -38,12 +39,20 @@ export function payoutExpr(): SQL<number> {
 }
 
 /**
- * The platform actually collected this booking's money: paid online, or
- * the booking never required online payment (`paymentDeadline` is only
- * ever stamped when a booking is routed to checkout). Payouts must not
+ * The platform actually collected this booking's money. Payouts must not
  * accrue on completed-but-never-collected bookings — that would be the
  * platform owing hosts money it never received.
+ *
+ * 2026-07-20 audit: a null `paymentDeadline` used to be accepted
+ * unconditionally as "no online payment required". But creation stamps
+ * it null whenever `hasHyperpay()` is false — which is ALSO what a
+ * misconfigured/down gateway looks like, so an outage would have minted
+ * real payout obligations on money never received. While the gateway is
+ * configured, only `paid` counts; the null-deadline arm exists solely
+ * for genuinely payment-off deployments (local dev, pre-gateway).
  */
 export function paymentCollected(): SQL {
-  return sql`(${bookings.paymentStatus} = 'paid' or ${bookings.paymentDeadline} is null)`;
+  return hasHyperpay()
+    ? sql`${bookings.paymentStatus} = 'paid'`
+    : sql`(${bookings.paymentStatus} = 'paid' or ${bookings.paymentDeadline} is null)`;
 }

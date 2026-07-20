@@ -99,6 +99,8 @@ export default async function AdminBookingsPage({
     not_found: t('bookingsList.actionErrors.notFound'),
     wrong_state: t('bookingsList.actionErrors.wrongState'),
     over_capacity: t('bookingsList.actionErrors.overCapacity'),
+    too_early: t('bookingsList.actionErrors.tooEarly'),
+    unpaid: t('bookingsList.actionErrors.unpaid'),
     validation: t('bookingsList.actionErrors.validation'),
     server: t('bookingsList.actionErrors.server'),
   };

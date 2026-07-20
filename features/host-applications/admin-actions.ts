@@ -16,6 +16,7 @@ import { reportError } from '@/lib/log';
 import { getCurrentUser } from '@/features/auth/queries';
 import { isAdminUser } from '@/features/admin/auth';
 import { maskIban } from '@/features/host-earnings/lib/iban';
+import { decryptPii } from '@/lib/pii-crypto';
 import {
   approveApplicationSchema,
   rejectApplicationSchema,
@@ -186,12 +187,14 @@ export async function approveApplication(
 
       // Seed the payout-IBAN audit trail (masked values only, same as
       // the host self-service edit path in features/host-earnings).
+      // The stored value may be encrypted at rest — mask the decrypted
+      // form (the encrypted-or-plaintext copy above transfers as-is).
       if (application.iban) {
         await tx.insert(payoutIbanEvents).values({
           hostId: host.id,
           actorUserId: guard.adminUserId,
           previousIbanMasked: null,
-          newIbanMasked: maskIban(application.iban) ?? '',
+          newIbanMasked: maskIban(decryptPii(application.iban)) ?? '',
         });
       }
 

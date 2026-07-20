@@ -65,7 +65,7 @@ export default async function AdminPayoutsPage({
   }
 
   const rows = await listPayouts();
-  const totalOwed = rows.reduce((sum, r) => sum + r.owedSar, 0);
+  const totalOwed = rows.reduce((sum, r) => sum + r.netOwedSar, 0);
 
   return (
     <div className="flex flex-col gap-10">
@@ -114,6 +114,13 @@ export default async function AdminPayoutsPage({
                       })
                     : t('payoutsList.settled')}
                 </span>
+                {row.clawbackSar > 0 && (
+                  <span className="text-error text-sm">
+                    {t.rich('payoutsList.clawback', {
+                      amount: () => <Price amount={row.clawbackSar} locale={loc} />,
+                    })}
+                  </span>
+                )}
                 {row.paidSar > 0 && (
                   <span className="text-sarat-black-600 text-sm">
                     {t.rich('payoutsList.paidToDate', {
@@ -138,18 +145,18 @@ export default async function AdminPayoutsPage({
               </div>
               <div className="flex items-center gap-4">
                 <span className="font-display text-2xl font-medium tracking-[-0.025em]">
-                  <Price amount={row.owedSar} locale={loc} />
+                  <Price amount={row.netOwedSar} locale={loc} />
                 </span>
                 {row.owedCount > 0 && (
                   <MarkPaidButton
                     hostId={row.hostId}
-                    expectedAmountSar={row.owedSar}
+                    expectedAmountSar={row.netOwedSar}
                     label={t('payoutsList.markPaid')}
                     pendingLabel={t('payoutsList.marking')}
                     confirmTitle={t('payoutsList.confirmTitle')}
                     confirmBody={t('payoutsList.confirmBody', {
                       host: row.hostName,
-                      amount: String(row.owedSar),
+                      amount: String(row.netOwedSar),
                     })}
                     errors={{
                       server: t('payoutsList.markError'),

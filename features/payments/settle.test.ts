@@ -227,7 +227,7 @@ describe('settleBooking', () => {
     expect(setCalls).toHaveLength(0);
     expect(notifyAdmin).toHaveBeenCalledWith(
       'settle_anomaly',
-      expect.objectContaining({ problem: 'currency mismatch' }),
+      expect.objectContaining({ problem: 'currency mismatch or missing' }),
     );
   });
 

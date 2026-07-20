@@ -1,7 +1,9 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
+import { db } from '@/lib/db';
 import { serverEnv } from '@/lib/env';
+import { userProfileEvents } from '@/db/schema';
 import { reportError } from '@/lib/log';
 import { getCurrentUser } from '@/features/auth/queries';
 import { isAdminUser } from '@/features/admin/auth';
@@ -9,6 +11,34 @@ import { resolveEditTargets } from '@/features/admin/users/queries';
 import { creditWallet, debitWallet } from '@/features/wallet/ledger';
 import { adjustWalletBalanceSchema, issueWalletCreditSchema } from '@/features/wallet/schemas';
 import type { WalletActionState } from '@/features/wallet/types';
+
+/**
+ * Mirror every admin wallet movement into the User-360 audit trail
+ * (2026-07-20 audit — issuance previously left no `user_profile_events`
+ * row, so the only record was the ledger row's unverified actor id).
+ * Best-effort: the ledger row above is the money truth; a failed audit
+ * write is reported, never rolled back over.
+ */
+async function logWalletEvent(
+  subject: { guestId: string | null; hostId: string | null; authUserId: string | null },
+  actorUserId: string,
+  field: 'wallet.credit_issued' | 'wallet.balance_deducted',
+  detail: string,
+): Promise<void> {
+  try {
+    await db.insert(userProfileEvents).values({
+      subjectAuthUserId: subject.authUserId,
+      subjectGuestId: subject.guestId,
+      subjectHostId: subject.hostId,
+      actorUserId,
+      field,
+      previousValue: null,
+      newValue: detail,
+    });
+  } catch (error) {
+    reportError(error, { surface: 'wallet:auditEvent', field });
+  }
+}
 
 function formValue(formData: FormData, key: string): string {
   const value = formData.get(key);
@@ -91,6 +121,12 @@ export async function issueWalletCredit(
       expiresAt: parsed.data.expiresAt ? new Date(parsed.data.expiresAt) : null,
       idempotencyKey: parsed.data.idempotencyKey,
     });
+    await logWalletEvent(
+      targets,
+      guard.adminUserId,
+      'wallet.credit_issued',
+      `+${parsed.data.amountSar} SAR (${parsed.data.reason})${parsed.data.note ? ` — ${parsed.data.note}` : ''}`,
+    );
   } catch (error) {
     // The unique idempotency key already landed — the earlier submit won.
     if (isUniqueViolation(error)) {
@@ -142,6 +178,12 @@ export async function adjustWalletBalance(
     if (outcome === 'insufficient_balance') {
       return { success: false, message: 'insufficient_balance', values: echoValues(formData) };
     }
+    await logWalletEvent(
+      targets,
+      guard.adminUserId,
+      'wallet.balance_deducted',
+      `-${parsed.data.amountSar} SAR${parsed.data.note ? ` — ${parsed.data.note}` : ''}`,
+    );
   } catch (error) {
     if (isUniqueViolation(error)) {
       revalidateWallet();

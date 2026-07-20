@@ -74,6 +74,26 @@ export async function creditWalletTx(tx: WalletTx, input: WalletEntryInput): Pro
 }
 
 /**
+ * `creditWalletTx` that treats an idempotency-key replay as success
+ * instead of an error. Inside a transaction a unique-violation THROW
+ * poisons the whole tx, so callers that bundle the credit with other
+ * writes (emergency cancel: credit + `refunded` flip commit together —
+ * 2026-07-20 audit fix for the non-atomic wallet leg) need the conflict
+ * absorbed at the INSERT. Returns whether a row was actually written.
+ */
+export async function creditWalletTxIdempotent(
+  tx: WalletTx,
+  input: WalletEntryInput,
+): Promise<boolean> {
+  const inserted = await tx
+    .insert(walletLedger)
+    .values(input)
+    .onConflictDoNothing({ target: walletLedger.idempotencyKey })
+    .returning({ id: walletLedger.id });
+  return inserted.length > 0;
+}
+
+/**
  * Remove credit (`input.amountSar` is the positive magnitude; the
  * stored row is negated). The balance may never go below zero: SUM
  * can't be row-locked, so two concurrent debits could both pass the

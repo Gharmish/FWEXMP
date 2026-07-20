@@ -112,6 +112,16 @@ export interface DashboardMetrics {
   hostPayoutsSar: Delta;
   refundedSar: Delta;
   vatSar: Delta;
+  /**
+   * Estimated acquiring cost on collected GMV (`gmv × gateway_fee_bps`,
+   * from platform settings). 0 while the estimate is unconfigured —
+   * the UI hides the tile then.
+   */
+  estimatedGatewayFeesSar: Delta;
+  /** Platform-retained cancellation money (forfeits + withheld partial shares). */
+  forfeitedSar: Delta;
+  /** Point-in-time: total outstanding Gharmish Credit liability across all guests. */
+  walletLiabilitySar: number;
   /** Percent: settle_succeeded ÷ (succeeded + failed). */
   paymentSuccessRate: Delta;
   paymentMix: readonly PaymentSlice[];

@@ -9,6 +9,7 @@ import type {
   AdminHostStatusEventView,
 } from '@/features/admin/hosts/types';
 import { adminGuard } from '@/features/admin/guard';
+import { decryptPii } from '@/lib/pii-crypto';
 
 /**
  * Admin reads over hosts. Same guard chassis as the other admin
@@ -198,9 +199,9 @@ export async function getHostForAdmin(id: string): Promise<AdminHostDetail | nul
     return {
       ...base,
       bioAr: host.bioAr,
-      nationalId: host.nationalId,
-      crNumber: host.crNumber,
-      payoutIban: host.payoutIban,
+      nationalId: decryptPii(host.nationalId),
+      crNumber: decryptPii(host.crNumber),
+      payoutIban: decryptPii(host.payoutIban),
       languages: host.languages,
       experiences: expViews,
       statusEvents: eventViews,

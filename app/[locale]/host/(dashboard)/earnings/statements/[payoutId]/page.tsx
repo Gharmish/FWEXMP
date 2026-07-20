@@ -147,6 +147,23 @@ export default async function HostPayoutStatementPage({
             </tbody>
           </table>
         </div>
+        {statement.deductions.length > 0 && (
+          <div className="border-al-qatt-red/30 rounded-card mt-4 flex flex-col gap-2 [border-width:0.5px] p-4">
+            <p className="text-sm font-medium">{t('deductionsTitle')}</p>
+            {statement.deductions.map((deduction) => (
+              <div
+                key={deduction.referenceCode}
+                className="flex items-baseline justify-between text-sm"
+              >
+                <span dir="ltr">{deduction.referenceCode}</span>
+                <span className="text-al-qatt-red-800 tabular-nums">
+                  −<Price amount={deduction.amountSar} locale={loc} />
+                </span>
+              </div>
+            ))}
+            <p className={labelClass}>{t('deductionsNote')}</p>
+          </div>
+        )}
         <div className="mt-4 flex items-baseline justify-between text-lg font-medium">
           <p>{t('totalLabel')}</p>
           <Price amount={statement.amountSar} locale={loc} />

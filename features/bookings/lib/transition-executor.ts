@@ -60,7 +60,7 @@ export type TransitionResult =
   /** Host-only: the approval window had lapsed, so the request was
    *  expired instead (and the guest emailed). */
   | { ok: 'expired_instead' }
-  | { error: 'not_found' | 'wrong_state' | 'over_capacity' };
+  | { error: 'not_found' | 'wrong_state' | 'over_capacity' | 'too_early' | 'unpaid' };
 
 export async function executeBookingTransition(
   bookingId: string,
@@ -80,6 +80,7 @@ export async function executeBookingTransition(
         totalAmount: true,
         walletAppliedSar: true,
         paymentReference: true,
+        paymentDeadline: true,
         approvalDeadline: true,
         idempotencyKey: true,
       },
@@ -93,6 +94,27 @@ export async function executeBookingTransition(
       return 'not_found' as const;
     }
     if (!sourcesFor(to).includes(booking.status)) return 'wrong_state' as const;
+
+    // Completing has FINANCIAL side effects — it makes the booking
+    // payout-eligible and (being terminal) strips the guest's
+    // cancellation rights. Two gates (2026-07-20 audit — previously a
+    // host could complete a paid booking the moment it was confirmed,
+    // locking in the money before the experience ever ran, or complete
+    // an uncollected booking into a payout obligation):
+    //   1. the experience date must have arrived (Riyadh calendar —
+    //      same-day completion is fine, the cron's own auto-complete
+    //      only fires the day AFTER);
+    //   2. the money must actually be collected: paid online, or a
+    //      genuinely payment-off deployment (no gateway configured).
+    if (to === 'completed') {
+      const todayRiyadh = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Riyadh' }).format(
+        new Date(),
+      );
+      if (booking.date > todayRiyadh) return 'too_early' as const;
+      const collected =
+        booking.paymentStatus === 'paid' || (!hasHyperpay() && booking.paymentDeadline === null);
+      if (!collected) return 'unpaid' as const;
+    }
 
     // Approving a request (pending → confirmed) carries side effects:
     // stamp the approval and, when online payment is on, open the

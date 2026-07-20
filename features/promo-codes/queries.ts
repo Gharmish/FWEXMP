@@ -30,6 +30,8 @@ export interface PromoCodeRow {
   discountValue: number;
   minTotalSar: number | null;
   maxRedemptions: number | null;
+  /** Per-guest redemption cap. Null = unlimited (legacy/explicit). */
+  maxRedemptionsPerGuest: number | null;
   startsAt: string | null;
   endsAt: string | null;
   active: boolean;
@@ -75,6 +77,7 @@ export async function getPromoCodesForAdmin(): Promise<readonly PromoCodeRow[]> 
       discountValue: c.discountValue,
       minTotalSar: c.minTotalSar,
       maxRedemptions: c.maxRedemptions,
+      maxRedemptionsPerGuest: c.maxRedemptionsPerGuest,
       startsAt: c.startsAt?.toISOString() ?? null,
       endsAt: c.endsAt?.toISOString() ?? null,
       active: c.active,

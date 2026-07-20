@@ -20,6 +20,7 @@ import {
 import { isAdminPhone } from '@/features/admin/auth';
 import { adminGuard } from '@/features/admin/guard';
 import { authKey, guestKey, hostKey, parsePersonKey } from '@/features/admin/users/lib/keys';
+import { decryptPii } from '@/lib/pii-crypto';
 import type {
   AdminUserApplicationFacet,
   AdminUserDetail,
@@ -441,9 +442,9 @@ async function buildHostFacet(host: HostRow): Promise<AdminUserHostFacet> {
     city: host.city,
     region: host.region,
     languages: host.languages,
-    nationalId: host.nationalId,
-    crNumber: host.crNumber,
-    payoutIban: host.payoutIban,
+    nationalId: decryptPii(host.nationalId),
+    crNumber: decryptPii(host.crNumber),
+    payoutIban: decryptPii(host.payoutIban),
     liveBookings: revenueRows[0]?.n ?? 0,
     revenueSar: revenueRows[0]?.revenue ?? 0,
     experiences: expRows.map((e) => ({
@@ -492,7 +493,7 @@ async function buildApplicationFacet(application: AppRow): Promise<AdminUserAppl
     status: application.status,
     identityType: application.identityType,
     legalName: application.legalName,
-    iban: application.iban,
+    iban: decryptPii(application.iban),
     vatNumber: application.vatNumber,
     reviewerNotes: application.reviewerNotes,
     documents: docRows.map((d) => ({ type: d.type, status: d.status })),

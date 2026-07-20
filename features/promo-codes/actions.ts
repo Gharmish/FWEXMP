@@ -36,6 +36,8 @@ export type PromoErrorCode =
   | 'invalid'
   | 'below_min'
   | 'exhausted'
+  /** This guest hit the code's per-guest redemption cap (audit fix 2026-07-20). */
+  | 'already_used'
   | 'already_paid'
   /** A fresh checkout is in flight — the total must not shift under it. */
   | 'checkout_in_progress'
@@ -197,6 +199,25 @@ export async function applyPromo(
             ),
           );
         if (used >= promo.maxRedemptions) return fail('exhausted');
+      }
+
+      // Per-GUEST cap (2026-07-20 audit — without it a single account
+      // could farm a platform-funded code across unlimited bookings).
+      // Counted under the same promo-row lock as the global cap, over
+      // the same live statuses, so the two checks can't disagree.
+      if (promo.maxRedemptionsPerGuest != null) {
+        const [{ usedByGuest }] = await tx
+          .select({ usedByGuest: sql<number>`count(*)::int` })
+          .from(bookings)
+          .where(
+            and(
+              eq(bookings.promoCodeId, promo.id),
+              eq(bookings.guestId, existing.guestId),
+              inArray(bookings.status, [...PROMO_REDEEMED_STATUSES]),
+              ne(bookings.id, booking.id),
+            ),
+          );
+        if (usedByGuest >= promo.maxRedemptionsPerGuest) return fail('already_used');
       }
 
       const discountSar = computeDiscountSar(baseSar, {

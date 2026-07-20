@@ -104,16 +104,19 @@ export async function settleBooking(reference: string): Promise<SettleOutcome> {
         });
         return 'error';
       }
-      if (status.currency && status.currency !== 'SAR') {
+      // A missing currency is as suspicious as a wrong one (2026-07-20
+      // audit — the old `status.currency &&` guard silently accepted a
+      // response that omitted the field).
+      if (status.currency !== 'SAR') {
         reportError(new Error('HyperPay currency mismatch'), {
           surface: 'payment-settle',
           reference,
-          reported: status.currency,
+          reported: status.currency ?? 'missing',
         });
         await notifyAdmin('settle_anomaly', {
-          problem: 'currency mismatch',
+          problem: 'currency mismatch or missing',
           reference,
-          reported: status.currency,
+          reported: status.currency ?? 'missing',
         });
         return 'error';
       }

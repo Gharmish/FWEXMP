@@ -81,6 +81,8 @@ export default async function AdminPromoCodesPage({
     minTotalHint: t('promoCodes.form.minTotalHint'),
     maxRedemptionsLabel: t('promoCodes.form.maxRedemptionsLabel'),
     maxRedemptionsHint: t('promoCodes.form.maxRedemptionsHint'),
+    maxPerGuestLabel: t('promoCodes.form.maxPerGuestLabel'),
+    maxPerGuestHint: t('promoCodes.form.maxPerGuestHint'),
     startsAtLabel: t('promoCodes.form.startsAtLabel'),
     endsAtLabel: t('promoCodes.form.endsAtLabel'),
     optional: t('promoCodes.form.optional'),
@@ -212,6 +214,11 @@ export default async function AdminPromoCodesPage({
                         {row.maxRedemptions != null
                           ? `${row.redemptions} / ${row.maxRedemptions}`
                           : `${row.redemptions} / ∞`}
+                        {row.maxRedemptionsPerGuest != null && (
+                          <span className="text-sarat-black-600 ms-1 text-xs font-normal">
+                            {t('promoCodes.perGuestCap', { count: row.maxRedemptionsPerGuest })}
+                          </span>
+                        )}
                       </dd>
                     </div>
                     <div className="flex flex-col gap-0.5">

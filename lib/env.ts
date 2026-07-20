@@ -101,6 +101,12 @@ const serverSchema = z.object({
   // `Authorization: Bearer <CRON_SECRET>`. Empty → the route rejects every
   // request (the job is inert until configured).
   CRON_SECRET: z.string().default(''),
+  // AES-256-GCM key (base64, 32 bytes) for at-rest encryption of host
+  // identity PII (IBANs, national IDs, CR numbers) — see lib/pii-crypto.ts.
+  // Empty → encryption is a pass-through no-op (same inert-until-configured
+  // boundary as the other integrations). Generate with
+  // `openssl rand -base64 32`; set in Vercel as Sensitive.
+  PII_ENCRYPTION_KEY: z.string().default(''),
   // Supabase service-role key — SERVER ONLY, bypasses RLS. Used exclusively
   // for storage writes inside ownership-checked server actions (the same
   // trust model as the BYPASSRLS `gharmish_app` DB role): user-session
@@ -160,6 +166,7 @@ export const serverEnv = parse(
     TWILIO_WHATSAPP_CONTENT_SIDS: process.env.TWILIO_WHATSAPP_CONTENT_SIDS,
     ADMIN_ALERT_EMAIL: process.env.ADMIN_ALERT_EMAIL,
     CRON_SECRET: process.env.CRON_SECRET,
+    PII_ENCRYPTION_KEY: process.env.PII_ENCRYPTION_KEY,
     SUPABASE_SERVICE_ROLE_KEY: process.env.SUPABASE_SERVICE_ROLE_KEY,
     NODE_ENV: process.env.NODE_ENV,
   },

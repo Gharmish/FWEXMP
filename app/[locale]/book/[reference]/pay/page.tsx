@@ -208,6 +208,7 @@ export default async function PaymentPage({ params, searchParams }: PageParams) 
     errors: {
       invalid: t('promo.errors.invalid'),
       exhausted: t('promo.errors.exhausted'),
+      already_used: t('promo.errors.alreadyUsed'),
       already_paid: t('promo.errors.alreadyPaid'),
       checkout_in_progress: t('promo.errors.checkoutInProgress'),
       unavailable: t('promo.errors.unavailable'),

@@ -9,6 +9,7 @@ import {
 } from '@/features/host-applications/cookie';
 import { getCurrentUser } from '@/features/auth/queries';
 import type { HostApplicationView } from '@/features/host-applications/types';
+import { decryptPii } from '@/lib/pii-crypto';
 
 /**
  * Resolve the current user's host application, or `null` if they
@@ -41,10 +42,10 @@ export async function getCurrentUserHostApplication(): Promise<HostApplicationVi
         bioAr: row.bioAr,
         languages: row.languages,
         identityType: row.identityType,
-        identityNumber: row.identityNumber,
+        identityNumber: decryptPii(row.identityNumber),
         legalName: row.legalName,
         dateOfBirth: row.dateOfBirth,
-        iban: row.iban,
+        iban: decryptPii(row.iban),
         bankName: row.bankName,
         bankAccountHolder: row.bankAccountHolder,
         vatNumber: row.vatNumber,

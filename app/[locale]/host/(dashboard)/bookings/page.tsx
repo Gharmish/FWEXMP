@@ -93,6 +93,8 @@ export default async function HostBookingsPage({
     not_found: t('actionErrors.notFound'),
     wrong_state: t('actionErrors.wrongState'),
     over_capacity: t('actionErrors.overCapacity'),
+    too_early: t('actionErrors.tooEarly'),
+    unpaid: t('actionErrors.unpaid'),
     validation: t('actionErrors.validation'),
     server: t('actionErrors.server'),
   };

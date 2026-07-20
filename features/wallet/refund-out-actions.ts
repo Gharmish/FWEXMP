@@ -1,14 +1,14 @@
 'use server';
 
-import { eq } from 'drizzle-orm';
+import { eq, sql } from 'drizzle-orm';
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 import { db } from '@/lib/db';
 import { serverEnv } from '@/lib/env';
-import { bookings } from '@/db/schema';
+import { bookings, walletLedger } from '@/db/schema';
 import { reportError } from '@/lib/log';
 import { executeRefund } from '@/features/bookings/lib/refund';
-import { debitWallet } from '@/features/wallet/ledger';
+import { debitWalletTx } from '@/features/wallet/ledger';
 import { getSessionGuestId } from '@/features/wallet/queries';
 
 /**
@@ -109,15 +109,38 @@ export async function requestRefundToCard(
       booking.paymentReference !== null;
     if (!eligible) return { status: 'error', error: 'not_eligible' };
 
-    let outcome: Awaited<ReturnType<typeof debitWallet>>;
+    let outcome: 'ok' | 'insufficient_balance' | 'source_cap';
     try {
-      outcome = await debitWallet({
-        guestId: booking.guestId,
-        type: 'reversal',
-        amountSar: booking.totalAmount,
-        bookingId: booking.id,
-        idempotencyKey: `refund-out:${booking.id}`,
-        note: null,
+      outcome = await db.transaction(async (tx) => {
+        // Serialize with every other wallet movement for this guest —
+        // same advisory lock `debitWalletTx` takes (re-entrant in-tx).
+        await tx.execute(
+          sql`select pg_advisory_xact_lock(hashtext(${'wallet:' + booking.guestId}))`,
+        );
+        // SOURCE cap (2026-07-20 audit): the balance is a fungible SUM,
+        // so a balance check alone would let a guest whose refund credit
+        // is already spent cash out goodwill/promo credit instead —
+        // converting explicitly non-withdrawable credit into real money.
+        // Account-wide invariant: lifetime refund-outs may never exceed
+        // lifetime refund credits.
+        const [caps] = await tx
+          .select({
+            refundCredits: sql<number>`coalesce(sum(${walletLedger.amountSar}) filter (where ${walletLedger.type} = 'refund_credit'), 0)::int`,
+            refundOuts: sql<number>`coalesce(sum(-${walletLedger.amountSar}) filter (where ${walletLedger.type} = 'reversal' and ${walletLedger.idempotencyKey} like 'refund-out:%'), 0)::int`,
+          })
+          .from(walletLedger)
+          .where(eq(walletLedger.guestId, booking.guestId));
+        if ((caps?.refundOuts ?? 0) + booking.totalAmount > (caps?.refundCredits ?? 0)) {
+          return 'source_cap' as const;
+        }
+        return debitWalletTx(tx, {
+          guestId: booking.guestId,
+          type: 'reversal',
+          amountSar: booking.totalAmount,
+          bookingId: booking.id,
+          idempotencyKey: `refund-out:${booking.id}`,
+          note: null,
+        });
       });
     } catch (error) {
       if (isUniqueViolation(error)) return { status: 'error', error: 'already_requested' };
@@ -125,6 +148,9 @@ export async function requestRefundToCard(
     }
     if (outcome === 'insufficient_balance') {
       return { status: 'error', error: 'insufficient_balance' };
+    }
+    if (outcome === 'source_cap') {
+      return { status: 'error', error: 'not_eligible' };
     }
 
     const refund = await executeRefund(

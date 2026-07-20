@@ -10,6 +10,7 @@ import { recordPaymentEvent, resolvePaymentChannel } from '@/features/payments/l
 import { isSuccessfulResult, refundPayment } from '@/features/payments/lib/hyperpay';
 import { splitRefund } from '@/features/bookings/lib/refund-split';
 import { creditWalletRefund } from '@/features/wallet/reservation';
+import { recordClawbackIfPaidOut } from '@/features/bookings/lib/clawback';
 
 /**
  * Outcome of a refund attempt for a paid booking:
@@ -99,8 +100,10 @@ export async function executeRefund(
         refundedAt: new Date(),
         refundDueSar: null,
         refundMethod: 'wallet',
+        refundedAmountSar: amountSar,
       })
       .where(eq(bookings.id, bookingId));
+    await recordClawbackIfPaidOut(bookingId, 'refund (wallet) after host payout');
     return 'refunded';
   }
 
@@ -118,14 +121,17 @@ export async function executeRefund(
         gatewayId: paymentReference,
         actorUserId: actorUserId ?? null,
       });
-      const { resultCode } = await refundPayment(paymentReference, cardShareSar, channel);
+      const { resultCode, refundId } = await refundPayment(paymentReference, cardShareSar, channel);
       if (isSuccessfulResult(resultCode)) {
         try {
           await recordPaymentEvent({
             bookingId,
             type: 'refund_succeeded',
             amountSar: cardShareSar,
-            gatewayId: paymentReference,
+            // The refund's OWN gateway id — the line item on HyperPay's
+            // settlement report. The original payment id only as a
+            // fallback for gateways that omit it.
+            gatewayId: refundId ?? paymentReference,
             resultCode,
             actorUserId: actorUserId ?? null,
           });
@@ -140,8 +146,14 @@ export async function executeRefund(
             refundedAt: new Date(),
             refundDueSar: null,
             refundMethod: 'gateway',
+            // `card_only` (refund-out) converts an ALREADY-stamped wallet
+            // refund into card money — restamping would double-count it.
+            ...(rails === 'auto' ? { refundedAmountSar: amountSar } : {}),
           })
           .where(eq(bookings.id, bookingId));
+        if (rails === 'auto') {
+          await recordClawbackIfPaidOut(bookingId, 'refund (gateway) after host payout');
+        }
         return 'refunded';
       }
       try {
@@ -149,7 +161,7 @@ export async function executeRefund(
           bookingId,
           type: 'refund_failed',
           amountSar: cardShareSar,
-          gatewayId: paymentReference,
+          gatewayId: refundId ?? paymentReference,
           resultCode,
           actorUserId: actorUserId ?? null,
         });
@@ -165,8 +177,17 @@ export async function executeRefund(
     }
   }
   // Only the card share is still owed — any wallet share above already
-  // landed (its idempotency key makes a later replay harmless).
-  await db.update(bookings).set({ refundDueSar: cardShareSar }).where(eq(bookings.id, bookingId));
+  // landed (its idempotency key makes a later replay harmless), so the
+  // refunded-amount journal reflects the credit leg NOW; the admin
+  // refund action adds the card share when it settles the queue entry.
+  const creditLandedSar = rails === 'auto' ? amountSar - cardShareSar : 0;
+  await db
+    .update(bookings)
+    .set({
+      refundDueSar: cardShareSar,
+      ...(creditLandedSar > 0 ? { refundedAmountSar: creditLandedSar } : {}),
+    })
+    .where(eq(bookings.id, bookingId));
   // A refund the platform owes a guest must never be silent: Sentry
   // breadcrumb + operational alert to the team inbox.
   reportError(new Error('Refund pending manual reversal (refundDueSar stamped)'), {

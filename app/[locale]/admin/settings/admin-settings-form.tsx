@@ -16,6 +16,8 @@ export interface AdminSettingsFormCopy {
   commissionLabel: string;
   commissionHint: string;
   commissionSuffix: string;
+  gatewayFeeLabel: string;
+  gatewayFeeHint: string;
   cancellationLabel: string;
   cancellationHint: string;
   cancellationSuffix: string;
@@ -53,6 +55,7 @@ export interface AdminSettingsFormCopy {
 export interface AdminSettingsFormProps {
   locale: Locale;
   defaultCommissionPct: number;
+  defaultGatewayFeePct: number;
   defaultCancellationWindowHours: number;
   defaultApprovalWindowHours: number;
   defaultApprovalPaymentWindowHours: number;
@@ -79,6 +82,7 @@ function SubmitButton({ label, pending: pendingLabel }: { label: string; pending
 export function AdminSettingsForm({
   locale,
   defaultCommissionPct,
+  defaultGatewayFeePct,
   defaultCancellationWindowHours,
   defaultApprovalWindowHours,
   defaultApprovalPaymentWindowHours,
@@ -157,6 +161,32 @@ export function AdminSettingsForm({
         </div>
         <p className={hintClass}>{copy.commissionHint}</p>
         {fieldError('commissionPct')}
+      </fieldset>
+
+      {/* Estimated gateway fee (reporting only) */}
+      <fieldset className="flex flex-col gap-2">
+        <label htmlFor="gatewayFeePct" className={labelClass}>
+          {copy.gatewayFeeLabel}
+        </label>
+        <div className="flex items-center gap-2">
+          <Input
+            id="gatewayFeePct"
+            name="gatewayFeePct"
+            type="number"
+            inputMode="decimal"
+            min={0}
+            max={10}
+            step={0.1}
+            dir="ltr"
+            defaultValue={defaultGatewayFeePct}
+            className="w-32"
+            aria-invalid={fields.gatewayFeePct ? 'true' : undefined}
+            aria-describedby={fields.gatewayFeePct ? eid('gatewayFeePct') : undefined}
+          />
+          <span className="text-sarat-black-600 text-base">{copy.commissionSuffix}</span>
+        </div>
+        <p className={hintClass}>{copy.gatewayFeeHint}</p>
+        {fieldError('gatewayFeePct')}
       </fieldset>
 
       {/* Free-cancellation window */}

@@ -18,6 +18,8 @@ type ErrorKey =
   | 'not_found'
   | 'wrong_state'
   | 'over_capacity'
+  | 'too_early'
+  | 'unpaid'
   | 'validation'
   | 'server';
 

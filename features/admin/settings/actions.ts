@@ -48,6 +48,7 @@ export async function updateSettings(
     vatEnabled: formData.get('vatEnabled') === 'on',
     vatRatePct: formData.get('vatRatePct'),
     vatRegistrationNumber: formData.get('vatRegistrationNumber') ?? undefined,
+    gatewayFeePct: formData.get('gatewayFeePct') ?? 0,
     enabledCategories: formData
       .getAll('enabledCategories')
       .filter((v): v is string => typeof v === 'string'),
@@ -66,6 +67,7 @@ export async function updateSettings(
   const input = parsed.data;
   const defaultCommissionBps = commissionPctToBps(input.commissionPct);
   const vatRateBps = commissionPctToBps(input.vatRatePct);
+  const gatewayFeeBps = commissionPctToBps(input.gatewayFeePct);
   // Keep a captured registration number even while VAT is off (it can be
   // entered ahead of registration day); never store an empty string.
   const vatRegistrationNumber = input.vatRegistrationNumber || null;
@@ -86,6 +88,7 @@ export async function updateSettings(
         vatEnabled: input.vatEnabled,
         vatRateBps,
         vatRegistrationNumber,
+        gatewayFeeBps,
         updatedByAdminId: guard.adminUserId,
         updatedAt: now,
       })
@@ -102,6 +105,7 @@ export async function updateSettings(
           vatEnabled: input.vatEnabled,
           vatRateBps,
           vatRegistrationNumber,
+          gatewayFeeBps,
           updatedByAdminId: guard.adminUserId,
           updatedAt: now,
         },

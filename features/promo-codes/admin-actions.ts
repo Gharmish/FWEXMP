@@ -67,6 +67,7 @@ export async function createPromoCode(
     discountValue: formData.get('discountValue'),
     minTotalSar: formData.get('minTotalSar') ?? '',
     maxRedemptions: formData.get('maxRedemptions') ?? '',
+    maxRedemptionsPerGuest: formData.get('maxRedemptionsPerGuest') ?? '',
     startsAt: formData.get('startsAt') || undefined,
     endsAt: formData.get('endsAt') || undefined,
     locale: formData.get('locale'),
@@ -86,6 +87,11 @@ export async function createPromoCode(
         discountValue: input.discountValue,
         minTotalSar: optionalInt(input.minTotalSar),
         maxRedemptions: optionalInt(input.maxRedemptions),
+        // Blank means "keep the schema default" (1 per guest) — NEVER
+        // null, which would mean unlimited and reopen the farming leak.
+        ...(optionalInt(input.maxRedemptionsPerGuest) != null
+          ? { maxRedemptionsPerGuest: optionalInt(input.maxRedemptionsPerGuest) }
+          : {}),
         startsAt: optionalDate(input.startsAt),
         endsAt: optionalDate(input.endsAt),
         createdByAdminId: guard.adminUserId,

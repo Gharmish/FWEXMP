@@ -1,10 +1,11 @@
-import { and, desc, eq, gte, inArray, lte, sql, type SQL } from 'drizzle-orm';
+import { and, desc, eq, gte, lte, sql, type SQL } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import { serverEnv } from '@/lib/env';
-import { bookings, experiences, payouts } from '@/db/schema';
+import { bookings, experiences, payoutClawbacks, payouts } from '@/db/schema';
 import { reportError } from '@/lib/log';
 import { getCurrentUser } from '@/features/auth/queries';
 import { paymentCollected, payoutExpr, vatPortionExpr } from '@/features/bookings/lib/payout-sql';
+import { decryptPii } from '@/lib/pii-crypto';
 
 /**
  * Host earnings, scoped to the signed-in host (resolved from
@@ -84,6 +85,17 @@ export interface HostPayoutStatement extends HostPayoutBatch {
   payoutIban: string | null;
   bankReference: string | null;
   rows: readonly HostPayoutStatementRow[];
+  /**
+   * Clawback deductions absorbed by THIS batch (refunds issued after an
+   * earlier payout). `amountSar` above is already net of these.
+   */
+  deductions: readonly HostPayoutDeductionRow[];
+}
+
+export interface HostPayoutDeductionRow {
+  /** Reference code of the refunded booking the deduction reverses. */
+  referenceCode: string;
+  amountSar: number;
 }
 
 export interface HostPayoutStatementRow {
@@ -126,15 +138,25 @@ function selectEarningsTotals(hostId: string) {
     .select({
       owedSar: sql<number>`coalesce(sum(${payout}) filter (where ${bookings.status} = 'completed' and ${bookings.hostPaidAt} is null and ${collected}), 0)::int`,
       owedCount: sql<number>`coalesce(count(*) filter (where ${bookings.status} = 'completed' and ${bookings.hostPaidAt} is null and ${collected}), 0)::int`,
-      paidSar: sql<number>`coalesce(sum(${payout}) filter (where ${bookings.status} = 'completed' and ${bookings.hostPaidAt} is not null), 0)::int`,
-      paidCount: sql<number>`coalesce(count(*) filter (where ${bookings.status} = 'completed' and ${bookings.hostPaidAt} is not null), 0)::int`,
+      // Keyed on `hostPaidAt` alone (2026-07-20 audit): a paid-out
+      // booking that is LATER refunded keeps its place in "paid to
+      // date", so the KPI keeps summing to the historical statements —
+      // the reversal shows up as a clawback deduction, not a silently
+      // shrinking total.
+      paidSar: sql<number>`coalesce(sum(${payout}) filter (where ${bookings.hostPaidAt} is not null), 0)::int`,
+      paidCount: sql<number>`coalesce(count(*) filter (where ${bookings.hostPaidAt} is not null), 0)::int`,
       upcomingSar: sql<number>`coalesce(sum(${payout}) filter (where ${bookings.status} = 'confirmed' and ${collected}), 0)::int`,
       upcomingCount: sql<number>`coalesce(count(*) filter (where ${bookings.status} = 'confirmed' and ${collected}), 0)::int`,
     })
     .from(bookings)
     .innerJoin(experiences, eq(experiences.id, bookings.experienceId))
     .where(
-      and(eq(experiences.hostId, hostId), inArray(bookings.status, ['completed', 'confirmed'])),
+      and(
+        eq(experiences.hostId, hostId),
+        // Refunded-after-payout rows must stay in the scan for the
+        // hostPaidAt-keyed "paid" figures above.
+        sql`(${bookings.status} in ('completed', 'confirmed') or ${bookings.hostPaidAt} is not null)`,
+      ),
     );
 }
 
@@ -247,7 +269,7 @@ export async function getHostEarnings(range?: HostEarningsRange): Promise<HostEa
       paidCount: totals?.paidCount ?? 0,
       upcomingSar: totals?.upcomingSar ?? 0,
       upcomingCount: totals?.upcomingCount ?? 0,
-      payoutIban: host.payoutIban,
+      payoutIban: decryptPii(host.payoutIban),
       history: historyRows.map((row) => ({
         ...row,
         // VAT belongs to ZATCA, not the platform — never label it as
@@ -338,17 +360,30 @@ export async function getHostPayoutStatement(
       .where(eq(bookings.payoutId, batch.id))
       .orderBy(desc(bookings.date));
 
+    // Clawbacks this batch absorbed (refund-after-payout reversals) —
+    // the batch amount is net of them, so the statement must show them.
+    const deductions = await db
+      .select({
+        referenceCode: bookings.referenceCode,
+        amountSar: payoutClawbacks.amountSar,
+      })
+      .from(payoutClawbacks)
+      .innerJoin(bookings, eq(bookings.id, payoutClawbacks.bookingId))
+      .where(eq(payoutClawbacks.settledPayoutId, batch.id))
+      .orderBy(desc(payoutClawbacks.createdAt));
+
     return {
       id: batch.id,
       createdAt: batch.createdAt.toISOString(),
       amountSar: batch.amountSar,
       bookingCount: batch.bookingCount,
-      payoutIban: batch.payoutIban,
+      payoutIban: decryptPii(batch.payoutIban),
       bankReference: batch.bankReference,
       rows: rows.map((row) => ({
         ...row,
         commissionSar: row.totalSar - row.vatSar - row.payoutSar,
       })),
+      deductions,
     };
   } catch (error) {
     // Rethrow: null-on-error rendered this statement as a 404.

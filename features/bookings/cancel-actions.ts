@@ -126,11 +126,30 @@ export async function cancelBookingAsGuest(
       return { success: false, message: cancel.reason };
     }
 
+    // The platform-retained share of a PAID cancellation (the whole
+    // base on a forfeit, the withheld remainder on a partial) — stamped
+    // as `forfeitedSar` so retained cancellation revenue is a journaled
+    // number, not an invisible residue (2026-07-20 audit).
+    const paidBaseSar = booking.totalAmount + booking.walletAppliedSar;
+    const retainedSar =
+      booking.paymentStatus === 'paid'
+        ? cancel.refund === 'full' || cancel.refund === 'partial'
+          ? paidBaseSar - cancel.amountSar
+          : cancel.refund === 'forfeited'
+            ? paidBaseSar
+            : 0
+        : 0;
+
     // Flip to cancelled conditionally on the status we just evaluated, so
     // a concurrent host/admin transition can't be silently overwritten.
     const updated = await db
       .update(bookings)
-      .set({ status: 'cancelled', cancelledAt: new Date(), cancellationKind: 'guest' })
+      .set({
+        status: 'cancelled',
+        cancelledAt: new Date(),
+        cancellationKind: 'guest',
+        ...(retainedSar > 0 ? { forfeitedSar: retainedSar } : {}),
+      })
       .where(and(eq(bookings.id, booking.id), inArray(bookings.status, ['pending', 'confirmed'])))
       .returning({ id: bookings.id });
     if (updated.length === 0) return { success: false, message: 'wrong_state' };

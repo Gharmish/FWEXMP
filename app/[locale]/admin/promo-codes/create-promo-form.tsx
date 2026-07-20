@@ -22,6 +22,8 @@ export interface CreatePromoFormCopy {
   minTotalHint: string;
   maxRedemptionsLabel: string;
   maxRedemptionsHint: string;
+  maxPerGuestLabel: string;
+  maxPerGuestHint: string;
   startsAtLabel: string;
   endsAtLabel: string;
   optional: string;
@@ -182,6 +184,28 @@ export function CreatePromoForm({ locale, copy }: CreatePromoFormProps) {
             <p className={errorClass}>{copy.fieldInvalid}</p>
           ) : (
             <p className={hintClass}>{copy.maxRedemptionsHint}</p>
+          )}
+        </div>
+
+        <div className="flex flex-col gap-1">
+          <label htmlFor={`${uid}-max-guest`} className={labelClass}>
+            {copy.maxPerGuestLabel}{' '}
+            <span className="text-sarat-black-600 font-normal">({copy.optional})</span>
+          </label>
+          <Input
+            id={`${uid}-max-guest`}
+            name="maxRedemptionsPerGuest"
+            type="number"
+            inputMode="numeric"
+            min={1}
+            placeholder="1"
+            dir="ltr"
+            aria-invalid={fields.maxRedemptionsPerGuest ? true : undefined}
+          />
+          {fields.maxRedemptionsPerGuest ? (
+            <p className={errorClass}>{copy.fieldInvalid}</p>
+          ) : (
+            <p className={hintClass}>{copy.maxPerGuestHint}</p>
           )}
         </div>
 

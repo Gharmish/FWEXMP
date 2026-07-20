@@ -30,6 +30,7 @@ import type {
   HostIdentityType,
 } from '@/features/host-applications/types';
 import { HOST_LANGUAGE_OPTIONS } from '@/features/host-applications/types';
+import { encryptPii } from '@/lib/pii-crypto';
 
 /**
  * Server action for the host-apply form. Mirrors the booking action
@@ -351,10 +352,12 @@ export async function submitHostApplication(
         bioAr: input.bioAr.length > 0 ? input.bioAr : null,
         languages: [...input.languages],
         identityType: input.identityType,
-        identityNumber: input.identityNumber,
+        // Identity + bank PII encrypted at rest (lib/pii-crypto.ts;
+        // validated by the zod schema BEFORE encryption).
+        identityNumber: encryptPii(input.identityNumber),
         legalName: input.legalName,
         dateOfBirth: input.dateOfBirth ?? null,
-        iban: input.iban,
+        iban: encryptPii(input.iban),
         bankName: input.bankName,
         bankAccountHolder: input.bankAccountHolder,
         vatNumber: input.vatNumber ?? null,

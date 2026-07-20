@@ -472,6 +472,23 @@ export default async function AdminIndexPage({
             growth={growth(m.paymentSuccessRate.current, m.paymentSuccessRate.previous)}
             newLabel={newLabel}
           />
+          {m.estimatedGatewayFeesSar.current > 0 && (
+            <MetricStat
+              label={t('dashboard.metrics.revenue.gatewayFees')}
+              value={<Price amount={m.estimatedGatewayFeesSar.current} locale={loc} />}
+              locale={loc}
+            />
+          )}
+          <MetricStat
+            label={t('dashboard.metrics.revenue.forfeited')}
+            value={<Price amount={m.forfeitedSar.current} locale={loc} />}
+            locale={loc}
+          />
+          <MetricStat
+            label={t('dashboard.metrics.revenue.walletLiability')}
+            value={<Price amount={m.walletLiabilitySar} locale={loc} />}
+            locale={loc}
+          />
         </div>
         <div className={cn(card, 'flex flex-col gap-4')}>
           <h3 className="text-sarat-black text-sm font-medium">

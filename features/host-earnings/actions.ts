@@ -9,6 +9,7 @@ import { reportError } from '@/lib/log';
 import { getCurrentUser } from '@/features/auth/queries';
 import { updatePayoutIbanSchema } from '@/features/host-earnings/schemas';
 import { maskIban } from '@/features/host-earnings/lib/iban';
+import { decryptPii, encryptPii } from '@/lib/pii-crypto';
 
 /**
  * Payout-method management. The IBAN is the only field a host edits
@@ -48,13 +49,19 @@ export async function updatePayoutIban(
         columns: { id: true, payoutIban: true },
       });
       if (!host) return 'forbidden' as const;
-      await tx.update(hosts).set({ payoutIban: parsed.data.iban }).where(eq(hosts.id, host.id));
+      // Stored encrypted at rest (lib/pii-crypto.ts; pass-through until
+      // the key is configured). Compare/mask on the decrypted value.
+      const previousIban = decryptPii(host.payoutIban);
+      await tx
+        .update(hosts)
+        .set({ payoutIban: encryptPii(parsed.data.iban) })
+        .where(eq(hosts.id, host.id));
       // No-op saves (same IBAN resubmitted) don't pollute the trail.
-      if (host.payoutIban !== parsed.data.iban) {
+      if (previousIban !== parsed.data.iban) {
         await tx.insert(payoutIbanEvents).values({
           hostId: host.id,
           actorUserId: user.id,
-          previousIbanMasked: maskIban(host.payoutIban),
+          previousIbanMasked: maskIban(previousIban),
           newIbanMasked: maskIban(parsed.data.iban) ?? '',
         });
       }

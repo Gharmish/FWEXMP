@@ -13,6 +13,8 @@ import {
   reviews,
   savedExperiences,
 } from '@/db/schema';
+import { paymentCollected } from '@/features/bookings/lib/payout-sql';
+import { getPlatformSettings } from '@/lib/platform-settings';
 import {
   comparison,
   enumerateBuckets,
@@ -58,6 +60,15 @@ interface Window {
 const REVENUE = sql`${bookings.status} in ('confirmed','completed')`;
 
 /**
+ * Revenue rows whose money the platform actually HOLDS (2026-07-20
+ * audit): every money KPI (GMV, net revenue, VAT) is gated on
+ * `paymentCollected()`, so a `confirmed`-but-unpaid hold no longer
+ * inflates the numbers. Count/behavior metrics keep plain `REVENUE` —
+ * an unpaid hold is still a real booking event.
+ */
+const MONEY = sql`(${REVENUE} and ${paymentCollected()})`;
+
+/**
  * A Date bound as a casted timestamptz literal. postgres-js (prepare:false)
  * cannot serialize a raw JS `Date` interpolated into a `sql` template — it
  * throws "Received an instance of Date". Drizzle's `gte/lt` helpers serialize
@@ -96,15 +107,31 @@ function sumAmt(cond: SQL, w: Window): SQL<number> {
  * until ZATCA registration day and only counts post-registration money.
  */
 function vatSum(w: Window): SQL<number> {
-  return sql<number>`coalesce(round(sum(${bookings.totalAmount} * ${bookings.vatRateBps} / (10000.0 + ${bookings.vatRateBps})) filter (where ${REVENUE} and ${bookings.vatRateBps} is not null and ${created(w)})), 0)::int`;
+  return sql<number>`coalesce(round(sum(${bookings.totalAmount} * ${bookings.vatRateBps} / (10000.0 + ${bookings.vatRateBps})) filter (where ${MONEY} and ${bookings.vatRateBps} is not null and ${created(w)})), 0)::int`;
 }
 
 function netRevenue(w: Window): SQL<number> {
-  // Commission on the ex-VAT base (owner decision 2026-07-07): the VAT
-  // portion belongs to ZATCA and is never platform revenue. NULL-rate
-  // bookings (pre-registration) contribute their full total as the base.
-  const netBase = sql`(${bookings.totalAmount} - coalesce(round(${bookings.totalAmount} * ${bookings.vatRateBps}::numeric / (10000 + ${bookings.vatRateBps})), 0))`;
-  return sql<number>`coalesce(round(sum(${netBase} * ${bookings.commissionBps} / 10000.0) filter (where ${REVENUE} and ${created(w)})), 0)::int`;
+  // TRUE platform take (2026-07-20 audit). The old formula took
+  // commission on the charged total alone — but promo discounts and
+  // redeemed Gharmish Credit are PLATFORM-funded (the host is paid full
+  // price), so it overstated take on every such booking and could show
+  // profit where the platform actually lost money. Mirror the payout
+  // identity instead: commission on the full-price ex-VAT base
+  // (`total + discount + credit − vat`, same as `splitCommission`),
+  // minus the funded discount and credit. Collected money only.
+  const vatPortion = sql`coalesce(round(${bookings.totalAmount} * ${bookings.vatRateBps}::numeric / (10000 + ${bookings.vatRateBps})), 0)`;
+  const netBase = sql`(${bookings.totalAmount} + coalesce(${bookings.discountSar}, 0) + coalesce(${bookings.walletAppliedSar}, 0) - ${vatPortion})`;
+  const take = sql`(round(${netBase} * least(10000, greatest(0, ${bookings.commissionBps})) / 10000.0) - coalesce(${bookings.discountSar}, 0) - coalesce(${bookings.walletAppliedSar}, 0))`;
+  return sql<number>`coalesce(sum(${take}) filter (where ${MONEY} and ${created(w)}), 0)::int`;
+}
+
+/**
+ * Platform-retained cancellation money (forfeits + the withheld share of
+ * partial refunds), windowed by when the booking was cancelled — the
+ * moment the retention became income.
+ */
+function forfeitedSum(w: Window): SQL<number> {
+  return sql<number>`coalesce(sum(${bookings.forfeitedSar}) filter (where ${bookings.forfeitedSar} is not null and ${inWindow(bookings.cancelledAt, w)}), 0)::int`;
 }
 
 function avgPartyX100(w: Window): SQL<number> {
@@ -227,6 +254,10 @@ async function runDashboardMetrics(range: DateRange): Promise<DashboardMetrics> 
   const prev = toInstantBounds(prevRange);
   const granularity = granularityFor(range);
 
+  // Blended MDR estimate for the gateway-fee KPI — a settings read, not a
+  // wave statement (it's cached-fast and not part of the pool math).
+  const { gatewayFeeBps } = await getPlatformSettings();
+
   // Scalar-subquery predicates for the single other-table statement.
   const win = (col: AnyColumn, w: Window) => inWindow(col, w);
 
@@ -248,10 +279,12 @@ async function runDashboardMetrics(range: DateRange): Promise<DashboardMetrics> 
           reqPrev: cnt(sql`true`, prev),
           revCur: cnt(REVENUE, cur),
           revPrev: cnt(REVENUE, prev),
-          gmvCur: sumAmt(REVENUE, cur),
-          gmvPrev: sumAmt(REVENUE, prev),
+          gmvCur: sumAmt(MONEY, cur),
+          gmvPrev: sumAmt(MONEY, prev),
           netCur: netRevenue(cur),
           netPrev: netRevenue(prev),
+          forfeitCur: forfeitedSum(cur),
+          forfeitPrev: forfeitedSum(prev),
           confirmedCur: cnt(STATUS('confirmed'), cur),
           completedCur: cnt(STATUS('completed'), cur),
           completedPrev: cnt(STATUS('completed'), prev),
@@ -303,6 +336,7 @@ async function runDashboardMetrics(range: DateRange): Promise<DashboardMetrics> 
         (select count(*) from ${hosts} where ${hosts.verificationStatus} = 'suspended')::int as suspended,
         (select coalesce(sum(${payouts.amountSar}), 0) from ${payouts} where ${win(payouts.createdAt, cur)})::int as payouts_cur,
         (select coalesce(sum(${payouts.amountSar}), 0) from ${payouts} where ${win(payouts.createdAt, prev)})::int as payouts_prev,
+        (select coalesce(sum(amount_sar), 0) from wallet_ledger)::int as wallet_liability,
         (select count(*) from ${paymentEvents} where ${paymentEvents.type} = 'settle_succeeded' and ${win(paymentEvents.createdAt, cur)})::int as pe_ok_cur,
         (select count(*) from ${paymentEvents} where ${paymentEvents.type} = 'settle_failed' and ${win(paymentEvents.createdAt, cur)})::int as pe_fail_cur,
         (select count(*) from ${paymentEvents} where ${paymentEvents.type} = 'settle_succeeded' and ${win(paymentEvents.createdAt, prev)})::int as pe_ok_prev,
@@ -642,6 +676,12 @@ async function runDashboardMetrics(range: DateRange): Promise<DashboardMetrics> 
     hostPayoutsSar: delta(n('payouts_cur'), n('payouts_prev')),
     refundedSar: delta(s.refundedSarCur, s.refundedSarPrev),
     vatSar: delta(s.vatSarCur, s.vatSarPrev),
+    estimatedGatewayFeesSar: delta(
+      Math.round((s.gmvCur * gatewayFeeBps) / 10000),
+      Math.round((s.gmvPrev * gatewayFeeBps) / 10000),
+    ),
+    forfeitedSar: delta(s.forfeitCur, s.forfeitPrev),
+    walletLiabilitySar: n('wallet_liability'),
     paymentSuccessRate: delta(
       pct(n('pe_ok_cur'), n('pe_ok_cur') + n('pe_fail_cur')),
       pct(n('pe_ok_prev'), n('pe_ok_prev') + n('pe_fail_prev')),

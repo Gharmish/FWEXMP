@@ -48,6 +48,11 @@ export const createPromoCodeSchema = z
       z.literal(''),
       z.coerce.number().int('cap_range').positive('cap_range'),
     ]),
+    /** Per-guest cap. Blank keeps the DB default of 1 (audit fix 2026-07-20). */
+    maxRedemptionsPerGuest: z.union([
+      z.literal(''),
+      z.coerce.number().int('cap_range').positive('cap_range'),
+    ]),
     startsAt: optionalLocalDateTime,
     endsAt: optionalLocalDateTime,
     locale: localeSchema,

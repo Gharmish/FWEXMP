@@ -71,6 +71,8 @@ export default async function AdminSettingsPage({
     commissionLabel: t('settings.commissionLabel'),
     commissionHint: t('settings.commissionHint'),
     commissionSuffix: t('settings.commissionSuffix'),
+    gatewayFeeLabel: t('settings.gatewayFeeLabel'),
+    gatewayFeeHint: t('settings.gatewayFeeHint'),
     cancellationLabel: t('settings.cancellationLabel'),
     cancellationHint: t('settings.cancellationHint'),
     cancellationSuffix: t('settings.cancellationSuffix'),
@@ -121,6 +123,7 @@ export default async function AdminSettingsPage({
       <AdminSettingsForm
         locale={loc}
         defaultCommissionPct={settings.defaultCommissionBps / 100}
+        defaultGatewayFeePct={settings.gatewayFeeBps / 100}
         defaultCancellationWindowHours={settings.cancellationWindowHours}
         defaultApprovalWindowHours={settings.approvalWindowHours}
         defaultApprovalPaymentWindowHours={settings.approvalPaymentWindowHours}

@@ -11,6 +11,7 @@ import type {
   HostApplicationView,
 } from '@/features/host-applications/types';
 import { adminGuard } from '@/features/admin/guard';
+import { decryptPii } from '@/lib/pii-crypto';
 
 /**
  * Admin reads over host_applications. Two gates apply to every call:
@@ -38,10 +39,10 @@ function rowToView(row: typeof hostApplications.$inferSelect): HostApplicationVi
     bioAr: row.bioAr,
     languages: row.languages,
     identityType: row.identityType,
-    identityNumber: row.identityNumber,
+    identityNumber: decryptPii(row.identityNumber),
     legalName: row.legalName,
     dateOfBirth: row.dateOfBirth,
-    iban: row.iban,
+    iban: decryptPii(row.iban),
     bankName: row.bankName,
     bankAccountHolder: row.bankAccountHolder,
     vatNumber: row.vatNumber,

@@ -82,6 +82,12 @@ export interface BookingDetail {
   paymentDeadline: string | null;
   /** When the booking was moved to `refunded`. ISO; null when never refunded. */
   refundedAt: string | null;
+  /**
+   * Whole-SAR actually returned to the guest (card + credit legs).
+   * Null on rows refunded before the column shipped — the invoice page
+   * falls back to the full total there (those refunds WERE full).
+   */
+  refundedAmountSar: number | null;
   /** How the refund travelled (`wallet` = credited to Gharmish Credit). Null = never refunded. */
   refundMethod: Booking['refundMethod'];
   /** Who called the booking off (`emergency` = admin force-majeure flow). Null = not cancelled. */
@@ -163,6 +169,7 @@ export async function getBookingByReference(reference: string): Promise<BookingD
     approvedAt: row.approvedAt?.toISOString() ?? null,
     paymentDeadline: row.paymentDeadline?.toISOString() ?? null,
     refundedAt: row.refundedAt?.toISOString() ?? null,
+    refundedAmountSar: row.refundedAmountSar,
     refundMethod: row.refundMethod,
     cancellationKind: row.cancellationKind,
     policy: policyOf(row),
@@ -246,6 +253,7 @@ export async function getBookingsForGuest(guestId: string): Promise<GuestBooking
     approvedAt: row.approvedAt?.toISOString() ?? null,
     paymentDeadline: row.paymentDeadline?.toISOString() ?? null,
     refundedAt: row.refundedAt?.toISOString() ?? null,
+    refundedAmountSar: row.refundedAmountSar,
     refundMethod: row.refundMethod,
     cancellationKind: row.cancellationKind,
     policy: policyOf(row),

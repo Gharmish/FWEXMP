@@ -144,7 +144,9 @@ describe('issueWalletCredit', () => {
   it('inserts a goodwill credit row with the admin as actor', async () => {
     const state = await issueWalletCredit({ success: false }, issueForm());
     expect(state).toEqual({ success: true });
-    expect(inserted).toHaveLength(1);
+    // Two writes since the 2026-07-20 audit: the ledger row plus its
+    // User-360 audit-trail mirror.
+    expect(inserted).toHaveLength(2);
     expect(inserted[0]).toEqual({
       guestId: GUEST_ID,
       type: 'goodwill',
@@ -153,6 +155,11 @@ describe('issueWalletCredit', () => {
       note: 'Comped after host no-show.',
       expiresAt: null,
       idempotencyKey: IDEMPOTENCY_KEY,
+    });
+    expect(inserted[1]).toMatchObject({
+      subjectGuestId: GUEST_ID,
+      actorUserId: 'admin-1',
+      field: 'wallet.credit_issued',
     });
   });
 
@@ -204,13 +211,19 @@ describe('adjustWalletBalance', () => {
     balance = 100;
     const state = await adjustWalletBalance({ success: false }, adjustForm({ amountSar: '30' }));
     expect(state).toEqual({ success: true });
-    expect(inserted).toHaveLength(1);
+    // Ledger row + its User-360 audit-trail mirror (2026-07-20 audit).
+    expect(inserted).toHaveLength(2);
     expect(inserted[0]).toMatchObject({
       guestId: GUEST_ID,
       type: 'admin_adjustment',
       amountSar: -30,
       actorUserId: 'admin-1',
       note: 'Issued twice by mistake.',
+    });
+    expect(inserted[1]).toMatchObject({
+      subjectGuestId: GUEST_ID,
+      actorUserId: 'admin-1',
+      field: 'wallet.balance_deducted',
     });
   });
 

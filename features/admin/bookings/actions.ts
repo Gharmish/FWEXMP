@@ -7,7 +7,6 @@ import { serverEnv, hasHyperpay } from '@/lib/env';
 import { bookings, disputes } from '@/db/schema';
 import { redirect } from '@/lib/i18n';
 import { reportError } from '@/lib/log';
-import { notifyAdmin } from '@/lib/admin-alerts';
 import { getCurrentUser } from '@/features/auth/queries';
 import { isAdminUser } from '@/features/admin/auth';
 import {
@@ -17,9 +16,16 @@ import {
 } from '@/features/admin/bookings/schemas';
 import { executeBookingTransition } from '@/features/bookings/lib/transition-executor';
 import { isSuccessfulResult, refundPayment } from '@/features/payments/lib/hyperpay';
-import { latestPaymentEvent, recordPaymentEvent } from '@/features/payments/ledger';
+import {
+  latestPaymentEvent,
+  recordPaymentEvent,
+  resolvePaymentChannel,
+} from '@/features/payments/ledger';
+import { splitRefund } from '@/features/bookings/lib/refund-split';
+import { recordClawbackIfPaidOut } from '@/features/bookings/lib/clawback';
+import { creditWalletRefund } from '@/features/wallet/reservation';
 import { sendBookingCancellationEmail } from '@/features/bookings/lib/booking-email';
-import { creditWallet } from '@/features/wallet/ledger';
+import { creditWalletTxIdempotent } from '@/features/wallet/ledger';
 import { releaseWalletReservationTx } from '@/features/wallet/reservation';
 
 /**
@@ -45,6 +51,8 @@ export interface AdminBookingActionResult {
     | 'not_found'
     | 'wrong_state'
     | 'over_capacity'
+    | 'too_early'
+    | 'unpaid'
     | 'dispute_open'
     | 'validation'
     | 'server';
@@ -90,10 +98,12 @@ export async function refundBooking(
       where: (b) => eq(b.id, bookingId),
       columns: {
         id: true,
+        guestId: true,
         status: true,
         paymentStatus: true,
         paymentReference: true,
         totalAmount: true,
+        walletAppliedSar: true,
         refundDueSar: true,
         idempotencyKey: true,
       },
@@ -117,10 +127,26 @@ export async function refundBooking(
       (booking.status === 'refunded' && booking.refundDueSar !== null);
     if (!refundable) return { success: false, message: 'wrong_state' };
 
-    // What's actually owed: the stamped manual-queue amount when one
-    // exists (it may be a partial-policy or card-leg share, less than
-    // the full charge), the full charge otherwise.
-    const owedSar = booking.refundDueSar ?? booking.totalAmount;
+    // What's actually owed. A stamped manual-queue amount is the card
+    // leg still outstanding (any credit leg already landed — it may be
+    // a partial-policy or card-leg share, less than the full charge).
+    // A fresh refund owes the FULL paid base: the card charge PLUS any
+    // redeemed Gharmish Credit (2026-07-20 audit — this action used to
+    // refund `totalAmount` only, shortchanging part-credit guests their
+    // wallet leg while every other refund path returned it). Split
+    // card-first, same as executeRefund.
+    const queued = booking.refundDueSar !== null;
+    const paidBaseSar = booking.totalAmount + booking.walletAppliedSar;
+    const split = queued
+      ? { cardRefundSar: booking.refundDueSar ?? 0, creditRefundSar: 0 }
+      : splitRefund(paidBaseSar, booking.totalAmount, booking.walletAppliedSar);
+    const owedSar = split.cardRefundSar;
+
+    // The wallet leg first — `creditWalletRefund` is idempotent
+    // (`refund:<bookingId>` unique key), so a replay never double-credits.
+    if (split.creditRefundSar > 0) {
+      await creditWalletRefund(booking.id, booking.guestId, split.creditRefundSar);
+    }
 
     // Gateway-first: try the automated reversal before recording — but
     // never twice: if the ledger already holds a `refund_succeeded` for
@@ -129,10 +155,18 @@ export async function refundBooking(
     // only records. A rejection (commonly: already reversed in the
     // HyperPay console) is logged but doesn't block the record — see
     // the header comment.
-    if (hasHyperpay() && booking.paymentStatus === 'paid' && booking.paymentReference) {
+    if (
+      hasHyperpay() &&
+      booking.paymentStatus === 'paid' &&
+      booking.paymentReference &&
+      owedSar > 0
+    ) {
       const alreadyRefunded = await latestPaymentEvent(booking.id, 'refund_succeeded');
       if (!alreadyRefunded) {
         try {
+          // Reverse on the entity that captured (Apple Pay refunds only
+          // land on the Apple Pay entity) — same rule as executeRefund.
+          const channel = await resolvePaymentChannel(booking.id, null);
           await recordPaymentEvent({
             bookingId: booking.id,
             type: 'refund_attempted',
@@ -140,12 +174,17 @@ export async function refundBooking(
             gatewayId: booking.paymentReference,
             actorUserId: guard.adminUserId,
           });
-          const { resultCode } = await refundPayment(booking.paymentReference, owedSar);
+          const { resultCode, refundId } = await refundPayment(
+            booking.paymentReference,
+            owedSar,
+            channel,
+          );
           await recordPaymentEvent({
             bookingId: booking.id,
             type: isSuccessfulResult(resultCode) ? 'refund_succeeded' : 'refund_failed',
             amountSar: owedSar,
-            gatewayId: booking.paymentReference,
+            // The refund's own gateway id — settlement-report matchable.
+            gatewayId: refundId ?? booking.paymentReference,
             resultCode,
             actorUserId: guard.adminUserId,
           });
@@ -171,6 +210,11 @@ export async function refundBooking(
         refundedAt: sql`coalesce(${bookings.refundedAt}, now())`,
         refundDueSar: null,
         refundMethod: 'manual',
+        // Journal what actually went back: the card leg settled here
+        // plus any wallet leg credited above, ON TOP of anything an
+        // earlier partial path already stamped. The conditional WHERE
+        // makes this at-most-once per queue entry.
+        refundedAmountSar: sql`coalesce(${bookings.refundedAmountSar}, 0) + ${owedSar + split.creditRefundSar}`,
       })
       .where(
         and(
@@ -185,6 +229,10 @@ export async function refundBooking(
       .returning({ id: bookings.id });
     if (updated.length === 0) return { success: false, message: 'wrong_state' };
 
+    // If the host was already paid out for this booking, the refund is
+    // now a platform loss unless it's clawed back from the next batch.
+    await recordClawbackIfPaidOut(booking.id, 'admin manual refund after payout');
+
     // The decision itself goes in the ledger — who recorded the refund
     // and for how much. Best-effort: the status flip above is the
     // operational truth this action must not roll back over an event.
@@ -192,7 +240,7 @@ export async function refundBooking(
       await recordPaymentEvent({
         bookingId: booking.id,
         type: 'manual_refund_recorded',
-        amountSar: owedSar,
+        amountSar: owedSar + split.creditRefundSar,
         actorUserId: guard.adminUserId,
       });
     } catch (error) {
@@ -229,12 +277,13 @@ export async function refundBooking(
  * the guest is never at fault for an emergency.
  *
  * Money path: one `refund_credit` ledger entry keyed `refund:<bookingId>`
- * (the unique index makes a double submit idempotent), then the booking
- * flips to `refunded` with `refundMethod='wallet'`. From there the guest
- * chooses: spend the credit at checkout, or move the card-charged share
- * back to their original payment method (`requestRefundToCard`). If the
- * ledger write fails, the booking stays `cancelled` with `refundDueSar`
- * stamped — the same manual queue every failed refund lands in.
+ * (ON CONFLICT DO NOTHING makes a double submit idempotent), committed
+ * ATOMICALLY with the `refunded` flip inside the cancellation
+ * transaction (2026-07-20 audit fix — the old post-commit credit could
+ * fail and drop the wallet-funded share). From there the guest chooses:
+ * spend the credit at checkout, or move the card-charged share back to
+ * their original payment method (`requestRefundToCard`). If any write
+ * fails, the WHOLE cancellation rolls back and the admin retries.
  *
  * A booking with an OPEN dispute is refused: the dispute's resolve flow
  * owns that booking's money, and two admins must not refund it twice.
@@ -304,60 +353,48 @@ export async function emergencyCancelBooking(
       if (!wasPaid && booking.walletAppliedSar > 0) {
         await releaseWalletReservationTx(tx, bookingId);
       }
-      return {
-        guestId: booking.guestId,
-        wasPaid,
-        totalAmount: booking.totalAmount,
-        walletAppliedSar: booking.walletAppliedSar,
-        reference: booking.idempotencyKey,
-        guestLocale: booking.guest.preferredLanguage,
-      };
-    });
-    if (typeof outcome === 'string') return { success: false, message: outcome, values: echo };
-
-    let creditSar = 0;
-    if (outcome.wasPaid) {
       // Full paid base as ONE wallet entry: the card charge plus any
       // redeemed credit (paid bookings never release their redemption).
-      creditSar = outcome.totalAmount + outcome.walletAppliedSar;
-      try {
-        try {
-          await creditWallet({
-            guestId: outcome.guestId,
-            type: 'refund_credit',
-            amountSar: creditSar,
-            bookingId,
-            idempotencyKey: `refund:${bookingId}`,
-            // The guest's own money — never expires.
-            expiresAt: null,
-            actorUserId: guard.adminUserId,
-            note: reason,
-          });
-        } catch (error) {
-          // The unique idempotency key already landed — the earlier attempt won.
-          if (!isUniqueViolation(error)) throw error;
-        }
-        await db
+      // ATOMIC with the cancellation (2026-07-20 audit): the old
+      // post-commit credit could fail and silently drop the wallet-
+      // funded share into a card-only manual queue. Now credit + the
+      // `refunded` flip commit or roll back with the cancellation — a
+      // failure surfaces as `server` and the admin simply retries.
+      let creditSar = 0;
+      if (wasPaid) {
+        creditSar = booking.totalAmount + booking.walletAppliedSar;
+        await creditWalletTxIdempotent(tx, {
+          guestId: booking.guestId,
+          type: 'refund_credit',
+          amountSar: creditSar,
+          bookingId,
+          idempotencyKey: `refund:${bookingId}`,
+          // The guest's own money — never expires.
+          expiresAt: null,
+          actorUserId: guard.adminUserId,
+          note: reason,
+        });
+        await tx
           .update(bookings)
           .set({
             status: 'refunded',
             refundedAt: new Date(),
             refundMethod: 'wallet',
             refundDueSar: null,
+            refundedAmountSar: creditSar,
           })
           .where(and(eq(bookings.id, bookingId), eq(bookings.status, 'cancelled')));
-      } catch (error) {
-        // Credit failed: the booking stays `cancelled` and the card-
-        // refundable share joins the manual queue — owed money is never
-        // silent.
-        reportError(error, { surface: 'admin:emergencyCancel:wallet', bookingId });
-        await db
-          .update(bookings)
-          .set({ refundDueSar: outcome.totalAmount })
-          .where(eq(bookings.id, bookingId));
-        await notifyAdmin('refund_due', { bookingId, amountSar: outcome.totalAmount });
       }
-    }
+      return {
+        guestId: booking.guestId,
+        wasPaid,
+        creditSar,
+        reference: booking.idempotencyKey,
+        guestLocale: booking.guest.preferredLanguage,
+      };
+    });
+    if (typeof outcome === 'string') return { success: false, message: outcome, values: echo };
+    const creditSar = outcome.creditSar;
 
     // Tell the guest — best-effort, never fails the cancellation.
     try {
@@ -379,16 +416,6 @@ export async function emergencyCancelBooking(
   revalidatePath('/[locale]/admin/analytics', 'page');
   revalidatePath('/[locale]/me/profile', 'page');
   redirect({ href: '/admin/bookings', locale });
-}
-
-/** Postgres unique-violation SQLSTATE. */
-function isUniqueViolation(error: unknown): boolean {
-  return (
-    typeof error === 'object' &&
-    error !== null &&
-    'code' in error &&
-    (error as { code?: unknown }).code === '23505'
-  );
 }
 
 /**

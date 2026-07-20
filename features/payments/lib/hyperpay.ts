@@ -105,15 +105,17 @@ export async function prepareCheckout(
 
 /**
  * Refund a settled payment (full or partial) by its payment id (`ndc`).
- * Returns the gateway's result code; the caller classifies it with
- * `isSuccessfulResult` and decides whether to fall back to a manual
- * reversal. Throws on transport-level failures (no result code at all).
+ * Returns the gateway's result code plus the REFUND's own transaction id
+ * (`id` on the response — distinct from the original payment's ndc);
+ * callers must ledger the refund id, or refund lines on HyperPay
+ * settlement reports can never be matched back to a booking (2026-07-20
+ * audit). Throws on transport-level failures (no result code at all).
  */
 export async function refundPayment(
   paymentId: string,
   amountSar: number,
   channel: PaymentChannel = 'card',
-): Promise<{ resultCode: string }> {
+): Promise<{ resultCode: string; refundId: string | null }> {
   const res = await fetch(`${hyperpayBaseUrl()}v1/payments/${encodeURIComponent(paymentId)}`, {
     method: 'POST',
     headers: { ...authHeaders(), 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -121,11 +123,11 @@ export async function refundPayment(
     cache: 'no-store',
     signal: AbortSignal.timeout(HYPERPAY_TIMEOUT_MS),
   });
-  const data = await parseJson<{ result?: { code?: string } }>(res, 'refund');
+  const data = await parseJson<{ id?: string; result?: { code?: string } }>(res, 'refund');
   if (!data.result?.code) {
     throw new Error(`HyperPay refund returned no result code (HTTP ${res.status})`);
   }
-  return { resultCode: data.result.code };
+  return { resultCode: data.result.code, refundId: data.id ?? null };
 }
 
 /** Step 3 — read the payment status for a prepared checkout. */

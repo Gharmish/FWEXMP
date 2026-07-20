@@ -67,7 +67,9 @@ export default async function TermsPage({ params }: { params: Promise<{ locale: 
       heading: t('cancellations.heading'),
       body: (
         <>
-          <p>{t('cancellations.body', { hours: settings.cancellationWindowHours })}</p>
+          {/* Tier snapshots on each booking are the enforced rule; the copy
+              describes them and takes no platform-window parameter. */}
+          <p>{t('cancellations.body')}</p>
           <p>
             <Link href="/cancellation-policy" className={inlineLinkClassName}>
               {t('cancellations.link')}

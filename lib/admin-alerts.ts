@@ -19,19 +19,25 @@ export type AdminAlertKind =
   | 'host_application_submitted'
   | 'dispute_opened'
   | 'refund_due'
+  | 'payout_clawback'
   | 'settle_anomaly'
+  | 'settle_stuck'
   | 'cron_failed'
   | 'vat_stamp_missing'
-  | 'vat_threshold';
+  | 'vat_threshold'
+  | 'negative_take';
 
 const SUBJECTS: Record<AdminAlertKind, string> = {
   host_application_submitted: 'New host application',
   dispute_opened: 'New dispute opened',
   refund_due: 'Refund owed — manual reversal required',
+  payout_clawback: 'Refund after payout — host clawback recorded',
   settle_anomaly: 'Payment settlement anomaly',
+  settle_stuck: 'Payments stuck in processing for over 24h',
   cron_failed: 'Scheduled job failed',
   vat_stamp_missing: 'VAT integrity — settled payments without a VAT stamp',
   vat_threshold: 'VAT registration threshold approaching',
+  negative_take: 'Bookings settled at a negative platform take',
 };
 
 function escapeHtml(value: string): string {

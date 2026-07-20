@@ -2,7 +2,7 @@ import { NextResponse, type NextRequest } from 'next/server';
 import { and, eq, inArray, isNull, isNotNull, lte, notInArray, or, sql } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import { serverEnv } from '@/lib/env';
-import { bookings, guests, platformSettings } from '@/db/schema';
+import { bookings, guests, platformSettings, walletLedger } from '@/db/schema';
 import { reportError } from '@/lib/log';
 import { notifyAdmin } from '@/lib/admin-alerts';
 import { settleBooking } from '@/features/payments/settle';
@@ -61,7 +61,11 @@ const RETRY_LIMIT = 50;
  *    would otherwise stay `processing` forever (the release pass deliberately
  *    never cancels `processing`). This pass re-queries HyperPay — the source of
  *    truth — via the idempotent `settleBooking`, confirming paid bookings and
- *    failing rejected ones. It is the safety net for the missing OPPWA webhook.
+ *    failing rejected ones. The OPPWA webhook (app/api/webhooks/hyperpay)
+ *    normally covers closed-tab settlements; this pass is the redundant
+ *    safety net for webhook outages, and it ALERTS (2026-07-20 audit) when
+ *    a booking has been reconcile-failing for over a day — captured money
+ *    must never sit invisible.
  *
  * 3. **Reminders** — two per-booking guest emails: a ~24h "get ready"
  *    (`reminderSentAt`) and a ~3h day-of "see you soon"
@@ -187,6 +191,40 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     for (const row of stuck) {
       const outcome = await settleBooking(row.idempotencyKey);
       if (outcome === 'success') settled += 1;
+    }
+
+    // Pass 2b — stuck-settlement aging alert (2026-07-20 audit). A
+    // booking that keeps failing to settle (gateway unreachable, amount
+    // anomaly, settings read failing) stays `processing` silently — the
+    // guest's card may be captured while the DB shows nothing. Alert as
+    // each booking crosses 24h stuck (the one-hour window under the
+    // hourly cadence keeps it one alert per booking, not one per run).
+    try {
+      const [aging] = await db
+        .select({
+          crossing: sql<number>`count(*) filter (where ${bookings.paymentDeadline} > now() - interval '25 hours')::int`,
+          total: sql<number>`count(*)::int`,
+        })
+        .from(bookings)
+        .where(
+          and(
+            eq(bookings.paymentStatus, 'processing'),
+            isNotNull(bookings.checkoutId),
+            isNotNull(bookings.paymentDeadline),
+            sql`${bookings.paymentDeadline} <= now() - interval '24 hours'`,
+            notInArray(bookings.status, ['completed', 'refunded']),
+          ),
+        );
+      if (aging && aging.crossing > 0) {
+        await notifyAdmin('settle_stuck', {
+          newlyStuckOver24h: aging.crossing,
+          totalStuckOver24h: aging.total,
+          action:
+            'check HyperPay + /admin/bookings processing rows; money may be captured but unrecorded',
+        });
+      }
+    } catch (error) {
+      reportError(error, { surface: 'cron-release-holds:settle-aging' });
     }
 
     // Pass 3 — guest reminders. Two hourly-precision reminders over
@@ -371,6 +409,98 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       reportError(error, { surface: 'cron-release-holds:vat-guards' });
     }
 
+    // Pass 5c — negative-take watch (2026-07-20 audit). Platform-funded
+    // promo + wallet credit stack with no floor BY DESIGN (owner-
+    // arbitrated model), so the guardrail is observability, not a block:
+    // alert when payments settled in the last 24h carried a negative
+    // platform take (payout to the host exceeds the money collected), so
+    // a farmed code or an over-generous stack is seen the day it starts,
+    // not at month-end.
+    try {
+      const vatPortion = sql`coalesce(round(${bookings.totalAmount} * ${bookings.vatRateBps}::numeric / (10000 + ${bookings.vatRateBps})), 0)`;
+      const netBase = sql`(${bookings.totalAmount} + coalesce(${bookings.discountSar}, 0) + coalesce(${bookings.walletAppliedSar}, 0) - ${vatPortion})`;
+      const take = sql`(round(${netBase} * least(10000, greatest(0, ${bookings.commissionBps})) / 10000.0) - coalesce(${bookings.discountSar}, 0) - coalesce(${bookings.walletAppliedSar}, 0))`;
+      const [negative] = await db
+        .select({
+          count: sql<number>`count(*)::int`,
+          lossSar: sql<number>`coalesce(sum(-${take}), 0)::int`,
+        })
+        .from(bookings)
+        .where(
+          and(
+            eq(bookings.paymentStatus, 'paid'),
+            sql`${bookings.paidAt} >= now() - interval '24 hours'`,
+            sql`${take} < 0`,
+          ),
+        );
+      if (negative && negative.count > 0) {
+        await notifyAdmin('negative_take', {
+          bookings: negative.count,
+          platformLossSar: negative.lossSar,
+          window: 'last 24 hours',
+          action: 'review promo/credit stacking on these bookings (/admin/bookings)',
+        });
+      }
+    } catch (error) {
+      reportError(error, { surface: 'cron-release-holds:negative-take' });
+    }
+
+    // Pass 6 — wallet credit expiry sweep (2026-07-20 audit: `expiresAt`
+    // was recorded but never enforced, so "expiring" goodwill was an
+    // unbounded liability that stayed spendable forever). For each
+    // expired positive lot without an `expiry:<lotId>` reversal, debit
+    // min(current balance, lot amount) under the guest's advisory lock —
+    // the balance floor means a lot that was already spent expires as 0
+    // (skipped; the 30-day lookback stops eternal re-scans of dead
+    // lots, and deliberately avoids expiring NEW credit issued long
+    // after the old lot lapsed).
+    let expiredCreditSar = 0;
+    try {
+      const expiredLots = await db
+        .select({
+          id: walletLedger.id,
+          guestId: walletLedger.guestId,
+          amountSar: walletLedger.amountSar,
+        })
+        .from(walletLedger)
+        .where(
+          and(
+            sql`${walletLedger.amountSar} > 0`,
+            isNotNull(walletLedger.expiresAt),
+            lte(walletLedger.expiresAt, new Date()),
+            sql`${walletLedger.expiresAt} >= now() - interval '30 days'`,
+            sql`not exists (select 1 from wallet_ledger sweep where sweep.idempotency_key = 'expiry:' || wallet_ledger.id::text)`,
+          ),
+        )
+        .limit(RECONCILE_LIMIT);
+      for (const lot of expiredLots) {
+        await db.transaction(async (tx) => {
+          await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${'wallet:' + lot.guestId}))`);
+          const [row] = await tx
+            .select({ balance: sql<number>`coalesce(sum(${walletLedger.amountSar}), 0)::int` })
+            .from(walletLedger)
+            .where(eq(walletLedger.guestId, lot.guestId));
+          const expire = Math.min(row?.balance ?? 0, lot.amountSar);
+          if (expire <= 0) return;
+          await tx
+            .insert(walletLedger)
+            .values({
+              guestId: lot.guestId,
+              type: 'expiry',
+              amountSar: -expire,
+              idempotencyKey: `expiry:${lot.id}`,
+              actorUserId: null,
+              note: 'credit lot expired',
+              expiresAt: null,
+            })
+            .onConflictDoNothing({ target: walletLedger.idempotencyKey });
+          expiredCreditSar += expire;
+        });
+      }
+    } catch (error) {
+      reportError(error, { surface: 'cron-release-holds:wallet-expiry' });
+    }
+
     // Heartbeat — the admin dashboard flags a stale stamp, so a silently
     // dead cron (expired secret, removed schedule, plan change) is
     // visible instead of quietly stopping expiry/release/reminders.
@@ -394,6 +524,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       reminded,
       retried,
       completed: completed.length,
+      expiredCreditSar,
     });
   } catch (error) {
     reportError(error, { surface: 'cron-release-holds' });

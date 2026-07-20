@@ -1,6 +1,7 @@
 import { relations, sql } from 'drizzle-orm';
 import {
   boolean,
+  check,
   date,
   doublePrecision,
   index,
@@ -677,6 +678,24 @@ export const bookings = pgTable(
      */
     refundDueSar: integer(),
     /**
+     * Whole-SAR amount actually RETURNED to the guest (card + wallet
+     * credit combined), stamped by every refund path. Null = never
+     * refunded. Partial policy refunds (`partialRefundBps`) make this
+     * less than the paid base — the ZATCA credit note and all refund
+     * reporting must render from THIS column, never assume a refund was
+     * the full amount (audit fix 2026-07-20).
+     */
+    refundedAmountSar: integer(),
+    /**
+     * Whole-SAR amount the platform RETAINED on a cancellation (paid
+     * base minus what was refunded): the forfeit of a late cancel, or
+     * the withheld half of a partial-tier refund. Null = nothing
+     * retained. This is the journal record for forfeit revenue — before
+     * it existed (audit fix 2026-07-20), retained cancellation money was
+     * invisible to every report.
+     */
+    forfeitedSar: integer(),
+    /**
      * When the ~24h "get ready" reminder email went out. Null = not
      * sent (or guest has no email). The cron stamps it so re-runs never
      * double-send.
@@ -1170,6 +1189,47 @@ export const payouts = pgTable(
 );
 
 /**
+ * Clawbacks: the reversing entry for a refund issued AFTER the host was
+ * already paid out for the booking (audit fix 2026-07-20 — previously
+ * the guest was refunded, the host kept the payout, and the loss was
+ * recorded nowhere). One row per refunded-after-payout booking, amount =
+ * the payout share that booking contributed to its batch. Pending rows
+ * (`settled_payout_id` null) are deducted from the host's next "Mark
+ * paid" batch; the batch that absorbed the deduction is stamped here so
+ * the deduction itself is auditable. Append-only like the ledgers.
+ */
+export const payoutClawbacks = pgTable(
+  'payout_clawbacks',
+  {
+    id: uuid().defaultRandom().primaryKey(),
+    /** The refunded booking. Unique — a booking can be clawed back once. */
+    bookingId: uuid()
+      .notNull()
+      .unique()
+      .references(() => bookings.id, { onDelete: 'restrict' }),
+    hostId: uuid()
+      .notNull()
+      .references(() => hosts.id, { onDelete: 'restrict' }),
+    /** The payout batch that originally paid this booking to the host. */
+    payoutId: uuid()
+      .notNull()
+      .references(() => payouts.id, { onDelete: 'restrict' }),
+    /** Whole SAR owed back by the host (the booking's payout share). Positive. */
+    amountSar: integer().notNull(),
+    reason: text().notNull(),
+    /** The later payout batch whose total this clawback was deducted from. */
+    settledPayoutId: uuid().references(() => payouts.id, { onDelete: 'restrict' }),
+    settledAt: timestamp({ withTimezone: true }),
+    createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    // Pending-deduction lookup per host, and the admin timeline.
+    index('payout_clawbacks_host_idx').on(t.hostId, t.createdAt),
+    check('payout_clawbacks_amount_positive', sql`amount_sar > 0`),
+  ],
+);
+
+/**
  * Gharmish Credit entry kinds. The full lifecycle ships in the enum up
  * front so later phases (checkout redemption, refund-to-credit, expiry
  * sweep) never need an ALTER TYPE on a hot table — P0 writes only
@@ -1226,6 +1286,9 @@ export const walletLedger = pgTable(
     // Balance (SUM per guest) and the newest-first admin listing are
     // both left-anchored on this one index.
     index('wallet_ledger_guest_idx').on(t.guestId, t.createdAt),
+    // The comment above promised this CHECK long before it existed —
+    // codified for real in the 2026-07-20 audit remediation.
+    check('wallet_ledger_amount_nonzero', sql`amount_sar <> 0`),
   ],
 );
 
@@ -1363,6 +1426,15 @@ export const platformSettings = pgTable('platform_settings', {
   /** ZATCA VAT registration number (15 digits) — required to enable VAT. */
   vatRegistrationNumber: text(),
   /**
+   * Estimated blended acquiring cost (HyperPay MDR across Mada/Visa/MC)
+   * in basis points of the charged amount. REPORTING ESTIMATE ONLY —
+   * never touches guest pricing, host payouts, or invoices; the admin
+   * dashboard uses it to show commission net of gateway fees so margin
+   * decisions aren't made on gross numbers (audit fix 2026-07-20).
+   * 0 = not configured; the dashboard hides the estimate.
+   */
+  gatewayFeeBps: integer().notNull().default(0),
+  /**
    * When the cron last alerted the team that rolling-12-month turnover
    * crossed 90% of the ZATCA mandatory-registration threshold. De-dups
    * the alert to once per 30 days. Null = never alerted.
@@ -1419,6 +1491,14 @@ export const promoCodes = pgTable(
     minTotalSar: integer(),
     /** Cap on total live redemptions across all guests. Null = unlimited. */
     maxRedemptions: integer(),
+    /**
+     * Cap on live redemptions PER GUEST. Null = unlimited. Defaults to 1
+     * (audit fix 2026-07-20): discounts are platform-funded — the host is
+     * paid full price — so without a per-guest cap a single account could
+     * farm one code across unlimited bookings, each a direct platform
+     * cash cost. Admins raise it deliberately for multi-use campaigns.
+     */
+    maxRedemptionsPerGuest: integer().default(1),
     /** Validity window (inclusive). A null bound is open-ended on that side. */
     startsAt: timestamp({ withTimezone: true }),
     endsAt: timestamp({ withTimezone: true }),

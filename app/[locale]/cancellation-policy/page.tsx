@@ -31,17 +31,19 @@ export default async function CancellationPolicyPage({
     getTranslations('infoRelated'),
     getPlatformSettings(),
   ]);
-  const cancelHours = settings.cancellationWindowHours;
   const approvalHours = settings.approvalWindowHours;
   const payHours = settings.approvalPaymentWindowHours;
 
   const sections = [
     {
       heading: t('freeWindow.heading'),
+      // Refund rules are the per-booking TIER snapshots
+      // (features/bookings/lib/policy.ts), not the legacy platform-wide
+      // window — the copy describes the tiers and takes no parameters.
       body: (
         <>
-          <p>{t('freeWindow.body1', { hours: cancelHours })}</p>
-          <p>{t('freeWindow.body2', { hours: cancelHours })}</p>
+          <p>{t('freeWindow.body1')}</p>
+          <p>{t('freeWindow.body2')}</p>
         </>
       ),
     },

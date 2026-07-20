@@ -13,6 +13,7 @@ import { maskIban } from '@/features/admin/hosts/lib/mask';
 import { resolveEditTargets } from '@/features/admin/users/queries';
 import { adminGuestEditSchema, adminHostEditSchema } from '@/features/admin/users/schemas';
 import { diffFields, maskAuditValue, type FieldChange } from '@/features/admin/users/lib/audit';
+import { decryptPii, encryptPii } from '@/lib/pii-crypto';
 import type { AdminUserEditState } from '@/features/admin/users/types';
 
 function formValue(formData: FormData, key: string): string {
@@ -264,6 +265,12 @@ export async function updateHostProfile(
     const current = await db.query.hosts.findFirst({ where: (h) => eq(h.id, targets.hostId!) });
     if (!current) return { success: false, message: 'not_found' };
 
+    // PII columns may be encrypted at rest — diff/mask on decrypted
+    // values so the audit trail's masked last-4s stay meaningful.
+    const currentNationalId = decryptPii(current.nationalId);
+    const currentCrNumber = decryptPii(current.crNumber);
+    const currentPayoutIban = decryptPii(current.payoutIban);
+
     const before: Record<string, string | null> = {
       'host.name': current.name,
       'host.bioEn': current.bioEn,
@@ -272,9 +279,9 @@ export async function updateHostProfile(
       'host.city': current.city,
       'host.region': current.region,
       'host.languages': current.languages.join(','),
-      'host.nationalId': current.nationalId,
-      'host.crNumber': current.crNumber,
-      'host.payoutIban': current.payoutIban,
+      'host.nationalId': currentNationalId,
+      'host.crNumber': currentCrNumber,
+      'host.payoutIban': currentPayoutIban,
     };
     const after: Record<string, string | null> = {
       'host.name': next.name,
@@ -300,19 +307,19 @@ export async function updateHostProfile(
         city: next.city,
         region: next.region,
         languages: next.languages,
-        nationalId: next.nationalId ?? null,
-        crNumber: next.crNumber ?? null,
-        payoutIban: normalizedIban,
+        nationalId: encryptPii(next.nationalId ?? null),
+        crNumber: encryptPii(next.crNumber ?? null),
+        payoutIban: encryptPii(normalizedIban),
       })
       .where(eq(hosts.id, targets.hostId));
 
     // The IBAN gets its own tamper-evident trail (masked), mirroring the
     // host's own self-edit — an unexpected change re-routes money.
-    if ((current.payoutIban ?? null) !== normalizedIban) {
+    if ((currentPayoutIban ?? null) !== normalizedIban) {
       await db.insert(payoutIbanEvents).values({
         hostId: targets.hostId,
         actorUserId: guard.adminUserId,
-        previousIbanMasked: maskIban(current.payoutIban),
+        previousIbanMasked: maskIban(currentPayoutIban),
         newIbanMasked: maskIban(normalizedIban) ?? '—',
       });
     }

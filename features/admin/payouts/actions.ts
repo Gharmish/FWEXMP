@@ -1,16 +1,17 @@
 'use server';
 
-import { and, eq, inArray, isNull } from 'drizzle-orm';
+import { and, asc, eq, inArray, isNull } from 'drizzle-orm';
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 import { db } from '@/lib/db';
 import { serverEnv } from '@/lib/env';
-import { bookings, experiences, payouts } from '@/db/schema';
+import { bookings, experiences, payoutClawbacks, payouts } from '@/db/schema';
 import { reportError } from '@/lib/log';
 import { getCurrentUser } from '@/features/auth/queries';
 import { isAdminUser } from '@/features/admin/auth';
 import { splitCommission } from '@/features/bookings/lib/commission';
 import { paymentCollected } from '@/features/bookings/lib/payout-sql';
+import { planClawbackDeduction } from '@/features/bookings/lib/clawback';
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -107,7 +108,7 @@ export async function markHostPaid(
 
       if (owed.length === 0) return 'nothing_owed' as const;
 
-      const amountSar = owed.reduce(
+      const grossSar = owed.reduce(
         (sum, b) =>
           sum +
           splitCommission(
@@ -119,13 +120,26 @@ export async function markHostPaid(
           ).payoutSar,
         0,
       );
-      if (amountSar !== expectedAmountSar) return 'amount_changed' as const;
+
+      // Deduct pending clawbacks (refunds issued after an earlier
+      // payout) — locked and planned greedy oldest-first, the same rule
+      // the payouts page used to display the net. The batch records the
+      // NET actually transferred; each settled clawback row is stamped
+      // with this batch so the deduction is auditable.
+      const pendingClawbacks = await tx
+        .select({ id: payoutClawbacks.id, amountSar: payoutClawbacks.amountSar })
+        .from(payoutClawbacks)
+        .where(and(eq(payoutClawbacks.hostId, hostId), isNull(payoutClawbacks.settledPayoutId)))
+        .orderBy(asc(payoutClawbacks.createdAt))
+        .for('update');
+      const plan = planClawbackDeduction(grossSar, pendingClawbacks);
+      if (plan.netSar !== expectedAmountSar) return 'amount_changed' as const;
 
       const [batch] = await tx
         .insert(payouts)
         .values({
           hostId,
-          amountSar,
+          amountSar: plan.netSar,
           bookingCount: owed.length,
           payoutIban: host.payoutIban,
           markedByUserId: admin.id,
@@ -141,6 +155,13 @@ export async function markHostPaid(
             owed.map((b) => b.id),
           ),
         );
+
+      if (plan.settleIds.length > 0) {
+        await tx
+          .update(payoutClawbacks)
+          .set({ settledPayoutId: batch.id, settledAt: new Date() })
+          .where(inArray(payoutClawbacks.id, plan.settleIds));
+      }
 
       return { paidCount: owed.length } as const;
     });

@@ -129,16 +129,28 @@ export default async function BookingInvoicePage({ params }: PageParams) {
     : null;
 
   // Credit note (ZATCA: a refunded tax invoice must be reversed by a
-  // credit note, never by editing the invoice). Refunds are always the
-  // full amount, so the note mirrors the invoice's numbers exactly, with
-  // its own QR stamped at the refund instant. Non-VAT refunds keep the
-  // plain refunded note above — no tax to reverse.
+  // credit note, never by editing the invoice). The note reverses the
+  // amount ACTUALLY returned, not the invoice total (2026-07-20 audit —
+  // partial policy refunds exist, and a 50% refund must not emit a
+  // full-amount credit note that over-reverses the VAT). The reversal is
+  // capped at the card-charged consideration: any wallet-credit leg of
+  // the refund was never on this tax document. Legacy rows without the
+  // stamp were full refunds, so the total is the correct fallback.
+  // Non-VAT refunds keep the plain refunded note above — no tax to
+  // reverse.
+  const refundedSar = refunded
+    ? Math.min(booking.refundedAmountSar ?? booking.totalAmountSar, booking.totalAmountSar)
+    : 0;
+  const creditVatSar = vat ? vatPortionSar(refundedSar, vat.rateBps) : 0;
   const creditNote =
-    refunded && vat && booking.refundedAt
+    refunded && vat && booking.refundedAt && refundedSar > 0
       ? {
           refundedAt: new Date(booking.refundedAt),
           vatNumber: vat.registrationNumber,
           rateBps: vat.rateBps,
+          amountSar: refundedSar,
+          vatSar: creditVatSar,
+          taxableSar: refundedSar - creditVatSar,
         }
       : null;
   const creditNoteQrDataUrl = creditNote
@@ -147,8 +159,8 @@ export default async function BookingInvoicePage({ params }: PageParams) {
           sellerName: SELLER_LEGAL_NAME,
           vatNumber: creditNote.vatNumber,
           timestamp: creditNote.refundedAt,
-          totalSar: booking.totalAmountSar,
-          vatSar,
+          totalSar: creditNote.amountSar,
+          vatSar: creditNote.vatSar,
         }),
         { margin: 1, width: 480, errorCorrectionLevel: 'M' },
       )
@@ -318,7 +330,7 @@ export default async function BookingInvoicePage({ params }: PageParams) {
             <div className="flex items-baseline justify-between text-sm">
               <dt className={labelClass}>{t('taxableLabel')}</dt>
               <dd>
-                <Price amount={taxableSar} locale={loc} />
+                <Price amount={creditNote.taxableSar} locale={loc} />
               </dd>
             </div>
             <div className="flex items-baseline justify-between text-sm">
@@ -326,13 +338,13 @@ export default async function BookingInvoicePage({ params }: PageParams) {
                 {t('vatLabel', { pct: vatRatePercent(creditNote.rateBps) })}
               </dt>
               <dd>
-                <Price amount={vatSar} locale={loc} />
+                <Price amount={creditNote.vatSar} locale={loc} />
               </dd>
             </div>
             <div className="flex items-baseline justify-between text-base font-medium">
               <dt>{t('creditTotalLabel')}</dt>
               <dd>
-                <Price amount={booking.totalAmountSar} locale={loc} />
+                <Price amount={creditNote.amountSar} locale={loc} />
               </dd>
             </div>
           </dl>

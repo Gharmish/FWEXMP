@@ -53,6 +53,10 @@ export const updateSettingsSchema = z
       .trim()
       .refine((v) => v === '' || ZATCA_VAT_NUMBER_RE.test(v), 'vat_number_format')
       .optional(),
+    // Estimated blended gateway MDR as a percentage (e.g. 1.8). Reporting
+    // estimate only; 0 hides the dashboard fee tile. Defaulted so older
+    // payloads (and tests) without the field keep parsing.
+    gatewayFeePct: z.coerce.number().min(0, 'fee_range').max(10, 'fee_range').default(0),
     locale: localeSchema,
   })
   .superRefine((data, ctx) => {

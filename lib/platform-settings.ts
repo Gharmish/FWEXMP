@@ -46,6 +46,12 @@ export interface PlatformSettings {
   vatRateBps: number;
   /** ZATCA VAT registration number (15 digits); null until registered. */
   vatRegistrationNumber: string | null;
+  /**
+   * Estimated blended acquiring cost (gateway MDR) in basis points —
+   * dashboard reporting estimate only, never touches pricing/payouts.
+   * 0 = not configured (the dashboard hides the estimate).
+   */
+  gatewayFeeBps: number;
 }
 
 /** Code-level defaults — the truth when no settings row exists yet. */
@@ -61,6 +67,7 @@ export const DEFAULT_SETTINGS: PlatformSettings = {
   vatEnabled: false,
   vatRateBps: 1500,
   vatRegistrationNumber: null,
+  gatewayFeeBps: 0,
 };
 
 /**
@@ -84,6 +91,7 @@ export async function getPlatformSettings(): Promise<PlatformSettings> {
           vatEnabled: platformSettings.vatEnabled,
           vatRateBps: platformSettings.vatRateBps,
           vatRegistrationNumber: platformSettings.vatRegistrationNumber,
+          gatewayFeeBps: platformSettings.gatewayFeeBps,
         })
         .from(platformSettings)
         .where(eq(platformSettings.id, 'platform'))
@@ -105,6 +113,7 @@ export async function getPlatformSettings(): Promise<PlatformSettings> {
       vatEnabled: row.vatEnabled && Boolean(row.vatRegistrationNumber),
       vatRateBps: row.vatRateBps,
       vatRegistrationNumber: row.vatRegistrationNumber,
+      gatewayFeeBps: row.gatewayFeeBps,
     };
   } catch (error) {
     reportError(error, { surface: 'platform-settings:get' });
@@ -136,6 +145,7 @@ export async function getPlatformSettingsStrict(): Promise<PlatformSettings> {
         vatEnabled: platformSettings.vatEnabled,
         vatRateBps: platformSettings.vatRateBps,
         vatRegistrationNumber: platformSettings.vatRegistrationNumber,
+        gatewayFeeBps: platformSettings.gatewayFeeBps,
       })
       .from(platformSettings)
       .where(eq(platformSettings.id, 'platform'))
