@@ -17,7 +17,8 @@ export async function generateMetadata({
   params: Promise<{ locale: string }>;
 }): Promise<Metadata> {
   const { locale } = await params;
-  const title = locale === 'ar' ? 'قائمة أمنياتك' : 'Your wishlist';
+  const t = await getTranslations({ locale, namespace: 'wishlist.meta' });
+  const title = t('title');
   return {
     title,
     // Wishlist URLs are per-guest and shouldn't be indexed.

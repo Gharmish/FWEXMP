@@ -6,7 +6,7 @@ import { useTranslations } from 'next-intl';
 import { Link } from '@/lib/i18n';
 import { Button } from '@/components/ui/button';
 import { SPRING } from '@/components/ui/motion';
-import { hasMarketingPixels } from '@/lib/env';
+import { hasMarketingPixels } from '@/lib/env-client';
 import { readConsent, subscribeConsent, writeConsent } from '@/components/layout/consent';
 
 /**

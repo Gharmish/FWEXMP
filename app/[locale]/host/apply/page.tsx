@@ -16,7 +16,8 @@ export async function generateMetadata({
   params: Promise<{ locale: string }>;
 }): Promise<Metadata> {
   const { locale } = await params;
-  const title = locale === 'ar' ? 'كن مضيفاً' : 'Host with us';
+  const t = await getTranslations({ locale, namespace: 'hostApply.meta' });
+  const title = t('title');
   return {
     title,
     // Private workflow — not for indexing.

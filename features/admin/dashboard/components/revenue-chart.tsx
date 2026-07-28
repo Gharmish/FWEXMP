@@ -84,6 +84,14 @@ export function RevenueChart({
       </div>
 
       <div
+        // The chart plane is pinned LTR (2026-07-28 audit): the SVG
+        // polyline and the %-left hover marker/tooltip compute in LTR
+        // coordinates, but under the Arabic locale's dir="rtl" the flex
+        // bars and edge labels used to mirror while the overlays didn't —
+        // trend line contradicting the bars, tooltip over the wrong day.
+        // A time axis running left→right is the convention in Arabic
+        // charts too, so pin the whole plane rather than mirror the math.
+        dir="ltr"
         className="relative h-44 w-full"
         onMouseLeave={() => setActive(null)}
         role="img"
@@ -176,9 +184,11 @@ export function RevenueChart({
         )}
       </div>
 
-      <div className="text-sarat-black-600 flex justify-between text-xs">
-        <span dir="ltr">{points[0]?.bucket ?? '—'}</span>
-        <span dir="ltr">{points[points.length - 1]?.bucket ?? '—'}</span>
+      {/* Same LTR pin as the chart plane — the edge labels must sit under
+          the buckets they name. */}
+      <div dir="ltr" className="text-sarat-black-600 flex justify-between text-xs">
+        <span>{points[0]?.bucket ?? '—'}</span>
+        <span>{points[points.length - 1]?.bucket ?? '—'}</span>
       </div>
     </div>
   );

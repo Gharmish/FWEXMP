@@ -2,7 +2,7 @@
 
 import { createBrowserClient } from '@supabase/ssr';
 import type { SupabaseClient } from '@supabase/supabase-js';
-import { clientEnv, hasSupabaseAuth } from '@/lib/env';
+import { clientEnv, hasSupabaseAuth } from '@/lib/env-client';
 
 /**
  * Browser-side Supabase client. Singleton per tab — `createBrowserClient`

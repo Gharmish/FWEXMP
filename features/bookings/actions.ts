@@ -6,10 +6,12 @@ import { cookies, headers } from 'next/headers';
 import { db } from '@/lib/db';
 import { serverEnv, hasHyperpay } from '@/lib/env';
 import { bookings, experiences, guests } from '@/db/schema';
+import type { Guest } from '@/db/schema';
 import { redirect } from '@/lib/i18n';
 import { reportError } from '@/lib/log';
 import { bookingRequestSchema } from '@/features/bookings/schemas';
 import { getCurrentUser } from '@/features/auth/queries';
+import { isUniqueViolation, resolveGuestForUser } from '@/features/account/profile/guest-identity';
 import {
   ACTIVE_BOOKING_STATUSES,
   PAYMENT_HOLD_MINUTES,
@@ -439,24 +441,27 @@ export async function requestBooking(
       }
     }
 
-    // Resolve the guest for this booking. For a signed-in account, the row
-    // is keyed by auth id first — an email-OTP user may already have a
-    // phone-less profile row, and `authUserId` is UNIQUE, so we must reuse it
-    // (and backfill the phone) rather than insert a colliding second row.
-    // Anonymous bookings fall back to phone match, then create.
-    const authUserId = (await getCurrentUser())?.id ?? null;
+    // Resolve the guest for this booking. Signed-in accounts resolve
+    // through the shared identity chokepoint (auth id first, then a claim
+    // by the session's OTP-VERIFIED phone only — see guest-identity.ts).
+    // The phone typed into the form is unverified and must never link a
+    // row to an account: the old phone-match + authUserId backfill here
+    // let anyone bind a stranger's bookings, PII, and wallet credit to
+    // their own session just by knowing the number.
+    // Anonymous bookings keep the phone-keyed lazy row, never linked.
+    const user = await getCurrentUser();
 
-    let guest =
-      (authUserId
-        ? await db.query.guests.findFirst({
-            where: (g) => eq(g.authUserId, authUserId),
-            columns: { id: true, authUserId: true, phone: true, email: true, suspendedAt: true },
+    let guest: Pick<Guest, 'id' | 'authUserId' | 'phone' | 'email' | 'suspendedAt'> | undefined =
+      user
+        ? await resolveGuestForUser(user, {
+            name: input.name,
+            email: input.email || null,
+            preferredLanguage: input.locale,
           })
-        : undefined) ??
-      (await db.query.guests.findFirst({
-        where: (g) => eq(g.phone, input.phone),
-        columns: { id: true, authUserId: true, phone: true, email: true, suspendedAt: true },
-      }));
+        : await db.query.guests.findFirst({
+            where: (g) => eq(g.phone, input.phone),
+            columns: { id: true, authUserId: true, phone: true, email: true, suspendedAt: true },
+          });
 
     // Suspended guests can browse but not book (admin decision trail
     // lives on the guest row). Checked before any insert so a banned
@@ -466,6 +471,8 @@ export async function requestBooking(
     }
 
     if (!guest) {
+      // Anonymous first booking — `authUserId` stays null; accounts only
+      // ever link through a verified phone (guest-identity.ts).
       [guest] = await db
         .insert(guests)
         .values({
@@ -473,7 +480,6 @@ export async function requestBooking(
           phone: input.phone,
           email: input.email,
           preferredLanguage: input.locale,
-          authUserId,
         })
         .returning({
           id: guests.id,
@@ -483,15 +489,28 @@ export async function requestBooking(
           suspendedAt: guests.suspendedAt,
         });
     } else {
-      // Backfill the auth link, phone, and/or email on an existing row.
-      // Email is set-if-empty — never overwrite a known address from an
-      // anonymous form post.
-      const patch: Partial<{ authUserId: string; phone: string; email: string }> = {};
-      if (authUserId && !guest.authUserId) patch.authUserId = authUserId;
+      // Backfill contact fields only — never identity fields. Email is
+      // set-if-empty. Phone is set-if-empty (an email-OTP account's row
+      // has none, and hosts read `guests.phone` to reach the guest), but
+      // the form phone is unverified, so it attaches only to the
+      // account's OWN row and yields silently if another row already
+      // holds the number (unique) — it can never displace or reveal
+      // anyone else's identity, and a later verified sign-in by the
+      // number's real owner reclaims it (guest-identity heal path).
+      const patch: Partial<{ phone: string; email: string }> = {};
       if (!guest.phone) patch.phone = input.phone;
       if (input.email && !guest.email) patch.email = input.email;
       if (Object.keys(patch).length > 0) {
-        await db.update(guests).set(patch).where(eq(guests.id, guest.id));
+        try {
+          await db.update(guests).set(patch).where(eq(guests.id, guest.id));
+        } catch (error) {
+          if (!isUniqueViolation(error) || !patch.phone) throw error;
+          // Another row owns this phone — keep the row phone-less; the
+          // booking itself still goes through.
+          if (patch.email) {
+            await db.update(guests).set({ email: patch.email }).where(eq(guests.id, guest.id));
+          }
+        }
       }
     }
 

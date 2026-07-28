@@ -46,8 +46,9 @@ export async function generateMetadata({
   params: Promise<{ locale: string; id: string }>;
 }): Promise<Metadata> {
   const { locale } = await params;
+  const t = await getTranslations({ locale, namespace: 'hostExperiences.edit.meta' });
   return {
-    title: locale === 'ar' ? 'تعديل التجربة' : 'Edit experience',
+    title: t('title'),
     robots: { index: false, follow: false },
   };
 }

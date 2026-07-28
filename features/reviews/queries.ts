@@ -145,17 +145,29 @@ export async function getReviewForBooking(bookingId: string): Promise<{
   editableUntil: string;
 } | null> {
   if (!hasDb()) return null;
-  const row = await db.query.reviews.findFirst({
-    where: (r) => eq(r.bookingId, bookingId),
-    columns: { rating: true, textEn: true, textAr: true, editableUntil: true },
-  });
-  if (!row) return null;
-  return {
-    rating: clampRating(row.rating),
-    textEn: row.textEn,
-    textAr: row.textAr,
-    editableUntil: row.editableUntil.toISOString(),
-  };
+  // Bounded + degrading (2026-07-28 audit): this renders on the
+  // booking-confirmation page — the last unguarded read there. A hung
+  // pooled connection must not stall the guest's post-purchase page,
+  // and an error degrades to "no review yet" (the prompt shows the
+  // form; a stale prompt beats a 500).
+  try {
+    const row = await boundedQuery('reviews:forBooking', () =>
+      db.query.reviews.findFirst({
+        where: (r) => eq(r.bookingId, bookingId),
+        columns: { rating: true, textEn: true, textAr: true, editableUntil: true },
+      }),
+    );
+    if (!row) return null;
+    return {
+      rating: clampRating(row.rating),
+      textEn: row.textEn,
+      textAr: row.textAr,
+      editableUntil: row.editableUntil.toISOString(),
+    };
+  } catch (error) {
+    reportError(error, { surface: 'reviews:getReviewForBooking', bookingId });
+    return null;
+  }
 }
 
 /**

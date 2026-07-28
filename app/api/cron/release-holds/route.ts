@@ -1,8 +1,9 @@
+import { timingSafeEqual } from 'node:crypto';
 import { NextResponse, type NextRequest } from 'next/server';
 import { and, eq, inArray, isNull, isNotNull, lte, notInArray, or, sql } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import { serverEnv } from '@/lib/env';
-import { bookings, guests, platformSettings, walletLedger } from '@/db/schema';
+import { authThrottleEvents, bookings, guests, platformSettings, walletLedger } from '@/db/schema';
 import { reportError } from '@/lib/log';
 import { notifyAdmin } from '@/lib/admin-alerts';
 import { settleBooking } from '@/features/payments/settle';
@@ -84,7 +85,16 @@ const RETRY_LIMIT = 50;
  */
 export async function GET(request: NextRequest): Promise<NextResponse> {
   const secret = serverEnv.CRON_SECRET;
-  if (!secret || request.headers.get('authorization') !== `Bearer ${secret}`) {
+  // Constant-time comparison, same as the webhook verifiers — a plain
+  // `!==` leaks match-prefix timing (impractical over HTTP, but there's
+  // no reason for this check to be the odd one out).
+  const provided = request.headers.get('authorization') ?? '';
+  const expected = `Bearer ${secret}`;
+  const authorized =
+    Boolean(secret) &&
+    provided.length === expected.length &&
+    timingSafeEqual(Buffer.from(provided), Buffer.from(expected));
+  if (!authorized) {
     return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
   }
 
@@ -167,6 +177,68 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       } catch (error) {
         reportError(error, { surface: 'cron-release-holds:hostEmail', reference: row.reference });
       }
+    }
+
+    // Pass 1b — stranded-reservation sweep (2026-07-28 audit). Any path
+    // that flips a booking terminal can in principle die between the
+    // flip and its wallet release (the fast-path release above included,
+    // in older deploys where it ran outside the transaction). A terminal
+    // UNPAID booking still carrying `walletAppliedSar > 0` is exactly
+    // that stranded state — the guest's credit debited for a booking
+    // that no longer exists. `releaseWalletReservation` re-checks under
+    // FOR UPDATE, so re-running here is idempotent and race-free.
+    const stranded = await db.query.bookings.findMany({
+      where: and(
+        inArray(bookings.status, ['cancelled', 'expired', 'declined']),
+        notInArray(bookings.paymentStatus, ['paid']),
+        sql`${bookings.walletAppliedSar} > 0`,
+      ),
+      columns: { id: true, idempotencyKey: true },
+    });
+    for (const row of stranded) {
+      try {
+        const release = await releaseWalletReservation(row.id);
+        if (release.released) {
+          reportError(new Error('stranded wallet reservation released by sweep'), {
+            surface: 'cron-release-holds:strandedSweep',
+            reference: row.idempotencyKey,
+            amountSar: release.amountSar,
+          });
+        }
+      } catch (error) {
+        reportError(error, {
+          surface: 'cron-release-holds:strandedSweep',
+          reference: row.idempotencyKey,
+        });
+      }
+    }
+
+    // Pass 1c — orphaned-refund watch (2026-07-28 audit). A cancellation
+    // that owed the guest money commits its flip first and refunds
+    // second; a crash in between leaves `cancelled + paid` with NO
+    // refund journal at all (no refundedAmountSar, no refundDueSar) and
+    // no forfeit stamp — a debt with no queue entry. The policy amount
+    // is contextual, so this pass only ALERTS (hourly, until an admin
+    // settles it via the manual refund action) rather than moving money.
+    const orphanedRefunds = await db.query.bookings.findMany({
+      where: and(
+        eq(bookings.status, 'cancelled'),
+        eq(bookings.paymentStatus, 'paid'),
+        isNull(bookings.refundDueSar),
+        isNull(bookings.refundedAmountSar),
+        isNull(bookings.forfeitedSar),
+        lte(bookings.cancelledAt, new Date(Date.now() - 3_600_000)),
+      ),
+      columns: { referenceCode: true, totalAmount: true, walletAppliedSar: true },
+    });
+    if (orphanedRefunds.length > 0) {
+      await notifyAdmin('refund_due', {
+        problem: 'cancelled paid bookings with no refund journal (crashed mid-cancel?)',
+        count: orphanedRefunds.length,
+        bookings: orphanedRefunds
+          .map((b) => `${b.referenceCode} (${b.totalAmount + b.walletAppliedSar} SAR)`)
+          .join(', '),
+      });
     }
 
     // Pass 2 — reconcile stuck `processing` holds against HyperPay. Only
@@ -499,6 +571,19 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       }
     } catch (error) {
       reportError(error, { surface: 'cron-release-holds:wallet-expiry' });
+    }
+
+    // Pass 7 — throttle-event prune (2026-07-28 audit). The abuse
+    // counters only ever look back an hour at most; the schema comment
+    // said "prune opportunistically" but nothing did, so the table grew
+    // forever. 24h of retention keeps a day of forensic context while
+    // capping growth. Best-effort.
+    try {
+      await db
+        .delete(authThrottleEvents)
+        .where(lte(authThrottleEvents.createdAt, new Date(Date.now() - 24 * 3_600_000)));
+    } catch (error) {
+      reportError(error, { surface: 'cron-release-holds:throttlePrune' });
     }
 
     // Heartbeat — the admin dashboard flags a stale stamp, so a silently

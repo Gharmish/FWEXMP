@@ -57,50 +57,72 @@ export async function setDayAvailability(formData: FormData): Promise<void> {
     const user = await getCurrentUser();
     if (!user) return;
 
-    const experience = await db.query.experiences.findFirst({
+    // Ownership check on a plain read first (cheap, no lock held while
+    // resolving the host).
+    const owned = await db.query.experiences.findFirst({
       where: (e) => eq(e.id, experienceId),
-      columns: { id: true, hostId: true, blackoutDates: true, stopSellDates: true },
+      columns: { id: true, hostId: true },
     });
-    if (!experience) return;
+    if (!owned) return;
 
     if (!isAdminUser(user)) {
       const hostId = await getCurrentHostIdForWrite();
-      if (!hostId || hostId !== experience.hostId) return; // not owner, not admin
+      if (!hostId || hostId !== owned.hostId) return; // not owner, not admin
     }
 
-    const blackout = new Set(experience.blackoutDates);
-    const stopSell = new Set(experience.stopSellDates);
+    // One transaction, experience row locked FOR UPDATE (2026-07-28
+    // audit): the read-modify-write on the exception arrays used to be
+    // lock-free, so (a) two rapid day edits could silently drop each
+    // other's change (last write wins on the whole array), and (b) the
+    // "no blackout with live bookings" guard was check-then-write while
+    // booking creation serializes on this same row lock — a booking
+    // committed between the count and the write could land on a
+    // blacked-out day. Taking the same lock closes both.
+    await db.transaction(async (tx) => {
+      const [experience] = await tx
+        .select({
+          blackoutDates: experiences.blackoutDates,
+          stopSellDates: experiences.stopSellDates,
+        })
+        .from(experiences)
+        .where(eq(experiences.id, experienceId))
+        .for('update');
+      if (!experience) return;
 
-    if (op === 'blackout') {
-      // Never fully close a day that has live bookings — that would
-      // strand confirmed guests. The UI offers stop-sell instead; this
-      // is the authoritative server-side guard (defence in depth).
-      const [{ booked }] = await db
-        .select({ booked: sql<number>`count(*)::int` })
-        .from(bookings)
-        .where(
-          and(
-            eq(bookings.experienceId, experienceId),
-            eq(bookings.date, date),
-            inArray(bookings.status, [...BLOCKING_BOOKING_STATUSES]),
-          ),
-        );
-      if (booked > 0) return; // refuse
-      blackout.add(date);
-      stopSell.delete(date);
-    } else if (op === 'stop_sell') {
-      stopSell.add(date);
-      blackout.delete(date);
-    } else {
-      // open
-      blackout.delete(date);
-      stopSell.delete(date);
-    }
+      const blackout = new Set(experience.blackoutDates);
+      const stopSell = new Set(experience.stopSellDates);
 
-    await db
-      .update(experiences)
-      .set({ blackoutDates: [...blackout].sort(), stopSellDates: [...stopSell].sort() })
-      .where(eq(experiences.id, experienceId));
+      if (op === 'blackout') {
+        // Never fully close a day that has live bookings — that would
+        // strand confirmed guests. The UI offers stop-sell instead; this
+        // is the authoritative server-side guard (defence in depth).
+        const [{ booked }] = await tx
+          .select({ booked: sql<number>`count(*)::int` })
+          .from(bookings)
+          .where(
+            and(
+              eq(bookings.experienceId, experienceId),
+              eq(bookings.date, date),
+              inArray(bookings.status, [...BLOCKING_BOOKING_STATUSES]),
+            ),
+          );
+        if (booked > 0) return; // refuse
+        blackout.add(date);
+        stopSell.delete(date);
+      } else if (op === 'stop_sell') {
+        stopSell.add(date);
+        blackout.delete(date);
+      } else {
+        // open
+        blackout.delete(date);
+        stopSell.delete(date);
+      }
+
+      await tx
+        .update(experiences)
+        .set({ blackoutDates: [...blackout].sort(), stopSellDates: [...stopSell].sort() })
+        .where(eq(experiences.id, experienceId));
+    });
   } catch (error) {
     reportError(error, {
       surface: 'availability:setDayAvailability',

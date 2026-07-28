@@ -1,4 +1,5 @@
 import { ImageResponse } from 'next/og';
+import { getTranslations } from 'next-intl/server';
 import { getExperiencesByHostSlug, getHostBySlug } from '@/features/hosts/queries';
 import { toArabicText } from '@/features/experiences/lib/arabic-content';
 import { pickLocalized } from '@/lib/ar-placeholder';
@@ -70,6 +71,7 @@ export default async function Image({
     getExperiencesByHostSlug(slug),
     loadOgFonts(),
   ]);
+  const t = await getTranslations({ locale, namespace: 'ogImage' });
 
   const fontFamily = isAr ? 'PlexArabic' : 'Bricolage';
   const dir = isAr ? 'rtl' : 'ltr';
@@ -80,7 +82,7 @@ export default async function Image({
   const fg = '#0A0A0A';
   const muted = '#686868';
   const accent = '#F5B800';
-  const wordmark = isAr ? 'غارميش' : 'Gharmish';
+  const wordmark = t('wordmark');
 
   // Graceful fallback if the slug no longer resolves to a verified host.
   if (!host) {
@@ -135,17 +137,14 @@ export default async function Image({
   const experienceCount = new Intl.NumberFormat(isAr ? 'ar' : 'en', {
     numberingSystem: 'latn',
   }).format(experiences.length);
-  const experienceLabel = isAr
-    ? `${experienceCount} ${experiences.length === 1 ? 'تجربة' : 'تجربة'}`
-    : `${experienceCount} ${experiences.length === 1 ? 'experience' : 'experiences'}`;
+  const experienceLabel = t('host.experienceCount', {
+    formatted: experienceCount,
+    count: experiences.length,
+  });
 
   const hostKicker = host.verified
-    ? isAr
-      ? 'مضيف موثّق'
-      : 'Verified host'
-    : isAr
-      ? 'مضيف على غارميش'
-      : `Host on ${SITE_NAME}`;
+    ? t('host.verified')
+    : t('host.unverified', { siteName: SITE_NAME });
 
   return new ImageResponse(
     <div

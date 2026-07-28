@@ -1,4 +1,5 @@
 import * as Sentry from '@sentry/nextjs';
+import { redactString, redactValue } from '@/lib/sentry-scrub';
 
 /**
  * Application logger. Single chokepoint so the rest of the codebase
@@ -18,6 +19,22 @@ export interface ReportErrorContext {
   [key: string]: unknown;
 }
 
+/**
+ * Errors logged to the production console must not carry raw PII: with
+ * no Sentry DSN the console IS the transport into platform function
+ * logs, and callers legitimately pass phone/email in `context` (the
+ * Sentry rail scrubs them in `beforeSend`; this rail must match).
+ * `Error` instances are flattened to a scrubbed string — recursing
+ * their enumerable props would drop message/stack.
+ */
+function consoleSafe(value: unknown): unknown {
+  if (process.env.NODE_ENV !== 'production') return value;
+  if (value instanceof Error) {
+    return redactString(value.stack ?? `${value.name}: ${value.message}`);
+  }
+  return redactValue(value);
+}
+
 export function reportError(error: unknown, context?: ReportErrorContext): void {
   const sentryConfigured = Boolean(process.env.SENTRY_DSN || process.env.NEXT_PUBLIC_SENTRY_DSN);
   if (process.env.NODE_ENV !== 'production' || !sentryConfigured) {
@@ -26,8 +43,14 @@ export function reportError(error: unknown, context?: ReportErrorContext): void 
     // console directly (CLAUDE.md no-console rule). In production
     // WITHOUT a Sentry DSN this is the only place errors surface
     // (platform function logs) — captureException would enqueue into
-    // the void and every failure would vanish unrecorded.
-    console.error('[gharmish]', context?.surface ?? 'error', error, context);
+    // the void and every failure would vanish unrecorded. Scrubbed in
+    // production (dev keeps raw values for debugging).
+    console.error(
+      '[gharmish]',
+      context?.surface ?? 'error',
+      consoleSafe(error),
+      consoleSafe(context),
+    );
     if (!sentryConfigured) return;
   }
 

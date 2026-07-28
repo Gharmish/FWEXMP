@@ -61,7 +61,8 @@ interface PageParams {
 
 export async function generateMetadata({ params }: PageParams): Promise<Metadata> {
   const { locale } = await params;
-  const title = locale === 'ar' ? 'تم استلام طلبك' : 'Booking request received';
+  const t = await getTranslations({ locale, namespace: 'bookingConfirmed.meta' });
+  const title = t('title');
   return {
     title,
     // Confirmation URLs are private to the requester; tell crawlers to skip.

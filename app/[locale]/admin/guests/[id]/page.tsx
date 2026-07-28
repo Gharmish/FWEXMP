@@ -19,8 +19,9 @@ export async function generateMetadata({
   params: Promise<{ locale: string; id: string }>;
 }): Promise<Metadata> {
   const { locale } = await params;
+  const t = await getTranslations({ locale, namespace: 'admin.meta' });
   return {
-    title: locale === 'ar' ? 'ملف الضيف' : 'Guest profile',
+    title: t('guestDetailTitle'),
     robots: { index: false, follow: false },
   };
 }

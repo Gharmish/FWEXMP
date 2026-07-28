@@ -1,6 +1,7 @@
 'use server';
 
 import { and, eq, inArray, ne, sql } from 'drizzle-orm';
+import { headers } from 'next/headers';
 import { revalidatePath } from 'next/cache';
 import { db } from '@/lib/db';
 import { serverEnv } from '@/lib/env';
@@ -10,6 +11,7 @@ import { isHoldExpired } from '@/features/bookings/lib/availability';
 import { bookingViewerCanAccess } from '@/features/bookings/lib/access';
 import { recordPaymentEvent } from '@/features/payments/ledger';
 import { computeDiscountSar } from '@/features/promo-codes/lib/discount';
+import { promoAttemptAllowed, recordPromoAttempt } from '@/features/promo-codes/lib/throttle';
 import { PROMO_REDEEMED_STATUSES } from '@/features/promo-codes/queries';
 import { applyPromoSchema, removePromoSchema } from '@/features/promo-codes/schemas';
 import { releaseWalletReservationTx } from '@/features/wallet/reservation';
@@ -34,6 +36,8 @@ import { releaseWalletReservationTx } from '@/features/wallet/reservation';
 
 export type PromoErrorCode =
   | 'invalid'
+  /** Too many attempts in the window — code enumeration throttle. */
+  | 'too_many'
   | 'below_min'
   | 'exhausted'
   /** This guest hit the code's per-guest redemption cap (audit fix 2026-07-20). */
@@ -75,6 +79,13 @@ function err(error: PromoErrorCode, minTotalSar?: number, code?: string): PromoA
     ...(minTotalSar != null ? { minTotalSar } : {}),
     ...(code ? { code } : {}),
   };
+}
+
+/** First hop of x-forwarded-for — the client IP on Vercel. Null locally. */
+async function clientIp(): Promise<string | null> {
+  const h = await headers();
+  const first = h.get('x-forwarded-for')?.split(',')[0]?.trim();
+  return first && first.length > 0 ? first : null;
 }
 
 function revalidateBookingSurfaces(): void {
@@ -128,6 +139,13 @@ export async function applyPromo(
     ) {
       return fail('unavailable');
     }
+
+    // Attempt throttle BEFORE the code lookup: caps enumeration of
+    // short human-memorable codes. Attempts are recorded whether or not
+    // the code exists (recording only failures would leak validity via
+    // the counter).
+    if (!(await promoAttemptAllowed(existing.guestId))) return fail('too_many');
+    await recordPromoAttempt(existing.guestId, await clientIp());
     // Set inside the transaction when a live checkout is superseded;
     // ledgered after commit (best-effort, mirrors createCheckout).
     let superseded: { bookingId: string; checkoutId: string; amountSar: number } | null = null;

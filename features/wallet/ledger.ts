@@ -1,6 +1,6 @@
 import 'server-only';
 
-import { and, desc, eq, sql } from 'drizzle-orm';
+import { desc, eq, sql } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import { walletLedger, type NewWalletLedgerEntry, type WalletLedgerEntry } from '@/db/schema';
 
@@ -26,20 +26,6 @@ export type WalletEntryInput = Pick<
   | 'disputeId'
   | 'idempotencyKey'
 >;
-
-/**
- * Whether any redemption row exists for a booking — the proof its
- * wallet application actually debited the ledger. Keyed by booking id,
- * not idempotency key: apply/remove cycles suffix their keys
- * (`redeem:<bookingId>:<n>`), so no single key is authoritative.
- */
-export async function hasRedemptionForBooking(bookingId: string): Promise<boolean> {
-  const row = await db.query.walletLedger.findFirst({
-    where: and(eq(walletLedger.bookingId, bookingId), eq(walletLedger.type, 'redemption')),
-    columns: { id: true },
-  });
-  return Boolean(row);
-}
 
 /** Current balance in whole SAR. */
 export async function getWalletBalanceSar(guestId: string): Promise<number> {

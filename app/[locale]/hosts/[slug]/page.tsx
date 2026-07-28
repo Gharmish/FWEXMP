@@ -35,10 +35,11 @@ export async function generateMetadata({
   const { locale, slug } = await params;
   const host = await getHostBySlug(slug);
   if (!host) return {};
+  const t = await getTranslations({ locale, namespace: 'hostProfile.meta' });
   const name = locale === 'ar' ? toArabicText(host.name) : host.name;
   const description = pickLocalized(locale, host.bioEn, host.bioAr);
   const url = `${SITE_URL}/${locale}/hosts/${slug}`;
-  const title = locale === 'ar' ? `${name} · مضيف على غارميش` : `${name} · Host on ${SITE_NAME}`;
+  const title = t('title', { name, siteName: SITE_NAME });
   return {
     title,
     description,

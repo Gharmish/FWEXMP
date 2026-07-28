@@ -26,11 +26,9 @@ export async function generateMetadata({
   params: Promise<{ locale: string }>;
 }): Promise<Metadata> {
   const { locale } = await params;
-  const title = locale === 'ar' ? 'مضيفو غارميش' : 'Gharmish hosts';
-  const description =
-    locale === 'ar'
-      ? 'تعرّف على المضيفين الذين يصممون تجارب غارميش — مزارعون، مرشدون، حرفيون، وشركات سياحية مرخصة في عسير.'
-      : 'Meet the people behind every Gharmish experience — farmers, guides, artisans, and licensed Aseeri tourism operators.';
+  const t = await getTranslations({ locale, namespace: 'hostsIndex.meta' });
+  const title = t('title');
+  const description = t('description');
 
   return {
     title,

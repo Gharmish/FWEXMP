@@ -33,8 +33,9 @@ export async function generateMetadata({
   params: Promise<{ locale: string }>;
 }): Promise<Metadata> {
   const { locale } = await params;
+  const t = await getTranslations({ locale, namespace: 'hostDashboard.meta' });
   return {
-    title: locale === 'ar' ? 'لوحة المضيف' : 'Host dashboard',
+    title: t('title'),
     robots: { index: false, follow: false },
   };
 }

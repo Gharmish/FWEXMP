@@ -8,6 +8,7 @@ import {
   integer,
   pgEnum,
   pgTable,
+  primaryKey,
   text,
   timestamp,
   unique,
@@ -236,7 +237,13 @@ export const hostIdentityTypeEnum = pgEnum('host_identity_type', ['national_id',
 export const disputeStatusEnum = pgEnum('dispute_status', ['open', 'resolved']);
 
 /** OTP abuse events counted by the auth throttle (see that table). */
-export const authThrottleKindEnum = pgEnum('auth_throttle_kind', ['send', 'verify_failed']);
+export const authThrottleKindEnum = pgEnum('auth_throttle_kind', [
+  'send',
+  'verify_failed',
+  // Promo-code attempt (2026-07-28 audit) — same abuse-event table, see
+  // features/promo-codes/lib/throttle.ts. Identifier = guest id.
+  'promo_attempt',
+]);
 
 /** Delivery channels the notification dispatcher can route to. */
 export const notificationChannelEnum = pgEnum('notification_channel', ['email', 'whatsapp']);
@@ -713,8 +720,13 @@ export const bookings = pgTable(
      * commission split (`splitCommission(totalAmount, commissionBps)`).
      */
     hostPaidAt: timestamp({ withTimezone: true }),
-    /** The payout batch this booking was settled in. Null = not yet paid out. */
-    payoutId: uuid(),
+    /**
+     * The payout batch this booking was settled in. Null = not yet paid
+     * out. The FK (SET NULL) exists in the live DB — declared here too
+     * (2026-07-28 audit) so a future `db:generate` diff can never
+     * propose dropping it.
+     */
+    payoutId: uuid().references(() => payouts.id, { onDelete: 'set null' }),
     /**
      * Promo code redeemed on this booking, if any. `promoCodeId` links to
      * the live row; `promoCode` is the UPPERCASE code SNAPSHOTTED at
@@ -782,7 +794,7 @@ export const reviews = pgTable(
     experienceId: uuid()
       .notNull()
       .references(() => experiences.id, { onDelete: 'cascade' }),
-    /** 1–5; enforced in app + a CHECK added in migration review. */
+    /** 1–5; zod bounds app writes, the CHECK below backstops raw SQL/seeds. */
     rating: integer().notNull(),
     textEn: text(),
     textAr: text(),
@@ -802,6 +814,9 @@ export const reviews = pgTable(
     index('reviews_experience_idx').on(t.experienceId),
     // "Reviews I've left" on the guest profile.
     index('reviews_guest_idx').on(t.guestId),
+    // Applied live 2026-07-28 (audit) — the comment above had promised
+    // it since the review feature shipped.
+    check('reviews_rating_range', sql`rating between 1 and 5`),
   ],
 );
 
@@ -1107,7 +1122,8 @@ export const disputes = pgTable(
  * trivially discarded by an attacker, so sends and failed verifies are
  * counted server-side per identifier and per IP
  * (features/auth/lib/throttle.ts). Append-only and small: rows outside
- * the widest counting window are dead weight only — prune opportunistically.
+ * the widest counting window are dead weight only — pruned daily past
+ * 24h by the release-holds cron (Pass 7, 2026-07-28 audit).
  */
 export const authThrottleEvents = pgTable(
   'auth_throttle_events',
@@ -1304,7 +1320,10 @@ export const savedExperiences = pgTable(
       .references(() => experiences.id, { onDelete: 'cascade' }),
     createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
   },
-  (t) => [unique('saved_experiences_guest_experience_unique').on(t.guestId, t.experienceId)],
+  // Composite PK (applied live 2026-07-28, audit): the pair was only a
+  // UNIQUE before — a PK-less table blocks logical replication and some
+  // tooling; the redundant unique constraint was dropped with it.
+  (t) => [primaryKey({ columns: [t.guestId, t.experienceId] })],
 );
 
 /**

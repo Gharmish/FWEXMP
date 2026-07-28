@@ -1,4 +1,5 @@
 import { ImageResponse } from 'next/og';
+import { getTranslations } from 'next-intl/server';
 import { COLORS, CATEGORY_COLOR } from '@/lib/colors';
 import { CATEGORIES } from '@/features/experiences/lib/sample-data';
 import { getExperienceBySlug } from '@/features/experiences/queries';
@@ -28,6 +29,7 @@ export default async function Image({
   const isAr = locale === 'ar';
   const exp = await getExperienceBySlug(slug);
   const fonts = await loadOgFonts();
+  const t = await getTranslations({ locale, namespace: 'ogImage' });
 
   const fontFamily = isAr ? 'PlexArabic' : 'Bricolage';
   const dir = isAr ? 'rtl' : 'ltr';
@@ -39,7 +41,7 @@ export default async function Image({
   const muted = featured ? 'rgba(255,255,255,0.72)' : '#686868';
   const accent = featured ? '#F5B800' : exp ? COLORS[CATEGORY_COLOR[exp.category]].base : '#F5B800';
 
-  const wordmark = isAr ? 'غارميش' : 'Gharmish';
+  const wordmark = t('wordmark');
 
   // Graceful fallback if the slug no longer resolves.
   if (!exp) {
@@ -71,13 +73,11 @@ export default async function Image({
   const hostName = isAr ? toArabicText(exp.hostName) : exp.hostName;
   const city = isAr ? toArabicText(exp.city) : exp.city;
   const region = isAr ? toArabicText(exp.region) : exp.region;
-  const location = isAr ? `${city}، ${region}` : `${city}, ${region}`;
+  const location = t('experience.location', { city, region });
 
   const category = CATEGORIES.find((c) => c.key === exp.category);
   const categoryLabel = featured
-    ? isAr
-      ? 'أصول غارميش'
-      : 'Gharmish Originals'
+    ? t('experience.originals')
     : category
       ? isAr
         ? category.labelAr
@@ -88,7 +88,7 @@ export default async function Image({
     numberingSystem: 'latn',
     maximumFractionDigits: 0,
   }).format(exp.priceSar);
-  const price = isAr ? `${priceNumber} ر.س` : `SAR ${priceNumber}`;
+  const price = t('experience.price', { price: priceNumber });
 
   return new ImageResponse(
     <div

@@ -14,7 +14,8 @@ export async function generateMetadata({
   params: Promise<{ locale: string }>;
 }): Promise<Metadata> {
   const { locale } = await params;
-  const title = locale === 'ar' ? 'تسجيل الدخول' : 'Sign in';
+  const t = await getTranslations({ locale, namespace: 'auth.meta' });
+  const title = t('title');
   return {
     title,
     // Auth surfaces shouldn't be indexed.

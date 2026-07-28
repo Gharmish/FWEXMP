@@ -29,7 +29,8 @@ export async function generateMetadata({
   params: Promise<{ locale: string }>;
 }): Promise<Metadata> {
   const { locale } = await params;
-  const title = locale === 'ar' ? 'حسابك' : 'Your activity';
+  const t = await getTranslations({ locale, namespace: 'me.meta' });
+  const title = t('title');
   return {
     title,
     // Per-guest state — never indexed.

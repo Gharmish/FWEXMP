@@ -38,8 +38,9 @@ interface PageParams {
 
 export async function generateMetadata({ params }: PageParams): Promise<Metadata> {
   const { locale } = await params;
+  const t = await getTranslations({ locale, namespace: 'payment.meta' });
   return {
-    title: locale === 'ar' ? 'إتمام الدفع' : 'Complete payment',
+    title: t('title'),
     robots: { index: false, follow: false },
   };
 }
@@ -207,6 +208,7 @@ export default async function PaymentPage({ params, searchParams }: PageParams) 
     errorBelowMin: t.raw('promo.errorBelowMin'),
     errors: {
       invalid: t('promo.errors.invalid'),
+      too_many: t('promo.errors.tooMany'),
       exhausted: t('promo.errors.exhausted'),
       already_used: t('promo.errors.alreadyUsed'),
       already_paid: t('promo.errors.alreadyPaid'),

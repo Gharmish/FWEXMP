@@ -1,6 +1,7 @@
 import { cookies } from 'next/headers';
 import { desc, eq } from 'drizzle-orm';
 import { db } from '@/lib/db';
+import { boundedQuery } from '@/lib/deadline';
 import { serverEnv } from '@/lib/env';
 import { experiences, guests, savedExperiences } from '@/db/schema';
 import { reportError } from '@/lib/log';
@@ -35,13 +36,19 @@ async function accountSlugs(): Promise<readonly string[]> {
   const user = await getCurrentUser();
   if (!user) return [];
   try {
-    const rows = await db
-      .select({ slug: experiences.slug })
-      .from(savedExperiences)
-      .innerJoin(guests, eq(savedExperiences.guestId, guests.id))
-      .innerJoin(experiences, eq(savedExperiences.experienceId, experiences.id))
-      .where(eq(guests.authUserId, user.id))
-      .orderBy(desc(savedExperiences.createdAt));
+    // boundedQuery, not just try/catch: this renders on the home page
+    // for signed-in guests, and a hung pooled connection never rejects —
+    // without the deadline the catch can't fire and the landing render
+    // stalls until the function timeout.
+    const rows = await boundedQuery('wishlist:accountSlugs', () =>
+      db
+        .select({ slug: experiences.slug })
+        .from(savedExperiences)
+        .innerJoin(guests, eq(savedExperiences.guestId, guests.id))
+        .innerJoin(experiences, eq(savedExperiences.experienceId, experiences.id))
+        .where(eq(guests.authUserId, user.id))
+        .orderBy(desc(savedExperiences.createdAt)),
+    );
     return rows.map((r) => r.slug);
   } catch (error) {
     reportError(error, { surface: 'wishlist:accountSlugs' });

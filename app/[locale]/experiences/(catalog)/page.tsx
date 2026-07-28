@@ -32,11 +32,9 @@ export async function generateMetadata({
   params: Promise<{ locale: string }>;
 }): Promise<Metadata> {
   const { locale } = await params;
-  const title = locale === 'ar' ? 'تجارب في أبها' : 'Experiences in Abha';
-  const description =
-    locale === 'ar'
-      ? 'تجارب عسيرية منتقاة في أبها، يقدمها شركاء محليون موثوقون.'
-      : 'Curated Aseeri experiences in Abha, hosted by vetted local partners.';
+  const t = await getTranslations({ locale, namespace: 'experiencesIndex.meta' });
+  const title = t('title');
+  const description = t('description');
 
   return {
     title,

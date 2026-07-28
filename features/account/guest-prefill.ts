@@ -1,5 +1,5 @@
 import { cookies } from 'next/headers';
-import { eq } from 'drizzle-orm';
+import { and, eq, isNull } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import { boundedQuery } from '@/lib/deadline';
 import { serverEnv } from '@/lib/env';
@@ -61,6 +61,9 @@ export async function getKnownGuestDetails(): Promise<KnownGuestDetails> {
         // for a returning phone-OTP guest whose row isn't linked yet (created
         // at booking time, claimed on first profile visit). Read-only — this
         // is a browse page, so unlike getMyProfile we never claim the row here.
+        // The fallback matches UNCLAIMED rows only: a row claimed by this
+        // account was already found by auth id, and one claimed by another
+        // account must never prefill (or reveal) its details here.
         // (`userPhone` hoisted so the narrowing survives the query closure.)
         const userPhone = user.phone;
         const guest =
@@ -73,7 +76,7 @@ export async function getKnownGuestDetails(): Promise<KnownGuestDetails> {
           (userPhone
             ? await boundedQuery('account:prefill:byPhone', () =>
                 db.query.guests.findFirst({
-                  where: eq(guests.phone, userPhone),
+                  where: and(eq(guests.phone, userPhone), isNull(guests.authUserId)),
                   columns: { name: true, phone: true, email: true },
                 }),
               )

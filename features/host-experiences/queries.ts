@@ -145,9 +145,29 @@ export async function getMyExperienceById(id: string): Promise<HostExperienceRow
 /**
  * Returns the host id linked to the current user, for use in actions.
  * Exposed so the action layer can scope writes without re-deriving.
+ *
+ * SUSPENDED hosts resolve to null here (2026-07-28 audit): every write
+ * path funnels through this helper, and photo replacement, day
+ * blackouts/stop-sells, and duplication used to stay open after a
+ * suspension while bookings and publishing were already refused. Reads
+ * (dashboard, lists) keep using the status-blind resolver so a
+ * suspended host can still see their own data.
  */
 export async function getCurrentHostIdForWrite(): Promise<string | null> {
-  return resolveHostIdForCurrentUser();
+  if (!serverEnv.DATABASE_URL) return null;
+  const user = await getCurrentUser();
+  if (!user) return null;
+  try {
+    const row = await db.query.hosts.findFirst({
+      where: (h) => eq(h.userId, user.id),
+      columns: { id: true, verificationStatus: true },
+    });
+    if (!row || row.verificationStatus === 'suspended') return null;
+    return row.id;
+  } catch (error) {
+    reportError(error, { surface: 'host-experiences:resolveHostForWrite', userId: user.id });
+    return null;
+  }
 }
 
 /**

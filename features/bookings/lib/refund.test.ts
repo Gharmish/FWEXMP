@@ -43,6 +43,8 @@ vi.mock('@/features/payments/ledger', () => ({
 
 const setCalls: Array<Record<string, unknown>> = [];
 let updateShouldThrow = false;
+/** When true, the claim UPDATE (stamping refundDueSar pre-gateway) returns no rows. */
+let claimLost = false;
 /** The booking row the executor reads for the card/credit split. */
 let refundBooking: { guestId: string; totalAmount: number; walletAppliedSar: number } | undefined;
 vi.mock('@/lib/db', () => ({
@@ -51,11 +53,21 @@ vi.mock('@/lib/db', () => ({
     update: () => ({
       set: (values: Record<string, unknown>) => {
         setCalls.push(values);
+        const isClaim = Object.keys(values).length === 1 && 'refundDueSar' in values;
         return {
-          where: async () => {
-            if (updateShouldThrow && values.status === 'refunded') {
-              throw new Error('db down');
-            }
+          where: () => {
+            const run = async () => {
+              if (updateShouldThrow && values.status === 'refunded') {
+                throw new Error('db down');
+              }
+            };
+            const promise = run();
+            return Object.assign(promise, {
+              returning: async () => {
+                await promise;
+                return isClaim && claimLost ? [] : [{ id: 'row' }];
+              },
+            });
           },
         };
       },
@@ -77,6 +89,7 @@ beforeEach(() => {
   hyperpayOn = true;
   updateShouldThrow = false;
   ledgerShouldThrow = false;
+  claimLost = false;
   refundBooking = { guestId: 'g-1', totalAmount: 480, walletAppliedSar: 0 };
 });
 
@@ -88,9 +101,11 @@ describe('executeRefund', () => {
 
     expect(outcome).toBe('refunded');
     expect(refundPayment).toHaveBeenCalledWith('pay-ref-1', 480);
-    expect(setCalls).toHaveLength(1);
-    expect(setCalls[0]).toMatchObject({ status: 'refunded', refundDueSar: null });
-    expect(setCalls[0].refundedAt).toBeInstanceOf(Date);
+    // Claim first (refundDueSar stamped pre-gateway), then the refunded flip.
+    expect(setCalls).toHaveLength(2);
+    expect(setCalls[0]).toEqual({ refundDueSar: 480 });
+    expect(setCalls[1]).toMatchObject({ status: 'refunded', refundDueSar: null });
+    expect(setCalls[1].refundedAt).toBeInstanceOf(Date);
     // Ledger discipline: attempted before the gateway call, succeeded after.
     expect(ledgerEvents.map((e) => e.type)).toEqual(['refund_attempted', 'refund_succeeded']);
     expect(ledgerEvents[1]).toMatchObject({
@@ -117,8 +132,10 @@ describe('executeRefund', () => {
     const outcome = await executeRefund('b-2', 'pay-ref-2', 320);
 
     expect(outcome).toBe('refund_pending');
-    expect(setCalls).toHaveLength(1);
+    // The claim already stamped refundDueSar; the fallback re-stamp is a no-op.
+    expect(setCalls).toHaveLength(2);
     expect(setCalls[0]).toEqual({ refundDueSar: 320 });
+    expect(setCalls[1]).toEqual({ refundDueSar: 320 });
     // Rejection + the pending-refund marker are both reported, and the
     // team inbox is alerted about the money owed.
     expect(reportError).toHaveBeenCalledTimes(2);
@@ -162,7 +179,9 @@ describe('executeRefund', () => {
     expect(outcome).toBe('refunded');
     expect(creditWalletRefund).toHaveBeenCalledWith('b-9', 'g-9', 50);
     expect(refundPayment).toHaveBeenCalledWith('pay-ref-9', 100);
-    expect(setCalls[0]).toMatchObject({ status: 'refunded', refundMethod: 'gateway' });
+    // Claim (card leg only), then the refunded flip.
+    expect(setCalls[0]).toEqual({ refundDueSar: 100 });
+    expect(setCalls[1]).toMatchObject({ status: 'refunded', refundMethod: 'gateway' });
   });
 
   it('marks a fully wallet-covered refund refunded without touching the gateway', async () => {
@@ -174,6 +193,25 @@ describe('executeRefund', () => {
     expect(creditWalletRefund).toHaveBeenCalledWith('b-10', 'g-9', 200);
     expect(refundPayment).not.toHaveBeenCalled();
     expect(setCalls[0]).toMatchObject({ status: 'refunded', refundMethod: 'wallet' });
+  });
+
+  it('moves no money when the claim is lost (concurrent flow owns the refund)', async () => {
+    refundBooking = { guestId: 'g-9', totalAmount: 100, walletAppliedSar: 50 };
+    claimLost = true;
+
+    const outcome = await executeRefund('b-12', 'pay-ref-12', 150);
+
+    expect(outcome).toBe('refund_pending');
+    // Neither leg fires: the competing flow (queued manual refund,
+    // dispute executor, emergency cancel) owns this booking's money.
+    expect(refundPayment).not.toHaveBeenCalled();
+    expect(creditWalletRefund).not.toHaveBeenCalled();
+    expect(ledgerEvents).toHaveLength(0);
+    expect(setCalls).toHaveLength(1); // just the failed claim
+    expect(notifyAdmin).toHaveBeenCalledWith(
+      'refund_due',
+      expect.objectContaining({ bookingId: 'b-12' }),
+    );
   });
 
   it('never credits the wallet on card_only rails (caller already debited)', async () => {

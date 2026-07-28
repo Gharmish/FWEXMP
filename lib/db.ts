@@ -32,6 +32,11 @@ import * as schema from '@/db/schema';
  */
 type Database = PostgresJsDatabase<typeof schema>;
 
+// Sanctioned exception to the "no `as unknown as`" rule (audit
+// 2026-07-28): `globalThis` has no index signature, so the canonical
+// Next.js dev-HMR cache-slot pattern needs the double assertion; the
+// `declare global`/`var` alternative trips the no-var lint rule. Scope
+// is one private, optional property — nothing else reads it.
 const globalForDb = globalThis as unknown as {
   __gharmishPgClient?: ReturnType<typeof postgres>;
 };
@@ -75,6 +80,7 @@ export const db = new Proxy({} as Database, {
   },
 });
 
+// Same sanctioned `as unknown as` exception as `globalForDb` above.
 const globalForAnalyticsDb = globalThis as unknown as {
   __gharmishAnalyticsPgClient?: ReturnType<typeof postgres>;
 };

@@ -10,7 +10,7 @@ import { cancelBookingSchema } from '@/features/bookings/schemas';
 import { bookingViewerCanAccess } from '@/features/bookings/lib/access';
 import { bookingOptions } from '@/features/bookings/lib/policy';
 import { executeRefund } from '@/features/bookings/lib/refund';
-import { releaseWalletReservation } from '@/features/wallet/reservation';
+import { releaseWalletReservationTx } from '@/features/wallet/reservation';
 import {
   sendBookingCancellationEmail,
   sendHostGuestCancelledEmail,
@@ -142,24 +142,30 @@ export async function cancelBookingAsGuest(
 
     // Flip to cancelled conditionally on the status we just evaluated, so
     // a concurrent host/admin transition can't be silently overwritten.
-    const updated = await db
-      .update(bookings)
-      .set({
-        status: 'cancelled',
-        cancelledAt: new Date(),
-        cancellationKind: 'guest',
-        ...(retainedSar > 0 ? { forfeitedSar: retainedSar } : {}),
-      })
-      .where(and(eq(bookings.id, booking.id), inArray(bookings.status, ['pending', 'confirmed'])))
-      .returning({ id: bookings.id });
-    if (updated.length === 0) return { success: false, message: 'wrong_state' };
-
-    // An unpaid booking with checkout-applied credit only held a
-    // reservation — return it (no-ops when nothing was applied; paid
-    // credit travels through the refund executor's split instead).
-    if (booking.paymentStatus !== 'paid' && booking.walletAppliedSar > 0) {
-      await releaseWalletReservation(booking.id);
-    }
+    // The unpaid-credit reservation release rides the SAME transaction
+    // (2026-07-28 audit): released post-commit, a failure between the
+    // flip and the release stranded the guest's debited credit with no
+    // retry path — now flip + release commit or roll back together,
+    // matching executeBookingTransition. (Paid credit instead travels
+    // through the refund executor's split below.)
+    const flipped = await db.transaction(async (tx) => {
+      const updated = await tx
+        .update(bookings)
+        .set({
+          status: 'cancelled',
+          cancelledAt: new Date(),
+          cancellationKind: 'guest',
+          ...(retainedSar > 0 ? { forfeitedSar: retainedSar } : {}),
+        })
+        .where(and(eq(bookings.id, booking.id), inArray(bookings.status, ['pending', 'confirmed'])))
+        .returning({ id: bookings.id });
+      if (updated.length === 0) return false;
+      if (booking.paymentStatus !== 'paid' && booking.walletAppliedSar > 0) {
+        await releaseWalletReservationTx(tx, booking.id);
+      }
+      return true;
+    });
+    if (!flipped) return { success: false, message: 'wrong_state' };
 
     if (cancel.refund === 'full' || cancel.refund === 'partial') {
       // Partial refunds reverse only the policy's fraction; the gateway

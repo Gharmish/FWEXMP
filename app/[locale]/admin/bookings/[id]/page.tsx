@@ -21,8 +21,9 @@ export async function generateMetadata({
   params: Promise<{ locale: string; id: string }>;
 }): Promise<Metadata> {
   const { locale } = await params;
+  const t = await getTranslations({ locale, namespace: 'admin.meta' });
   return {
-    title: locale === 'ar' ? 'تفاصيل الحجز' : 'Booking detail',
+    title: t('bookingDetailTitle'),
     robots: { index: false, follow: false },
   };
 }
@@ -112,8 +113,11 @@ export default async function AdminBookingDetailPage({
 
   const transitions = availableTransitions(booking.status);
   const canRefund =
-    booking.status === 'confirmed' ||
-    booking.status === 'completed' ||
+    // Live bookings refund only when money was actually captured — a
+    // pay-after-approval booking awaiting payment has nothing to
+    // reverse (mirrors the action's eligibility).
+    ((booking.status === 'confirmed' || booking.status === 'completed') &&
+      booking.paymentStatus === 'paid') ||
     (booking.status === 'cancelled' && booking.paymentStatus === 'paid') ||
     // Already refunded but still owing (failed refund-to-card) — the
     // refund action's record-only arm clears the manual queue.

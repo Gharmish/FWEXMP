@@ -1,6 +1,6 @@
 import 'server-only';
 
-import { eq } from 'drizzle-orm';
+import { and, eq, isNull, sql } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import { hasHyperpay } from '@/lib/env';
 import { bookings } from '@/db/schema';
@@ -62,6 +62,8 @@ export async function executeRefund(
   rails: RefundRails = 'auto',
 ): Promise<RefundOutcome> {
   let cardShareSar = amountSar;
+  let creditShareSar = 0;
+  let creditGuestId: string | null = null;
 
   if (rails === 'auto') {
     try {
@@ -78,16 +80,67 @@ export async function executeRefund(
           booking.totalAmount,
           booking.walletAppliedSar,
         );
-        await creditWalletRefund(bookingId, booking.guestId, creditRefundSar);
         cardShareSar = cardRefundSar;
+        creditShareSar = creditRefundSar;
+        creditGuestId = booking.guestId;
       }
     } catch (error) {
       // The split read failed — queue the WHOLE amount for the admin
-      // instead of guessing which leg moved.
+      // instead of guessing which leg moved. Conditional: never clobber
+      // an amount another refund flow already claimed or queued.
       reportError(error, { surface: 'bookings:executeRefund:wallet', bookingId });
-      await db.update(bookings).set({ refundDueSar: amountSar }).where(eq(bookings.id, bookingId));
+      await db
+        .update(bookings)
+        .set({ refundDueSar: amountSar })
+        .where(and(eq(bookings.id, bookingId), isNull(bookings.refundDueSar)));
       await notifyAdmin('refund_due', { bookingId, amountSar });
       return 'refund_pending';
+    }
+
+    // Cross-flow arbiter: CLAIM the card leg on the booking row before
+    // any money moves. Each caller (guest cancel, dispute resolve,
+    // dead-booking auto-refund) wins only its OWN state machine first —
+    // nothing used to stop two different flows from each firing a
+    // gateway refund on the same capture (dispute resolve racing an
+    // emergency cancel, for example). The claim is atomic: it takes
+    // `refundDueSar` only when no other refund is queued/in flight AND
+    // the not-yet-refunded remainder of the paid base still covers this
+    // amount. A crash after the claim leaves `refundDueSar` stamped —
+    // i.e. a visible entry in the admin manual-refund queue — instead
+    // of an invisible half-done refund.
+    if (cardShareSar > 0) {
+      const claimed = await db
+        .update(bookings)
+        .set({ refundDueSar: cardShareSar })
+        .where(
+          and(
+            eq(bookings.id, bookingId),
+            isNull(bookings.refundDueSar),
+            sql`${bookings.totalAmount} + ${bookings.walletAppliedSar} - coalesce(${bookings.refundedAmountSar}, 0) >= ${amountSar}`,
+          ),
+        )
+        .returning({ id: bookings.id });
+      if (claimed.length === 0) {
+        // Another flow owns (or already returned) this booking's money.
+        // Nothing moved here; the winner's queue entry / journal stands.
+        reportError(new Error('refund claim lost: concurrent or exhausted refund'), {
+          surface: 'bookings:executeRefund:claim',
+          bookingId,
+        });
+        await notifyAdmin('refund_due', {
+          bookingId,
+          amountSar,
+          problem: 'refund claim lost — verify no double refund was intended',
+        });
+        return 'refund_pending';
+      }
+    }
+
+    // Wallet leg after the claim — `creditWalletRefund` is idempotent
+    // (`refund:<bookingId>` unique key), so a competing flow that
+    // already credited this booking's wallet share is absorbed.
+    if (creditShareSar > 0 && creditGuestId) {
+      await creditWalletRefund(bookingId, creditGuestId, creditShareSar);
     }
   }
 
@@ -101,6 +154,10 @@ export async function executeRefund(
         refundDueSar: null,
         refundMethod: 'wallet',
         refundedAmountSar: amountSar,
+        // Money going back cancels any retained-forfeit journal — a
+        // forfeited late cancellation later refunded must not keep
+        // counting as retained revenue on the dashboard.
+        forfeitedSar: null,
       })
       .where(eq(bookings.id, bookingId));
     await recordClawbackIfPaidOut(bookingId, 'refund (wallet) after host payout');
@@ -148,7 +205,7 @@ export async function executeRefund(
             refundMethod: 'gateway',
             // `card_only` (refund-out) converts an ALREADY-stamped wallet
             // refund into card money — restamping would double-count it.
-            ...(rails === 'auto' ? { refundedAmountSar: amountSar } : {}),
+            ...(rails === 'auto' ? { refundedAmountSar: amountSar, forfeitedSar: null } : {}),
           })
           .where(eq(bookings.id, bookingId));
         if (rails === 'auto') {

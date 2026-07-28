@@ -1,6 +1,6 @@
 'use server';
 
-import { and, eq, inArray, isNotNull, or, sql } from 'drizzle-orm';
+import { and, eq, inArray, isNotNull, isNull, or, sql } from 'drizzle-orm';
 import { revalidatePath } from 'next/cache';
 import { db } from '@/lib/db';
 import { serverEnv, hasHyperpay } from '@/lib/env';
@@ -113,16 +113,21 @@ export async function refundBooking(
 
     // Eligibility mirrors the conditional UPDATE below: `pending`
     // bookings haven't taken money yet (cancel, don't refund).
-    // `cancelled` is refundable only when the guest had paid — the
-    // cancellation flows leave a paid booking `cancelled` +
-    // `refundDueSar` when the automatic gateway refund failed; this
-    // action settles that queue. `refunded` is terminal EXCEPT while it
-    // still owes money: a failed refund-to-card on a wallet-refunded
-    // booking stamps `refundDueSar` on an already-`refunded` row, and
-    // this record-only arm is the only way to close that queue entry.
+    // `confirmed`/`completed` require the guest to have actually PAID —
+    // a pay-after-approval booking awaiting its payment window has no
+    // money to reverse, and "refunding" it used to journal a
+    // `refundedAmountSar` for a capture that never happened (inflating
+    // refund KPIs and VAT netting). `cancelled` is refundable only when
+    // the guest had paid — the cancellation flows leave a paid booking
+    // `cancelled` + `refundDueSar` when the automatic gateway refund
+    // failed; this action settles that queue. `refunded` is terminal
+    // EXCEPT while it still owes money: a failed refund-to-card on a
+    // wallet-refunded booking stamps `refundDueSar` on an already-
+    // `refunded` row, and this record-only arm is the only way to close
+    // that queue entry.
     const refundable =
-      booking.status === 'confirmed' ||
-      booking.status === 'completed' ||
+      ((booking.status === 'confirmed' || booking.status === 'completed') &&
+        booking.paymentStatus === 'paid') ||
       (booking.status === 'cancelled' && booking.paymentStatus === 'paid') ||
       (booking.status === 'refunded' && booking.refundDueSar !== null);
     if (!refundable) return { success: false, message: 'wrong_state' };
@@ -142,19 +147,61 @@ export async function refundBooking(
       : splitRefund(paidBaseSar, booking.totalAmount, booking.walletAppliedSar);
     const owedSar = split.cardRefundSar;
 
-    // The wallet leg first — `creditWalletRefund` is idempotent
+    // CLAIM FIRST, move money second. The conditional UPDATE is the
+    // per-booking arbiter: two admins (or two tabs) racing on the same
+    // queue entry both used to pass the eligibility read and both fire
+    // the gateway refund — HyperPay happily accepts two partials that
+    // sum within the capture, so 2×refundDueSar could leave the
+    // platform. Winning the flip BEFORE the wallet/gateway legs makes
+    // the loser exit `wrong_state` with no side effects. (Same ordering
+    // as resolveDispute: state transition first, then money.)
+    const updated = await db
+      .update(bookings)
+      .set({
+        status: 'refunded',
+        // Keep the ORIGINAL refund date on the record-only arm (an
+        // already-`refunded` booking was windowed into analytics then);
+        // fresh refunds stamp now.
+        refundedAt: sql`coalesce(${bookings.refundedAt}, now())`,
+        refundDueSar: null,
+        refundMethod: 'manual',
+        // Journal what actually goes back: the card leg attempted below
+        // plus any wallet leg credited below, ON TOP of anything an
+        // earlier partial path already stamped.
+        refundedAmountSar: sql`coalesce(${bookings.refundedAmountSar}, 0) + ${owedSar + split.creditRefundSar}`,
+        // A refund hands back money the guest forfeited — a late
+        // cancellation later refunded as goodwill must not keep counting
+        // as retained cancellation revenue on the dashboard.
+        forfeitedSar: null,
+      })
+      .where(
+        and(
+          eq(bookings.id, bookingId),
+          or(
+            and(
+              inArray(bookings.status, ['confirmed', 'completed']),
+              eq(bookings.paymentStatus, 'paid'),
+            ),
+            and(eq(bookings.status, 'cancelled'), eq(bookings.paymentStatus, 'paid')),
+            and(eq(bookings.status, 'refunded'), isNotNull(bookings.refundDueSar)),
+          ),
+        ),
+      )
+      .returning({ id: bookings.id });
+    if (updated.length === 0) return { success: false, message: 'wrong_state' };
+
+    // The wallet leg — `creditWalletRefund` is idempotent
     // (`refund:<bookingId>` unique key), so a replay never double-credits.
     if (split.creditRefundSar > 0) {
       await creditWalletRefund(booking.id, booking.guestId, split.creditRefundSar);
     }
 
-    // Gateway-first: try the automated reversal before recording — but
-    // never twice: if the ledger already holds a `refund_succeeded` for
-    // this booking (e.g. the executor's gateway call landed but its
-    // status write raced/failed), the money has moved and this action
-    // only records. A rejection (commonly: already reversed in the
-    // HyperPay console) is logged but doesn't block the record — see
-    // the header comment.
+    // Gateway leg — but never twice: if the ledger already holds a
+    // `refund_succeeded` for this booking (e.g. the executor's gateway
+    // call landed but its status write raced/failed), the money has
+    // moved and this action only records. A rejection (commonly:
+    // already reversed in the HyperPay console) is logged but doesn't
+    // roll back the record — see the header comment.
     if (
       hasHyperpay() &&
       booking.paymentStatus === 'paid' &&
@@ -199,35 +246,6 @@ export async function refundBooking(
         }
       }
     }
-
-    const updated = await db
-      .update(bookings)
-      .set({
-        status: 'refunded',
-        // Keep the ORIGINAL refund date on the record-only arm (an
-        // already-`refunded` booking was windowed into analytics then);
-        // fresh refunds stamp now.
-        refundedAt: sql`coalesce(${bookings.refundedAt}, now())`,
-        refundDueSar: null,
-        refundMethod: 'manual',
-        // Journal what actually went back: the card leg settled here
-        // plus any wallet leg credited above, ON TOP of anything an
-        // earlier partial path already stamped. The conditional WHERE
-        // makes this at-most-once per queue entry.
-        refundedAmountSar: sql`coalesce(${bookings.refundedAmountSar}, 0) + ${owedSar + split.creditRefundSar}`,
-      })
-      .where(
-        and(
-          eq(bookings.id, bookingId),
-          or(
-            inArray(bookings.status, ['confirmed', 'completed']),
-            and(eq(bookings.status, 'cancelled'), eq(bookings.paymentStatus, 'paid')),
-            and(eq(bookings.status, 'refunded'), isNotNull(bookings.refundDueSar)),
-          ),
-        ),
-      )
-      .returning({ id: bookings.id });
-    if (updated.length === 0) return { success: false, message: 'wrong_state' };
 
     // If the host was already paid out for this booking, the refund is
     // now a platform loss unless it's clawed back from the next batch.
@@ -311,13 +329,16 @@ export async function emergencyCancelBooking(
   const echo = { reason };
 
   try {
-    const openDispute = await db.query.disputes.findFirst({
-      where: and(eq(disputes.bookingId, bookingId), eq(disputes.status, 'open')),
-      columns: { id: true },
-    });
-    if (openDispute) return { success: false, message: 'dispute_open', values: echo };
-
     const outcome = await db.transaction(async (tx) => {
+      // Inside the transaction (2026-07-28 audit): checked outside, a
+      // dispute resolved in the gap between check and commit could have
+      // its refund racing this cancellation.
+      const openDispute = await tx.query.disputes.findFirst({
+        where: and(eq(disputes.bookingId, bookingId), eq(disputes.status, 'open')),
+        columns: { id: true },
+      });
+      if (openDispute) return 'dispute_open' as const;
+
       const booking = await tx.query.bookings.findFirst({
         where: (b) => eq(b.id, bookingId),
         columns: {
@@ -327,6 +348,7 @@ export async function emergencyCancelBooking(
           paymentStatus: true,
           totalAmount: true,
           walletAppliedSar: true,
+          refundDueSar: true,
           idempotencyKey: true,
         },
         with: { guest: { columns: { preferredLanguage: true } } },
@@ -336,6 +358,12 @@ export async function emergencyCancelBooking(
       if (booking.status !== 'pending' && booking.status !== 'confirmed') {
         return 'wrong_state' as const;
       }
+      // A stamped `refundDueSar` means another refund flow (a resolved
+      // dispute's executor, a queued manual refund) already owns this
+      // booking's money — cancelling over it would credit the full base
+      // a second time. Checked here AND in the conditional UPDATE so a
+      // claim landing mid-transaction loses cleanly.
+      if (booking.refundDueSar !== null) return 'wrong_state' as const;
       const updated = await tx
         .update(bookings)
         .set({
@@ -344,7 +372,13 @@ export async function emergencyCancelBooking(
           cancellationKind: 'emergency',
           cancellationReason: reason,
         })
-        .where(and(eq(bookings.id, bookingId), eq(bookings.status, booking.status)))
+        .where(
+          and(
+            eq(bookings.id, bookingId),
+            eq(bookings.status, booking.status),
+            isNull(bookings.refundDueSar),
+          ),
+        )
         .returning({ id: bookings.id });
       if (updated.length === 0) return 'wrong_state' as const;
       const wasPaid = booking.paymentStatus === 'paid';

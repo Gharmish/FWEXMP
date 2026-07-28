@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect } from 'react';
-import { hasMarketingPixels } from '@/lib/env';
+import { hasMarketingPixels } from '@/lib/env-client';
 import { readConsent } from '@/components/layout/consent';
 
 interface PurchaseConversionProps {

@@ -50,8 +50,9 @@ interface PageParams {
 
 export async function generateMetadata({ params }: PageParams): Promise<Metadata> {
   const { locale } = await params;
+  const t = await getTranslations({ locale, namespace: 'invoice.meta' });
   return {
-    title: locale === 'ar' ? 'الفاتورة' : 'Invoice',
+    title: t('title'),
     // Invoice URLs are private capability links; crawlers must skip them.
     robots: { index: false, follow: false },
   };

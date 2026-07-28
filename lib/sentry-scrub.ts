@@ -24,11 +24,11 @@ const EMAIL_RE = /[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/g;
 const PHONE_RE = /\+?\d[\d\s-]{7,16}\d/g;
 const REDACTED = '[redacted]';
 
-function redactString(value: string): string {
+export function redactString(value: string): string {
   return value.replace(EMAIL_RE, REDACTED).replace(PHONE_RE, REDACTED);
 }
 
-function redactValue(value: unknown): unknown {
+export function redactValue(value: unknown): unknown {
   if (typeof value === 'string') return redactString(value);
   if (Array.isArray(value)) return value.map(redactValue);
   if (value && typeof value === 'object') {

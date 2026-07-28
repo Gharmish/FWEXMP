@@ -209,19 +209,37 @@ export interface GuestBookingSummary extends BookingDetail {
 }
 
 /**
- * Every booking for a guest, newest first. Drives the booking-history
- * section on the profile page; empty when the DB isn't configured.
+ * Hard cap on the profile booking-history list. Nobody scrolls hundreds
+ * of bookings on /me; without a LIMIT a heavy repeat guest hydrates an
+ * unbounded row set into the page render.
+ */
+const GUEST_BOOKINGS_LIMIT = 100;
+
+/**
+ * A guest's bookings, newest first (capped at {@link GUEST_BOOKINGS_LIMIT}).
+ * Drives the booking-history section on the profile page; empty when
+ * the DB isn't configured. Bounded: /me must degrade to an empty list
+ * on a hung pooled connection, not stall the whole account page.
  */
 export async function getBookingsForGuest(guestId: string): Promise<GuestBookingSummary[]> {
   if (!hasDb()) return [];
-  const rows = await db.query.bookings.findMany({
-    where: eq(bookings.guestId, guestId),
-    orderBy: [desc(bookings.date), desc(bookings.createdAt)],
-    with: {
-      experience: { columns: { slug: true, titleEn: true, titleAr: true } },
-      guest: { columns: { name: true, email: true, phone: true, preferredLanguage: true } },
-    },
-  });
+  let rows;
+  try {
+    rows = await boundedQuery('bookings:forGuest', () =>
+      db.query.bookings.findMany({
+        where: eq(bookings.guestId, guestId),
+        orderBy: [desc(bookings.date), desc(bookings.createdAt)],
+        limit: GUEST_BOOKINGS_LIMIT,
+        with: {
+          experience: { columns: { slug: true, titleEn: true, titleAr: true } },
+          guest: { columns: { name: true, email: true, phone: true, preferredLanguage: true } },
+        },
+      }),
+    );
+  } catch (error) {
+    reportError(error, { surface: 'bookings:getBookingsForGuest', guestId });
+    return [];
+  }
   return rows.map((row) => ({
     id: row.id,
     guestId: row.guestId,

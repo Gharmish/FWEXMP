@@ -88,8 +88,12 @@ export async function settleBooking(reference: string): Promise<SettleOutcome> {
     if (outcome === 'success') {
       // Defence in depth: verify the amount and currency HyperPay reports
       // match what we expect before settling. `amount` is a `xx.xx` string.
+      // Exact comparison: every checkout is prepared as a whole-SAR
+      // `xx.00` string, so ANY fractional drift is an anomaly — rounding
+      // it away would silently accept a capture that differs by up to
+      // 0.49 SAR from what we booked.
       const reported = Number.parseFloat(status.amount ?? 'NaN');
-      if (!Number.isFinite(reported) || Math.round(reported) !== booking.totalAmount) {
+      if (!Number.isFinite(reported) || reported !== booking.totalAmount) {
         reportError(new Error('HyperPay amount mismatch'), {
           surface: 'payment-settle',
           reference,
@@ -148,7 +152,25 @@ export async function settleBooking(reference: string): Promise<SettleOutcome> {
           // bookings, so payment can't confirm a request the host never
           // approved.
         })
-        .where(and(eq(bookings.id, booking.id), ne(bookings.paymentStatus, 'paid')))
+        .where(
+          and(
+            eq(bookings.id, booking.id),
+            ne(bookings.paymentStatus, 'paid'),
+            // The amount guard above compared the gateway capture to the
+            // total AS READ at the top of this call — but applyPromo /
+            // applyWalletCredit / their removals can legitimately change
+            // `totalAmount`/`walletAppliedSar` while the slow gateway
+            // fetch is in flight (guest with two tabs). Re-asserting both
+            // here makes guard-and-commit atomic: if the total the guest
+            // actually owes is no longer the total the card captured, the
+            // write loses and the anomaly path below takes over. Without
+            // this, a 100 SAR capture could settle a booking meanwhile
+            // reduced to 50 by applied credit — the guest pays 150 and
+            // the redeemed credit is never released.
+            eq(bookings.totalAmount, booking.totalAmount),
+            eq(bookings.walletAppliedSar, booking.walletAppliedSar),
+          ),
+        )
         .returning({ id: bookings.id });
 
       // Concurrent-settle guard: the return route, the webhook, and the
@@ -159,7 +181,29 @@ export async function settleBooking(reference: string): Promise<SettleOutcome> {
       // auto-refund, host email); the loser exits as a replay. Without
       // this, a webhook/return-route race could double-fire the refund,
       // stamping `refund_due_sar` on an already-refunded booking.
-      if (won.length === 0) return 'already_settled';
+      if (won.length === 0) {
+        // Lost to a concurrent settle (row now paid) → plain replay.
+        // Lost because the amounts drifted mid-settle → the capture no
+        // longer matches what the guest owes: surface it and return
+        // 'error' so the webhook/cron retries against the fresh total
+        // (whose amount guard then flags the mismatch for a human).
+        const now = await db.query.bookings.findFirst({
+          where: eq(bookings.id, booking.id),
+          columns: { paymentStatus: true },
+        });
+        if (now?.paymentStatus === 'paid') return 'already_settled';
+        reportError(new Error('booking amounts changed during settle'), {
+          surface: 'payment-settle',
+          reference,
+          capturedSar: booking.totalAmount,
+        });
+        await notifyAdmin('settle_anomaly', {
+          problem: 'amounts changed while settling (promo/credit race)',
+          reference,
+          capturedSar: booking.totalAmount,
+        });
+        return 'error';
+      }
 
       try {
         await recordPaymentEvent({

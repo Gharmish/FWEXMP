@@ -3,7 +3,7 @@
 import Script from 'next/script';
 import { useEffect, useRef, useSyncExternalStore } from 'react';
 import { usePathname } from 'next/navigation';
-import { clientEnv, hasMarketingPixels } from '@/lib/env';
+import { clientEnv, hasMarketingPixels } from '@/lib/env-client';
 import { readConsent, subscribeConsent } from '@/components/layout/consent';
 
 /**

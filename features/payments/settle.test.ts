@@ -39,13 +39,27 @@ let booking: MockBooking | undefined;
 const setCalls: Array<Record<string, unknown>> = [];
 /**
  * Rows the conditional `UPDATE ... RETURNING` reports as flipped.
- * Empty = this caller lost the settle race (another entry point flipped
- * the row between the read and the write).
+ * Empty = this caller lost the write (concurrent settle, or the
+ * booking's amounts changed while the gateway fetch was in flight).
  */
 let updateReturns: Array<{ id: string }> = [{ id: 'b-1' }];
+/**
+ * What the post-loss re-read reports. The lost-write path re-reads the
+ * row to distinguish "another settle won" (paid → replay) from "the
+ * amounts drifted mid-settle" (unpaid → anomaly).
+ */
+let recheck: { paymentStatus: string } | undefined;
+let findFirstCalls = 0;
 vi.mock('@/lib/db', () => ({
   db: {
-    query: { bookings: { findFirst: async () => booking } },
+    query: {
+      bookings: {
+        findFirst: async () => {
+          findFirstCalls += 1;
+          return findFirstCalls === 1 ? booking : (recheck ?? booking);
+        },
+      },
+    },
     update: () => ({
       set: (values: Record<string, unknown>) => {
         setCalls.push(values);
@@ -104,6 +118,8 @@ beforeEach(() => {
   setCalls.length = 0;
   ledgerEvents.length = 0;
   updateReturns = [{ id: 'b-1' }];
+  recheck = undefined;
+  findFirstCalls = 0;
   booking = {
     id: 'b-1',
     checkoutId: 'chk-1',
@@ -183,9 +199,10 @@ describe('settleBooking', () => {
   it('loses a concurrent settle race safely: no side effects double-fire', async () => {
     // Worst case: the dead-booking auto-refund path. The webhook and the
     // return route race; this caller passed the early already-paid check
-    // but another caller flipped the row first.
+    // but another caller flipped the row first — the re-read sees paid.
     booking = { ...booking!, status: 'cancelled' };
     updateReturns = [];
+    recheck = { paymentStatus: 'paid' };
 
     const outcome = await settleBooking('ref-1');
 
@@ -193,6 +210,39 @@ describe('settleBooking', () => {
     expect(ledgerEvents).toHaveLength(0);
     expect(executeRefund).not.toHaveBeenCalled();
     expect(sendHostPaymentReceivedEmail).not.toHaveBeenCalled();
+  });
+
+  it('treats a mid-settle amount change as an anomaly, not a settle', async () => {
+    // The guest applied wallet credit / a promo in a second tab while the
+    // gateway fetch was in flight: the conditional UPDATE re-asserts the
+    // amounts and loses, and the re-read shows the row still unpaid.
+    updateReturns = [];
+    recheck = { paymentStatus: 'processing' };
+
+    const outcome = await settleBooking('ref-1');
+
+    expect(outcome).toBe('error');
+    expect(ledgerEvents).toHaveLength(0);
+    expect(sendHostPaymentReceivedEmail).not.toHaveBeenCalled();
+    expect(notifyAdmin).toHaveBeenCalledWith(
+      'settle_anomaly',
+      expect.objectContaining({ problem: 'amounts changed while settling (promo/credit race)' }),
+    );
+  });
+
+  it('refuses a fractional amount drift instead of rounding it away', async () => {
+    // Checkouts are prepared as exact `xx.00` strings — a capture of
+    // 480.30 for a 480 booking must fail the amount guard, not settle.
+    gatewayStatus.amount = '480.30';
+
+    const outcome = await settleBooking('ref-1');
+
+    expect(outcome).toBe('error');
+    expect(setCalls).toHaveLength(0);
+    expect(notifyAdmin).toHaveBeenCalledWith(
+      'settle_anomaly',
+      expect.objectContaining({ problem: 'amount mismatch' }),
+    );
   });
 
   it('does not duplicate the settle_failed ledger event on a replayed rejection', async () => {

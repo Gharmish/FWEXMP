@@ -27,8 +27,9 @@ export async function generateMetadata({
   params: Promise<{ locale: string }>;
 }): Promise<Metadata> {
   const { locale } = await params;
+  const t = await getTranslations({ locale, namespace: 'me.profile.meta' });
   return {
-    title: locale === 'ar' ? 'ملفك الشخصي' : 'Your profile',
+    title: t('title'),
     // Per-guest state — never indexed.
     robots: { index: false, follow: false },
   };
