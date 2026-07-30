@@ -152,6 +152,24 @@ describe('executeRefund', () => {
     expect(setCalls[0]).toEqual({ refundDueSar: 100 });
   });
 
+  it('CLOSES the ledger on a gateway THROW — a dangling attempt deadlocks recovery', async () => {
+    // A timeout is the likeliest gateway failure, and it was also the one
+    // that used to leave `refund_attempted` with no terminal event.
+    // `refundInFlight` reads that as "a reversal is running right now"
+    // and refuses the admin's manual refund — forever — so one timeout
+    // permanently blocked the ONLY recovery path for money the platform
+    // owes a guest. The terminal event is the fix; this pins it.
+    refundPayment.mockRejectedValue(new Error('ETIMEDOUT'));
+
+    await executeRefund('b-timeout', 'pay-ref-t', 100);
+
+    expect(ledgerEvents.map((e) => e.type)).toEqual(['refund_attempted', 'refund_failed']);
+    // Marked as an UNKNOWN outcome, not a gateway rejection: the reversal
+    // may actually have landed, so the admin's refund_succeeded check
+    // must still apply.
+    expect(ledgerEvents.at(-1)).toMatchObject({ resultCode: 'EXCEPTION' });
+  });
+
   it('skips the gateway entirely without a payment reference', async () => {
     const outcome = await executeRefund('b-4', null, 250);
 

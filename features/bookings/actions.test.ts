@@ -56,8 +56,9 @@ vi.mock('next/headers', () => ({
   }),
 }));
 
+let currentUser: { id: string; phone: string; email?: string } | null = null;
 vi.mock('@/features/auth/queries', () => ({
-  getCurrentUser: async () => null,
+  getCurrentUser: async () => currentUser,
 }));
 
 vi.mock('@/lib/platform-settings', () => ({
@@ -108,11 +109,13 @@ let guestRow:
   | {
       id: string;
       authUserId: string | null;
-      phone: string;
+      phone: string | null;
       email: string | null;
       suspendedAt: Date | null;
     }
   | undefined;
+/** Every `set()` payload written to a guests row — the identity rule lives here. */
+const guestUpdates: Array<Record<string, unknown>> = [];
 let phoneHolds = 0;
 let ipRecent = 0;
 let txBookedSum = 0;
@@ -166,7 +169,12 @@ vi.mock('@/lib/db', () => ({
         }),
       };
     },
-    update: () => ({ set: () => ({ where: async () => undefined }) }),
+    update: () => ({
+      set: (values: Record<string, unknown>) => {
+        guestUpdates.push(values);
+        return { where: async () => undefined };
+      },
+    }),
     insert: makeInsert(),
     transaction: async (cb: (tx: unknown) => Promise<unknown>) =>
       cb({
@@ -217,6 +225,8 @@ beforeEach(() => {
   afterCallbacks.length = 0;
   cookieSets.length = 0;
   insertedBookings.length = 0;
+  guestUpdates.length = 0;
+  currentUser = null;
   insertBookingError = null;
   hyperpayOn = true;
   replayRow = undefined;
@@ -363,5 +373,63 @@ describe('requestBooking — throttles & guards', () => {
       fields: { email: 'required' },
     });
     expect(insertedBookings).toHaveLength(0);
+  });
+  /**
+   * ACCOUNT-TAKEOVER PERIMETER (rounds 1–2). `guests.phone` is an
+   * identity key: it is unique and it can claim an account row on a
+   * verified sign-in. An unverified phone typed into this form must
+   * therefore never be written onto a row that already belongs to an
+   * account — otherwise an email-OTP attacker stamps a victim's number
+   * on their OWN row, and every anonymous booking the victim later
+   * makes resolves to the attacker's account (their /me, their cancel
+   * rights, their wallet on refund, their inbox).
+   *
+   * These two tests are the only thing standing between that rule and a
+   * silent deletion: a regression sweep found the whole perimeter
+   * unpinned.
+   */
+  it('never stamps the form phone onto an ACCOUNT-linked guest row', async () => {
+    currentUser = { id: 'auth-attacker', phone: '' };
+    // The account's own row: claimed, but no phone of its own yet
+    // (an email-OTP signup).
+    guestRow = {
+      id: 'guest-account',
+      authUserId: 'auth-attacker',
+      phone: null,
+      email: 'attacker@example.com',
+      suspendedAt: null,
+    };
+
+    await requestBooking(initial, form({ phone: '+966555000111' })).catch(() => undefined);
+
+    const phoneWrites = guestUpdates.filter((u) => 'phone' in u);
+    expect(phoneWrites).toEqual([]);
+  });
+
+  it('does stamp the form phone onto an ANONYMOUS row (no account to hijack)', async () => {
+    currentUser = null;
+    guestRow = {
+      id: 'guest-anon',
+      authUserId: null,
+      phone: null,
+      email: null,
+      suspendedAt: null,
+    };
+
+    await requestBooking(initial, form({ phone: '+966555000222' })).catch(() => undefined);
+
+    expect(guestUpdates.some((u) => u.phone === '+966555000222')).toBe(true);
+  });
+
+  /**
+   * The booking carries its OWN contact snapshot (round 3). Hosts read
+   * it to reach the guest and the per-phone hold throttle counts on it,
+   * which is what lets the identity rule above stay strict.
+   */
+  it('snapshots the form phone onto the booking itself', async () => {
+    await requestBooking(initial, form({ phone: '+966555000333' })).catch(() => undefined);
+
+    expect(insertedBookings).toHaveLength(1);
+    expect(insertedBookings[0]).toMatchObject({ contactPhone: '+966555000333' });
   });
 });
