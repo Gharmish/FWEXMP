@@ -3,7 +3,7 @@ import { db } from '@/lib/db';
 import { bookings } from '@/db/schema';
 import { reportError } from '@/lib/log';
 import { adminGuard } from '@/features/admin/guard';
-import { vatPortionExpr } from '@/features/bookings/lib/payout-sql';
+import { rolling12mTurnoverExpr, vatPortionExpr } from '@/features/bookings/lib/payout-sql';
 import { getPlatformSettings } from '@/lib/platform-settings';
 import { toInstantBounds, type DateRange } from '@/features/admin/dashboard/lib/date-range';
 
@@ -107,7 +107,15 @@ export async function getVatReport(range: DateRange): Promise<VatReport | null> 
           // counted in. Both understate the registration tripwire.
           // Consideration includes redeemed credit, matching
           // `rolling12mTurnoverExpr` and the cron alert.
-          rolling12mRefundedSar: sql<number>`coalesce(sum(least(coalesce(${bookings.refundedAmountSar}, ${bookings.totalAmount} + coalesce(${bookings.walletAppliedSar}, 0)), ${bookings.totalAmount} + coalesce(${bookings.walletAppliedSar}, 0))) filter (where ${bookings.status} = 'refunded' and ${bookings.paidAt} is not null and ${paid12m}), 0)::int`,
+          // THE shared expression, not a hand-mirrored copy (2026-07-28
+          // seventh audit). The sixth-audit commit claimed it had
+          // reconciled this surface with the cron alert and in fact only
+          // pointed the CRON at `rolling12mTurnoverExpr()`, leaving a
+          // transcribed duplicate here. The two agreed — but "agrees
+          // today because someone transcribed it carefully" is exactly
+          // the mirrored-call-site pattern that produced a defect in five
+          // of the six audit rounds. One expression, two callers.
+          rolling12mNetSar: rolling12mTurnoverExpr(),
           rolling12mCommissionSar: sql<number>`coalesce(round(sum(${commission}) filter (where ${bookings.paidAt} is not null and ${paid12m})), 0)::int`,
         })
         .from(bookings),
@@ -157,7 +165,7 @@ export async function getVatReport(range: DateRange): Promise<VatReport | null> 
       truncated,
       threshold: {
         rolling12mGrossSar: agg.rolling12mGrossSar,
-        rolling12mNetSar: agg.rolling12mGrossSar - agg.rolling12mRefundedSar,
+        rolling12mNetSar: agg.rolling12mNetSar,
         rolling12mCommissionSar: agg.rolling12mCommissionSar,
       },
     };

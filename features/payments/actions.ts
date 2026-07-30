@@ -203,6 +203,7 @@ export async function createCheckout(
         status: true,
         paymentDeadline: true,
         checkoutId: true,
+        settleAnomalyAt: true,
       },
     });
 
@@ -227,6 +228,22 @@ export async function createCheckout(
     }
     if (booking.status !== 'confirmed') {
       return { status: 'error', error: 'expired', values: echoValues(formData) };
+    }
+    // An UNMATCHED CAPTURE is outstanding on this booking — refuse to
+    // start another one (2026-07-28 seventh audit).
+    //
+    // The promo/credit settle race leaves the row `confirmed` + `unpaid`
+    // with a live deadline while a real capture sits at the gateway that
+    // settle could not match. Round 6 hid the Pay-now button for that
+    // state but left THIS guard untouched, so /book/[ref]/pay was still
+    // directly reachable — second tab, back button, bookmark, or the pay
+    // link already in the guest's inbox — and a second checkout charged
+    // them twice. Hiding a control is not a guard; this is.
+    //
+    // Cleared by an admin resolving the anomaly (or by this same action
+    // once the stamp is gone), so it is not a permanent lockout.
+    if (booking.settleAnomalyAt) {
+      return { status: 'error', error: 'underReview', values: echoValues(formData) };
     }
     // Never prepare a checkout for a hold that's been released (cancelled) or
     // has expired — this is what makes auto-release safe: a freed spot can

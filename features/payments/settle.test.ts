@@ -283,7 +283,13 @@ describe('settleBooking', () => {
     // `anomaly`, not `error`: permanent, so the webhook ACKs instead of
     // retrying a booking that can never settle.
     expect(outcome).toBe('anomaly');
-    expect(ledgerEvents).toHaveLength(0);
+    // A DURABLE record of the unmatched capture: notifyAdmin is a silent
+    // no-op without email, and createCheckout clears the stamp on the
+    // next attempt, so this ledger row is the only trace that survives.
+    expect(ledgerEvents.map((e) => e.type)).toEqual(['settle_failed']);
+    expect(ledgerEvents[0]).toMatchObject({
+      resultCode: expect.stringContaining('ANOMALY:'),
+    });
     expect(sendHostPaymentReceivedEmail).not.toHaveBeenCalled();
     expect(notifyAdmin).toHaveBeenCalledWith(
       'settle_anomaly',

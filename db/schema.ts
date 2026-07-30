@@ -1526,6 +1526,14 @@ export const platformSettings = pgTable('platform_settings', {
    * dashboard flags a stale stamp so a silently dead cron is visible.
    * Null until the first run after this column shipped.
    */
+  /**
+   * Last time the reconcile BLIND-SPOT alert (cron Pass 2c) was sent.
+   * Those rows are permanently stuck by definition, so without a stamp
+   * the alert re-fires every run — the same hourly-forever pathology the
+   * pass above was written to stop (2026-07-28 seventh audit). Same
+   * 30-day cadence as `vatThresholdAlertedAt`.
+   */
+  blindspotAlertedAt: timestamp({ withTimezone: true }),
   lastCronRunAt: timestamp({ withTimezone: true }),
 });
 

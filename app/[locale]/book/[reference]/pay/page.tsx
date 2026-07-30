@@ -177,6 +177,7 @@ export default async function PaymentPage({ params, searchParams }: PageParams) 
     errorAlreadyPaid: t('errorAlreadyPaid'),
     errorExpired: t('errorExpired'),
     errorNotApproved: t('errorNotApproved'),
+    errorUnderReview: t('errorUnderReview'),
     termsLabel,
     termsRequired: t('termsRequired'),
     cancellationNote,

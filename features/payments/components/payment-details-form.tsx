@@ -96,6 +96,7 @@ export interface PaymentDetailsCopy {
   errorExpired: string;
   /** Request-to-book not yet accepted by the host (pay-after-approval). */
   errorNotApproved: string;
+  errorUnderReview: string;
   /**
    * Clickwrap consent line with inline links to the Terms, Privacy, and
    * Cancellation pages — built on the server (next-intl rich text) so the
@@ -361,6 +362,7 @@ export function PaymentDetailsForm({
           alreadyPaid: copy.errorAlreadyPaid,
           expired: copy.errorExpired,
           notApproved: copy.errorNotApproved,
+          underReview: copy.errorUnderReview,
         }[state.error ?? 'server']
       : undefined;
 

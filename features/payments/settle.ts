@@ -1,4 +1,4 @@
-import { and, eq, isNull, ne, or } from 'drizzle-orm';
+import { and, eq, isNull, ne, or, sql } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import { serverEnv, hasHyperpay } from '@/lib/env';
 import { bookings } from '@/db/schema';
@@ -90,7 +90,17 @@ async function recordSettleAnomaly(
       .where(
         and(
           eq(bookings.id, bookingId),
-          or(isNull(bookings.settleAnomalyAt), ne(bookings.settleAnomalyKind, problem)),
+          // `isDistinctFrom`, NOT `ne` (2026-07-28 seventh audit): SQL
+          // three-valued logic makes `NULL <> 'x'` evaluate to NULL, not
+          // true, so a row stamped by an earlier deploy — `settleAnomalyAt`
+          // set while `settleAnomalyKind` was still a fresh NULL column —
+          // matched nothing and had its alert suppressed permanently, for
+          // every anomaly kind. That is the exact failure this dedupe was
+          // built to prevent.
+          or(
+            isNull(bookings.settleAnomalyAt),
+            sql`${bookings.settleAnomalyKind} is distinct from ${problem}`,
+          ),
         ),
       )
       .returning({ id: bookings.id });
@@ -99,16 +109,25 @@ async function recordSettleAnomaly(
     // Couldn't stamp — alert anyway rather than swallow a real capture.
     reportError(error, { surface: 'payment-settle:anomalyStamp', bookingId });
   }
-  // Sentry ALWAYS, every time — `notifyAdmin` is a silent no-op when
-  // email is unconfigured or a send fails, and the stamp is written
-  // before it, so a single failed send used to destroy the only signal
-  // about a real captured-but-unmatched payment (2026-07-28 sixth
-  // audit). The breadcrumb survives independently of email.
-  reportError(new Error(`settle anomaly: ${problem}`), {
-    surface: 'payment-settle:anomaly',
-    bookingId,
-    ...detail,
-  });
+  // A durable DB record of the anomaly, independent of email
+  // (2026-07-28 seventh audit). `notifyAdmin` is a silent no-op when
+  // email is unconfigured, and `createCheckout` clears the stamp on the
+  // next attempt — so without this row the database retained ZERO trace
+  // that a booking ever had an unmatched capture. Every caller already
+  // emits its own Sentry breadcrumb, so this replaces the duplicate
+  // report rather than adding a third signal.
+  try {
+    await recordPaymentEvent({
+      bookingId,
+      type: 'settle_failed',
+      amountSar: null,
+      gatewayId: null,
+      resultCode: `ANOMALY:${problem}`,
+      actorUserId: null,
+    });
+  } catch (error) {
+    reportError(error, { surface: 'payment-settle:anomalyLedger', bookingId });
+  }
   if (firstTime) await notifyAdmin('settle_anomaly', detail);
 }
 

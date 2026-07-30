@@ -388,14 +388,35 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
             ),
           ),
         );
+      // De-duped to once per 30 days (2026-07-28 seventh audit). These
+      // rows are stuck BY DEFINITION — nothing clears them without a
+      // human — so an undeduped alert emails every run, forever. The
+      // round-6 commit claimed `lastCronRunAt` bounded this; it does
+      // not, that column is display-only. Same stamp pattern as the VAT
+      // threshold alert below.
       if (blind && blind.n > 0) {
-        await notifyAdmin('settle_stuck', {
-          problem:
-            'processing rows invisible to the reconcile pass (no deadline, or terminal status)',
-          count: blind.n,
-          references: blind.refs,
-          action: 'check these checkout ids at HyperPay directly — they are never auto-retried',
-        });
+        const [stamp] = await db
+          .select({ alertedAt: platformSettings.blindspotAlertedAt })
+          .from(platformSettings)
+          .where(eq(platformSettings.id, 'platform'));
+        const lastBlindAlert = stamp?.alertedAt?.getTime() ?? 0;
+        const BLINDSPOT_ALERT_INTERVAL_MS = 30 * 24 * 60 * 60 * 1000;
+        if (Date.now() - lastBlindAlert > BLINDSPOT_ALERT_INTERVAL_MS) {
+          await notifyAdmin('settle_stuck', {
+            problem:
+              'processing rows invisible to the reconcile pass (no deadline, or terminal status)',
+            count: blind.n,
+            references: blind.refs,
+            action: 'check these checkout ids at HyperPay directly — they are never auto-retried',
+          });
+          await db
+            .insert(platformSettings)
+            .values({ id: 'platform', blindspotAlertedAt: new Date() })
+            .onConflictDoUpdate({
+              target: platformSettings.id,
+              set: { blindspotAlertedAt: new Date() },
+            });
+        }
       }
     } catch (error) {
       reportError(error, { surface: 'cron-release-holds:settle-aging' });
