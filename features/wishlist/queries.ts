@@ -64,13 +64,34 @@ export async function getWishlistSlugs(): Promise<readonly string[]> {
 }
 
 /**
+ * How many slug lookups may be in flight at once. The pool is 5
+ * connections on Vercel (lib/db.ts) and each lookup is its own
+ * `boundedQuery` — see the wave discipline note in
+ * {@link getWishlistExperiences}.
+ */
+const WISHLIST_RESOLVE_WAVE = 4;
+
+/**
  * Resolve the saved slugs to full ExperienceSummary objects, dropping
  * any that no longer exist (slug renames, archived experiences).
+ *
+ * Resolved in bounded waves, NOT one big `Promise.all` (2026-07-28
+ * fourth audit). A wishlist can hold 100 slugs (the cookie cap) plus
+ * the account rows; fanning all of them at a 5-connection pool means
+ * the ones at the back of the queue burn their entire 8s deadline
+ * waiting for a connection, throw `DeadlineError`, and then
+ * `boundedQuery`'s retry enqueues a SECOND copy of each — deepening
+ * the very queue that caused the timeout. Same wave discipline the
+ * admin dashboard adopted for the same reason.
  */
 export async function getWishlistExperiences(): Promise<readonly ExperienceSummary[]> {
   const slugs = await getWishlistSlugs();
   if (slugs.length === 0) return [];
-  const resolved = await Promise.all(slugs.map((slug) => getExperienceBySlug(slug)));
+  const resolved: Array<Awaited<ReturnType<typeof getExperienceBySlug>>> = [];
+  for (let i = 0; i < slugs.length; i += WISHLIST_RESOLVE_WAVE) {
+    const wave = slugs.slice(i, i + WISHLIST_RESOLVE_WAVE);
+    resolved.push(...(await Promise.all(wave.map((slug) => getExperienceBySlug(slug)))));
+  }
   return resolved.filter((exp): exp is NonNullable<typeof exp> => exp !== undefined);
 }
 

@@ -560,6 +560,21 @@ export const bookings = pgTable(
     paymentReference: text(),
     /** HyperPay COPYandPAY checkout id, set when the checkout is prepared. */
     checkoutId: text(),
+    /**
+     * When the live checkout was SUPERSEDED (promo/credit applied or
+     * released while `processing`), making its prepared amount stale.
+     *
+     * The checkout id is deliberately KEPT (2026-07-28 fourth audit):
+     * nulling it made `settleBooking` bail with `'error'` before its
+     * amount guard, which (a) turned the live OPPWA webhook into an
+     * endless 500-retry loop on a booking that could never settle, and
+     * (b) removed the `settle_anomaly` alert that pages a human when a
+     * real capture lands on a stale widget — trading a noisy failure
+     * for a silent one. This marker gives the reconcile passes the
+     * "don't keep polling me" signal they needed WITHOUT blinding
+     * settlement to a late capture.
+     */
+    checkoutSupersededAt: timestamp({ withTimezone: true }),
     /** Card scheme returned by HyperPay (e.g. `MADA`, `VISA`, `MASTER`). */
     paymentBrand: text(),
     /** When payment was confirmed paid. Null until settled. */

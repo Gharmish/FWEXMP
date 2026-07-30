@@ -5,6 +5,17 @@ import { getAllSlugs } from '@/features/experiences/queries';
 import { getAllHostSlugs } from '@/features/hosts/queries';
 
 /**
+ * Revalidate hourly instead of baking at build time (2026-07-28 fourth
+ * audit). With no `revalidate`, Next prerenders this once per deploy:
+ * experiences published afterwards were missing until the next deploy,
+ * and paused/archived ones kept being advertised to crawlers (soft-404
+ * signals). Worse, `getAllSlugs()` deliberately swallows DB errors into
+ * `[]` to protect the build — so one transient pooler refusal during
+ * `next build` could bake a permanently experience-less sitemap.
+ */
+export const revalidate = 3600;
+
+/**
  * Sitemap for both locales with hreflang alternates. Internal /dev is
  * intentionally excluded. Experience and host URLs are sourced through
  * the same data accessors that hit Drizzle when DATABASE_URL is set.

@@ -96,9 +96,12 @@ export async function releaseWalletReservationTx(
     .set({
       totalAmount: booking.totalAmount + amountSar,
       walletAppliedSar: 0,
-      // Clear the dead pointer with the flip (2026-07-28 third audit):
-      // the widget was prepared at the pre-release total.
-      ...(checkoutSuperseded ? { paymentStatus: 'unpaid' as const, checkoutId: null } : {}),
+      // Mark the checkout superseded but KEEP its id (2026-07-28 fourth
+      // audit) — settlement must still be able to resolve a late capture
+      // on the stale widget and auto-refund it.
+      ...(checkoutSuperseded
+        ? { paymentStatus: 'unpaid' as const, checkoutSupersededAt: new Date() }
+        : {}),
     })
     .where(eq(bookings.id, bookingId));
 

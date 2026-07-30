@@ -17,7 +17,15 @@ import type { PaymentChannel, PaymentOutcome } from '@/features/payments/types';
  * for display but must NOT re-fire success side effects (receipt /
  * host email), so a replayed return URL can't spam anyone.
  */
-export type SettleOutcome = PaymentOutcome | 'already_settled' | 'error';
+/**
+ * `anomaly` is a PERMANENT refusal: the capture is real but can never
+ * settle this booking (amount/currency mismatch, or the amounts moved
+ * mid-settle). A human has been alerted; retrying changes nothing, so
+ * callers that drive a retry loop — the OPPWA webhook, the cron
+ * reconcile — must acknowledge rather than re-fire (2026-07-28 fourth
+ * audit). `error` stays TRANSIENT and remains worth retrying.
+ */
+export type SettleOutcome = PaymentOutcome | 'already_settled' | 'error' | 'anomaly';
 
 /** Lifecycle states where a captured charge has no booking to pay for. */
 const DEAD_STATUSES = ['cancelled', 'refunded', 'declined', 'expired'] as const;
@@ -106,7 +114,7 @@ export async function settleBooking(reference: string): Promise<SettleOutcome> {
           expectedSar: booking.totalAmount,
           reported: status.amount ?? null,
         });
-        return 'error';
+        return 'anomaly';
       }
       // A missing currency is as suspicious as a wrong one (2026-07-20
       // audit — the old `status.currency &&` guard silently accepted a
@@ -122,7 +130,7 @@ export async function settleBooking(reference: string): Promise<SettleOutcome> {
           reference,
           reported: status.currency ?? 'missing',
         });
-        return 'error';
+        return 'anomaly';
       }
 
       // VAT tax point: stamp the platform's rate + registration number on
@@ -202,7 +210,7 @@ export async function settleBooking(reference: string): Promise<SettleOutcome> {
           reference,
           capturedSar: booking.totalAmount,
         });
-        return 'error';
+        return 'anomaly';
       }
 
       try {

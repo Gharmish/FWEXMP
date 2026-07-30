@@ -271,6 +271,12 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       where: and(
         eq(bookings.paymentStatus, 'processing'),
         isNotNull(bookings.checkoutId),
+        // A superseded checkout can never settle at its prepared
+        // amount, so re-polling it just burns the bounded budget and
+        // re-alerts hourly. The id is KEPT so a late capture is still
+        // resolvable by settle/webhook (2026-07-28 fourth audit) —
+        // this marker is what stops the cron from chasing it.
+        isNull(bookings.checkoutSupersededAt),
         isNotNull(bookings.paymentDeadline),
         lte(bookings.paymentDeadline, new Date()),
         notInArray(bookings.status, ['completed', 'refunded']),

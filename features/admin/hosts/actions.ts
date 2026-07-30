@@ -2,6 +2,7 @@
 
 import { and, eq } from 'drizzle-orm';
 import { revalidatePath } from 'next/cache';
+import { revalidateExperienceCaches } from '@/lib/cache-tags';
 import { db } from '@/lib/db';
 import { serverEnv } from '@/lib/env';
 import { experiences, hosts, hostStatusEvents } from '@/db/schema';
@@ -101,6 +102,14 @@ export async function suspendHost(
     return { success: false, message: 'server' };
   }
 
+  // Suspension bulk-demotes the host's live listings, so the TAGGED
+  // catalog caches must be expired too (2026-07-28 fourth audit).
+  // `revalidatePath` only clears route caches; `live-experience-summaries`
+  // and `experience-detail` are keyed by tag, so without this a suspended
+  // host's listings kept serving from cache for up to 60s — on the
+  // emergency-takedown path. Every other status-changing action in the
+  // codebase already calls this.
+  revalidateExperienceCaches();
   revalidatePath('/[locale]/admin/hosts', 'page');
   // Use the dynamic-segment template so Next matches the cached entry.
   revalidatePath('/[locale]/admin/hosts/[id]', 'page');

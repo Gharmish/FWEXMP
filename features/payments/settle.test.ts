@@ -271,7 +271,9 @@ describe('settleBooking', () => {
 
     const outcome = await settleBooking('ref-1');
 
-    expect(outcome).toBe('error');
+    // `anomaly`, not `error`: permanent, so the webhook ACKs instead of
+    // retrying a booking that can never settle.
+    expect(outcome).toBe('anomaly');
     expect(ledgerEvents).toHaveLength(0);
     expect(sendHostPaymentReceivedEmail).not.toHaveBeenCalled();
     expect(notifyAdmin).toHaveBeenCalledWith(
@@ -287,7 +289,7 @@ describe('settleBooking', () => {
 
     const outcome = await settleBooking('ref-1');
 
-    expect(outcome).toBe('error');
+    expect(outcome).toBe('anomaly');
     expect(setCalls).toHaveLength(0);
     expect(notifyAdmin).toHaveBeenCalledWith(
       'settle_anomaly',
@@ -310,7 +312,7 @@ describe('settleBooking', () => {
 
     const outcome = await settleBooking('ref-1');
 
-    expect(outcome).toBe('error');
+    expect(outcome).toBe('anomaly');
     expect(setCalls).toHaveLength(0);
     expect(notifyAdmin).toHaveBeenCalledWith(
       'settle_anomaly',
@@ -323,7 +325,7 @@ describe('settleBooking', () => {
 
     const outcome = await settleBooking('ref-1');
 
-    expect(outcome).toBe('error');
+    expect(outcome).toBe('anomaly');
     expect(setCalls).toHaveLength(0);
     expect(notifyAdmin).toHaveBeenCalledWith(
       'settle_anomaly',

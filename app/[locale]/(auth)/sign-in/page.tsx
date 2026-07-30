@@ -3,7 +3,7 @@ import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { redirect } from '@/lib/i18n';
 import type { Locale } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
-import { hasSupabaseAuth } from '@/lib/env';
+import { stubAuthAllowed } from '@/lib/env';
 import { getCurrentUser } from '@/features/auth/queries';
 import { sanitizeNextPath } from '@/features/auth/lib/next-path';
 import { SignInForm } from '@/app/[locale]/(auth)/sign-in/sign-in-form';
@@ -72,7 +72,7 @@ export default async function SignInPage({
         // show the dev hint ("any 6-digit code works"). The flag lives
         // on the server (env-derived) and gets threaded through here
         // rather than re-read on the client.
-        isStubMode={!hasSupabaseAuth()}
+        isStubMode={stubAuthAllowed()}
         copy={{
           methodPhone: t('methodPhone'),
           methodEmail: t('methodEmail'),

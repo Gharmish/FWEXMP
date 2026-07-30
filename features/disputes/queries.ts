@@ -1,4 +1,4 @@
-import { desc, eq } from 'drizzle-orm';
+import { desc, eq, sql } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import { serverEnv } from '@/lib/env';
 import { bookings, disputes, experiences, guests } from '@/db/schema';
@@ -69,7 +69,12 @@ export async function listDisputesForAdmin(): Promise<readonly AdminDisputeRow[]
         experienceTitleAr: experiences.titleAr,
         experienceSlug: experiences.slug,
         guestName: guests.name,
-        guestPhone: guests.phone,
+        // The booking's contact snapshot first (2026-07-28 fourth audit):
+        // an email-OTP account's `guests.phone` is null by design, so
+        // reading only that dropped the call link from the disputes
+        // queue — leaving the operator working a live money dispute with
+        // no way to phone the guest.
+        guestPhone: sql<string | null>`coalesce(${bookings.contactPhone}, ${guests.phone})`,
         guestId: guests.id,
         guestAuthUserId: guests.authUserId,
         bookingStatus: bookings.status,

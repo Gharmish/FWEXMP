@@ -294,6 +294,17 @@ export async function submitHostApplication(
     });
     hadExistingApplication = Boolean(existing);
 
+    // Refuse an approved re-submission HERE, before the KYC upload
+    // loop below (2026-07-28 fourth audit). Refusing inside the
+    // transaction still let the files land in the private bucket
+    // first, and the early return skipped the replaced-object
+    // cleanup — so an approved host could push unbounded uploads
+    // that nothing would ever reclaim. An approved application is a
+    // compliance record; changing verified details is admin-mediated.
+    if (existing?.status === 'approved') {
+      return { success: false, message: 'already_approved', values: currentValues(formData) };
+    }
+
     // A just-rejected applicant waits out the cooldown before refiling.
     // `reviewedAt` is nulled on every resubmission, so the clock only
     // runs from an actual admin decision.
@@ -351,7 +362,7 @@ export async function submitHostApplication(
       }
     }
 
-    const outcome = await db.transaction(async (tx) => {
+    await db.transaction(async (tx) => {
       const applicationValues = {
         contactPhone: user.phone,
         contactEmail: input.contactEmail ?? null,
@@ -375,20 +386,6 @@ export async function submitHostApplication(
         city: input.city,
         region: input.region,
       };
-
-      // An APPROVED application is a compliance record, not a form.
-      // The apply page hides the form once approved, but the action had
-      // no matching gate: a direct POST overwrote the verified identity
-      // number, legal name, and IBAN, nulled `reviewerNotes`/
-      // `reviewedAt` (erasing when and on what basis approval was
-      // given), reset the documents to `pending`, and deleted the
-      // previously-verified files from the private bucket — with no
-      // event row, since `logsEvent` is false for approved rows
-      // (2026-07-28 third audit). Refuse outright; changing verified
-      // details is an admin-mediated flow.
-      if (existing?.status === 'approved') {
-        return { ok: false as const, message: 'already_approved' as const };
-      }
 
       let applicationId: string;
       const logsEvent = true;
@@ -456,12 +453,6 @@ export async function submitHostApplication(
     });
 
     // Best-effort cleanup of replaced storage objects — the DB rows no
-    // An approved application refused the write and moved nothing —
-    // stop before the document cleanup below deletes verified files.
-    if (outcome && !outcome.ok) {
-      return { success: false, message: outcome.message, values: currentValues(formData) };
-    }
-
     // longer reference them. A failure here never fails the submit.
     if (documentsEnabled && staged.length > 0) {
       const replacedKeys = staged

@@ -263,10 +263,14 @@ export async function applyPromo(
           discountSar,
           promoCodeId: promo.id,
           promoCode: promo.code,
-          // Clear the dead pointer with the flip: the widget was prepared
-          // at the old total and can never settle this booking now, so
-          // leaving it made the cron poll it forever (2026-07-28 third audit).
-          ...(superseding ? { paymentStatus: 'unpaid' as const, checkoutId: null } : {}),
+          // KEEP the checkout id and mark it superseded instead
+          // (2026-07-28 fourth audit): nulling it made settleBooking
+          // bail before its amount guard, so a late capture on the
+          // stale widget settled nowhere, alerted nobody, and made
+          // the OPPWA webhook retry forever.
+          ...(superseding
+            ? { paymentStatus: 'unpaid' as const, checkoutSupersededAt: new Date() }
+            : {}),
         })
         .where(eq(bookings.id, booking.id));
 
@@ -375,10 +379,14 @@ export async function removePromo(
           discountSar: 0,
           promoCodeId: null,
           promoCode: null,
-          // Clear the dead pointer with the flip: the widget was prepared
-          // at the old total and can never settle this booking now, so
-          // leaving it made the cron poll it forever (2026-07-28 third audit).
-          ...(superseding ? { paymentStatus: 'unpaid' as const, checkoutId: null } : {}),
+          // KEEP the checkout id and mark it superseded instead
+          // (2026-07-28 fourth audit): nulling it made settleBooking
+          // bail before its amount guard, so a late capture on the
+          // stale widget settled nowhere, alerted nobody, and made
+          // the OPPWA webhook retry forever.
+          ...(superseding
+            ? { paymentStatus: 'unpaid' as const, checkoutSupersededAt: new Date() }
+            : {}),
         })
         .where(eq(bookings.id, booking.id));
       return {

@@ -3,6 +3,7 @@ import { getExperiences } from '@/features/experiences/queries';
 import { getAllHosts } from '@/features/hosts/queries';
 import { CATEGORIES } from '@/features/experiences/lib/sample-data';
 import { durationHours, formatSAR } from '@/lib/format';
+import { reportError } from '@/lib/log';
 
 /**
  * /llms.txt — AI-readable site map (BRIEF §6), llmstxt.org style.
@@ -17,7 +18,17 @@ import { durationHours, formatSAR } from '@/lib/format';
  * sync — no separate manifest to keep current.
  */
 export async function GET(): Promise<Response> {
-  const [experiences, hosts] = await Promise.all([getExperiences(), getAllHosts()]);
+  // Degrade like every sibling public surface (2026-07-28 fourth audit):
+  // `getAllHosts` catches its own errors but `getExperiences` doesn't, so
+  // a pooler blip 500'd this public AI manifest while the home page and
+  // catalog stayed up. An empty section beats an error page.
+  const [experiences, hosts] = await Promise.all([
+    getExperiences().catch((error: unknown) => {
+      reportError(error, { surface: 'llms.txt:experiences' });
+      return [] as Awaited<ReturnType<typeof getExperiences>>;
+    }),
+    getAllHosts(),
+  ]);
 
   const categoryLabel = (key: string): string =>
     CATEGORIES.find((c) => c.key === key)?.labelEn ?? key;

@@ -72,6 +72,14 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         await sendBookingReceiptEmail(reference, booking.guestPreferredLanguage).catch(() => {});
       }
     }
+    // `anomaly` is permanent (amount/currency mismatch on a real
+    // capture): a human is already alerted and no retry can settle it,
+    // so ACK it — 500-ing here made OPPWA retry that booking forever
+    // (2026-07-28 fourth audit). `error` is transient; 500 so OPPWA
+    // redelivers.
+    if (outcome === 'anomaly') {
+      return NextResponse.json({ received: true, outcome });
+    }
     if (outcome === 'error') {
       return NextResponse.json({ error: 'settle_failed' }, { status: 500 });
     }
