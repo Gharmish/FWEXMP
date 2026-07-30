@@ -19,6 +19,7 @@ import { isSuccessfulResult, refundPayment } from '@/features/payments/lib/hyper
 import {
   latestPaymentEvent,
   recordPaymentEvent,
+  refundInFlight,
   resolvePaymentChannel,
 } from '@/features/payments/ledger';
 import { splitRefund } from '@/features/bookings/lib/refund-split';
@@ -147,6 +148,19 @@ export async function refundBooking(
       : splitRefund(paidBaseSar, booking.totalAmount, booking.walletAppliedSar);
     const owedSar = split.cardRefundSar;
 
+    // Never step into another flow's live gateway round-trip
+    // (2026-07-28 re-audit). `executeRefund` claims `refundDueSar`
+    // BEFORE calling HyperPay, and a claimed amount is indistinguishable
+    // on the booking row from a queue entry left by an already-failed
+    // refund — so the row alone can't arbitrate here. The ledger can:
+    // `refund_attempted` with no terminal event after it means a
+    // reversal is in flight, and firing a second one would send the
+    // money back twice. A read failure throws to the outer catch →
+    // `server`, refusing rather than guessing.
+    if (await refundInFlight(booking.id)) {
+      return { success: false, message: 'wrong_state' };
+    }
+
     // CLAIM FIRST, move money second. The conditional UPDATE is the
     // per-booking arbiter: two admins (or two tabs) racing on the same
     // queue entry both used to pass the eligibility read and both fire
@@ -168,15 +182,31 @@ export async function refundBooking(
         // Journal what actually goes back: the card leg attempted below
         // plus any wallet leg credited below, ON TOP of anything an
         // earlier partial path already stamped.
-        refundedAmountSar: sql`coalesce(${bookings.refundedAmountSar}, 0) + ${owedSar + split.creditRefundSar}`,
+        // Accumulate, hard-capped at the paid base — same rule as
+        // `executeRefund`'s journalRefund (2026-07-28 re-audit). The cap
+        // is what stops the refund-out flow (credit already journaled,
+        // then converted to card money) from being counted twice when
+        // this action settles its queue entry.
+        refundedAmountSar: sql`least(coalesce(${bookings.refundedAmountSar}, 0) + ${owedSar + split.creditRefundSar}, ${bookings.totalAmount} + ${bookings.walletAppliedSar})`,
         // A refund hands back money the guest forfeited — a late
         // cancellation later refunded as goodwill must not keep counting
-        // as retained cancellation revenue on the dashboard.
-        forfeitedSar: null,
+        // as retained cancellation revenue. ONLY on a fresh full-base
+        // refund (2026-07-28 re-audit): the `queued` arm settles the
+        // card leg of an earlier, possibly PARTIAL refund, whose
+        // `forfeitedSar` is the legitimately retained share and must
+        // survive.
+        ...(queued ? {} : { forfeitedSar: null }),
       })
       .where(
         and(
           eq(bookings.id, bookingId),
+          // The claim state must be exactly what the eligibility read
+          // saw. Without this, `executeRefund` claiming `refundDueSar`
+          // between our read and this write would go unnoticed and we'd
+          // reverse the same money a second time.
+          booking.refundDueSar === null
+            ? isNull(bookings.refundDueSar)
+            : eq(bookings.refundDueSar, booking.refundDueSar),
           or(
             and(
               inArray(bookings.status, ['confirmed', 'completed']),

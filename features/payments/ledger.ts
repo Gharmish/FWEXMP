@@ -1,6 +1,6 @@
 import 'server-only';
 
-import { and, desc, eq } from 'drizzle-orm';
+import { and, desc, eq, inArray } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import { paymentEvents, type NewPaymentEvent, type PaymentEvent } from '@/db/schema';
 import type { PaymentChannel } from '@/features/payments/types';
@@ -23,6 +23,36 @@ export type PaymentEventInput = Pick<
 
 export async function recordPaymentEvent(input: PaymentEventInput): Promise<void> {
   await db.insert(paymentEvents).values(input);
+}
+
+/** The refund lifecycle, newest-wins: attempted → succeeded | failed. */
+const REFUND_EVENT_TYPES = ['refund_attempted', 'refund_succeeded', 'refund_failed'] as const;
+
+/**
+ * Is a gateway refund for this booking in flight right now?
+ *
+ * `refund_attempted` is written immediately BEFORE the gateway call and
+ * a terminal event immediately after, so "the newest refund event is
+ * `refund_attempted`" means some other flow is inside its HyperPay
+ * round-trip. The booking row alone can't show this: a claimed
+ * `refundDueSar` looks identical to a queue entry left behind by an
+ * already-failed refund (2026-07-28 re-audit — the admin action could
+ * win its own claim mid-flight and fire a second real reversal).
+ *
+ * Fails CLOSED (returns true) is NOT the behaviour here: a read error
+ * propagates to the caller's catch, which refuses the action — the
+ * caller must not move money on an unknown ledger state.
+ */
+export async function refundInFlight(bookingId: string): Promise<boolean> {
+  const latest = await db.query.paymentEvents.findFirst({
+    where: and(
+      eq(paymentEvents.bookingId, bookingId),
+      inArray(paymentEvents.type, [...REFUND_EVENT_TYPES]),
+    ),
+    orderBy: desc(paymentEvents.createdAt),
+    columns: { type: true },
+  });
+  return latest?.type === 'refund_attempted';
 }
 
 /** Newest event of a given type for a booking, if any. */

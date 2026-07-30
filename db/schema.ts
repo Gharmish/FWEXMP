@@ -724,7 +724,10 @@ export const bookings = pgTable(
      * The payout batch this booking was settled in. Null = not yet paid
      * out. The FK (SET NULL) exists in the live DB — declared here too
      * (2026-07-28 audit) so a future `db:generate` diff can never
-     * propose dropping it.
+     * propose dropping it. The live constraint was renamed to drizzle's
+     * own convention (`bookings_payout_id_payouts_id_fk`) in the
+     * re-audit, since drizzle-kit keys FKs by NAME: under the old
+     * hand-made `_fkey` name a diff would still have churned it.
      */
     payoutId: uuid().references(() => payouts.id, { onDelete: 'set null' }),
     /**

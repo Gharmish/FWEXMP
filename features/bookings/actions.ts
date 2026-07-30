@@ -489,16 +489,25 @@ export async function requestBooking(
           suspendedAt: guests.suspendedAt,
         });
     } else {
-      // Backfill contact fields only — never identity fields. Email is
-      // set-if-empty. Phone is set-if-empty (an email-OTP account's row
-      // has none, and hosts read `guests.phone` to reach the guest), but
-      // the form phone is unverified, so it attaches only to the
-      // account's OWN row and yields silently if another row already
-      // holds the number (unique) — it can never displace or reveal
-      // anyone else's identity, and a later verified sign-in by the
-      // number's real owner reclaims it (guest-identity heal path).
+      // Backfill contact fields only — never identity fields, and NEVER
+      // a phone onto an account-linked row.
+      //
+      // 2026-07-28 re-audit: stamping the form phone on a row with an
+      // `authUserId` reopened the takeover from the other side. An
+      // email-OTP attacker whose row has no phone could write a
+      // victim's number onto their OWN account row; the anonymous
+      // branch above then matches that row by phone, so every later
+      // anonymous booking the victim makes lands in the ATTACKER's
+      // account (their /me, their cancel rights, their wallet on
+      // refund, their inbox for the emails). A phone only ever reaches
+      // an account row through a verified OTP sign-in
+      // (guest-identity.ts); an unverified form value never does.
+      //
+      // Anonymous rows (authUserId null) still take the phone: the row
+      // was created by this same form, hosts read `guests.phone` to
+      // reach the guest, and there is no account to hijack.
       const patch: Partial<{ phone: string; email: string }> = {};
-      if (!guest.phone) patch.phone = input.phone;
+      if (!guest.phone && !guest.authUserId) patch.phone = input.phone;
       if (input.email && !guest.email) patch.email = input.email;
       if (Object.keys(patch).length > 0) {
         try {

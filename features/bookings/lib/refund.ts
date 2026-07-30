@@ -1,6 +1,6 @@
 import 'server-only';
 
-import { and, eq, isNull, sql } from 'drizzle-orm';
+import { and, eq, isNull, sql, type SQL } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import { hasHyperpay } from '@/lib/env';
 import { bookings } from '@/db/schema';
@@ -54,6 +54,30 @@ export type RefundRails = 'auto' | 'card_only';
  * (`refund:<bookingId>`, inside `creditWalletRefund`) — a replay lands
  * on the unique index, never a second credit.
  */
+/**
+ * Journal an amount onto `bookings.refunded_amount_sar`: ACCUMULATE onto
+ * whatever a previous leg already recorded, hard-capped at the paid base
+ * (2026-07-28 re-audit).
+ *
+ * Two reasons for both halves. Accumulate: this column is the ceiling in
+ * `executeRefund`'s claim guard (`base − refunded >= amount`), and it was
+ * being OVERWRITTEN here while the admin action accumulated — so a
+ * 50-then-100 sequence left it reading 100, convincing the guard that 50
+ * was still refundable. Cap: the refund-out flow converts already-
+ * journaled credit into card money, and the admin action settling that
+ * queue entry would otherwise add it a second time, claiming more went
+ * back than was ever paid — the column the ZATCA credit note renders
+ * from (db/schema.ts).
+ */
+function journalRefund(amountSar: number): SQL<number> {
+  return sql`least(coalesce(${bookings.refundedAmountSar}, 0) + ${amountSar}, ${bookings.totalAmount} + ${bookings.walletAppliedSar})`;
+}
+
+/** Did this refund return the guest's ENTIRE paid base? */
+function isFullRefund(amountSar: number, paidBaseSar: number | null): boolean {
+  return paidBaseSar !== null && amountSar >= paidBaseSar;
+}
+
 export async function executeRefund(
   bookingId: string,
   paymentReference: string | null,
@@ -64,6 +88,9 @@ export async function executeRefund(
   let cardShareSar = amountSar;
   let creditShareSar = 0;
   let creditGuestId: string | null = null;
+  // Full paid base, when known — decides whether this refund empties the
+  // booking (and so whether the retained-forfeit journal should clear).
+  let paidBaseSar: number | null = null;
 
   if (rails === 'auto') {
     try {
@@ -71,6 +98,7 @@ export async function executeRefund(
         where: eq(bookings.id, bookingId),
         columns: { guestId: true, totalAmount: true, walletAppliedSar: true },
       });
+      if (booking) paidBaseSar = booking.totalAmount + booking.walletAppliedSar;
       if (booking && booking.walletAppliedSar > 0) {
         // Paid bookings never release their redemption, so a non-zero
         // `walletAppliedSar` here means the credit was genuinely spent
@@ -153,11 +181,13 @@ export async function executeRefund(
         refundedAt: new Date(),
         refundDueSar: null,
         refundMethod: 'wallet',
-        refundedAmountSar: amountSar,
-        // Money going back cancels any retained-forfeit journal — a
-        // forfeited late cancellation later refunded must not keep
-        // counting as retained revenue on the dashboard.
-        forfeitedSar: null,
+        refundedAmountSar: journalRefund(amountSar),
+        // Money going back cancels the retained-forfeit journal — but
+        // only when ALL of it goes back (2026-07-28 re-audit): a
+        // PARTIAL-policy cancellation legitimately retains a share, and
+        // nulling it here made every partial report zero retained
+        // revenue on the dashboard.
+        ...(isFullRefund(amountSar, paidBaseSar) ? { forfeitedSar: null } : {}),
       })
       .where(eq(bookings.id, bookingId));
     await recordClawbackIfPaidOut(bookingId, 'refund (wallet) after host payout');
@@ -205,7 +235,12 @@ export async function executeRefund(
             refundMethod: 'gateway',
             // `card_only` (refund-out) converts an ALREADY-stamped wallet
             // refund into card money — restamping would double-count it.
-            ...(rails === 'auto' ? { refundedAmountSar: amountSar, forfeitedSar: null } : {}),
+            ...(rails === 'auto'
+              ? {
+                  refundedAmountSar: journalRefund(amountSar),
+                  ...(isFullRefund(amountSar, paidBaseSar) ? { forfeitedSar: null } : {}),
+                }
+              : {}),
           })
           .where(eq(bookings.id, bookingId));
         if (rails === 'auto') {

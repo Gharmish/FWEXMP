@@ -10,6 +10,7 @@ import { serverEnv } from '@/lib/env';
 import { experiences, moments } from '@/db/schema';
 import { reportError } from '@/lib/log';
 import { getCurrentUser } from '@/features/auth/queries';
+import { getCurrentHostIdForWrite } from '@/features/host-experiences/queries';
 import type { MomentActionState } from '@/features/admin/experiences/moment-actions';
 
 /**
@@ -58,16 +59,17 @@ async function requireEditableExperience(
   if (!user) return { error: { success: false, message: 'forbidden' } };
   if (!serverEnv.DATABASE_URL) return { error: { success: false, message: 'no_db' } };
   try {
-    const host = await db.query.hosts.findFirst({
-      where: (h) => eq(h.userId, user.id),
-      columns: { id: true },
-    });
-    if (!host) return { error: { success: false, message: 'forbidden' } };
+    // Status-aware resolver (2026-07-28 audit): timeline edits apply
+    // immediately to live listings, so a SUSPENDED host must not reach
+    // them — the status-blind lookup here was the one write path that
+    // still let them rewrite public content after suspension.
+    const hostId = await getCurrentHostIdForWrite();
+    if (!hostId) return { error: { success: false, message: 'forbidden' } };
     const experience = await db.query.experiences.findFirst({
       where: (e) => eq(e.id, experienceId),
       columns: { id: true, hostId: true, status: true },
     });
-    if (!experience || experience.hostId !== host.id) {
+    if (!experience || experience.hostId !== hostId) {
       return { error: { success: false, message: 'not_found' } };
     }
     // Owner decision 2026-07-03 ("photos free, details re-review"):

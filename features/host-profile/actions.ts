@@ -28,14 +28,20 @@ function formValue(formData: FormData, key: string): string {
  * Resolve the caller's own host row — always via `hosts.userId` from the
  * session, never a hostId/slug from the form (one host must not be able
  * to edit another's public face).
+ *
+ * Returns null for a SUSPENDED host (2026-07-28 audit): name, bio, and
+ * photo render on public surfaces, so suspension has to freeze them the
+ * same way it freezes listings and bookings.
  */
 async function getOwnHost() {
   const user = await getCurrentUser();
   if (!user) return null;
-  return db.query.hosts.findFirst({
+  const host = await db.query.hosts.findFirst({
     where: (h) => eq(h.userId, user.id),
-    columns: { id: true, slug: true, photoUrl: true },
+    columns: { id: true, slug: true, photoUrl: true, verificationStatus: true },
   });
+  if (!host || host.verificationStatus === 'suspended') return null;
+  return host;
 }
 
 /** Everywhere the host's name/bio/photo shows: dashboard shell + public surfaces. */

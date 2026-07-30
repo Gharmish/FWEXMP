@@ -105,10 +105,19 @@ export async function getKnownGuestDetails(): Promise<KnownGuestDetails> {
         // Minimal selection: an empty `columns` object would select every
         // bookings column, and we only need the guest relation.
         columns: { id: true },
-        with: { guest: { columns: { name: true, phone: true, email: true } } },
+        with: {
+          guest: { columns: { name: true, phone: true, email: true, authUserId: true } },
+        },
       }),
     );
     if (!row) return {};
+    // An ACCOUNT-owned row is never prefilled from a cookie (2026-07-28
+    // re-audit). `guests.phone` is unique, so booking anonymously with a
+    // registered guest's number attaches that booking to their row —
+    // and this cookie path would then hand their name and email to
+    // whoever made it. A signed-out visitor gets nothing back for an
+    // account's row; the signed-in branch above is the only way to it.
+    if (row.guest.authUserId) return {};
     return clean({ name: row.guest.name, phone: row.guest.phone, email: row.guest.email });
   } catch (error) {
     // Prefill is a convenience on a high-traffic browse page — a DB hiccup

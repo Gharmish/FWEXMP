@@ -50,6 +50,38 @@ let updateReturns: Array<{ id: string }> = [{ id: 'b-1' }];
  */
 let recheck: { paymentStatus: string } | undefined;
 let findFirstCalls = 0;
+/**
+ * Column names referenced by each conditional UPDATE's WHERE, in order.
+ * The settle race fix lives ENTIRELY in that predicate, so a mock that
+ * discarded it would stay green if the re-assertions were deleted.
+ */
+const whereColumns: string[][] = [];
+
+/**
+ * Walk a drizzle SQL/Column tree and collect every column name in it.
+ * `seen` is required: drizzle columns hold a back-reference to their
+ * table (whose columns point back), so an unguarded walk never returns.
+ */
+function columnNamesIn(
+  node: unknown,
+  found: string[] = [],
+  seen = new WeakSet<object>(),
+): string[] {
+  if (!node || typeof node !== 'object') return found;
+  if (seen.has(node)) return found;
+  seen.add(node);
+  const candidate = node as { name?: unknown; columnType?: unknown };
+  // A drizzle Column carries both a string `name` and a `columnType`.
+  if (typeof candidate.name === 'string' && typeof candidate.columnType === 'string') {
+    found.push(candidate.name);
+    return found; // don't descend into the column's table back-reference
+  }
+  for (const value of Object.values(node as Record<string, unknown>)) {
+    if (Array.isArray(value)) value.forEach((v) => columnNamesIn(v, found, seen));
+    else if (value && typeof value === 'object') columnNamesIn(value, found, seen);
+  }
+  return found;
+}
 vi.mock('@/lib/db', () => ({
   db: {
     query: {
@@ -63,7 +95,12 @@ vi.mock('@/lib/db', () => ({
     update: () => ({
       set: (values: Record<string, unknown>) => {
         setCalls.push(values);
-        return { where: () => ({ returning: async () => updateReturns }) };
+        return {
+          where: (condition: unknown) => {
+            whereColumns.push(columnNamesIn(condition));
+            return { returning: async () => updateReturns };
+          },
+        };
       },
     }),
   },
@@ -117,6 +154,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   setCalls.length = 0;
   ledgerEvents.length = 0;
+  whereColumns.length = 0;
   updateReturns = [{ id: 'b-1' }];
   recheck = undefined;
   findFirstCalls = 0;
@@ -210,6 +248,18 @@ describe('settleBooking', () => {
     expect(ledgerEvents).toHaveLength(0);
     expect(executeRefund).not.toHaveBeenCalled();
     expect(sendHostPaymentReceivedEmail).not.toHaveBeenCalled();
+  });
+
+  it('guards the settle UPDATE on the amounts it verified, not just paid-ness', async () => {
+    // The whole two-tab race fix is this predicate: without the amount
+    // re-assertions a capture could settle a booking whose total moved
+    // (applied credit / promo) while the gateway fetch was in flight.
+    await settleBooking('ref-1');
+
+    expect(whereColumns).toHaveLength(1);
+    expect(whereColumns[0]).toEqual(
+      expect.arrayContaining(['id', 'paymentStatus', 'totalAmount', 'walletAppliedSar']),
+    );
   });
 
   it('treats a mid-settle amount change as an anomaly, not a settle', async () => {

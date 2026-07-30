@@ -46,9 +46,15 @@ export async function updatePayoutIban(
     const outcome = await db.transaction(async (tx) => {
       const host = await tx.query.hosts.findFirst({
         where: (h) => eq(h.userId, user.id),
-        columns: { id: true, payoutIban: true },
+        columns: { id: true, payoutIban: true, verificationStatus: true },
       });
       if (!host) return 'forbidden' as const;
+      // A SUSPENDED host must not repoint the destination of their
+      // payouts (2026-07-28 audit): suspension is exactly the state we
+      // enter on suspected fraud or account takeover, and the payout
+      // IBAN is what that fraud would target. Admin can still correct
+      // it from the admin surface.
+      if (host.verificationStatus === 'suspended') return 'forbidden' as const;
       // Stored encrypted at rest (lib/pii-crypto.ts; pass-through until
       // the key is configured). Compare/mask on the decrypted value.
       const previousIban = decryptPii(host.payoutIban);
