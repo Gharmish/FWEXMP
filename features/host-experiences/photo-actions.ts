@@ -234,6 +234,18 @@ export async function removeGalleryImageAsHost(
     if ('error' in guard) return guard.error;
     const { experience, hostId } = guard;
 
+    // The guard proves the caller owns THIS EXPERIENCE — it proves
+    // nothing about `url`, which is a raw form value. The storage client
+    // below is service-role (storage RLS is bypassed by design), and
+    // `objectKeyFromPublicUrl` constrains only the bucket, not the path,
+    // so an unchecked url let any host delete any other host's photos —
+    // hero images, gallery objects, profile pictures — leaving the
+    // victim's listing pointing at a dead object (2026-07-28 third
+    // audit). The bucket is public, so targets are trivially
+    // enumerable. Membership in this experience's own images IS the
+    // authorization for the delete.
+    if (!experience.images.includes(url)) return { success: false, message: 'not_found' };
+
     const next = experience.images.filter((u) => u !== url);
     await db
       .update(experiences)

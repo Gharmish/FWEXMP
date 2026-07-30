@@ -161,6 +161,8 @@ export async function resolveDispute(
 
   let refund: { bookingId: string; paymentReference: string | null; amountSar: number } | null =
     null;
+  /** What the executor actually managed — drives the guest's copy. */
+  let refundOutcome: 'refunded' | 'refund_pending' | undefined;
   try {
     // Refund eligibility is checked BEFORE resolving so the admin never
     // closes a report believing money moved when it couldn't.
@@ -218,8 +220,16 @@ export async function resolveDispute(
     // Money moves only AFTER winning the open→resolved flip, so a raced
     // second resolve can never double-refund. executeRefund never
     // throws: gateway-first, manual refund_due queue as the fallback.
+    // Its verdict decides what we tell the guest — discarding it meant
+    // claiming the money was on its way to their card even when the
+    // gateway had refused (2026-07-28 third audit).
     if (refund) {
-      await executeRefund(refund.bookingId, refund.paymentReference, refund.amountSar, admin.id);
+      refundOutcome = await executeRefund(
+        refund.bookingId,
+        refund.paymentReference,
+        refund.amountSar,
+        admin.id,
+      );
     }
   } catch (error) {
     reportError(error, { surface: 'disputes:resolve', disputeId });
@@ -228,7 +238,7 @@ export async function resolveDispute(
 
   // The guest resolution notice — best-effort, never blocks the resolve.
   try {
-    await sendDisputeResolvedEmail(disputeId, refund ? refund.amountSar : null);
+    await sendDisputeResolvedEmail(disputeId, refund ? refund.amountSar : null, refundOutcome);
   } catch (error) {
     reportError(error, { surface: 'disputes:resolveEmail', disputeId });
   }

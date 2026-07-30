@@ -241,12 +241,32 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       });
     }
 
-    // Pass 2 — reconcile stuck `processing` holds against HyperPay. Only
-    // those whose hold window has elapsed, so a shopper still mid-3DS is
-    // never disturbed; `settleBooking` is idempotent and safe to re-run.
+    // Pass 2 — reconcile stuck holds against HyperPay. Only those whose
+    // hold window has elapsed, so a shopper still mid-3DS is never
+    // disturbed; `settleBooking` is idempotent and safe to re-run.
     // `cancelled` rows are INCLUDED: a guest can cancel mid-3DS and the
     // charge still capture — settle detects that and auto-refunds, so
     // excluding them would leave captured money invisible forever.
+    //
+    // Scoped to `processing` deliberately. The 2026-07-28 re-audit
+    // widened this to `unpaid` rows carrying a checkoutId, reasoning
+    // that a wallet release flips `processing → unpaid` and could park a
+    // real capture. The third audit showed that doesn't work: every
+    // writer that flips to `unpaid` (wallet release, promo/credit
+    // supersession) ALSO moves `totalAmount`, so settle's amount guard
+    // refuses on every retry — the row never leaves the candidate set,
+    // re-alerting hourly forever and squatting on RECONCILE_LIMIT until
+    // genuinely-stuck `processing` rows stop being scanned at all. Those
+    // writers now clear the dead `checkoutId` instead (see
+    // reservation.ts / promo + wallet checkout actions), so a stale
+    // widget can't be mistaken for a live checkout.
+    //
+    // Residual gap, deliberately not papered over: a guest who completes
+    // payment on a SUPERSEDED widget is captured at the old amount with
+    // no live pointer to poll. `checkout_superseded` in the payment
+    // ledger is the forensic trail; catching it automatically needs the
+    // OPPWA webhook (reserved, not built) or HyperPay settlement-report
+    // reconciliation.
     const stuck = await db.query.bookings.findMany({
       where: and(
         eq(bookings.paymentStatus, 'processing'),
@@ -255,6 +275,9 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         lte(bookings.paymentDeadline, new Date()),
         notInArray(bookings.status, ['completed', 'refunded']),
       ),
+      // Oldest deadline first: a bounded pass must make progress on the
+      // longest-stuck money rather than re-scanning the same head.
+      orderBy: (b, { asc }) => [asc(b.paymentDeadline)],
       columns: { idempotencyKey: true },
       limit: RECONCILE_LIMIT,
     });

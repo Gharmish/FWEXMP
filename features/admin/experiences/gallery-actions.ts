@@ -138,6 +138,12 @@ export async function removeGalleryImage(
       columns: { id: true, images: true },
     });
     if (!experience) return { success: false, message: 'not_found' };
+    // `url` is a raw form value and the storage client below is
+    // service-role, so membership in THIS experience's images is what
+    // scopes the delete to the intended object. Admin-gated (so not the
+    // cross-tenant hole the host twin had), but the same shape — keep
+    // both sides identical (2026-07-28 third audit).
+    if (!experience.images.includes(url)) return { success: false, message: 'not_found' };
 
     const next = experience.images.filter((u) => u !== url);
     await db.update(experiences).set({ images: next }).where(eq(experiences.id, experienceId));

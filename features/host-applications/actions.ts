@@ -75,7 +75,13 @@ export type HostApplyDocumentError = 'doc_required' | 'doc_type' | 'doc_size';
 
 export interface HostApplyState {
   success: false;
-  message?: 'validation' | 'auth_required' | 'cooldown' | 'upload_failed' | 'server';
+  message?:
+    | 'validation'
+    | 'auth_required'
+    | 'cooldown'
+    | 'upload_failed'
+    | 'already_approved'
+    | 'server';
   fields?: Partial<Record<HostApplyFieldName, string>>;
   /** Per-document-type errors for the upload inputs. */
   documents?: Partial<Record<HostDocumentType, HostApplyDocumentError>>;
@@ -277,12 +283,16 @@ export async function submitHostApplication(
 
   // DB path: upsert by userId so re-submission after rejection updates
   // the same row rather than appending a second one.
+  // Hoisted: the post-transaction admin alert fires on first submission
+  // only (see below), and `existing` is scoped to the try.
+  let hadExistingApplication = false;
   try {
     const existing = await db.query.hostApplications.findFirst({
       where: (a) => eq(a.userId, user.id),
       columns: { id: true, status: true, reviewedAt: true },
       with: { documents: { columns: { type: true, status: true, objectKey: true } } },
     });
+    hadExistingApplication = Boolean(existing);
 
     // A just-rejected applicant waits out the cooldown before refiling.
     // `reviewedAt` is nulled on every resubmission, so the clock only
@@ -341,7 +351,7 @@ export async function submitHostApplication(
       }
     }
 
-    await db.transaction(async (tx) => {
+    const outcome = await db.transaction(async (tx) => {
       const applicationValues = {
         contactPhone: user.phone,
         contactEmail: input.contactEmail ?? null,
@@ -366,20 +376,30 @@ export async function submitHostApplication(
         region: input.region,
       };
 
+      // An APPROVED application is a compliance record, not a form.
+      // The apply page hides the form once approved, but the action had
+      // no matching gate: a direct POST overwrote the verified identity
+      // number, legal name, and IBAN, nulled `reviewerNotes`/
+      // `reviewedAt` (erasing when and on what basis approval was
+      // given), reset the documents to `pending`, and deleted the
+      // previously-verified files from the private bucket — with no
+      // event row, since `logsEvent` is false for approved rows
+      // (2026-07-28 third audit). Refuse outright; changing verified
+      // details is an admin-mediated flow.
+      if (existing?.status === 'approved') {
+        return { ok: false as const, message: 'already_approved' as const };
+      }
+
       let applicationId: string;
-      // Approved applications stay approved — re-submitting after
-      // approval shouldn't reset anyone's verified status. Log the
-      // event though so the trail captures the attempt.
-      const logsEvent = !existing || existing.status !== 'approved';
+      const logsEvent = true;
       if (existing) {
         applicationId = existing.id;
         await tx
           .update(hostApplications)
           .set({
             ...applicationValues,
-            // Re-submissions reset to pending. Approved rows are immutable
-            // from this action's POV — they require admin re-review.
-            status: existing.status === 'approved' ? 'approved' : 'pending',
+            // Re-submissions reset to pending for re-review.
+            status: 'pending',
             reviewerNotes: null,
             reviewedAt: null,
             updatedAt: new Date(),
@@ -436,6 +456,12 @@ export async function submitHostApplication(
     });
 
     // Best-effort cleanup of replaced storage objects — the DB rows no
+    // An approved application refused the write and moved nothing —
+    // stop before the document cleanup below deletes verified files.
+    if (outcome && !outcome.ok) {
+      return { success: false, message: outcome.message, values: currentValues(formData) };
+    }
+
     // longer reference them. A failure here never fails the submit.
     if (documentsEnabled && staged.length > 0) {
       const replacedKeys = staged
@@ -457,11 +483,21 @@ export async function submitHostApplication(
 
   // Supply is the scarcest resource — the team hears about every new
   // application without polling the queue. Best-effort, never blocks.
-  await notifyAdmin('host_application_submitted', {
-    displayName: input.displayName,
-    city: input.city,
-    languages: input.languages.join(', '),
-  });
+  //
+  // Alert only on a FIRST submission (2026-07-28 third audit).
+  // `notifyAdmin` sends straight to the team inbox with no ledger row,
+  // dedupe, or throttle of its own, and re-submission is unlimited by
+  // design (that's how an applicant fixes a rejected document) — so
+  // this was an unbounded outbound-mail amplifier any authenticated
+  // user could drive from the Submit button. Re-submissions still show
+  // up in the admin queue, which is where they get worked.
+  if (!hadExistingApplication) {
+    await notifyAdmin('host_application_submitted', {
+      displayName: input.displayName,
+      city: input.city,
+      languages: input.languages.join(', '),
+    });
+  }
 
   revalidatePath('/[locale]/host/apply', 'page');
   redirect({ href: '/host/apply/submitted', locale: input.locale });

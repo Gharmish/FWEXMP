@@ -188,14 +188,14 @@ export async function refundBooking(
         // then converted to card money) from being counted twice when
         // this action settles its queue entry.
         refundedAmountSar: sql`least(coalesce(${bookings.refundedAmountSar}, 0) + ${owedSar + split.creditRefundSar}, ${bookings.totalAmount} + ${bookings.walletAppliedSar})`,
-        // A refund hands back money the guest forfeited — a late
-        // cancellation later refunded as goodwill must not keep counting
-        // as retained cancellation revenue. ONLY on a fresh full-base
-        // refund (2026-07-28 re-audit): the `queued` arm settles the
-        // card leg of an earlier, possibly PARTIAL refund, whose
-        // `forfeitedSar` is the legitimately retained share and must
-        // survive.
-        ...(queued ? {} : { forfeitedSar: null }),
+        // A refund hands back money the guest forfeited — clear that
+        // journal exactly when the CUMULATIVE amount returned reaches
+        // the full paid base, evaluated against the pre-UPDATE row.
+        // `queued` was a proxy for this and was wrong on its complement
+        // (2026-07-28 third audit): a FULL refund settled through the
+        // manual queue kept `forfeitedSar` set, so the dashboard counted
+        // the same money as both refunded and retained.
+        forfeitedSar: sql`case when coalesce(${bookings.refundedAmountSar}, 0) + ${owedSar + split.creditRefundSar} >= ${bookings.totalAmount} + ${bookings.walletAppliedSar} then null else ${bookings.forfeitedSar} end`,
       })
       .where(
         and(

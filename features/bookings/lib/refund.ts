@@ -73,9 +73,19 @@ function journalRefund(amountSar: number): SQL<number> {
   return sql`least(coalesce(${bookings.refundedAmountSar}, 0) + ${amountSar}, ${bookings.totalAmount} + ${bookings.walletAppliedSar})`;
 }
 
-/** Did this refund return the guest's ENTIRE paid base? */
-function isFullRefund(amountSar: number, paidBaseSar: number | null): boolean {
-  return paidBaseSar !== null && amountSar >= paidBaseSar;
+/**
+ * Clear `forfeited_sar` iff this leg brings the CUMULATIVE amount
+ * returned up to the full paid base; otherwise leave it untouched.
+ *
+ * Evaluated in SQL against the pre-UPDATE row, so it reads whatever
+ * earlier legs already journaled. The previous booleans
+ * (`queued`, this-leg-amount) were proxies for this rule and each was
+ * wrong on its complement (2026-07-28 third audit): a full refund
+ * settled through the MANUAL QUEUE kept `forfeitedSar` set, so the
+ * dashboard counted the same money as both refunded and retained.
+ */
+function clearForfeitWhenFullyRefunded(amountSar: number): SQL<number | null> {
+  return sql`case when coalesce(${bookings.refundedAmountSar}, 0) + ${amountSar} >= ${bookings.totalAmount} + ${bookings.walletAppliedSar} then null else ${bookings.forfeitedSar} end`;
 }
 
 export async function executeRefund(
@@ -88,17 +98,12 @@ export async function executeRefund(
   let cardShareSar = amountSar;
   let creditShareSar = 0;
   let creditGuestId: string | null = null;
-  // Full paid base, when known — decides whether this refund empties the
-  // booking (and so whether the retained-forfeit journal should clear).
-  let paidBaseSar: number | null = null;
-
   if (rails === 'auto') {
     try {
       const booking = await db.query.bookings.findFirst({
         where: eq(bookings.id, bookingId),
         columns: { guestId: true, totalAmount: true, walletAppliedSar: true },
       });
-      if (booking) paidBaseSar = booking.totalAmount + booking.walletAppliedSar;
       if (booking && booking.walletAppliedSar > 0) {
         // Paid bookings never release their redemption, so a non-zero
         // `walletAppliedSar` here means the credit was genuinely spent
@@ -183,11 +188,9 @@ export async function executeRefund(
         refundMethod: 'wallet',
         refundedAmountSar: journalRefund(amountSar),
         // Money going back cancels the retained-forfeit journal — but
-        // only when ALL of it goes back (2026-07-28 re-audit): a
-        // PARTIAL-policy cancellation legitimately retains a share, and
-        // nulling it here made every partial report zero retained
-        // revenue on the dashboard.
-        ...(isFullRefund(amountSar, paidBaseSar) ? { forfeitedSar: null } : {}),
+        // only when ALL of it has gone back (a PARTIAL-policy
+        // cancellation legitimately retains a share).
+        forfeitedSar: clearForfeitWhenFullyRefunded(amountSar),
       })
       .where(eq(bookings.id, bookingId));
     await recordClawbackIfPaidOut(bookingId, 'refund (wallet) after host payout');
@@ -238,7 +241,7 @@ export async function executeRefund(
             ...(rails === 'auto'
               ? {
                   refundedAmountSar: journalRefund(amountSar),
-                  ...(isFullRefund(amountSar, paidBaseSar) ? { forfeitedSar: null } : {}),
+                  forfeitedSar: clearForfeitWhenFullyRefunded(amountSar),
                 }
               : {}),
           })
@@ -265,6 +268,31 @@ export async function executeRefund(
         bookingId,
       });
     } catch (error) {
+      // A THROW here (gateway timeout, network reset, unparseable
+      // response) leaves the outcome genuinely unknown — but the ledger
+      // must still be closed out. `refundInFlight` treats a dangling
+      // `refund_attempted` as "a reversal is running right now" and
+      // refuses the admin's manual-refund action; without this terminal
+      // event a single timeout would latch that refusal FOREVER,
+      // permanently blocking the only recovery path for money the
+      // platform owes a guest (2026-07-28 third audit).
+      //
+      // `resultCode: 'EXCEPTION'` marks it as an unknown outcome rather
+      // than a gateway rejection: the reversal MAY have landed, so the
+      // admin action's `refund_succeeded` check still applies and the
+      // `refund_due` alert below brings a human in.
+      try {
+        await recordPaymentEvent({
+          bookingId,
+          type: 'refund_failed',
+          amountSar: cardShareSar,
+          gatewayId: paymentReference,
+          resultCode: 'EXCEPTION',
+          actorUserId: actorUserId ?? null,
+        });
+      } catch (ledgerError) {
+        reportError(ledgerError, { surface: 'bookings:executeRefund:ledger', bookingId });
+      }
       reportError(error, { surface: 'bookings:executeRefund', bookingId });
     }
   }
@@ -277,7 +305,13 @@ export async function executeRefund(
     .update(bookings)
     .set({
       refundDueSar: cardShareSar,
-      ...(creditLandedSar > 0 ? { refundedAmountSar: creditLandedSar } : {}),
+      // The third write site — it was still a plain assignment while the
+      // other two accumulated (2026-07-28 third audit), so a credit leg
+      // landing here ERASED whatever an earlier leg had journaled. That
+      // is the understating direction: the ZATCA credit note renders
+      // from this column, so it would under-report money that actually
+      // left the platform.
+      ...(creditLandedSar > 0 ? { refundedAmountSar: journalRefund(creditLandedSar) } : {}),
     })
     .where(eq(bookings.id, bookingId));
   // A refund the platform owes a guest must never be silent: Sentry

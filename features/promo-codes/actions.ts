@@ -263,7 +263,10 @@ export async function applyPromo(
           discountSar,
           promoCodeId: promo.id,
           promoCode: promo.code,
-          ...(superseding ? { paymentStatus: 'unpaid' as const } : {}),
+          // Clear the dead pointer with the flip: the widget was prepared
+          // at the old total and can never settle this booking now, so
+          // leaving it made the cron poll it forever (2026-07-28 third audit).
+          ...(superseding ? { paymentStatus: 'unpaid' as const, checkoutId: null } : {}),
         })
         .where(eq(bookings.id, booking.id));
 
@@ -372,7 +375,10 @@ export async function removePromo(
           discountSar: 0,
           promoCodeId: null,
           promoCode: null,
-          ...(superseding ? { paymentStatus: 'unpaid' as const } : {}),
+          // Clear the dead pointer with the flip: the widget was prepared
+          // at the old total and can never settle this booking now, so
+          // leaving it made the cron poll it forever (2026-07-28 third audit).
+          ...(superseding ? { paymentStatus: 'unpaid' as const, checkoutId: null } : {}),
         })
         .where(eq(bookings.id, booking.id));
       return {

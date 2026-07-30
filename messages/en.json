@@ -1521,6 +1521,7 @@
       "server": "We couldn't submit your application. Try again in a moment.",
       "authRequired": "Sign in again to submit your application.",
       "cooldown": "Your previous application was reviewed less than a day ago. You can re-apply after 24 hours.",
+      "alreadyApproved": "This application has already been approved. To change your verified details, contact us at hello@gharmish.com — they can't be edited here.",
       "fields": {
         "required": "Enter a valid value.",
         "displayNameShort": "Use at least two characters.",
@@ -3344,6 +3345,7 @@
     "greeting": "Hi {name},",
     "intro": "Our team has looked into the problem you reported and considers it handled. If anything still feels unresolved, reply to this email — a real person reads every message.",
     "introWithRefund": "Our team has looked into the problem you reported and issued a full refund. It will reach your original payment method within a few business days. If anything still feels unresolved, reply to this email — a real person reads every message.",
+    "introWithRefundPending": "Our team has looked into the problem you reported and approved a refund. We're processing it now and will confirm as soon as it's on its way back to you. If anything still feels unresolved, reply to this email — a real person reads every message.",
     "bookingLabel": "Booking",
     "refundLabel": "Refund",
     "closing": "Thank you for telling us — reports like yours keep the experiences on Gharmish worth recommending.",

@@ -10,6 +10,7 @@ import { redirect } from '@/lib/i18n';
 import { reportError } from '@/lib/log';
 import { getCurrentUser } from '@/features/auth/queries';
 import { bookingViewerCanAccess } from '@/features/bookings/lib/access';
+import { getCurrentHostIdForWrite } from '@/features/host-experiences/queries';
 import { createReviewSchema, hostReplySchema } from '@/features/reviews/schemas';
 import { sendHostRepliedEmail } from '@/features/reviews/lib/review-email';
 
@@ -253,11 +254,12 @@ export async function replyToReview(
   if (!serverEnv.DATABASE_URL) return { success: false, message: 'no_db' };
 
   try {
-    const host = await db.query.hosts.findFirst({
-      where: (h) => eq(h.userId, user.id),
-      columns: { id: true },
-    });
-    if (!host) return { success: false, message: 'forbidden' };
+    // The status-aware resolver: a reply publishes under the host's name
+    // on the public experience page, so a SUSPENDED host must not reach
+    // it. This was the last host write path still using a raw lookup
+    // (2026-07-28 third audit).
+    const hostId = await getCurrentHostIdForWrite();
+    if (!hostId) return { success: false, message: 'forbidden' };
 
     const review = await db.query.reviews.findFirst({
       where: (r) => eq(r.id, reviewId),
@@ -265,7 +267,7 @@ export async function replyToReview(
       with: { experience: { columns: { hostId: true, slug: true } } },
     });
     // Foreign and missing reviews are indistinguishable on purpose.
-    if (!review || review.experience.hostId !== host.id || review.hiddenAt) {
+    if (!review || review.experience.hostId !== hostId || review.hiddenAt) {
       return { success: false, message: 'not_found' };
     }
     if (review.hostReply) return { success: false, message: 'already_replied' };

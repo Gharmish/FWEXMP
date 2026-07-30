@@ -30,6 +30,14 @@ const EMAIL_LOGO_URL = `${SITE_URL}/images/gharmish-wordmark.png`;
 export async function sendDisputeResolvedEmail(
   disputeId: string,
   refundAmountSar: number | null,
+  /**
+   * What actually happened to the money. `refund_pending` means the
+   * gateway refused or was unreachable and the reversal is sitting in
+   * the admin's manual queue — the guest must NOT be told it's already
+   * on its way to their card (2026-07-28 third audit). Omitted when no
+   * refund was granted.
+   */
+  refundOutcome?: 'refunded' | 'refund_pending',
 ): Promise<void> {
   if (!hasEmail()) return;
 
@@ -54,7 +62,12 @@ export async function sendDisputeResolvedEmail(
     subject: t('subject'),
     dir: locale === 'ar' ? 'rtl' : 'ltr',
     greeting: t('greeting', { name: dispute.guest.name }),
-    intro: refundAmountSar !== null ? t('introWithRefund') : t('intro'),
+    intro:
+      refundAmountSar === null
+        ? t('intro')
+        : refundOutcome === 'refund_pending'
+          ? t('introWithRefundPending')
+          : t('introWithRefund'),
     rows,
     closing: t('closing'),
     footer: t('footer'),

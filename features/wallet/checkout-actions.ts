@@ -183,7 +183,10 @@ export async function applyWalletCredit(
         .set({
           totalAmount: booking.totalAmount - amount,
           walletAppliedSar: amount,
-          ...(superseding ? { paymentStatus: 'unpaid' as const } : {}),
+          // Clear the dead pointer with the flip: the widget was prepared
+          // at the old total and can never settle this booking now, so
+          // leaving it made the cron poll it forever (2026-07-28 third audit).
+          ...(superseding ? { paymentStatus: 'unpaid' as const, checkoutId: null } : {}),
         })
         .where(eq(bookings.id, booking.id));
 

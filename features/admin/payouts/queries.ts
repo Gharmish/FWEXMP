@@ -110,7 +110,14 @@ export async function listPayouts(): Promise<readonly PayoutRow[]> {
       (a, b) => b.netOwedSar - a.netOwedSar || a.hostName.localeCompare(b.hostName),
     );
   } catch (error) {
+    // RETHROW, don't degrade to [] (2026-07-28 third audit). The payouts
+    // page renders an empty list as "no payouts owed", so a pooler
+    // timeout on payout day looked exactly like a settled ledger and the
+    // operator would skip the run, leaving every host unpaid. The users
+    // module already made this call ("empty-on-error made a DB failure
+    // indistinguishable from an empty directory"); this is an admin
+    // surface, so the error boundary is the right destination.
     reportError(error, { surface: 'admin:listPayouts' });
-    return [];
+    throw error;
   }
 }

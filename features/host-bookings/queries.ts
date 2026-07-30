@@ -133,7 +133,7 @@ export async function listBookingsForHost(
     experienceTitleEn: experiences.titleEn,
     experienceTitleAr: experiences.titleAr,
     guestName: guests.name,
-    guestPhone: guests.phone,
+    guestPhone: sql<string | null>`coalesce(${bookings.contactPhone}, ${guests.phone})`,
   };
   const fromJoined = () =>
     db

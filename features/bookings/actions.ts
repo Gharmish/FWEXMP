@@ -96,7 +96,12 @@ async function clientIp(): Promise<string | null> {
  */
 function activePhoneHolds(phone: string) {
   return and(
-    eq(guests.phone, phone),
+    // Counts on the BOOKING's contact phone, not the guest row's
+    // identity phone (2026-07-28 third audit). An email-OTP account's
+    // guest row deliberately carries no phone, so a guest-row match made
+    // those bookings invisible to the cap — one such account could hold
+    // unlimited unpaid seats and capacity-block an experience.
+    eq(bookings.contactPhone, phone),
     inArray(bookings.status, ['pending', 'confirmed']),
     ne(bookings.paymentStatus, 'paid'),
     holdStillCounts(),
@@ -525,6 +530,11 @@ export async function requestBooking(
 
     const bookingValues = {
       guestId: guest.id,
+      // Per-booking contact snapshot: what the guest typed on THIS form.
+      // Hosts reach the guest through it and the hold throttle counts on
+      // it, so an account-linked identity row never has to take an
+      // unverified phone (see the guests.contactPhone note in schema.ts).
+      contactPhone: input.phone,
       experienceId: experience.id,
       date: input.preferredDate,
       startTime: experience.startTime,

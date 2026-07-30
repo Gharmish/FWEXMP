@@ -74,7 +74,7 @@ export async function listBookingsForAdmin(): Promise<readonly AdminBookingRow[]
         experienceSlug: row.experience.slug,
         experienceTitleEn: row.experience.titleEn,
         guestName: row.guest.name,
-        guestPhone: row.guest.phone,
+        guestPhone: row.contactPhone ?? row.guest.phone,
       };
     });
   } catch (error) {
@@ -142,7 +142,7 @@ export async function listBookingsForExport(): Promise<readonly AdminBookingExpo
         experienceSlug: row.experience.slug,
         experienceTitleEn: row.experience.titleEn,
         guestName: row.guest.name,
-        guestPhone: row.guest.phone,
+        guestPhone: row.contactPhone ?? row.guest.phone,
         paymentBrand: row.paymentBrand,
         paidAt: row.paidAt?.toISOString() ?? null,
         refundedAt: row.refundedAt?.toISOString() ?? null,
@@ -201,7 +201,7 @@ export async function getAdminBookingById(id: string): Promise<AdminBookingRow |
       experienceSlug: row.experience.slug,
       experienceTitleEn: row.experience.titleEn,
       guestName: row.guest.name,
-      guestPhone: row.guest.phone,
+      guestPhone: row.contactPhone ?? row.guest.phone,
     };
   } catch (error) {
     // Rethrow: undefined means "no such booking" — an error must not 404.

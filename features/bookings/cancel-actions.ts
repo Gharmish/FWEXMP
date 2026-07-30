@@ -157,7 +157,22 @@ export async function cancelBookingAsGuest(
           cancellationKind: 'guest',
           ...(retainedSar > 0 ? { forfeitedSar: retainedSar } : {}),
         })
-        .where(and(eq(bookings.id, booking.id), inArray(bookings.status, ['pending', 'confirmed'])))
+        .where(
+          and(
+            eq(bookings.id, booking.id),
+            inArray(bookings.status, ['pending', 'confirmed']),
+            // Re-assert everything the refund verdict was computed from
+            // (2026-07-28 third audit). `bookingOptions` reads the date
+            // and the reschedule counters; a concurrent reschedule —
+            // both controls render on the same confirmation page, so two
+            // tabs suffice — could move the booking inside the partial
+            // window after we decided "full", paying 100% on a booking
+            // then owed 50%. The reschedule action already re-asserts
+            // all three; this makes the protection mutual.
+            eq(bookings.date, booking.date),
+            eq(bookings.rescheduleCount, booking.rescheduleCount),
+          ),
+        )
         .returning({ id: bookings.id });
       if (updated.length === 0) return false;
       if (booking.paymentStatus !== 'paid' && booking.walletAppliedSar > 0) {

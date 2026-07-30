@@ -96,7 +96,9 @@ export async function releaseWalletReservationTx(
     .set({
       totalAmount: booking.totalAmount + amountSar,
       walletAppliedSar: 0,
-      ...(checkoutSuperseded ? { paymentStatus: 'unpaid' as const } : {}),
+      // Clear the dead pointer with the flip (2026-07-28 third audit):
+      // the widget was prepared at the pre-release total.
+      ...(checkoutSuperseded ? { paymentStatus: 'unpaid' as const, checkoutId: null } : {}),
     })
     .where(eq(bookings.id, bookingId));
 

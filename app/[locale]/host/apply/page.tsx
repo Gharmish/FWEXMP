@@ -242,6 +242,7 @@ export default async function HostApplyPage({ params }: { params: Promise<{ loca
                 server: t('errors.server'),
                 authRequired: t('errors.authRequired'),
                 cooldown: t('errors.cooldown'),
+                already_approved: t('errors.alreadyApproved'),
                 upload_failed: t('errors.uploadFailed'),
                 display_name_short: t('errors.fields.displayNameShort'),
                 display_name_long: t('errors.fields.displayNameLong'),

@@ -424,7 +424,15 @@ export async function sendBookingCancellationEmail(
 
   await dispatchNotification({
     type: 'booking_cancelled',
-    dedupeKey: `booking_cancelled:${booking.referenceCode}`,
+    // Scoped by refund VERDICT, not just the booking (2026-07-28 third
+    // audit). A booking is legitimately notified twice with different
+    // news: first "cancelled, payment forfeited", then — after an admin
+    // settles it from /admin/bookings, a state that action explicitly
+    // accepts — "cancelled, refunded". Keyed on the reference alone the
+    // second notice hit the first's `sent` ledger row and was dropped,
+    // so money moved, the guest was never told, no credit note reached
+    // them, and the ledger read as a healthy success.
+    dedupeKey: `booking_cancelled:${booking.referenceCode}:${refund}`,
     bookingId: booking.id,
     recipient: {
       kind: 'guest',

@@ -755,9 +755,27 @@ export const bookings = pgTable(
      * Never rendered in any UI or export.
      */
     createdIp: text(),
+    /**
+     * The phone the guest typed on THIS booking's form (E.164) — a
+     * per-booking contact snapshot, deliberately separate from
+     * `guests.phone` (2026-07-28 third audit).
+     *
+     * `guests.phone` is an IDENTITY key: it is unique, it can claim an
+     * account row on verified sign-in, and so an unverified form value
+     * must never be written to it on an account-linked row. But the host
+     * still has to reach the guest they're meeting at a trailhead, and
+     * the per-phone hold throttle still has to count. Both read this
+     * column, which is contact data only: not unique, never used to
+     * resolve identity, never used to link an account.
+     */
+    contactPhone: text(),
     createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [
+    // The per-phone active-hold throttle counts on this column.
+    index('bookings_contact_phone_idx')
+      .on(t.contactPhone)
+      .where(sql`contact_phone is not null`),
     // Capacity sum on (experience, date) over active statuses — the hot
     // path for every instant booking, admin confirm, and date picker.
     index('bookings_experience_date_status_idx').on(t.experienceId, t.date, t.status),

@@ -29,6 +29,14 @@ export async function recordPaymentEvent(input: PaymentEventInput): Promise<void
 const REFUND_EVENT_TYPES = ['refund_attempted', 'refund_succeeded', 'refund_failed'] as const;
 
 /**
+ * How long an unterminated `refund_attempted` still counts as in flight.
+ * Comfortably longer than any gateway round-trip (the HyperPay call
+ * carries its own much shorter timeout), short enough that a human
+ * settling a queue entry isn't kept waiting.
+ */
+const REFUND_IN_FLIGHT_MAX_MS = 10 * 60_000;
+
+/**
  * Is a gateway refund for this booking in flight right now?
  *
  * `refund_attempted` is written immediately BEFORE the gateway call and
@@ -49,10 +57,18 @@ export async function refundInFlight(bookingId: string): Promise<boolean> {
       eq(paymentEvents.bookingId, bookingId),
       inArray(paymentEvents.type, [...REFUND_EVENT_TYPES]),
     ),
-    orderBy: desc(paymentEvents.createdAt),
-    columns: { type: true },
+    // `id` breaks a same-timestamp tie deterministically (uuid v4 is not
+    // ordered, but a stable arbitrary winner beats a random one).
+    orderBy: [desc(paymentEvents.createdAt), desc(paymentEvents.id)],
+    columns: { type: true, createdAt: true },
   });
-  return latest?.type === 'refund_attempted';
+  if (latest?.type !== 'refund_attempted') return false;
+  // Age out (belt-and-braces). Every throw path now writes a terminal
+  // event, so a dangling `refund_attempted` should be impossible — but
+  // if one ever survives (process killed between the gateway call and
+  // its catch), this must not latch the admin's recovery path shut
+  // forever. The gateway call itself is bounded far below this.
+  return Date.now() - latest.createdAt.getTime() < REFUND_IN_FLIGHT_MAX_MS;
 }
 
 /** Newest event of a given type for a booking, if any. */

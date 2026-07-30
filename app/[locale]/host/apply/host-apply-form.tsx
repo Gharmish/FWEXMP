@@ -30,6 +30,7 @@ type ErrorKey =
   | 'server'
   | 'authRequired'
   | 'cooldown'
+  | 'already_approved'
   | 'upload_failed'
   | 'display_name_short'
   | 'display_name_long'

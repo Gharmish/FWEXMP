@@ -43,7 +43,9 @@ vi.mock('@/features/bookings/lib/access', () => ({
   bookingViewerCanAccess: async () => viewerCanAccess,
 }));
 
-const executeRefund = vi.fn<(...args: unknown[]) => Promise<'refunded'>>(async () => 'refunded');
+const executeRefund = vi.fn<(...args: unknown[]) => Promise<'refunded' | 'refund_pending'>>(
+  async () => 'refunded',
+);
 vi.mock('@/features/bookings/lib/refund', () => ({
   executeRefund: (...args: unknown[]) => executeRefund(...args),
 }));
@@ -249,7 +251,7 @@ describe('resolveDispute', () => {
     });
     expect(updateSet?.resolvedAt).toBeInstanceOf(Date);
     expect(executeRefund).not.toHaveBeenCalled();
-    expect(sendDisputeResolvedEmail).toHaveBeenCalledWith(DISPUTE_ID, null);
+    expect(sendDisputeResolvedEmail).toHaveBeenCalledWith(DISPUTE_ID, null, undefined);
   });
 
   it('resolves with a full refund: stamps the amount, moves the money, notices the guest', async () => {
@@ -258,7 +260,17 @@ describe('resolveDispute', () => {
     expect(state).toEqual({ success: true });
     expect(updateSet).toMatchObject({ status: 'resolved', resolutionRefundSar: 450 });
     expect(executeRefund).toHaveBeenCalledWith('booking-1', 'pay-1', 450, 'admin-1');
-    expect(sendDisputeResolvedEmail).toHaveBeenCalledWith(DISPUTE_ID, 450);
+    expect(sendDisputeResolvedEmail).toHaveBeenCalledWith(DISPUTE_ID, 450, 'refunded');
+  });
+
+  it('tells the guest a refund is PROCESSING when the gateway refused it', async () => {
+    // The executor queues a manual reversal; the copy must not claim the
+    // money is already on its way to the card (2026-07-28 third audit).
+    disputeRow = { id: DISPUTE_ID, booking: PAID_BOOKING };
+    executeRefund.mockResolvedValueOnce('refund_pending');
+    const state = await resolveDispute({ success: false }, resolveForm({ issueRefund: 'on' }));
+    expect(state).toEqual({ success: true });
+    expect(sendDisputeResolvedEmail).toHaveBeenCalledWith(DISPUTE_ID, 450, 'refund_pending');
   });
 
   it('refunds the full paid base when the booking redeemed Gharmish Credit', async () => {
@@ -268,7 +280,7 @@ describe('resolveDispute', () => {
     // 450 card + 50 credit — the guest is told the whole amount.
     expect(updateSet).toMatchObject({ status: 'resolved', resolutionRefundSar: 500 });
     expect(executeRefund).toHaveBeenCalledWith('booking-1', 'pay-1', 500, 'admin-1');
-    expect(sendDisputeResolvedEmail).toHaveBeenCalledWith(DISPUTE_ID, 500);
+    expect(sendDisputeResolvedEmail).toHaveBeenCalledWith(DISPUTE_ID, 500, 'refunded');
   });
 
   it('refuses the refund (without resolving) when the booking is not refundable', async () => {
