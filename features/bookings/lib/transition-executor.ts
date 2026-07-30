@@ -243,6 +243,12 @@ export async function executeBookingTransition(
     } else if (outcome.decided === 'cancelled') {
       await sendBookingCancellationEmail(outcome.reference, outcome.guestLocale, refund, {
         cancelledBy: 'operator',
+        // The FULL paid base — card charge plus any redeemed credit —
+        // which is what `executeRefund` was asked to return above
+        // (2026-07-28 eighth audit). Omitted, the template defaulted to
+        // the card charge alone, so a 200-card + 100-credit booking that
+        // refunded 300 told the guest "SAR 200".
+        refundAmountSar: outcome.paidBaseSar,
       });
     }
   } catch (error) {

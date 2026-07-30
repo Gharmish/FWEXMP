@@ -242,8 +242,12 @@ describe('executeBookingTransition — cancel & decline side effects', () => {
 
     expect(result).toEqual({ ok: 'transitioned' });
     expect(executeRefund).toHaveBeenCalledWith('b-1', 'pay-1', 480, 'admin-1');
+    // The email must state the FULL paid base it actually refunded —
+    // omitted, the template defaults to the card charge alone and
+    // understates a wallet-assisted refund.
     expect(sendBookingCancellationEmail).toHaveBeenCalledWith('ref-1', 'en', 'refunded', {
       cancelledBy: 'operator',
+      refundAmountSar: 480,
     });
   });
 
@@ -268,6 +272,7 @@ describe('executeBookingTransition — cancel & decline side effects', () => {
     expect(executeRefund).not.toHaveBeenCalled();
     expect(sendBookingCancellationEmail).toHaveBeenCalledWith('ref-1', 'en', 'none', {
       cancelledBy: 'operator',
+      refundAmountSar: expect.any(Number),
     });
   });
 

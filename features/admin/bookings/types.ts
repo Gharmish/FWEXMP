@@ -16,6 +16,13 @@ export interface AdminBookingRow {
   paymentStatus: (typeof bookings.$inferSelect)['paymentStatus'];
   /** Whole-SAR refund owed back after a failed automatic refund; null = none. */
   refundDueSar: number | null;
+  /**
+   * Set = an unmatched capture is outstanding, so `createCheckout`
+   * refuses a new payment. An admin must reconcile at HyperPay and clear
+   * it (`resolveSettleAnomaly`) before the guest can pay again.
+   */
+  settleAnomalyAt?: string | null;
+  settleAnomalyKind?: string | null;
   /** Request-to-book: when the host's approve/decline window closes. */
   approvalDeadline: string | null;
   date: string;

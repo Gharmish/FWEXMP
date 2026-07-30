@@ -194,3 +194,20 @@ describe('formatTime', () => {
     expect(result).toMatch(/ص|م/);
   });
 });
+
+describe('Riyadh time zone default', () => {
+  // Guest rows passed KSA options explicitly; host rows never did, so on
+  // Vercel (UTC) every host email and dashboard row rendered three hours
+  // early — a 01:00 Riyadh start showed the host the PREVIOUS day. The
+  // two parties saw different dates for the same booking.
+  const justAfterMidnightRiyadh = new Date('2026-08-09T22:00:00Z'); // 01:00 +03:00 on the 10th
+
+  it('formats a date in Riyadh, not the runtime zone', () => {
+    expect(formatDate(justAfterMidnightRiyadh, 'en')).toContain('10');
+    expect(formatDate(justAfterMidnightRiyadh, 'en')).toContain('August');
+  });
+
+  it('formats a time in Riyadh, not the runtime zone', () => {
+    expect(formatTime(justAfterMidnightRiyadh, 'en')).toMatch(/^1:00\s?AM$/i);
+  });
+});

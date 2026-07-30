@@ -205,6 +205,13 @@ export async function createCheckout(
         checkoutId: true,
         settleAnomalyAt: true,
       },
+      // The experience and its host gate the charge too — see below.
+      with: {
+        experience: {
+          columns: { status: true },
+          with: { host: { columns: { verificationStatus: true } } },
+        },
+      },
     });
 
     if (!booking) {
@@ -240,10 +247,26 @@ export async function createCheckout(
     // link already in the guest's inbox — and a second checkout charged
     // them twice. Hiding a control is not a guard; this is.
     //
-    // Cleared by an admin resolving the anomaly (or by this same action
-    // once the stamp is gone), so it is not a permanent lockout.
+    // Cleared ONLY by the admin action `resolveSettleAnomaly` — this
+    // guard returns before the clear further down, so that path is
+    // unreachable while the stamp is set. Round 7 shipped this guard
+    // with no admin path at all, which made it a permanent lockout;
+    // the clear-here clause in that comment was circular.
     if (booking.settleAnomalyAt) {
       return { status: 'error', error: 'underReview', values: echoValues(formData) };
+    }
+    // NEVER charge for an experience the platform has pulled
+    // (2026-07-28 eighth audit). Suspending a host force-pauses their
+    // live listings, and pausing an experience takes it off sale — but
+    // neither touched bookings, and this action read only the booking
+    // row. A guest holding a confirmed unpaid booking could still be
+    // charged for an experience withdrawn for safety reasons, which is
+    // the one outcome an emergency takedown exists to prevent.
+    if (
+      booking.experience.status !== 'live' ||
+      booking.experience.host.verificationStatus === 'suspended'
+    ) {
+      return { status: 'error', error: 'unavailable', values: echoValues(formData) };
     }
     // Never prepare a checkout for a hold that's been released (cancelled) or
     // has expired — this is what makes auto-release safe: a freed spot can

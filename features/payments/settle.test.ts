@@ -197,6 +197,11 @@ describe('settleBooking', () => {
       paymentStatus: 'paid',
       paymentReference: 'pay-1',
       paymentBrand: 'MADA',
+      // A successful settle resolves any earlier anomaly — otherwise the
+      // admin page shows a permanent "under review, guest cannot pay"
+      // banner on a fully-paid booking.
+      settleAnomalyAt: null,
+      settleAnomalyKind: null,
       // VAT off → no snapshot; invoice-immutability snapshots always stamp.
       vatRateBps: null,
       vatRegistrationNumber: null,
@@ -295,6 +300,28 @@ describe('settleBooking', () => {
       'settle_anomaly',
       expect.objectContaining({ problem: 'amounts changed while settling (promo/credit race)' }),
     );
+  });
+
+  it('writes the anomaly ledger row ONCE, not on every hourly retry', async () => {
+    // `settle_failed` feeds the payment-success KPI and the failure
+    // funnel. Written per-retry, one stuck booking would append ~24 rows
+    // a day forever and drag the headline success rate to zero.
+    gatewayStatus.amount = '9999.00';
+    anomalyStampReturns = []; // already stamped by an earlier pass
+
+    await settleBooking('ref-1');
+
+    expect(ledgerEvents).toHaveLength(0);
+  });
+
+  it('records the anomaly KIND so a later, different anomaly still alerts', async () => {
+    // Booking-scoped dedupe silenced genuinely new anomalies. The kind is
+    // what makes the dedupe per-problem rather than per-booking.
+    gatewayStatus.amount = '9999.00';
+
+    await settleBooking('ref-1');
+
+    expect(setCalls[0]).toMatchObject({ settleAnomalyKind: 'amount mismatch' });
   });
 
   it('alerts ONCE per anomaly, not on every hourly reconcile re-run', async () => {

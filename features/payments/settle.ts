@@ -110,25 +110,27 @@ async function recordSettleAnomaly(
     reportError(error, { surface: 'payment-settle:anomalyStamp', bookingId });
   }
   // A durable DB record of the anomaly, independent of email
-  // (2026-07-28 seventh audit). `notifyAdmin` is a silent no-op when
-  // email is unconfigured, and `createCheckout` clears the stamp on the
-  // next attempt — so without this row the database retained ZERO trace
-  // that a booking ever had an unmatched capture. Every caller already
-  // emits its own Sentry breadcrumb, so this replaces the duplicate
-  // report rather than adding a third signal.
-  try {
-    await recordPaymentEvent({
-      bookingId,
-      type: 'settle_failed',
-      amountSar: null,
-      gatewayId: null,
-      resultCode: `ANOMALY:${problem}`,
-      actorUserId: null,
-    });
-  } catch (error) {
-    reportError(error, { surface: 'payment-settle:anomalyLedger', bookingId });
+  // (2026-07-28 seventh audit) — but ONCE, inside the dedupe (2026-07-28
+  // eighth audit). Written unconditionally it landed on every hourly
+  // reconcile retry: ~24 rows per day per stuck booking, forever, into
+  // an append-only money ledger — and `settle_failed` feeds both the
+  // payment-success KPI and the failure funnel, so a single stuck row
+  // would have driven the headline success rate toward zero.
+  if (firstTime) {
+    try {
+      await recordPaymentEvent({
+        bookingId,
+        type: 'settle_failed',
+        amountSar: null,
+        gatewayId: null,
+        resultCode: `ANOMALY:${problem}`,
+        actorUserId: null,
+      });
+    } catch (error) {
+      reportError(error, { surface: 'payment-settle:anomalyLedger', bookingId });
+    }
+    await notifyAdmin('settle_anomaly', detail);
   }
-  if (firstTime) await notifyAdmin('settle_anomaly', detail);
 }
 
 export async function settleBooking(reference: string): Promise<SettleOutcome> {
@@ -219,6 +221,13 @@ export async function settleBooking(reference: string): Promise<SettleOutcome> {
           paymentBrand: status.paymentBrand ?? null,
           vatRateBps: vatEnabled ? vatRateBps : null,
           vatRegistrationNumber: vatEnabled ? vatRegistrationNumber : null,
+          // A settle that succeeds resolves any earlier anomaly on this
+          // booking (2026-07-28 eighth audit) — e.g. a transient poll
+          // that omitted `currency`. Left set, the admin page showed a
+          // permanent "payment under review, guest cannot pay" banner on
+          // a fully-paid booking.
+          settleAnomalyAt: null,
+          settleAnomalyKind: null,
           invoiceItemEn: booking.experience.titleEn,
           invoiceItemAr: booking.experience.titleAr,
           billedName: booking.guest.name,

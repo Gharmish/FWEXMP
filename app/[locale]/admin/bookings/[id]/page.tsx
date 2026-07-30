@@ -14,6 +14,7 @@ import { availableTransitions } from '@/features/bookings/lib/transitions';
 import { RefundButton } from '@/app/[locale]/admin/bookings/refund-button';
 import { TransitionButton } from '@/app/[locale]/admin/bookings/transition-button';
 import { EmergencyCancelButton } from '@/app/[locale]/admin/bookings/emergency-cancel-button';
+import { ResolveAnomalyButton } from '@/app/[locale]/admin/bookings/resolve-anomaly-button';
 
 export async function generateMetadata({
   params,
@@ -153,6 +154,33 @@ export default async function AdminBookingDetailPage({
           {t('bookingDetail.viewExperience')}
         </Link>
       </div>
+
+      {/* An unmatched capture blocks the guest from paying — surfaced
+          here because `createCheckout` refuses while it is set, and this
+          is the only way to lift it (2026-07-28 eighth audit). */}
+      {booking.settleAnomalyAt && (
+        <section className="border-al-qatt-red/40 rounded-card bg-al-qatt-red-100 flex flex-col gap-3 [border-width:0.5px] p-6">
+          <h2 className="text-al-qatt-red-800 text-base font-medium">
+            {t('bookingDetail.settleAnomalyTitle')}
+          </h2>
+          <p className="text-sarat-black-600 text-sm">
+            {t('bookingDetail.settleAnomalyBody', {
+              kind: booking.settleAnomalyKind ?? '—',
+            })}
+          </p>
+          <div className="flex justify-end">
+            <ResolveAnomalyButton
+              bookingId={booking.id}
+              copy={{
+                label: t('bookingDetail.settleAnomalyClear'),
+                pending: t('bookingDetail.settleAnomalyClearPending'),
+                confirm: t('bookingDetail.settleAnomalyClearConfirm'),
+                errors: actionErrors,
+              }}
+            />
+          </div>
+        </section>
+      )}
 
       <dl className="border-sarat-black/8 rounded-card grid gap-5 [border-width:0.5px] p-6 sm:grid-cols-2">
         {rows.map((r) => (

@@ -123,15 +123,23 @@ vi.mock('@/lib/db', () => ({
         findMany: async () => stuckRows,
       },
     },
-    select: () => ({
-      from: () => ({
-        innerJoin: () => ({
-          where: () => ({
-            limit: async () => reminderRows,
-          }),
-        }),
-      }),
-    }),
+    // The reminder pass now joins experiences + hosts (to skip withdrawn
+    // experiences) and orders before limiting, so the chain is deeper.
+    // Chainable stub: every link returns itself until a terminal await.
+    select: () => {
+      const chain: Record<string, unknown> = {};
+      const link = () => chain;
+      chain.from = link;
+      chain.innerJoin = link;
+      chain.leftJoin = link;
+      chain.orderBy = link;
+      chain.groupBy = link;
+      chain.where = link;
+      chain.limit = async () => reminderRows;
+      // Some passes await `.where(...)` directly with no limit.
+      chain.then = (resolve: (v: unknown) => unknown) => resolve(reminderRows);
+      return chain;
+    },
     insert: () => ({
       values: () => ({
         onConflictDoUpdate: async () => {

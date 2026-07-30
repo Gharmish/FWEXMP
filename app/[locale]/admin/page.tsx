@@ -230,10 +230,18 @@ export default async function AdminIndexPage({
       count: 1,
     });
   }
+  // 3h, not 26h (2026-07-28 eighth audit). The job is scheduled HOURLY
+  // (Supabase pg_cron; the Vercel entry is a daily backstop), and a
+  // liveness check must be tighter than the schedule it watches. At 26h
+  // the surviving daily run refreshed the stamp forever while the hourly
+  // scheduler was returning 401 on EVERY call — which is exactly what had
+  // been happening, undetected, since 2026-07-08. This is the signal that
+  // was supposed to catch it and structurally could not.
+  const CRON_STALE_AFTER_MS = 3 * 3_600_000;
   const cronStale =
     dashboard !== null &&
     (dashboard.cronLastRunAt === null ||
-      new Date().getTime() - dashboard.cronLastRunAt.getTime() > 26 * 3_600_000);
+      new Date().getTime() - dashboard.cronLastRunAt.getTime() > CRON_STALE_AFTER_MS);
 
   if (!metrics) {
     // No DB / failure: still render the shell + a calm notice (resilience).

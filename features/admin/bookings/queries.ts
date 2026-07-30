@@ -183,6 +183,9 @@ export async function getAdminBookingById(id: string): Promise<AdminBookingRow |
       status: row.status,
       paymentStatus: row.paymentStatus,
       refundDueSar: row.refundDueSar,
+      /** Set = an unmatched capture blocks the guest from paying again. */
+      settleAnomalyAt: row.settleAnomalyAt?.toISOString() ?? null,
+      settleAnomalyKind: row.settleAnomalyKind,
       approvalDeadline: row.approvalDeadline?.toISOString() ?? null,
       date: row.date,
       startTime: row.startTime,

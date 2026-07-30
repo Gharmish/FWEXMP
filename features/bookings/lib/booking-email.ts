@@ -76,6 +76,14 @@ export async function sendBookingReceiptEmail(reference: string, locale: Locale)
 
   const booking = await getBookingByReference(reference);
   if (!booking?.paidAt) return;
+  // `paidAt` alone is not enough (2026-07-28 eighth audit). The
+  // cancel-during-3DS path stamps `paid` + `paidAt`, immediately
+  // auto-refunds, and still returns 'success' — so every caller sent
+  // "Payment received, your booking is confirmed" WITH the ZATCA tax
+  // invoice PDF attached, minutes after the guest's cancellation email,
+  // for money that had already been given back. Issuing a tax document
+  // for a reversed capture is a regulatory problem, not just a UX one.
+  if (booking.status === 'cancelled' || booking.status === 'refunded') return;
   if (!booking.guestEmail && !booking.guestPhone) return;
 
   const experience = booking.experienceSlug

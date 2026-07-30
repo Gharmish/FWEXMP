@@ -301,7 +301,14 @@ export async function refundBooking(
         booking.idempotencyKey,
         booking.guest.preferredLanguage,
         'refunded',
-        { cancelledBy: 'operator' },
+        {
+          cancelledBy: 'operator',
+          // The amount ACTUALLY returned by this action (2026-07-28
+          // eighth audit). Omitted, the template defaulted to the full
+          // card charge — so settling a 50%-policy queue entry on a 400
+          // SAR booking told the guest "Refund: SAR 400".
+          refundAmountSar: owedSar + split.creditRefundSar,
+        },
       );
     } catch (error) {
       reportError(error, { surface: 'admin:refundEmail', bookingId });
@@ -530,4 +537,86 @@ export async function transitionBooking(
   revalidatePath('/[locale]/admin/bookings', 'page');
   revalidatePath('/[locale]/admin/analytics', 'page');
   redirect({ href: '/admin/bookings', locale });
+}
+
+/**
+ * Clear an outstanding settle anomaly so the guest can pay again.
+ *
+ * REQUIRED counterpart to the `createCheckout` guard (2026-07-28 eighth
+ * audit). That guard refuses a new checkout while `settleAnomalyAt` is
+ * set — which is right, because an unmatched capture may already exist
+ * at the gateway and taking a second payment would double-charge. But
+ * `createCheckout` is also the only code that CLEARS the stamp, and it
+ * returns before reaching that line: without this action the guest was
+ * permanently unable to pay. For the `unpaid` anomaly shape the hold
+ * then lapsed and cron Pass 1 cancelled the booking outright while a
+ * real capture was outstanding (Pass 1 now excludes under-review rows);
+ * the `processing` shape simply sat blocked indefinitely.
+ * The seventh-audit comment claimed "cleared by an admin resolving the
+ * anomaly" — this is that admin path, which did not exist.
+ *
+ * The admin's job before clicking: check the checkout id at HyperPay and
+ * either settle or refund the stray capture. This records the decision
+ * and reopens payment; it moves no money itself.
+ */
+export async function resolveSettleAnomaly(
+  _previous: AdminBookingActionResult,
+  formData: FormData,
+): Promise<AdminBookingActionResult> {
+  const guard = await requireAdmin();
+  if ('error' in guard) return guard.error;
+
+  const bookingId = formValue(formData, 'bookingId');
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(bookingId)) {
+    return { success: false, message: 'validation' };
+  }
+
+  try {
+    const cleared = await db
+      .update(bookings)
+      .set({
+        settleAnomalyAt: null,
+        settleAnomalyKind: null,
+        // Retire the stale checkout in the same write (2026-07-28 eighth
+        // audit). The anomaly leaves the row matching cron Pass 2's
+        // reconcile predicate exactly, so clearing the stamp alone was
+        // undone within the hour: Pass 2 re-polled the same still-live
+        // checkout, got the same mismatch, and re-stamped — re-blocking
+        // the guest and re-emailing the admin for a case they had just
+        // closed. Marking it superseded takes the row out of that set;
+        // `createCheckout` clears the marker when a fresh checkout is
+        // prepared.
+        checkoutSupersededAt: new Date(),
+      })
+      .where(and(eq(bookings.id, bookingId), isNotNull(bookings.settleAnomalyAt)))
+      .returning({ id: bookings.id });
+    if (cleared.length === 0) return { success: false, message: 'wrong_state' };
+
+    // The decision belongs in the money trail, not just the row.
+    try {
+      await recordPaymentEvent({
+        bookingId,
+        // `manual_refund_recorded` is the existing "an admin decided
+        // something about this booking's money" event. Typing this as
+        // `settle_failed` counted an admin FIXING a problem as a payment
+        // failure — it decremented the payment-success KPI and appeared
+        // in the failure funnel as a gateway result code (2026-07-28
+        // eighth audit).
+        type: 'manual_refund_recorded',
+        amountSar: null,
+        gatewayId: null,
+        resultCode: 'ANOMALY_RESOLVED',
+        actorUserId: guard.adminUserId,
+      });
+    } catch (error) {
+      reportError(error, { surface: 'admin:resolveSettleAnomaly:ledger', bookingId });
+    }
+  } catch (error) {
+    reportError(error, { surface: 'admin:resolveSettleAnomaly', bookingId });
+    return { success: false, message: 'server' };
+  }
+
+  revalidatePath('/[locale]/admin/bookings/[id]', 'page');
+  revalidatePath('/[locale]/book/[reference]/pay', 'page');
+  return { success: false };
 }

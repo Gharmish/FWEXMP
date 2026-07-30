@@ -338,9 +338,9 @@ async function runDashboardMetrics(range: DateRange): Promise<DashboardMetrics> 
         (select coalesce(sum(${payouts.amountSar}), 0) from ${payouts} where ${win(payouts.createdAt, prev)})::int as payouts_prev,
         (select coalesce(sum(amount_sar), 0) from wallet_ledger)::int as wallet_liability,
         (select count(*) from ${paymentEvents} where ${paymentEvents.type} = 'settle_succeeded' and ${win(paymentEvents.createdAt, cur)})::int as pe_ok_cur,
-        (select count(*) from ${paymentEvents} where ${paymentEvents.type} = 'settle_failed' and ${win(paymentEvents.createdAt, cur)})::int as pe_fail_cur,
+        (select count(*) from ${paymentEvents} where ${paymentEvents.type} = 'settle_failed' and (${paymentEvents.resultCode} is null or ${paymentEvents.resultCode} not like 'ANOMALY%') and ${win(paymentEvents.createdAt, cur)})::int as pe_fail_cur,
         (select count(*) from ${paymentEvents} where ${paymentEvents.type} = 'settle_succeeded' and ${win(paymentEvents.createdAt, prev)})::int as pe_ok_prev,
-        (select count(*) from ${paymentEvents} where ${paymentEvents.type} = 'settle_failed' and ${win(paymentEvents.createdAt, prev)})::int as pe_fail_prev,
+        (select count(*) from ${paymentEvents} where ${paymentEvents.type} = 'settle_failed' and (${paymentEvents.resultCode} is null or ${paymentEvents.resultCode} not like 'ANOMALY%') and ${win(paymentEvents.createdAt, prev)})::int as pe_fail_prev,
         (select count(*) from ${reviews} where ${reviews.hiddenAt} is null and ${win(reviews.createdAt, cur)})::int as rev_cnt_cur,
         (select count(*) from ${reviews} where ${reviews.hiddenAt} is null and ${win(reviews.createdAt, prev)})::int as rev_cnt_prev,
         (select coalesce(round(avg(${reviews.rating}) * 10), 0) from ${reviews} where ${reviews.hiddenAt} is null and ${win(reviews.createdAt, cur)})::int as rev_avg_cur,
@@ -491,6 +491,14 @@ async function runDashboardMetrics(range: DateRange): Promise<DashboardMetrics> 
         .where(
           and(
             sql`${paymentEvents.type} = 'settle_failed'`,
+            // Settle ANOMALIES are not gateway failures — they are real
+            // captures we could not match to a booking, and they carry a
+            // synthetic `ANOMALY:<problem>` code. Counting them here
+            // drove the payment-success KPI toward zero off a single
+            // stuck booking and displaced genuine OPPWA codes from this
+            // 6-row funnel (2026-07-28 eighth audit). They surface on the
+            // booking's own page and via `settle_anomaly` alerts instead.
+            sql`(${paymentEvents.resultCode} is null or ${paymentEvents.resultCode} not like 'ANOMALY%')`,
             gte(paymentEvents.createdAt, cur.start),
             lt(paymentEvents.createdAt, cur.endExclusive),
           ),

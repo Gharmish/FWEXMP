@@ -1,9 +1,29 @@
 import { timingSafeEqual } from 'node:crypto';
 import { NextResponse, type NextRequest } from 'next/server';
-import { and, eq, inArray, isNull, isNotNull, lte, notInArray, or, sql } from 'drizzle-orm';
+import {
+  and,
+  asc,
+  eq,
+  inArray,
+  isNull,
+  isNotNull,
+  lte,
+  ne,
+  notInArray,
+  or,
+  sql,
+} from 'drizzle-orm';
 import { db } from '@/lib/db';
 import { serverEnv } from '@/lib/env';
-import { authThrottleEvents, bookings, guests, platformSettings, walletLedger } from '@/db/schema';
+import {
+  authThrottleEvents,
+  bookings,
+  experiences,
+  guests,
+  hosts,
+  platformSettings,
+  walletLedger,
+} from '@/db/schema';
 import { reportError } from '@/lib/log';
 import { notifyAdmin } from '@/lib/admin-alerts';
 import { settleBooking } from '@/features/payments/settle';
@@ -138,6 +158,15 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       .where(
         and(
           inArray(bookings.paymentStatus, ['unpaid', 'failed']),
+          // NEVER release a booking that is under review (2026-07-28
+          // eighth audit). `createCheckout` refuses while
+          // `settleAnomalyAt` is set, so the guest CANNOT pay — and
+          // without this exclusion the hold simply lapsed here, the
+          // booking was cancelled as `system`, and a real capture was
+          // left orphaned on a cancelled row that Pass 1c's watch can't
+          // see either (it requires paymentStatus='paid'). The guard
+          // must freeze the clock, not just the button.
+          isNull(bookings.settleAnomalyAt),
           isNotNull(bookings.paymentDeadline),
           lte(bookings.paymentDeadline, new Date()),
           notInArray(bookings.status, [
@@ -450,14 +479,27 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       })
       .from(bookings)
       .innerJoin(guests, eq(bookings.guestId, guests.id))
+      .innerJoin(experiences, eq(bookings.experienceId, experiences.id))
+      .innerJoin(hosts, eq(experiences.hostId, hosts.id))
       .where(
         and(
           eq(bookings.status, 'confirmed'),
           inArray(bookings.date, [todayRiyadh, tomorrowRiyadh]),
+          // Never cheerfully remind a guest to show up for an experience
+          // the platform has WITHDRAWN (2026-07-28 eighth audit).
+          // Suspension force-pauses the host's listings, but this pass
+          // joined only bookings+guests — so suspended-host guests kept
+          // getting "get ready, see you tomorrow" for something that
+          // must not run. The system telling someone a falsehood it
+          // already knows is worse than telling them nothing.
+          ne(hosts.verificationStatus, 'suspended'),
           or(isNotNull(guests.email), isNotNull(guests.phone)),
           or(isNull(bookings.reminderSentAt), isNull(bookings.finalReminderSentAt)),
         ),
       )
+      // Bounded passes must make progress on the most urgent rows, not an
+      // arbitrary 100 (Pass 2 already does this; this one didn't).
+      .orderBy(asc(bookings.date), asc(bookings.startTime))
       .limit(REMINDER_LIMIT);
 
     let reminded = 0;

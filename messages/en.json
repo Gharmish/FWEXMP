@@ -944,7 +944,12 @@
         "gateway": "Card (gateway reversal)",
         "wallet": "Gharmish Credit",
         "manual": "Manual (recorded)"
-      }
+      },
+      "settleAnomalyTitle": "Payment under review",
+      "settleAnomalyBody": "An earlier payment on this booking could not be matched ({kind}). The guest cannot start a new payment until this is cleared. Check the checkout at HyperPay first — settle or refund the stray capture — then clear the block.",
+      "settleAnomalyClear": "Clear block",
+      "settleAnomalyClearPending": "Clearing…",
+      "settleAnomalyClearConfirm": "Only clear this after checking HyperPay. Clearing lets the guest pay again — if a capture is still outstanding, they could be charged twice."
     },
     "emergencyCancel": {
       "heading": "Emergency cancellation",
@@ -2663,7 +2668,7 @@
     "changeMethod": "Choose a different payment method",
     "vatIncludedLabel": "Includes VAT ({pct}%)",
     "errorNotApproved": "The host hasn't accepted this request yet. As soon as they do, you can complete your payment right here on this page.",
-    "errorUnderReview": "We're still confirming an earlier payment on this booking, so we can't start a new one yet. Our team is checking it — please don't pay again. We'll email you as soon as it's resolved.",
+    "errorUnderReview": "We're still confirming an earlier payment on this booking, so we can't start a new one yet. Our team is checking it — please don't pay again. Get in touch if you need an update.",
     "secureNote": "Payments are processed securely by our payment provider with 3-D Secure. Your card details never touch Gharmish servers.",
     "acceptedMethods": "We accept",
     "deadlineNote": "Complete payment by {deadline} — we're holding your spot until then.",

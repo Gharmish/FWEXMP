@@ -62,6 +62,24 @@ export function formatSaudiPhone(input: string): string {
   return `+966 ${a} ${b} ${c}`;
 }
 
+/**
+ * The marketplace's operating time zone. EVERY date/time we render is a
+ * Riyadh wall-clock instant — experiences run there, hosts and guests
+ * are there, and `startInstant` pins +03:00.
+ *
+ * Defaulted here (2026-07-28 eighth audit) because it was not defaulted
+ * anywhere: `Intl` falls back to the RUNTIME zone, which is UTC on
+ * Vercel. Guest-facing rows passed KSA options explicitly; the
+ * host-facing ones never did, so every host email and dashboard row was
+ * rendered three hours early — a booking starting 01:00 Riyadh showed
+ * the host "10:00 PM" the PREVIOUS DAY. Guest and host were reading
+ * different dates for the same booking. 94 of 122 call sites carried no
+ * zone at all; a default is the only fix that reaches them.
+ *
+ * Callers may still override (the Hijri toggle, UTC-stamped exports).
+ */
+const KSA_TIME_ZONE = 'Asia/Riyadh';
+
 export type CalendarSystem = 'gregory' | 'islamic';
 
 /**
@@ -77,6 +95,7 @@ export function formatDate(
   return new Intl.DateTimeFormat(intlLocale[locale], {
     calendar,
     numberingSystem: 'latn',
+    timeZone: KSA_TIME_ZONE,
     ...options,
   }).format(date);
 }
@@ -111,6 +130,7 @@ export function formatTime(
 ): string {
   return new Intl.DateTimeFormat(intlLocale[locale], {
     numberingSystem: 'latn',
+    timeZone: KSA_TIME_ZONE,
     hour: 'numeric',
     minute: '2-digit',
     hour12: true,
