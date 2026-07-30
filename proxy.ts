@@ -2,8 +2,10 @@ import { NextResponse, type NextRequest } from 'next/server';
 import createMiddleware from 'next-intl/middleware';
 import { createServerClient } from '@supabase/ssr';
 import { routing } from '@/lib/i18n';
-// `@/lib/env` is server-only and cannot load in the edge middleware
-// bundle; the client module holds the same NEXT_PUBLIC_* values.
+import { withDeadline } from '@/lib/deadline';
+// Only NEXT_PUBLIC_* values are needed here, so read them from the
+// client module. (Next 16 runs this file on the Node runtime, so
+// `@/lib/env` would also load — the reason is scope, not runtime.)
 import { clientEnv, hasSupabaseAuth } from '@/lib/env-client';
 import { STUB_SESSION_COOKIE } from '@/features/auth/lib/stub-session';
 import { pathRequiresAuth } from '@/proxy-rules';
@@ -28,13 +30,10 @@ const intlMiddleware = createMiddleware(routing);
 function hasSession(req: NextRequest): boolean {
   // Stub mode: gharmish_stub_session cookie.
   if (req.cookies.has(STUB_SESSION_COOKIE)) return true;
-  // Real Supabase mode: cookies start with `sb-` and end with `-auth-token`
-  // (e.g. sb-<project-ref>-auth-token). Presence of any such cookie is
-  // good enough for the edge gate; the page still re-checks via getSession().
-  for (const c of req.cookies.getAll()) {
-    if (c.name.startsWith('sb-') && c.name.endsWith('-auth-token')) return true;
-  }
-  return false;
+  // Real Supabase mode: `sb-<project-ref>-auth-token`, plus the chunked
+  // `.0`/`.1` form (see SUPABASE_AUTH_COOKIE_RE). Presence is good
+  // enough for this gate; the page still re-checks via getSession().
+  return hasSupabaseCookie(req);
 }
 
 function stripLocalePrefix(pathname: string): { locale: string; rest: string } | null {
@@ -46,11 +45,68 @@ function stripLocalePrefix(pathname: string): { locale: string; rest: string } |
   return null;
 }
 
+/**
+ * Supabase auth cookie name, including the CHUNKED form.
+ *
+ * `@supabase/ssr` splits a session over `…-auth-token.0`, `.1`, … once
+ * it exceeds ~3180 bytes, and then the un-suffixed cookie does not
+ * exist at all. Matching only the bare name meant a large session (grow
+ * `user_metadata` and you're there) read as "signed out": the refresh
+ * below would be skipped, and `hasSession` would 307 a fully signed-in
+ * host or admin to /sign-in on every gated path (2026-07-28 fifth
+ * audit — dormant at today's ~2KB session, silent when it trips).
+ */
+const SUPABASE_AUTH_COOKIE_RE = /^sb-.*-auth-token(\.\d+)?$/;
+
 /** Does the request carry a Supabase auth cookie at all? */
 function hasSupabaseCookie(req: NextRequest): boolean {
-  return req.cookies
+  return req.cookies.getAll().some((c) => SUPABASE_AUTH_COOKIE_RE.test(c.name));
+}
+
+/** Milliseconds of slack before expiry at which we bother refreshing. */
+const REFRESH_SKEW_MS = 60_000;
+/** Hard bound on the auth round trip — middleware is on every request. */
+const REFRESH_DEADLINE_MS = 1_500;
+
+/**
+ * Is the access token in the cookie already expired (or about to be)?
+ *
+ * Reading `exp` out of the JWT we already hold turns "one auth round
+ * trip per request" into "one per hour per user". Without it the
+ * refresh fired on every navigation AND every RSC prefetch, serial with
+ * the `getUser()` the page itself makes — 120-350ms of a 1.0s FCP
+ * budget spent doing work that's needed once an hour (2026-07-28 fifth
+ * audit). Unparseable/absent → assume it needs a refresh: the deadline
+ * below bounds the cost of being wrong.
+ */
+function accessTokenNeedsRefresh(req: NextRequest): boolean {
+  const chunks = req.cookies
     .getAll()
-    .some((c) => c.name.startsWith('sb-') && c.name.endsWith('-auth-token'));
+    .filter((c) => SUPABASE_AUTH_COOKIE_RE.test(c.name))
+    .sort((a, b) => a.name.localeCompare(b.name))
+    .map((c) => c.value)
+    .join('');
+  if (!chunks) return false;
+  try {
+    const raw = chunks.startsWith('base64-')
+      ? atob(chunks.slice('base64-'.length))
+      : decodeURIComponent(chunks);
+    const session = JSON.parse(raw) as { access_token?: unknown; expires_at?: unknown };
+    // `expires_at` is seconds since epoch when present.
+    if (typeof session.expires_at === 'number') {
+      return session.expires_at * 1000 - Date.now() < REFRESH_SKEW_MS;
+    }
+    if (typeof session.access_token !== 'string') return true;
+    const payload = session.access_token.split('.')[1];
+    if (!payload) return true;
+    const claims = JSON.parse(atob(payload.replace(/-/g, '+').replace(/_/g, '/'))) as {
+      exp?: unknown;
+    };
+    if (typeof claims.exp !== 'number') return true;
+    return claims.exp * 1000 - Date.now() < REFRESH_SKEW_MS;
+  } catch {
+    return true;
+  }
 }
 
 /**
@@ -75,6 +131,10 @@ function hasSupabaseCookie(req: NextRequest): boolean {
  */
 async function refreshSupabaseSession(req: NextRequest, res: NextResponse): Promise<void> {
   if (!hasSupabaseAuth() || !hasSupabaseCookie(req)) return;
+  // Only when the token is actually near expiry — see
+  // `accessTokenNeedsRefresh`. This is what keeps the fix off the hot
+  // path of every navigation and prefetch.
+  if (!accessTokenNeedsRefresh(req)) return;
   try {
     const supabase = createServerClient(
       clientEnv.NEXT_PUBLIC_SUPABASE_URL,
@@ -92,7 +152,15 @@ async function refreshSupabaseSession(req: NextRequest, res: NextResponse): Prom
     );
     // Triggers the rotation when the access token has expired; the
     // adapter above is what finally makes it stick.
-    await supabase.auth.getUser();
+    //
+    // HARD-BOUNDED: `getUser()` carries no timeout of its own, and this
+    // runs in the proxy, so an auth-service degradation or a black-holed
+    // connection would otherwise hang EVERY signed-in request until the
+    // platform killed the function — a site outage, where the old
+    // behaviour merely degraded one page to signed-out (2026-07-28 fifth
+    // audit). `try/catch` catches rejections, not hangs; this catches
+    // both.
+    await withDeadline('proxy:supabase-refresh', REFRESH_DEADLINE_MS, supabase.auth.getUser());
   } catch {
     // A refresh hiccup must never break navigation — the request
     // proceeds with the cookies it already had, and the page-level

@@ -49,6 +49,8 @@ let updateReturns: Array<{ id: string }> = [{ id: 'b-1' }];
  * amounts drifted mid-settle" (unpaid → anomaly).
  */
 let recheck: { paymentStatus: string } | undefined;
+/** Rows the anomaly stamp claims; empty = already stamped (alert suppressed). */
+let anomalyStampReturns: Array<{ id: string }> = [{ id: 'b-1' }];
 let findFirstCalls = 0;
 /**
  * Column names referenced by each conditional UPDATE's WHERE, in order.
@@ -95,10 +97,16 @@ vi.mock('@/lib/db', () => ({
     update: () => ({
       set: (values: Record<string, unknown>) => {
         setCalls.push(values);
+        // The once-per-booking anomaly stamp is its own conditional
+        // UPDATE; `updateReturns` models the SETTLE write's outcome, so
+        // the stamp must not inherit a simulated lost settle race.
+        const isAnomalyStamp = Object.keys(values).length === 1 && 'settleAnomalyAt' in values;
         return {
           where: (condition: unknown) => {
             whereColumns.push(columnNamesIn(condition));
-            return { returning: async () => updateReturns };
+            return {
+              returning: async () => (isAnomalyStamp ? anomalyStampReturns : updateReturns),
+            };
           },
         };
       },
@@ -157,6 +165,7 @@ beforeEach(() => {
   whereColumns.length = 0;
   updateReturns = [{ id: 'b-1' }];
   recheck = undefined;
+  anomalyStampReturns = [{ id: 'b-1' }];
   findFirstCalls = 0;
   booking = {
     id: 'b-1',
@@ -282,6 +291,19 @@ describe('settleBooking', () => {
     );
   });
 
+  it('alerts ONCE per anomaly, not on every hourly reconcile re-run', async () => {
+    // The cron re-runs settleBooking on stuck rows every hour. Without
+    // the once-per-booking stamp, each pass fired a fresh settle_anomaly
+    // email for a booking that can never settle.
+    gatewayStatus.amount = '9999.00';
+    anomalyStampReturns = []; // already stamped by an earlier pass
+
+    const outcome = await settleBooking('ref-1');
+
+    expect(outcome).toBe('anomaly');
+    expect(notifyAdmin).not.toHaveBeenCalled();
+  });
+
   it('refuses a fractional amount drift instead of rounding it away', async () => {
     // Checkouts are prepared as exact `xx.00` strings — a capture of
     // 480.30 for a 480 booking must fail the amount guard, not settle.
@@ -290,7 +312,9 @@ describe('settleBooking', () => {
     const outcome = await settleBooking('ref-1');
 
     expect(outcome).toBe('anomaly');
-    expect(setCalls).toHaveLength(0);
+    // The only write is the once-per-booking anomaly stamp — the booking
+    // itself must stay untouched.
+    expect(setCalls).toEqual([{ settleAnomalyAt: expect.any(Date) }]);
     expect(notifyAdmin).toHaveBeenCalledWith(
       'settle_anomaly',
       expect.objectContaining({ problem: 'amount mismatch' }),
@@ -313,7 +337,9 @@ describe('settleBooking', () => {
     const outcome = await settleBooking('ref-1');
 
     expect(outcome).toBe('anomaly');
-    expect(setCalls).toHaveLength(0);
+    // The only write is the once-per-booking anomaly stamp — the booking
+    // itself must stay untouched.
+    expect(setCalls).toEqual([{ settleAnomalyAt: expect.any(Date) }]);
     expect(notifyAdmin).toHaveBeenCalledWith(
       'settle_anomaly',
       expect.objectContaining({ problem: 'amount mismatch' }),
@@ -326,7 +352,7 @@ describe('settleBooking', () => {
     const outcome = await settleBooking('ref-1');
 
     expect(outcome).toBe('anomaly');
-    expect(setCalls).toHaveLength(0);
+    expect(setCalls).toEqual([{ settleAnomalyAt: expect.any(Date) }]);
     expect(notifyAdmin).toHaveBeenCalledWith(
       'settle_anomaly',
       expect.objectContaining({ problem: 'currency mismatch or missing' }),

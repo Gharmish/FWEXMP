@@ -575,6 +575,15 @@ export const bookings = pgTable(
      * settlement to a late capture.
      */
     checkoutSupersededAt: timestamp({ withTimezone: true }),
+    /**
+     * When a PERMANENT settle anomaly was first recorded (amount or
+     * currency mismatch on a real capture). Settle alerts a human on the
+     * transition to non-null only, so the hourly reconcile pass can keep
+     * re-running `settleBooking` — which is idempotent — without
+     * re-firing an operational alert every hour forever
+     * (2026-07-28 fifth audit).
+     */
+    settleAnomalyAt: timestamp({ withTimezone: true }),
     /** Card scheme returned by HyperPay (e.g. `MADA`, `VISA`, `MASTER`). */
     paymentBrand: text(),
     /** When payment was confirmed paid. Null until settled. */

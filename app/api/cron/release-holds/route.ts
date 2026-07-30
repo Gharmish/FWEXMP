@@ -9,6 +9,7 @@ import { notifyAdmin } from '@/lib/admin-alerts';
 import { settleBooking } from '@/features/payments/settle';
 import {
   RETRYABLE_BOOKING_SENDERS,
+  sendBookingReceiptEmail,
   sendBookingExpiredEmail,
   sendBookingPaymentLapsedEmail,
   sendBookingPrepareReminderEmail,
@@ -285,13 +286,36 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       // longest-stuck money rather than re-scanning the same head.
       orderBy: (b, { asc }) => [asc(b.paymentDeadline)],
       columns: { idempotencyKey: true },
+      with: { guest: { columns: { preferredLanguage: true } } },
       limit: RECONCILE_LIMIT,
     });
 
     let settled = 0;
+    let anomalies = 0;
     for (const row of stuck) {
       const outcome = await settleBooking(row.idempotencyKey);
-      if (outcome === 'success') settled += 1;
+      if (outcome === 'success') {
+        settled += 1;
+        // The guest's receipt + simplified tax invoice (2026-07-28 fifth
+        // audit). The return route and the webhook both send it; this
+        // pass didn't, so a booking rescued here told the HOST money
+        // arrived and left the guest with nothing — and ZATCA requires
+        // the invoice be issued to the customer. Best-effort.
+        try {
+          await sendBookingReceiptEmail(row.idempotencyKey, row.guest.preferredLanguage);
+        } catch (error) {
+          reportError(error, {
+            surface: 'cron-reconcile:receipt',
+            reference: row.idempotencyKey,
+          });
+        }
+      }
+      // `anomaly` is PERMANENT — a real capture that can never match
+      // this booking. Settle has already alerted a human once; counting
+      // it here (rather than treating it as an ordinary failure) is what
+      // keeps the run's summary honest. Suppressing the hourly re-alert
+      // is settle's job, via the anomaly stamp.
+      if (outcome === 'anomaly') anomalies += 1;
     }
 
     // Pass 2b — stuck-settlement aging alert (2026-07-20 audit). A
@@ -487,7 +511,17 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       // de-duped to once per 30 days via the stamp column.
       const [turnover] = await db
         .select({
-          netSar: sql<number>`coalesce(sum(${bookings.totalAmount}) filter (where ${bookings.paidAt} >= now() - interval '365 days'), 0)::int - coalesce(sum(${bookings.totalAmount}) filter (where ${bookings.status} = 'refunded' and ${bookings.paidAt} >= now() - interval '365 days'), 0)::int`,
+          // Taxable turnover, corrected 2026-07-28 (fifth audit). Three
+          // separate understatements made the ONLY registration tripwire
+          // fail silently in the direction of a missed registration:
+          //   1. refunds netted the FULL invoice even on a 50% policy
+          //      refund, so a half-refunded booking netted to zero;
+          //   2. `walletAppliedSar` was excluded from gross, though the
+          //      platform supplied that value (it is added back for the
+          //      host payout base — see payout-sql.ts);
+          //   3. refunds were windowed by `paidAt`, so refunding a
+          //      >365-day-old booking never netted at all.
+          netSar: sql<number>`coalesce(sum(${bookings.totalAmount} + coalesce(${bookings.walletAppliedSar}, 0)) filter (where ${bookings.paidAt} >= now() - interval '365 days'), 0)::int - coalesce(sum(least(coalesce(${bookings.refundedAmountSar}, ${bookings.totalAmount}), ${bookings.totalAmount} + coalesce(${bookings.walletAppliedSar}, 0))) filter (where ${bookings.status} = 'refunded' and ${bookings.refundedAt} >= now() - interval '365 days'), 0)::int`,
         })
         .from(bookings);
       const netSar = turnover?.netSar ?? 0;
@@ -635,6 +669,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       released: released.length,
       reconciled: stuck.length,
       settled,
+      anomalies,
       reminded,
       retried,
       completed: completed.length,

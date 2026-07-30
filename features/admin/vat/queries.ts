@@ -77,6 +77,15 @@ export async function getVatReport(range: DateRange): Promise<VatReport | null> 
     const paid12m = sql`${bookings.paidAt} >= now() - interval '365 days'`;
     // Commission on the ex-VAT net — mirrors splitCommission/payoutExpr.
     const commission = sql`round((${bookings.totalAmount} - ${vat}) * least(10000, greatest(0, ${bookings.commissionBps}))::numeric / 10000)`;
+    // What a credit note actually reverses: the CARD leg returned, not
+    // the whole invoice (2026-07-28 fifth audit). `executeRefund` sets
+    // status='refunded' on any successful refund, and two live policy
+    // tiers refund 50% — so summing `total_amount` over refunded rows
+    // over-reversed output tax on every partial, underpaying ZATCA and
+    // contradicting the credit note the guest was actually issued.
+    // Mirrors the invoice page's `min(refundedAmountSar, total)`.
+    const reversedGross = sql`least(coalesce(${bookings.refundedAmountSar}, ${bookings.totalAmount}), ${bookings.totalAmount})`;
+    const reversedVat = sql`coalesce(round(${reversedGross} * ${bookings.vatRateBps}::numeric / (10000 + ${bookings.vatRateBps})), 0)::int`;
 
     const [[agg], rowsRaw, settings] = await Promise.all([
       db
@@ -85,11 +94,11 @@ export async function getVatReport(range: DateRange): Promise<VatReport | null> 
           outputGrossSar: sql<number>`coalesce(sum(${bookings.totalAmount}) filter (where ${stamped} and ${paidInRange}), 0)::int`,
           outputVatSar: sql<number>`coalesce(sum(${vat}) filter (where ${stamped} and ${paidInRange}), 0)::int`,
           creditCount: sql<number>`count(*) filter (where ${stamped} and ${bookings.status} = 'refunded' and ${refundedInRange})::int`,
-          creditGrossSar: sql<number>`coalesce(sum(${bookings.totalAmount}) filter (where ${stamped} and ${bookings.status} = 'refunded' and ${refundedInRange}), 0)::int`,
-          creditVatSar: sql<number>`coalesce(sum(${vat}) filter (where ${stamped} and ${bookings.status} = 'refunded' and ${refundedInRange}), 0)::int`,
+          creditGrossSar: sql<number>`coalesce(sum(${reversedGross}) filter (where ${stamped} and ${bookings.status} = 'refunded' and ${refundedInRange}), 0)::int`,
+          creditVatSar: sql<number>`coalesce(sum(${reversedVat}) filter (where ${stamped} and ${bookings.status} = 'refunded' and ${refundedInRange}), 0)::int`,
           unstampedPaidCount: sql<number>`count(*) filter (where ${bookings.paymentStatus} = 'paid' and ${bookings.vatRateBps} is null and ${paidInRange})::int`,
           rolling12mGrossSar: sql<number>`coalesce(sum(${bookings.totalAmount}) filter (where ${bookings.paidAt} is not null and ${paid12m}), 0)::int`,
-          rolling12mRefundedSar: sql<number>`coalesce(sum(${bookings.totalAmount}) filter (where ${bookings.status} = 'refunded' and ${bookings.paidAt} is not null and ${paid12m}), 0)::int`,
+          rolling12mRefundedSar: sql<number>`coalesce(sum(${reversedGross}) filter (where ${bookings.status} = 'refunded' and ${bookings.refundedAt} >= now() - interval '365 days'), 0)::int`,
           rolling12mCommissionSar: sql<number>`coalesce(round(sum(${commission}) filter (where ${bookings.paidAt} is not null and ${paid12m})), 0)::int`,
         })
         .from(bookings),

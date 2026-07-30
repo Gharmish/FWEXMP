@@ -22,7 +22,38 @@ export type UpdateSettingsState =
       success: false;
       message?: 'forbidden' | 'no_db' | 'validation' | 'server';
       fields?: Record<string, string>;
+      /**
+       * Every submitted scalar, echoed back (2026-07-28 fifth audit).
+       * React resets uncontrolled inputs to their server-rendered
+       * defaults on a failed action, so without this an admin who
+       * changed commission 15 → 12.5 and then tripped VAT validation
+       * saw only VAT flagged while commission silently snapped back —
+       * and re-saving "just the VAT fix" quietly restored the old
+       * commission, which feeds `splitCommission` in the payout batch.
+       */
+      values?: Record<string, string>;
     };
+
+/** The scalar fields as submitted, so a failed save doesn't lose them. */
+function submittedValues(formData: FormData): Record<string, string> {
+  const keys = [
+    'commissionPct',
+    'cancellationWindowHours',
+    'approvalWindowHours',
+    'approvalPaymentWindowHours',
+    'announcementEn',
+    'announcementAr',
+    'vatRatePct',
+    'vatRegistrationNumber',
+    'gatewayFeePct',
+  ] as const;
+  const out: Record<string, string> = {};
+  for (const key of keys) {
+    const value = formData.get(key);
+    if (typeof value === 'string') out[key] = value;
+  }
+  return out;
+}
 
 async function requireAdmin(): Promise<{ adminUserId: string } | { error: UpdateSettingsState }> {
   const admin = await getCurrentUser();
@@ -61,7 +92,7 @@ export async function updateSettings(
       const key = issue.path[0];
       if (typeof key === 'string') fields[key] = issue.message;
     }
-    return { success: false, message: 'validation', fields };
+    return { success: false, message: 'validation', fields, values: submittedValues(formData) };
   }
 
   const input = parsed.data;
@@ -112,7 +143,7 @@ export async function updateSettings(
       });
   } catch (error) {
     reportError(error, { surface: 'admin:updateSettings' });
-    return { success: false, message: 'server' };
+    return { success: false, message: 'server', values: submittedValues(formData) };
   }
 
   // Settings drive the dashboard KPIs and the public category facets.

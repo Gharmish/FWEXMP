@@ -199,6 +199,13 @@ export function PhotoGallery({ heroImage, images, alt, locale, copy }: PhotoGall
             priority
             copy={{ prev: copy.prev, next: copy.next, goTo: copy.goTo }}
             onSlideClick={(i) => openLightbox(i)}
+            // No auto-advance: WCAG 2.2.2 (Level A) — moving content
+            // lasting >5s needs a pause/stop control, and this carousel
+            // has none. `experience-card.tsx` already passes 0 for the
+            // same reason; the detail hero inherited PhotoCarousel's 5s
+            // default and cycled forever (2026-07-28 fifth audit).
+            // Hover/touch pause is not a conforming mechanism.
+            autoAdvanceMs={0}
             className="sm:hidden"
           />
 

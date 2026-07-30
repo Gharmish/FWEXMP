@@ -99,6 +99,14 @@ export function FilterRail({ locale, categories, resultCount, cities, facets }: 
         <button
           type="button"
           onClick={() => setSheetOpen(true)}
+          // The visible label is `hidden sm:inline` and the icon is
+          // aria-hidden, so below `sm` this button had NO accessible name
+          // — a screen-reader user on a 375px phone heard only "button"
+          // and the whole tier-2 filter surface was undiscoverable
+          // (2026-07-28 fifth audit). Majority-mobile audience.
+          aria-label={t('filtersButton')}
+          aria-haspopup="dialog"
+          aria-expanded={sheetOpen}
           className="border-sarat-black/20 text-sarat-black hover:border-sarat-black/40 inline-flex h-11 shrink-0 items-center gap-2 rounded-full [border-width:0.5px] ps-4 pe-4 text-sm font-medium transition-colors duration-200"
         >
           <SlidersHorizontal className="size-4" aria-hidden />

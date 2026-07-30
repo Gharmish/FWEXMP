@@ -26,7 +26,15 @@ export async function GET(
     const outcome = await settleBooking(reference);
     // `already_settled` is a replayed/refreshed return URL on a paid
     // booking — display as success, but fire no side effects.
-    confirmed.searchParams.set('payment', outcome === 'already_settled' ? 'success' : outcome);
+    // `anomaly` means a REAL capture that can't be matched to this
+    // booking (amount/currency drift). Surface it as `pending`, never as
+    // a fresh payment prompt (2026-07-28 fifth audit): the booking row
+    // is deliberately left untouched, so without this mapping the
+    // confirmation page fell through to its awaiting-payment state and
+    // asked a guest whose card was just charged to pay again.
+    const hint =
+      outcome === 'already_settled' ? 'success' : outcome === 'anomaly' ? 'pending' : outcome;
+    confirmed.searchParams.set('payment', hint);
     // On the actual paid transition, send the booking receipt. Best-effort
     // and gated (no-op without email configured / no guest email) — it must
     // never delay or fail the redirect to the confirmation page.

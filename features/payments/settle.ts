@@ -1,4 +1,4 @@
-import { and, eq, ne } from 'drizzle-orm';
+import { and, eq, isNull, ne } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import { serverEnv, hasHyperpay } from '@/lib/env';
 import { bookings } from '@/db/schema';
@@ -64,6 +64,33 @@ async function getPaymentStatusWithRetry(
  * immediately refunded via the shared executor — money never silently
  * sticks to a booking nobody holds.
  */
+
+/**
+ * Record a PERMANENT settle anomaly and tell a human — but only the
+ * first time for this booking (2026-07-28 fifth audit). The reconcile
+ * pass re-runs `settleBooking` hourly by design; without this stamp
+ * each pass fired a fresh `settle_anomaly` email for a booking that can
+ * never settle. Returns nothing: alerting is best-effort.
+ */
+async function recordSettleAnomaly(
+  bookingId: string,
+  detail: Record<string, string | number | null | undefined>,
+): Promise<void> {
+  let firstTime = true;
+  try {
+    const claimed = await db
+      .update(bookings)
+      .set({ settleAnomalyAt: new Date() })
+      .where(and(eq(bookings.id, bookingId), isNull(bookings.settleAnomalyAt)))
+      .returning({ id: bookings.id });
+    firstTime = claimed.length > 0;
+  } catch (error) {
+    // Couldn't stamp — alert anyway rather than swallow a real capture.
+    reportError(error, { surface: 'payment-settle:anomalyStamp', bookingId });
+  }
+  if (firstTime) await notifyAdmin('settle_anomaly', detail);
+}
+
 export async function settleBooking(reference: string): Promise<SettleOutcome> {
   if (!hasHyperpay() || !serverEnv.DATABASE_URL) return 'error';
 
@@ -108,7 +135,7 @@ export async function settleBooking(reference: string): Promise<SettleOutcome> {
           expected: booking.totalAmount,
           reported: status.amount,
         });
-        await notifyAdmin('settle_anomaly', {
+        await recordSettleAnomaly(booking.id, {
           problem: 'amount mismatch',
           reference,
           expectedSar: booking.totalAmount,
@@ -125,7 +152,7 @@ export async function settleBooking(reference: string): Promise<SettleOutcome> {
           reference,
           reported: status.currency ?? 'missing',
         });
-        await notifyAdmin('settle_anomaly', {
+        await recordSettleAnomaly(booking.id, {
           problem: 'currency mismatch or missing',
           reference,
           reported: status.currency ?? 'missing',
@@ -205,7 +232,7 @@ export async function settleBooking(reference: string): Promise<SettleOutcome> {
           reference,
           capturedSar: booking.totalAmount,
         });
-        await notifyAdmin('settle_anomaly', {
+        await recordSettleAnomaly(booking.id, {
           problem: 'amounts changed while settling (promo/credit race)',
           reference,
           capturedSar: booking.totalAmount,

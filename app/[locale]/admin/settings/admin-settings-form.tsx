@@ -152,7 +152,11 @@ export function AdminSettingsForm({
             max={50}
             step={0.5}
             dir="ltr"
-            defaultValue={defaultCommissionPct}
+            defaultValue={
+              state.success === false
+                ? (state.values?.commissionPct ?? defaultCommissionPct)
+                : defaultCommissionPct
+            }
             className="w-32"
             aria-invalid={fields.commissionPct ? 'true' : undefined}
             aria-describedby={fields.commissionPct ? eid('commissionPct') : undefined}
@@ -178,7 +182,11 @@ export function AdminSettingsForm({
             max={10}
             step={0.1}
             dir="ltr"
-            defaultValue={defaultGatewayFeePct}
+            defaultValue={
+              state.success === false
+                ? (state.values?.gatewayFeePct ?? defaultGatewayFeePct)
+                : defaultGatewayFeePct
+            }
             className="w-32"
             aria-invalid={fields.gatewayFeePct ? 'true' : undefined}
             aria-describedby={fields.gatewayFeePct ? eid('gatewayFeePct') : undefined}
@@ -204,7 +212,11 @@ export function AdminSettingsForm({
             max={336}
             step={1}
             dir="ltr"
-            defaultValue={defaultCancellationWindowHours}
+            defaultValue={
+              state.success === false
+                ? (state.values?.cancellationWindowHours ?? defaultCancellationWindowHours)
+                : defaultCancellationWindowHours
+            }
             className="w-32"
             aria-invalid={fields.cancellationWindowHours ? 'true' : undefined}
             aria-describedby={
@@ -232,7 +244,11 @@ export function AdminSettingsForm({
             max={336}
             step={1}
             dir="ltr"
-            defaultValue={defaultApprovalWindowHours}
+            defaultValue={
+              state.success === false
+                ? (state.values?.approvalWindowHours ?? defaultApprovalWindowHours)
+                : defaultApprovalWindowHours
+            }
             className="w-32"
             aria-invalid={fields.approvalWindowHours ? 'true' : undefined}
             aria-describedby={fields.approvalWindowHours ? eid('approvalWindowHours') : undefined}
@@ -258,7 +274,11 @@ export function AdminSettingsForm({
             max={336}
             step={1}
             dir="ltr"
-            defaultValue={defaultApprovalPaymentWindowHours}
+            defaultValue={
+              state.success === false
+                ? (state.values?.approvalPaymentWindowHours ?? defaultApprovalPaymentWindowHours)
+                : defaultApprovalPaymentWindowHours
+            }
             className="w-32"
             aria-invalid={fields.approvalPaymentWindowHours ? 'true' : undefined}
             aria-describedby={
@@ -280,7 +300,11 @@ export function AdminSettingsForm({
           <Input
             name="announcementEn"
             maxLength={200}
-            defaultValue={defaultAnnouncementEn}
+            defaultValue={
+              state.success === false
+                ? (state.values?.announcementEn ?? defaultAnnouncementEn)
+                : defaultAnnouncementEn
+            }
             aria-invalid={fields.announcementEn ? 'true' : undefined}
           />
         </label>
@@ -290,7 +314,11 @@ export function AdminSettingsForm({
             name="announcementAr"
             dir="rtl"
             maxLength={200}
-            defaultValue={defaultAnnouncementAr}
+            defaultValue={
+              state.success === false
+                ? (state.values?.announcementAr ?? defaultAnnouncementAr)
+                : defaultAnnouncementAr
+            }
             aria-invalid={fields.announcementAr ? 'true' : undefined}
           />
         </label>
@@ -335,7 +363,11 @@ export function AdminSettingsForm({
                 max={50}
                 step={0.5}
                 dir="ltr"
-                defaultValue={defaultVatRatePct}
+                defaultValue={
+                  state.success === false
+                    ? (state.values?.vatRatePct ?? defaultVatRatePct)
+                    : defaultVatRatePct
+                }
                 className="w-32"
                 aria-invalid={fields.vatRatePct ? 'true' : undefined}
                 aria-describedby={fields.vatRatePct ? eid('vatRatePct') : undefined}
@@ -353,7 +385,11 @@ export function AdminSettingsForm({
               maxLength={15}
               dir="ltr"
               placeholder="3XXXXXXXXXXXXX3"
-              defaultValue={defaultVatRegistrationNumber}
+              defaultValue={
+                state.success === false
+                  ? (state.values?.vatRegistrationNumber ?? defaultVatRegistrationNumber)
+                  : defaultVatRegistrationNumber
+              }
               aria-invalid={fields.vatRegistrationNumber ? 'true' : undefined}
               aria-describedby={
                 fields.vatRegistrationNumber ? eid('vatRegistrationNumber') : undefined

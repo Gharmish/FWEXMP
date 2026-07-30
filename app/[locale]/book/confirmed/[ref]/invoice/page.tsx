@@ -113,7 +113,13 @@ export default async function BookingInvoicePage({ params }: PageParams) {
   const taxableSar = booking.totalAmountSar - vatSar;
   const unitSar = Math.round(booking.totalAmountSar / booking.partySize);
   const brand = booking.paymentBrand ? BRAND_NAMES[booking.paymentBrand] : undefined;
-  const refunded = booking.status === 'refunded';
+  // FULL refunds only (2026-07-28 fifth audit): `status` flips to
+  // 'refunded' on any successful refund, including the 50% policy tiers,
+  // so keying the document-wide stamp on it put "REFUNDED" across an
+  // invoice whose credit note below reverses only half — two
+  // contradictory legal statements on one page.
+  const reversedSar = Math.min(booking.refundedAmountSar ?? 0, booking.totalAmountSar);
+  const refunded = booking.status === 'refunded' && reversedSar >= booking.totalAmountSar;
 
   // ZATCA Phase-1 QR — only meaningful on a tax invoice.
   const qrDataUrl = vat

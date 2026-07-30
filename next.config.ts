@@ -37,8 +37,18 @@ const nextConfig: NextConfig = {
       // Clients re-encode to a small WebP first, but the default 1MB cap
       // 413'd any fallback-path original — 20MB clears the bucket's 15MB
       // object policy with form-encoding headroom. 25MB since the host
-      // KYC form submits up to five 4MB documents in one multipart body
-      // (keep in lockstep with MAX_DOCUMENT_BYTES × doc count).
+      // KYC form submits several documents in one multipart body.
+      //
+      // OPEN QUESTION (2026-07-28 fifth audit): an audit pass claimed
+      // Vercel hard-caps request bodies at 4.5MB on every plan, which
+      // would make any larger value here fiction — the platform would
+      // 413 before the function runs, so `useActionState` sees a
+      // transport error instead of a field-level message. That claim
+      // could NOT be confirmed against the Vercel docs, and lowering
+      // this value would break large uploads outright if it is wrong,
+      // so the setting is left as-is pending a real end-to-end upload
+      // test against production. Worth verifying before relying on
+      // multi-document (company) KYC submissions.
       bodySizeLimit: '25mb',
     },
   },

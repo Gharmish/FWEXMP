@@ -353,7 +353,17 @@ export async function createCheckout(
 
     await db
       .update(bookings)
-      .set({ checkoutId: checkout.id, paymentStatus: 'processing' })
+      .set({
+        checkoutId: checkout.id,
+        paymentStatus: 'processing',
+        // This checkout is FRESH, so the supersession marker from any
+        // earlier promo/credit change must clear with it (2026-07-28
+        // fifth audit). Left set, the reconcile pass — which skips
+        // superseded rows — excluded this booking permanently, so a
+        // capture whose browser died before /pay/return would never
+        // settle: guest charged, no receipt, seat released.
+        checkoutSupersededAt: null,
+      })
       .where(eq(bookings.id, booking.id));
     // The reuse window above keys off this event's timestamp, and the
     // channel tag tells settle/refund which entity to query.
