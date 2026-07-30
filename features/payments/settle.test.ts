@@ -100,7 +100,7 @@ vi.mock('@/lib/db', () => ({
         // The once-per-booking anomaly stamp is its own conditional
         // UPDATE; `updateReturns` models the SETTLE write's outcome, so
         // the stamp must not inherit a simulated lost settle race.
-        const isAnomalyStamp = Object.keys(values).length === 1 && 'settleAnomalyAt' in values;
+        const isAnomalyStamp = 'settleAnomalyAt' in values && !('paymentStatus' in values);
         return {
           where: (condition: unknown) => {
             whereColumns.push(columnNamesIn(condition));
@@ -314,7 +314,9 @@ describe('settleBooking', () => {
     expect(outcome).toBe('anomaly');
     // The only write is the once-per-booking anomaly stamp — the booking
     // itself must stay untouched.
-    expect(setCalls).toEqual([{ settleAnomalyAt: expect.any(Date) }]);
+    expect(setCalls).toEqual([
+      { settleAnomalyAt: expect.any(Date), settleAnomalyKind: expect.any(String) },
+    ]);
     expect(notifyAdmin).toHaveBeenCalledWith(
       'settle_anomaly',
       expect.objectContaining({ problem: 'amount mismatch' }),
@@ -339,7 +341,9 @@ describe('settleBooking', () => {
     expect(outcome).toBe('anomaly');
     // The only write is the once-per-booking anomaly stamp — the booking
     // itself must stay untouched.
-    expect(setCalls).toEqual([{ settleAnomalyAt: expect.any(Date) }]);
+    expect(setCalls).toEqual([
+      { settleAnomalyAt: expect.any(Date), settleAnomalyKind: expect.any(String) },
+    ]);
     expect(notifyAdmin).toHaveBeenCalledWith(
       'settle_anomaly',
       expect.objectContaining({ problem: 'amount mismatch' }),
@@ -352,7 +356,9 @@ describe('settleBooking', () => {
     const outcome = await settleBooking('ref-1');
 
     expect(outcome).toBe('anomaly');
-    expect(setCalls).toEqual([{ settleAnomalyAt: expect.any(Date) }]);
+    expect(setCalls).toEqual([
+      { settleAnomalyAt: expect.any(Date), settleAnomalyKind: expect.any(String) },
+    ]);
     expect(notifyAdmin).toHaveBeenCalledWith(
       'settle_anomaly',
       expect.objectContaining({ problem: 'currency mismatch or missing' }),

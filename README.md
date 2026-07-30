@@ -27,7 +27,7 @@ Open <http://localhost:3000>. Locale routes: `/en` and `/ar`. Internal styleguid
 
 ## Environment
 
-`.env.example` lists every variable. All are optional in development — the app falls back to in-repo sample data, no-op error reporting, and preview-mode bookings. Production needs the real values.
+`.env.example` lists every variable (verified complete 2026-07-28 — it previously omitted 23 of them, including `PII_ENCRYPTION_KEY`, whose absence silently disables PII encryption). All are optional in development — the app falls back to in-repo sample data, no-op error reporting, and preview-mode bookings. Production needs the real values.
 
 | Variable                 | Purpose                                                      |
 | ------------------------ | ------------------------------------------------------------ |
@@ -61,8 +61,8 @@ The app is built so each external dependency flips on independently. Recommended
 
 1. **`DATABASE_URL`** — `pnpm db:check` to confirm reachable → `pnpm db:push` to apply the schema → `pnpm db:seed` to load the 6 Abha experiences, 2 hosts, 16 reviews. Every page transparently switches from sample data to live rows.
 2. **`SENTRY_DSN` + `NEXT_PUBLIC_SENTRY_DSN`** — errors start flowing through `reportError` automatically. No code change needed.
-3. **Moyasar API keys** — booking confirmation page is already in place; payment handoff is the next implementation step.
-4. **Resend / Cloudflare R2 / 360dialog** — email, image storage, WhatsApp. All deferred until the lanes above are live.
+3. **HyperPay** (`HYPERPAY_ACCESS_TOKEN` + `HYPERPAY_ENTITY_ID`) — the full COPYandPAY flow is built; without them the app stays request-to-book and takes no card. Moyasar was the original plan and is NOT used.
+4. **Resend / Twilio** — email and WhatsApp; both wired, inert until their vars land. Image storage is Supabase Storage, already live (not Cloudflare R2).
 
 ## Patterns
 
@@ -92,14 +92,20 @@ The app is built so each external dependency flips on independently. Recommended
 
 ## What's not built yet
 
-Per BRIEF §10 (deferred), and noted explicitly so it isn't a surprise to a next contributor:
+_Rewritten 2026-07-28 (sixth audit): this list was two months stale and
+described six SHIPPED subsystems as unbuilt — including a payment
+gateway (Moyasar) that appears nowhere in the codebase._
 
-- Real authentication. `/me` uses a cookie-backed stub today.
-- Real Moyasar payment handoff (the form already redirects to a confirmation page; the next step is the payment link).
-- Host dashboards, admin panel.
-- Meilisearch for proper Arabic-aware search (current `?q=` is a substring match on title + place + host).
-- WhatsApp confirmation via 360dialog.
-- Email via Resend.
+Actually still outstanding:
+
+- Meilisearch for Arabic-aware search (current `?q=` is a substring match on title + place + host).
 - Mobile app.
+- ZATCA Phase-2 (Fatoora integration). Phase-1 simplified tax invoices + QR are live.
+- Nafath host KYC identity verification.
+
+Shipped since this list was written: real Supabase Auth (phone + email
+OTP), the full booking + **HyperPay** payment flow (not Moyasar — that
+plan was superseded), host dashboards, the admin panel, WhatsApp via
+**Twilio** (not 360dialog), and email via Resend.
 
 When in doubt about whether something belongs in scope, BRIEF.md wins.

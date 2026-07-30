@@ -1,4 +1,4 @@
-import { and, eq, isNull, ne } from 'drizzle-orm';
+import { and, eq, isNull, ne, or } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import { serverEnv, hasHyperpay } from '@/lib/env';
 import { bookings } from '@/db/schema';
@@ -74,20 +74,41 @@ async function getPaymentStatusWithRetry(
  */
 async function recordSettleAnomaly(
   bookingId: string,
+  problem: string,
   detail: Record<string, string | number | null | undefined>,
 ): Promise<void> {
   let firstTime = true;
   try {
+    // Keyed on the PROBLEM, not just the booking (2026-07-28 sixth
+    // audit). A booking-scoped stamp meant a currency mismatch on one
+    // checkout permanently silenced a later, different anomaly — e.g. a
+    // second real unmatched capture after a promo-superseded retry —
+    // because nothing clears the stamp between checkouts.
     const claimed = await db
       .update(bookings)
-      .set({ settleAnomalyAt: new Date() })
-      .where(and(eq(bookings.id, bookingId), isNull(bookings.settleAnomalyAt)))
+      .set({ settleAnomalyAt: new Date(), settleAnomalyKind: problem })
+      .where(
+        and(
+          eq(bookings.id, bookingId),
+          or(isNull(bookings.settleAnomalyAt), ne(bookings.settleAnomalyKind, problem)),
+        ),
+      )
       .returning({ id: bookings.id });
     firstTime = claimed.length > 0;
   } catch (error) {
     // Couldn't stamp — alert anyway rather than swallow a real capture.
     reportError(error, { surface: 'payment-settle:anomalyStamp', bookingId });
   }
+  // Sentry ALWAYS, every time — `notifyAdmin` is a silent no-op when
+  // email is unconfigured or a send fails, and the stamp is written
+  // before it, so a single failed send used to destroy the only signal
+  // about a real captured-but-unmatched payment (2026-07-28 sixth
+  // audit). The breadcrumb survives independently of email.
+  reportError(new Error(`settle anomaly: ${problem}`), {
+    surface: 'payment-settle:anomaly',
+    bookingId,
+    ...detail,
+  });
   if (firstTime) await notifyAdmin('settle_anomaly', detail);
 }
 
@@ -135,7 +156,7 @@ export async function settleBooking(reference: string): Promise<SettleOutcome> {
           expected: booking.totalAmount,
           reported: status.amount,
         });
-        await recordSettleAnomaly(booking.id, {
+        await recordSettleAnomaly(booking.id, 'amount mismatch', {
           problem: 'amount mismatch',
           reference,
           expectedSar: booking.totalAmount,
@@ -152,7 +173,7 @@ export async function settleBooking(reference: string): Promise<SettleOutcome> {
           reference,
           reported: status.currency ?? 'missing',
         });
-        await recordSettleAnomaly(booking.id, {
+        await recordSettleAnomaly(booking.id, 'currency mismatch or missing', {
           problem: 'currency mismatch or missing',
           reference,
           reported: status.currency ?? 'missing',
@@ -232,11 +253,15 @@ export async function settleBooking(reference: string): Promise<SettleOutcome> {
           reference,
           capturedSar: booking.totalAmount,
         });
-        await recordSettleAnomaly(booking.id, {
-          problem: 'amounts changed while settling (promo/credit race)',
-          reference,
-          capturedSar: booking.totalAmount,
-        });
+        await recordSettleAnomaly(
+          booking.id,
+          'amounts changed while settling (promo/credit race)',
+          {
+            problem: 'amounts changed while settling (promo/credit race)',
+            reference,
+            capturedSar: booking.totalAmount,
+          },
+        );
         return 'anomaly';
       }
 

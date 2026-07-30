@@ -584,6 +584,13 @@ export const bookings = pgTable(
      * (2026-07-28 fifth audit).
      */
     settleAnomalyAt: timestamp({ withTimezone: true }),
+    /**
+     * WHICH anomaly was last alerted for this booking. The dedupe is
+     * keyed on (booking, problem) so a currency mismatch on one checkout
+     * cannot silence an amount mismatch on the next (2026-07-28 sixth
+     * audit). Cleared when a fresh checkout is prepared.
+     */
+    settleAnomalyKind: text(),
     /** Card scheme returned by HyperPay (e.g. `MADA`, `VISA`, `MASTER`). */
     paymentBrand: text(),
     /** When payment was confirmed paid. Null until settled. */

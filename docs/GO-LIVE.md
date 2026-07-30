@@ -140,7 +140,7 @@ like `hasSupabaseAuth()`.
 
 - Live click-through with a test card (3DS fields are cross-origin
   iframes) + the Mada asset pack from HyperPay's quickconnect share.
-- Optional HyperPay webhook (belt-and-suspenders settlement).
+- HyperPay webhook — the route is BUILT (`app/api/webhooks/hyperpay`); what remains is setting `HYPERPAY_WEBHOOK_SECRET` so it stops answering 503. Belt-and-suspenders settlement for closed-tab captures.
 
 ### Go-live steps
 

@@ -75,7 +75,7 @@ The only place real money disappears today.
 
 ### 2.1 HyperPay webhook + settle hardening `[L]`
 
-- Build `app/api/webhooks/hyperpay/route.ts` using the reserved `HYPERPAY_WEBHOOK_SECRET` (OPPWA encrypted notification → decrypt → `settleBooking`). Required before `HYPERPAY_MODE=live`.
+- ~~Build `app/api/webhooks/hyperpay/route.ts`~~ **DONE** — the route exists and is live (OPPWA encrypted notification → AES-256-GCM decrypt → `settleBooking` → receipt). It answers 503 until `HYPERPAY_WEBHOOK_SECRET` is set, which is still required before `HYPERPAY_MODE=live`. _(Marked done 2026-07-28: this line still read as outstanding work long after it shipped.)_
 - `features/payments/settle.ts`:
   - Check lifecycle status: a successful payment result on a `cancelled`/`declined`/`expired` booking auto-refunds via the shared executor (or stamps `refundDueSar`) and alerts admin — closes the cancel-during-3DS race.
   - Return a distinct `already_settled` outcome; `pay/return/route.ts` only sends the receipt on an actual `unpaid/processing → paid` transition (kills the replay-receipt spam).

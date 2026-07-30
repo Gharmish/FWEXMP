@@ -41,8 +41,15 @@ Before doing anything, read `BRIEF.md` in the repo root. If the conversation con
 
 ### Data & validation
 
-- Every form uses `react-hook-form` + a zod schema.
+- Every form uses `useActionState` + a zod schema validated in the server
+  action. **`react-hook-form` is NOT installed and is not used anywhere**
+  — this rule previously mandated it, which would mean adding a
+  dependency in violation of the no-new-dependencies rule above
+  (corrected 2026-07-28, sixth audit).
 - The same zod schema validates client, server action, and database insert.
+- Failure states must echo `values` as well as `fields`: React resets
+  uncontrolled inputs after an action, so an un-echoed field silently
+  reverts to its server-rendered default.
 - Server actions never throw to the client. Failures return a discriminated
   state: `{ success: false, message: <per-feature union>, fields?, values? }`.
   Success either returns `{ success: true, ... }` or throws Next's
@@ -79,7 +86,10 @@ Before doing anything, read `BRIEF.md` in the repo root. If the conversation con
 
 - Don't install UI component libraries other than shadcn/ui without asking.
 - Don't add a state management library (Redux, Zustand, Jotai, etc.) — we use React state + server state from RSC.
-- Don't write Arabic translations yourself. Leave `TODO(ar):` placeholders and flag for human review.
+- ~~Don't write Arabic translations yourself.~~ **WAIVED by the owner** —
+  there is no human translator, so Claude writes `ar.json` strings
+  directly. (`messages/ar.json` has zero `TODO(ar)` markers.) The
+  DB-content `TODO(ar):` marker mechanism still exists for seeded rows.
 - Don't use any color outside the palette in `BRIEF.md`.
 - Don't use `console.log` in committed code. Use the logger.
 - Don't add features I didn't ask for, even if they seem obviously useful.

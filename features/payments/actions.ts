@@ -363,6 +363,11 @@ export async function createCheckout(
         // capture whose browser died before /pay/return would never
         // settle: guest charged, no receipt, seat released.
         checkoutSupersededAt: null,
+        // A fresh checkout is a fresh attempt: clear the anomaly dedupe
+        // too, or an anomaly recorded against the PREVIOUS checkout
+        // silences the alert for a new one (2026-07-28 sixth audit).
+        settleAnomalyAt: null,
+        settleAnomalyKind: null,
       })
       .where(eq(bookings.id, booking.id));
     // The reuse window above keys off this event's timestamp, and the

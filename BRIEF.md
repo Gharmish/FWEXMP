@@ -208,7 +208,7 @@ Every page exists at `/ar/*` and `/en/*`. Middleware detects locale on first vis
 - Currency: `SAR` (Saudi Riyal). Always show as `SAR 480` in English, `480 ر.س` in Arabic — use `Intl.NumberFormat` with `currency: 'SAR'`.
 - Digits: **always Western/Latin (`0123456789`) in both locales — never Arabic-Indic numerals (`٠١٢٣٤٥٦٧٨٩`)**, including inside Arabic translation strings. Pass `numberingSystem: 'latn'` to every `Intl.NumberFormat`/`Intl.DateTimeFormat`. Arabic month names and ص/م meridiems stay Arabic; only the digits are Latin.
 - Dates: Gregorian by default, with optional Hijri toggle in user settings. Use `Intl.DateTimeFormat` with `ar-SA-u-ca-islamic` for Hijri.
-- Phone format: Saudi numbers as `+966 5X XXX XXXX`.
+- Phone input is INTERNATIONAL (country-code picker, default +966) — a deliberate override of the Saudi-only rule; don't revert. Display for Saudi numbers stays `+966 5X XXX XXXX`.
 - Time: 12-hour with AM/PM in English, 12-hour with ص/م in Arabic.
 
 ### Translation
@@ -239,18 +239,18 @@ Every page exists at `/ar/*` and `/en/*`. Middleware detects locale on first vis
 
 ### Backend & data
 
-| Layer          | Choice                                           |
-| -------------- | ------------------------------------------------ |
-| Database       | PostgreSQL via Supabase                          |
-| ORM            | Drizzle                                          |
-| Server actions | Next.js native + zod validation                  |
-| Search         | Meilisearch (Arabic-aware, self-hosted or cloud) |
-| Vector         | pgvector extension (for AI features later)       |
-| File storage   | Cloudflare R2                                    |
-| Image CDN      | Cloudflare Images or imgix                       |
-| Email          | Resend                                           |
-| Messaging      | WhatsApp Business API via 360dialog              |
-| Maps           | Mapbox GL JS                                     |
+| Layer          | Choice                                                                                              |
+| -------------- | --------------------------------------------------------------------------------------------------- |
+| Database       | PostgreSQL via Supabase                                                                             |
+| ORM            | Drizzle                                                                                             |
+| Server actions | Next.js native + zod validation                                                                     |
+| Search         | Meilisearch (Arabic-aware, self-hosted or cloud)                                                    |
+| Vector         | pgvector extension (for AI features later)                                                          |
+| File storage   | **Supabase Storage** (public `photos`/`avatars`, private `kyc-documents`). R2 not used.             |
+| Image CDN      | **`next/image`** on Vercel. No third-party image CDN.                                               |
+| Email          | Resend                                                                                              |
+| Messaging      | WhatsApp Business API via **Twilio** (not 360dialog).                                               |
+| Maps           | **Leaflet + OpenStreetMap** (keyless). Owner rejected keyed providers — Mapbox/Google are NOT used. |
 
 ### Auth & identity
 
@@ -264,8 +264,12 @@ Every page exists at `/ar/*` and `/en/*`. Middleware detects locale on first vis
   then Visa/Mastercard). This supersedes the original Moyasar plan below.
 - Settlement is verified server-side against HyperPay (never the browser redirect),
   with a reconciliation pass in the release-holds cron for holds stuck in
-  `processing`. An OPPWA webhook route is reserved (`HYPERPAY_WEBHOOK_SECRET`) but
-  not yet built.
+  `processing`. The OPPWA webhook IS BUILT and live at
+  `app/api/webhooks/hyperpay` (AES-256-GCM decrypt → `settleBooking` →
+  receipt); it answers 503 until `HYPERPAY_WEBHOOK_SECRET` is set.
+  (Corrected 2026-07-28: this line previously said "reserved but not yet
+  built", which was false and directly caused a P1 fix to be built on a
+  wrong premise.)
 - **Original plan (superseded)**: Moyasar primary, Tap Payments backup. Retained
   as future options.
 - Never store card data. PCI scope minimal.
@@ -526,13 +530,20 @@ End user. Has:
   earnings + payout history at `/host/earnings` (IBAN self-managed).
   Admin keeps full override powers. This supersedes the earlier
   admin-operated-only booking flow.
-- **Guest cancellation**: a guest may cancel any booking before it
-  starts. A _paid_ booking refunds in full only when cancelled at
-  least `platform_settings.cancellation_window_hours` (default 48,
-  admin-tunable) before the start; inside the window the payment is
-  forfeited. Refunds go through the HyperPay refund API first; if the
-  gateway refuses, the booking is stamped `refund_due_sar` and the
-  admin reverses manually, then records it via the admin refund action.
+- **Guest cancellation** (rewritten 2026-07-28 — the single-window model
+  below was retired long ago and this text still described it, which
+  would make anyone computing a refund from the brief produce the WRONG
+  NUMBER): a guest may cancel any booking before it starts. What a
+  _paid_ booking refunds comes from the **per-experience cancellation
+  tier snapshotted onto the booking at creation** (`policy_tier`,
+  `free_cancel_hours`, `partial_refund_hours`, `partial_refund_bps`,
+  `reschedule_cutoff_hours`) — NOT from a platform-wide setting. The
+  engine is `features/bookings/lib/policy.ts`; tiers include a **50%
+  partial** step and a reschedule right. Always read the booking's own
+  snapshot: a later tier edit must never restate an existing booking.
+  Refunds go through the HyperPay refund API first; if the gateway
+  refuses, the booking is stamped `refund_due_sar` and the admin
+  reverses manually, then records it via the admin refund action.
 - **VAT** (updated 2026-07-07 — supersedes the always-disclose rule):
   Gharmish is below the ZATCA mandatory registration threshold
   (375,000 SAR taxable turnover / 12 months) and is NOT VAT-registered,
@@ -556,7 +567,11 @@ End user. Has:
   `splitCommission` and `payoutExpr` — change both). Pre-registration
   bookings keep the original gross formula forever. Refunded tax
   invoices are reversed by a **credit note** (`CN-<ref>`, own QR) on the
-  invoice page — refunds are always full-amount. `/admin/vat` is the
+  invoice page. Credit notes reverse **what was actually refunded**, not
+  the whole invoice — partial-policy refunds are real and a full
+  reversal over-states the VAT credit (corrected 2026-07-28; the old
+  "refunds are always full-amount" claim was false and had produced
+  exactly that bug in the filing report). `/admin/vat` is the
   filing surface (tax-point basis, CSV export, rolling-12-month
   threshold monitor); the cron alerts at 90% of the 375K mandatory
   threshold and flags any paid booking missing its VAT stamp. Hosts get

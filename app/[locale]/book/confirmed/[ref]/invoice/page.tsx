@@ -113,13 +113,26 @@ export default async function BookingInvoicePage({ params }: PageParams) {
   const taxableSar = booking.totalAmountSar - vatSar;
   const unitSar = Math.round(booking.totalAmountSar / booking.partySize);
   const brand = booking.paymentBrand ? BRAND_NAMES[booking.paymentBrand] : undefined;
-  // FULL refunds only (2026-07-28 fifth audit): `status` flips to
-  // 'refunded' on any successful refund, including the 50% policy tiers,
-  // so keying the document-wide stamp on it put "REFUNDED" across an
-  // invoice whose credit note below reverses only half — two
-  // contradictory legal statements on one page.
-  const reversedSar = Math.min(booking.refundedAmountSar ?? 0, booking.totalAmountSar);
-  const refunded = booking.status === 'refunded' && reversedSar >= booking.totalAmountSar;
+  // TWO separate gates (2026-07-28 sixth audit — the fifth-audit change
+  // conflated them and deleted the credit note for every partial AND
+  // every legacy refund, which is strictly worse: the filing reversed
+  // VAT for a document the customer never received).
+  //
+  //  * `hasRefund`  — any money went back. Gates the refunded note and
+  //    the CREDIT NOTE, which ZATCA requires whenever a tax invoice is
+  //    reversed, in full or in part.
+  //  * `fullyRefunded` — the whole consideration went back. Gates only
+  //    the document-wide "REFUNDED" stamp, which must not straddle an
+  //    invoice that was reversed by half.
+  //
+  // Legacy rows predate `refundedAmountSar` and were always full
+  // refunds, so NULL falls back to the total — never to 0, which would
+  // silently render them as un-refunded documents.
+  const hasRefund = booking.status === 'refunded';
+  const reversedSar = hasRefund
+    ? Math.min(booking.refundedAmountSar ?? booking.totalAmountSar, booking.totalAmountSar)
+    : 0;
+  const fullyRefunded = hasRefund && reversedSar >= booking.totalAmountSar;
 
   // ZATCA Phase-1 QR — only meaningful on a tax invoice.
   const qrDataUrl = vat
@@ -145,12 +158,10 @@ export default async function BookingInvoicePage({ params }: PageParams) {
   // stamp were full refunds, so the total is the correct fallback.
   // Non-VAT refunds keep the plain refunded note above — no tax to
   // reverse.
-  const refundedSar = refunded
-    ? Math.min(booking.refundedAmountSar ?? booking.totalAmountSar, booking.totalAmountSar)
-    : 0;
+  const refundedSar = reversedSar;
   const creditVatSar = vat ? vatPortionSar(refundedSar, vat.rateBps) : 0;
   const creditNote =
-    refunded && vat && booking.refundedAt && refundedSar > 0
+    hasRefund && vat && booking.refundedAt && refundedSar > 0
       ? {
           refundedAt: new Date(booking.refundedAt),
           vatNumber: vat.registrationNumber,
@@ -207,7 +218,8 @@ export default async function BookingInvoicePage({ params }: PageParams) {
           <h1 className="font-display text-2xl font-medium tracking-[-0.025em]">
             {vat ? t('taxInvoiceTitle') : t('receiptTitle')}
           </h1>
-          {refunded && (
+          {/* Stamp is FULL reversals only — see the two gates above. */}
+          {fullyRefunded && (
             <p className="text-al-qatt-red-800 border-al-qatt-red/40 rounded-full border px-3 py-0.5 text-sm font-medium">
               {t('refundedStamp')}
             </p>
@@ -292,7 +304,7 @@ export default async function BookingInvoicePage({ params }: PageParams) {
             <dd>{formatDate(paidAt, loc, 'gregory', KSA_DATE)}</dd>
           </div>
         </dl>
-        {refunded && booking.refundedAt && (
+        {hasRefund && booking.refundedAt && (
           <p className="text-al-qatt-red-800 mt-2 text-sm">
             {t('refundedNote', {
               date: formatDate(new Date(booking.refundedAt), loc, 'gregory', KSA_DATE),

@@ -97,8 +97,17 @@ export async function getVatReport(range: DateRange): Promise<VatReport | null> 
           creditGrossSar: sql<number>`coalesce(sum(${reversedGross}) filter (where ${stamped} and ${bookings.status} = 'refunded' and ${refundedInRange}), 0)::int`,
           creditVatSar: sql<number>`coalesce(sum(${reversedVat}) filter (where ${stamped} and ${bookings.status} = 'refunded' and ${refundedInRange}), 0)::int`,
           unstampedPaidCount: sql<number>`count(*) filter (where ${bookings.paymentStatus} = 'paid' and ${bookings.vatRateBps} is null and ${paidInRange})::int`,
-          rolling12mGrossSar: sql<number>`coalesce(sum(${bookings.totalAmount}) filter (where ${bookings.paidAt} is not null and ${paid12m}), 0)::int`,
-          rolling12mRefundedSar: sql<number>`coalesce(sum(${reversedGross}) filter (where ${bookings.status} = 'refunded' and ${bookings.refundedAt} >= now() - interval '365 days'), 0)::int`,
+          rolling12mGrossSar: sql<number>`coalesce(sum(${bookings.totalAmount} + coalesce(${bookings.walletAppliedSar}, 0)) filter (where ${bookings.paidAt} is not null and ${paid12m}), 0)::int`,
+          // Windowed by `paid_at` and requiring it non-null — restored
+          // 2026-07-28 (sixth audit). Dropping that predicate let an
+          // UNPAID-but-refunded booking be subtracted from turnover it
+          // never entered (440 of 4,000 SAR on live data), and netting
+          // by `refunded_at` against a `paid_at` gross let a refund of
+          // an out-of-window sale subtract from supplies it was never
+          // counted in. Both understate the registration tripwire.
+          // Consideration includes redeemed credit, matching
+          // `rolling12mTurnoverExpr` and the cron alert.
+          rolling12mRefundedSar: sql<number>`coalesce(sum(least(coalesce(${bookings.refundedAmountSar}, ${bookings.totalAmount} + coalesce(${bookings.walletAppliedSar}, 0)), ${bookings.totalAmount} + coalesce(${bookings.walletAppliedSar}, 0))) filter (where ${bookings.status} = 'refunded' and ${bookings.paidAt} is not null and ${paid12m}), 0)::int`,
           rolling12mCommissionSar: sql<number>`coalesce(round(sum(${commission}) filter (where ${bookings.paidAt} is not null and ${paid12m})), 0)::int`,
         })
         .from(bookings),

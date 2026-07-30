@@ -164,12 +164,20 @@ export default async function BookingConfirmedPage({ params, searchParams }: Pag
   // an approved request *or* an instant booking whose guest left the
   // pay page. The page's job is to get them to the payment step; it
   // must never read as a finished ticket while money is still owed.
+  // `!isPending` is load-bearing (2026-07-28 sixth audit). The
+  // promo/credit settle race leaves the row `confirmed` + `unpaid` with
+  // a live deadline while a REAL capture is sitting unmatched at the
+  // gateway — so this was true at the same time as `isPending`, and the
+  // page rendered "no need to pay again" directly above a working
+  // "Pay now" button. `createCheckout` accepts that state, so a tap
+  // minted a second checkout and charged the guest twice.
   const isAwaitingPayment =
     booking?.status === 'confirmed' &&
     booking.paymentStatus === 'unpaid' &&
     booking.paymentDeadline !== null &&
     !isHoldLapsed &&
-    !isFailed;
+    !isFailed &&
+    !isPending;
 
   const HeaderIcon =
     isCancelled || isFailed || isDeclined

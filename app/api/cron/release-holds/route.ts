@@ -20,7 +20,7 @@ import { listRetryableDeliveries } from '@/lib/notifications/ledger';
 import { addDays } from '@/features/bookings/lib/availability';
 import { startInstant } from '@/features/bookings/lib/cancellation';
 import { releaseWalletReservation } from '@/features/wallet/reservation';
-import { paymentCollected } from '@/features/bookings/lib/payout-sql';
+import { paymentCollected, rolling12mTurnoverExpr } from '@/features/bookings/lib/payout-sql';
 import {
   VAT_MANDATORY_THRESHOLD_SAR,
   VAT_THRESHOLD_ALERT_RATIO,
@@ -265,9 +265,12 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     // Residual gap, deliberately not papered over: a guest who completes
     // payment on a SUPERSEDED widget is captured at the old amount with
     // no live pointer to poll. `checkout_superseded` in the payment
-    // ledger is the forensic trail; catching it automatically needs the
-    // OPPWA webhook (reserved, not built) or HyperPay settlement-report
-    // reconciliation.
+    // ledger is the forensic trail. The OPPWA webhook
+    // (app/api/webhooks/hyperpay) IS built and is the automatic catcher
+    // when it fires; a capture it never sees needs HyperPay
+    // settlement-report reconciliation. (Corrected 2026-07-28 — the
+    // "reserved, not built" claim was false and had already caused one
+    // P1 fix to be designed on a wrong premise.)
     const stuck = await db.query.bookings.findMany({
       where: and(
         eq(bookings.paymentStatus, 'processing'),
@@ -324,6 +327,11 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     // guest's card may be captured while the DB shows nothing. Alert as
     // each booking crosses 24h stuck (the one-hour window under the
     // hourly cadence keeps it one alert per booking, not one per run).
+    //
+    // Pass 2c below covers the rows this predicate structurally CANNOT
+    // see — see its comment. A live data audit (2026-07-28) found two
+    // real bookings totalling 800 SAR sitting in exactly that blind
+    // spot since June, never reconciled and never alerted.
     try {
       const [aging] = await db
         .select({
@@ -346,6 +354,47 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
           totalStuckOver24h: aging.total,
           action:
             'check HyperPay + /admin/bookings processing rows; money may be captured but unrecorded',
+        });
+      }
+
+      // Pass 2c — the reconcile BLIND SPOT (2026-07-28 sixth audit).
+      // Pass 2 and the aging alert above both require a non-null,
+      // elapsed `paymentDeadline` and a non-terminal status. A booking
+      // left `processing` with NO deadline, or advanced to `completed`
+      // while its payment was still in flight, satisfies neither — so it
+      // is never re-settled AND never alerted, forever. That is the
+      // worst possible combination for money that may already be
+      // captured at the gateway, and it is not hypothetical: two such
+      // rows have been sitting in production since 2026-06-04.
+      //
+      // Deliberately alert-only. Auto-settling a `completed` booking, or
+      // one whose hold window was never set, would move money on a row
+      // whose history nobody has reconstructed — a human checks HyperPay
+      // first. Re-alerts are bounded by the same `lastCronRunAt` cadence
+      // as everything else here.
+      const [blind] = await db
+        .select({
+          n: sql<number>`count(*)::int`,
+          refs: sql<string>`coalesce(string_agg(${bookings.referenceCode}, ', '), '')`,
+        })
+        .from(bookings)
+        .where(
+          and(
+            eq(bookings.paymentStatus, 'processing'),
+            isNotNull(bookings.checkoutId),
+            or(
+              isNull(bookings.paymentDeadline),
+              inArray(bookings.status, ['completed', 'refunded']),
+            ),
+          ),
+        );
+      if (blind && blind.n > 0) {
+        await notifyAdmin('settle_stuck', {
+          problem:
+            'processing rows invisible to the reconcile pass (no deadline, or terminal status)',
+          count: blind.n,
+          references: blind.refs,
+          action: 'check these checkout ids at HyperPay directly — they are never auto-retried',
         });
       }
     } catch (error) {
@@ -511,17 +560,10 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       // de-duped to once per 30 days via the stamp column.
       const [turnover] = await db
         .select({
-          // Taxable turnover, corrected 2026-07-28 (fifth audit). Three
-          // separate understatements made the ONLY registration tripwire
-          // fail silently in the direction of a missed registration:
-          //   1. refunds netted the FULL invoice even on a 50% policy
-          //      refund, so a half-refunded booking netted to zero;
-          //   2. `walletAppliedSar` was excluded from gross, though the
-          //      platform supplied that value (it is added back for the
-          //      host payout base — see payout-sql.ts);
-          //   3. refunds were windowed by `paidAt`, so refunding a
-          //      >365-day-old booking never netted at all.
-          netSar: sql<number>`coalesce(sum(${bookings.totalAmount} + coalesce(${bookings.walletAppliedSar}, 0)) filter (where ${bookings.paidAt} >= now() - interval '365 days'), 0)::int - coalesce(sum(least(coalesce(${bookings.refundedAmountSar}, ${bookings.totalAmount}), ${bookings.totalAmount} + coalesce(${bookings.walletAppliedSar}, 0))) filter (where ${bookings.status} = 'refunded' and ${bookings.refundedAt} >= now() - interval '365 days'), 0)::int`,
+          // ONE shared expression with /admin/vat (2026-07-28 sixth
+          // audit) — the two had drifted into different formulas under
+          // the same label, compared against the same threshold.
+          netSar: rolling12mTurnoverExpr(),
         })
         .from(bookings);
       const netSar = turnover?.netSar ?? 0;
