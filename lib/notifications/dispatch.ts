@@ -97,7 +97,11 @@ async function dispatchWhatsApp(input: DispatchInput, dedupeKey: string): Promis
   if (!input.whatsapp || !hasWhatsApp()) return;
   const to = whatsappAddress(input.recipient.phone);
   if (!to) return;
-  const contentSid = whatsappContentSid(input.whatsapp.template, input.recipient.locale);
+  const contentSid =
+    whatsappContentSid(input.whatsapp.template, input.recipient.locale) ??
+    (input.whatsapp.fallbackTemplate
+      ? whatsappContentSid(input.whatsapp.fallbackTemplate, input.recipient.locale)
+      : null);
 
   const phone = to.replace('whatsapp:', '');
   const base = {

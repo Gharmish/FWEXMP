@@ -159,6 +159,20 @@ before assuming.
 - `booking_cancelled`: مرحبًا {{1}}، تم إلغاء حجزك لتجربة {{2}} يوم {{3}} الساعة {{4}}. الرقم المرجعي: {{5}}. {{6}}. التفاصيل: {{7}}
 - `booking_rescheduled`: مرحبًا {{1}}، انتقل حجزك — تجربتك {{2}} أصبحت يوم {{3}} الساعة {{4}}. يبقى مبلغك ورقمك المرجعي ({{5}}) كما هما. التفاصيل: {{6}}
 
+### Media-header variants (photos in WhatsApp)
+
+`booking_confirmed_media` and `booking_reminder_24h_media` are
+`twilio/media` templates: SAME body and variable slots as their plain
+twins, plus one trailing media variable carrying the experience's
+branded OG card PNG (`/{locale}/experiences/{slug}/card.png` — a
+`.png`-suffixed alias of the opengraph-image route, because Twilio
+validates media URLs by extension). Confirmed: media var **8**; 24h
+reminder: media var **7**. The senders prefer the media key and pass the
+plain key as `fallbackTemplate`, so messages keep flowing while the
+media variant awaits approval — and forever for bookings whose listing
+is gone. Env keys: `booking_confirmed_media.{ar,en}`,
+`booking_reminder_24h_media.{ar,en}`.
+
 ### Host templates
 
 | Template                   | Variables                                                                                          |

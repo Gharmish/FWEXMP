@@ -49,13 +49,14 @@ vi.mock('./ledger', () => ({
 }));
 
 let contentSid: string | null = 'HX-en';
+let sidByTemplate: Record<string, string> = {};
 let whatsappResult: { ok: true; sid: string } | { ok: false; error: string } = {
   ok: true,
   sid: 'SM-1',
 };
 const sendWhatsAppTemplate = vi.fn(async () => whatsappResult);
 vi.mock('./whatsapp', () => ({
-  whatsappContentSid: () => contentSid,
+  whatsappContentSid: (template: string) => sidByTemplate[template] ?? contentSid,
   whatsappAddress: (phone: string | null | undefined) => {
     if (!phone) return null;
     const digits = phone.replace(/[^\d]/g, '');
@@ -90,6 +91,7 @@ beforeEach(() => {
   claimResult = { claimed: true, id: 'del-1' };
   suppressed = {};
   contentSid = 'HX-en';
+  sidByTemplate = {};
   whatsappResult = { ok: true, sid: 'SM-1' };
   flags.email = true;
   flags.whatsapp = true;
@@ -192,6 +194,24 @@ describe('dispatchNotification', () => {
 
     expect(sendWhatsAppTemplate).not.toHaveBeenCalled();
     expect(markDeliveryFailed).toHaveBeenCalledWith('del-1', 'blank template variable {{2}}');
+  });
+
+  it('falls back to the plain template SID when the preferred variant has none', async () => {
+    sidByTemplate = { booking_confirmed: 'HX-plain' };
+    contentSid = null; // the preferred *_media key resolves nothing
+    const payload = input();
+    payload.whatsapp = {
+      template: 'booking_confirmed_media',
+      fallbackTemplate: 'booking_confirmed',
+      variables: { '1': 'Ahmad' },
+    };
+
+    await dispatchNotification(payload);
+
+    expect(sendWhatsAppTemplate).toHaveBeenCalledTimes(1);
+    expect(sendWhatsAppTemplate).toHaveBeenCalledWith(
+      expect.objectContaining({ contentSid: 'HX-plain' }),
+    );
   });
 
   it('ledgers a suppressed address as suppressed and never messages it', async () => {

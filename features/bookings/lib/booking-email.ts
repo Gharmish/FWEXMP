@@ -37,6 +37,26 @@ function bidiIsolate(value: string): string {
 const EMAIL_LOGO_URL = `${SITE_URL}/images/gharmish-wordmark.png`;
 
 /**
+ * The experience's branded OG card (1200×630 PNG, localized, RTL-aware)
+ * — the WhatsApp media header. PNG because WhatsApp rejects the WebP
+ * the hero photos are stored as; the card is generated server-side for
+ * every live listing, so it exists whenever the slug does.
+ */
+function ogCardUrl(slug: string, locale: Locale): string {
+  // The `.png`-suffixed alias of /opengraph-image — Twilio validates
+  // media URLs by extension (see app/[locale]/experiences/[slug]/card.png).
+  return `${SITE_URL}/${locale}/experiences/${slug}/card.png`;
+}
+
+/** Email hero block from an experience's photo, when it has one. */
+function emailHero(
+  experience: { heroImage: string | null } | undefined,
+  alt: string | null,
+): { url: string; alt: string } | undefined {
+  return experience?.heroImage ? { url: experience.heroImage, alt: alt ?? 'Gharmish' } : undefined;
+}
+
+/**
  * Email dates/times ALWAYS render in KSA wall-clock time, explicitly
  * (2026-07 audit M7). Before this, `new Date('YYYY-MM-DDTHH:mm:00')`
  * parsed in the server zone and formatted in the server zone — correct
@@ -239,6 +259,7 @@ export async function sendBookingReceiptEmail(reference: string): Promise<void> 
     dir: locale === 'ar' ? 'rtl' : 'ltr',
     greeting: t('greeting', { name: booking.guestName }),
     intro: attachments.length > 0 ? t('introWithPdf') : t('intro'),
+    heroImage: emailHero(experience, title),
     rows,
     cta: { label: t('viewInvoice'), url: invoiceUrl },
     note,
@@ -258,7 +279,11 @@ export async function sendBookingReceiptEmail(reference: string): Promise<void> 
     },
     email: { subject, html, text, attachments },
     whatsapp: {
-      template: 'booking_confirmed',
+      // Image-header variant (the experience's branded card) with the
+      // plain template as automatic fallback until its SID is approved
+      // — and forever for bookings whose listing is gone.
+      template: booking.experienceSlug ? 'booking_confirmed_media' : 'booking_confirmed',
+      fallbackTemplate: 'booking_confirmed',
       variables: {
         '1': booking.guestName,
         '2': title ?? t('genericExperience'),
@@ -270,6 +295,8 @@ export async function sendBookingReceiptEmail(reference: string): Promise<void> 
         // they close the phone-only guest's path to their tax document.
         '6': bidiIsolate(invoiceUrl),
         '7': formatSAR(booking.totalAmountSar, locale),
+        // Var 8 is the media header URL (used only by the _media template).
+        ...(booking.experienceSlug ? { '8': ogCardUrl(booking.experienceSlug, locale) } : {}),
       },
     },
   });
@@ -588,6 +615,7 @@ export async function sendBookingRescheduledEmail(
     dir: locale === 'ar' ? 'rtl' : 'ltr',
     greeting: t('greeting', { name: booking.guestName }),
     intro: t('rescheduledIntro'),
+    heroImage: details.hero,
     rows,
     cta: { label: t('rescheduledCta'), url: bookingUrl },
     closing: t('rescheduledClosing'),
@@ -737,6 +765,7 @@ export async function sendBookingPrepareReminderEmail(
     dir: locale === 'ar' ? 'rtl' : 'ltr',
     greeting: t('greeting', { name: booking.guestName }),
     intro: t('prepareIntro'),
+    heroImage: emailHero(data.experience, title),
     rows,
     cta: mapUrl ? { label: t('openMap'), url: mapUrl } : undefined,
     bullets:
@@ -758,7 +787,8 @@ export async function sendBookingPrepareReminderEmail(
     recipient: { kind: 'guest', email: guestEmail, phone: guestPhone, locale },
     email: { subject: t('prepareSubject', { time }), html, text },
     whatsapp: {
-      template: 'booking_reminder_24h',
+      template: booking.experienceSlug ? 'booking_reminder_24h_media' : 'booking_reminder_24h',
+      fallbackTemplate: 'booking_reminder_24h',
       variables: {
         '1': booking.guestName,
         '2': title ?? t('genericExperience'),
@@ -768,6 +798,8 @@ export async function sendBookingPrepareReminderEmail(
         // to the booking page where the real details live.
         '5': placeName ?? title ?? t('genericExperience'),
         '6': bidiIsolate(mapUrl ?? manageUrl),
+        // Var 7 is the media header URL (used only by the _media template).
+        ...(booking.experienceSlug ? { '7': ogCardUrl(booking.experienceSlug, locale) } : {}),
       },
     },
   });
@@ -804,6 +836,7 @@ export async function sendBookingDepartureReminderEmail(
     dir: locale === 'ar' ? 'rtl' : 'ltr',
     greeting: t('greeting', { name: booking.guestName }),
     intro: t('departureIntro'),
+    heroImage: emailHero(data.experience, title),
     rows,
     cta: mapUrl ? { label: t('openMap'), url: mapUrl } : undefined,
     host: data.experience
@@ -836,6 +869,8 @@ interface LifecycleDetails {
   /** Locale-resolved experience title; null when the listing is gone. */
   title: string | null;
   startsAt: Date;
+  /** Hero photo block for the email, when the listing still has one. */
+  hero: { url: string; alt: string } | undefined;
 }
 
 /**
@@ -859,7 +894,7 @@ async function lifecycleDetails(
   rows.push({ label: t('timeLabel'), value: formatTime(startsAt, locale, KSA_TIME) });
   rows.push({ label: t('partyLabel'), value: formatInteger(booking.partySize, locale) });
   rows.push({ label: t('referenceLabel'), value: booking.referenceCode });
-  return { rows, title, startsAt };
+  return { rows, title, startsAt, hero: emailHero(experience, title) };
 }
 
 /** Shared shorthand for the guest-side WhatsApp variable block. */
@@ -911,6 +946,7 @@ export async function sendBookingRequestReceivedEmail(reference: string): Promis
     dir: locale === 'ar' ? 'rtl' : 'ltr',
     greeting: t('greeting', { name: booking.guestName }),
     intro: t('requestReceivedIntro'),
+    heroImage: details.hero,
     rows,
     closing: t('requestReceivedClosing'),
     footer: t('footer'),
@@ -970,6 +1006,7 @@ export async function sendBookingApprovedEmail(reference: string): Promise<void>
     dir: locale === 'ar' ? 'rtl' : 'ltr',
     greeting: t('greeting', { name: booking.guestName }),
     intro: needsPayment ? t('approvedPayIntro') : t('approvedIntro'),
+    heroImage: details.hero,
     rows,
     // The payment link is the single action this email exists for — a
     // button, not a raw URL pasted into the intro (many clients never
@@ -1482,6 +1519,7 @@ export async function sendBookingCompletedEmails(reference: string): Promise<voi
       dir: locale === 'ar' ? 'rtl' : 'ltr',
       greeting: t('greeting', { name: booking.guestName }),
       intro: t('reviewInviteIntro', { experience: experienceName }),
+      heroImage: details.hero,
       rows: details.rows,
       // Reviews are written from the guest dashboard's past-bookings list.
       cta: { label: t('reviewInviteCta'), url: `${SITE_URL}/${locale}/me` },

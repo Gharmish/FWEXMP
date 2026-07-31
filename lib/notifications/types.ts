@@ -19,6 +19,8 @@ export type NotificationRecipientType = 'guest' | 'host' | 'applicant';
  */
 export type WhatsAppTemplateKey =
   | 'booking_confirmed'
+  /** Image-header variant: same body as `booking_confirmed` + media var 8. */
+  | 'booking_confirmed_media'
   | 'booking_request_received'
   | 'booking_approved'
   | 'booking_declined'
@@ -26,6 +28,8 @@ export type WhatsAppTemplateKey =
   | 'booking_rescheduled'
   | 'host_booking_rescheduled'
   | 'booking_reminder_24h'
+  /** Image-header variant: same body as `booking_reminder_24h` + media var 7. */
+  | 'booking_reminder_24h_media'
   | 'booking_reminder_3h'
   | 'host_new_booking'
   | 'host_new_request'
@@ -50,6 +54,14 @@ export interface EmailPayload {
 
 export interface WhatsAppPayload {
   template: WhatsAppTemplateKey;
+  /**
+   * Used when `template` has no approved Content SID yet — lets a caller
+   * prefer a richer variant (e.g. the image-header `*_media` template)
+   * while the plain one keeps working until Meta approves it. The
+   * fallback's body must accept the same leading variables; extra
+   * trailing variables are ignored.
+   */
+  fallbackTemplate?: WhatsAppTemplateKey;
   /**
    * Numbered Content-template variables (`{"1": "...", "2": "..."}`).
    * Every value must be non-empty — WhatsApp rejects templates rendered

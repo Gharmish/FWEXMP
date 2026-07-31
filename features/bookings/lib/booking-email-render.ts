@@ -16,6 +16,13 @@ export interface ReceiptContent {
   intro: string;
   rows: readonly ReceiptRow[];
   /**
+   * Optional hero photo between the intro and the detail rows — the
+   * experience's own image, so the email shows what was booked instead
+   * of describing it. Absolute URL; WebP is fine for the mobile-first
+   * clients this market uses (clients that can't render it show `alt`).
+   */
+  heroImage?: { url: string; alt: string };
+  /**
    * Optional action button between the rows and the closing — e.g.
    * "View your invoice" or "Open meeting point in Google Maps". Plain-text
    * emails render it as `label: url`.
@@ -153,6 +160,12 @@ export function renderReceiptEmail(content: ReceiptContent): { html: string; tex
   // Hidden preheader: inbox list previews show this instead of "Hi {name},".
   const preheader = `<div style="display:none;max-height:0;overflow:hidden;opacity:0;color:#FAFAFA;font-size:1px;line-height:1px">${esc(content.intro)}</div>`;
 
+  // Hero photo: fixed 16:9 box (the exact aspect hosts crop to) so a
+  // slow image load doesn't reflow the receipt.
+  const heroHtml = content.heroImage
+    ? `<tr><td style="padding-bottom:20px"><img src="${esc(content.heroImage.url)}" alt="${esc(content.heroImage.alt)}" width="416" height="234" style="display:block;width:100%;height:auto;border-radius:16px;border:0;outline:none;object-fit:cover" /></td></tr>\n`
+    : '';
+
   const html = `<!doctype html><html lang="${lang}" dir="${content.dir}"><head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -163,6 +176,7 @@ ${preheader}<table role="presentation" width="100%" cellpadding="0" cellspacing=
 <table role="presentation" width="480" cellpadding="0" cellspacing="0" dir="${content.dir}" style="width:100%;max-width:480px;background:#ffffff;border-radius:20px;padding:32px;font-family:${fontStack};text-align:${content.dir === 'rtl' ? 'right' : 'left'}">
 ${logoHtml}${sellerHtml}<tr><td style="font-size:24px;font-weight:500;color:#0A0A0A;padding-bottom:8px">${esc(content.greeting)}</td></tr>
 <tr><td style="font-size:16px;color:#3f3f3f;line-height:1.6;padding-bottom:20px">${esc(content.intro)}</td></tr>
+${heroHtml}
 <tr><td style="border-top:1px solid rgba(10,10,10,0.08);padding-top:16px"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" dir="${content.dir}">${rowsHtml}</table></td></tr>
 ${ctaHtml}${bulletsHtml}${hostHtml}${noteHtml}<tr><td style="border-top:1px solid rgba(10,10,10,0.08);padding-top:16px;font-size:14px;color:#3f3f3f;line-height:1.6">${esc(content.closing)}</td></tr>
 <tr><td style="padding-top:24px;font-size:12px;color:#9a9a9a">${esc(content.footer)}</td></tr>
