@@ -21,7 +21,7 @@
     "phoneLabel": "Mobile number",
     "phonePlaceholder": "5X XXX XXXX",
     "countryLabel": "Country code",
-    "phoneHint": "Pick your country, then enter your number without the leading zero. We'll send a 6-digit code by SMS.",
+    "phoneHint": "Pick your country, then enter your number without the leading zero. We'll send a 6-digit code on WhatsApp.",
     "emailLabel": "Email",
     "emailPlaceholder": "you@example.com",
     "emailHint": "We'll email you a 6-digit verification code.",

@@ -227,7 +227,13 @@ export async function requestOtp(
 
   try {
     const supabase = await getSupabaseServerClient();
-    const { error } = await supabase.auth.signInWithOtp({ phone });
+    // WhatsApp, not SMS: KSA SMS needs a CITC-registered sender ID
+    // (weeks of paperwork); the registered Gharmish WhatsApp sender
+    // works today via Twilio Verify. Runbook: docs/auth-phone/.
+    const { error } = await supabase.auth.signInWithOtp({
+      phone,
+      options: { channel: 'whatsapp' },
+    });
     if (error) {
       // Log the underlying reason so dev mode actually tells you what
       // went wrong (the client only sees a generic 'server' code).
