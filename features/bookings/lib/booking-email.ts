@@ -20,7 +20,18 @@ import { zatcaQrPayload } from '@/features/bookings/lib/zatca-qr';
 import { renderInvoicePdf, type InvoicePdfRow } from '@/features/bookings/lib/invoice-pdf';
 import { getExperienceBySlug } from '@/features/experiences/queries';
 import { toArabicText } from '@/features/experiences/lib/arabic-content';
+import { renderBookingIcs } from './booking-ics';
 import { renderReceiptEmail, type ReceiptRow } from './booking-email-render';
+
+/**
+ * Bidi-isolate a strongly-LTR value (URL, `GH-XXXXXX` reference) bound
+ * for an Arabic WhatsApp template body. FSI…PDI (U+2068/U+2069) stops
+ * adjacent Arabic punctuation from reordering around the run; invisible
+ * and harmless in LTR bodies, so applied unconditionally.
+ */
+function bidiIsolate(value: string): string {
+  return `\u2068${value}\u2069`;
+}
 
 /** Brand wordmark for email headers — PNG (clients don't render SVG). */
 const EMAIL_LOGO_URL = `${SITE_URL}/images/gharmish-wordmark.png`;
@@ -70,12 +81,18 @@ function paymentBrandLabel(brand: string | null, locale: Locale): string | null 
  * the guest has no email on file (phone-only guests). Never throws — the
  * caller (the payment return route) must not fail a paid booking over a
  * receipt.
+ *
+ * Locale comes from the guest's stored preference, NOT the caller: the
+ * payment return route knows only the URL locale, and racing it against
+ * the webhook made the receipt's language (and the attached tax
+ * invoice's) depend on which path won.
  */
-export async function sendBookingReceiptEmail(reference: string, locale: Locale): Promise<void> {
+export async function sendBookingReceiptEmail(reference: string): Promise<void> {
   if (!notificationsConfigured()) return;
 
   const booking = await getBookingByReference(reference);
   if (!booking?.paidAt) return;
+  const locale = booking.guestPreferredLanguage;
   // `paidAt` alone is not enough (2026-07-28 eighth audit). The
   // cancel-during-3DS path stamps `paid` + `paidAt`, immediately
   // auto-refunds, and still returns 'success' — so every caller sent
@@ -170,18 +187,61 @@ export async function sendBookingReceiptEmail(reference: string, locale: Locale)
         t,
       });
 
+  const invoiceUrl = `${SITE_URL}/${locale}/book/confirmed/${reference}/invoice`;
+  const manageUrl = `${SITE_URL}/${locale}/book/confirmed/${reference}`;
+  const mapUrl = experience ? googleMapsLink(experience.lat, experience.lng) : null;
+
+  // Calendar event alongside the PDF — a date-bound booking the guest
+  // would otherwise hand-copy into their calendar. Same email-only gate.
+  if (booking.guestEmail) {
+    const ics = renderBookingIcs({
+      uid: `${booking.referenceCode}@gharmish.com`,
+      start: startsAt,
+      durationMinutes: experience?.durationMinutes ?? 180,
+      summary: title ?? t('genericExperience'),
+      location: placeName,
+      description: [
+        `${t('referenceLabel')}: ${booking.referenceCode}`,
+        manageUrl,
+        ...(mapUrl ? [mapUrl] : []),
+      ].join('\n'),
+    });
+    attachments.push({
+      filename: `Gharmish-${booking.referenceCode}.ics`,
+      content: Buffer.from(ics, 'utf8').toString('base64'),
+      contentType: 'text/calendar',
+    });
+  }
+
+  // Manage-booking note with the free-cancellation deadline while it's
+  // still ahead — the confirmation previously promised "we'll send the
+  // meeting point before the day" and offered no way to cancel or manage.
+  const deadline = freeCancellationDeadline(
+    booking.date,
+    booking.startTime,
+    booking.policy.freeCancelHours,
+  );
+  const note =
+    Date.now() < deadline.getTime()
+      ? {
+          html: t('reminderManageWithDeadline', {
+            deadline: `${formatDate(deadline, locale, 'gregory', KSA_DATE)}, ${formatTime(deadline, locale, KSA_TIME)}`,
+            url: manageUrl,
+          }),
+        }
+      : { html: t('reminderManageNoDeadline', { url: manageUrl }) };
+
+  const subject = t('subject', { reference: booking.referenceCode });
   const { html, text } = renderReceiptEmail({
     logoUrl: EMAIL_LOGO_URL,
     sellerLines,
-    subject: t('subject'),
+    subject,
     dir: locale === 'ar' ? 'rtl' : 'ltr',
     greeting: t('greeting', { name: booking.guestName }),
     intro: attachments.length > 0 ? t('introWithPdf') : t('intro'),
     rows,
-    cta: {
-      label: t('viewInvoice'),
-      url: `${SITE_URL}/${locale}/book/confirmed/${reference}/invoice`,
-    },
+    cta: { label: t('viewInvoice'), url: invoiceUrl },
+    note,
     closing: t('closing'),
     footer: t('footer'),
   });
@@ -196,15 +256,20 @@ export async function sendBookingReceiptEmail(reference: string, locale: Locale)
       phone: booking.guestPhone,
       locale,
     },
-    email: { subject: t('subject'), html, text, attachments },
+    email: { subject, html, text, attachments },
     whatsapp: {
       template: 'booking_confirmed',
       variables: {
         '1': booking.guestName,
-        '2': title ?? booking.referenceCode,
+        '2': title ?? t('genericExperience'),
         '3': formatDate(startsAt, locale, 'gregory', KSA_DATE),
         '4': formatTime(startsAt, locale, KSA_TIME),
-        '5': booking.referenceCode,
+        '5': bidiIsolate(booking.referenceCode),
+        // Vars 6–7 are ignored by the live v1 template and light up with
+        // the v2 body (invoice link + amount) once Meta approves it —
+        // they close the phone-only guest's path to their tax document.
+        '6': bidiIsolate(invoiceUrl),
+        '7': formatSAR(booking.totalAmountSar, locale),
       },
     },
   });
@@ -351,7 +416,6 @@ async function buildInvoicePdfAttachment(
  */
 export async function sendBookingCancellationEmail(
   reference: string,
-  locale: Locale,
   refund: 'none' | 'refunded' | 'refund_pending' | 'wallet_credited' | 'forfeited',
   options?: {
     cancelledBy?: 'guest' | 'operator';
@@ -367,6 +431,9 @@ export async function sendBookingCancellationEmail(
   const booking = await getBookingByReference(reference);
   if (!booking) return;
   if (!booking.guestEmail && !booking.guestPhone) return;
+  // Stored preference, not the caller's context — admin cancellations
+  // used to inherit the OPERATOR's UI locale.
+  const locale = booking.guestPreferredLanguage;
 
   const experience = booking.experienceSlug
     ? await getExperienceBySlug(booking.experienceSlug)
@@ -380,6 +447,11 @@ export async function sendBookingCancellationEmail(
   if (title) rows.push({ label: t('experienceLabel'), value: title });
   rows.push({ label: t('dateLabel'), value: formatDate(startsAt, locale, 'gregory', KSA_DATE) });
   rows.push({ label: t('timeLabel'), value: formatTime(startsAt, locale, KSA_TIME) });
+  // The amount originally paid, so a partial refund is verifiable
+  // against it at a glance.
+  if (booking.paidAt) {
+    rows.push({ label: t('totalLabel'), value: formatSAR(booking.totalAmountSar, locale) });
+  }
   if (refund === 'refunded' || refund === 'refund_pending' || refund === 'wallet_credited') {
     rows.push({
       label: t(refund === 'wallet_credited' ? 'walletCreditLabel' : 'refundLabel'),
@@ -413,9 +485,13 @@ export async function sendBookingCancellationEmail(
           url: `${SITE_URL}/${locale}/book/confirmed/${reference}`,
         }
       : undefined;
+  const cancelSubject = t('cancelSubject', { reference: booking.referenceCode });
+  const cancelCtaUrl = showDocument
+    ? `${SITE_URL}/${locale}/book/confirmed/${reference}/invoice`
+    : (walletCta?.url ?? `${SITE_URL}/${locale}/book/confirmed/${reference}`);
   const { html, text } = renderReceiptEmail({
     logoUrl: EMAIL_LOGO_URL,
-    subject: t('cancelSubject'),
+    subject: cancelSubject,
     dir: locale === 'ar' ? 'rtl' : 'ltr',
     greeting: t('greeting', { name: booking.guestName }),
     intro,
@@ -423,12 +499,26 @@ export async function sendBookingCancellationEmail(
     cta: showDocument
       ? {
           label: booking.vatRateBps ? t('viewCreditNote') : t('viewReceipt'),
-          url: `${SITE_URL}/${locale}/book/confirmed/${reference}/invoice`,
+          url: cancelCtaUrl,
         }
       : walletCta,
     closing: t('cancelClosing'),
     footer: t('footer'),
   });
+
+  // Short refund-outcome line for the WhatsApp body (var 6 of the v2
+  // template) — the email's five intros compressed to one clause each,
+  // so a phone-only guest still learns what happened to their money.
+  const waOutcome =
+    refund === 'refunded'
+      ? t('waCancelRefunded')
+      : refund === 'refund_pending'
+        ? t('waCancelRefundPending')
+        : refund === 'wallet_credited'
+          ? t('waCancelWalletCredited')
+          : refund === 'forfeited'
+            ? t('waCancelForfeited')
+            : t('waCancelUnpaid');
 
   await dispatchNotification({
     type: 'booking_cancelled',
@@ -448,15 +538,19 @@ export async function sendBookingCancellationEmail(
       phone: booking.guestPhone,
       locale,
     },
-    email: { subject: t('cancelSubject'), html, text },
+    email: { subject: cancelSubject, html, text },
     whatsapp: {
       template: 'booking_cancelled',
       variables: {
         '1': booking.guestName,
-        '2': title ?? booking.referenceCode,
+        '2': title ?? t('genericExperience'),
         '3': formatDate(startsAt, locale, 'gregory', KSA_DATE),
         '4': formatTime(startsAt, locale, KSA_TIME),
-        '5': booking.referenceCode,
+        '5': bidiIsolate(booking.referenceCode),
+        // Vars 6–7 are inert on the live v1 template; the v2 body adds
+        // the refund outcome and a link to the document/booking page.
+        '6': waOutcome,
+        '7': bidiIsolate(cancelCtaUrl),
       },
     },
   });
@@ -471,12 +565,12 @@ export async function sendBookingCancellationEmail(
 export async function sendBookingRescheduledEmail(
   reference: string,
   oldDate: string,
-  locale: Locale,
 ): Promise<void> {
   if (!notificationsConfigured()) return;
   const booking = await getBookingByReference(reference);
   if (!booking) return;
   if (!booking.guestEmail && !booking.guestPhone) return;
+  const locale = booking.guestPreferredLanguage;
 
   const t = await getTranslations({ locale, namespace: 'bookingEmail' });
   const details = await lifecycleDetails(booking, locale, t);
@@ -486,17 +580,16 @@ export async function sendBookingRescheduledEmail(
     ...details.rows,
   ];
 
+  const bookingUrl = `${SITE_URL}/${locale}/book/confirmed/${reference}`;
+  const subject = t('rescheduledSubject', { reference: booking.referenceCode });
   const { html, text } = renderReceiptEmail({
     logoUrl: EMAIL_LOGO_URL,
-    subject: t('rescheduledSubject'),
+    subject,
     dir: locale === 'ar' ? 'rtl' : 'ltr',
     greeting: t('greeting', { name: booking.guestName }),
     intro: t('rescheduledIntro'),
     rows,
-    cta: {
-      label: t('rescheduledCta'),
-      url: `${SITE_URL}/${locale}/book/confirmed/${reference}`,
-    },
+    cta: { label: t('rescheduledCta'), url: bookingUrl },
     closing: t('rescheduledClosing'),
     footer: t('footer'),
   });
@@ -512,10 +605,15 @@ export async function sendBookingRescheduledEmail(
       phone: booking.guestPhone,
       locale,
     },
-    email: { subject: t('rescheduledSubject'), html, text },
+    email: { subject, html, text },
     whatsapp: {
       template: 'booking_rescheduled',
-      variables: guestLifecycleVariables(booking, details, locale),
+      variables: {
+        ...guestLifecycleVariables(booking, details, locale, t('genericExperience')),
+        // Var 6 (booking page) for the template body — this key has no
+        // approved template yet, so the whole payload waits on its SID.
+        '6': bidiIsolate(bookingUrl),
+      },
     },
   });
 }
@@ -663,11 +761,13 @@ export async function sendBookingPrepareReminderEmail(
       template: 'booking_reminder_24h',
       variables: {
         '1': booking.guestName,
-        '2': title ?? booking.referenceCode,
+        '2': title ?? t('genericExperience'),
         '3': formatDate(startsAt, locale, 'gregory', KSA_DATE),
         '4': time,
-        '5': placeName ?? title ?? booking.referenceCode,
-        '6': mapUrl ?? manageUrl,
+        // Never a reference code posing as a meeting point — fall back
+        // to the booking page where the real details live.
+        '5': placeName ?? title ?? t('genericExperience'),
+        '6': bidiIsolate(mapUrl ?? manageUrl),
       },
     },
   });
@@ -723,9 +823,9 @@ export async function sendBookingDepartureReminderEmail(
       template: 'booking_reminder_3h',
       variables: {
         '1': booking.guestName,
-        '2': placeName ?? title ?? booking.referenceCode,
+        '2': placeName ?? title ?? t('genericExperience'),
         '3': time,
-        '4': mapUrl ?? `${SITE_URL}/${locale}/book/confirmed/${reference}`,
+        '4': bidiIsolate(mapUrl ?? `${SITE_URL}/${locale}/book/confirmed/${reference}`),
       },
     },
   });
@@ -767,13 +867,15 @@ function guestLifecycleVariables(
   booking: NonNullable<Awaited<ReturnType<typeof getBookingByReference>>>,
   details: LifecycleDetails,
   locale: Locale,
+  /** Localized "your experience" — never a reference code masquerading as a title. */
+  fallbackTitle: string,
 ): Record<string, string> {
   return {
     '1': booking.guestName,
-    '2': details.title ?? booking.referenceCode,
+    '2': details.title ?? fallbackTitle,
     '3': formatDate(details.startsAt, locale, 'gregory', KSA_DATE),
     '4': formatTime(details.startsAt, locale, KSA_TIME),
-    '5': booking.referenceCode,
+    '5': bidiIsolate(booking.referenceCode),
   };
 }
 
@@ -783,22 +885,23 @@ function guestLifecycleVariables(
  * instant bookings (their ack is the payment receipt) and for guests
  * without an email on file. Best-effort like every sender here.
  */
-export async function sendBookingRequestReceivedEmail(
-  reference: string,
-  locale: Locale,
-): Promise<void> {
+export async function sendBookingRequestReceivedEmail(reference: string): Promise<void> {
   if (!notificationsConfigured()) return;
   const booking = await getBookingByReference(reference);
   if (!booking || booking.status !== 'pending') return;
   if (!booking.guestEmail && !booking.guestPhone) return;
+  const locale = booking.guestPreferredLanguage;
 
   const t = await getTranslations({ locale, namespace: 'bookingEmail' });
   const details = await lifecycleDetails(booking, locale, t);
   const rows = details.rows;
   if (booking.approvalDeadline) {
+    // Date AND time — the deadline expires at a wall-clock moment, and a
+    // bare date reads as "end of that day".
+    const d = new Date(booking.approvalDeadline);
     rows.push({
       label: t('approvalDeadlineLabel'),
-      value: formatDate(new Date(booking.approvalDeadline), locale),
+      value: `${formatDate(d, locale, 'gregory', KSA_DATE)}, ${formatTime(d, locale, KSA_TIME)}`,
     });
   }
 
@@ -825,7 +928,7 @@ export async function sendBookingRequestReceivedEmail(
     email: { subject: t('requestReceivedSubject'), html, text },
     whatsapp: {
       template: 'booking_request_received',
-      variables: guestLifecycleVariables(booking, details, locale),
+      variables: guestLifecycleVariables(booking, details, locale, t('genericExperience')),
     },
   });
 }
@@ -852,19 +955,31 @@ export async function sendBookingApprovedEmail(reference: string): Promise<void>
     hasHyperpay() && booking.paymentStatus !== 'paid' && booking.paymentDeadline !== null;
   const payUrl = `${SITE_URL}/${locale}/book/${reference}/pay?slug=${encodeURIComponent(booking.experienceSlug)}`;
   if (needsPayment && booking.paymentDeadline) {
+    // Date AND time — the spot is released at a wall-clock moment.
+    const d = new Date(booking.paymentDeadline);
     rows.push({
       label: t('paymentDeadlineLabel'),
-      value: formatDate(new Date(booking.paymentDeadline), locale),
+      value: `${formatDate(d, locale, 'gregory', KSA_DATE)}, ${formatTime(d, locale, KSA_TIME)}`,
     });
   }
 
+  const approvedSubject = t('approvedSubject', { reference: booking.referenceCode });
   const { html, text } = renderReceiptEmail({
     logoUrl: EMAIL_LOGO_URL,
-    subject: t('approvedSubject'),
+    subject: approvedSubject,
     dir: locale === 'ar' ? 'rtl' : 'ltr',
     greeting: t('greeting', { name: booking.guestName }),
-    intro: needsPayment ? t('approvedPayIntro', { url: payUrl }) : t('approvedIntro'),
+    intro: needsPayment ? t('approvedPayIntro') : t('approvedIntro'),
     rows,
+    // The payment link is the single action this email exists for — a
+    // button, not a raw URL pasted into the intro (many clients never
+    // linkify plain text, and a `?slug=` query breaks partial linkifiers).
+    cta: needsPayment
+      ? { label: t('completePaymentCta'), url: payUrl }
+      : {
+          label: t('rescheduledCta'),
+          url: `${SITE_URL}/${locale}/book/confirmed/${reference}`,
+        },
     closing: needsPayment ? t('approvedPayClosing') : t('approvedClosing'),
     footer: t('footer'),
   });
@@ -878,15 +993,17 @@ export async function sendBookingApprovedEmail(reference: string): Promise<void>
       phone: booking.guestPhone,
       locale,
     },
-    email: { subject: t('approvedSubject'), html, text },
+    email: { subject: approvedSubject, html, text },
     whatsapp: {
       template: 'booking_approved',
       variables: {
-        ...guestLifecycleVariables(booking, details, locale),
+        ...guestLifecycleVariables(booking, details, locale, t('genericExperience')),
         // Var 5 is the action link: the payment page while payment is
         // due, the booking page otherwise (the template copy reads
-        // "view your booking / complete payment" either way).
-        '5': needsPayment ? payUrl : `${SITE_URL}/${locale}/book/confirmed/${reference}`,
+        // "details and next steps" either way).
+        '5': bidiIsolate(
+          needsPayment ? payUrl : `${SITE_URL}/${locale}/book/confirmed/${reference}`,
+        ),
       },
     },
   });
@@ -927,7 +1044,7 @@ export async function sendBookingDeclinedEmail(reference: string): Promise<void>
     email: { subject: t('declinedSubject'), html, text },
     whatsapp: {
       template: 'booking_declined',
-      variables: guestLifecycleVariables(booking, details, locale),
+      variables: guestLifecycleVariables(booking, details, locale, t('genericExperience')),
     },
   });
 }
@@ -1046,7 +1163,12 @@ async function hostEmailContext(experienceSlug: string): Promise<HostEmailContex
   };
 }
 
-/** Standard host-facing rows: experience / date / time / party. */
+/**
+ * Standard host-facing rows: experience / guest / date / time / party /
+ * reference. The guest's name and the reference let the host match the
+ * notice to a dashboard row without opening every booking; contact
+ * details stay in the dashboard.
+ */
 function hostRows(
   booking: NonNullable<Awaited<ReturnType<typeof getBookingByReference>>>,
   host: HostEmailContext,
@@ -1055,10 +1177,17 @@ function hostRows(
   const startsAt = startInstant(booking.date, booking.startTime);
   return [
     { label: t('experienceLabel'), value: host.title },
+    { label: t('hostGuestLabel'), value: booking.guestName },
     { label: t('dateLabel'), value: formatDate(startsAt, host.locale) },
     { label: t('timeLabel'), value: formatTime(startsAt, host.locale) },
     { label: t('partyLabel'), value: formatInteger(booking.partySize, host.locale) },
+    { label: t('referenceLabel'), value: booking.referenceCode },
   ];
+}
+
+/** Absolute host-dashboard URL in the host's locale. */
+function hostBookingsUrl(locale: Locale): string {
+  return `${SITE_URL}/${locale}/host/bookings`;
 }
 
 /**
@@ -1088,15 +1217,17 @@ export async function sendHostNewBookingEmail(reference: string): Promise<void> 
   rows.push({ label: t('hostNewPayoutLabel'), value: formatSAR(payoutSar, host.locale) });
 
   const isRequest = booking.status === 'pending';
+  const subject = isRequest
+    ? t('hostNewRequestSubject', { experience: host.title })
+    : t('hostNewBookingSubject', { experience: host.title });
   const { html, text } = renderReceiptEmail({
     logoUrl: EMAIL_LOGO_URL,
-    subject: isRequest ? t('hostNewRequestSubject') : t('hostNewBookingSubject'),
+    subject,
     dir: host.locale === 'ar' ? 'rtl' : 'ltr',
     greeting: t('hostNewGreeting'),
-    intro: isRequest
-      ? t('hostNewRequestIntro', { url: `${SITE_URL}/${host.locale}/host/bookings` })
-      : t('hostNewBookingIntro', { url: `${SITE_URL}/${host.locale}/host/bookings` }),
+    intro: isRequest ? t('hostNewRequestIntro') : t('hostNewBookingIntro'),
     rows,
+    cta: { label: t('hostBookingsCta'), url: hostBookingsUrl(host.locale) },
     closing: t('hostNewClosing'),
     footer: t('footer'),
   });
@@ -1108,11 +1239,7 @@ export async function sendHostNewBookingEmail(reference: string): Promise<void> 
     dedupeKey: `${type}:${booking.referenceCode}`,
     bookingId: booking.id,
     recipient: { kind: 'host', email: host.email, phone: host.phone, locale: host.locale },
-    email: {
-      subject: isRequest ? t('hostNewRequestSubject') : t('hostNewBookingSubject'),
-      html,
-      text,
-    },
+    email: { subject, html, text },
     whatsapp: {
       template: type,
       variables: {
@@ -1121,6 +1248,9 @@ export async function sendHostNewBookingEmail(reference: string): Promise<void> 
         '3': formatTime(startsAt, host.locale),
         '4': formatInteger(booking.partySize, host.locale),
         '5': formatSAR(payoutSar, host.locale),
+        // Var 6 (dashboard link) is inert on the live v1 template; the
+        // v2 body replaces the bare-domain literal with this variable.
+        '6': bidiIsolate(hostBookingsUrl(host.locale)),
       },
     },
   });
@@ -1139,13 +1269,15 @@ export async function sendHostGuestCancelledEmail(reference: string): Promise<vo
   if (!host) return;
 
   const t = await getTranslations({ locale: host.locale, namespace: 'bookingEmail' });
+  const subject = t('hostGuestCancelledSubject', { experience: host.title });
   const { html, text } = renderReceiptEmail({
     logoUrl: EMAIL_LOGO_URL,
-    subject: t('hostGuestCancelledSubject'),
+    subject,
     dir: host.locale === 'ar' ? 'rtl' : 'ltr',
     greeting: t('hostNewGreeting'),
-    intro: t('hostGuestCancelledIntro', { url: `${SITE_URL}/${host.locale}/host/bookings` }),
+    intro: t('hostGuestCancelledIntro'),
     rows: hostRows(booking, host, t),
+    cta: { label: t('hostBookingsCta'), url: hostBookingsUrl(host.locale) },
     closing: t('hostNewClosing'),
     footer: t('footer'),
   });
@@ -1155,13 +1287,15 @@ export async function sendHostGuestCancelledEmail(reference: string): Promise<vo
     dedupeKey: `host_guest_cancelled:${booking.referenceCode}`,
     bookingId: booking.id,
     recipient: { kind: 'host', email: host.email, phone: host.phone, locale: host.locale },
-    email: { subject: t('hostGuestCancelledSubject'), html, text },
+    email: { subject, html, text },
     whatsapp: {
       template: 'host_guest_cancelled',
       variables: {
         '1': host.title,
         '2': formatDate(startsAt, host.locale),
         '3': formatTime(startsAt, host.locale),
+        // Var 4 (dashboard link) — inert until the v2 body references it.
+        '4': bidiIsolate(hostBookingsUrl(host.locale)),
       },
     },
   });
@@ -1189,13 +1323,15 @@ export async function sendHostBookingRescheduledEmail(
     { label: t('movedFromLabel'), value: formatDate(movedFrom, host.locale) },
     ...hostRows(booking, host, t),
   ];
+  const subject = t('hostBookingRescheduledSubject', { experience: host.title });
   const { html, text } = renderReceiptEmail({
     logoUrl: EMAIL_LOGO_URL,
-    subject: t('hostBookingRescheduledSubject'),
+    subject,
     dir: host.locale === 'ar' ? 'rtl' : 'ltr',
     greeting: t('hostNewGreeting'),
-    intro: t('hostBookingRescheduledIntro', { url: `${SITE_URL}/${host.locale}/host/bookings` }),
+    intro: t('hostBookingRescheduledIntro'),
     rows,
+    cta: { label: t('hostBookingsCta'), url: hostBookingsUrl(host.locale) },
     closing: t('hostNewClosing'),
     footer: t('footer'),
   });
@@ -1205,13 +1341,15 @@ export async function sendHostBookingRescheduledEmail(
     dedupeKey: `host_booking_rescheduled:${booking.referenceCode}:${booking.date}`,
     bookingId: booking.id,
     recipient: { kind: 'host', email: host.email, phone: host.phone, locale: host.locale },
-    email: { subject: t('hostBookingRescheduledSubject'), html, text },
+    email: { subject, html, text },
     whatsapp: {
       template: 'host_booking_rescheduled',
       variables: {
         '1': host.title,
         '2': formatDate(startsAt, host.locale),
         '3': formatTime(startsAt, host.locale),
+        // Var 4 (dashboard link) for the not-yet-authored template body.
+        '4': bidiIsolate(hostBookingsUrl(host.locale)),
       },
     },
   });
@@ -1231,9 +1369,10 @@ export async function sendHostHoldLapsedEmail(reference: string): Promise<void> 
   if (!host) return;
 
   const t = await getTranslations({ locale: host.locale, namespace: 'bookingEmail' });
+  const subject = t('hostHoldLapsedSubject', { experience: host.title });
   const { html, text } = renderReceiptEmail({
     logoUrl: EMAIL_LOGO_URL,
-    subject: t('hostHoldLapsedSubject'),
+    subject,
     dir: host.locale === 'ar' ? 'rtl' : 'ltr',
     greeting: t('hostNewGreeting'),
     intro: t('hostHoldLapsedIntro'),
@@ -1247,7 +1386,7 @@ export async function sendHostHoldLapsedEmail(reference: string): Promise<void> 
     dedupeKey: `host_hold_lapsed:${booking.referenceCode}`,
     bookingId: booking.id,
     recipient: { kind: 'host', email: host.email, locale: host.locale },
-    email: { subject: t('hostHoldLapsedSubject'), html, text },
+    email: { subject, html, text },
   });
 }
 
@@ -1278,13 +1417,15 @@ export async function sendHostPaymentReceivedEmail(reference: string): Promise<v
   const rows = hostRows(booking, host, t);
   rows.push({ label: t('hostNewPayoutLabel'), value: formatSAR(payoutSar, host.locale) });
 
+  const subject = t('hostPaymentReceivedSubject', { experience: host.title });
   const { html, text } = renderReceiptEmail({
     logoUrl: EMAIL_LOGO_URL,
-    subject: t('hostPaymentReceivedSubject'),
+    subject,
     dir: host.locale === 'ar' ? 'rtl' : 'ltr',
     greeting: t('hostNewGreeting'),
     intro: t('hostPaymentReceivedIntro'),
     rows,
+    cta: { label: t('hostBookingsCta'), url: hostBookingsUrl(host.locale) },
     closing: t('hostNewClosing'),
     footer: t('footer'),
   });
@@ -1294,7 +1435,7 @@ export async function sendHostPaymentReceivedEmail(reference: string): Promise<v
     dedupeKey: `host_payment_received:${booking.referenceCode}`,
     bookingId: booking.id,
     recipient: { kind: 'host', email: host.email, phone: host.phone, locale: host.locale },
-    email: { subject: t('hostPaymentReceivedSubject'), html, text },
+    email: { subject, html, text },
     whatsapp: {
       template: 'host_payment_received',
       variables: {
@@ -1302,8 +1443,190 @@ export async function sendHostPaymentReceivedEmail(reference: string): Promise<v
         '2': formatDate(startsAt, host.locale),
         '3': formatTime(startsAt, host.locale),
         '4': formatSAR(payoutSar, host.locale),
+        // Var 5 (dashboard link) — inert until the v2 body references it.
+        '5': bidiIsolate(hostBookingsUrl(host.locale)),
       },
     },
+  });
+}
+
+/**
+ * Booking completed — close the loop on both sides (2026-07-31 audit:
+ * this was the single largest silent transition; it gates reviews AND
+ * payouts, yet nobody heard about it).
+ *
+ *  - Guest: "how was it?" review invitation. Reviews are only possible
+ *    on completed bookings, so this is the moment to ask.
+ *  - Host: the booking is complete and its payout is now owed.
+ *
+ * Fired by the cron's auto-complete pass and by manual host/admin
+ * completion. Both sides are individually best-effort and dedupe on the
+ * reference, so the two triggers can't double-send.
+ */
+export async function sendBookingCompletedEmails(reference: string): Promise<void> {
+  if (!notificationsConfigured()) return;
+  const booking = await getBookingByReference(reference);
+  if (!booking || booking.status !== 'completed') return;
+
+  // --- Guest: review invitation. -------------------------------------
+  if (booking.guestEmail || booking.guestPhone) {
+    const locale = booking.guestPreferredLanguage;
+    const t = await getTranslations({ locale, namespace: 'bookingEmail' });
+    const details = await lifecycleDetails(booking, locale, t);
+    const experienceName = details.title ?? t('genericExperience');
+
+    const subject = t('reviewInviteSubject', { experience: experienceName });
+    const { html, text } = renderReceiptEmail({
+      logoUrl: EMAIL_LOGO_URL,
+      subject,
+      dir: locale === 'ar' ? 'rtl' : 'ltr',
+      greeting: t('greeting', { name: booking.guestName }),
+      intro: t('reviewInviteIntro', { experience: experienceName }),
+      rows: details.rows,
+      // Reviews are written from the guest dashboard's past-bookings list.
+      cta: { label: t('reviewInviteCta'), url: `${SITE_URL}/${locale}/me` },
+      closing: t('reviewInviteClosing'),
+      footer: t('footer'),
+    });
+    await dispatchNotification({
+      type: 'booking_completed_review',
+      dedupeKey: `booking_completed_review:${booking.referenceCode}`,
+      bookingId: booking.id,
+      recipient: {
+        kind: 'guest',
+        email: booking.guestEmail,
+        phone: booking.guestPhone,
+        locale,
+      },
+      email: { subject, html, text },
+    });
+  }
+
+  // --- Host: completed + payout now owed. -----------------------------
+  if (booking.experienceSlug) {
+    const host = await hostEmailContext(booking.experienceSlug);
+    if (host) {
+      const t = await getTranslations({ locale: host.locale, namespace: 'bookingEmail' });
+      const { payoutSar } = splitCommission(
+        booking.totalAmountSar,
+        booking.commissionBps,
+        booking.vatRateBps,
+        booking.discountSar,
+        booking.walletAppliedSar,
+      );
+      const rows = hostRows(booking, host, t);
+      rows.push({ label: t('hostNewPayoutLabel'), value: formatSAR(payoutSar, host.locale) });
+
+      const subject = t('hostCompletedSubject', { experience: host.title });
+      const { html, text } = renderReceiptEmail({
+        logoUrl: EMAIL_LOGO_URL,
+        subject,
+        dir: host.locale === 'ar' ? 'rtl' : 'ltr',
+        greeting: t('hostNewGreeting'),
+        intro: t('hostCompletedIntro'),
+        rows,
+        cta: { label: t('hostEarningsCta'), url: `${SITE_URL}/${host.locale}/host/earnings` },
+        closing: t('hostNewClosing'),
+        footer: t('footer'),
+      });
+      await dispatchNotification({
+        type: 'host_booking_completed',
+        dedupeKey: `host_booking_completed:${booking.referenceCode}`,
+        bookingId: booking.id,
+        recipient: { kind: 'host', email: host.email, locale: host.locale },
+        email: { subject, html, text },
+      });
+    }
+  }
+}
+
+/**
+ * The gateway rejected the guest's payment attempt. Without this the
+ * guest heard NOTHING between the failed 3DS screen and the hold-lapsed
+ * notice hours later — the spot is still held until the payment
+ * deadline, so a prompt retry usually saves the booking. Email-only;
+ * best-effort like every sender here.
+ */
+export async function sendBookingPaymentFailedEmail(reference: string): Promise<void> {
+  if (!notificationsConfigured()) return;
+  const booking = await getBookingByReference(reference);
+  if (!booking || booking.paymentStatus !== 'failed') return;
+  if (booking.status === 'cancelled' || booking.status === 'completed') return;
+  if (!booking.guestEmail && !booking.guestPhone) return;
+  const locale = booking.guestPreferredLanguage;
+
+  const t = await getTranslations({ locale, namespace: 'bookingEmail' });
+  const details = await lifecycleDetails(booking, locale, t);
+  const rows = details.rows;
+  if (booking.paymentDeadline) {
+    const d = new Date(booking.paymentDeadline);
+    rows.push({
+      label: t('paymentDeadlineLabel'),
+      value: `${formatDate(d, locale, 'gregory', KSA_DATE)}, ${formatTime(d, locale, KSA_TIME)}`,
+    });
+  }
+
+  const payUrl = `${SITE_URL}/${locale}/book/${reference}/pay?slug=${encodeURIComponent(booking.experienceSlug)}`;
+  const subject = t('paymentFailedSubject', { reference: booking.referenceCode });
+  const { html, text } = renderReceiptEmail({
+    logoUrl: EMAIL_LOGO_URL,
+    subject,
+    dir: locale === 'ar' ? 'rtl' : 'ltr',
+    greeting: t('greeting', { name: booking.guestName }),
+    intro: t('paymentFailedIntro'),
+    rows,
+    cta: { label: t('paymentFailedCta'), url: payUrl },
+    closing: t('paymentFailedClosing'),
+    footer: t('footer'),
+  });
+  // Deduped per reference: one nudge per booking, not one per failed
+  // attempt — repeated declines shouldn't turn into repeated mail.
+  await dispatchNotification({
+    type: 'booking_payment_failed',
+    dedupeKey: `booking_payment_failed:${booking.referenceCode}`,
+    bookingId: booking.id,
+    recipient: {
+      kind: 'guest',
+      email: booking.guestEmail,
+      phone: booking.guestPhone,
+      locale,
+    },
+    email: { subject, html, text },
+  });
+}
+
+/**
+ * An operator (admin) cancelled the booking — tell the host their date
+ * has the spots back. The guest-cancel notice covers guest
+ * cancellations and a host cancelling knows already; this closes the
+ * admin-cancel gap where the host's calendar changed silently.
+ */
+export async function sendHostBookingCancelledEmail(reference: string): Promise<void> {
+  if (!notificationsConfigured()) return;
+  const booking = await getBookingByReference(reference);
+  if (!booking?.experienceSlug) return;
+  const host = await hostEmailContext(booking.experienceSlug);
+  if (!host) return;
+
+  const t = await getTranslations({ locale: host.locale, namespace: 'bookingEmail' });
+  const subject = t('hostCancelledByOpsSubject', { experience: host.title });
+  const { html, text } = renderReceiptEmail({
+    logoUrl: EMAIL_LOGO_URL,
+    subject,
+    dir: host.locale === 'ar' ? 'rtl' : 'ltr',
+    greeting: t('hostNewGreeting'),
+    intro: t('hostCancelledByOpsIntro'),
+    rows: hostRows(booking, host, t),
+    cta: { label: t('hostBookingsCta'), url: hostBookingsUrl(host.locale) },
+    closing: t('hostNewClosing'),
+    footer: t('footer'),
+  });
+  await dispatchNotification({
+    type: 'host_booking_cancelled',
+    dedupeKey: `host_booking_cancelled:${booking.referenceCode}`,
+    bookingId: booking.id,
+    recipient: { kind: 'host', email: host.email, locale: host.locale },
+    email: { subject, html, text },
   });
 }
 
@@ -1314,24 +1637,27 @@ export async function sendHostPaymentReceivedEmail(reference: string): Promise<v
  * rows still `failed` with attempts left — so re-calling a sender can
  * never double-send anything that already went out.
  *
- * Deliberately absent: `booking_cancelled`, `booking_rescheduled`, and
- * `host_booking_rescheduled` — their payloads need caller context (the
- * refund verdict, the pre-reschedule date) that isn't re-derivable
- * from the booking row, so a failed one stays failed and surfaces in
- * the ledger instead of guessing.
+ * Deliberately absent: `booking_cancelled`, `booking_rescheduled`,
+ * `host_booking_rescheduled` (payloads need caller context — the refund
+ * verdict, the pre-reschedule date — that isn't re-derivable from the
+ * booking row) and `host_booking_cancelled` (the operator-vs-guest
+ * provenance isn't re-derivable here either), so a failed one stays
+ * failed and surfaces in the ledger instead of guessing.
  */
 export const RETRYABLE_BOOKING_SENDERS: Readonly<
   Record<string, (reference: string, locale: Locale) => Promise<void>>
 > = {
-  booking_confirmed: (reference, locale) => sendBookingReceiptEmail(reference, locale),
-  booking_request_received: (reference, locale) =>
-    sendBookingRequestReceivedEmail(reference, locale),
+  booking_confirmed: (reference) => sendBookingReceiptEmail(reference),
+  booking_request_received: (reference) => sendBookingRequestReceivedEmail(reference),
   booking_approved: (reference) => sendBookingApprovedEmail(reference),
   booking_declined: (reference) => sendBookingDeclinedEmail(reference),
   booking_expired: (reference) => sendBookingExpiredEmail(reference),
   booking_payment_lapsed: (reference) => sendBookingPaymentLapsedEmail(reference),
+  booking_payment_failed: (reference) => sendBookingPaymentFailedEmail(reference),
   booking_reminder_24h: (reference, locale) => sendBookingPrepareReminderEmail(reference, locale),
   booking_reminder_3h: (reference, locale) => sendBookingDepartureReminderEmail(reference, locale),
+  booking_completed_review: (reference) => sendBookingCompletedEmails(reference),
+  host_booking_completed: (reference) => sendBookingCompletedEmails(reference),
   host_new_booking: (reference) => sendHostNewBookingEmail(reference),
   host_new_request: (reference) => sendHostNewBookingEmail(reference),
   host_guest_cancelled: (reference) => sendHostGuestCancelledEmail(reference),

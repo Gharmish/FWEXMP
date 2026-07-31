@@ -5,8 +5,11 @@ import { getTranslations } from 'next-intl/server';
 import { db } from '@/lib/db';
 import { hasEmail } from '@/lib/env';
 import type { Locale } from '@/lib/i18n';
+import { formatInteger } from '@/lib/format';
 import { dispatchNotification } from '@/lib/notifications/dispatch';
+import { hostNotificationContact } from '@/lib/notifications/host-contact';
 import { SITE_URL } from '@/lib/site';
+import { bookings } from '@/db/schema';
 import { renderReceiptEmail } from '@/features/bookings/lib/booking-email-render';
 
 /** Brand wordmark for email headers — PNG (clients don't render SVG). */
@@ -38,8 +41,9 @@ export async function sendHostRepliedEmail(reviewId: string): Promise<void> {
     subject: t('repliedSubject'),
     dir: locale === 'ar' ? 'rtl' : 'ltr',
     greeting: t('greeting', { name: review.guest.name }),
-    intro: t('repliedIntro', { experience: title, url }),
+    intro: t('repliedIntro', { experience: title }),
     rows: [{ label: t('replyLabel'), value: review.hostReply }],
+    cta: { label: t('repliedCta'), url },
     closing: t('repliedClosing'),
     footer: t('footer'),
   });
@@ -48,5 +52,63 @@ export async function sendHostRepliedEmail(reviewId: string): Promise<void> {
     dedupeKey: `review_replied:${reviewId}`,
     recipient: { kind: 'guest', email: review.guest.email, locale },
     email: { subject: t('repliedSubject'), html, text },
+  });
+}
+
+/**
+ * Tell the host a guest posted a new review (2026-07-31 audit: the
+ * reply email existed, but hosts never heard about the review itself —
+ * the thing they'd want to reply to). Looked up by booking reference
+ * because the submit action holds that, not the review id. Best-effort,
+ * email-only, deduped per booking (one review per booking; edits inside
+ * the window don't re-notify).
+ */
+export async function sendHostNewReviewEmail(bookingReference: string): Promise<void> {
+  if (!hasEmail()) return;
+
+  const booking = await db.query.bookings.findFirst({
+    where: eq(bookings.idempotencyKey, bookingReference),
+    columns: { id: true, idempotencyKey: true },
+    with: {
+      review: { columns: { rating: true, textEn: true, textAr: true } },
+      experience: { columns: { titleEn: true, titleAr: true, hostId: true } },
+    },
+  });
+  if (!booking?.review) return;
+  const host = await hostNotificationContact(booking.experience.hostId);
+  if (!host?.email) return;
+
+  const t = await getTranslations({ locale: host.locale, namespace: 'reviewEmail' });
+  const title = host.locale === 'ar' ? booking.experience.titleAr : booking.experience.titleEn;
+  // The guest wrote in THEIR language; show whichever text exists.
+  const reviewText = booking.review.textAr ?? booking.review.textEn;
+
+  const rows = [
+    { label: t('experienceLabel'), value: title },
+    {
+      label: t('ratingLabel'),
+      value: `${formatInteger(booking.review.rating, host.locale)}/${formatInteger(5, host.locale)}`,
+    },
+  ];
+  if (reviewText) rows.push({ label: t('reviewTextLabel'), value: reviewText });
+
+  const subject = t('hostNewSubject', { experience: title });
+  const { html, text } = renderReceiptEmail({
+    logoUrl: EMAIL_LOGO_URL,
+    subject,
+    dir: host.locale === 'ar' ? 'rtl' : 'ltr',
+    greeting: t('hostGreeting', { name: host.name }),
+    intro: t('hostNewIntro'),
+    rows,
+    cta: { label: t('hostNewCta'), url: `${SITE_URL}/${host.locale}/host/reviews` },
+    closing: t('hostNewClosing'),
+    footer: t('footer'),
+  });
+  await dispatchNotification({
+    type: 'host_new_review',
+    dedupeKey: `host_new_review:${booking.idempotencyKey}`,
+    bookingId: booking.id,
+    recipient: { kind: 'host', email: host.email, locale: host.locale },
+    email: { subject, html, text },
   });
 }

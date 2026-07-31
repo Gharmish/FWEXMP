@@ -69,7 +69,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     if (outcome === 'success') {
       const booking = await getBookingByReference(reference);
       if (booking) {
-        await sendBookingReceiptEmail(reference, booking.guestPreferredLanguage).catch(() => {});
+        await sendBookingReceiptEmail(reference).catch(() => {});
       }
     }
     // `anomaly` is permanent (amount/currency mismatch on a real

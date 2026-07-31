@@ -2,6 +2,7 @@ import 'server-only';
 
 import { hasEmail, serverEnv } from '@/lib/env';
 import { sendEmail } from '@/lib/email';
+import { SITE_URL } from '@/lib/site';
 import { reportError } from '@/lib/log';
 
 /**
@@ -48,6 +49,11 @@ function escapeHtml(value: string): string {
     .replaceAll('"', '&quot;');
 }
 
+/** Amounts arrive as bare integers under `…Sar` keys; label the unit. */
+function formatDetail(key: string, value: string | number): string {
+  return typeof value === 'number' && /sar$/i.test(key) ? `SAR ${value}` : String(value);
+}
+
 export async function notifyAdmin(
   kind: AdminAlertKind,
   detail: Record<string, string | number | null | undefined>,
@@ -58,13 +64,26 @@ export async function notifyAdmin(
     const rows = Object.entries(detail).filter(
       (entry): entry is [string, string | number] => entry[1] != null && entry[1] !== '',
     );
+    // Actionable destination: booking-shaped alerts land on the bookings
+    // queue; everything else on the dashboard. Saves the operator a
+    // UUID-paste round-trip.
+    const adminUrl =
+      'bookingId' in detail || 'reference' in detail
+        ? `${SITE_URL}/en/admin/bookings`
+        : `${SITE_URL}/en/admin`;
     const subject = `[Gharmish admin] ${SUBJECTS[kind]}`;
-    const text = [SUBJECTS[kind], ...rows.map(([k, v]) => `${k}: ${v}`)].join('\n');
+    const text = [
+      SUBJECTS[kind],
+      ...rows.map(([k, v]) => `${k}: ${formatDetail(k, v)}`),
+      '',
+      adminUrl,
+    ].join('\n');
     const html = [
       `<p><strong>${escapeHtml(SUBJECTS[kind])}</strong></p>`,
       '<ul>',
-      ...rows.map(([k, v]) => `<li>${escapeHtml(k)}: ${escapeHtml(String(v))}</li>`),
+      ...rows.map(([k, v]) => `<li>${escapeHtml(k)}: ${escapeHtml(formatDetail(k, v))}</li>`),
       '</ul>',
+      `<p><a href="${escapeHtml(adminUrl)}">Open the admin panel</a></p>`,
     ].join('');
 
     await sendEmail({ to: serverEnv.ADMIN_ALERT_EMAIL, subject, html, text });

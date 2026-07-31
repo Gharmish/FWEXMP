@@ -63,16 +63,33 @@ function esc(value: string): string {
 }
 
 /**
+ * Escape + bidi-isolate a data value. Row values routinely mix scripts
+ * (Arabic titles beside `GH-XXXXXX` references, Latin digits beside ص/م)
+ * and an un-isolated run lets punctuation jump sides in RTL clients.
+ * `dir="auto"` on a span is plain HTML (no CSS), so it survives every
+ * client that strips styles.
+ */
+function escIsolated(value: string): string {
+  return `<span dir="auto">${esc(value)}</span>`;
+}
+
+/**
  * Render the booking-receipt email. Inline styles only — email clients strip
  * <style>/external CSS. Palette mirrors the brand (white surface,
  * sarat-black text).
  */
 export function renderReceiptEmail(content: ReceiptContent): { html: string; text: string } {
+  // `text-align` on the value cell mirrors the document direction; the
+  // `dir` attribute that establishes that direction sits on the TABLES
+  // below, not only on <html> — Gmail/Outlook.com strip <html>/<body>
+  // and their attributes, so direction declared only there silently
+  // reverts Arabic emails to LTR.
+  const valueAlign = content.dir === 'rtl' ? 'left' : 'right';
   const rowsHtml = content.rows
     .map(
       (r) =>
         `<tr><td style="padding:6px 0;color:#6b6b6b;font-size:14px">${esc(r.label)}</td>` +
-        `<td style="padding:6px 0;text-align:${content.dir === 'rtl' ? 'left' : 'right'};font-size:14px;color:#0A0A0A">${esc(r.value)}</td></tr>`,
+        `<td style="padding:6px 0;text-align:${valueAlign};font-size:14px;color:#0A0A0A">${escIsolated(r.value)}</td></tr>`,
     )
     .join('');
 
@@ -115,16 +132,38 @@ export function renderReceiptEmail(content: ReceiptContent): { html: string; tex
 
   // Boxed muted note (e.g. cancellation window). `html` is our own trusted
   // markup — emitted verbatim so a single anchor renders — never guest data.
+  // Anchors inside it are restyled from client-default blue to the brand's
+  // ink colour (email clients apply their own link colour otherwise).
+  const noteInner = content.note
+    ? content.note.html.replace(/<a /g, '<a style="color:#0A0A0A;font-weight:500" ')
+    : '';
   const noteHtml = content.note
-    ? `<tr><td style="padding-top:20px"><div style="background:#FAFAFA;border:1px solid rgba(10,10,10,0.08);border-radius:12px;padding:13px 15px;font-size:13px;color:#3f3f3f;line-height:1.6">${content.note.html}</div></td></tr>\n`
+    ? `<tr><td style="padding-top:20px"><div style="background:#FAFAFA;border:1px solid rgba(10,10,10,0.08);border-radius:12px;padding:13px 15px;font-size:13px;color:#3f3f3f;line-height:1.6">${noteInner}</div></td></tr>\n`
     : '';
 
-  const html = `<!doctype html><html dir="${content.dir}"><body style="margin:0;background:#FAFAFA;padding:32px 0">
-<table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr><td align="center">
-<table role="presentation" width="480" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:20px;padding:32px;font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif">
+  const lang = content.dir === 'rtl' ? 'ar' : 'en';
+  // Brand faces first (Bricolage Grotesque / IBM Plex Sans Arabic — the
+  // app's own fonts, see lib/fonts.ts), then system fallbacks: email
+  // clients don't load webfonts, so recipients with the fonts installed
+  // get the brand look and everyone else degrades gracefully.
+  const fontStack =
+    content.dir === 'rtl'
+      ? `'IBM Plex Sans Arabic','Segoe UI',Tahoma,Helvetica,Arial,sans-serif`
+      : `'Bricolage Grotesque','Segoe UI',-apple-system,Roboto,Helvetica,Arial,sans-serif`;
+  // Hidden preheader: inbox list previews show this instead of "Hi {name},".
+  const preheader = `<div style="display:none;max-height:0;overflow:hidden;opacity:0;color:#FAFAFA;font-size:1px;line-height:1px">${esc(content.intro)}</div>`;
+
+  const html = `<!doctype html><html lang="${lang}" dir="${content.dir}"><head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="color-scheme" content="light only" />
+<title>${esc(content.subject)}</title>
+</head><body style="margin:0;background:#FAFAFA;padding:32px 0">
+${preheader}<table role="presentation" width="100%" cellpadding="0" cellspacing="0" dir="${content.dir}"><tr><td align="center" style="padding:0 12px">
+<table role="presentation" width="480" cellpadding="0" cellspacing="0" dir="${content.dir}" style="width:100%;max-width:480px;background:#ffffff;border-radius:20px;padding:32px;font-family:${fontStack};text-align:${content.dir === 'rtl' ? 'right' : 'left'}">
 ${logoHtml}${sellerHtml}<tr><td style="font-size:24px;font-weight:500;color:#0A0A0A;padding-bottom:8px">${esc(content.greeting)}</td></tr>
 <tr><td style="font-size:16px;color:#3f3f3f;line-height:1.6;padding-bottom:20px">${esc(content.intro)}</td></tr>
-<tr><td style="border-top:1px solid rgba(10,10,10,0.08);padding-top:16px"><table role="presentation" width="100%" cellpadding="0" cellspacing="0">${rowsHtml}</table></td></tr>
+<tr><td style="border-top:1px solid rgba(10,10,10,0.08);padding-top:16px"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" dir="${content.dir}">${rowsHtml}</table></td></tr>
 ${ctaHtml}${bulletsHtml}${hostHtml}${noteHtml}<tr><td style="border-top:1px solid rgba(10,10,10,0.08);padding-top:16px;font-size:14px;color:#3f3f3f;line-height:1.6">${esc(content.closing)}</td></tr>
 <tr><td style="padding-top:24px;font-size:12px;color:#9a9a9a">${esc(content.footer)}</td></tr>
 </table></td></tr></table></body></html>`;

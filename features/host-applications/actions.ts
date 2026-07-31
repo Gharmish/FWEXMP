@@ -9,6 +9,7 @@ import { hostApplications, hostApplicationDocuments, hostApplicationEvents } fro
 import { redirect } from '@/lib/i18n';
 import { reportError } from '@/lib/log';
 import { notifyAdmin } from '@/lib/admin-alerts';
+import { sendApplicationReceivedEmail } from '@/features/host-applications/lib/application-email';
 import { getCurrentUser } from '@/features/auth/queries';
 import { getSupabaseUserStorage } from '@/lib/supabase/server';
 import {
@@ -488,6 +489,20 @@ export async function submitHostApplication(
       city: input.city,
       languages: input.languages.join(', '),
     });
+  }
+
+  // Acknowledge the applicant — every submission (including resubmits)
+  // gets its receipt. Unlike the admin alert this goes through the
+  // dispatcher (ledgered), and the applicant is the one person who can't
+  // spam anyone but themselves. Best-effort, never blocks the submit.
+  try {
+    await sendApplicationReceivedEmail({
+      contactEmail: input.contactEmail,
+      displayName: input.displayName,
+      languages: input.languages,
+    });
+  } catch (error) {
+    reportError(error, { surface: 'host-applications:receivedEmail', userId: user.id });
   }
 
   revalidatePath('/[locale]/host/apply', 'page');

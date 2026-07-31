@@ -12,6 +12,7 @@ import { isAdminUser } from '@/features/admin/auth';
 import { splitCommission } from '@/features/bookings/lib/commission';
 import { paymentCollected } from '@/features/bookings/lib/payout-sql';
 import { planClawbackDeduction } from '@/features/bookings/lib/clawback';
+import { sendHostPayoutPaidEmail } from '@/features/admin/payouts/payout-email';
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -163,10 +164,23 @@ export async function markHostPaid(
           .where(inArray(payoutClawbacks.id, plan.settleIds));
       }
 
-      return { paidCount: owed.length } as const;
+      return { paidCount: owed.length, payoutId: batch.id, netSar: plan.netSar } as const;
     });
 
     if (typeof outcome === 'string') return { success: false, message: outcome };
+
+    // Tell the host their transfer is on its way — deduped on the batch
+    // id, best-effort, never fails the mark-paid.
+    try {
+      await sendHostPayoutPaidEmail({
+        hostId,
+        payoutId: outcome.payoutId,
+        amountSar: outcome.netSar,
+        bookingCount: outcome.paidCount,
+      });
+    } catch (error) {
+      reportError(error, { surface: 'admin:markHostPaid:email', hostId });
+    }
 
     revalidatePath('/[locale]/admin/payouts', 'page');
     revalidatePath('/[locale]/admin', 'page');

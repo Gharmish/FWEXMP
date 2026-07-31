@@ -73,7 +73,9 @@ export async function cancelBookingAsGuest(
     locale: formValue(formData, 'locale'),
   });
   if (!parsed.success) return { success: false, message: 'validation' };
-  const { reference, locale } = parsed.data;
+  // The form's locale is validated but no longer drives the notification
+  // language — senders read the guest's stored preference.
+  const { reference } = parsed.data;
 
   if (!serverEnv.DATABASE_URL) return { success: false, message: 'no_db' };
 
@@ -206,7 +208,7 @@ export async function cancelBookingAsGuest(
 
   // Best-effort notifications — never fail a completed cancellation over email.
   try {
-    await sendBookingCancellationEmail(reference, locale, refundOutcome.refund, {
+    await sendBookingCancellationEmail(reference, refundOutcome.refund, {
       refundAmountSar: refundOutcome.partial ? refundOutcome.refundAmountSar : undefined,
     });
   } catch (error) {

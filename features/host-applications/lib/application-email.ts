@@ -39,8 +39,9 @@ export async function sendApplicationApprovedEmail(
     subject: t('approvedSubject'),
     dir: locale === 'ar' ? 'rtl' : 'ltr',
     greeting: t('greeting', { name: recipient.displayName }),
-    intro: t('approvedIntro', { url: `${SITE_URL}/${locale}/host` }),
+    intro: t('approvedIntro'),
     rows: [],
+    cta: { label: t('approvedCta'), url: `${SITE_URL}/${locale}/host` },
     closing: t('approvedClosing'),
     footer: t('footer'),
   });
@@ -70,8 +71,9 @@ export async function sendApplicationRejectedEmail(
     subject: t('rejectedSubject'),
     dir: locale === 'ar' ? 'rtl' : 'ltr',
     greeting: t('greeting', { name: recipient.displayName }),
-    intro: t('rejectedIntro', { url: `${SITE_URL}/${locale}/host/apply` }),
+    intro: t('rejectedIntro'),
     rows: [],
+    cta: { label: t('rejectedCta'), url: `${SITE_URL}/${locale}/host/apply` },
     closing: t('rejectedClosing'),
     footer: t('footer'),
   });
@@ -80,5 +82,36 @@ export async function sendApplicationRejectedEmail(
     type: 'application_rejected',
     recipient: { kind: 'applicant', email: recipient.contactEmail, locale },
     email: { subject: t('rejectedSubject'), html, text },
+  });
+}
+
+/**
+ * Acknowledge a submitted application (2026-07-31 audit: applicants got
+ * only a redirect page — nothing they could keep or forward). Fired on
+ * EVERY submission including resubmits after a rejection; each one
+ * deserves its receipt, so no dedupe key (mirrors the decision notices).
+ */
+export async function sendApplicationReceivedEmail(
+  recipient: ApplicationDecisionRecipient,
+): Promise<void> {
+  if (!hasEmail() || !recipient.contactEmail) return;
+
+  const locale = localeFor(recipient.languages);
+  const t = await getTranslations({ locale, namespace: 'hostApplicationEmail' });
+  const { html, text } = renderReceiptEmail({
+    logoUrl: EMAIL_LOGO_URL,
+    subject: t('receivedSubject'),
+    dir: locale === 'ar' ? 'rtl' : 'ltr',
+    greeting: t('greeting', { name: recipient.displayName }),
+    intro: t('receivedIntro'),
+    rows: [],
+    cta: { label: t('receivedCta'), url: `${SITE_URL}/${locale}/host/apply` },
+    closing: t('receivedClosing'),
+    footer: t('footer'),
+  });
+  await dispatchNotification({
+    type: 'application_received',
+    recipient: { kind: 'applicant', email: recipient.contactEmail, locale },
+    email: { subject: t('receivedSubject'), html, text },
   });
 }

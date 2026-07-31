@@ -1,6 +1,7 @@
 import 'server-only';
 
 import { serverEnv, hasEmail } from '@/lib/env';
+import { SUPPORT_EMAIL } from '@/lib/site';
 import { reportError } from '@/lib/log';
 
 /**
@@ -29,6 +30,12 @@ export interface SendEmailInput {
   text?: string;
   /** Optional file attachments (e.g. the invoice PDF). */
   attachments?: readonly EmailAttachment[];
+  /**
+   * Reply-To address. Defaults to the monitored support inbox — several
+   * templates say "just reply to this email", and `RESEND_FROM` is a
+   * sending subdomain, not an inbox, so replies must be routed here.
+   */
+  replyTo?: string;
 }
 
 const RESEND_ENDPOINT = 'https://api.resend.com/emails';
@@ -56,6 +63,7 @@ export async function sendEmail(input: SendEmailInput): Promise<SendEmailResult>
       body: JSON.stringify({
         from: serverEnv.RESEND_FROM,
         to: input.to,
+        reply_to: input.replyTo ?? SUPPORT_EMAIL,
         subject: input.subject,
         html: input.html,
         ...(input.text ? { text: input.text } : {}),

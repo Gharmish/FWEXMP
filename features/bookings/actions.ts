@@ -642,7 +642,7 @@ export async function requestBooking(
     }
     // Request mode only; no-ops without an email on file.
     try {
-      await sendBookingRequestReceivedEmail(reference, input.locale);
+      await sendBookingRequestReceivedEmail(reference);
     } catch (error) {
       reportError(error, { surface: 'booking-request:guestEmail', reference });
     }

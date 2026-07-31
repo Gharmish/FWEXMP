@@ -7,6 +7,7 @@ import { hasEmail } from '@/lib/env';
 import type { Locale } from '@/lib/i18n';
 import { formatSAR } from '@/lib/format';
 import { dispatchNotification } from '@/lib/notifications/dispatch';
+import { hostNotificationContact } from '@/lib/notifications/host-contact';
 import { SITE_URL } from '@/lib/site';
 import { renderReceiptEmail } from '@/features/bookings/lib/booking-email-render';
 
@@ -52,7 +53,12 @@ export async function sendDisputeResolvedEmail(
   const title =
     locale === 'ar' ? dispute.booking.experience.titleAr : dispute.booking.experience.titleEn;
 
-  const rows = [{ label: t('bookingLabel'), value: `${dispute.booking.referenceCode} — ${title}` }];
+  // Title and reference as separate rows — one cell mixing an Arabic
+  // title with a Latin reference around an em dash reorders in RTL.
+  const rows = [
+    { label: t('bookingLabel'), value: title },
+    { label: t('referenceLabel'), value: dispute.booking.referenceCode },
+  ];
   if (refundAmountSar !== null) {
     rows.push({ label: t('refundLabel'), value: formatSAR(refundAmountSar, locale) });
   }
@@ -69,6 +75,10 @@ export async function sendDisputeResolvedEmail(
           ? t('introWithRefundPending')
           : t('introWithRefund'),
     rows,
+    cta: {
+      label: t('viewBookingCta'),
+      url: `${SITE_URL}/${locale}/book/confirmed/${dispute.booking.referenceCode}`,
+    },
     closing: t('closing'),
     footer: t('footer'),
   });
@@ -78,5 +88,95 @@ export async function sendDisputeResolvedEmail(
     bookingId: dispute.bookingId,
     recipient: { kind: 'guest', email: dispute.guest.email, locale },
     email: { subject: t('subject'), html, text },
+  });
+}
+
+/**
+ * Acknowledge a guest's report the moment it lands (2026-07-31 audit:
+ * only the admin inbox heard about new disputes — the guest who wrote
+ * one got silence until resolution). No dedupe key: a booking can be
+ * disputed again after an earlier report was resolved, and each deserves
+ * its ack. Best-effort, email-only.
+ */
+export async function sendDisputeReceivedEmail(referenceCode: string): Promise<void> {
+  if (!hasEmail()) return;
+
+  const booking = await db.query.bookings.findFirst({
+    where: (b) => eq(b.idempotencyKey, referenceCode),
+    columns: { id: true, idempotencyKey: true },
+    with: { guest: true, experience: { columns: { titleEn: true, titleAr: true } } },
+  });
+  if (!booking?.guest.email) return;
+
+  const locale = booking.guest.preferredLanguage as Locale;
+  const t = await getTranslations({ locale, namespace: 'disputeEmail' });
+  const title = locale === 'ar' ? booking.experience.titleAr : booking.experience.titleEn;
+
+  const { html, text } = renderReceiptEmail({
+    logoUrl: EMAIL_LOGO_URL,
+    subject: t('receivedSubject'),
+    dir: locale === 'ar' ? 'rtl' : 'ltr',
+    greeting: t('greeting', { name: booking.guest.name }),
+    intro: t('receivedIntro'),
+    rows: [
+      { label: t('bookingLabel'), value: title },
+      { label: t('referenceLabel'), value: booking.idempotencyKey },
+    ],
+    cta: {
+      label: t('viewBookingCta'),
+      url: `${SITE_URL}/${locale}/book/confirmed/${booking.idempotencyKey}`,
+    },
+    closing: t('receivedClosing'),
+    footer: t('footer'),
+  });
+  await dispatchNotification({
+    type: 'dispute_received',
+    bookingId: booking.id,
+    recipient: { kind: 'guest', email: booking.guest.email, locale },
+    email: { subject: t('receivedSubject'), html, text },
+  });
+}
+
+/**
+ * Tell the host a guest reported a problem on their booking. The
+ * guest's message deliberately stays out of the email (same posture as
+ * adminNotes) — the team mediates; the host just needs to know a review
+ * of that booking is underway. No dedupe key, same re-dispute rationale
+ * as the guest ack. Best-effort, email-only.
+ */
+export async function sendHostDisputeOpenedEmail(referenceCode: string): Promise<void> {
+  if (!hasEmail()) return;
+
+  const booking = await db.query.bookings.findFirst({
+    where: (b) => eq(b.idempotencyKey, referenceCode),
+    columns: { id: true, idempotencyKey: true },
+    with: { experience: { columns: { titleEn: true, titleAr: true, hostId: true } } },
+  });
+  if (!booking) return;
+  const host = await hostNotificationContact(booking.experience.hostId);
+  if (!host?.email) return;
+
+  const t = await getTranslations({ locale: host.locale, namespace: 'disputeEmail' });
+  const title = host.locale === 'ar' ? booking.experience.titleAr : booking.experience.titleEn;
+
+  const subject = t('hostOpenedSubject', { experience: title });
+  const { html, text } = renderReceiptEmail({
+    logoUrl: EMAIL_LOGO_URL,
+    subject,
+    dir: host.locale === 'ar' ? 'rtl' : 'ltr',
+    greeting: t('hostGreeting', { name: host.name }),
+    intro: t('hostOpenedIntro'),
+    rows: [
+      { label: t('bookingLabel'), value: title },
+      { label: t('referenceLabel'), value: booking.idempotencyKey },
+    ],
+    closing: t('hostOpenedClosing'),
+    footer: t('footer'),
+  });
+  await dispatchNotification({
+    type: 'host_dispute_opened',
+    bookingId: booking.id,
+    recipient: { kind: 'host', email: host.email, locale: host.locale },
+    email: { subject, html, text },
   });
 }

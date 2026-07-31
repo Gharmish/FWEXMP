@@ -12,8 +12,10 @@ import { getPlatformSettings } from '@/lib/platform-settings';
 import {
   sendBookingApprovedEmail,
   sendBookingCancellationEmail,
+  sendBookingCompletedEmails,
   sendBookingDeclinedEmail,
   sendBookingExpiredEmail,
+  sendHostBookingCancelledEmail,
 } from '@/features/bookings/lib/booking-email';
 
 /**
@@ -241,7 +243,7 @@ export async function executeBookingTransition(
     } else if (outcome.decided === 'declined') {
       await sendBookingDeclinedEmail(outcome.reference);
     } else if (outcome.decided === 'cancelled') {
-      await sendBookingCancellationEmail(outcome.reference, outcome.guestLocale, refund, {
+      await sendBookingCancellationEmail(outcome.reference, refund, {
         cancelledBy: 'operator',
         // The FULL paid base — card charge plus any redeemed credit —
         // which is what `executeRefund` was asked to return above
@@ -250,6 +252,15 @@ export async function executeBookingTransition(
         // refunded 300 told the guest "SAR 200".
         refundAmountSar: outcome.paidBaseSar,
       });
+      // An ADMIN cancellation also changed the host's calendar without
+      // them acting — tell them. A host cancelling their own booking
+      // needs no email about it.
+      if (actor.kind === 'admin') {
+        await sendHostBookingCancelledEmail(outcome.reference);
+      }
+    } else if (outcome.decided === 'completed') {
+      // Review invitation to the guest + payout-owed notice to the host.
+      await sendBookingCompletedEmails(outcome.reference);
     }
   } catch (error) {
     reportError(error, { surface: 'booking-transition:decisionEmail', bookingId, to });

@@ -97,11 +97,7 @@ async function dispatchWhatsApp(input: DispatchInput, dedupeKey: string): Promis
   if (!input.whatsapp || !hasWhatsApp()) return;
   const to = whatsappAddress(input.recipient.phone);
   if (!to) return;
-  // Template not approved (or not mapped) yet → the channel silently
-  // sits out; email still covers the message. No ledger row — nothing
-  // was addressable to attempt.
   const contentSid = whatsappContentSid(input.whatsapp.template, input.recipient.locale);
-  if (!contentSid) return;
 
   const phone = to.replace('whatsapp:', '');
   const base = {
@@ -121,6 +117,23 @@ async function dispatchWhatsApp(input: DispatchInput, dedupeKey: string): Promis
 
   const claim = await claimDelivery(base);
   if (!claim.claimed) return;
+
+  // Template not approved (or not mapped) yet. Ledgered as `failed` —
+  // not silently skipped — so a phone-only guest missing a message is
+  // visible in the ops query, and the retry sweep re-drives the send
+  // once the Content SID lands in the env map.
+  if (!contentSid) {
+    await markDeliveryFailed(claim.id, 'no approved content SID for template/locale');
+    return;
+  }
+
+  // WhatsApp rejects a template rendered with a blank variable (an
+  // opaque Twilio 400); fail the row with a diagnosable reason instead.
+  const blank = Object.entries(input.whatsapp.variables).find(([, v]) => !v.trim());
+  if (blank) {
+    await markDeliveryFailed(claim.id, `blank template variable {{${blank[0]}}}`);
+    return;
+  }
 
   const result = await sendWhatsAppTemplate({
     to,

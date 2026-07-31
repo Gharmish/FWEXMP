@@ -75,7 +75,9 @@ export async function rescheduleBookingAsGuest(
     newDate: formValue(formData, 'newDate'),
   });
   if (!parsed.success) return { success: false, message: 'validation' };
-  const { reference, locale, newDate } = parsed.data;
+  // The form's locale is validated but no longer drives the notification
+  // language — senders read the guest's stored preference.
+  const { reference, newDate } = parsed.data;
 
   if (!serverEnv.DATABASE_URL) return { success: false, message: 'no_db' };
 
@@ -224,7 +226,7 @@ export async function rescheduleBookingAsGuest(
 
   // Best-effort notifications — never fail a completed move over email.
   try {
-    await sendBookingRescheduledEmail(reference, oldDate, locale);
+    await sendBookingRescheduledEmail(reference, oldDate);
   } catch (error) {
     reportError(error, { surface: 'bookings:rescheduleEmail', reference });
   }

@@ -70,7 +70,11 @@ goes out).
   "host_guest_cancelled.ar": "HX…",
   "host_guest_cancelled.en": "HX…",
   "host_payment_received.ar": "HX…",
-  "host_payment_received.en": "HX…"
+  "host_payment_received.en": "HX…",
+  "booking_rescheduled.ar": "HX…",
+  "booking_rescheduled.en": "HX…",
+  "host_booking_rescheduled.ar": "HX…",
+  "host_booking_rescheduled.en": "HX…"
 }
 ```
 
@@ -85,44 +89,119 @@ both languages if a template is authored bilingually.
 - **Status callbacks** need no console config: every outbound send passes
   `StatusCallback` pointing at the same URL.
 
-## Template catalog — variable contracts
+## Template catalog — variable contracts (v2, 2026-07-31 comms audit)
 
 The variable numbers below are what the code sends
 (`features/bookings/lib/booking-email.ts`). Author each template's body around
-them; suggested copy is a starting point (owner has approved AI-written
-Arabic). Dates/times arrive pre-formatted in the recipient's locale and KSA
-time. Rollout priority: top of the list first.
+them; both language bodies below are ready to paste (owner has approved
+AI-written Arabic). Dates/times arrive pre-formatted in the recipient's locale
+and KSA time. URL and reference variables arrive wrapped in invisible FSI/PDI
+bidi-isolate marks, so they render intact inside Arabic bodies.
+
+**Migration note (v1 → v2).** The live approved templates are v1. The code now
+sends EXTRA trailing variables (marked ★ below) that v1 bodies simply ignore —
+nothing breaks. To ship v2: create new Content templates with the bodies
+below, submit for Meta approval, then swap the SIDs in
+`TWILIO_WHATSAPP_CONTENT_SIDS`. Never renumber an existing variable slot — the
+first 5 (guest) / first positional (host) meanings are frozen; v2 only appends.
+Meta requires body placeholders to be sequential (`{{1}}…{{n}}`, no gaps, no
+out-of-order first appearance) — the bodies below comply; the v1 suggested
+bodies for `booking_cancelled` and `booking_reminder_3h` did not, so whatever
+was actually approved may differ. Check the live bodies in the Twilio console
+before assuming.
 
 ### Guest templates
 
-| Template                   | Variables                                                                     | Suggested EN body                                                                                                                               |
-| -------------------------- | ----------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
-| `booking_confirmed`        | 1 name · 2 experience · 3 date · 4 time · 5 booking ref                       | Hi {{1}}, your booking is confirmed! ✅ {{2}} on {{3}} at {{4}}. Reference: {{5}}. We've sent your receipt by email if you have one on file.    |
-| `booking_reminder_24h`     | 1 name · 2 experience · 3 date · 4 time · 5 meeting point · 6 map/booking URL | Hi {{1}}, get ready — {{2}} is {{3}} at {{4}}. Meeting point: {{5}}. Directions: {{6}}                                                          |
-| `booking_reminder_3h`      | 1 name · 2 meeting point · 3 time · 4 map/booking URL                         | See you soon, {{1}}! Today at {{3}}, meeting at {{2}}. Please arrive a little early. Directions: {{4}}                                          |
-| `booking_request_received` | 1 name · 2 experience · 3 date · 4 time · 5 ref                               | Hi {{1}}, we've sent your request for {{2}} ({{3}}, {{4}}) to the host. You won't be charged unless they confirm. Reference: {{5}}.             |
-| `booking_approved`         | 1 name · 2 experience · 3 date · 4 time · 5 action URL                        | Good news {{1}} — the host confirmed {{2}} on {{3}} at {{4}}. View your booking / complete payment: {{5}}                                       |
-| `booking_declined`         | 1 name · 2 experience · 3 date · 4 time · 5 ref                               | Hi {{1}}, unfortunately the host couldn't accept your request for {{2}} on {{3}}. Nothing was charged. Browse more experiences at gharmish.com. |
-| `booking_cancelled`        | 1 name · 2 experience · 3 date · 4 time · 5 ref                               | Hi {{1}}, your booking {{5}} for {{2}} on {{3}} has been cancelled. If a refund is due, details are in your booking page / email.               |
+| Template                   | Variables                                                                                                         |
+| -------------------------- | ----------------------------------------------------------------------------------------------------------------- |
+| `booking_confirmed`        | 1 name · 2 experience · 3 date · 4 time · 5 booking ref · **6 invoice URL ★ · 7 total paid ★**                    |
+| `booking_reminder_24h`     | 1 name · 2 experience · 3 date · 4 time · 5 meeting point · 6 map/booking URL                                     |
+| `booking_reminder_3h`      | 1 name · 2 meeting point · 3 time · 4 map/booking URL                                                             |
+| `booking_request_received` | 1 name · 2 experience · 3 date · 4 time · 5 ref                                                                   |
+| `booking_approved`         | 1 name · 2 experience · 3 date · 4 time · 5 action URL (payment page while payment is due, else booking page)     |
+| `booking_declined`         | 1 name · 2 experience · 3 date · 4 time · 5 ref                                                                   |
+| `booking_cancelled`        | 1 name · 2 experience · 3 date · 4 time · 5 ref · **6 refund outcome line ★ · 7 document/booking URL ★**          |
+| `booking_rescheduled`      | 1 name · 2 experience · 3 new date · 4 time · 5 ref · 6 booking URL — **no template exists yet; author + submit** |
+
+**v2 bodies — English:**
+
+- `booking_confirmed`: Hi {{1}}, your booking is confirmed! ✅ {{2}} on {{3}}
+  at {{4}}. Reference: {{5}}. Your receipt and tax invoice: {{6}}. Total paid:
+  {{7}}.
+- `booking_reminder_24h`: Hi {{1}}, get ready — {{2}} is on {{3}} at {{4}}.
+  Meeting point: {{5}}. Directions: {{6}} — To stop these messages, reply
+  STOP.
+- `booking_reminder_3h`: See you soon, {{1}}! We meet at {{2}} at {{3}}.
+  Please arrive a little early. Directions: {{4}} — To stop these messages,
+  reply STOP.
+- `booking_request_received`: Hi {{1}}, we've sent your request for {{2}}
+  ({{3}}, {{4}}) to the host. You won't be charged unless they confirm.
+  Reference: {{5}}.
+- `booking_approved`: Good news {{1}} — the host confirmed {{2}} on {{3}} at
+  {{4}}. Details and next steps: {{5}}
+- `booking_declined`: Hi {{1}}, unfortunately the host couldn't accept your
+  request for {{2}} on {{3}}. Nothing was charged. Browse more experiences at
+  https://gharmish.com
+- `booking_cancelled`: Hi {{1}}, your booking for {{2}} on {{3}} at {{4}} has
+  been cancelled. Reference: {{5}}. {{6}}. Details: {{7}}
+- `booking_rescheduled`: Hi {{1}}, your booking has moved — {{2}} is now on
+  {{3}} at {{4}}. Your payment and reference ({{5}}) stay the same. Details:
+  {{6}}
+
+**v2 bodies — Arabic:**
+
+- `booking_confirmed`: مرحبًا {{1}}، تم تأكيد حجزك! ✅ {{2}} يوم {{3}} الساعة {{4}}. الرقم المرجعي: {{5}}. الإيصال والفاتورة: {{6}}. الإجمالي المدفوع: {{7}}.
+- `booking_reminder_24h`: مرحبًا {{1}}، استعدّ — تجربتك {{2}} يوم {{3}} الساعة {{4}}. نقطة اللقاء: {{5}}. الاتجاهات: {{6}} — لإيقاف هذه الرسائل أرسل «إيقاف».
+- `booking_reminder_3h`: نراك قريبًا يا {{1}}! نلتقي في {{2}} الساعة {{3}}. نرجو الحضور قبل الموعد بقليل. الاتجاهات: {{4}} — لإيقاف هذه الرسائل أرسل «إيقاف».
+- `booking_request_received`: مرحبًا {{1}}، أرسلنا طلبك لتجربة {{2}} ({{3}}، {{4}}) إلى المضيف. لن يُخصم منك أي مبلغ ما لم يقبل الطلب. الرقم المرجعي: {{5}}.
+- `booking_approved`: خبر سار يا {{1}} — قبل المضيف حجزك لتجربة {{2}} يوم {{3}} الساعة {{4}}. التفاصيل والخطوات التالية: {{5}}
+- `booking_declined`: مرحبًا {{1}}، للأسف لم يتمكن المضيف من قبول طلبك لتجربة {{2}} يوم {{3}}. لم يُخصم منك أي مبلغ. تصفّح تجارب أخرى: https://gharmish.com
+- `booking_cancelled`: مرحبًا {{1}}، تم إلغاء حجزك لتجربة {{2}} يوم {{3}} الساعة {{4}}. الرقم المرجعي: {{5}}. {{6}}. التفاصيل: {{7}}
+- `booking_rescheduled`: مرحبًا {{1}}، انتقل حجزك — تجربتك {{2}} أصبحت يوم {{3}} الساعة {{4}}. يبقى مبلغك ورقمك المرجعي ({{5}}) كما هما. التفاصيل: {{6}}
 
 ### Host templates
 
-| Template                | Variables                                           | Suggested EN body                                                                                                                           |
-| ----------------------- | --------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
-| `host_new_booking`      | 1 experience · 2 date · 3 time · 4 party · 5 payout | New booking 🎉 {{1}} — {{2}} at {{3}}, {{4}} guest(s). Your payout: {{5}}. Manage: gharmish.com/host/bookings                               |
-| `host_new_request`      | same as above                                       | New booking request: {{1}} — {{2}} at {{3}}, {{4}} guest(s), payout {{5}}. Please approve or decline within 24h: gharmish.com/host/bookings |
-| `host_guest_cancelled`  | 1 experience · 2 date · 3 time                      | A guest cancelled: {{1}} on {{2}} at {{3}}. The spots are back on your calendar.                                                            |
-| `host_payment_received` | 1 experience · 2 date · 3 time · 4 payout           | Payment received for {{1}} on {{2}} at {{3}} — this booking is fully secured. Your payout: {{4}}.                                           |
+| Template                   | Variables                                                                                          |
+| -------------------------- | -------------------------------------------------------------------------------------------------- |
+| `host_new_booking`         | 1 experience · 2 date · 3 time · 4 party · 5 payout · **6 dashboard URL ★**                        |
+| `host_new_request`         | same as above                                                                                      |
+| `host_guest_cancelled`     | 1 experience · 2 date · 3 time · **4 dashboard URL ★**                                             |
+| `host_payment_received`    | 1 experience · 2 date · 3 time · 4 payout · **5 dashboard URL ★**                                  |
+| `host_booking_rescheduled` | 1 experience · 2 new date · 3 time · 4 dashboard URL — **no template exists yet; author + submit** |
 
-Arabic variants: author the same variable order; keep `{{n}}` placeholders
-identical. (Hint: the equivalent email copy in `messages/ar.json` under
-`bookingEmail` is the approved tone reference.)
+**v2 bodies — English:**
+
+- `host_new_booking`: New booking 🎉 {{1}} — {{2}} at {{3}}. Guests: {{4}}.
+  Your payout: {{5}}. Manage: {{6}}
+- `host_new_request`: New booking request: {{1}} — {{2}} at {{3}}. Guests:
+  {{4}}. Payout: {{5}}. Please approve or decline before the deadline in your
+  dashboard: {{6}}
+- `host_guest_cancelled`: A guest cancelled: {{1}} on {{2}} at {{3}}. The
+  spots are back on your calendar. Details: {{4}}
+- `host_payment_received`: Payment received for {{1}} on {{2}} at {{3}} — this
+  booking is fully secured. Your payout: {{4}}. Details: {{5}}
+- `host_booking_rescheduled`: A booking moved: {{1}} is now on {{2}} at {{3}}.
+  The previous date has its spots back. Details: {{4}}
+
+**v2 bodies — Arabic:**
+
+- `host_new_booking`: حجز جديد 🎉 {{1}} — {{2}} الساعة {{3}}. عدد الضيوف: {{4}}. مستحقاتك: {{5}}. الإدارة: {{6}}
+- `host_new_request`: طلب حجز جديد: {{1}} — {{2}} الساعة {{3}}. عدد الضيوف: {{4}}. المستحقات: {{5}}. نرجو القبول أو الرفض قبل الموعد النهائي في لوحتك: {{6}}
+- `host_guest_cancelled`: ألغى ضيف حجزه: {{1}} يوم {{2}} الساعة {{3}}. عادت المقاعد إلى تقويمك. التفاصيل: {{4}}
+- `host_payment_received`: اكتمل الدفع لتجربة {{1}} يوم {{2}} الساعة {{3}} — أصبح الحجز مؤكّدًا بالكامل. مستحقاتك: {{4}}. التفاصيل: {{5}}
+- `host_booking_rescheduled`: انتقل حجز: تجربتك {{1}} أصبحت يوم {{2}} الساعة {{3}}. عادت المقاعد إلى التاريخ السابق. التفاصيل: {{4}}
 
 Email-only types that are ledgered but have no WhatsApp template by design:
-`booking_expired`, `booking_payment_lapsed`, `host_hold_lapsed`,
-`application_approved`, `application_rejected`, `review_replied`. Add a
-template key in `lib/notifications/types.ts` + a `whatsapp:` payload in the
-sender if any of these should gain the channel later.
+`booking_expired`, `booking_payment_lapsed`, `booking_payment_failed`,
+`booking_completed_review`, `host_booking_completed`,
+`host_booking_cancelled`, `host_hold_lapsed`, `host_new_review`,
+`host_dispute_opened`, `dispute_received`, `dispute_resolved`,
+`review_replied`, `application_received`, `application_approved`,
+`application_rejected`, `host_suspended`, `host_reinstated`,
+`host_payout_paid`, `experience_approved`, `experience_rejected`,
+`experience_changes_requested`. Add a template key in
+`lib/notifications/types.ts` + a `whatsapp:` payload in the sender if any of
+these should gain the channel later.
 
 ## Testing sequence
 
@@ -138,10 +217,16 @@ delivered/read` as the callbacks land.
 
 ## Ops notes
 
-- **One attempt per (message, channel).** A failed send is ledgered `failed`
-  and not auto-retried (same best-effort posture the email channel always
-  had). Failures are visible: `SELECT * FROM notification_deliveries WHERE
+- **Failures are ledgered and re-driven.** A failed send is ledgered `failed`
+  and the hourly cron's retry sweep re-fires retryable types (capped
+  attempts, 48h window — see `lib/notifications/ledger.ts`). Failures are
+  visible: `SELECT * FROM notification_deliveries WHERE
 status = 'failed' ORDER BY created_at DESC;`
+- **A missing Content SID is a `failed` row, not a silent skip** (2026-07-31
+  audit): dispatching a template whose key isn't in the SID map ledgers
+  `failed` with reason `no approved content SID for template/locale`. When
+  the SID later lands in the env map, the retry sweep delivers the backlog.
+  Blank template variables fail the same visible way.
 - **Suppression applies to transactional sends too** — a STOP is a legal
   opt-out, not a preference. The guest keeps email notifications if they have
   an email on file.

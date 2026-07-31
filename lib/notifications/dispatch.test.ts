@@ -166,13 +166,32 @@ describe('dispatchNotification', () => {
     expect(sendWhatsAppTemplate).not.toHaveBeenCalled();
   });
 
-  it('sits the WhatsApp channel out (no ledger row) when the template has no approved SID', async () => {
+  it('ledgers a FAILED row (visible, retryable) when the template has no approved SID', async () => {
     contentSid = null;
 
     await dispatchNotification(input());
 
-    expect(claims.map((c) => c.channel)).toEqual(['email']);
+    // 2026-07-31 audit: previously a silent skip with no ledger row — a
+    // phone-only guest's missed message was indistinguishable from
+    // "nothing happened". Now the claim lands and is failed with a
+    // diagnosable reason; the retry sweep re-drives it once the SID
+    // lands in the env map.
+    expect(claims.map((c) => c.channel)).toEqual(['email', 'whatsapp']);
     expect(sendWhatsAppTemplate).not.toHaveBeenCalled();
+    expect(markDeliveryFailed).toHaveBeenCalledWith(
+      'del-1',
+      'no approved content SID for template/locale',
+    );
+  });
+
+  it('ledgers a FAILED row instead of sending a template with a blank variable', async () => {
+    const payload = input();
+    payload.whatsapp = { template: 'booking_confirmed', variables: { '1': 'Ahmad', '2': ' ' } };
+
+    await dispatchNotification(payload);
+
+    expect(sendWhatsAppTemplate).not.toHaveBeenCalled();
+    expect(markDeliveryFailed).toHaveBeenCalledWith('del-1', 'blank template variable {{2}}');
   });
 
   it('ledgers a suppressed address as suppressed and never messages it', async () => {

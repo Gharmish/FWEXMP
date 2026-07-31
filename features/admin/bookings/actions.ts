@@ -297,19 +297,14 @@ export async function refundBooking(
 
     // Tell the guest their money is on the way back — best-effort.
     try {
-      await sendBookingCancellationEmail(
-        booking.idempotencyKey,
-        booking.guest.preferredLanguage,
-        'refunded',
-        {
-          cancelledBy: 'operator',
-          // The amount ACTUALLY returned by this action (2026-07-28
-          // eighth audit). Omitted, the template defaulted to the full
-          // card charge — so settling a 50%-policy queue entry on a 400
-          // SAR booking told the guest "Refund: SAR 400".
-          refundAmountSar: owedSar + split.creditRefundSar,
-        },
-      );
+      await sendBookingCancellationEmail(booking.idempotencyKey, 'refunded', {
+        cancelledBy: 'operator',
+        // The amount ACTUALLY returned by this action (2026-07-28
+        // eighth audit). Omitted, the template defaulted to the full
+        // card charge — so settling a 50%-policy queue entry on a 400
+        // SAR booking told the guest "Refund: SAR 400".
+        refundAmountSar: owedSar + split.creditRefundSar,
+      });
     } catch (error) {
       reportError(error, { surface: 'admin:refundEmail', bookingId });
     }
@@ -471,7 +466,6 @@ export async function emergencyCancelBooking(
     try {
       await sendBookingCancellationEmail(
         outcome.reference,
-        outcome.guestLocale,
         outcome.wasPaid ? 'wallet_credited' : 'none',
         { cancelledBy: 'operator', refundAmountSar: creditSar > 0 ? creditSar : undefined },
       );

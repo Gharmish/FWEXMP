@@ -12,7 +12,7 @@ import { getCurrentUser } from '@/features/auth/queries';
 import { bookingViewerCanAccess } from '@/features/bookings/lib/access';
 import { getCurrentHostIdForWrite } from '@/features/host-experiences/queries';
 import { createReviewSchema, hostReplySchema } from '@/features/reviews/schemas';
-import { sendHostRepliedEmail } from '@/features/reviews/lib/review-email';
+import { sendHostNewReviewEmail, sendHostRepliedEmail } from '@/features/reviews/lib/review-email';
 
 /** 24h edit cooldown (BRIEF §8). */
 const EDIT_WINDOW_MS = 24 * 60 * 60 * 1000;
@@ -143,6 +143,15 @@ export async function submitReview(
 
   // The catalog/detail rating aggregates are cached cross-request.
   revalidateReviewCaches();
+
+  // Tell the host they have a new review to read (and reply to) —
+  // best-effort, never blocks the submission.
+  try {
+    await sendHostNewReviewEmail(bookingReference);
+  } catch (error) {
+    reportError(error, { surface: 'reviews:hostNewReviewEmail', bookingReference });
+  }
+
   redirect({ href: '/me', locale });
 }
 

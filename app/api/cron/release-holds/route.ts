@@ -29,6 +29,7 @@ import { notifyAdmin } from '@/lib/admin-alerts';
 import { settleBooking } from '@/features/payments/settle';
 import {
   RETRYABLE_BOOKING_SENDERS,
+  sendBookingCompletedEmails,
   sendBookingReceiptEmail,
   sendBookingExpiredEmail,
   sendBookingPaymentLapsedEmail,
@@ -334,7 +335,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         // arrived and left the guest with nothing — and ZATCA requires
         // the invoice be issued to the customer. Best-effort.
         try {
-          await sendBookingReceiptEmail(row.idempotencyKey, row.guest.preferredLanguage);
+          await sendBookingReceiptEmail(row.idempotencyKey);
         } catch (error) {
           reportError(error, {
             surface: 'cron-reconcile:receipt',
@@ -579,7 +580,20 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
           paymentCollected(),
         ),
       )
-      .returning({ id: bookings.id });
+      .returning({ id: bookings.id, reference: bookings.idempotencyKey });
+
+    // Close the loop on each completion: review invite to the guest,
+    // payout-owed notice to the host. Sequential (pool discipline, same
+    // as every other pass) and per-row best-effort — one failed send
+    // must not starve the rest, and the dedupe keys make the next run
+    // safe to re-attempt.
+    for (const row of completed) {
+      try {
+        await sendBookingCompletedEmails(row.reference);
+      } catch (error) {
+        reportError(error, { surface: 'cron-completed-email', reference: row.reference });
+      }
+    }
 
     // Pass 5 — VAT accounting guards (daily, best-effort; failures are
     // logged but never block the operational passes above).

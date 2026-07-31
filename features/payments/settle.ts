@@ -8,7 +8,10 @@ import { getPlatformSettingsStrict } from '@/lib/platform-settings';
 import { classifyResult, getPaymentStatus } from '@/features/payments/lib/hyperpay';
 import { recordPaymentEvent, resolvePaymentChannel } from '@/features/payments/ledger';
 import { executeRefund } from '@/features/bookings/lib/refund';
-import { sendHostPaymentReceivedEmail } from '@/features/bookings/lib/booking-email';
+import {
+  sendBookingPaymentFailedEmail,
+  sendHostPaymentReceivedEmail,
+} from '@/features/bookings/lib/booking-email';
 import type { PaymentChannel, PaymentOutcome } from '@/features/payments/types';
 
 /**
@@ -351,6 +354,14 @@ export async function settleBooking(reference: string): Promise<SettleOutcome> {
           });
         } catch (error) {
           reportError(error, { surface: 'payment-settle:ledger', reference });
+        }
+        // Tell the guest the payment didn't go through while the spot is
+        // still held — deduped per booking, so repeated declines don't
+        // repeat the mail. Best-effort, never fails settlement.
+        try {
+          await sendBookingPaymentFailedEmail(reference);
+        } catch (error) {
+          reportError(error, { surface: 'payment-settle:failedEmail', reference });
         }
       }
     }

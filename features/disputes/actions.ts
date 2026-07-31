@@ -12,7 +12,11 @@ import { isAdminUser } from '@/features/admin/auth';
 import { bookingViewerCanAccess } from '@/features/bookings/lib/access';
 import { executeRefund } from '@/features/bookings/lib/refund';
 import { createDisputeSchema, resolveDisputeSchema } from '@/features/disputes/schemas';
-import { sendDisputeResolvedEmail } from '@/features/disputes/lib/dispute-email';
+import {
+  sendDisputeReceivedEmail,
+  sendDisputeResolvedEmail,
+  sendHostDisputeOpenedEmail,
+} from '@/features/disputes/lib/dispute-email';
 import { isDisputeRefundable } from '@/features/disputes/lib/refundable';
 
 /**
@@ -119,6 +123,15 @@ export async function createDispute(
   // The GH- code, not the UUID capability: it's what /admin/bookings
   // and every guest-facing surface call the booking.
   await notifyAdmin('dispute_opened', { reference: referenceCode });
+
+  // Acknowledge the guest and put the host on notice — both
+  // best-effort, never blocking the submitted report.
+  try {
+    await sendDisputeReceivedEmail(referenceCode);
+    await sendHostDisputeOpenedEmail(referenceCode);
+  } catch (error) {
+    reportError(error, { surface: 'disputes:openedEmails', reference: referenceCode });
+  }
 
   revalidatePath('/[locale]/admin/disputes', 'page');
   return { success: true };

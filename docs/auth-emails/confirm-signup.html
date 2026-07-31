@@ -6,20 +6,27 @@
   the link is a fallback.
 
   Paste into: Supabase Dashboard → Authentication → Emails → "Confirm signup".
-  Suggested subject: Confirm your email — your Gharmish code
+  Suggested subject: أهلًا بك في غارميش — رمز التأكيد · Confirm your email — your Gharmish code
   Variables used: {{ .Token }}, {{ .ConfirmationURL }}
-  TODO(ar): English only for now (see magic-link.html note; BRIEF §4).
+
+  BILINGUAL: Supabase auth emails are single-language per template and the
+  user's locale isn't known at send time, so this template carries BOTH
+  languages — Arabic first (primary market), English beneath. Each Arabic
+  block sets dir="rtl" explicitly so webmail clients that strip <html>
+  attributes still render it right-aligned. A per-locale email would need a
+  Send Email Auth Hook (edge function) — worthwhile later, not required.
 -->
 <!doctype html>
-<html lang="en" dir="ltr">
+<html lang="ar" dir="rtl">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="color-scheme" content="light only" />
     <meta name="supported-color-schemes" content="light" />
-    <title>Confirm your email — your Gharmish code</title>
+    <title>أهلًا بك في غارميش — رمز التأكيد · Confirm your email — your Gharmish code</title>
   </head>
   <body style="margin: 0; padding: 0; background-color: #fafafa; -webkit-text-size-adjust: 100%">
+    <!-- preheader (hidden) -->
     <div
       style="
         display: none;
@@ -31,7 +38,8 @@
         line-height: 1px;
       "
     >
-      Welcome to Gharmish. Your 6-digit code is inside. It expires in 60 minutes.
+      أهلًا بك في غارميش. رمزك المكوّن من 6 أرقام بالداخل، صالح لمدة 60 دقيقة. Welcome to Gharmish.
+      Your 6-digit code is inside. It expires in 60 minutes.
     </div>
 
     <table
@@ -52,8 +60,9 @@
             border="0"
             style="max-width: 480px; width: 100%"
           >
+            <!-- wordmark -->
             <tr>
-              <td style="padding: 0 8px 24px 8px">
+              <td dir="rtl" style="padding: 0 8px 24px 8px">
                 <img
                   src="https://gharmish.com/images/gharmish-wordmark.png"
                   width="140"
@@ -71,6 +80,7 @@
               </td>
             </tr>
 
+            <!-- card -->
             <tr>
               <td
                 style="
@@ -80,37 +90,46 @@
                   padding: 40px 32px;
                 "
               >
+                <!-- Arabic (primary) -->
                 <p
+                  dir="rtl"
+                  lang="ar"
                   style="
                     margin: 0 0 8px 0;
-                    font-family: 'Bricolage Grotesque', 'Segoe UI', Helvetica, Arial, sans-serif;
+                    text-align: right;
+                    font-family:
+                      'IBM Plex Sans Arabic', 'Segoe UI', Tahoma, Helvetica, Arial, sans-serif;
                     font-size: 24px;
                     font-weight: 500;
-                    letter-spacing: -0.025em;
-                    line-height: 1.3;
+                    line-height: 1.4;
                     color: #0a0a0a;
                   "
                 >
-                  Welcome to Gharmish
+                  أهلًا بك في غارميش
                 </p>
                 <p
+                  dir="rtl"
+                  lang="ar"
                   style="
                     margin: 0 0 28px 0;
-                    font-family: 'Bricolage Grotesque', 'Segoe UI', Helvetica, Arial, sans-serif;
+                    text-align: right;
+                    font-family:
+                      'IBM Plex Sans Arabic', 'Segoe UI', Tahoma, Helvetica, Arial, sans-serif;
                     font-size: 16px;
                     font-weight: 400;
-                    line-height: 1.5;
+                    line-height: 1.6;
                     color: rgba(10, 10, 10, 0.64);
                   "
                 >
-                  Use this code to confirm your email and finish signing in. It's valid for 60
-                  minutes.
+                  استخدم هذا الرمز لتأكيد بريدك وإكمال تسجيل الدخول. الرمز صالح لمدة 60 دقيقة.
                 </p>
 
+                <!-- the code (script-neutral, shared by both languages) -->
                 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
                   <tr>
                     <td
                       align="center"
+                      dir="ltr"
                       style="
                         background-color: #fafafa;
                         border: 1px solid rgba(10, 10, 10, 0.08);
@@ -136,6 +155,29 @@
                   </tr>
                 </table>
 
+                <p
+                  dir="rtl"
+                  lang="ar"
+                  style="
+                    margin: 24px 0 0 0;
+                    text-align: right;
+                    font-family:
+                      'IBM Plex Sans Arabic', 'Segoe UI', Tahoma, Helvetica, Arial, sans-serif;
+                    font-size: 14px;
+                    font-weight: 400;
+                    line-height: 1.6;
+                    color: rgba(10, 10, 10, 0.64);
+                  "
+                >
+                  تفضّل رابطًا؟
+                  <a
+                    href="{{ .ConfirmationURL }}"
+                    style="color: #0a0a0a; text-decoration: underline"
+                    >أكّد من هذا الجهاز</a
+                  >.
+                </p>
+
+                <!-- saffron hairline accent between languages -->
                 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
                   <tr>
                     <td style="padding-top: 28px">
@@ -154,9 +196,29 @@
                   </tr>
                 </table>
 
+                <!-- English (secondary) -->
                 <p
+                  dir="ltr"
+                  lang="en"
                   style="
-                    margin: 24px 0 0 0;
+                    margin: 24px 0 8px 0;
+                    text-align: left;
+                    font-family: 'Bricolage Grotesque', 'Segoe UI', Helvetica, Arial, sans-serif;
+                    font-size: 18px;
+                    font-weight: 500;
+                    letter-spacing: -0.025em;
+                    line-height: 1.3;
+                    color: #0a0a0a;
+                  "
+                >
+                  Welcome to Gharmish
+                </p>
+                <p
+                  dir="ltr"
+                  lang="en"
+                  style="
+                    margin: 0;
+                    text-align: left;
                     font-family: 'Bricolage Grotesque', 'Segoe UI', Helvetica, Arial, sans-serif;
                     font-size: 14px;
                     font-weight: 400;
@@ -164,7 +226,8 @@
                     color: rgba(10, 10, 10, 0.64);
                   "
                 >
-                  Prefer a link?
+                  Use the code above to confirm your email and finish signing in. It's valid for 60
+                  minutes. Prefer a link?
                   <a
                     href="{{ .ConfirmationURL }}"
                     style="color: #0a0a0a; text-decoration: underline"
@@ -174,11 +237,31 @@
               </td>
             </tr>
 
+            <!-- footer -->
             <tr>
               <td style="padding: 24px 8px 0 8px">
                 <p
+                  dir="rtl"
+                  lang="ar"
                   style="
                     margin: 0 0 6px 0;
+                    text-align: right;
+                    font-family:
+                      'IBM Plex Sans Arabic', 'Segoe UI', Tahoma, Helvetica, Arial, sans-serif;
+                    font-size: 13px;
+                    font-weight: 400;
+                    line-height: 1.6;
+                    color: rgba(10, 10, 10, 0.48);
+                  "
+                >
+                  إن لم تنشئ حسابًا في غارميش، يمكنك تجاهل هذه الرسالة بأمان.
+                </p>
+                <p
+                  dir="ltr"
+                  lang="en"
+                  style="
+                    margin: 0 0 6px 0;
+                    text-align: left;
                     font-family: 'Bricolage Grotesque', 'Segoe UI', Helvetica, Arial, sans-serif;
                     font-size: 13px;
                     font-weight: 400;
@@ -189,8 +272,11 @@
                   If you didn't create a Gharmish account, you can safely ignore this email.
                 </p>
                 <p
+                  dir="ltr"
+                  lang="en"
                   style="
                     margin: 0;
+                    text-align: left;
                     font-family: 'Bricolage Grotesque', 'Segoe UI', Helvetica, Arial, sans-serif;
                     font-size: 13px;
                     font-weight: 400;
@@ -198,7 +284,7 @@
                     color: rgba(10, 10, 10, 0.48);
                   "
                 >
-                  Gharmish · Experiences hosted by the people who know Asir best.
+                  Gharmish · Experiences hosted by the people who know Aseer best.
                 </p>
               </td>
             </tr>

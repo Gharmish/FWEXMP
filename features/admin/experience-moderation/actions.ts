@@ -16,6 +16,7 @@ import {
   requestChangesSchema,
   updateArabicCopySchema,
 } from '@/features/admin/experience-moderation/schemas';
+import { sendExperienceModerationEmail } from '@/features/admin/experience-moderation/moderation-email';
 
 /**
  * Admin moderation actions on experiences.
@@ -115,6 +116,13 @@ export async function approveExperience(
   } catch (error) {
     reportError(error, { surface: 'admin:approveExperience', experienceId });
     return { success: false, message: 'server' };
+  }
+
+  // Tell the host — best-effort, never fails the decision.
+  try {
+    await sendExperienceModerationEmail(experienceId, 'approved');
+  } catch (error) {
+    reportError(error, { surface: 'admin:moderationEmail', experienceId });
   }
 
   revalidateExperienceCaches();
@@ -248,6 +256,13 @@ export async function rejectExperience(
     return { success: false, message: 'server' };
   }
 
+  // Tell the host — best-effort, never fails the decision.
+  try {
+    await sendExperienceModerationEmail(experienceId, 'rejected');
+  } catch (error) {
+    reportError(error, { surface: 'admin:moderationEmail', experienceId });
+  }
+
   revalidatePath('/[locale]/admin/experience-moderation', 'page');
   // Dynamic-segment template — mixing a templated `[locale]` with a
   // concrete id wouldn't match the cached entry.
@@ -301,6 +316,13 @@ export async function requestExperienceChanges(
   } catch (error) {
     reportError(error, { surface: 'admin:requestExperienceChanges', experienceId });
     return { success: false, message: 'server' };
+  }
+
+  // Tell the host — best-effort, never fails the decision.
+  try {
+    await sendExperienceModerationEmail(experienceId, 'changes_requested');
+  } catch (error) {
+    reportError(error, { surface: 'admin:moderationEmail', experienceId });
   }
 
   revalidatePath('/[locale]/admin/experience-moderation', 'page');

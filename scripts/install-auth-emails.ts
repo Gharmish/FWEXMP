@@ -42,13 +42,13 @@ const TEMPLATES: readonly TemplatePatch[] = [
   {
     subjectField: 'mailer_subjects_magic_link',
     contentField: 'mailer_templates_magic_link_content',
-    subject: 'Your Gharmish sign-in code',
+    subject: 'رمز الدخول إلى غارميش · Your Gharmish sign-in code',
     file: 'magic-link.html',
   },
   {
     subjectField: 'mailer_subjects_confirmation',
     contentField: 'mailer_templates_confirmation_content',
-    subject: 'Confirm your email — your Gharmish code',
+    subject: 'أهلًا بك في غارميش — رمز التأكيد · Confirm your email — your Gharmish code',
     file: 'confirm-signup.html',
   },
 ] as const;

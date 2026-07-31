@@ -11,6 +11,10 @@ import { reportError } from '@/lib/log';
 import { getCurrentUser } from '@/features/auth/queries';
 import { isAdminUser } from '@/features/admin/auth';
 import { suspendHostSchema, unsuspendHostSchema } from '@/features/admin/hosts/schemas';
+import {
+  sendHostReinstatedEmail,
+  sendHostSuspendedEmail,
+} from '@/features/admin/hosts/host-status-email';
 
 /**
  * Admin host lifecycle.
@@ -102,6 +106,15 @@ export async function suspendHost(
     return { success: false, message: 'server' };
   }
 
+  // Tell the host — the schema documents `reviewerNotes` as the reason
+  // shown to them, and without this their listings vanished silently.
+  // Best-effort, never fails the suspension.
+  try {
+    await sendHostSuspendedEmail(hostId, reviewerNotes);
+  } catch (error) {
+    reportError(error, { surface: 'admin:suspendHost:email', hostId });
+  }
+
   // Suspension bulk-demotes the host's live listings, so the TAGGED
   // catalog caches must be expired too (2026-07-28 fourth audit).
   // `revalidatePath` only clears route caches; `live-experience-summaries`
@@ -161,6 +174,15 @@ export async function unsuspendHost(
   } catch (error) {
     reportError(error, { surface: 'admin:unsuspendHost', hostId });
     return { success: false, message: 'server' };
+  }
+
+  // Tell the host they're active again (their listings stay paused
+  // until they republish deliberately — the email's CTA lands on the
+  // dashboard where that happens). Best-effort.
+  try {
+    await sendHostReinstatedEmail(hostId);
+  } catch (error) {
+    reportError(error, { surface: 'admin:unsuspendHost:email', hostId });
   }
 
   revalidatePath('/[locale]/admin/hosts', 'page');

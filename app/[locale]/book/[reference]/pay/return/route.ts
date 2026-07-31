@@ -39,7 +39,7 @@ export async function GET(
     // and gated (no-op without email configured / no guest email) — it must
     // never delay or fail the redirect to the confirmation page.
     if (outcome === 'success') {
-      await sendBookingReceiptEmail(reference, loc).catch(() => {});
+      await sendBookingReceiptEmail(reference).catch(() => {});
     }
   }
 
