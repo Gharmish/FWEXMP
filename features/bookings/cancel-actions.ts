@@ -208,8 +208,16 @@ export async function cancelBookingAsGuest(
 
   // Best-effort notifications — never fail a completed cancellation over email.
   try {
+    // ALWAYS pass the amount — not just on partials (2026-08-01 ninth
+    // audit). Omitted, the sender falls back to `totalAmountSar`, which
+    // is the CARD leg only; but `cancel.amountSar` is computed on the
+    // full paid base and `executeRefund` returns it across both rails.
+    // A 200-card + 100-credit booking refunded in full therefore told
+    // the guest "SAR 200". The round-8 fix reached the admin, emergency
+    // and transition paths and missed this one — the path guests
+    // actually use.
     await sendBookingCancellationEmail(reference, refundOutcome.refund, {
-      refundAmountSar: refundOutcome.partial ? refundOutcome.refundAmountSar : undefined,
+      refundAmountSar: refundOutcome.refundAmountSar,
     });
   } catch (error) {
     reportError(error, { surface: 'bookings:cancelEmail', reference });

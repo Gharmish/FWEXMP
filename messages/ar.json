@@ -2760,7 +2760,7 @@
     "openMap": "افتح نقطة اللقاء في خرائط Google",
     "whatToBringHeading": "ماذا تُحضِر معك",
     "hostReminderNote": "مضيفك",
-    "arriveEarly": "احضر قبل الموعد بـ ١٠ دقائق",
+    "arriveEarly": "احضر قبل الموعد بـ 10 دقائق",
     "reminderManageWithDeadline": "تغيّرت خططك؟ الإلغاء مجاني حتى {deadline}. <a href=\"{url}\">إدارة الحجز</a>",
     "reminderManageNoDeadline": "تغيّرت خططك؟ <a href=\"{url}\">إدارة الحجز</a>",
     "hostNewRequestSubject": "طلب حجز جديد: {experience}",

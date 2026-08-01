@@ -1,6 +1,6 @@
 import 'server-only';
 
-import { and, eq, isNotNull, lt, sql } from 'drizzle-orm';
+import { and, asc, eq, inArray, isNotNull, lt, sql } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import { serverEnv } from '@/lib/env';
 import { notificationDeliveries, notificationSuppressions } from '@/db/schema';
@@ -191,8 +191,24 @@ export interface RetryableDelivery {
  * re-claiming in {@link claimDelivery} keeps it send-safe. Best-effort:
  * empty on DB errors, the sweep just does nothing this run.
  */
-export async function listRetryableDeliveries(limit: number): Promise<RetryableDelivery[]> {
+export async function listRetryableDeliveries(
+  limit: number,
+  /**
+   * The notification types the caller can actually re-fire. REQUIRED
+   * (2026-08-01 ninth audit): without it the query returned rows whose
+   * type has no registered sender — `booking_rescheduled`, the
+   * cancellation twins, disputes, payouts — which the sweep skips with
+   * `continue`. Those rows stay `failed` with attempts below the cap
+   * inside the 48h window, so they match forever and can never advance.
+   * At ~25 reschedules in a rolling 48h they fill the whole `limit(50)`
+   * and a genuine backlog (a Resend outage that failed real receipts)
+   * is never re-driven — while the ledger still looks "healthy, just
+   * retrying".
+   */
+  retryableTypes: readonly string[],
+): Promise<RetryableDelivery[]> {
   if (!hasDb()) return [];
+  if (retryableTypes.length === 0) return [];
   try {
     const rows = await db
       .selectDistinct({
@@ -206,9 +222,13 @@ export async function listRetryableDeliveries(limit: number): Promise<RetryableD
           eq(notificationDeliveries.status, 'failed'),
           lt(notificationDeliveries.attempts, MAX_SEND_ATTEMPTS),
           isNotNull(notificationDeliveries.bookingId),
+          inArray(notificationDeliveries.type, [...retryableTypes]),
           sql`${notificationDeliveries.createdAt} > now() - interval '48 hours'`,
         ),
       )
+      // Oldest first — a bounded sweep must drain the backlog in order,
+      // not return an arbitrary slice of it.
+      .orderBy(asc(notificationDeliveries.createdAt))
       .limit(limit);
     return rows.filter((row): row is RetryableDelivery => row.bookingId !== null);
   } catch (error) {

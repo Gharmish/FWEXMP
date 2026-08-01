@@ -81,9 +81,21 @@ Auth → Providers → **Phone**:
 3. Fill: Account SID, Auth Token (same values as the app's
    `TWILIO_ACCOUNT_SID` / `TWILIO_AUTH_TOKEN` in `.env.local`), and the
    **Verify Service SID (VA…)** from Step 1.
-4. **Keep the existing Test OTPs** (+966541104000 / 000000 etc.). Test
-   numbers bypass the provider entirely, so admin/dev sign-in keeps
-   working without sending — and without paying for — real messages.
+4. **Test OTPs — LOCAL/STAGING ONLY. Remove them from the PRODUCTION
+   auth project.** (Corrected 2026-08-01, ninth audit.) A Test OTP is a
+   permanent static credential: the number bypasses the provider
+   entirely and the code never rotates. Because `+966541104000` is also
+   listed in `ADMIN_PHONES`, leaving that pair enabled in production
+   means **anyone who can read this repository can sign in as an
+   admin** — the code is written down two lines above.
+
+   This was defensible while phone sign-in was stub-only and no real
+   channel existed. It is not defensible now that Verify works.
+
+   If you want a break-glass admin login that does not depend on
+   WhatsApp, use a number that is NOT in `ADMIN_PHONES`, or keep the
+   Test OTP only in a non-production project.
+
 5. Leave OTP expiry at 60s+ default; our UI already says "6-digit code".
 
 ## Step 3 — Code changes (one small PR)
@@ -110,8 +122,9 @@ Auth → Providers → **Phone**:
 
 ## Step 4 — Test sequence
 
-1. With Test OTP intact: sign in as +966541104000/000000 → still works,
-   no message sent (provider bypassed).
+1. In LOCAL/STAGING only, with a Test OTP configured there: sign in
+   with it → works, no message sent (provider bypassed). Do not rely on
+   this path in production — see the warning in Step 2.4.
 2. With a real second number (not in Test OTPs): request code → branded
    WhatsApp arrives with Copy-Code button → enter code → session
    created, guest row linked by verified phone (the identity rule in

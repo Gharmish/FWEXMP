@@ -544,7 +544,13 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     // sender whose booking no longer qualifies (e.g. refunded since)
     // simply no-ops and the row ages out of the 48h window.
     let retried = 0;
-    const retryable = await listRetryableDeliveries(RETRY_LIMIT);
+    // Pass the sender registry's own keys as the filter (2026-08-01
+    // ninth audit) — the query used to return types this loop cannot
+    // send, which then squatted on the bounded budget permanently.
+    const retryable = await listRetryableDeliveries(
+      RETRY_LIMIT,
+      Object.keys(RETRYABLE_BOOKING_SENDERS),
+    );
     if (retryable.length > 0) {
       const refRows = await db.query.bookings.findMany({
         where: inArray(bookings.id, [...new Set(retryable.map((row) => row.bookingId))]),

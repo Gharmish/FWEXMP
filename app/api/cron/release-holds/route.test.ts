@@ -44,6 +44,11 @@ vi.mock('@/features/bookings/lib/booking-email', () => ({
   sendBookingDepartureReminderEmail: (...args: unknown[]) =>
     sendBookingDepartureReminderEmail(...(args as [])),
   sendHostHoldLapsedEmail: (...args: unknown[]) => sendHostHoldLapsedEmail(...(args as [])),
+  sendBookingReceiptEmail: async () => undefined,
+  // The retry sweep passes this registry's keys to the ledger query, so
+  // the route reads it on EVERY run — an absent mock export threw before
+  // the sweep's own length check and 500'd the whole cron.
+  RETRYABLE_BOOKING_SENDERS: {},
 }));
 
 vi.mock('@/features/bookings/lib/availability', () => ({

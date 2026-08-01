@@ -477,7 +477,13 @@ export async function sendBookingCancellationEmail(
   // The amount originally paid, so a partial refund is verifiable
   // against it at a glance.
   if (booking.paidAt) {
-    rows.push({ label: t('totalLabel'), value: formatSAR(booking.totalAmountSar, locale) });
+    // The FULL paid base — card charge plus any redeemed Gharmish Credit
+    // (2026-08-01 ninth audit). `totalAmountSar` is the card leg alone,
+    // so a wallet-assisted booking told the guest they had paid less
+    // than they did, directly above a refund line for the larger real
+    // amount.
+    const paidBaseSar = booking.totalAmountSar + booking.walletAppliedSar;
+    rows.push({ label: t('totalLabel'), value: formatSAR(paidBaseSar, locale) });
   }
   if (refund === 'refunded' || refund === 'refund_pending' || refund === 'wallet_credited') {
     rows.push({

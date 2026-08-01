@@ -68,11 +68,14 @@ vi.mock('@/lib/db', () => ({
     }),
     selectDistinct: () => ({
       from: () => ({
+        // The query now orders before limiting (oldest backlog first).
         where: () => ({
-          limit: async () => {
-            if (dbFails) throw new Error('db down');
-            return retryableRows;
-          },
+          orderBy: () => ({
+            limit: async () => {
+              if (dbFails) throw new Error('db down');
+              return retryableRows;
+            },
+          }),
         }),
       }),
     }),
@@ -203,7 +206,7 @@ describe('listRetryableDeliveries', () => {
       { bookingId: null, type: 'application_decision', locale: null },
     ];
 
-    const rows = await listRetryableDeliveries(50);
+    const rows = await listRetryableDeliveries(50, ['booking_confirmed']);
 
     expect(rows).toEqual([{ bookingId: 'b-1', type: 'booking_confirmed', locale: 'en' }]);
   });
@@ -212,13 +215,22 @@ describe('listRetryableDeliveries', () => {
     env.DATABASE_URL = '';
     retryableRows = [{ bookingId: 'b-1', type: 'booking_confirmed', locale: 'en' }];
 
-    expect(await listRetryableDeliveries(50)).toEqual([]);
+    expect(await listRetryableDeliveries(50, ['booking_confirmed'])).toEqual([]);
+  });
+
+  it('is empty when the caller has no senders — never returns unsendable rows', async () => {
+    // Rows whose type has no registered sender used to match this query
+    // forever (failed, under the attempt cap, inside the window) and
+    // squat on the bounded retry budget, starving a real backlog.
+    retryableRows = [{ bookingId: 'b-1', type: 'booking_rescheduled', locale: 'en' }];
+
+    expect(await listRetryableDeliveries(50, [])).toEqual([]);
   });
 
   it('is empty (and reports) on a DB error — the sweep just skips a run', async () => {
     dbFails = true;
 
-    expect(await listRetryableDeliveries(50)).toEqual([]);
+    expect(await listRetryableDeliveries(50, ['booking_confirmed'])).toEqual([]);
     expect(reportError).toHaveBeenCalledTimes(1);
   });
 });
