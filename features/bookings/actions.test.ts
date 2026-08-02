@@ -99,6 +99,7 @@ interface MockExperience {
   bookingCutoffHours: number;
   bookingMode: 'instant' | 'request';
   commissionBps: number;
+  minAge: number;
   availabilityWeekdays: string[];
   blackoutDates: string[];
   stopSellDates: string[];
@@ -200,6 +201,8 @@ function form(overrides: Record<string, string> = {}): FormData {
     partySize: '2',
     email: 'guest@example.com',
     idempotencyKey: IDEMPOTENCY_KEY,
+    // Booking-step clickwrap (2026-08-02) — required on every submission.
+    terms: 'on',
     ...overrides,
   };
   for (const [k, v] of Object.entries(base)) fd.set(k, v);
@@ -242,6 +245,7 @@ beforeEach(() => {
     bookingCutoffHours: 2,
     bookingMode: 'instant',
     commissionBps: 1500,
+    minAge: 0,
     availabilityWeekdays: ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'],
     blackoutDates: [],
     stopSellDates: [],

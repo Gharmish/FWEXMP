@@ -78,6 +78,18 @@ export default async function TermsPage({ params }: { params: Promise<{ locale: 
         </>
       ),
     },
+    {
+      // Gharmish Credit had no Terms coverage at all before the 2026-08-02
+      // legal audit — non-withdrawability, expiry, the refund-out cap, and
+      // clawback were enforced in code but never disclosed.
+      heading: t('credit.heading'),
+      body: (
+        <>
+          <p>{t('credit.body1')}</p>
+          <p>{t('credit.body2')}</p>
+        </>
+      ),
+    },
     { heading: t('conduct.heading'), body: <p>{t('conduct.body')}</p> },
     { heading: t('hosts.heading'), body: <p>{t('hosts.body')}</p> },
     { heading: t('content.heading'), body: <p>{t('content.body')}</p> },

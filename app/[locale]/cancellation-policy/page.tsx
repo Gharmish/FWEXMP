@@ -62,6 +62,10 @@ export default async function CancellationPolicyPage({
         <>
           <p>{t('refunds.body1')}</p>
           <p>{t('refunds.body2')}</p>
+          {/* The emergency-cancel flow returns the full payment as Gharmish
+              Credit with an opt-in back to card — a refund path this page
+              never disclosed before the 2026-08-02 legal audit. */}
+          <p>{t('refunds.body3')}</p>
         </>
       ),
     },

@@ -596,7 +596,8 @@
         "notFound": "This application no longer exists.",
         "validation": "Check the form and try again.",
         "server": "We couldn't complete that action. Try again in a moment.",
-        "rejectionNoteShort": "Add at least 10 characters of context so the applicant knows how to refile."
+        "rejectionNoteShort": "Add at least 10 characters of context so the applicant knows how to refile.",
+        "documentsIncomplete": "Every required document must be uploaded and approved before the application can be approved — review the documents above first."
       }
     },
     "experienceModerationList": {
@@ -2430,6 +2431,10 @@
     "emailRequired": "Enter your email address.",
     "womenOnlyLabel": "I confirm this booking is for women only, as this experience requires.",
     "womenOnlyRequired": "Please confirm this booking is for women only to continue.",
+    "minAgeLabel": "I confirm everyone in my group meets this experience's minimum age of {age}.",
+    "minAgeRequired": "Please confirm your group meets the minimum age to continue.",
+    "termsLabel": "I have read and agree to Gharmish's <terms>terms of service</terms>, <privacy>privacy policy</privacy>, and <cancellation>cancellation policy</cancellation>.",
+    "termsRequired": "Please accept the terms of service to continue.",
     "datePast": "Pick a date in the future.",
     "dateUnavailable": "This experience doesn't run on that day. Pick another date.",
     "dateCutoff": "Booking has closed for today — it's too close to the start time. Pick another day.",
@@ -2864,8 +2869,10 @@
     "paidOnLabel": "Paid on",
     "refundedStamp": "Refunded",
     "refundedNote": "This payment was refunded in full on {date}.",
+    "refundedPartialNote": "A partial refund of {amount} was issued for this payment on {date}.",
     "creditNoteTitle": "Credit note",
     "creditNoteAgainst": "Issued against simplified tax invoice {invoice} on {date} — this payment was refunded in full and the VAT below is reversed.",
+    "creditNotePartialAgainst": "Issued against simplified tax invoice {invoice} on {date} — {amount} of this payment was refunded and the VAT below reverses only that portion.",
     "creditTotalLabel": "Total refunded",
     "qrCaption": "ZATCA e-invoice QR — scan to verify",
     "vatNote": "Prices are VAT-inclusive; VAT is calculated within the total, not added to it.",
@@ -2899,11 +2906,11 @@
   "hostsIndex": {
     "meta": {
       "title": "Gharmish hosts",
-      "description": "Meet the people behind every Gharmish experience — farmers, guides, artisans, and licensed Aseeri tourism operators."
+      "description": "Meet the people behind every Gharmish experience — farmers, guides, artisans, and Aseeri tourism operators."
     },
     "eyebrow": "Our hosts",
     "title": "The people behind every experience.",
-    "intro": "Vetted local partners — Saudi individuals and licensed Aseeri tourism operators — co-creating the Gharmish catalog. Every host is verified before they go live.",
+    "intro": "Vetted local partners — Saudi individuals and Aseeri tourism operators — co-creating the Gharmish catalog. Every host's identity is verified before they go live.",
     "empty": "No hosts have been listed yet."
   },
   "hostProfile": {
@@ -3141,10 +3148,10 @@
   "trustSafety": {
     "eyebrow": "Trust & safety",
     "title": "Booked with confidence, hosted with care.",
-    "intro": "Every experience on Gharmish is curated, every host is vetted in person, and every payment is protected. Here's what stands behind your booking.",
+    "intro": "Every experience on Gharmish is curated, every host is vetted, and every payment is protected. Here's what stands behind your booking.",
     "vetting": {
       "heading": "Every host is vetted",
-      "body": "Hosts join Gharmish by application, not by sign-up. We verify identity documents and tourism licences, review every experience in person before it goes live, and work with hosts on safety planning. The Verified badge means a real person on our team has checked."
+      "body": "Hosts join Gharmish by application, not by sign-up. Before the Verified badge appears, a real person on our team reviews and approves every identity document a host is required to provide — a national ID or commercial registration, proof of their payout account, and, where their activity requires one, a tourism licence. Every experience listing is also reviewed by our team before it goes live."
     },
     "payments": {
       "heading": "Your money is protected",
@@ -3152,7 +3159,7 @@
     },
     "insurance": {
       "heading": "Safety on the ground",
-      "body": "Every host is identity-verified before their first listing goes live, and each experience page spells out what to bring, minimum ages, and fitness expectations — so you know exactly what you are signing up for before you book."
+      "body": "Every host is identity-verified before their first listing goes live, and each experience page spells out what to bring and any minimum age — so you know exactly what you are signing up for before you book. Experiences are delivered by independent hosts and Gharmish does not provide insurance; our terms of service explain how responsibility is shared, so please read them before you book."
     },
     "support": {
       "heading": "We're close by",
@@ -3184,7 +3191,7 @@
       "heading": "For hosts",
       "intro": "We're a partnership marketplace: we co-create experiences with you, not just list them.",
       "step1": "Apply with your story and what you'd like to host. Our team reviews every application.",
-      "step2": "We verify your identity and licences, then build the experience with you — photography included.",
+      "step2": "We verify your identity — and your licences where your activity requires them — then build the experience with you, photography included.",
       "step3": "Choose how bookings confirm: instantly against your calendar, or with your approval per request.",
       "step4": "Host your guests and track earnings and payouts from your dashboard."
     }
@@ -3206,7 +3213,8 @@
     "refunds": {
       "heading": "How refunds are paid",
       "body1": "Refunds go back to the original payment method automatically. Depending on your bank, mada and card refunds typically appear within a few business days.",
-      "body2": "If an automatic refund can't be processed, our team completes it manually and you'll receive a confirmation email — you never need to chase it."
+      "body2": "If an automatic refund can't be processed, our team completes it manually and you'll receive a confirmation email — you never need to chase it.",
+      "body3": "In exceptional cases — for example when our team cancels a booking for safety or force-majeure reasons — your full payment is returned instantly as Gharmish Credit, and you can then move the card-paid amount back to your card from the booking page with one tap. Any amount you paid by card can always travel back to that card."
     },
     "hostCancellations": {
       "heading": "If a host cancels",
@@ -3242,7 +3250,7 @@
       },
       "becomeHost": {
         "q": "How do I become a host?",
-        "a": "Apply from the \"Host with us\" page. We review every application, verify identity and licences, and then build the experience together with you — photography included."
+        "a": "Apply from the \"Host with us\" page. We review every application, verify your identity documents — and licences where your activity requires them — and then build the experience together with you, photography included."
       },
       "payout": {
         "q": "When do I get paid as a host?",
@@ -3274,10 +3282,10 @@
   "termsPage": {
     "eyebrow": "Legal",
     "title": "Terms of service",
-    "intro": "The agreement between you and Gharmish when you browse, book, or host — written to be read. Last updated 7 July 2026.",
+    "intro": "The agreement between you and Gharmish when you browse, book, or host — written to be read. Last updated 2 August 2026.",
     "platform": {
       "heading": "What Gharmish is",
-      "body1": "Gharmish is an online marketplace that connects guests with independent local hosts offering experiences in the Aseer region of Saudi Arabia. Gharmish operates the platform, handles payments, and supports both sides — the experience itself is created and delivered by the host.",
+      "body1": "Gharmish is an online marketplace that connects guests with independent local hosts offering experiences in the Aseer region of Saudi Arabia, operated from Abha under commercial registration (CR) 7051409212. Gharmish operates the platform, handles payments, and supports both sides — the experience itself is created and delivered by the host.",
       "body2": "We vet every host before they appear on the platform, but hosts are not Gharmish employees, and each experience page describes what the individual host offers."
     },
     "accounts": {
@@ -3294,6 +3302,11 @@
       "heading": "Cancellations and refunds",
       "body": "Each experience carries one of three cancellation policies (Flexible, Moderate or Strict), shown on its page and fixed on your booking at the moment you book: a full refund up to the policy's deadline, a 50% refund for a further window on Moderate and Strict, and no refund past that. Cancelling within 24 hours of booking always refunds in full while the start is at least 48 hours away; one free date change is included within the policy's window.",
       "link": "Read the full cancellation policy"
+    },
+    "credit": {
+      "heading": "Gharmish Credit",
+      "body1": "Gharmish Credit is a balance on your Gharmish account that you can apply to bookings at checkout. It is not money in a bank account: it cannot be deposited into, transferred to anyone else, or withdrawn as cash. Credit we grant as a goodwill gesture or promotion may carry an expiry date, which is shown when it's granted; credit issued from a refund of your own payment never expires.",
+      "body2": "When a refund is issued as Gharmish Credit, any amount you originally paid by card can be moved back to that card from your booking page — up to the amount charged to it, and only to that original payment method. Credit granted in error, or connected to fraud or misuse, may be reversed."
     },
     "conduct": {
       "heading": "Guest conduct",
@@ -3324,7 +3337,11 @@
   "privacyPage": {
     "eyebrow": "Legal",
     "title": "Privacy policy",
-    "intro": "What we collect, why, and the choices you have — in plain language, under the Saudi Personal Data Protection Law (PDPL). Last updated 7 July 2026.",
+    "intro": "What we collect, why, and the choices you have — in plain language, under the Saudi Personal Data Protection Law (PDPL). Last updated 2 August 2026.",
+    "controller": {
+      "heading": "Who is responsible for your data",
+      "body": "Gharmish — operated from Abha, Aseer region, Saudi Arabia, under commercial registration (CR) 7051409212 — is the controller of the personal data processed on this platform. For any privacy question or request, contact us at the address in \"Your rights\" below."
+    },
     "collect": {
       "heading": "What we collect",
       "body1": "Account details you give us: your name, phone number, and email address. Booking details: the experience, date, group size, and any notes you share with a host. If you apply to host, we also collect identity-verification details — your legal name, national ID or commercial registration, date of birth, payout IBAN, and the documents you upload. They're used only to verify your application and pay your earnings, stored privately, and never shown to guests.",
@@ -3332,12 +3349,12 @@
     },
     "use": {
       "heading": "How we use it",
-      "body": "To run your bookings and payments, send confirmations, reminders, payment links, and status updates by email or SMS, answer support requests, prevent fraud and abuse, and meet our legal obligations. We don't sell your personal data."
+      "body": "To run your bookings and payments, send confirmations, reminders, payment links, and status updates by email or WhatsApp, answer support requests, prevent fraud and abuse, and meet our legal obligations. We don't sell your personal data."
     },
     "sharing": {
       "heading": "Who we share it with",
       "body1": "Your host sees what they need to run the experience: your name, group size, and — once a booking is confirmed — a way to coordinate with you. Hosts never see your payment details.",
-      "body2": "We use trusted service providers to operate the platform — payment processing, hosting, databases, email, SMS and WhatsApp message delivery (via Twilio and Meta), and error monitoring — and they process data on our instructions only. We disclose data to authorities when Saudi law requires it."
+      "body2": "We use trusted service providers to operate the platform: payment processing (HyperPay), hosting (Vercel), databases and file storage (Supabase), email delivery (Resend), WhatsApp and SMS delivery (Twilio and Meta), error monitoring (Sentry), and — only if you consent to marketing cookies — ad measurement (Snapchat and TikTok). They process data on our instructions only. We disclose data to authorities when Saudi law requires it."
     },
     "storage": {
       "heading": "Where your data lives",

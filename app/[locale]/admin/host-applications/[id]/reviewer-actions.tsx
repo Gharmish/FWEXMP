@@ -17,7 +17,8 @@ type ErrorKey =
   | 'not_found'
   | 'validation'
   | 'server'
-  | 'rejection_note_short';
+  | 'rejection_note_short'
+  | 'documents_incomplete';
 
 interface ReviewerActionsCopy {
   approveLabel: string;

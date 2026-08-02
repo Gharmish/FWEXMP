@@ -1,6 +1,6 @@
 'use client';
 
-import { useActionState, useEffect, useId, useRef, useState } from 'react';
+import { useActionState, useEffect, useId, useRef, useState, type ReactNode } from 'react';
 import { useFormStatus } from 'react-dom';
 import { motion, useReducedMotion } from 'framer-motion';
 import { ArrowRight, Minus, Plus } from 'lucide-react';
@@ -96,6 +96,12 @@ interface BookingRequestCopy {
   womenOnlyLabel: string;
   /** Shown when the guest tries to book without the women-only acknowledgment. */
   womenOnlyRequired: string;
+  /** Minimum-age attestation — only used when the experience has a `minAge`. */
+  minAgeLabel: string;
+  /** Shown when the guest tries to book without the minimum-age attestation. */
+  minAgeRequired: string;
+  /** Shown when the guest tries to book without accepting the terms. */
+  termsRequired: string;
 }
 
 /**
@@ -147,6 +153,18 @@ export interface BookingRequestFormProps {
    * the same rule regardless of this flag.
    */
   requireWomenOnly?: boolean;
+  /**
+   * True when the experience has a minimum age (`minAge > 0`): renders a
+   * required whole-party age attestation. Server-enforced regardless.
+   */
+  requireMinAge?: boolean;
+  /**
+   * Terms/Privacy/Cancellation acceptance label with its inline links —
+   * built server-side with t.rich so the client bundle carries no
+   * translation plumbing. Always rendered; acceptance is required and
+   * server-enforced (2026-08-02 legal audit).
+   */
+  termsLabel: ReactNode;
   copy: BookingRequestCopy;
 }
 
@@ -252,6 +270,8 @@ export function BookingRequestForm({
   initialPartySize,
   vatRateBps,
   requireWomenOnly = false,
+  requireMinAge = false,
+  termsLabel,
   copy,
 }: BookingRequestFormProps) {
   const [state, formAction] = useActionState(requestBooking, initialState);
@@ -306,6 +326,16 @@ export function BookingRequestForm({
   // Client + server ('womenOnly' field code) both surface the same error.
   const womenOnlyError = womenOnlyBlocked || state.fields?.womenOnly === 'required';
 
+  // Minimum-age attestation (rendered when `requireMinAge`) and the
+  // Terms/Privacy/Cancellation acceptance (always rendered) — same
+  // uncontrolled-checkbox pattern as the women-only acknowledgment above.
+  const [minAgeBlocked, setMinAgeBlocked] = useState(false);
+  const minAgeRef = useRef<HTMLInputElement>(null);
+  const minAgeError = minAgeBlocked || state.fields?.minAge === 'required';
+  const [termsBlocked, setTermsBlocked] = useState(false);
+  const termsRef = useRef<HTMLInputElement>(null);
+  const termsError = termsBlocked || state.fields?.terms === 'required';
+
   // Mobile sticky CTA bar: visible only while the inline submit is scrolled
   // out of view. A sentinel at the inline button drives an Intersection
   // Observer — when it's on screen the user can book inline, so the bar
@@ -356,6 +386,8 @@ export function BookingRequestForm({
   const hintId = (field: FieldName) => `${errorPrefix}-${field}-hint`;
   const formErrorId = `${errorPrefix}-form-error`;
   const womenOnlyErrorId = `${errorPrefix}-women-only-error`;
+  const minAgeErrorId = `${errorPrefix}-min-age-error`;
+  const termsErrorId = `${errorPrefix}-terms-error`;
 
   // A field is in error if the client flagged it (instant) or the server did
   // (after submit). The client clears its set on every valid submit, so the
@@ -431,10 +463,19 @@ export function BookingRequestForm({
       }
     }
 
-    // Server-side women-only rejection (JS validation bypassed or stale form):
-    // the acknowledgment isn't in FIELD_NAMES, so reveal it explicitly.
+    // Server-side checkbox rejections (JS validation bypassed or stale
+    // form): the acknowledgments aren't in FIELD_NAMES, so reveal them
+    // explicitly.
     if (state.fields?.womenOnly && womenOnlyRef.current) {
       revealInvalid(womenOnlyRef.current);
+      return;
+    }
+    if (state.fields?.minAge && minAgeRef.current) {
+      revealInvalid(minAgeRef.current);
+      return;
+    }
+    if (state.fields?.terms && termsRef.current) {
+      revealInvalid(termsRef.current);
       return;
     }
 
@@ -460,14 +501,19 @@ export function BookingRequestForm({
       preferredDate: selectedDate,
       partySize: String(effectiveParty),
     });
-    // A women-only experience can't be booked without the eligibility tick —
-    // read straight from the (uncontrolled) checkbox in the submitted form.
-    const womenOnlyChecked =
-      (form.elements.namedItem('womenOnly') as HTMLInputElement | null)?.checked ?? false;
-    const womenOnlyMissing = requireWomenOnly && !womenOnlyChecked;
-    if (parsed.success && !womenOnlyMissing) {
+    // The acknowledgments can't be skipped — read straight from the
+    // (uncontrolled) checkboxes in the submitted form.
+    const checkboxChecked = (name: string) =>
+      (form.elements.namedItem(name) as HTMLInputElement | null)?.checked ?? false;
+    const womenOnlyMissing = requireWomenOnly && !checkboxChecked('womenOnly');
+    const minAgeMissing = requireMinAge && !checkboxChecked('minAge');
+    const termsMissing = !checkboxChecked('terms');
+    const acknowledgmentMissing = womenOnlyMissing || minAgeMissing || termsMissing;
+    if (parsed.success && !acknowledgmentMissing) {
       setClientFields({});
       setWomenOnlyBlocked(false);
+      setMinAgeBlocked(false);
+      setTermsBlocked(false);
       return;
     }
     event.preventDefault();
@@ -484,11 +530,20 @@ export function BookingRequestForm({
       setClientFields(fields);
     }
     setWomenOnlyBlocked(womenOnlyMissing);
+    setMinAgeBlocked(minAgeMissing);
+    setTermsBlocked(termsMissing);
     // When the fields are otherwise valid, no field grabs focus — scroll the
-    // acknowledgment into view (clear of the sticky CTA bar) and focus it so
-    // the blocker is perceivable and reachable.
-    if (womenOnlyMissing && parsed.success && womenOnlyRef.current) {
-      revealInvalid(womenOnlyRef.current);
+    // first missing acknowledgment into view (clear of the sticky CTA bar)
+    // and focus it so the blocker is perceivable and reachable.
+    if (parsed.success) {
+      const target = womenOnlyMissing
+        ? womenOnlyRef.current
+        : minAgeMissing
+          ? minAgeRef.current
+          : termsMissing
+            ? termsRef.current
+            : null;
+      if (target) revealInvalid(target);
     }
   }
 
@@ -758,6 +813,57 @@ export function BookingRequestForm({
               )}
             </div>
           )}
+
+          {requireMinAge && (
+            <div className="border-sarat-black/8 flex flex-col gap-2 [border-top-width:0.5px] pt-4">
+              <label className="flex cursor-pointer items-start gap-3">
+                <input
+                  ref={minAgeRef}
+                  type="checkbox"
+                  name="minAge"
+                  defaultChecked={values.minAge === 'on'}
+                  onChange={(event) => {
+                    if (event.target.checked) setMinAgeBlocked(false);
+                  }}
+                  aria-invalid={minAgeError ? true : undefined}
+                  aria-describedby={minAgeError ? minAgeErrorId : undefined}
+                  className="border-sarat-black/40 accent-sarat-black mt-0.5 size-5 shrink-0"
+                />
+                <span className="text-sm leading-relaxed">{copy.minAgeLabel}</span>
+              </label>
+              {minAgeError && (
+                <p id={minAgeErrorId} role="alert" className="text-al-qatt-red-800 ps-8 text-sm">
+                  {copy.minAgeRequired}
+                </p>
+              )}
+            </div>
+          )}
+
+          {/* Terms/Privacy/Cancellation acceptance — required at the booking
+              step, not only at checkout, so request-to-book guests are also
+              covered (2026-08-02 legal audit). */}
+          <div className="border-sarat-black/8 flex flex-col gap-2 [border-top-width:0.5px] pt-4">
+            <label className="flex cursor-pointer items-start gap-3">
+              <input
+                ref={termsRef}
+                type="checkbox"
+                name="terms"
+                defaultChecked={values.terms === 'on'}
+                onChange={(event) => {
+                  if (event.target.checked) setTermsBlocked(false);
+                }}
+                aria-invalid={termsError ? true : undefined}
+                aria-describedby={termsError ? termsErrorId : undefined}
+                className="border-sarat-black/40 accent-sarat-black mt-0.5 size-5 shrink-0"
+              />
+              <span className="text-sm leading-relaxed">{termsLabel}</span>
+            </label>
+            {termsError && (
+              <p id={termsErrorId} role="alert" className="text-al-qatt-red-800 ps-8 text-sm">
+                {copy.termsRequired}
+              </p>
+            )}
+          </div>
 
           {formMessage && (
             <p

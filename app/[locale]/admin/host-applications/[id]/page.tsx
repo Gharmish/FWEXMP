@@ -286,6 +286,7 @@ export default async function AdminHostApplicationDetailPage({
               validation: t('actions.errors.validation'),
               server: t('actions.errors.server'),
               rejection_note_short: t('actions.errors.rejectionNoteShort'),
+              documents_incomplete: t('actions.errors.documentsIncomplete'),
             },
           }}
         />

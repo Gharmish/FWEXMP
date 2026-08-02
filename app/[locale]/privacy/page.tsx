@@ -27,6 +27,12 @@ export default async function PrivacyPage({ params }: { params: Promise<{ locale
 
   const sections = [
     {
+      // PDPL controller identification (2026-08-02 legal audit) — the
+      // policy previously never said WHO processes the data.
+      heading: t('controller.heading'),
+      body: <p>{t('controller.body')}</p>,
+    },
+    {
       heading: t('collect.heading'),
       body: (
         <>

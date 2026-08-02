@@ -20,11 +20,15 @@ import {
   bookings,
   experiences,
   guests,
+  hostApplicationDocuments,
+  hostApplications,
   hosts,
   paymentEvents,
   platformSettings,
   walletLedger,
 } from '@/db/schema';
+import { getSupabaseUserStorage } from '@/lib/supabase/server';
+import { KYC_DOCUMENTS_BUCKET } from '@/features/host-applications/lib/documents';
 import { reportError } from '@/lib/log';
 import { notifyAdmin } from '@/lib/admin-alerts';
 import { settleBooking } from '@/features/payments/settle';
@@ -60,6 +64,14 @@ const REMINDER_LIMIT = 100;
 
 /** Cap notification retries per run for the same reason. */
 const RETRY_LIMIT = 50;
+
+/**
+ * How long rejected applicants' KYC documents are kept before Pass 8
+ * deletes them (2026-08-02 legal audit): long enough to answer a
+ * complaint or a re-application question, short enough to honour the
+ * privacy policy's "data with no remaining purpose is deleted".
+ */
+const KYC_RETENTION_DAYS = 90;
 
 /**
  * Cap auto-completions per run: each one fans out completion emails.
@@ -662,6 +674,19 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     // notifications forever, since only this run's `returning` set ever
     // sees them. Rows past the cap simply complete on a later hourly
     // run; a huge day delays completion by a few hours, never drops it.
+    // Suspended hosts are EXCLUDED (2026-08-02 ops audit P0-1), matching
+    // the reminder pass above: suspension is an emergency takedown, and
+    // auto-completing its bookings would mark never-delivered experiences
+    // `completed` — making them payout-eligible and review-eligible — the
+    // day after they silently didn't happen. These rows stay `confirmed`
+    // until an operator resolves them (the dashboard queue lists them);
+    // if the host is reinstated instead, the next run completes them.
+    const hostNotSuspended = () =>
+      sql`${bookings.experienceId} in (
+        select ${experiences.id} from ${experiences}
+        join ${hosts} on ${hosts.id} = ${experiences.hostId}
+        where ${hosts.verificationStatus} <> 'suspended'
+      )`;
     const completed = await db
       .update(bookings)
       .set({ status: 'completed' })
@@ -670,6 +695,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
           eq(bookings.status, 'confirmed'),
           sql`${bookings.date} < ${todayRiyadh}`,
           paymentCollected(),
+          hostNotSuspended(),
           // The subquery repeats every outer gate: an uncollected row
           // must not occupy the LIMIT window, or it would starve
           // completable rows behind it forever.
@@ -678,6 +704,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
             where ${bookings.status} = 'confirmed'
               and ${bookings.date} < ${todayRiyadh}
               and ${paymentCollected()}
+              and ${hostNotSuspended()}
             order by ${bookings.date} asc
             limit ${COMPLETION_LIMIT}
           )`,
@@ -891,6 +918,59 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       reportError(error, { surface: 'cron-release-holds:throttlePrune' });
     }
 
+    // Pass 8 — KYC document retention (2026-08-02 legal audit, PDPL).
+    // Identity documents on applications REJECTED more than
+    // KYC_RETENTION_DAYS ago have no remaining purpose: the privacy
+    // policy promises purposeless data is deleted, and a resubmission
+    // replaces the documents anyway (the application row flips back to
+    // pending, taking it out of this sweep). Approved applications keep
+    // their documents — they evidence the verification the trust page
+    // claims. Storage objects are removed FIRST and rows only after the
+    // removal succeeded: a deleted row with a surviving object would be
+    // an invisible orphan holding a national-ID scan forever.
+    let kycDocumentsPurged = 0;
+    try {
+      const cutoff = new Date(Date.now() - KYC_RETENTION_DAYS * 24 * 3_600_000);
+      const staleDocs = await db
+        .select({
+          id: hostApplicationDocuments.id,
+          objectKey: hostApplicationDocuments.objectKey,
+        })
+        .from(hostApplicationDocuments)
+        .innerJoin(
+          hostApplications,
+          eq(hostApplicationDocuments.applicationId, hostApplications.id),
+        )
+        .where(
+          and(
+            eq(hostApplications.status, 'rejected'),
+            isNotNull(hostApplications.reviewedAt),
+            lte(hostApplications.reviewedAt, cutoff),
+          ),
+        )
+        .limit(RECONCILE_LIMIT);
+      if (staleDocs.length > 0) {
+        const storage = await getSupabaseUserStorage();
+        // No storage client (no service key) → skip the whole pass; rows
+        // must never be deleted ahead of their objects.
+        if (storage) {
+          const { error: removeError } = await storage
+            .from(KYC_DOCUMENTS_BUCKET)
+            .remove(staleDocs.map((d) => d.objectKey));
+          if (removeError) throw removeError;
+          await db.delete(hostApplicationDocuments).where(
+            inArray(
+              hostApplicationDocuments.id,
+              staleDocs.map((d) => d.id),
+            ),
+          );
+          kycDocumentsPurged = staleDocs.length;
+        }
+      }
+    } catch (error) {
+      reportError(error, { surface: 'cron-release-holds:kycRetention' });
+    }
+
     // Heartbeat — the admin dashboard flags a stale stamp, so a silently
     // dead cron (expired secret, removed schedule, plan change) is
     // visible instead of quietly stopping expiry/release/reminders.
@@ -916,6 +996,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       retried,
       completed: completed.length,
       expiredCreditSar,
+      kycDocumentsPurged,
     });
   } catch (error) {
     reportError(error, { surface: 'cron-release-holds' });

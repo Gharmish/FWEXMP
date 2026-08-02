@@ -274,7 +274,32 @@ export default async function ExperienceDetailPage({
     nextMonth: tb('nextMonth'),
     womenOnlyLabel: tb('womenOnlyLabel'),
     womenOnlyRequired: tb('womenOnlyRequired'),
+    minAgeLabel: tb('minAgeLabel', { age: exp.minAge }),
+    minAgeRequired: tb('minAgeRequired'),
+    termsRequired: tb('termsRequired'),
   };
+  // Clickwrap consent line with inline links to each binding document —
+  // required at the booking step, not only at checkout (2026-08-02 legal
+  // audit): request-to-book guests may never reach the payment page.
+  const consentLinkClassName =
+    'font-medium underline underline-offset-4 transition-opacity duration-200 hover:opacity-60';
+  const termsLabel = tb.rich('termsLabel', {
+    terms: (chunks) => (
+      <Link href="/terms" className={consentLinkClassName}>
+        {chunks}
+      </Link>
+    ),
+    privacy: (chunks) => (
+      <Link href="/privacy" className={consentLinkClassName}>
+        {chunks}
+      </Link>
+    ),
+    cancellation: (chunks) => (
+      <Link href="/cancellation-policy" className={consentLinkClassName}>
+        {chunks}
+      </Link>
+    ),
+  });
   // The request-mode note names the real approval window so guest
   // expectations match the platform setting, not stale copy. The
   // cancellation chip reflects the platform-wide refund rule (the one
@@ -683,6 +708,8 @@ export default async function ExperienceDetailPage({
                 initialPartySize={initialPartySize}
                 vatRateBps={settings.vatEnabled ? settings.vatRateBps : null}
                 requireWomenOnly={exp.category === 'women_only'}
+                requireMinAge={exp.minAge > 0}
+                termsLabel={termsLabel}
                 copy={bookingCopy}
               />
             )}

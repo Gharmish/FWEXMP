@@ -23,6 +23,7 @@ import {
   reviewDocumentSchema,
 } from '@/features/host-applications/admin-schemas';
 import { hostBaseSlug, hostSlugSuffix } from '@/features/hosts/lib/slug';
+import { requiredDocumentTypes } from '@/features/host-applications/lib/documents';
 import {
   sendApplicationApprovedEmail,
   sendApplicationRejectedEmail,
@@ -50,7 +51,14 @@ import {
 
 export interface AdminApplyResult {
   success: false;
-  message?: 'forbidden' | 'no_db' | 'not_found' | 'wrong_state' | 'validation' | 'server';
+  message?:
+    | 'forbidden'
+    | 'no_db'
+    | 'not_found'
+    | 'wrong_state'
+    | 'validation'
+    | 'server'
+    | 'documents_incomplete';
   fieldError?: string;
 }
 
@@ -97,6 +105,31 @@ export async function approveApplication(
   let raced: 'not_found' | 'wrong_state' | null = null;
   let recipient: ApplicationDecisionRecipient | null = null;
   try {
+    // "Verified" must mean verified (2026-08-02 legal audit): the public
+    // trust copy says documents are checked and the badge gates every
+    // public host surface, yet approve previously minted a verified host
+    // with zero document preconditions. Every REQUIRED document for the
+    // identity type must be uploaded and individually approved before the
+    // application can be approved. Optional documents (e.g. an
+    // individual's tourism licence) don't block — matching the documented
+    // owner decision in lib/documents.ts.
+    const pendingApp = await db.query.hostApplications.findFirst({
+      where: (a) => eq(a.id, applicationId),
+      columns: { id: true, identityType: true },
+    });
+    if (!pendingApp) return { success: false, message: 'not_found' };
+    const docs = await db.query.hostApplicationDocuments.findMany({
+      where: (d) => eq(d.applicationId, applicationId),
+      columns: { type: true, status: true },
+    });
+    const approvedTypes = new Set(docs.filter((d) => d.status === 'approved').map((d) => d.type));
+    const missingRequired = requiredDocumentTypes(pendingApp.identityType).filter(
+      (type) => !approvedTypes.has(type),
+    );
+    if (missingRequired.length > 0) {
+      return { success: false, message: 'documents_incomplete' };
+    }
+
     await db.transaction(async (tx) => {
       // Claim the row. If another admin already moved it out of
       // `pending`, this matches zero rows.

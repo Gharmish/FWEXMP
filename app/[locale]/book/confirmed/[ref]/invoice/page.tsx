@@ -7,7 +7,7 @@ import QRCode from 'qrcode';
 import { cn } from '@/lib/utils';
 import { Link, redirect } from '@/lib/i18n';
 import type { Locale } from '@/lib/i18n';
-import { formatDate, formatInteger, formatTime } from '@/lib/format';
+import { formatDate, formatInteger, formatSAR, formatTime } from '@/lib/format';
 import {
   SITE_URL,
   SITE_NAME,
@@ -316,9 +316,17 @@ export default async function BookingInvoicePage({ params }: PageParams) {
         </dl>
         {hasRefund && booking.refundedAt && (
           <p className="text-al-qatt-red-800 mt-2 text-sm">
-            {t('refundedNote', {
-              date: formatDate(new Date(booking.refundedAt), loc, 'gregory', KSA_DATE),
-            })}
+            {/* "In full" only when the WHOLE consideration went back — a
+                50% policy refund must not produce a document claiming a
+                full refund (2026-08-02 legal audit). */}
+            {fullyRefunded
+              ? t('refundedNote', {
+                  date: formatDate(new Date(booking.refundedAt), loc, 'gregory', KSA_DATE),
+                })
+              : t('refundedPartialNote', {
+                  amount: formatSAR(reversedSar, loc),
+                  date: formatDate(new Date(booking.refundedAt), loc, 'gregory', KSA_DATE),
+                })}
           </p>
         )}
       </section>
@@ -350,10 +358,17 @@ export default async function BookingInvoicePage({ params }: PageParams) {
             </p>
           </div>
           <p className={labelClass}>
-            {t('creditNoteAgainst', {
-              invoice: booking.referenceCode,
-              date: formatDate(creditNote.refundedAt, loc, 'gregory', KSA_DATE),
-            })}
+            {/* Same full-vs-partial split as the refunded note above. */}
+            {fullyRefunded
+              ? t('creditNoteAgainst', {
+                  invoice: booking.referenceCode,
+                  date: formatDate(creditNote.refundedAt, loc, 'gregory', KSA_DATE),
+                })
+              : t('creditNotePartialAgainst', {
+                  invoice: booking.referenceCode,
+                  date: formatDate(creditNote.refundedAt, loc, 'gregory', KSA_DATE),
+                  amount: formatSAR(creditNote.amountSar, loc),
+                })}
           </p>
           <dl className="flex flex-col gap-2">
             <div className="flex items-baseline justify-between text-sm">

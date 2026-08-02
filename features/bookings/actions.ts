@@ -21,6 +21,7 @@ import {
 import { holdStillCounts } from '@/features/bookings/lib/capacity-sql';
 import { generateReferenceCode } from '@/features/bookings/lib/reference-code';
 import { policySnapshotFor } from '@/features/bookings/lib/policy';
+import { CURRENT_TERMS_VERSION } from '@/lib/legal';
 import {
   LAST_BOOKING_COOKIE,
   parseLastBookingCookie,
@@ -222,15 +223,23 @@ export interface BookingRequestState {
   message?: string;
   /** Set with `message: 'too_many'` when ownership could be verified. */
   openBookings?: OpenBookingSummary[];
-  // `womenOnly` flags a missing eligibility acknowledgment on a women-only
-  // experience; it isn't one of the echoed value fields (client-held state).
+  // `womenOnly` / `minAge` flag a missing eligibility acknowledgment;
+  // `terms` flags the missing terms acceptance. None are echoed value
+  // fields in the FIELD_NAMES sense (checkbox state, not text inputs).
   fields?: Partial<
-    Record<'name' | 'phone' | 'preferredDate' | 'partySize' | 'email' | 'womenOnly', string>
+    Record<
+      'name' | 'phone' | 'preferredDate' | 'partySize' | 'email' | 'womenOnly' | 'terms' | 'minAge',
+      string
+    >
   >;
-  // `womenOnly` ('on' | '') is echoed too so the acknowledgment survives a
-  // failed-submit form reset (React 19 resets the form after the action).
+  // The checkbox values ('on' | '') are echoed too so an acknowledgment
+  // survives a failed-submit form reset (React 19 resets the form after
+  // the action).
   values?: Partial<
-    Record<'name' | 'phone' | 'preferredDate' | 'partySize' | 'email' | 'womenOnly', string>
+    Record<
+      'name' | 'phone' | 'preferredDate' | 'partySize' | 'email' | 'womenOnly' | 'terms' | 'minAge',
+      string
+    >
   >;
 }
 
@@ -244,8 +253,10 @@ function formValue(formData: FormData, key: string): string {
 function currentValues(formData: FormData): BookingRequestState['values'] {
   return {
     ...Object.fromEntries(FIELD_NAMES.map((key) => [key, formValue(formData, key)])),
-    // Echo the raw acknowledgment so the checkbox re-defaults to checked.
+    // Echo the raw acknowledgments so the checkboxes re-default to checked.
     womenOnly: formValue(formData, 'womenOnly'),
+    terms: formValue(formData, 'terms'),
+    minAge: formValue(formData, 'minAge'),
   };
 }
 
@@ -354,6 +365,7 @@ export async function requestBooking(
         commissionBps: true,
         cancellationTier: true,
         category: true,
+        minAge: true,
         availabilityWeekdays: true,
         blackoutDates: true,
         stopSellDates: true,
@@ -362,6 +374,20 @@ export async function requestBooking(
 
     if (!experience) {
       return { success: false, message: 'notFound', values: currentValues(formData) };
+    }
+
+    // Terms/Privacy/Cancellation acceptance is required at the booking step,
+    // not only at checkout (2026-08-02 legal audit): request-to-book guests
+    // who are declined or lapse never reach the payment clickwrap, yet the
+    // conduct rules and data processing apply to them too. Enforced
+    // server-side so an absent/tampered checkbox can never create a booking.
+    if (formValue(formData, 'terms') !== 'on') {
+      return {
+        success: false,
+        message: 'validation',
+        fields: { terms: 'required' },
+        values: currentValues(formData),
+      };
     }
 
     // Women-only experiences require an explicit eligibility acknowledgment
@@ -373,6 +399,18 @@ export async function requestBooking(
         success: false,
         message: 'validation',
         fields: { womenOnly: 'required' },
+        values: currentValues(formData),
+      };
+    }
+
+    // Experiences with a minimum age require the guest to attest the whole
+    // party meets it — `minAge` was display-only before the 2026-08-02
+    // audit, so a "minimum age 16" listing accepted any party silently.
+    if (experience.minAge > 0 && formValue(formData, 'minAge') !== 'on') {
+      return {
+        success: false,
+        message: 'validation',
+        fields: { minAge: 'required' },
         values: currentValues(formData),
       };
     }
@@ -554,6 +592,13 @@ export async function requestBooking(
       utmSource: input.utmSource ?? null,
       utmMedium: input.utmMedium ?? null,
       utmCampaign: input.utmCampaign ?? null,
+      // Consent evidence — the checkboxes above were enforced before this
+      // point, so a created booking always carries its acceptance stamps
+      // and the document version accepted (2026-08-02 legal audit).
+      termsAcceptedAt: new Date(),
+      termsVersion: CURRENT_TERMS_VERSION,
+      womenOnlyAttestedAt: experience.category === 'women_only' ? new Date() : null,
+      minAgeAttestedAt: experience.minAge > 0 ? new Date() : null,
     } as const;
 
     if (experience.bookingMode === 'instant' && hasHyperpay()) {

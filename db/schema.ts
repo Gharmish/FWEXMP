@@ -800,6 +800,28 @@ export const bookings = pgTable(
      * resolve identity, never used to link an account.
      */
     contactPhone: text(),
+    /**
+     * Consent evidence captured at the booking-request step (2026-08-02
+     * legal audit). The payment-step clickwrap only covers guests who
+     * reach checkout — request-to-book guests who are declined or lapse
+     * never paid, so the form itself now requires acceptance and stamps
+     * it here with the document version accepted (lib/legal.ts).
+     */
+    termsAcceptedAt: timestamp({ withTimezone: true }),
+    termsVersion: text(),
+    /**
+     * When the guest ticked the women-only eligibility acknowledgment.
+     * The tick was always server-enforced for `women_only` experiences
+     * but never persisted — no evidence survived (2026-08-02 audit).
+     * Null for other categories and for rows predating the column.
+     */
+    womenOnlyAttestedAt: timestamp({ withTimezone: true }),
+    /**
+     * When the guest attested the whole party meets the experience's
+     * `minAge`. Only stamped when the experience has a minimum age;
+     * `minAge` was previously display-only (2026-08-02 audit).
+     */
+    minAgeAttestedAt: timestamp({ withTimezone: true }),
     createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [
