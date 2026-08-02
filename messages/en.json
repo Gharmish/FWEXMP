@@ -471,8 +471,15 @@
         "taxable": "Taxable",
         "vat": "VAT",
         "rate": "Rate %",
-        "refunded": "Refunded"
-      }
+        "refunded": "Refunded",
+        "refundedAtCol": "Refunded on",
+        "salePaidAt": "Sale paid on",
+        "reversedGross": "Reversed gross",
+        "reversedVat": "Reversed VAT"
+      },
+      "csvRiyadhNote": "Riyadh time",
+      "creditDetailHeading": "Credit notes in period",
+      "downloadCreditCsv": "Download credit notes CSV"
     },
     "activityLog": {
       "eyebrow": "Activity",

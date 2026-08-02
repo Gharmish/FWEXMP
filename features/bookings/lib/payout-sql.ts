@@ -22,6 +22,32 @@ export function vatPortionExpr(): SQL<number> {
 }
 
 /**
+ * Platform-funded amounts, clamped at 0 exactly like `splitCommission`'s
+ * `Math.max(0, …)` (2026-08-01 ninth audit — the SQL side used bare
+ * `coalesce`, so one bad negative row would have made the JS and SQL
+ * mirrors disagree; no CHECK constraint backs these columns).
+ */
+function fundedDiscountExpr(): SQL<number> {
+  return sql<number>`greatest(coalesce(${bookings.discountSar}, 0), 0)`;
+}
+function fundedCreditExpr(): SQL<number> {
+  return sql<number>`greatest(coalesce(${bookings.walletAppliedSar}, 0), 0)`;
+}
+
+/** Full-price ex-VAT base: `total + discount + credit − vatPortion`. */
+function netBaseExpr(): SQL<number> {
+  return sql<number>`(${bookings.totalAmount} + ${fundedDiscountExpr()} + ${fundedCreditExpr()} - ${vatPortionExpr()})`;
+}
+
+/**
+ * Per-booking commission withheld: `round(net × clamp(bps)/10000)`.
+ * Identical math to `splitCommission().commissionSar` — change BOTH.
+ */
+export function commissionExpr(): SQL<number> {
+  return sql<number>`round(${netBaseExpr()} * least(10000, greatest(0, ${bookings.commissionBps}))::numeric / 10000)::int`;
+}
+
+/**
  * Per-booking host payout. VAT era (2026-07-07) + promo era (2026-07-09,
  * platform-funded) + Gharmish Credit era (2026-07-19, also
  * platform-funded): the host is paid on the FULL-PRICE amount, so the
@@ -34,8 +60,19 @@ export function vatPortionExpr(): SQL<number> {
  * unit-tested `splitCommission` — change BOTH.
  */
 export function payoutExpr(): SQL<number> {
-  const net = sql`(${bookings.totalAmount} + coalesce(${bookings.discountSar}, 0) + coalesce(${bookings.walletAppliedSar}, 0) - ${vatPortionExpr()})`;
-  return sql<number>`(${net} - round(${net} * least(10000, greatest(0, ${bookings.commissionBps}))::numeric / 10000))::int`;
+  return sql<number>`(${netBaseExpr()} - ${commissionExpr()})::int`;
+}
+
+/**
+ * Per-booking TRUE platform take: commission on the full-price ex-VAT
+ * base minus the platform-funded discount and credit. Negative when a
+ * promo/credit stack exceeds the commission — by design (owner-
+ * arbitrated, watched by the cron's `negative_take` alert). The ONE
+ * definition shared by the dashboard net-revenue KPI and that alert
+ * (2026-08-01 ninth audit — both used to hand-transcribe this).
+ */
+export function platformTakeExpr(): SQL<number> {
+  return sql<number>`(${commissionExpr()} - ${fundedDiscountExpr()} - ${fundedCreditExpr()})::int`;
 }
 
 /**

@@ -28,7 +28,14 @@ import type { PaymentChannel, PaymentOutcome } from '@/features/payments/types';
  * reconcile — must acknowledge rather than re-fire (2026-07-28 fourth
  * audit). `error` stays TRANSIENT and remains worth retrying.
  */
-export type SettleOutcome = PaymentOutcome | 'already_settled' | 'error' | 'anomaly';
+/**
+ * `not_found` is likewise PERMANENT: the reference matches no booking at
+ * all (cross-environment webhook traffic, test-entity noise). There is
+ * nothing to settle and never will be — retry-driving callers must
+ * acknowledge it, not 500 for a redelivery loop (2026-08-01 ninth audit;
+ * the webhook used to retry unknown references forever).
+ */
+export type SettleOutcome = PaymentOutcome | 'already_settled' | 'error' | 'anomaly' | 'not_found';
 
 /** Lifecycle states where a captured charge has no booking to pay for. */
 const DEAD_STATUSES = ['cancelled', 'refunded', 'declined', 'expired'] as const;
@@ -158,7 +165,8 @@ export async function settleBooking(reference: string): Promise<SettleOutcome> {
       },
     });
 
-    if (!booking || !booking.checkoutId) return 'error';
+    if (!booking) return 'not_found';
+    if (!booking.checkoutId) return 'error';
     if (booking.paymentStatus === 'paid') return 'already_settled';
 
     const channel = await resolvePaymentChannel(booking.id, booking.checkoutId);
@@ -337,11 +345,27 @@ export async function settleBooking(reference: string): Promise<SettleOutcome> {
 
     if (outcome === 'rejected') {
       // Same race guard as the paid transition — a replayed rejection
-      // must not append a duplicate settle_failed ledger event.
+      // must not append a duplicate settle_failed ledger event. The
+      // WHERE also mirrors the success path's arbiters (2026-08-01
+      // ninth audit): a slow decline poll can lose to a concurrent
+      // settle of a FRESH checkout — createCheckout supersedes on
+      // channel switch or reuse expiry, the guest pays checkout B, and
+      // this caller's verdict from checkout A lands last. Without
+      // `ne('paid')` + the checkoutId re-assert, that stale rejection
+      // flipped a PAID booking to `failed`; cron Pass 1 then cancelled
+      // it at deadline and the real capture ended orphaned on a
+      // cancelled booking with no alert.
       const flipped = await db
         .update(bookings)
         .set({ paymentStatus: 'failed' })
-        .where(and(eq(bookings.id, booking.id), ne(bookings.paymentStatus, 'failed')))
+        .where(
+          and(
+            eq(bookings.id, booking.id),
+            ne(bookings.paymentStatus, 'failed'),
+            ne(bookings.paymentStatus, 'paid'),
+            eq(bookings.checkoutId, booking.checkoutId),
+          ),
+        )
         .returning({ id: bookings.id });
       if (flipped.length > 0) {
         try {

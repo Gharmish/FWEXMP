@@ -2,6 +2,7 @@
 
 import { Download } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { toCsv } from '@/lib/csv';
 
 export interface CsvDownloadButtonProps {
   headers: readonly string[];
@@ -10,20 +11,18 @@ export interface CsvDownloadButtonProps {
   label: string;
 }
 
-function csvField(value: string | number): string {
-  const s = String(value);
-  return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
-}
-
 /**
  * Client-side CSV export of data the page already loaded — no extra API
  * surface, no second query that could disagree with what's on screen.
- * BOM-prefixed so Excel opens the Arabic column values as UTF-8.
+ * Serialization goes through the ONE shared writer in `lib/csv.ts`
+ * (2026-08-01 ninth audit — this file carried its own unhardened copy:
+ * no formula-injection defusing, no CR quoting, LF endings; every
+ * current column is system-generated, but the first free-text column
+ * added would have inherited the gap silently).
  */
 export function CsvDownloadButton({ headers, rows, filename, label }: CsvDownloadButtonProps) {
   const download = () => {
-    const csv = [headers, ...rows].map((row) => row.map(csvField).join(',')).join('\n');
-    const blob = new Blob([`﻿${csv}`], { type: 'text/csv;charset=utf-8' });
+    const blob = new Blob([toCsv(headers, rows)], { type: 'text/csv;charset=utf-8' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;

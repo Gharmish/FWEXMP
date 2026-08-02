@@ -13,7 +13,7 @@ import {
   reviews,
   savedExperiences,
 } from '@/db/schema';
-import { paymentCollected } from '@/features/bookings/lib/payout-sql';
+import { paymentCollected, platformTakeExpr } from '@/features/bookings/lib/payout-sql';
 import { getPlatformSettings } from '@/lib/platform-settings';
 import {
   comparison,
@@ -107,7 +107,12 @@ function sumAmt(cond: SQL, w: Window): SQL<number> {
  * until ZATCA registration day and only counts post-registration money.
  */
 function vatSum(w: Window): SQL<number> {
-  return sql<number>`coalesce(round(sum(${bookings.totalAmount} * ${bookings.vatRateBps} / (10000.0 + ${bookings.vatRateBps})) filter (where ${MONEY} and ${bookings.vatRateBps} is not null and ${created(w)})), 0)::int`;
+  // Round PER BOOKING and window by the tax point (`paid_at`), matching
+  // `vatPortionExpr` and every other VAT surface (2026-08-01 ninth
+  // audit — this tile rounded the sum and windowed by `created_at`, so
+  // it could disagree with `/admin/vat` by a few SAR and shift a
+  // booking's VAT into the month it was created rather than paid).
+  return sql<number>`coalesce(sum(round(${bookings.totalAmount} * ${bookings.vatRateBps}::numeric / (10000 + ${bookings.vatRateBps}))) filter (where ${MONEY} and ${bookings.vatRateBps} is not null and ${inWindow(bookings.paidAt, w)}), 0)::int`;
 }
 
 function netRevenue(w: Window): SQL<number> {
@@ -119,10 +124,11 @@ function netRevenue(w: Window): SQL<number> {
   // identity instead: commission on the full-price ex-VAT base
   // (`total + discount + credit − vat`, same as `splitCommission`),
   // minus the funded discount and credit. Collected money only.
-  const vatPortion = sql`coalesce(round(${bookings.totalAmount} * ${bookings.vatRateBps}::numeric / (10000 + ${bookings.vatRateBps})), 0)`;
-  const netBase = sql`(${bookings.totalAmount} + coalesce(${bookings.discountSar}, 0) + coalesce(${bookings.walletAppliedSar}, 0) - ${vatPortion})`;
-  const take = sql`(round(${netBase} * least(10000, greatest(0, ${bookings.commissionBps})) / 10000.0) - coalesce(${bookings.discountSar}, 0) - coalesce(${bookings.walletAppliedSar}, 0))`;
-  return sql<number>`coalesce(sum(${take}) filter (where ${MONEY} and ${created(w)}), 0)::int`;
+  // ONE shared expression with the cron's negative-take alert
+  // (2026-08-01 ninth audit — both used to hand-transcribe the same
+  // formula; a future change to the VAT base must land in payout-sql
+  // once, not in five copies).
+  return sql<number>`coalesce(sum(${platformTakeExpr()}) filter (where ${MONEY} and ${created(w)}), 0)::int`;
 }
 
 /**
@@ -147,7 +153,12 @@ function refundedWindow(w: Window): SQL {
 }
 
 function refundedSum(w: Window): SQL<number> {
-  return sql<number>`coalesce(sum(${bookings.totalAmount}) filter (where ${bookings.status} = 'refunded' and ${refundedWindow(w)}), 0)::int`;
+  // What ACTUALLY went back (card + re-credited wallet), not the charged
+  // total (2026-08-01 ninth audit): a 50%-tier cancellation used to
+  // report the full total here while its retained half ALSO counted in
+  // the Forfeited tile — more movement than the booking ever held.
+  // Legacy rows predate the journal column and were full refunds.
+  return sql<number>`coalesce(sum(coalesce(${bookings.refundedAmountSar}, ${bookings.totalAmount})) filter (where ${bookings.status} = 'refunded' and ${refundedWindow(w)}), 0)::int`;
 }
 
 function refundedCnt(w: Window): SQL<number> {

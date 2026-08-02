@@ -90,6 +90,19 @@ export interface AdminBookingExportRow extends AdminBookingRow {
   paidAt: string | null;
   refundedAt: string | null;
   hostPaidAt: string | null;
+  /**
+   * The full money decomposition (2026-08-01 ninth audit): without
+   * these, exported rows were non-additive on any promo/credit booking
+   * (`payout > total − commission` with nothing explaining why) and
+   * refunds reconciled by date only, never amount. With them the
+   * identity `vat + commission + payout = total + discount + wallet`
+   * holds on every row.
+   */
+  discountSar: number;
+  promoCode: string | null;
+  vatSar: number;
+  refundedAmountSar: number | null;
+  forfeitedSar: number | null;
 }
 
 /**
@@ -110,7 +123,7 @@ export async function listBookingsForExport(): Promise<readonly AdminBookingExpo
       orderBy: (b) => desc(b.createdAt),
     });
     return rows.map<AdminBookingExportRow>((row) => {
-      const { commissionSar, payoutSar } = splitCommission(
+      const { commissionSar, payoutSar, vatSar } = splitCommission(
         row.totalAmount,
         row.commissionBps,
         row.vatRateBps,
@@ -147,6 +160,11 @@ export async function listBookingsForExport(): Promise<readonly AdminBookingExpo
         paidAt: row.paidAt?.toISOString() ?? null,
         refundedAt: row.refundedAt?.toISOString() ?? null,
         hostPaidAt: row.hostPaidAt?.toISOString() ?? null,
+        discountSar: row.discountSar,
+        promoCode: row.promoCode,
+        vatSar,
+        refundedAmountSar: row.refundedAmountSar,
+        forfeitedSar: row.forfeitedSar,
       };
     });
   } catch (error) {

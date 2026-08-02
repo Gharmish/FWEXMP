@@ -35,7 +35,18 @@ export interface HostEarningsHistoryRow {
    * 0 for bookings settled before the platform registered for VAT.
    */
   vatSar: number;
-  /** Platform commission withheld on this booking (on the ex-VAT net). */
+  /**
+   * The platform's NET deduction as seen from the host's side:
+   * `totalSar − vatSar − payoutSar`, so every statement row sums back
+   * to what the guest was charged. NOT the commission rate applied to a
+   * base (2026-08-01 ninth audit — the old doc said "on the ex-VAT
+   * net", which is `splitCommission`'s definition and differs on every
+   * promo/credit booking): the payout base adds platform-funded
+   * discounts and redeemed credit back, so this figure is commission
+   * MINUS that funding and goes negative when the funding exceeds the
+   * commission. Deliberate presentation — the host statement shows the
+   * guest's money, not the platform's marketing spend.
+   */
   commissionSar: number;
   /** Commission rate applied (snapshot), basis points. */
   commissionBps: number;

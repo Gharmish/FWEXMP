@@ -124,13 +124,21 @@ export async function createDispute(
   // and every guest-facing surface call the booking.
   await notifyAdmin('dispute_opened', { reference: referenceCode });
 
-  // Acknowledge the guest and put the host on notice — both
-  // best-effort, never blocking the submitted report.
+  // Acknowledge the guest and put the host on notice — each
+  // best-effort, never blocking the submitted report, and each in its
+  // OWN catch (2026-08-01 ninth audit): sharing one meant a failed
+  // guest ack silently suppressed the host notice, so the host never
+  // heard a review of their booking — and its potential refund — was
+  // underway.
   try {
     await sendDisputeReceivedEmail(referenceCode);
+  } catch (error) {
+    reportError(error, { surface: 'disputes:guestAckEmail', reference: referenceCode });
+  }
+  try {
     await sendHostDisputeOpenedEmail(referenceCode);
   } catch (error) {
-    reportError(error, { surface: 'disputes:openedEmails', reference: referenceCode });
+    reportError(error, { surface: 'disputes:hostOpenedEmail', reference: referenceCode });
   }
 
   revalidatePath('/[locale]/admin/disputes', 'page');

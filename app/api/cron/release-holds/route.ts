@@ -21,6 +21,7 @@ import {
   experiences,
   guests,
   hosts,
+  paymentEvents,
   platformSettings,
   walletLedger,
 } from '@/db/schema';
@@ -41,7 +42,11 @@ import { listRetryableDeliveries } from '@/lib/notifications/ledger';
 import { addDays } from '@/features/bookings/lib/availability';
 import { startInstant } from '@/features/bookings/lib/cancellation';
 import { releaseWalletReservation } from '@/features/wallet/reservation';
-import { paymentCollected, rolling12mTurnoverExpr } from '@/features/bookings/lib/payout-sql';
+import {
+  paymentCollected,
+  platformTakeExpr,
+  rolling12mTurnoverExpr,
+} from '@/features/bookings/lib/payout-sql';
 import {
   VAT_MANDATORY_THRESHOLD_SAR,
   VAT_THRESHOLD_ALERT_RATIO,
@@ -55,6 +60,13 @@ const REMINDER_LIMIT = 100;
 
 /** Cap notification retries per run for the same reason. */
 const RETRY_LIMIT = 50;
+
+/**
+ * Cap auto-completions per run: each one fans out completion emails.
+ * The remainder completes on the next hourly run — bounded delay, never
+ * a dropped notification.
+ */
+const COMPLETION_LIMIT = 25;
 
 /**
  * Scheduled release of expired payment holds. Vercel Cron runs this DAILY
@@ -246,9 +258,14 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 
     // Pass 1c — orphaned-refund watch (2026-07-28 audit). A cancellation
     // that owed the guest money commits its flip first and refunds
-    // second; a crash in between leaves `cancelled + paid` with NO
-    // refund journal at all (no refundedAmountSar, no refundDueSar) and
-    // no forfeit stamp — a debt with no queue entry. The policy amount
+    // second; a crash in between leaves `cancelled + paid` with an
+    // INCOMPLETE refund journal and no queue entry. The predicate is
+    // arithmetic, not null-checks (2026-08-01 ninth audit): a crashed
+    // PARTIAL-tier cancel stamps `forfeitedSar` inside the flip
+    // transaction, so the old `isNull(forfeitedSar)` filter read the row
+    // as a legitimate full forfeit and the guest's owed 50% was never
+    // seen. A row is healthy only when what went back plus what was
+    // deliberately retained covers the full paid base. The policy amount
     // is contextual, so this pass only ALERTS (hourly, until an admin
     // settles it via the manual refund action) rather than moving money.
     const orphanedRefunds = await db.query.bookings.findMany({
@@ -256,20 +273,71 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         eq(bookings.status, 'cancelled'),
         eq(bookings.paymentStatus, 'paid'),
         isNull(bookings.refundDueSar),
-        isNull(bookings.refundedAmountSar),
-        isNull(bookings.forfeitedSar),
+        sql`coalesce(${bookings.refundedAmountSar}, 0) + coalesce(${bookings.forfeitedSar}, 0)
+            < ${bookings.totalAmount} + coalesce(${bookings.walletAppliedSar}, 0)`,
         lte(bookings.cancelledAt, new Date(Date.now() - 3_600_000)),
       ),
       columns: { referenceCode: true, totalAmount: true, walletAppliedSar: true },
     });
     if (orphanedRefunds.length > 0) {
       await notifyAdmin('refund_due', {
-        problem: 'cancelled paid bookings with no refund journal (crashed mid-cancel?)',
+        problem: 'cancelled paid bookings with an incomplete refund journal (crashed mid-cancel?)',
         count: orphanedRefunds.length,
         bookings: orphanedRefunds
           .map((b) => `${b.referenceCode} (${b.totalAmount + b.walletAppliedSar} SAR)`)
           .join(', '),
       });
+    }
+
+    // Pass 1d — refund-out orphan sweep (2026-08-01 ninth audit). The
+    // refund-out flow debits the wallet in its own transaction and only
+    // then calls `executeRefund` for the card leg; a crash between the
+    // two leaves the guest's credit gone with NO card refund, NO
+    // `refundDueSar` queue entry, and — because the debit's idempotency
+    // key survives — every retry refused as `already_requested`,
+    // permanently. Detect: a `refund-out:` reversal older than an hour
+    // whose booking has no queue entry and no gateway refund recorded
+    // after the debit. Recovery: stamp the card leg into the manual
+    // queue (conditional, never clobbering a concurrent claim) + alert.
+    // The admin action's in-flight and unknown-outcome guards keep this
+    // stamp from double-firing a live reversal.
+    try {
+      const orphanedRefundOuts = await db
+        .select({
+          bookingId: walletLedger.bookingId,
+          amountSar: sql<number>`-${walletLedger.amountSar}`,
+          reference: bookings.referenceCode,
+        })
+        .from(walletLedger)
+        .innerJoin(bookings, eq(bookings.id, walletLedger.bookingId))
+        .where(
+          and(
+            sql`${walletLedger.idempotencyKey} like 'refund-out:%'`,
+            lte(walletLedger.createdAt, new Date(Date.now() - 3_600_000)),
+            isNull(bookings.refundDueSar),
+            sql`not exists (
+              select 1 from ${paymentEvents} pe
+              where pe.booking_id = ${walletLedger.bookingId}
+                and pe.type in ('refund_succeeded', 'manual_refund_recorded')
+                and pe.created_at >= ${walletLedger.createdAt}
+            )`,
+          ),
+        );
+      for (const row of orphanedRefundOuts) {
+        if (!row.bookingId) continue;
+        await db
+          .update(bookings)
+          .set({ refundDueSar: row.amountSar })
+          .where(and(eq(bookings.id, row.bookingId), isNull(bookings.refundDueSar)));
+        await notifyAdmin('refund_due', {
+          problem: 'refund-out debited the wallet but no card refund was recorded',
+          reference: row.reference,
+          amountSar: row.amountSar,
+          action: 'verify in the HyperPay console, then settle or record the queued refund',
+        });
+      }
+    } catch (error) {
+      reportError(error, { surface: 'cron-release-holds:refundOutSweep' });
     }
 
     // Pass 2 — reconcile stuck holds against HyperPay. Only those whose
@@ -288,9 +356,12 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     // refuses on every retry — the row never leaves the candidate set,
     // re-alerting hourly forever and squatting on RECONCILE_LIMIT until
     // genuinely-stuck `processing` rows stop being scanned at all. Those
-    // writers now clear the dead `checkoutId` instead (see
-    // reservation.ts / promo + wallet checkout actions), so a stale
-    // widget can't be mistaken for a live checkout.
+    // writers stamp `checkoutSupersededAt` instead — the `checkoutId`
+    // itself is deliberately KEPT (never nulled, 2026-07-28 fourth
+    // audit) so a late capture on the old checkout stays resolvable by
+    // settle/webhook; the supersession stamp is what stops the cron
+    // from chasing it. (Comment corrected 2026-08-01 — it previously
+    // claimed the id was cleared, which no writer does.)
     //
     // Residual gap, deliberately not papered over: a guest who completes
     // payment on a SUPERSEDED widget is captured at the old amount with
@@ -315,9 +386,16 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         lte(bookings.paymentDeadline, new Date()),
         notInArray(bookings.status, ['completed', 'refunded']),
       ),
-      // Oldest deadline first: a bounded pass must make progress on the
-      // longest-stuck money rather than re-scanning the same head.
-      orderBy: (b, { asc }) => [asc(b.paymentDeadline)],
+      // Anomaly-stamped rows sort LAST (2026-08-01 ninth audit): an
+      // unresolved anomaly stays `processing` until an admin acts, so
+      // sorted by age alone a handful of them permanently occupied the
+      // head of the bounded window, burning a gateway round-trip each
+      // per hour and eventually starving genuinely-stuck rows out of
+      // the scan. They stay IN the scan — a settle retry can still
+      // clear a transient anomaly — just behind rows that can actually
+      // make progress. Then oldest deadline first, so the pass works on
+      // the longest-stuck money rather than re-scanning the same head.
+      orderBy: (b, { asc }) => [sql`(${b.settleAnomalyAt} is not null)`, asc(b.paymentDeadline)],
       columns: { idempotencyKey: true },
       with: { guest: { columns: { preferredLanguage: true } } },
       limit: RECONCILE_LIMIT,
@@ -576,6 +654,14 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     // hosts to press the button quietly starved both. Hosts can still
     // cancel/dispute before the grace day ends; admin can still refund
     // after.
+    //
+    // Bounded per run (2026-08-01 ninth audit): each completion fans out
+    // several DB reads plus up to two email sends, all sequential on
+    // this pool. The CAP IS ON THE FLIP, not the email loop — capping
+    // the loop instead would silently lose the skipped bookings'
+    // notifications forever, since only this run's `returning` set ever
+    // sees them. Rows past the cap simply complete on a later hourly
+    // run; a huge day delays completion by a few hours, never drops it.
     const completed = await db
       .update(bookings)
       .set({ status: 'completed' })
@@ -584,6 +670,17 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
           eq(bookings.status, 'confirmed'),
           sql`${bookings.date} < ${todayRiyadh}`,
           paymentCollected(),
+          // The subquery repeats every outer gate: an uncollected row
+          // must not occupy the LIMIT window, or it would starve
+          // completable rows behind it forever.
+          sql`${bookings.id} in (
+            select id from ${bookings}
+            where ${bookings.status} = 'confirmed'
+              and ${bookings.date} < ${todayRiyadh}
+              and ${paymentCollected()}
+            order by ${bookings.date} asc
+            limit ${COMPLETION_LIMIT}
+          )`,
         ),
       )
       .returning({ id: bookings.id, reference: bookings.idempotencyKey });
@@ -677,9 +774,9 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     // a farmed code or an over-generous stack is seen the day it starts,
     // not at month-end.
     try {
-      const vatPortion = sql`coalesce(round(${bookings.totalAmount} * ${bookings.vatRateBps}::numeric / (10000 + ${bookings.vatRateBps})), 0)`;
-      const netBase = sql`(${bookings.totalAmount} + coalesce(${bookings.discountSar}, 0) + coalesce(${bookings.walletAppliedSar}, 0) - ${vatPortion})`;
-      const take = sql`(round(${netBase} * least(10000, greatest(0, ${bookings.commissionBps})) / 10000.0) - coalesce(${bookings.discountSar}, 0) - coalesce(${bookings.walletAppliedSar}, 0))`;
+      // ONE shared expression with the dashboard net-revenue KPI
+      // (2026-08-01 ninth audit — this was a hand-typed copy).
+      const take = platformTakeExpr();
       const [negative] = await db
         .select({
           count: sql<number>`count(*)::int`,
@@ -714,6 +811,17 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     // (skipped; the 30-day lookback stops eternal re-scans of dead
     // lots, and deliberately avoids expiring NEW credit issued long
     // after the old lot lapsed).
+    //
+    // Refund-credit protection (2026-08-01 ninth audit): the balance is
+    // a fungible SUM, so a plain balance floor let an expiring goodwill
+    // lot consume `refund_credit` — the guest's own captured money,
+    // which the schema promises never expires and which the refund-out
+    // source cap still counts as available. The sweep therefore floors
+    // each expiry at the balance MINUS the guest's protected remainder
+    // (lifetime refund credits not yet moved back to card). Checkout
+    // spending is thereby attributed to expiring credit first — the
+    // conservative reading for the guest and the same aggregates the
+    // refund-out source cap uses.
     let expiredCreditSar = 0;
     try {
       const expiredLots = await db
@@ -737,10 +845,19 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         await db.transaction(async (tx) => {
           await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${'wallet:' + lot.guestId}))`);
           const [row] = await tx
-            .select({ balance: sql<number>`coalesce(sum(${walletLedger.amountSar}), 0)::int` })
+            .select({
+              balance: sql<number>`coalesce(sum(${walletLedger.amountSar}), 0)::int`,
+              // Same aggregates as the refund-out source cap
+              // (refund-out-actions.ts): what the guest's own captured
+              // money still amounts to, account-wide.
+              refundCredits: sql<number>`coalesce(sum(${walletLedger.amountSar}) filter (where ${walletLedger.type} = 'refund_credit'), 0)::int`,
+              refundOuts: sql<number>`coalesce(sum(-${walletLedger.amountSar}) filter (where ${walletLedger.type} = 'reversal' and ${walletLedger.idempotencyKey} like 'refund-out:%'), 0)::int`,
+            })
             .from(walletLedger)
             .where(eq(walletLedger.guestId, lot.guestId));
-          const expire = Math.min(row?.balance ?? 0, lot.amountSar);
+          const balance = row?.balance ?? 0;
+          const protectedSar = Math.max(0, (row?.refundCredits ?? 0) - (row?.refundOuts ?? 0));
+          const expire = Math.min(Math.max(0, balance - protectedSar), lot.amountSar);
           if (expire <= 0) return;
           await tx
             .insert(walletLedger)

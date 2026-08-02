@@ -71,6 +71,33 @@ export async function refundInFlight(bookingId: string): Promise<boolean> {
   return Date.now() - latest.createdAt.getTime() < REFUND_IN_FLIGHT_MAX_MS;
 }
 
+/**
+ * Did the last gateway refund attempt end with an UNKNOWN outcome?
+ *
+ * `executeRefund` writes `refund_failed` with `resultCode: 'EXCEPTION'`
+ * when the gateway call threw (timeout, reset, unparseable response) —
+ * the reversal MAY have landed. That terminal event is what un-latches
+ * `refundInFlight`, but it also means the ledger CANNOT vouch that no
+ * money moved: the admin action's `refund_succeeded` dedupe finds
+ * nothing (none was ever written), and firing "again" could be a second
+ * live reversal — HyperPay accepts multiple partial RFs that sum within
+ * the capture (2026-08-01 ninth audit). Newest-wins: a later
+ * `refund_succeeded`/clean `refund_failed` supersedes the ambiguity.
+ * Callers must route this state to the record-only arm after a human
+ * verifies the payment in the HyperPay console.
+ */
+export async function refundOutcomeUnknown(bookingId: string): Promise<boolean> {
+  const latest = await db.query.paymentEvents.findFirst({
+    where: and(
+      eq(paymentEvents.bookingId, bookingId),
+      inArray(paymentEvents.type, [...REFUND_EVENT_TYPES]),
+    ),
+    orderBy: [desc(paymentEvents.createdAt), desc(paymentEvents.id)],
+    columns: { type: true, resultCode: true },
+  });
+  return latest?.type === 'refund_failed' && latest.resultCode === 'EXCEPTION';
+}
+
 /** Newest event of a given type for a booking, if any. */
 export async function latestPaymentEvent(
   bookingId: string,

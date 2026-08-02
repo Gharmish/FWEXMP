@@ -7,6 +7,7 @@ import { serverEnv, hasHyperpay } from '@/lib/env';
 import { bookings, disputes } from '@/db/schema';
 import { redirect } from '@/lib/i18n';
 import { reportError } from '@/lib/log';
+import { notifyAdmin } from '@/lib/admin-alerts';
 import { getCurrentUser } from '@/features/auth/queries';
 import { isAdminUser } from '@/features/admin/auth';
 import {
@@ -20,6 +21,7 @@ import {
   latestPaymentEvent,
   recordPaymentEvent,
   refundInFlight,
+  refundOutcomeUnknown,
   resolvePaymentChannel,
 } from '@/features/payments/ledger';
 import { splitRefund } from '@/features/bookings/lib/refund-split';
@@ -133,19 +135,28 @@ export async function refundBooking(
       (booking.status === 'refunded' && booking.refundDueSar !== null);
     if (!refundable) return { success: false, message: 'wrong_state' };
 
-    // What's actually owed. A stamped manual-queue amount is the card
-    // leg still outstanding (any credit leg already landed — it may be
-    // a partial-policy or card-leg share, less than the full charge).
-    // A fresh refund owes the FULL paid base: the card charge PLUS any
-    // redeemed Gharmish Credit (2026-07-20 audit — this action used to
-    // refund `totalAmount` only, shortchanging part-credit guests their
-    // wallet leg while every other refund path returned it). Split
-    // card-first, same as executeRefund.
+    // What's actually owed. A fresh refund owes the FULL paid base: the
+    // card charge PLUS any redeemed Gharmish Credit (2026-07-20 audit —
+    // this action used to refund `totalAmount` only, shortchanging
+    // part-credit guests their wallet leg while every other refund path
+    // returned it). A stamped manual-queue amount is USUALLY the card
+    // leg still outstanding — but one failure branch (executeRefund's
+    // split-read catch) queues the FULL paid base including the wallet
+    // leg, and treating that as all-card asked the gateway to reverse
+    // more than the capture while the guest's credit was never returned
+    // (2026-08-01 ninth audit). Re-splitting the queued amount
+    // card-first over the same booking columns handles both
+    // provenances: a card-only entry never exceeds the capture so it
+    // stays all-card, a full-base entry routes its remainder back as
+    // credit — and the credit leg's idempotency key absorbs the case
+    // where that credit had already landed.
     const queued = booking.refundDueSar !== null;
     const paidBaseSar = booking.totalAmount + booking.walletAppliedSar;
-    const split = queued
-      ? { cardRefundSar: booking.refundDueSar ?? 0, creditRefundSar: 0 }
-      : splitRefund(paidBaseSar, booking.totalAmount, booking.walletAppliedSar);
+    const split = splitRefund(
+      queued ? Math.min(booking.refundDueSar ?? 0, paidBaseSar) : paidBaseSar,
+      booking.totalAmount,
+      booking.walletAppliedSar,
+    );
     const owedSar = split.cardRefundSar;
 
     // Never step into another flow's live gateway round-trip
@@ -160,6 +171,18 @@ export async function refundBooking(
     if (await refundInFlight(booking.id)) {
       return { success: false, message: 'wrong_state' };
     }
+
+    // Did the LAST gateway attempt end with an unknown outcome (the
+    // call threw — `refund_failed` / `EXCEPTION`)? The reversal may
+    // have landed at HyperPay with nothing in our ledger to dedupe
+    // against, so firing the gateway "again" could be a second live
+    // reversal (2026-08-01 ninth audit). The action still proceeds —
+    // recording the refund is the whole point of settling a queue
+    // entry — but the gateway arm below is skipped and the admin is
+    // told to verify the payment in the HyperPay console and reverse
+    // manually there if it never landed. Read failure throws to the
+    // outer catch → `server`: never move money on an unknown ledger.
+    const gatewayOutcomeUnknown = await refundOutcomeUnknown(booking.id);
 
     // CLAIM FIRST, move money second. The conditional UPDATE is the
     // per-booking arbiter: two admins (or two tabs) racing on the same
@@ -238,8 +261,21 @@ export async function refundBooking(
       booking.paymentReference &&
       owedSar > 0
     ) {
-      const alreadyRefunded = await latestPaymentEvent(booking.id, 'refund_succeeded');
-      if (!alreadyRefunded) {
+      if (gatewayOutcomeUnknown) {
+        await notifyAdmin('refund_due', {
+          bookingId: booking.id,
+          amountSar: owedSar,
+          problem:
+            'last gateway refund attempt ended with an UNKNOWN outcome — ' +
+            'verify the payment in the HyperPay console; reverse there manually ' +
+            'only if the earlier attempt never landed. This action recorded the ' +
+            'refund without touching the gateway.',
+        });
+      }
+      const alreadyRefunded = gatewayOutcomeUnknown
+        ? null
+        : await latestPaymentEvent(booking.id, 'refund_succeeded');
+      if (!alreadyRefunded && !gatewayOutcomeUnknown) {
         try {
           // Reverse on the entity that captured (Apple Pay refunds only
           // land on the Apple Pay entity) — same rule as executeRefund.

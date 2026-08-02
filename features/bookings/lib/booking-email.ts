@@ -24,10 +24,17 @@ import { renderBookingIcs } from './booking-ics';
 import { renderReceiptEmail, type ReceiptRow } from './booking-email-render';
 
 /**
- * Bidi-isolate a strongly-LTR value (URL, `GH-XXXXXX` reference) bound
- * for an Arabic WhatsApp template body. FSI…PDI (U+2068/U+2069) stops
+ * Bidi-isolate a strongly-LTR TOKEN (`GH-XXXXXX` reference) bound for
+ * an Arabic WhatsApp template body. FSI…PDI (U+2068/U+2069) stops
  * adjacent Arabic punctuation from reordering around the run; invisible
  * and harmless in LTR bodies, so applied unconditionally.
+ *
+ * NEVER wrap a URL variable (2026-08-01 ninth audit): an invisible
+ * U+2068 abutting `https://` defeats WhatsApp's linkifier on some
+ * clients, rendering the link as plain untappable text — and the
+ * invoice-link variable is the phone-only guest's ONLY path to their
+ * tax document. URLs stand on their own template lines; a slightly
+ * reordered bracket next to a link is cosmetic, a dead link is not.
  */
 function bidiIsolate(value: string): string {
   return `\u2068${value}\u2069`;
@@ -152,7 +159,13 @@ export async function sendBookingReceiptEmail(reference: string): Promise<void> 
       : null;
   const vatSar = vat ? vatPortionSar(booking.totalAmountSar, vat.rateBps) : 0;
   const taxableSar = booking.totalAmountSar - vatSar;
-  const unitSar = Math.round(booking.totalAmountSar / booking.partySize);
+  // Exact-only unit price, matching the invoice page (2026-08-01 ninth
+  // audit): a rounded unit made qty × unit ≠ total on non-divisible
+  // totals — omitted rather than fudged on a tax document.
+  const unitSar =
+    booking.totalAmountSar % booking.partySize === 0
+      ? booking.totalAmountSar / booking.partySize
+      : null;
   const billedName = booking.billedName ?? booking.guestName;
   const brandLabel = paymentBrandLabel(booking.paymentBrand, locale);
   const documentTitle = vat ? ti('taxInvoiceTitle') : ti('receiptTitle');
@@ -170,7 +183,9 @@ export async function sendBookingReceiptEmail(reference: string): Promise<void> 
   rows.push({ label: t('dateLabel'), value: formatDate(startsAt, locale, 'gregory', KSA_DATE) });
   rows.push({ label: t('timeLabel'), value: formatTime(startsAt, locale, KSA_TIME) });
   rows.push({ label: t('partyLabel'), value: formatInteger(booking.partySize, locale) });
-  rows.push({ label: ti('unitPriceLabel'), value: formatSAR(unitSar, locale) });
+  if (unitSar !== null) {
+    rows.push({ label: ti('unitPriceLabel'), value: formatSAR(unitSar, locale) });
+  }
   if (vat) {
     rows.push({ label: ti('taxableLabel'), value: formatSAR(taxableSar, locale) });
     rows.push({
@@ -187,7 +202,7 @@ export async function sendBookingReceiptEmail(reference: string): Promise<void> 
   // --- Invoice PDF attachment: the keepable document, delivered inline. -
   // Built only when there's an email to attach it to — phone-only guests
   // get the WhatsApp confirmation with the invoice-page link instead.
-  const attachments = !booking.guestEmail
+  const pdfAttachments = !booking.guestEmail
     ? []
     : await buildInvoicePdfAttachment({
         booking,
@@ -206,6 +221,13 @@ export async function sendBookingReceiptEmail(reference: string): Promise<void> 
         ti,
         t,
       });
+  // Whether the PDF specifically made it in — the .ics below also lands
+  // in `attachments`, so gating the "your receipt is attached as a PDF"
+  // copy on the combined list claimed a tax document was attached when
+  // only the calendar file was (PDF render failed; 2026-08-01 ninth
+  // audit).
+  const hasInvoicePdf = pdfAttachments.length > 0;
+  const attachments = [...pdfAttachments];
 
   const invoiceUrl = `${SITE_URL}/${locale}/book/confirmed/${reference}/invoice`;
   const manageUrl = `${SITE_URL}/${locale}/book/confirmed/${reference}`;
@@ -258,7 +280,7 @@ export async function sendBookingReceiptEmail(reference: string): Promise<void> 
     subject,
     dir: locale === 'ar' ? 'rtl' : 'ltr',
     greeting: t('greeting', { name: booking.guestName }),
-    intro: attachments.length > 0 ? t('introWithPdf') : t('intro'),
+    intro: hasInvoicePdf ? t('introWithPdf') : t('intro'),
     heroImage: emailHero(experience, title),
     rows,
     cta: { label: t('viewInvoice'), url: invoiceUrl },
@@ -293,7 +315,7 @@ export async function sendBookingReceiptEmail(reference: string): Promise<void> 
         // Vars 6–7 are ignored by the live v1 template and light up with
         // the v2 body (invoice link + amount) once Meta approves it —
         // they close the phone-only guest's path to their tax document.
-        '6': bidiIsolate(invoiceUrl),
+        '6': invoiceUrl,
         '7': formatSAR(booking.totalAmountSar, locale),
         // Var 8 is the media header URL (used only by the _media template).
         ...(booking.experienceSlug ? { '8': ogCardUrl(booking.experienceSlug, locale) } : {}),
@@ -313,7 +335,7 @@ interface InvoicePdfAttachmentArgs {
   vat: { rateBps: number; number: string } | null;
   vatSar: number;
   taxableSar: number;
-  unitSar: number;
+  unitSar: number | null;
   billedName: string;
   brandLabel: string | null;
   ti: Awaited<ReturnType<typeof getTranslations<'invoice'>>>;
@@ -353,7 +375,9 @@ async function buildInvoicePdfAttachment(
       { label: t('dateLabel'), value: numericDate(args.startsAt) },
       { label: t('timeLabel'), value: latinTime(args.startsAt) },
       { label: t('partyLabel'), value: formatInteger(booking.partySize, locale) },
-      { label: ti('unitPriceLabel'), value: formatSAR(args.unitSar, locale) },
+      ...(args.unitSar !== null
+        ? [{ label: ti('unitPriceLabel'), value: formatSAR(args.unitSar, locale) }]
+        : []),
     ];
 
     const totalRows: InvoicePdfRow[] = vat
@@ -583,7 +607,7 @@ export async function sendBookingCancellationEmail(
         // Vars 6–7 are inert on the live v1 template; the v2 body adds
         // the refund outcome and a link to the document/booking page.
         '6': waOutcome,
-        '7': bidiIsolate(cancelCtaUrl),
+        '7': cancelCtaUrl,
       },
     },
   });
@@ -646,7 +670,7 @@ export async function sendBookingRescheduledEmail(
         ...guestLifecycleVariables(booking, details, locale, t('genericExperience')),
         // Var 6 (booking page) for the template body — this key has no
         // approved template yet, so the whole payload waits on its SID.
-        '6': bidiIsolate(bookingUrl),
+        '6': bookingUrl,
       },
     },
   });
@@ -803,7 +827,7 @@ export async function sendBookingPrepareReminderEmail(
         // Never a reference code posing as a meeting point — fall back
         // to the booking page where the real details live.
         '5': placeName ?? title ?? t('genericExperience'),
-        '6': bidiIsolate(mapUrl ?? manageUrl),
+        '6': mapUrl ?? manageUrl,
         // Var 7 is the media header URL (used only by the _media template).
         ...(booking.experienceSlug ? { '7': ogCardUrl(booking.experienceSlug, locale) } : {}),
       },
@@ -864,7 +888,7 @@ export async function sendBookingDepartureReminderEmail(
         '1': booking.guestName,
         '2': placeName ?? title ?? t('genericExperience'),
         '3': time,
-        '4': bidiIsolate(mapUrl ?? `${SITE_URL}/${locale}/book/confirmed/${reference}`),
+        '4': mapUrl ?? `${SITE_URL}/${locale}/book/confirmed/${reference}`,
       },
     },
   });
@@ -1044,9 +1068,7 @@ export async function sendBookingApprovedEmail(reference: string): Promise<void>
         // Var 5 is the action link: the payment page while payment is
         // due, the booking page otherwise (the template copy reads
         // "details and next steps" either way).
-        '5': bidiIsolate(
-          needsPayment ? payUrl : `${SITE_URL}/${locale}/book/confirmed/${reference}`,
-        ),
+        '5': needsPayment ? payUrl : `${SITE_URL}/${locale}/book/confirmed/${reference}`,
       },
     },
   });
@@ -1293,7 +1315,7 @@ export async function sendHostNewBookingEmail(reference: string): Promise<void> 
         '5': formatSAR(payoutSar, host.locale),
         // Var 6 (dashboard link) is inert on the live v1 template; the
         // v2 body replaces the bare-domain literal with this variable.
-        '6': bidiIsolate(hostBookingsUrl(host.locale)),
+        '6': hostBookingsUrl(host.locale),
       },
     },
   });
@@ -1338,7 +1360,7 @@ export async function sendHostGuestCancelledEmail(reference: string): Promise<vo
         '2': formatDate(startsAt, host.locale),
         '3': formatTime(startsAt, host.locale),
         // Var 4 (dashboard link) — inert until the v2 body references it.
-        '4': bidiIsolate(hostBookingsUrl(host.locale)),
+        '4': hostBookingsUrl(host.locale),
       },
     },
   });
@@ -1392,7 +1414,7 @@ export async function sendHostBookingRescheduledEmail(
         '2': formatDate(startsAt, host.locale),
         '3': formatTime(startsAt, host.locale),
         // Var 4 (dashboard link) for the not-yet-authored template body.
-        '4': bidiIsolate(hostBookingsUrl(host.locale)),
+        '4': hostBookingsUrl(host.locale),
       },
     },
   });
@@ -1487,7 +1509,7 @@ export async function sendHostPaymentReceivedEmail(reference: string): Promise<v
         '3': formatTime(startsAt, host.locale),
         '4': formatSAR(payoutSar, host.locale),
         // Var 5 (dashboard link) — inert until the v2 body references it.
-        '5': bidiIsolate(hostBookingsUrl(host.locale)),
+        '5': hostBookingsUrl(host.locale),
       },
     },
   });

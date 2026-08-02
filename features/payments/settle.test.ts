@@ -435,6 +435,36 @@ describe('settleBooking', () => {
     expect(ledgerEvents.map((e) => e.type)).toEqual(['settle_failed']);
   });
 
+  it('guards the failed flip on paid-ness AND the checkout it verified', async () => {
+    // 2026-08-01 ninth audit: a slow decline poll against checkout A can
+    // lose to a concurrent settle of a fresh checkout B (supersession on
+    // channel switch / reuse expiry). Without `ne('paid')` + the
+    // checkoutId re-assert, that stale rejection flipped a PAID booking
+    // to `failed` — cron Pass 1 then cancelled it and the real capture
+    // ended orphaned with no alert. The fix lives ENTIRELY in this WHERE.
+    gatewayStatus = { id: 'pay-1', result: { code: '800.100.151' } };
+
+    await settleBooking('ref-1');
+
+    expect(whereColumns).toHaveLength(1);
+    expect(whereColumns[0]).toEqual(
+      expect.arrayContaining(['id', 'paymentStatus', 'checkoutId']),
+    );
+  });
+
+  it('returns not_found for a reference matching no booking — permanent, so the webhook ACKs', async () => {
+    // Cross-environment webhook traffic / test-entity noise: there is
+    // nothing to settle and never will be. `error` here made OPPWA
+    // redeliver the notification forever.
+    booking = undefined;
+
+    const outcome = await settleBooking('ref-nope');
+
+    expect(outcome).toBe('not_found');
+    expect(setCalls).toHaveLength(0);
+    expect(ledgerEvents).toHaveLength(0);
+  });
+
   it('leaves a still-pending payment untouched', async () => {
     gatewayStatus = { id: 'pay-1', result: { code: '000.200.000' } };
 

@@ -111,7 +111,15 @@ export default async function BookingInvoicePage({ params }: PageParams) {
       : null;
   const vatSar = vat ? vatPortionSar(booking.totalAmountSar, vat.rateBps) : 0;
   const taxableSar = booking.totalAmountSar - vatSar;
-  const unitSar = Math.round(booking.totalAmountSar / booking.partySize);
+  // Unit price only when it's EXACT (2026-08-01 ninth audit): a rounded
+  // unit made qty × unit ≠ total on non-divisible totals (3 × 33 = 99
+  // vs 100) — a printed arithmetic inconsistency on a tax document. A
+  // simplified tax invoice doesn't mandate the line, so it's omitted
+  // rather than fudged when the division isn't whole.
+  const unitSar =
+    booking.totalAmountSar % booking.partySize === 0
+      ? booking.totalAmountSar / booking.partySize
+      : null;
   const brand = booking.paymentBrand ? BRAND_NAMES[booking.paymentBrand] : undefined;
   // TWO separate gates (2026-07-28 sixth audit — the fifth-audit change
   // conflated them and deleted the credit note for every partial AND
@@ -261,12 +269,14 @@ export default async function BookingInvoicePage({ params }: PageParams) {
             <dt className={labelClass}>{t('qtyLabel')}</dt>
             <dd>{formatInteger(booking.partySize, loc)}</dd>
           </div>
-          <div className="flex items-baseline justify-between text-sm">
-            <dt className={labelClass}>{t('unitPriceLabel')}</dt>
-            <dd>
-              <Price amount={unitSar} locale={loc} />
-            </dd>
-          </div>
+          {unitSar !== null && (
+            <div className="flex items-baseline justify-between text-sm">
+              <dt className={labelClass}>{t('unitPriceLabel')}</dt>
+              <dd>
+                <Price amount={unitSar} locale={loc} />
+              </dd>
+            </div>
+          )}
         </dl>
       </section>
 

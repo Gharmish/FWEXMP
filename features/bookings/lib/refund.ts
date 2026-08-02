@@ -233,17 +233,24 @@ export async function executeRefund(
           .update(bookings)
           .set({
             status: 'refunded',
-            refundedAt: new Date(),
             refundDueSar: null,
-            refundMethod: 'gateway',
             // `card_only` (refund-out) converts an ALREADY-stamped wallet
             // refund into card money — restamping would double-count it.
+            // It also keeps the ORIGINAL refund's audit trail
+            // (2026-08-01 ninth audit): overwriting `refundedAt` moved a
+            // months-old refund into the current reporting window, and
+            // overwriting `refundMethod` erased the record that the
+            // refund was delivered as wallet credit.
             ...(rails === 'auto'
               ? {
+                  refundedAt: new Date(),
+                  refundMethod: 'gateway' as const,
                   refundedAmountSar: journalRefund(amountSar),
                   forfeitedSar: clearForfeitWhenFullyRefunded(amountSar),
                 }
-              : {}),
+              : {
+                  refundedAt: sql`coalesce(${bookings.refundedAt}, now())`,
+                }),
           })
           .where(eq(bookings.id, bookingId));
         if (rails === 'auto') {
@@ -278,9 +285,12 @@ export async function executeRefund(
       // platform owes a guest (2026-07-28 third audit).
       //
       // `resultCode: 'EXCEPTION'` marks it as an unknown outcome rather
-      // than a gateway rejection: the reversal MAY have landed, so the
-      // admin action's `refund_succeeded` check still applies and the
-      // `refund_due` alert below brings a human in.
+      // than a gateway rejection: the reversal MAY have landed. No
+      // `refund_succeeded` exists to dedupe against on this path — the
+      // admin action instead checks `refundOutcomeUnknown()` and refuses
+      // its auto-gateway arm until a human verifies the payment in the
+      // HyperPay console (2026-08-01 ninth audit; the previous comment
+      // claimed the succeeded-check covered this, which it cannot).
       try {
         await recordPaymentEvent({
           bookingId,

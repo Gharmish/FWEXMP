@@ -471,8 +471,15 @@
         "taxable": "الخاضع للضريبة",
         "vat": "الضريبة",
         "rate": "النسبة %",
-        "refunded": "مستردّة"
-      }
+        "refunded": "مستردّة",
+        "refundedAtCol": "تاريخ الاسترداد",
+        "salePaidAt": "تاريخ دفع العملية",
+        "reversedGross": "الإجمالي المعكوس",
+        "reversedVat": "الضريبة المعكوسة"
+      },
+      "csvRiyadhNote": "بتوقيت الرياض",
+      "creditDetailHeading": "الإشعارات الدائنة خلال الفترة",
+      "downloadCreditCsv": "تنزيل الإشعارات الدائنة (CSV)"
     },
     "activityLog": {
       "eyebrow": "النشاط",

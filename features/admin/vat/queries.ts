@@ -3,7 +3,11 @@ import { db } from '@/lib/db';
 import { bookings } from '@/db/schema';
 import { reportError } from '@/lib/log';
 import { adminGuard } from '@/features/admin/guard';
-import { rolling12mTurnoverExpr, vatPortionExpr } from '@/features/bookings/lib/payout-sql';
+import {
+  commissionExpr,
+  rolling12mTurnoverExpr,
+  vatPortionExpr,
+} from '@/features/bookings/lib/payout-sql';
 import { getPlatformSettings } from '@/lib/platform-settings';
 import { toInstantBounds, type DateRange } from '@/features/admin/dashboard/lib/date-range';
 
@@ -29,6 +33,23 @@ export interface VatReportRow {
   refundedAt: string | null;
 }
 
+/**
+ * One credit note, keyed by `refunded_at` — its sale may have been
+ * declared in an EARLIER period, so these rows are the only way the
+ * period's credit-note aggregate can be substantiated line by line
+ * (2026-08-01 ninth audit: the aggregate existed but no exported row
+ * carried a refunded amount, so a filed figure had no workpaper).
+ */
+export interface VatCreditNoteRow {
+  referenceCode: string;
+  refundedAt: string;
+  /** ISO instant the original sale settled (its declaration period). */
+  paidAt: string;
+  reversedGrossSar: number;
+  reversedVatSar: number;
+  rateBps: number;
+}
+
 export interface VatReport {
   vatEnabled: boolean;
   /** Output (sales) side, paid_at in range. */
@@ -40,6 +61,8 @@ export interface VatReport {
   creditCount: number;
   creditGrossSar: number;
   creditVatSar: number;
+  /** Line-by-line substantiation of the credit aggregates above. */
+  creditRows: readonly VatCreditNoteRow[];
   /** Output VAT minus credit-note reversals for the range. */
   netVatDueSar: number;
   /** Paid in range with NO VAT stamp — should be 0 while VAT is on. */
@@ -74,8 +97,10 @@ export async function getVatReport(range: DateRange): Promise<VatReport | null> 
     const refundedInRange = sql`${bookings.refundedAt} >= ${ts(start)} and ${bookings.refundedAt} < ${ts(endExclusive)}`;
     const stamped = sql`${bookings.vatRateBps} is not null`;
     const paid12m = sql`${bookings.paidAt} >= now() - interval '365 days'`;
-    // Commission on the ex-VAT net — mirrors splitCommission/payoutExpr.
-    const commission = sql`round((${bookings.totalAmount} - ${vat}) * least(10000, greatest(0, ${bookings.commissionBps}))::numeric / 10000)`;
+    // THE shared commission expression (2026-08-01 ninth audit — this
+    // was a hand-inlined near-copy that ALSO dropped the platform-funded
+    // discount/credit from the base, understating real commission).
+    const commission = commissionExpr();
     // What a credit note actually reverses: the CARD leg returned, not
     // the whole invoice (2026-07-28 fifth audit). `executeRefund` sets
     // status='refunded' on any successful refund, and two live policy
@@ -84,9 +109,9 @@ export async function getVatReport(range: DateRange): Promise<VatReport | null> 
     // contradicting the credit note the guest was actually issued.
     // Mirrors the invoice page's `min(refundedAmountSar, total)`.
     const reversedGross = sql`least(coalesce(${bookings.refundedAmountSar}, ${bookings.totalAmount}), ${bookings.totalAmount})`;
-    const reversedVat = sql`coalesce(round(${reversedGross} * ${bookings.vatRateBps}::numeric / (10000 + ${bookings.vatRateBps})), 0)::int`;
+    const reversedVat = sql<number>`coalesce(round(${reversedGross} * ${bookings.vatRateBps}::numeric / (10000 + ${bookings.vatRateBps})), 0)::int`;
 
-    const [[agg], rowsRaw, settings] = await Promise.all([
+    const [[agg], rowsRaw, creditRowsRaw, settings] = await Promise.all([
       db
         .select({
           outputCount: sql<number>`count(*) filter (where ${stamped} and ${paidInRange})::int`,
@@ -128,6 +153,22 @@ export async function getVatReport(range: DateRange): Promise<VatReport | null> 
         .where(sql`${stamped} and ${paidInRange}`)
         .orderBy(desc(bookings.paidAt))
         .limit(ROWS_LIMIT + 1),
+      // Credit-note detail: EXACTLY the rows behind creditCount /
+      // creditGrossSar / creditVatSar (same predicates), so the table
+      // and CSV sum to the filed aggregate.
+      db
+        .select({
+          referenceCode: bookings.referenceCode,
+          refundedAt: bookings.refundedAt,
+          paidAt: bookings.paidAt,
+          reversedGrossSar: sql<number>`${reversedGross}::int`,
+          reversedVatSar: reversedVat,
+          rateBps: bookings.vatRateBps,
+        })
+        .from(bookings)
+        .where(sql`${stamped} and ${bookings.status} = 'refunded' and ${refundedInRange}`)
+        .orderBy(desc(bookings.refundedAt))
+        .limit(ROWS_LIMIT),
       getPlatformSettings(),
     ]);
 
@@ -145,6 +186,15 @@ export async function getVatReport(range: DateRange): Promise<VatReport | null> 
       refundedAt: r.refundedAt?.toISOString() ?? null,
     }));
 
+    const creditRows = creditRowsRaw.map<VatCreditNoteRow>((r) => ({
+      referenceCode: r.referenceCode,
+      refundedAt: r.refundedAt?.toISOString() ?? '',
+      paidAt: r.paidAt?.toISOString() ?? '',
+      reversedGrossSar: r.reversedGrossSar,
+      reversedVatSar: r.reversedVatSar,
+      rateBps: r.rateBps ?? 0,
+    }));
+
     return {
       vatEnabled: settings.vatEnabled,
       outputCount: agg.outputCount,
@@ -154,6 +204,7 @@ export async function getVatReport(range: DateRange): Promise<VatReport | null> 
       creditCount: agg.creditCount,
       creditGrossSar: agg.creditGrossSar,
       creditVatSar: agg.creditVatSar,
+      creditRows,
       netVatDueSar: agg.outputVatSar - agg.creditVatSar,
       unstampedPaidCount: agg.unstampedPaidCount,
       rows,
