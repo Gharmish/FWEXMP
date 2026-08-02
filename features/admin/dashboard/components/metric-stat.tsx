@@ -26,7 +26,7 @@ export function MetricStat({ label, value, locale, growth, newLabel, hint }: Met
     <div className="flex flex-col gap-1">
       <span
         className={cn(
-          'text-sarat-black-600 text-[11px]',
+          'text-sarat-black-600 text-[11px] font-medium',
           locale === 'en' && 'tracking-[0.2em] uppercase',
         )}
       >

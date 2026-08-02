@@ -308,7 +308,7 @@ export function HostApplyForm({
   }
 
   const sectionLabel = cn(
-    'text-sarat-black-600 text-[11px]',
+    'text-sarat-black-600 font-medium text-[11px]',
     locale === 'en' && 'tracking-[0.2em] uppercase',
   );
   const isIndividual = identityType === 'national_id';

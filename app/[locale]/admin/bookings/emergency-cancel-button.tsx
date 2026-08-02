@@ -78,7 +78,7 @@ export function EmergencyCancelButton({ bookingId, locale, copy }: EmergencyCanc
             rows={3}
             placeholder={copy.reasonPlaceholder}
             defaultValue={state.values?.reason ?? ''}
-            className="border-sarat-black/15 rounded-input focus-visible:border-sarat-black w-full resize-y border bg-white px-3 py-2 text-sm outline-none"
+            className="border-sarat-black/15 rounded-input focus-visible:border-sarat-black w-full resize-y [border-width:0.5px] bg-white px-3 py-2 text-sm outline-none"
           />
         </div>
         <div className="flex flex-col items-start gap-1">

@@ -38,7 +38,7 @@ export default async function AdminDisputesPage({
   const resolved = (rows ?? []).filter((r) => r.status === 'resolved');
 
   const eyebrowClassName = cn(
-    'text-sarat-black-600 text-[11px]',
+    'text-sarat-black-600 font-medium text-[11px]',
     loc === 'en' && 'tracking-[0.2em] uppercase',
   );
 
@@ -75,8 +75,8 @@ export default async function AdminDisputesPage({
         <Badge
           className={
             row.status === 'open'
-              ? 'bg-al-qatt-red/15 text-al-qatt-red'
-              : 'bg-juniper-green/15 text-juniper-green'
+              ? 'bg-error-surface text-error'
+              : 'bg-success-surface text-success'
           }
         >
           {t(`disputes.status.${row.status}`)}

@@ -18,7 +18,7 @@ export interface HostCtaProps {
 export async function HostCta({ locale }: HostCtaProps) {
   const t = await getTranslations('home.hostCta');
   const eyebrowClassName = cn(
-    'text-saffron-gold text-[11px]',
+    'text-saffron-gold font-medium text-[11px]',
     locale === 'en' && 'tracking-[0.2em] uppercase',
   );
 

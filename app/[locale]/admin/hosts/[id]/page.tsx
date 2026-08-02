@@ -31,23 +31,23 @@ export async function generateMetadata({
 }
 
 const STATUS_TONE: Record<HostVerificationStatus, string> = {
-  verified: 'bg-juniper-green/15 text-juniper-green',
-  pending: 'bg-saffron-gold/20 text-sarat-black',
-  suspended: 'bg-al-qatt-red/15 text-al-qatt-red',
+  verified: 'bg-success-surface text-success',
+  pending: 'bg-pending-surface text-pending',
+  suspended: 'bg-error-surface text-error',
 };
 
 const EXP_STATUS_TONE: Record<AdminHostExperienceRow['status'], string> = {
   draft: 'bg-sarat-black/8 text-sarat-black',
-  pending_review: 'bg-saffron-gold/20 text-sarat-black',
+  pending_review: 'bg-pending-surface text-pending',
   changes_requested: 'bg-rijal-clay/15 text-rijal-clay',
-  live: 'bg-juniper-green/15 text-juniper-green',
-  paused: 'bg-saffron-gold/20 text-sarat-black',
+  live: 'bg-success-surface text-success',
+  paused: 'bg-pending-surface text-pending',
   archived: 'bg-sarat-black/8 text-sarat-black',
 };
 
 const EVENT_TONE: Record<HostStatusEventType, string> = {
-  suspended: 'bg-al-qatt-red/15 text-al-qatt-red',
-  restored: 'bg-juniper-green/15 text-juniper-green',
+  suspended: 'bg-error-surface text-error',
+  restored: 'bg-success-surface text-success',
 };
 
 export default async function AdminHostDetailPage({
@@ -63,7 +63,7 @@ export default async function AdminHostDetailPage({
   if (block?.reason === 'no_db') {
     const t = await getTranslations('admin');
     const eyebrowClassName = cn(
-      'text-sarat-black-600 text-[11px]',
+      'text-sarat-black-600 font-medium text-[11px]',
       loc === 'en' && 'tracking-[0.2em] uppercase',
     );
     return (
@@ -91,7 +91,7 @@ export default async function AdminHostDetailPage({
 
   const t = await getTranslations('admin');
   const eyebrowClassName = cn(
-    'text-sarat-black-600 text-[11px]',
+    'text-sarat-black-600 font-medium text-[11px]',
     loc === 'en' && 'tracking-[0.2em] uppercase',
   );
 

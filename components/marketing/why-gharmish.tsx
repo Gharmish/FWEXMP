@@ -18,7 +18,7 @@ export interface WhyGharmishProps {
 export async function WhyGharmish({ locale }: WhyGharmishProps) {
   const t = await getTranslations('home.whyGharmish');
   const eyebrowClassName = cn(
-    'text-sarat-black-600 text-[11px]',
+    'text-sarat-black-600 font-medium text-[11px]',
     locale === 'en' && 'tracking-[0.2em] uppercase',
   );
 

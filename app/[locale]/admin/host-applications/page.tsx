@@ -26,9 +26,9 @@ export async function generateMetadata({
 }
 
 const STATUS_TONE: Record<HostApplicationStatus, string> = {
-  pending: 'bg-saffron-gold/20 text-sarat-black',
-  approved: 'bg-juniper-green/15 text-juniper-green',
-  rejected: 'bg-al-qatt-red/15 text-al-qatt-red',
+  pending: 'bg-pending-surface text-pending',
+  approved: 'bg-success-surface text-success',
+  rejected: 'bg-error-surface text-error',
 };
 
 export default async function AdminHostApplicationsPage({
@@ -47,7 +47,7 @@ export default async function AdminHostApplicationsPage({
   ]);
 
   const eyebrowClassName = cn(
-    'text-sarat-black-600 text-[11px]',
+    'text-sarat-black-600 font-medium text-[11px]',
     loc === 'en' && 'tracking-[0.2em] uppercase',
   );
 

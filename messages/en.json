@@ -1,4 +1,8 @@
 {
+  "siteMeta": {
+    "name": "Gharmish",
+    "description": "Experiences hosted by the people who know Aseer best."
+  },
   "nav": {
     "discover": "Discover",
     "signIn": "Sign in",
@@ -52,7 +56,7 @@
       "bookingsTitle": "Bookings",
       "bookingDetailTitle": "Booking detail",
       "activityTitle": "Activity log",
-      "catalogTitle": "Catalog & coverage",
+      "catalogTitle": "Catalogue & coverage",
       "disputesTitle": "Disputes",
       "vatTitle": "VAT",
       "createExperienceTitle": "Create experience",
@@ -176,7 +180,7 @@
           "bookings": "Bookings & conversion",
           "demand": "Demand & growth",
           "supply": "Supply & hosts",
-          "catalog": "Catalog & quality",
+          "catalog": "Catalogue & quality",
           "health": "Marketplace health"
         },
         "revenue": {
@@ -337,7 +341,7 @@
         "description": "Look up a guest by name, phone, or email and see their full booking history."
       },
       "catalog": {
-        "title": "Catalog & coverage",
+        "title": "Catalogue & coverage",
         "description": "Manage bookable categories and operating cities, and see where experience supply is thin."
       },
       "settings": {
@@ -392,7 +396,7 @@
       "approvalPaymentHint": "How long a guest has to complete payment after their request is accepted, before the held spot is released.",
       "hoursSuffix": "hours",
       "vatLabel": "Tax (VAT)",
-      "vatHint": "Keep this off until Gharmish is VAT-registered with ZATCA (registration becomes mandatory at 375,000 SAR revenue over 12 months). While off, no VAT is mentioned anywhere. Turning it on never changes guest prices — the rate is disclosed as a portion of the same VAT-inclusive total on payments settled from that moment.",
+      "vatHint": "Keep this off until Gharmish is VAT-registered with ZATCA (registration becomes mandatory at SAR 375,000 revenue over 12 months). While off, no VAT is mentioned anywhere. Turning it on never changes guest prices — the rate is disclosed as a portion of the same VAT-inclusive total on payments settled from that moment.",
       "vatToggleLabel": "Collect VAT on new payments",
       "vatRateLabel": "VAT rate",
       "vatRateSuffix": "%",
@@ -403,7 +407,7 @@
       "vatConfirmAction": "Turn on VAT and save"
     },
     "catalog": {
-      "eyebrow": "Catalog",
+      "eyebrow": "Catalogue",
       "intro": "Which categories guests can book, which cities Gharmish operates in, and where the catalogue is thin. Disabling either never touches experiences that are already live.",
       "categoriesTitle": "Categories",
       "categoriesHint": "Turn a category off to hide it from the home page, search, and new-experience forms. Live experiences in it stay live.",
@@ -822,7 +826,7 @@
       "title": "How Gharmish is doing.",
       "intro": "GMV is gross merchandise value — money moving through the platform on confirmed and completed bookings, net of refunds. Cancellations and pending requests are counted separately.",
       "generatedOn": "Snapshot taken {date}",
-      "catalogHeading": "Catalog",
+      "catalogHeading": "Catalogue",
       "windowsHeading": "Activity",
       "sparkHeading": "Bookings — last 30 days",
       "sparkSubtitle": "One bar per day. Confirmed + completed bookings only.",
@@ -1403,7 +1407,7 @@
   },
   "hostApply": {
     "meta": {
-      "title": "Host with us"
+      "title": "Apply to host"
     },
     "eyebrow": "Host with us",
     "title": "Co-create an experience with Gharmish.",
@@ -1488,7 +1492,7 @@
       "submit": "Submit application",
       "resubmit": "Resubmit application",
       "pending": "Sending",
-      "browseExperiences": "Browse the catalog",
+      "browseExperiences": "Browse the catalogue",
       "backToAccount": "Back to your activity"
     },
     "status": {
@@ -1525,7 +1529,7 @@
       "step1": "We review your application and get in touch on WhatsApp to schedule a short call.",
       "step2": "If we're a fit, we'll talk through payouts, licensing, and the experience you'd love to host.",
       "step3": "You'll get a host account with the tools to draft your first listing — and we'll co-produce the photography.",
-      "browseExperiences": "Browse the catalog",
+      "browseExperiences": "Browse the catalogue",
       "backToAccount": "Back to your activity"
     },
     "errors": {
@@ -1633,7 +1637,7 @@
     },
     "actions": {
       "viewPublicProfile": "View public profile",
-      "browseCatalog": "Browse the catalog",
+      "browseCatalog": "Browse the catalogue",
       "viewBookings": "Manage bookings",
       "viewEarnings": "Earnings",
       "viewReviews": "Reviews"
@@ -2228,7 +2232,7 @@
     },
     "eyebrow": "Abha experiences",
     "title": "Explore authentic Aseeri experiences.",
-    "intro": "A curated collection of heritage, mountain, food, wellness, adventure, and family activities hosted by vetted local partners.",
+    "intro": "A curated collection of heritage, mountain, food, wellness, adventure, and family experiences hosted by vetted local partners.",
     "featured": "Featured Originals",
     "all": "All experiences",
     "results": "{count, plural, =0 {No experiences} =1 {1 experience} other {# experiences}}",
@@ -2365,7 +2369,7 @@
     },
     "requestToBook": "Request to book",
     "translationPending": "Translation pending.",
-    "instantBadge": "Instant Book — confirmed right away",
+    "instantBadge": "Instant book — confirmed right away",
     "womenOnlyBadge": "Women only",
     "requestBadge": "Request to book",
     "freeCancellation": "Free cancellation until {hours}h before",
@@ -2439,7 +2443,7 @@
     "noDates": "No open dates in the next 8 weeks. Check back soon, or message the host.",
     "prevMonth": "Previous month",
     "nextMonth": "Next month",
-    "modeInstant": "Instant Book — pay now and your spot is confirmed right away.",
+    "modeInstant": "Instant book — pay now and your spot is confirmed right away.",
     "modeRequest": "Request to book — the host responds within {hours} hours. You won't be charged until they accept.",
     "runsOn": "Runs on {days}.",
     "vatIncluded": "Includes VAT ({pct}%)",
@@ -2986,7 +2990,7 @@
     "emptyTitle": "Start exploring.",
     "emptyDescription": "Save experiences with the heart icon, or send a booking request from any experience page. We'll keep track here.",
     "emptyCta": "Browse experiences",
-    "bookingsEyebrow": "Your trips",
+    "bookingsEyebrow": "Your bookings",
     "bookingsTitle": "All your bookings",
     "lastBookingEyebrow": "Last request",
     "lastBookingFallbackTitle": "Your booking request",
@@ -3167,13 +3171,13 @@
       "heading": "For guests",
       "intro": "Booking takes a few minutes, and you always know where you stand.",
       "step1": "Browse experiences and pick a date — every listing shows its real availability calendar.",
-      "step2": "Book it: Instant Book experiences confirm right away; request-to-book experiences go to the host, who responds within {hours} hours.",
+      "step2": "Book it: Instant book experiences confirm right away; request-to-book experiences go to the host, who responds within {hours} hours.",
       "step3": "Pay securely with mada, Visa, or Mastercard. For requests, you only pay after the host accepts.",
       "step4": "Get your e-ticket and a WhatsApp line to your host. Show up — everything else is arranged."
     },
     "bookingTypes": {
-      "heading": "Instant Book vs. Request to book",
-      "instant": "Instant Book — marked with a lightning badge. Your spot is confirmed the moment payment goes through. No waiting.",
+      "heading": "Instant book vs. Request to book",
+      "instant": "Instant book — marked with a lightning badge. Your spot is confirmed the moment payment goes through. No waiting.",
       "request": "Request to book — the host checks they can take your group and responds within {hours} hours. You won't be charged until they accept; if they decline or time runs out, you pay nothing."
     },
     "hosts": {
@@ -3218,11 +3222,11 @@
     "items": {
       "booking": {
         "q": "How do I book an experience?",
-        "a": "Pick a date on the experience page, choose your group size, and submit. Instant Book experiences confirm as soon as you pay; request-to-book experiences go to the host first, who responds within {approvalHours} hours."
+        "a": "Pick a date on the experience page, choose your group size, and submit. Instant book experiences confirm as soon as you pay; request-to-book experiences go to the host first, who responds within {approvalHours} hours."
       },
       "payment": {
         "q": "When am I charged?",
-        "a": "Instant Book: at checkout, and your spot is confirmed immediately. Request to book: only after the host accepts — you'll get a secure payment link by email and on your booking page. A declined or expired request is never charged."
+        "a": "Instant book: at checkout, and your spot is confirmed immediately. Request to book: only after the host accepts — you'll get a secure payment link by email and on your booking page. A declined or expired request is never charged."
       },
       "pending": {
         "q": "What does \"awaiting host confirmation\" mean?",
@@ -3283,7 +3287,7 @@
     },
     "bookingsPayments": {
       "heading": "Bookings and payment",
-      "body1": "All prices are in Saudi Riyals, and the price shown is the final amount you pay — inclusive of any applicable taxes, with nothing added at checkout. Instant Book experiences are confirmed as soon as your payment succeeds. Request-to-book experiences are confirmed only after the host accepts within {approvalHours} hours and you complete payment within {payHours} hours of acceptance.",
+      "body1": "All prices are in Saudi Riyals, and the price shown is the final amount you pay — inclusive of any applicable taxes, with nothing added at checkout. Instant book experiences are confirmed as soon as your payment succeeds. Request-to-book experiences are confirmed only after the host accepts within {approvalHours} hours and you complete payment within {payHours} hours of acceptance.",
       "body2": "Payments are processed by a licensed third-party payment provider supporting mada, Visa, Mastercard, and Apple Pay. Gharmish never stores your full card details."
     },
     "cancellations": {

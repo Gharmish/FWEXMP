@@ -37,17 +37,17 @@ export async function generateMetadata({
 
 const STATUS_TONE: Record<ExperienceStatus, string> = {
   draft: 'bg-sarat-black/8 text-sarat-black',
-  pending_review: 'bg-saffron-gold/20 text-sarat-black',
+  pending_review: 'bg-pending-surface text-pending',
   changes_requested: 'bg-rijal-clay/15 text-rijal-clay',
-  live: 'bg-juniper-green/15 text-juniper-green',
-  paused: 'bg-saffron-gold/20 text-sarat-black',
+  live: 'bg-success-surface text-success',
+  paused: 'bg-pending-surface text-pending',
   archived: 'bg-sarat-black/8 text-sarat-black',
 };
 
 const EVENT_TONE: Record<ModerationEventType, string> = {
   submitted: 'bg-sarat-black/8 text-sarat-black',
-  approved: 'bg-juniper-green/15 text-juniper-green',
-  rejected: 'bg-al-qatt-red/15 text-al-qatt-red',
+  approved: 'bg-success-surface text-success',
+  rejected: 'bg-error-surface text-error',
   changes_requested: 'bg-rijal-clay/15 text-rijal-clay',
   photo_updated: 'bg-sarawat-blue/15 text-sarawat-blue',
   edited: 'bg-sarawat-blue/15 text-sarawat-blue',
@@ -68,7 +68,7 @@ export default async function AdminExperienceModerationDetailPage({
   if (block?.reason === 'no_db') {
     const t = await getTranslations('admin');
     const eyebrowClassName = cn(
-      'text-sarat-black-600 text-[11px]',
+      'text-sarat-black-600 font-medium text-[11px]',
       loc === 'en' && 'tracking-[0.2em] uppercase',
     );
     return (
@@ -101,7 +101,7 @@ export default async function AdminExperienceModerationDetailPage({
     getTranslations('hostExperiences.photo'),
   ]);
   const eyebrowClassName = cn(
-    'text-sarat-black-600 text-[11px]',
+    'text-sarat-black-600 font-medium text-[11px]',
     loc === 'en' && 'tracking-[0.2em] uppercase',
   );
 

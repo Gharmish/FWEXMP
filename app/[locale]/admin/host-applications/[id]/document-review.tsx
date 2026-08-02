@@ -46,9 +46,9 @@ export interface DocumentReviewProps {
 }
 
 const STATUS_TONE: Record<HostDocumentStatus, string> = {
-  pending: 'bg-saffron-gold/20 text-sarat-black',
-  approved: 'bg-juniper-green/15 text-juniper-green',
-  rejected: 'bg-al-qatt-red/15 text-al-qatt-red',
+  pending: 'bg-pending-surface text-pending',
+  approved: 'bg-success-surface text-success',
+  rejected: 'bg-error-surface text-error',
 };
 
 const initialState: DocumentReviewState = { success: false };

@@ -107,7 +107,7 @@ export default async function AdminBookingsPage({
   };
 
   const eyebrowClassName = cn(
-    'text-sarat-black-600 text-[11px]',
+    'text-sarat-black-600 font-medium text-[11px]',
     loc === 'en' && 'tracking-[0.2em] uppercase',
   );
 
@@ -259,7 +259,7 @@ export default async function AdminBookingsPage({
 
               {refundDue && (
                 <p className="flex items-center gap-3 text-sm">
-                  <Badge className="bg-al-qatt-red/15 text-al-qatt-red">
+                  <Badge className="bg-error-surface text-error">
                     {t('bookingsList.refundDueFilter')}
                   </Badge>
                   <Link
@@ -295,7 +295,7 @@ export default async function AdminBookingsPage({
                             label={t(`bookingStatus.${row.status}`)}
                           />
                           {row.refundDueSar !== null && (
-                            <Badge className="bg-al-qatt-red/15 text-al-qatt-red">
+                            <Badge className="bg-error-surface text-error">
                               {t('bookingsList.refundDue')}
                             </Badge>
                           )}

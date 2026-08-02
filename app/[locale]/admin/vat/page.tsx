@@ -58,7 +58,7 @@ export default async function AdminVatPage({
   const report = block ? null : await getVatReport(range);
 
   const eyebrowClassName = cn(
-    'text-sarat-black-600 text-[11px]',
+    'text-sarat-black-600 font-medium text-[11px]',
     loc === 'en' && 'tracking-[0.2em] uppercase',
   );
   const card = 'border-sarat-black/8 rounded-card flex flex-col gap-2 [border-width:0.5px] p-6';

@@ -126,7 +126,7 @@ export function FilterRail({ locale, categories, resultCount, cities, facets }: 
         <p
           aria-live="polite"
           className={cn(
-            'text-sarat-black-600 shrink-0 text-[11px]',
+            'text-sarat-black-600 shrink-0 text-[11px] font-medium',
             locale === 'en' && 'tracking-[0.2em] uppercase',
           )}
         >

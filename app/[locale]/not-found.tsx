@@ -9,7 +9,7 @@ export default async function LocaleNotFound() {
   const locale = (await getLocale()) as Locale;
   const t = await getTranslations('notFound');
   const eyebrowClassName = cn(
-    'text-sarat-black-600 text-[11px]',
+    'text-sarat-black-600 font-medium text-[11px]',
     locale === 'en' && 'tracking-[0.2em] uppercase',
   );
 

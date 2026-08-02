@@ -263,7 +263,7 @@ export default async function PaymentPage({ params, searchParams }: PageParams) 
         <header className="flex max-w-2xl flex-col gap-3">
           <p
             className={cn(
-              'text-juniper-green-800 text-[11px]',
+              'text-juniper-green-800 text-[11px] font-medium',
               // Letter-spacing severs connected Arabic glyphs — EN only.
               loc === 'en' && 'tracking-[0.2em] uppercase',
             )}

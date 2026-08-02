@@ -2,6 +2,7 @@
 
 import { useEffect } from 'react';
 import { reportError } from '@/lib/log';
+import { bricolage, ibmPlexArabic } from '@/lib/fonts';
 import '@/app/globals.css';
 
 /**
@@ -25,10 +26,10 @@ export default function GlobalError({
   }, [error]);
 
   return (
-    <html lang="en">
+    <html lang="en" className={`${bricolage.variable} ${ibmPlexArabic.variable} antialiased`}>
       <body className="text-sarat-black bg-white">
         <main className="mx-auto flex min-h-screen w-full max-w-2xl flex-col justify-center gap-6 px-6 py-24">
-          <p className="text-al-qatt-red-800 text-[11px] tracking-[0.2em] uppercase">
+          <p className="text-al-qatt-red-800 text-[11px] font-medium tracking-[0.2em] uppercase">
             Something went wrong
           </p>
           <h1 className="text-4xl font-semibold tracking-[-0.035em] text-balance">

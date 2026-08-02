@@ -91,6 +91,22 @@ both languages if a template is authored bilingually.
 
 ## Template catalog — variable contracts (v2, 2026-07-31 comms audit)
 
+### Brand voice rules for FUTURE template versions (locked 2026-08-02, brand audit)
+
+The approved v1/v2 bodies below are historical records — Meta-approved bodies
+cannot be edited, and slots are additive-only (never renumber). Do not rewrite
+them here. But every template authored from v3 onward follows the brand voice
+(BRIEF.md §2 — calm, restrained, never loud):
+
+- **No emoji.** The `✅` / `🎉` in v2 bodies are grandfathered, not precedent;
+  no other brand channel (email, product, SMS) uses them.
+- **No exclamation marks.** "your booking is confirmed." carries the same news
+  as "confirmed!" — the register is a host, not a promoter.
+- **Close with the brand, not a bare URL.** End on branded copy or a labelled
+  link ("Your booking: {{n}}"), never a naked `https://gharmish.com`.
+- **Arabic bodies carry غارميش in text** at least once (the sender display
+  name alone is not a brand impression inside a forwarded message).
+
 The variable numbers below are what the code sends
 (`features/bookings/lib/booking-email.ts`). Author each template's body around
 them; both language bodies below are ready to paste (owner has approved

@@ -19,7 +19,7 @@ export default function LocaleError({
   const locale = useLocale() as Locale;
   const t = useTranslations('error');
   const eyebrowClassName = cn(
-    'text-al-qatt-red-800 text-[11px]',
+    'text-al-qatt-red-800 font-medium text-[11px]',
     locale === 'en' && 'tracking-[0.2em] uppercase',
   );
 

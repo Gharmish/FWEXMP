@@ -34,22 +34,22 @@ export async function generateMetadata({
 }
 
 const HOST_STATUS_TONE: Record<string, string> = {
-  verified: 'bg-juniper-green/15 text-juniper-green',
-  pending: 'bg-saffron-gold/20 text-sarat-black',
-  suspended: 'bg-al-qatt-red/15 text-al-qatt-red',
+  verified: 'bg-success-surface text-success',
+  pending: 'bg-pending-surface text-pending',
+  suspended: 'bg-error-surface text-error',
 };
 const EXP_STATUS_TONE: Record<string, string> = {
   draft: 'bg-sarat-black/8 text-sarat-black',
-  pending_review: 'bg-saffron-gold/20 text-sarat-black',
+  pending_review: 'bg-pending-surface text-pending',
   changes_requested: 'bg-rijal-clay/15 text-rijal-clay',
-  live: 'bg-juniper-green/15 text-juniper-green',
-  paused: 'bg-saffron-gold/20 text-sarat-black',
+  live: 'bg-success-surface text-success',
+  paused: 'bg-pending-surface text-pending',
   archived: 'bg-sarat-black/8 text-sarat-black',
 };
 const DOC_STATUS_TONE: Record<string, string> = {
-  pending: 'bg-saffron-gold/20 text-sarat-black',
-  approved: 'bg-juniper-green/15 text-juniper-green',
-  rejected: 'bg-al-qatt-red/15 text-al-qatt-red',
+  pending: 'bg-pending-surface text-pending',
+  approved: 'bg-success-surface text-success',
+  rejected: 'bg-error-surface text-error',
 };
 
 export default async function AdminUserDetailPage({
@@ -62,7 +62,7 @@ export default async function AdminUserDetailPage({
   const loc = locale as Locale;
   const t = await getTranslations('admin');
   const eyebrow = cn(
-    'text-sarat-black-600 text-[11px]',
+    'text-sarat-black-600 font-medium text-[11px]',
     loc === 'en' && 'tracking-[0.2em] uppercase',
   );
 
@@ -126,9 +126,7 @@ export default async function AdminUserDetailPage({
           <div className="flex flex-wrap items-center gap-3">
             <h2 className={sectionHeading}>{t('users.detail.guestHeading')}</h2>
             {user.guest.suspendedAt && (
-              <Badge className="bg-al-qatt-red/15 text-al-qatt-red">
-                {t('users.detail.suspended')}
-              </Badge>
+              <Badge className="bg-error-surface text-error">{t('users.detail.suspended')}</Badge>
             )}
           </div>
 
@@ -325,7 +323,7 @@ export default async function AdminUserDetailPage({
                         {r.experienceTitleEn}
                       </Link>
                       {r.hidden && (
-                        <Badge className="bg-al-qatt-red/15 text-al-qatt-red">
+                        <Badge className="bg-error-surface text-error">
                           {t('users.detail.reviewHidden')}
                         </Badge>
                       )}
@@ -353,8 +351,8 @@ export default async function AdminUserDetailPage({
                       <Badge
                         className={
                           d.status === 'open'
-                            ? 'bg-saffron-gold/20 text-sarat-black'
-                            : 'bg-juniper-green/15 text-juniper-green'
+                            ? 'bg-pending-surface text-pending'
+                            : 'bg-success-surface text-success'
                         }
                       >
                         {t(`users.detail.disputeStatus.${d.status}`)}
@@ -529,8 +527,8 @@ export default async function AdminUserDetailPage({
                       <Badge
                         className={
                           e.event === 'suspended'
-                            ? 'bg-al-qatt-red/15 text-al-qatt-red'
-                            : 'bg-juniper-green/15 text-juniper-green'
+                            ? 'bg-error-surface text-error'
+                            : 'bg-success-surface text-success'
                         }
                       >
                         {t(`hostStatusEvent.${e.event}`)}

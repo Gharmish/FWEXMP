@@ -39,7 +39,7 @@ export default async function AdminBookingDetailPage({
   const loc = locale as Locale;
   const t = await getTranslations('admin');
   const eyebrowClassName = cn(
-    'text-sarat-black-600 text-[11px]',
+    'text-sarat-black-600 font-medium text-[11px]',
     loc === 'en' && 'tracking-[0.2em] uppercase',
   );
 
@@ -159,8 +159,8 @@ export default async function AdminBookingDetailPage({
           here because `createCheckout` refuses while it is set, and this
           is the only way to lift it (2026-07-28 eighth audit). */}
       {booking.settleAnomalyAt && (
-        <section className="border-al-qatt-red/40 rounded-card bg-al-qatt-red-100 flex flex-col gap-3 [border-width:0.5px] p-6">
-          <h2 className="text-al-qatt-red-800 text-base font-medium">
+        <section className="border-al-qatt-red/40 rounded-card bg-error-surface flex flex-col gap-3 [border-width:0.5px] p-6">
+          <h2 className="text-error text-base font-medium">
             {t('bookingDetail.settleAnomalyTitle')}
           </h2>
           <p className="text-sarat-black-600 text-sm">

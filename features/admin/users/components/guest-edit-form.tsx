@@ -174,7 +174,7 @@ export function GuestEditForm({ personKey, guest, copy }: GuestEditFormProps) {
           </div>
 
           <fieldset className="border-sarat-black/8 rounded-card flex flex-col gap-5 [border-width:0.5px] p-5">
-            <legend className="text-sarat-black-600 px-2 text-[11px] tracking-[0.2em] uppercase">
+            <legend className="text-sarat-black-600 px-2 text-[11px] font-medium tracking-[0.2em] uppercase">
               {copy.billing}
             </legend>
             <Field

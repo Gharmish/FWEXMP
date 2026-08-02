@@ -140,7 +140,7 @@ export default async function BookingConfirmedPage({ params, searchParams }: Pag
       : `${formatDate(d, loc)}, ${formatTime(d, loc)}`;
 
   // The eyebrow's tracking/case is shared across states; only colour shifts.
-  const eyebrowBase = cn('text-[11px]', loc === 'en' && 'tracking-[0.2em] uppercase');
+  const eyebrowBase = cn('font-medium text-[11px]', loc === 'en' && 'tracking-[0.2em] uppercase');
   // The reference label keeps the calm juniper treatment in every state.
   const eyebrowClassName = cn(eyebrowBase, 'text-juniper-green-800');
 

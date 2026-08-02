@@ -1,3 +1,6 @@
+// Both "Asir…" and "Aseer…" keys are deliberate: rows seeded before the
+// 2026-07-08 "Aseer" spelling migration still carry the old English
+// strings, and a missing key silently falls back to English.
 const ARABIC_TEXT: Readonly<Record<string, string>> = {
   'Faisal Al Qahtani': 'فيصل القحطاني',
   'Asir Adventures Co.': 'شركة مغامرات عسير',

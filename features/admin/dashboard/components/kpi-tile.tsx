@@ -23,7 +23,7 @@ interface KpiTileProps {
  */
 export function KpiTile({ label, value, locale, href, trend, hint }: KpiTileProps) {
   const eyebrow = cn(
-    'text-sarat-black-600 text-[11px]',
+    'text-sarat-black-600 font-medium text-[11px]',
     locale === 'en' && 'uppercase tracking-[0.2em]',
   );
 

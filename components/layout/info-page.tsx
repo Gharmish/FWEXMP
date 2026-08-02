@@ -44,7 +44,7 @@ export function InfoPage({
   children,
 }: InfoPageProps) {
   const eyebrowClassName = cn(
-    'text-sarat-black-600 text-[11px]',
+    'text-sarat-black-600 font-medium text-[11px]',
     locale === 'en' && 'tracking-[0.2em] uppercase',
   );
 

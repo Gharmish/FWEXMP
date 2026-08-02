@@ -24,7 +24,7 @@ export function EmptyState({ locale, variant = 'filtered' }: EmptyStateProps) {
   const t = useTranslations('experiencesIndex.empty');
   const tf = useTranslations('experiencesIndex');
   const eyebrowClassName = cn(
-    'text-sarat-black-600 text-[11px]',
+    'text-sarat-black-600 font-medium text-[11px]',
     locale === 'en' && 'tracking-[0.2em] uppercase',
   );
   const catalogEmpty = variant === 'catalogEmpty';

@@ -57,6 +57,7 @@ const nextConfig: NextConfig = {
   // join(process.cwd(), …) path, so bundle the fonts into the function
   // explicitly — otherwise the route 500s in production with ENOENT.
   outputFileTracingIncludes: {
+    '/[locale]/opengraph-image': ['./lib/og/fonts/*.ttf'],
     '/[locale]/experiences/[slug]/opengraph-image': ['./lib/og/fonts/*.ttf'],
     '/[locale]/hosts/[slug]/opengraph-image': ['./lib/og/fonts/*.ttf'],
     // The booking-receipt email renders the invoice PDF (@react-pdf) with

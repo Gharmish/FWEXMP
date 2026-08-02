@@ -90,7 +90,7 @@ export default async function HostEarningsPage({
   const exportHref = `/api/host/export/earnings${exportQs.size > 0 ? `?${exportQs}` : ''}`;
 
   const eyebrowClassName = cn(
-    'text-sarat-black-600 text-[11px]',
+    'text-sarat-black-600 font-medium text-[11px]',
     loc === 'en' && 'tracking-[0.2em] uppercase',
   );
 
@@ -366,11 +366,11 @@ export default async function HostEarningsPage({
                           {loc === 'ar' ? row.experienceTitleAr : row.experienceTitleEn}
                         </span>
                         {row.paidOutAt ? (
-                          <Badge className="bg-juniper-green/15 text-juniper-green">
+                          <Badge className="bg-success-surface text-success">
                             {t('history.paidBadge')}
                           </Badge>
                         ) : (
-                          <Badge className="bg-saffron-gold/20 text-sarat-black">
+                          <Badge className="bg-pending-surface text-pending">
                             {t('history.owedBadge')}
                           </Badge>
                         )}

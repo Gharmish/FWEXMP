@@ -42,11 +42,11 @@ export default async function HostingPage({ params }: { params: Promise<{ locale
   const faqValues = { approvalHours: settings.approvalWindowHours };
 
   const eyebrowClassName = cn(
-    'text-sarat-black-600 text-[11px]',
+    'text-sarat-black-600 font-medium text-[11px]',
     loc === 'en' && 'tracking-[0.2em] uppercase',
   );
   const darkEyebrowClassName = cn(
-    'text-saffron-gold text-[11px]',
+    'text-saffron-gold font-medium text-[11px]',
     loc === 'en' && 'tracking-[0.2em] uppercase',
   );
 

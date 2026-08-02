@@ -6,7 +6,7 @@ import { cn } from '@/lib/utils';
  * at low alpha (BRIEF §3: no off-palette hex, no shadows).
  */
 const badgeVariants = cva(
-  'inline-flex items-center gap-1 rounded-button px-3 py-1 text-xs font-medium whitespace-nowrap [&_svg]:size-3.5',
+  'inline-flex items-center gap-1 rounded-button px-3 py-1 text-xs font-medium whitespace-nowrap [&_svg]:size-4',
   {
     variants: {
       variant: {

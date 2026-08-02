@@ -53,7 +53,7 @@ export function SlaCountdown({ deadline }: SlaCountdownProps) {
   const remainingMs = new Date(deadline).getTime() - now;
   if (remainingMs <= 0) {
     return (
-      <span className="bg-al-qatt-red-100 text-al-qatt-red-800 rounded-full px-2 py-0.5 text-xs font-medium">
+      <span className="bg-error-surface text-error rounded-full px-2 py-0.5 text-xs font-medium">
         {t('expired')}
       </span>
     );

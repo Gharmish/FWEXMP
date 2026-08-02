@@ -73,7 +73,7 @@ export async function Footer() {
     'text-sarat-black inline-flex min-h-11 items-center text-sm font-medium transition-opacity duration-200 hover:opacity-60';
   const bottomLinkClassName = linkClassName;
   const columnLabelClassName = cn(
-    'text-sarat-black-600 text-[11px]',
+    'text-sarat-black-600 font-medium text-[11px]',
     locale === 'en' && 'tracking-[0.2em] uppercase',
   );
 

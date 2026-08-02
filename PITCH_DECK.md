@@ -1,25 +1,26 @@
 # Gharmish — Pitch Deck
 
-_The experiences marketplace for Saudi Arabia_
-غرميش — سوق التجارب في المملكة
+_Experiences hosted by the people who know Aseer best._
+غارميش — تجارب يقدّمها أهل عسير الذين يعرفونها أكثر.
 
 ---
 
 ## Slide 1 — Title
 
-# Gharmish (غرميش)
+# Gharmish (غارميش)
 
-### Book the real Saudi Arabia.
+### Experiences hosted by the people who know Aseer best.
 
-The marketplace where local hosts sell unique experiences — desert nights,
-Aseeri coffee rituals, coastal dives, cooking classes — and travelers book
-them in two taps, in Arabic or English, paying with mada or Apple Pay.
+The curated marketplace where vetted local hosts offer authentic Aseeri
+experiences — heritage evenings with the flower men of Habala, juniper-forest
+dawn walks, coffee rituals, via ferrata on the Soudah cliffs — booked in two
+taps, in Arabic or English, paid with mada or Apple Pay.
 
 _[Founder name] · [email] · gharmish.com_
 
 ---
 
-## Slide 2 — The Problem
+## Slide 2 — The problem
 
 **Saudi Arabia opened to tourism. The supply of _experiences_ didn't come with it.**
 
@@ -37,14 +38,14 @@ _[Founder name] · [email] · gharmish.com_
 
 ---
 
-## Slide 3 — The Solution
+## Slide 3 — The solution
 
-**Gharmish is the Arabic-first marketplace for booking experiences in the Kingdom.**
+**Gharmish is the Arabic-first, curated experiences marketplace — launching in Abha (Aseer), built to scale across the Kingdom.**
 
 - **For guests:** discover → book → pay online in minutes. Full Arabic/English
   with true RTL, prices in SAR, mada + Apple Pay + cards at checkout.
-- **For hosts:** list an experience, set availability and price, get verified
-  (KYC), receive bookings and payouts — a real storefront, not a DM inbox.
+- **For hosts:** a partnership, not a listing — we co-create each experience,
+  provide photography and training, verify identity (KYC), and settle payouts.
 - **For the platform:** every booking is instrumented, reviewed, and
   reputation-scored, so trust compounds on both sides.
 
@@ -52,7 +53,7 @@ One place. Two taps. Built for how Saudi actually pays and reads.
 
 ---
 
-## Slide 4 — Why Now
+## Slide 4 — Why now
 
 - **Vision 2030 tourism push** — Saudi is spending at scale to become a global
   destination; "experiences" is the highest-margin, most under-supplied layer.
@@ -70,7 +71,7 @@ One place. Two taps. Built for how Saudi actually pays and reads.
 
 ## Slide 5 — Product
 
-**Live today at gharmish-weld.vercel.app**
+**Live today at gharmish.com**
 
 - **Discovery** — home, category browse, search, city coverage, map view (keyless OSM/Leaflet).
 - **Experience detail** — gallery, AR/EN toggle, host card, reviews, availability, price calculator.
@@ -79,11 +80,12 @@ One place. Two taps. Built for how Saudi actually pays and reads.
 - **Admin panel** — approval queue, catalog & city management, marketplace-health metrics, funnel analytics.
 - **Trust & tax** — verified-only host surfaces, ZATCA-ready receipts/QR, VAT-toggle for when the threshold is crossed.
 
-Fully bilingual, mobile-first, on the Saudi-sand brand palette.
+Fully bilingual, mobile-first, in the Gharmish brand system: white + Saffron Gold
+on Sarat Black, Bricolage Grotesque / IBM Plex Sans Arabic.
 
 ---
 
-## Slide 6 — How It Works
+## Slide 6 — How it works
 
 1. **Host lists** an experience — title, photos, location (map pin), duration,
    group size, price in SAR — and passes KYC verification.
@@ -97,7 +99,7 @@ Reputation, availability, and payments all live on one set of rails.
 
 ---
 
-## Slide 7 — Business Model
+## Slide 7 — Business model
 
 **Marketplace commission — we make money when hosts do.**
 
@@ -120,7 +122,8 @@ _(Illustrative — insert real take-rate and pricing assumptions.)_
 - **SAM** — the bookable _experiences & activities_ slice of that spend,
   domestic + inbound.
 - **SOM (3-yr wedge)** — commission on experiences booked through Gharmish
-  in a focused set of launch cities (Riyadh, Jeddah, Aseer, AlUla, the coast).
+  in a focused sequence of launch markets — Abha (Aseer) first, then AlUla,
+  Riyadh, Jeddah, and the coast.
 
 > We don't need a large share of tourism — a small share of _experience
 > bookings_ is a large, high-margin business.
@@ -144,30 +147,30 @@ bother to localize.
 
 ---
 
-## Slide 10 — Traction / Status
+## Slide 10 — Traction & status
 
 **Product is live and real, not a mockup.**
 
-- Sprints 1–4 shipped to production (gharmish-weld.vercel.app).
+- Sprints 1–4 shipped to production (gharmish.com).
 - Real auth (Supabase, OTP), real Postgres, real host/admin dashboards.
 - Payments integrated on HyperPay (card + Apple Pay); domain registration
   with the gateway is the last step before live charges.
 - Full AR/EN, ZATCA-ready invoicing, verified-host trust surfaces, funnel
   analytics instrumented end-to-end.
 
-**Remaining pre-launch (human-gated):** SMS provider, live payment go-live,
-CR/VAT registration, legal review of terms/privacy.
+**Remaining pre-launch (human-gated):** live payment go-live and legal review
+of terms/privacy. (Phone OTP over WhatsApp and CR registration are done.)
 
 _(Insert live metrics as you gather them: listings, bookings, GMV, hosts.)_
 
 ---
 
-## Slide 11 — Go-to-Market
+## Slide 11 — Go-to-market
 
-- **Supply first, city by city** — recruit a critical mass of hosts in one
-  city (e.g., Aseer or AlUla, where experiences are the whole reason to visit)
-  before opening the next.
-- **Seed with hero categories** — desert, coffee/culture, coast, food,
+- **Supply first, city by city** — recruit a critical mass of hosts in the
+  launch market, Abha (Aseer) — where experiences are the whole reason to
+  visit — before opening the next city.
+- **Seed with hero categories** — heritage, nature, coffee/food, adventure,
   women-only experiences (a differentiated, culturally-fit category we ship).
 - **Demand via** consent-based social pixels (Snap/TikTok), SEO/structured
   data (already built), and partnerships with tourism bodies and hotels.
@@ -202,7 +205,7 @@ _[To complete]_
 
 ---
 
-## Slide 14 — The Ask
+## Slide 14 — The ask
 
 _[To complete]_
 
@@ -220,11 +223,12 @@ proven, repeatable city-launch playbook.
 
 ## Slide 15 — Closing
 
-# Gharmish
+# Gharmish — غارميش
 
-### Saudi Arabia is now a destination. We're how you experience it.
+### Experiences hosted by the people who know Aseer best.
 
-Local hosts. Real bookings. mada and Apple Pay. Arabic-first.
-The trusted rails for the Kingdom's experience economy.
+Local hosts as partners. Real bookings. mada and Apple Pay. Arabic-first.
+The trusted rails for the Kingdom's experience economy — starting where
+it is greenest.
 
 _gharmish.com · [contact]_

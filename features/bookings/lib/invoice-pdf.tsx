@@ -69,8 +69,10 @@ function loadWordmark(): string | null {
 }
 
 const INK = '#0A0A0A';
-const MUTED = '#6b6b6b';
-const HAIRLINE = '#E6E6E6';
+// Palette ramp stops (lib/colors.ts sarat-black-600 / -100) — @react-pdf
+// can't read CSS variables, so the hex is inlined but must stay on-ramp.
+const MUTED = '#686868';
+const HAIRLINE = '#E8E8E8';
 
 export interface InvoicePdfRow {
   label: string;

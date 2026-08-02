@@ -36,7 +36,7 @@ export default async function AdminGuestDetailPage({
   const loc = locale as Locale;
   const t = await getTranslations('admin');
   const eyebrowClassName = cn(
-    'text-sarat-black-600 text-[11px]',
+    'text-sarat-black-600 font-medium text-[11px]',
     loc === 'en' && 'tracking-[0.2em] uppercase',
   );
 
@@ -71,9 +71,7 @@ export default async function AdminGuestDetailPage({
             {guest.name}
           </h1>
           {guest.suspendedAt && (
-            <Badge className="bg-al-qatt-red/15 text-al-qatt-red">
-              {t('guestDetail.suspendedBadge')}
-            </Badge>
+            <Badge className="bg-error-surface text-error">{t('guestDetail.suspendedBadge')}</Badge>
           )}
         </div>
         <GuestSuspendButton

@@ -84,7 +84,10 @@ export async function ExperienceCard({
     : experience.category;
 
   const muted = experience.featured ? 'text-white/70' : 'text-sarat-black-600';
-  const labelClassName = cn('text-[11px]', locale === 'en' && 'tracking-[0.2em] uppercase');
+  const labelClassName = cn(
+    'font-medium text-[11px]',
+    locale === 'en' && 'tracking-[0.2em] uppercase',
+  );
 
   const ratingDisplay =
     experience.ratingAverage !== null

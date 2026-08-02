@@ -1,4 +1,4 @@
-import type { Metadata } from 'next';
+import type { Metadata, Viewport } from 'next';
 import { Suspense } from 'react';
 import { notFound } from 'next/navigation';
 import { NextIntlClientProvider, hasLocale } from 'next-intl';
@@ -37,29 +37,49 @@ import { UtmCapture } from '@/features/analytics/utm-capture';
 import { MotionProvider } from '@/components/ui/motion';
 import { ToastProvider } from '@/components/ui/toast';
 import { DirectionProvider } from '@base-ui/react/direction-provider';
-import { SITE_URL, SITE_NAME, SITE_DESCRIPTION } from '@/lib/site';
+import { SITE_URL } from '@/lib/site';
 import '../globals.css';
 
-export const metadata: Metadata = {
-  metadataBase: new URL(SITE_URL),
-  title: { default: SITE_NAME, template: `%s · ${SITE_NAME}` },
-  description: SITE_DESCRIPTION,
-  openGraph: {
-    images: [{ url: `${SITE_URL}/images/gharmish-og.png`, width: 1200, height: 630 }],
-    title: SITE_NAME,
-    description: SITE_DESCRIPTION,
-    url: SITE_URL,
-    siteName: SITE_NAME,
-    type: 'website',
-  },
-  twitter: {
-    card: 'summary_large_image',
-    title: SITE_NAME,
-    description: SITE_DESCRIPTION,
-  },
-  verification: {
-    other: { 'facebook-domain-verification': '9wb750bssvguoass0jugvtadqj5ecl' },
-  },
+/**
+ * Localized brand identity in metadata: the Arabic locale carries the
+ * Arabic brand name (غارميش) and tagline instead of inheriting the
+ * English strings (2026-08 brand audit). The default social image comes
+ * from the file-convention `opengraph-image.tsx` in this segment, so no
+ * static image is declared here.
+ */
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ locale: string }>;
+}): Promise<Metadata> {
+  const { locale } = await params;
+  const t = await getTranslations({ locale, namespace: 'siteMeta' });
+  return {
+    metadataBase: new URL(SITE_URL),
+    title: { default: t('name'), template: `%s · ${t('name')}` },
+    description: t('description'),
+    openGraph: {
+      title: t('name'),
+      description: t('description'),
+      url: SITE_URL,
+      siteName: t('name'),
+      locale: locale === 'ar' ? 'ar_SA' : 'en_US',
+      type: 'website',
+    },
+    twitter: {
+      card: 'summary_large_image',
+      title: t('name'),
+      description: t('description'),
+    },
+    verification: {
+      other: { 'facebook-domain-verification': '9wb750bssvguoass0jugvtadqj5ecl' },
+    },
+  };
+}
+
+export const viewport: Viewport = {
+  // Brand accent in mobile browser chrome; matches manifest theme_color.
+  themeColor: '#F5B800',
 };
 
 export function generateStaticParams() {

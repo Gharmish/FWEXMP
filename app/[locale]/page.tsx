@@ -8,7 +8,7 @@ import { Link } from '@/lib/i18n';
 import type { Locale } from '@/lib/i18n';
 import { routing } from '@/lib/i18n';
 import type { Category } from '@/lib/colors';
-import { SITE_URL, SITE_NAME, SITE_DESCRIPTION } from '@/lib/site';
+import { SITE_URL, SITE_NAME } from '@/lib/site';
 import { buttonVariants } from '@/components/ui/button';
 import { JsonLd } from '@/components/seo/json-ld';
 import { ExperienceCard } from '@/features/experiences/components/experience-card';
@@ -46,22 +46,25 @@ export async function generateMetadata({
   params: Promise<{ locale: string }>;
 }): Promise<Metadata> {
   const { locale } = await params;
+  const t = await getTranslations({ locale, namespace: 'siteMeta' });
   return {
+    description: t('description'),
     alternates: {
       canonical: `${SITE_URL}/${locale}`,
       languages: languagesAlternates,
     },
     openGraph: {
-      images: [{ url: `${SITE_URL}/images/gharmish-og.png`, width: 1200, height: 630 }],
-      title: SITE_NAME,
-      description: SITE_DESCRIPTION,
+      title: t('name'),
+      description: t('description'),
       url: `${SITE_URL}/${locale}`,
+      siteName: t('name'),
+      locale: locale === 'ar' ? 'ar_SA' : 'en_US',
       type: 'website',
     },
     twitter: {
       card: 'summary_large_image',
-      title: SITE_NAME,
-      description: SITE_DESCRIPTION,
+      title: t('name'),
+      description: t('description'),
     },
   };
 }
@@ -70,9 +73,10 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
   const { locale } = await params;
   setRequestLocale(locale);
   const t = await getTranslations('home');
+  const tSite = await getTranslations('siteMeta');
   const loc = locale as Locale;
   const eyebrowClassName = cn(
-    'text-sarat-black-600 text-[11px]',
+    'text-sarat-black-600 font-medium text-[11px]',
     loc === 'en' && 'tracking-[0.2em] uppercase',
   );
 
@@ -104,8 +108,10 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
         '@type': 'Organization',
         '@id': `${SITE_URL}/#organization`,
         name: SITE_NAME,
+        alternateName: 'غارميش',
         url: SITE_URL,
-        description: SITE_DESCRIPTION,
+        logo: `${SITE_URL}/images/gharmish-wordmark.png`,
+        description: tSite('description'),
         areaServed: 'Abha, Aseer, Saudi Arabia',
       },
       {
@@ -334,7 +340,7 @@ async function HostsRow({ locale }: { locale: Locale }) {
   const [t, hosts] = await Promise.all([getTranslations('home'), getAllHosts()]);
   if (hosts.length === 0) return null;
   const eyebrowClassName = cn(
-    'text-sarat-black-600 text-[11px]',
+    'text-sarat-black-600 font-medium text-[11px]',
     locale === 'en' && 'tracking-[0.2em] uppercase',
   );
 

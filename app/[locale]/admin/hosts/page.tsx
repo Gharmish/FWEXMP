@@ -23,9 +23,9 @@ export async function generateMetadata({
 }
 
 const STATUS_TONE: Record<HostVerificationStatus, string> = {
-  verified: 'bg-juniper-green/15 text-juniper-green',
-  pending: 'bg-saffron-gold/20 text-sarat-black',
-  suspended: 'bg-al-qatt-red/15 text-al-qatt-red',
+  verified: 'bg-success-surface text-success',
+  pending: 'bg-pending-surface text-pending',
+  suspended: 'bg-error-surface text-error',
 };
 
 export default async function AdminHostsPage({ params }: { params: Promise<{ locale: string }> }) {
@@ -40,7 +40,7 @@ export default async function AdminHostsPage({ params }: { params: Promise<{ loc
   ]);
 
   const eyebrowClassName = cn(
-    'text-sarat-black-600 text-[11px]',
+    'text-sarat-black-600 font-medium text-[11px]',
     loc === 'en' && 'tracking-[0.2em] uppercase',
   );
 

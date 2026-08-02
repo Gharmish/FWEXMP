@@ -56,7 +56,7 @@ export default async function ProfilePage({ params }: { params: Promise<{ locale
   ]);
 
   const eyebrowClassName = cn(
-    'text-sarat-black-600 text-[11px]',
+    'text-sarat-black-600 font-medium text-[11px]',
     loc === 'en' && 'tracking-[0.2em] uppercase',
   );
 

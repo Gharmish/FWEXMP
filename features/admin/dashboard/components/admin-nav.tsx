@@ -113,7 +113,7 @@ export function AdminNav({ onNavigate }: AdminNavProps) {
     <nav aria-label={t('nav.menuLabel')} className="flex flex-col gap-6">
       {GROUPS.map((group) => (
         <div key={group.headingKey} className="flex flex-col gap-1">
-          <p className="text-sarat-black-600 px-3 pb-1 text-[11px] tracking-[0.2em] uppercase">
+          <p className="text-sarat-black-600 px-3 pb-1 text-[11px] font-medium tracking-[0.2em] uppercase">
             {t(`nav.groups.${group.headingKey}`)}
           </p>
           <ul className="flex flex-col gap-0.5">

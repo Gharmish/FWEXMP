@@ -40,7 +40,7 @@ export function WalletCard({ locale, balanceSar, copy }: WalletCardProps) {
       <div className="flex flex-1 flex-col gap-1">
         <span
           className={cn(
-            'text-[11px] text-white/60',
+            'text-[11px] font-medium text-white/60',
             // Letter-spacing severs connected Arabic glyphs — EN only.
             locale === 'en' && 'tracking-[0.2em] uppercase',
           )}

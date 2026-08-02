@@ -5,21 +5,24 @@ import { GharmishLogo } from '@/components/layout/gharmish-logo';
 
 /**
  * Gharmish wordmark — the brand SVG, linking to the localized home.
- * The logo is the brand's single (Latin) lockup and is used in both
- * locales; the accessible name carries the brand for screen readers.
- * Swap in an Arabic lockup here if/when the brand ships one.
+ * Decision (2026-08 brand audit): the Latin logotype is the single
+ * visual mark in BOTH locales — like most Saudi consumer brands, the
+ * Latin lockup is the logo. The Arabic name غارميش is carried by the
+ * accessible name (below), the OG cards, and the Organization JSON-LD
+ * `alternateName`. If the owner commissions a drawn Arabic lockup, swap
+ * it in here.
  */
 export interface WordmarkProps {
-  /** Kept for call-site stability; the lockup is locale-independent today. */
+  /** Selects the accessible brand name; the visual mark is locale-independent. */
   locale: Locale;
   className?: string;
 }
 
-export function Wordmark({ className }: WordmarkProps) {
+export function Wordmark({ locale, className }: WordmarkProps) {
   return (
     <Link
       href="/"
-      aria-label="Gharmish"
+      aria-label={locale === 'ar' ? 'غارميش' : 'Gharmish'}
       className={cn('text-sarat-black inline-flex min-h-11 items-center', className)}
     >
       <GharmishLogo className="h-5 sm:h-6" />

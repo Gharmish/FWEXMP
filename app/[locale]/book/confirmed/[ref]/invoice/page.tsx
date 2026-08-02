@@ -228,7 +228,7 @@ export default async function BookingInvoicePage({ params }: PageParams) {
           </h1>
           {/* Stamp is FULL reversals only — see the two gates above. */}
           {fullyRefunded && (
-            <p className="text-al-qatt-red-800 border-al-qatt-red/40 rounded-full border px-3 py-0.5 text-sm font-medium">
+            <p className="text-al-qatt-red-800 border-al-qatt-red/40 rounded-full [border-width:0.5px] px-3 py-0.5 text-sm font-medium">
               {t('refundedStamp')}
             </p>
           )}

@@ -36,10 +36,10 @@ export async function generateMetadata({
 }
 
 const STATUS_TONE: Partial<Record<ExperienceStatus, string>> = {
-  pending_review: 'bg-saffron-gold/20 text-sarat-black',
+  pending_review: 'bg-pending-surface text-pending',
   changes_requested: 'bg-rijal-clay/15 text-rijal-clay',
-  live: 'bg-juniper-green/15 text-juniper-green',
-  paused: 'bg-saffron-gold/20 text-sarat-black',
+  live: 'bg-success-surface text-success',
+  paused: 'bg-pending-surface text-pending',
   draft: 'bg-sarat-black/8 text-sarat-black',
   archived: 'bg-sarat-black/8 text-sarat-black',
 };
@@ -72,7 +72,7 @@ export default async function AdminExperienceModerationPage({
         : t(`experienceStatus.${f}`);
 
   const eyebrowClassName = cn(
-    'text-sarat-black-600 text-[11px]',
+    'text-sarat-black-600 font-medium text-[11px]',
     loc === 'en' && 'tracking-[0.2em] uppercase',
   );
 

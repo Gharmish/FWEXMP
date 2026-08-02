@@ -48,7 +48,7 @@ export async function GET(): Promise<Response> {
     '- Region: Abha and the Aseer highlands, Saudi Arabia',
     '- Languages: English, Arabic (RTL)',
     '- Currency: SAR (Saudi Riyal)',
-    '- Bookings: request-to-book; host confirms within 24 hours, payment after confirmation',
+    '- Bookings: instant-book experiences confirm at payment; request-to-book experiences are confirmed by the host within 24 hours, then paid',
     `- Total live experiences: ${experiences.length}`,
     `- Total hosts: ${hosts.length}`,
     '',

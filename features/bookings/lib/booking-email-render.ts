@@ -95,7 +95,7 @@ export function renderReceiptEmail(content: ReceiptContent): { html: string; tex
   const rowsHtml = content.rows
     .map(
       (r) =>
-        `<tr><td style="padding:6px 0;color:#6b6b6b;font-size:14px">${esc(r.label)}</td>` +
+        `<tr><td style="padding:6px 0;color:#686868;font-size:14px">${esc(r.label)}</td>` +
         `<td style="padding:6px 0;text-align:${valueAlign};font-size:14px;color:#0A0A0A">${escIsolated(r.value)}</td></tr>`,
     )
     .join('');
@@ -109,7 +109,7 @@ export function renderReceiptEmail(content: ReceiptContent): { html: string; tex
   // Seller identity (name / CR / region) — small muted lines that make the
   // email a self-contained receipt. Start-aligned in both LTR and RTL.
   const sellerHtml = content.sellerLines?.length
-    ? `<tr><td style="padding-bottom:24px;font-size:12px;color:#6b6b6b;line-height:1.6">${content.sellerLines
+    ? `<tr><td style="padding-bottom:24px;font-size:12px;color:#686868;line-height:1.6">${content.sellerLines
         .map((line) => esc(line))
         .join('<br />')}</td></tr>\n`
     : '';
@@ -127,14 +127,14 @@ export function renderReceiptEmail(content: ReceiptContent): { html: string; tex
       ? `<tr><td style="padding-top:20px"><div style="font-size:13px;font-weight:600;color:#0A0A0A;padding-bottom:8px">${esc(content.bullets.heading)}</div>${content.bullets.items
           .map(
             (item) =>
-              `<div style="font-size:14px;color:#3f3f3f;line-height:1.6">— ${esc(item)}</div>`,
+              `<div style="font-size:14px;color:#4A4A4A;line-height:1.6">— ${esc(item)}</div>`,
           )
           .join('')}</td></tr>\n`
       : '';
 
   // Host line: name in body colour, optional muted sub-line beneath.
   const hostHtml = content.host
-    ? `<tr><td style="padding-top:20px"><div style="font-size:14px;font-weight:500;color:#0A0A0A">${esc(content.host.name)}</div>${content.host.note ? `<div style="font-size:13px;color:#6b6b6b">${esc(content.host.note)}</div>` : ''}</td></tr>\n`
+    ? `<tr><td style="padding-top:20px"><div style="font-size:14px;font-weight:500;color:#0A0A0A">${esc(content.host.name)}</div>${content.host.note ? `<div style="font-size:13px;color:#686868">${esc(content.host.note)}</div>` : ''}</td></tr>\n`
     : '';
 
   // Boxed muted note (e.g. cancellation window). `html` is our own trusted
@@ -145,7 +145,7 @@ export function renderReceiptEmail(content: ReceiptContent): { html: string; tex
     ? content.note.html.replace(/<a /g, '<a style="color:#0A0A0A;font-weight:500" ')
     : '';
   const noteHtml = content.note
-    ? `<tr><td style="padding-top:20px"><div style="background:#FAFAFA;border:1px solid rgba(10,10,10,0.08);border-radius:12px;padding:13px 15px;font-size:13px;color:#3f3f3f;line-height:1.6">${noteInner}</div></td></tr>\n`
+    ? `<tr><td style="padding-top:20px"><div style="background:#FAFAFA;border:1px solid rgba(10,10,10,0.08);border-radius:12px;padding:13px 15px;font-size:13px;color:#4A4A4A;line-height:1.6">${noteInner}</div></td></tr>\n`
     : '';
 
   const lang = content.dir === 'rtl' ? 'ar' : 'en';
@@ -175,11 +175,11 @@ export function renderReceiptEmail(content: ReceiptContent): { html: string; tex
 ${preheader}<table role="presentation" width="100%" cellpadding="0" cellspacing="0" dir="${content.dir}"><tr><td align="center" style="padding:0 12px">
 <table role="presentation" width="480" cellpadding="0" cellspacing="0" dir="${content.dir}" style="width:100%;max-width:480px;background:#ffffff;border-radius:20px;padding:32px;font-family:${fontStack};text-align:${content.dir === 'rtl' ? 'right' : 'left'}">
 ${logoHtml}${sellerHtml}<tr><td style="font-size:24px;font-weight:500;color:#0A0A0A;padding-bottom:8px">${esc(content.greeting)}</td></tr>
-<tr><td style="font-size:16px;color:#3f3f3f;line-height:1.6;padding-bottom:20px">${esc(content.intro)}</td></tr>
+<tr><td style="font-size:16px;color:#4A4A4A;line-height:1.6;padding-bottom:20px">${esc(content.intro)}</td></tr>
 ${heroHtml}
 <tr><td style="border-top:1px solid rgba(10,10,10,0.08);padding-top:16px"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" dir="${content.dir}">${rowsHtml}</table></td></tr>
-${ctaHtml}${bulletsHtml}${hostHtml}${noteHtml}<tr><td style="border-top:1px solid rgba(10,10,10,0.08);padding-top:16px;font-size:14px;color:#3f3f3f;line-height:1.6">${esc(content.closing)}</td></tr>
-<tr><td style="padding-top:24px;font-size:12px;color:#9a9a9a">${esc(content.footer)}</td></tr>
+${ctaHtml}${bulletsHtml}${hostHtml}${noteHtml}<tr><td style="border-top:1px solid rgba(10,10,10,0.08);padding-top:16px;font-size:14px;color:#4A4A4A;line-height:1.6">${esc(content.closing)}</td></tr>
+<tr><td style="padding-top:24px;font-size:12px;color:#A3A3A3">${esc(content.footer)}</td></tr>
 </table></td></tr></table></body></html>`;
 
   // Strip tags from the (trusted) note markup for the plain-text part.

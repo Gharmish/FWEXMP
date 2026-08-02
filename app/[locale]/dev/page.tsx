@@ -260,7 +260,7 @@ export default async function StyleGuidePage({ params }: { params: Promise<{ loc
   return (
     <div className="mx-auto flex max-w-5xl flex-col px-6 py-12">
       <header className="flex flex-col gap-2">
-        <p className="text-sarat-black-600 text-[11px] tracking-[0.2em] uppercase">
+        <p className="text-sarat-black-600 text-[11px] font-medium tracking-[0.2em] uppercase">
           Gharmish · internal
         </p>
         <h1 className="font-display text-5xl font-semibold tracking-[-0.035em]">Design system</h1>
@@ -271,7 +271,7 @@ export default async function StyleGuidePage({ params }: { params: Promise<{ loc
           aria-label="Sections"
           className="border-sarat-black/8 rounded-card mt-6 [border-width:0.5px] p-5"
         >
-          <p className="text-sarat-black-600 mb-3 text-[11px] tracking-[0.2em] uppercase">
+          <p className="text-sarat-black-600 mb-3 text-[11px] font-medium tracking-[0.2em] uppercase">
             Jump to
           </p>
           <ul className="flex flex-wrap gap-x-4 gap-y-1.5 text-sm">
@@ -346,7 +346,7 @@ export default async function StyleGuidePage({ params }: { params: Promise<{ loc
               key={t.role}
               className="border-sarat-black/8 grid grid-cols-1 gap-2 [border-bottom-width:0.5px] pb-6 sm:grid-cols-[120px_1fr_1fr]"
             >
-              <span className="text-sarat-black-600 text-[11px] tracking-[0.2em] uppercase">
+              <span className="text-sarat-black-600 text-[11px] font-medium tracking-[0.2em] uppercase">
                 {t.role}
               </span>
               <span className={`font-display ${t.cls}`}>{t.en}</span>
@@ -541,7 +541,7 @@ export default async function StyleGuidePage({ params }: { params: Promise<{ loc
         </p>
         <div className="grid gap-6 sm:grid-cols-2">
           <div className="flex flex-col gap-3">
-            <span className="text-sarat-black-600 text-[11px] tracking-[0.2em] uppercase">
+            <span className="text-sarat-black-600 text-[11px] font-medium tracking-[0.2em] uppercase">
               Light surface
             </span>
             <div className="border-sarat-black/8 rounded-card flex items-center gap-4 [border-width:0.5px] bg-white p-6">
@@ -550,7 +550,7 @@ export default async function StyleGuidePage({ params }: { params: Promise<{ loc
             </div>
           </div>
           <div className="flex flex-col gap-3">
-            <span className="text-sarat-black-600 text-[11px] tracking-[0.2em] uppercase">
+            <span className="text-sarat-black-600 text-[11px] font-medium tracking-[0.2em] uppercase">
               Dark surface
             </span>
             <div className="rounded-card bg-sarat-black flex items-center gap-4 p-6">
@@ -564,13 +564,13 @@ export default async function StyleGuidePage({ params }: { params: Promise<{ loc
       <Section title="Reviews — rating summary">
         <div className="flex flex-col gap-10">
           <div className="flex flex-col gap-2">
-            <p className="text-sarat-black-600 text-[11px] tracking-[0.2em] uppercase">
+            <p className="text-sarat-black-600 text-[11px] font-medium tracking-[0.2em] uppercase">
               With reviews
             </p>
             <RatingSummary aggregate={SAMPLE_AGGREGATE} locale={locale as Locale} />
           </div>
           <div className="flex flex-col gap-2">
-            <p className="text-sarat-black-600 text-[11px] tracking-[0.2em] uppercase">
+            <p className="text-sarat-black-600 text-[11px] font-medium tracking-[0.2em] uppercase">
               Zero state
             </p>
             <RatingSummary aggregate={EMPTY_AGGREGATE} locale={locale as Locale} />

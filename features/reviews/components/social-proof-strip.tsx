@@ -23,7 +23,7 @@ export async function SocialProofStrip({ locale }: SocialProofStripProps) {
 
   const t = await getTranslations('home.socialProof');
   const eyebrowClassName = cn(
-    'text-sarat-black-600 text-[11px]',
+    'text-sarat-black-600 font-medium text-[11px]',
     locale === 'en' && 'tracking-[0.2em] uppercase',
   );
 

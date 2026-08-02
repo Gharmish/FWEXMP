@@ -38,7 +38,6 @@ export async function generateMetadata({
       languages: languagesAlternates,
     },
     openGraph: {
-      images: [{ url: `${SITE_URL}/images/gharmish-og.png`, width: 1200, height: 630 }],
       title,
       description,
       url: `${SITE_URL}/${locale}/hosts`,
@@ -57,7 +56,7 @@ export default async function HostsIndexPage({ params }: { params: Promise<{ loc
   const th = await getTranslations('host');
 
   const eyebrowClassName = cn(
-    'text-sarat-black-600 text-[11px]',
+    'text-sarat-black-600 font-medium text-[11px]',
     loc === 'en' && 'tracking-[0.2em] uppercase',
   );
 
