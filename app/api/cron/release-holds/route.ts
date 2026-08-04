@@ -27,7 +27,7 @@ import {
   platformSettings,
   walletLedger,
 } from '@/db/schema';
-import { getSupabaseUserStorage } from '@/lib/supabase/server';
+import { getSupabaseServiceStorage } from '@/lib/supabase/server';
 import { KYC_DOCUMENTS_BUCKET } from '@/features/host-applications/lib/documents';
 import { reportError } from '@/lib/log';
 import { notifyAdmin } from '@/lib/admin-alerts';
@@ -950,7 +950,12 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         )
         .limit(RECONCILE_LIMIT);
       if (staleDocs.length > 0) {
-        const storage = await getSupabaseUserStorage();
+        // MUST be the service-role client, not `getSupabaseUserStorage()`:
+        // that one gates on a signed-in user, and a cron request has no
+        // session, so this pass silently deleted nothing when it first
+        // shipped (2026-08-02 security audit). Authorization for this
+        // pass is the CRON_SECRET check at the top of the route.
+        const storage = getSupabaseServiceStorage();
         // No storage client (no service key) → skip the whole pass; rows
         // must never be deleted ahead of their objects.
         if (storage) {

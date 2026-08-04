@@ -51,6 +51,32 @@ export async function getSupabaseServerClient(): Promise<SupabaseClient> {
 }
 
 /**
+ * Storage client for TRUSTED SERVER CONTEXTS with no user session —
+ * today only the cron route's KYC retention sweep.
+ *
+ * `getSupabaseUserStorage()` below requires a signed-in user as its
+ * entry ticket, which is right for anything driven by a request from a
+ * person. A cron request carries no auth cookies, so calling it there
+ * silently returns null and the caller becomes a no-op (2026-08-02
+ * security audit — the KYC retention sweep shipped that way and would
+ * never have deleted a single document).
+ *
+ * There is no user gate here, so the CALLER is the entire authorization
+ * story: only use this behind a verified `CRON_SECRET` (or an equivalent
+ * server-side trust boundary), never on a path a visitor can reach.
+ * Returns null when no service key is configured — callers must treat
+ * that as "skip", never as "proceed unauthenticated".
+ */
+export function getSupabaseServiceStorage(): SupabaseClient['storage'] | null {
+  const serviceKey = serverEnv.SUPABASE_SERVICE_ROLE_KEY;
+  if (!serviceKey || !clientEnv.NEXT_PUBLIC_SUPABASE_URL) return null;
+  const admin = createClient(clientEnv.NEXT_PUBLIC_SUPABASE_URL, serviceKey, {
+    auth: { persistSession: false, autoRefreshToken: false },
+  });
+  return admin.storage;
+}
+
+/**
  * Storage client for writes made on behalf of a signed-in user.
  *
  * History (2026-07-03): `getSupabaseServerClient().storage` sends the
