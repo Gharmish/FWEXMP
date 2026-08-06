@@ -11,6 +11,7 @@ import { Badge } from '@/components/ui/badge';
 import { JsonLd } from '@/components/seo/json-ld';
 import { ExperienceCard } from '@/features/experiences/components/experience-card';
 import { HostReviews } from '@/features/reviews/components/host-reviews';
+import { VerifiedBadge } from '@/features/hosts/components/verified-badge';
 import { toArabicText } from '@/features/experiences/lib/arabic-content';
 import { pickLocalized } from '@/lib/ar-placeholder';
 import {
@@ -175,7 +176,9 @@ export default async function HostProfilePage({
                   {name}
                 </h1>
                 <div className="flex flex-wrap items-center gap-3">
-                  {host.verified && <Badge variant="verified">{th('verified')}</Badge>}
+                  {host.verified && (
+                    <VerifiedBadge hostName={name} locale={loc} verifiedAt={host.joinedAt} />
+                  )}
                   {responseStats && (
                     <Badge variant="neutral">
                       {th('respondsIn', { hours: responseStats.avgResponseHours })}

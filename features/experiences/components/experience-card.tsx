@@ -12,6 +12,7 @@ import { toArabicText } from '@/features/experiences/lib/arabic-content';
 import { CATEGORIES } from '@/features/experiences/lib/sample-data';
 import { HoverLift } from '@/components/ui/motion';
 import { PhotoCarousel } from '@/components/ui/photo-carousel';
+import { VerifiedSeal } from '@/components/ui/verified-seal';
 
 /**
  * Presentational experience card. Restraint-first (BRIEF §3): hairline
@@ -72,6 +73,7 @@ export async function ExperienceCard({
 }: ExperienceCardProps) {
   const t = await getTranslations('experience');
   const tr = await getTranslations('reviews');
+  const tv = await getTranslations('verifiedBadge');
   const title = locale === 'ar' ? experience.titleAr : experience.titleEn;
   const description = locale === 'ar' ? experience.descriptionAr : experience.descriptionEn;
   const placeName = locale === 'ar' ? toArabicText(experience.placeName) : experience.placeName;
@@ -206,7 +208,15 @@ export async function ExperienceCard({
                 {durationHours(experience.durationMinutes, locale)} {t('hours')}
               </span>
               <span aria-hidden>·</span>
-              <span>{hostName}</span>
+              <span className="inline-flex items-center gap-1.5">
+                {hostName}
+                {/* Micro-seal, not the tappable lockup: the whole card is one
+                    Link, so a nested button would be invalid — the card builds
+                    the reflex, the detail page opens the door. */}
+                {experience.hostVerified && (
+                  <VerifiedSeal className="size-3.5" label={tv('lockup')} />
+                )}
+              </span>
             </div>
 
             <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-2">

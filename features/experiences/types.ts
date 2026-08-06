@@ -30,6 +30,8 @@ export interface ExperienceSummary {
   hostName: string;
   /** Stable URL slug of the host, for linking to /hosts/[slug]. */
   hostSlug: string;
+  /** Drives the micro-seal beside the host name on cards; undefined on the sample-data path. */
+  hostVerified?: boolean;
   featured: boolean;
   /** `instant` auto-confirms against the calendar; `request` is operator-confirmed. */
   bookingMode: BookingMode;
@@ -75,6 +77,12 @@ export interface HostInfo {
   bioEn: string;
   bioAr: string;
   verified: boolean;
+  /**
+   * ISO timestamp of the host record's mint — set by the admin-approval
+   * flow, so for live hosts it IS the verification date ("Verified
+   * March 2026" in the badge sheet). Undefined on the sample-data path.
+   */
+  verifiedAt?: string;
   /** Optional avatar URL (Supabase Storage). `null` until the host's portrait session lands. */
   photoUrl: string | null;
   /** ISO-639-1 language tags the host speaks (`ar`, `en`) — trust chip. */

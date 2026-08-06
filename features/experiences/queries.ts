@@ -90,6 +90,7 @@ function toSummary(
     availabilityWeekdays: [...row.availabilityWeekdays],
     hostName: row.host.name,
     hostSlug: row.host.slug,
+    hostVerified: row.host.verificationStatus === 'verified',
     featured: row.featured,
     bookingMode: row.bookingMode,
     ratingAverage: agg?.average ?? null,
@@ -107,6 +108,7 @@ function toHostInfo(host: Host): HostInfo {
     bioEn: host.bioEn,
     bioAr: arOrFallback(host.bioEn, host.bioAr),
     verified: host.verificationStatus === 'verified',
+    verifiedAt: host.createdAt.toISOString(),
     photoUrl: host.photoUrl,
     languages: [...host.languages],
   };

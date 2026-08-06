@@ -1,7 +1,8 @@
-import { ArrowRight, Languages, ShieldCheck, Timer } from 'lucide-react';
+import { ArrowRight, Languages, Timer } from 'lucide-react';
 import { getTranslations } from 'next-intl/server';
 import { Avatar } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
+import { VerifiedBadge } from '@/features/hosts/components/verified-badge';
 import { Link } from '@/lib/i18n';
 import type { Locale } from '@/lib/i18n';
 import type { HostInfo } from '@/features/experiences/types';
@@ -45,10 +46,7 @@ export async function HostCard({ host, locale, responseStats }: HostCardProps) {
           <span className="text-lg font-medium">{name}</span>
           <div className="flex flex-wrap items-center gap-2">
             {host.verified && (
-              <Badge variant="verified">
-                <ShieldCheck aria-hidden />
-                {t('verified')}
-              </Badge>
+              <VerifiedBadge hostName={name} locale={locale} verifiedAt={host.verifiedAt} />
             )}
             {languagesLabel && (
               <Badge variant="neutral">

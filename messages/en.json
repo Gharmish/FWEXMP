@@ -2935,6 +2935,22 @@
     "respondsIn": "Responds in about {hours}h",
     "responseRate": "{pct}% response rate"
   },
+  "verifiedBadge": {
+    "lockup": "Verified by Gharmish",
+    "sheetTitle": "Verified by Gharmish",
+    "subtitle": "Reviewed by our team in Abha — not by an algorithm.",
+    "identityTitle": "Identity verified",
+    "identityBody": "We reviewed {host}'s national ID or commercial registration before their first listing went live.",
+    "activityTitle": "Activity reviewed",
+    "activityBody": "We read each experience end to end and confirmed {host} can deliver it — including any licence the activity requires.",
+    "locationTitle": "Meeting location checked",
+    "locationBody": "The meeting point shown on an experience page is the one {host} committed to — reviewed with the listing.",
+    "reviewTitle": "Experience reviewed by Gharmish",
+    "reviewBody": "Every listing is reviewed before it goes live — and reviewed again when it changes.",
+    "verifiedOn": "Verified {date}",
+    "how": "How verification works",
+    "trustLine": "{host}'s identity, activity and meeting point are verified by Gharmish."
+  },
   "hostsIndex": {
     "meta": {
       "title": "Gharmish hosts",

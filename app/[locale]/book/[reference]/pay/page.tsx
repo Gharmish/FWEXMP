@@ -27,6 +27,8 @@ import { WalletCheckoutField } from '@/features/wallet/components/wallet-checkou
 import { getSessionGuestId } from '@/features/wallet/queries';
 import { getWalletBalanceSar } from '@/features/wallet/ledger';
 import { PaymentMarks } from '@/components/layout/payment-marks';
+import { VerifiedBadge } from '@/features/hosts/components/verified-badge';
+import { toArabicText } from '@/features/experiences/lib/arabic-content';
 import { cn } from '@/lib/utils';
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -471,6 +473,16 @@ export default async function PaymentPage({ params, searchParams }: PageParams) 
               the accepted schemes as the real brand marks (same badges as the
               footer, mirroring the card logos the widget shows). */}
           <section className="border-sarat-black/8 mt-8 flex flex-col gap-3 [border-top-width:0.5px] pt-6">
+            {/* Verified-host trust line at the money moment — tappable, opens
+                the same four-check receipt as the badge on the host block. */}
+            {experience?.host.verified && (
+              <VerifiedBadge
+                variant="line"
+                hostName={loc === 'ar' ? toArabicText(experience.host.name) : experience.host.name}
+                locale={loc}
+                verifiedAt={experience.host.verifiedAt}
+              />
+            )}
             <p className="text-sarat-black-600 inline-flex items-start gap-2 text-sm leading-relaxed">
               <Lock className="mt-0.5 size-4 shrink-0" aria-hidden />
               {t('secureNote')}

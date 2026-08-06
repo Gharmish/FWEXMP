@@ -3,8 +3,8 @@ import { ArrowRight } from 'lucide-react';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { cn } from '@/lib/utils';
 import { Avatar } from '@/components/ui/avatar';
-import { Badge } from '@/components/ui/badge';
 import { JsonLd } from '@/components/seo/json-ld';
+import { VerifiedSeal } from '@/components/ui/verified-seal';
 import { Link } from '@/lib/i18n';
 import type { Locale } from '@/lib/i18n';
 import { routing } from '@/lib/i18n';
@@ -54,6 +54,7 @@ export default async function HostsIndexPage({ params }: { params: Promise<{ loc
   const hosts = await getAllHostsOrThrow();
   const t = await getTranslations('hostsIndex');
   const th = await getTranslations('host');
+  const tv = await getTranslations('verifiedBadge');
 
   const eyebrowClassName = cn(
     'text-sarat-black-600 font-medium text-[11px]',
@@ -117,7 +118,15 @@ export default async function HostsIndexPage({ params }: { params: Promise<{ loc
                           <Avatar name={name} src={host.photoUrl ?? undefined} size="lg" />
                           <div className="flex flex-col gap-1">
                             <span className="text-lg font-medium">{name}</span>
-                            {host.verified && <Badge variant="verified">{th('verified')}</Badge>}
+                            {/* Non-interactive lockup — the whole card is one
+                                Link, so the tappable receipt lives on the
+                                profile page this card opens. */}
+                            {host.verified && (
+                              <span className="text-juniper-green-800 inline-flex items-center gap-1.5 text-xs font-medium">
+                                <VerifiedSeal className="size-4" />
+                                {tv('lockup')}
+                              </span>
+                            )}
                           </div>
                         </div>
                         <p className="text-sarat-black-600 line-clamp-3 text-base">{bio}</p>

@@ -22,6 +22,7 @@ import { ReviewForm } from '@/features/reviews/components/review-form';
 import { getReviewForBooking } from '@/features/reviews/queries';
 import { hasOpenDisputeForBooking } from '@/features/disputes/queries';
 import { CancelBookingButton } from '@/features/bookings/components/cancel-booking-button';
+import { VerifiedBadge } from '@/features/hosts/components/verified-badge';
 import { RescheduleBooking } from '@/features/bookings/components/reschedule-booking';
 import { RefundToCardButton } from '@/features/wallet/components/refund-to-card-button';
 import { getSessionGuestId } from '@/features/wallet/queries';
@@ -765,6 +766,15 @@ export default async function BookingConfirmedPage({ params, searchParams }: Pag
           <p className="text-sarat-black-600 max-w-2xl text-base leading-relaxed">
             {t('whatsapp.description')}
           </p>
+          {/* "Will anyone show up?" — the verified receipt, one tap away. */}
+          {experience?.host.verified && (
+            <VerifiedBadge
+              variant="line"
+              hostName={loc === 'ar' ? toArabicText(experience.host.name) : experience.host.name}
+              locale={loc}
+              verifiedAt={experience.host.verifiedAt}
+            />
+          )}
           <a
             href={hostWhatsapp}
             target="_blank"
