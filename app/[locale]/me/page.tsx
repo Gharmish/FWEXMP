@@ -17,6 +17,8 @@ import { getMyProfile } from '@/features/account/profile/queries';
 import { getBookingsForGuest } from '@/features/bookings/queries';
 import { BookingHistory } from '@/features/account/profile/components/booking-history';
 import { BookingStatusBadge } from '@/features/bookings/components/booking-status-badge';
+import { CheckoutProgress } from '@/features/payments/components/checkout-progress';
+import { checkoutJourneyStep } from '@/features/bookings/lib/checkout-journey';
 import { buildBookingStatusLabels } from '@/features/bookings/lib/status-labels';
 import { ReviewForm } from '@/features/reviews/components/review-form';
 import { toArabicText } from '@/features/experiences/lib/arabic-content';
@@ -43,13 +45,30 @@ export default async function MePage({ params }: { params: Promise<{ locale: str
   setRequestLocale(locale);
   const loc = locale as Locale;
 
-  const [wishlist, lastBooking, profile, t, tp] = await Promise.all([
+  const [wishlist, lastBooking, profile, t, tp, tSteps] = await Promise.all([
     getWishlistExperiences(),
     getLastBookingView(),
     getMyProfile(),
     getTranslations('me'),
     getTranslations('me.profile'),
+    getTranslations('payment.steps'),
   ]);
+  const stepsCopy = {
+    label: tSteps('label'),
+    details: tSteps('details'),
+    payment: tSteps('payment'),
+    confirmed: tSteps('confirmed'),
+  };
+  // Journey stepper for the last-booking card — same live-checkout rule
+  // as the history rows (null for settled/terminal states).
+  const lastBookingStep = lastBooking?.booking
+    ? checkoutJourneyStep({
+        status: lastBooking.booking.status,
+        paymentStatus: lastBooking.booking.paymentStatus,
+        paymentDeadline: lastBooking.booking.paymentDeadline,
+        now: new Date(),
+      })
+    : null;
 
   // Full history for signed-in guests — the hub must reach every booking,
   // not just the cookie-hinted last one (which can expire or point at a
@@ -161,6 +180,14 @@ export default async function MePage({ params }: { params: Promise<{ locale: str
             </div>
 
             <div className="border-sarat-black/8 rounded-card flex flex-col gap-4 [border-width:0.5px] p-6">
+              {lastBookingStep !== null && (
+                <CheckoutProgress
+                  steps={[stepsCopy.details, stepsCopy.payment, stepsCopy.confirmed]}
+                  current={lastBookingStep}
+                  label={stepsCopy.label}
+                  locale={loc}
+                />
+              )}
               <p className={eyebrowClassName}>{t('referenceLabel')}</p>
               {/* Human reference (GH-XXXXXX); UUID only when the row is
                   unavailable (no-DB preview). */}
@@ -346,6 +373,7 @@ export default async function MePage({ params }: { params: Promise<{ locale: str
                 partyLabel: tp('history.partyLabel'),
                 statusLabels,
                 view: tp('history.view'),
+                steps: stepsCopy,
               }}
             />
           </div>

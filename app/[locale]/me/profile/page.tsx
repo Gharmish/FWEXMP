@@ -47,12 +47,13 @@ export default async function ProfilePage({ params }: { params: Promise<{ locale
     redirect({ href: '/sign-in?next=/me/profile', locale: loc });
   }
 
-  const [bookings, reviewsWritten, disputesFiled, walletBalanceSar, t] = await Promise.all([
+  const [bookings, reviewsWritten, disputesFiled, walletBalanceSar, t, tSteps] = await Promise.all([
     getBookingsForGuest(profile.id),
     getReviewsWrittenByGuest(profile.id, loc),
     getDisputesFiledByGuest(profile.id),
     getMyWalletBalanceSar(profile.id),
     getTranslations('me.profile'),
+    getTranslations('payment.steps'),
   ]);
 
   const eyebrowClassName = cn(
@@ -175,6 +176,12 @@ export default async function ProfilePage({ params }: { params: Promise<{ locale
               partyLabel: t('history.partyLabel'),
               statusLabels,
               view: t('history.view'),
+              steps: {
+                label: tSteps('label'),
+                details: tSteps('details'),
+                payment: tSteps('payment'),
+                confirmed: tSteps('confirmed'),
+              },
             }}
           />
         ) : (
