@@ -96,6 +96,12 @@ describe('buildCheckoutBody', () => {
     expect(body.get('billing.postcode')).toBe('62521');
   });
 
+  it('requests an SRI hash (integrity=true) in every mode — HyperPay go-live requirement', () => {
+    expect(buildCheckoutBody(input, testCfg).get('integrity')).toBe('true');
+    expect(buildCheckoutBody(input, internalCfg).get('integrity')).toBe('true');
+    expect(buildCheckoutBody(input, liveCfg).get('integrity')).toBe('true');
+  });
+
   it('sends card.holder only when provided (Apple Pay channel)', () => {
     expect(buildCheckoutBody(input, testCfg).has('card.holder')).toBe(false);
     const body = buildCheckoutBody({ ...input, cardHolder: 'Sara Al Qahtani' }, testCfg);

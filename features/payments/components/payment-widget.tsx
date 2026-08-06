@@ -141,6 +141,11 @@ export function PaymentWidget({
     const script = document.createElement('script');
     script.src = `${checkout.scriptBaseUrl}v1/paymentWidgets.js?checkoutId=${encodeURIComponent(checkout.checkoutId)}`;
     script.async = true;
+    // SRI: the browser rejects a widget script that doesn't match the
+    // hash the gateway issued for this checkout (HyperPay go-live
+    // requirement). Null only for pre-rollout checkouts reused from the
+    // DB, which still load un-pinned rather than breaking mid-payment.
+    if (checkout.integrity) script.integrity = checkout.integrity;
     script.crossOrigin = 'anonymous';
     script.onload = () => setStatus('ready');
     script.onerror = () => setStatus('error');
@@ -153,6 +158,7 @@ export function PaymentWidget({
     };
   }, [
     checkout.checkoutId,
+    checkout.integrity,
     checkout.scriptBaseUrl,
     checkout.brands,
     checkout.returnUrl,

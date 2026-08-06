@@ -100,6 +100,11 @@ export function buildCheckoutBody(
     'customer.email': input.customer.email,
     'customer.givenName': input.customer.givenName,
     'customer.surname': input.customer.surname,
+    // Ask the gateway for a Subresource Integrity hash of the widget
+    // script bound to this checkout; the browser refuses a tampered
+    // `paymentWidgets.js`. Required by HyperPay for production go-live
+    // (2026-08-06 email), sent in every mode.
+    integrity: 'true',
   });
 
   // Apple Pay tokens carry no cardholder name, and the gateway declines

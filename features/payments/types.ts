@@ -78,6 +78,12 @@ export interface PrepareCheckoutResponse {
   /** The checkout id consumed by `paymentWidgets.js?checkoutId=…`. */
   id: string;
   result: HyperpayResult;
+  /**
+   * SRI hash for this checkout's `paymentWidgets.js` (returned because
+   * the request sends `integrity=true`); goes on the script tag's
+   * `integrity` attribute alongside `crossorigin="anonymous"`.
+   */
+  integrity?: string;
 }
 
 /** Response of `GET /v1/checkouts/{id}/payment`. */

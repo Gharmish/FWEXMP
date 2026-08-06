@@ -87,6 +87,11 @@ const createCheckoutSchema = paymentDetailsSchema
 
 export interface CheckoutReady {
   checkoutId: string;
+  /**
+   * SRI hash for this checkout's widget script (from `integrity=true` on
+   * checkout creation); null for pre-rollout checkouts reused from the DB.
+   */
+  integrity: string | null;
   /** Base URL the `paymentWidgets.js` script is served from. */
   scriptBaseUrl: string;
   /** Absolute `shopperResultUrl` the widget posts back to. */
@@ -203,6 +208,7 @@ export async function createCheckout(
         status: true,
         paymentDeadline: true,
         checkoutId: true,
+        checkoutIntegrity: true,
         settleAnomalyAt: true,
       },
       // The experience and its host gate the charge too — see below.
@@ -328,10 +334,11 @@ export async function createCheckout(
 
     const origin = await requestOrigin();
     const returnUrl = `${origin}/${input.locale}/book/${input.reference}/pay/return?slug=${encodeURIComponent(input.slug)}`;
-    const ready = (checkoutId: string): CreateCheckoutState => ({
+    const ready = (checkoutId: string, integrity: string | null): CreateCheckoutState => ({
       status: 'ready',
       data: {
         checkoutId,
+        integrity,
         scriptBaseUrl: hyperpayBaseUrl(),
         returnUrl,
         brands: channel === 'applepay' ? 'APPLEPAY' : 'MADA VISA MASTER',
@@ -355,7 +362,7 @@ export async function createCheckout(
         created?.gatewayId === booking.checkoutId &&
         (created.resultCode ?? null) === channelTag &&
         Date.now() - created.createdAt.getTime() < CHECKOUT_REUSE_MINUTES * 60_000;
-      if (fresh) return ready(booking.checkoutId);
+      if (fresh) return ready(booking.checkoutId, booking.checkoutIntegrity);
       try {
         await recordPaymentEvent({
           bookingId: booking.id,
@@ -395,6 +402,7 @@ export async function createCheckout(
       .update(bookings)
       .set({
         checkoutId: checkout.id,
+        checkoutIntegrity: checkout.integrity ?? null,
         paymentStatus: 'processing',
         // This checkout is FRESH, so the supersession marker from any
         // earlier promo/credit change must clear with it (2026-07-28
@@ -424,7 +432,7 @@ export async function createCheckout(
       reportError(error, { surface: 'payment-create-checkout:ledger', reference: input.reference });
     }
 
-    return ready(checkout.id);
+    return ready(checkout.id, checkout.integrity ?? null);
   } catch (error) {
     reportError(error, { surface: 'payment-create-checkout', reference: input.reference });
     return { status: 'error', error: 'server', values: echoValues(formData) };
