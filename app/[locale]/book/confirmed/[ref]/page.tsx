@@ -163,6 +163,13 @@ export default async function BookingConfirmedPage({ params, searchParams }: Pag
   const walletCreditSar = booking ? booking.totalAmountSar + booking.walletAppliedSar : 0;
   const isDeclined = booking?.status === 'declined';
   const isExpired = booking?.status === 'expired';
+  // "Try payment again" is only honest while the pay page would accept
+  // the booking. A cancelled/declined/expired row can carry a stale
+  // failed payment (e.g. cancelled after a failed attempt) — the header
+  // already lets those states win, but the footer CTA used bare
+  // `isFailed` and rendered a retry button that just bounces off the
+  // pay page's guards, straight back here.
+  const canRetryPayment = isFailed && !isCancelled && !isDeclined && !isExpired;
   // Any confirmed-but-unpaid booking inside a live payment window —
   // an approved request *or* an instant booking whose guest left the
   // pay page. The page's job is to get them to the payment step; it
@@ -942,7 +949,7 @@ export default async function BookingConfirmedPage({ params, searchParams }: Pag
       )}
 
       <div className="mt-10 flex flex-wrap gap-3 print:hidden">
-        {isFailed ? (
+        {canRetryPayment ? (
           <>
             <Link
               href={`/book/${ref}/pay${experienceSlug ? `?slug=${encodeURIComponent(experienceSlug)}` : ''}`}
