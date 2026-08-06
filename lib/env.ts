@@ -107,6 +107,12 @@ const serverSchema = z.object({
   // settlement anomalies, cron failures). Optional — `notifyAdmin()` is a
   // silent no-op until it's set, same boundary pattern as `hasEmail()`.
   ADMIN_ALERT_EMAIL: z.string().default(''),
+  // Second alert rail (2026-08-02 ops audit P0-7): E.164 phone that
+  // receives operational alerts over WhatsApp. Email alerts ride Resend,
+  // which is itself one of the things that can fail — a failing alert
+  // channel goes dark exactly when it matters. Optional and inert until
+  // BOTH this and an approved `admin_alert` Content SID are configured.
+  ADMIN_ALERT_WHATSAPP: z.string().default(''),
   // Shared secret for the scheduled release-holds job. Vercel Cron sends it as
   // `Authorization: Bearer <CRON_SECRET>`. Empty → the route rejects every
   // request (the job is inert until configured).
@@ -123,6 +129,12 @@ const serverSchema = z.object({
   // tokens were rejected by storage RLS in production, so the action layer
   // is the gatekeeper and storage is plumbing. Never expose to the client.
   SUPABASE_SERVICE_ROLE_KEY: z.string().default(''),
+  // Optional HMAC secret for the signed last-booking cookie. Unset is
+  // fine: the key derives from SUPABASE_SERVICE_ROLE_KEY (always present
+  // in production). Set this only to decouple cookie-signing rotation
+  // from the service key — rotating either invalidates outstanding
+  // cookies, which costs anonymous guests nothing worse than signing in.
+  COOKIE_SIGNING_SECRET: z.string().default(''),
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
 });
 
@@ -147,9 +159,11 @@ export const serverEnv = parseEnv(
     TWILIO_WHATSAPP_FROM: process.env.TWILIO_WHATSAPP_FROM,
     TWILIO_WHATSAPP_CONTENT_SIDS: process.env.TWILIO_WHATSAPP_CONTENT_SIDS,
     ADMIN_ALERT_EMAIL: process.env.ADMIN_ALERT_EMAIL,
+    ADMIN_ALERT_WHATSAPP: process.env.ADMIN_ALERT_WHATSAPP,
     CRON_SECRET: process.env.CRON_SECRET,
     PII_ENCRYPTION_KEY: process.env.PII_ENCRYPTION_KEY,
     SUPABASE_SERVICE_ROLE_KEY: process.env.SUPABASE_SERVICE_ROLE_KEY,
+    COOKIE_SIGNING_SECRET: process.env.COOKIE_SIGNING_SECRET,
     NODE_ENV: process.env.NODE_ENV,
   },
   'server',

@@ -4,6 +4,8 @@ import { getLocale, getTranslations } from 'next-intl/server';
 import type { Locale } from '@/lib/i18n';
 import { getCurrentUser } from '@/features/auth/queries';
 import { isAdminUser } from '@/features/admin/auth';
+import { mfaRequirement } from '@/features/admin/mfa';
+import { AdminMfaGate } from '@/features/admin/components/admin-mfa-gate';
 import { AdminShell } from '@/features/admin/dashboard/components/admin-shell';
 import { LanguageSwitcher } from '@/components/layout/language-switcher';
 import { SignOutButton } from '@/components/layout/sign-out-button';
@@ -33,6 +35,13 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   const user = await getCurrentUser();
   if (!user || !isAdminUser(user)) notFound();
 
+  // Second factor (2026-08-02 security audit). Rendered IN PLACE of the
+  // admin app rather than redirected to, so there is no route to forget
+  // to protect and no exempt-path list to get wrong — every admin page
+  // nests under this layout. Stub-mode dev has no Supabase and therefore
+  // no TOTP, so it skips the gate (never production — `stubAuthAllowed`).
+  const requirement = user.isStub ? 'ok' : mfaRequirement(user.mfa);
+
   const locale = (await getLocale()) as Locale;
   const t = await getTranslations('nav');
 
@@ -48,7 +57,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
           </>
         }
       >
-        {children}
+        {requirement === 'ok' ? children : <AdminMfaGate mode={requirement} />}
       </AdminShell>
     </>
   );

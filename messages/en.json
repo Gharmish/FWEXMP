@@ -146,6 +146,7 @@
         "upcoming": "Upcoming bookings",
         "openDisputes": "Open disputes",
         "refundsDue": "Refunds owed to guests ({amount})",
+        "suspendedHostBookings": "Bookings on suspended hosts",
         "payoutsOwed": "Host payouts owed ({amount})"
       },
       "cronStale": "The scheduled job hasn't completed a run since {date} — request expiry, hold release, payment reconciliation, and reminders are stalled. Check the Vercel cron and CRON_SECRET.",
@@ -917,6 +918,7 @@
         "wrongState": "This booking can't move to that status from where it is now.",
         "overCapacity": "Confirming this would put the date over its group-size limit.",
         "tooEarly": "This booking can't be completed before the experience date.",
+        "tooLate": "The experience's start time has already passed — this request can no longer be approved.",
         "unpaid": "This booking hasn't been paid — it can't be completed.",
         "validation": "Something didn't validate. Refresh and try again.",
         "server": "We couldn't complete that action. Try again in a moment."
@@ -925,6 +927,7 @@
       "expiresIn": "Expires in {hours}h",
       "deadlinePassed": "Approval window passed",
       "refundDueFilter": "Showing bookings with refunds owed",
+      "suspendedHostFilter": "Showing upcoming bookings whose host is suspended",
       "truncated": "Showing the latest {count} bookings — the counts above and the search cover only this window."
     },
     "bookingDetail": {
@@ -1307,6 +1310,34 @@
         "formForbidden": "You don’t have permission to do that.",
         "formValidation": "Please fix the highlighted fields."
       }
+    }
+  },
+  "adminMfa": {
+    "enroll": {
+      "title": "Set up your second factor",
+      "intro": "Admin access opens guest records, identity documents, and payouts. Before you continue, add a code from an authenticator app so a stolen phone number alone can't reach it.",
+      "step1": "Open an authenticator app (Google Authenticator, 1Password, Authy).",
+      "step2": "Scan this QR code, or enter the setup key manually.",
+      "step3": "Enter the 6-digit code it shows to finish.",
+      "qrAlt": "QR code for setting up two-factor authentication",
+      "secretLabel": "Setup key (if you can't scan)",
+      "preparing": "Preparing your setup key…"
+    },
+    "verify": {
+      "title": "Confirm it's you",
+      "intro": "Enter the current 6-digit code from your authenticator app to open the admin area."
+    },
+    "codeLabel": "6-digit code",
+    "submit": "Verify",
+    "submitting": "Verifying",
+    "footnote": "You'll be asked for a code each time you sign in. Lost your device? Contact the platform owner to have your factor reset.",
+    "errors": {
+      "invalid_code": "That code isn't right. Check your authenticator app and try again.",
+      "throttled": "Too many attempts. Wait a few minutes before trying again.",
+      "no_factor": "No authenticator is set up on this account yet.",
+      "forbidden": "You're not authorised to do that.",
+      "unavailable": "Two-factor authentication isn't available in this environment.",
+      "server": "Something went wrong. Try again in a moment."
     }
   },
   "hosting": {
@@ -1808,6 +1839,7 @@
       "wrongState": "This booking changed in another tab. Refresh to see its current state.",
       "overCapacity": "Accepting this request would exceed the group size for that date.",
       "tooEarly": "This booking can't be completed before the experience date.",
+      "tooLate": "This request can't be approved any more — the start time is too close or has already passed.",
       "unpaid": "This booking hasn't been paid — it can't be completed.",
       "validation": "Something about this request was invalid. Refresh and try again.",
       "server": "Something went wrong on our side. Try again."
@@ -2802,9 +2834,14 @@
     "expiredSubject": "Your booking request expired",
     "expiredIntro": "The host didn't respond within the approval window, so your request expired. You haven't been charged anything.",
     "expiredClosing": "You're welcome to send a new request for another date.",
+    "expiredCta": "Choose another date",
     "paymentLapsedSubject": "Your booking hold was released",
     "paymentLapsedIntro": "The payment window for your booking passed, so the spot was released back to the calendar. You haven't been charged anything.",
     "paymentLapsedClosing": "If you still want to go, you can book the experience again.",
+    "paymentLapsedCta": "Book again",
+    "onHoldSubject": "An update on your booking {reference}",
+    "onHoldIntro": "We've temporarily paused bookings with this host while we complete a review. Your booking is on hold — you don't need to do anything right now, and our team will contact you shortly with your options, including a full refund if the experience can't go ahead.",
+    "onHoldClosing": "If your plans can't wait, reply to this email and we'll prioritize your booking.",
     "cancelByHostIntroRefunded": "Your host couldn't run this booking, so we've cancelled it and refunded your payment in full. Refunds usually arrive within a few business days, depending on your bank.",
     "cancelByHostIntroRefundPending": "Your host couldn't run this booking, so we've cancelled it. Your full refund is on its way — our team processes it by hand, so it can take a few business days.",
     "cancelByHostIntroUnpaid": "Your host couldn't run this booking, so we've cancelled it. Nothing was charged.",

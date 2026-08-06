@@ -52,14 +52,35 @@ describe('admin/auth', () => {
     expect(isAdminUser(null)).toBe(false);
   });
 
-  it('isAdminUser passes through to the phone check', async () => {
+  /**
+   * Since the 2026-08-02 audit `isAdminUser` reads the flag stamped on
+   * the session by `getSession()` (which consults `user_roles`) rather
+   * than re-deriving from the phone. The phone is deliberately NOT
+   * consulted here: a stale allowlist entry must not out-vote a revoked
+   * grant, and the flag is what every one of the 61 call sites reads.
+   */
+  const user = (over: Partial<import('@/features/auth/types').AuthUser> = {}) => ({
+    id: 'x',
+    phone: '+966512345678',
+    email: undefined,
+    isStub: true,
+    isAdmin: false,
+    mfa: { enrolled: false, verified: false },
+    ...over,
+  });
+
+  it('isAdminUser reads the resolved session flag', async () => {
     process.env.ADMIN_PHONES = '+966512345678';
     const { isAdminUser } = await loadModule();
-    expect(isAdminUser({ id: 'x', phone: '+966512345678', email: undefined, isStub: true })).toBe(
-      true,
-    );
-    expect(isAdminUser({ id: 'x', phone: '+966500000000', email: undefined, isStub: true })).toBe(
-      false,
-    );
+    expect(isAdminUser(user({ isAdmin: true }))).toBe(true);
+    expect(isAdminUser(user({ isAdmin: false }))).toBe(false);
+  });
+
+  it('an allowlisted phone is NOT admin unless the session says so', async () => {
+    process.env.ADMIN_PHONES = '+966512345678';
+    const { isAdminUser } = await loadModule();
+    // Same phone as the allowlist, but the grant was revoked → the
+    // resolver stamped false, and that must win.
+    expect(isAdminUser(user({ phone: '+966512345678', isAdmin: false }))).toBe(false);
   });
 });

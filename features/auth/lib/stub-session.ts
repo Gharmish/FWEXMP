@@ -22,16 +22,34 @@ export const STUB_SESSION_MAX_AGE_SECONDS = 60 * 60 * 24 * 30; // 30 days
 /** Stub OTP that always verifies. Loud on purpose so it can't ship to prod. */
 export const STUB_OTP = '000000';
 
+/**
+ * Admin-ness in stub mode comes from the env allowlist only — the stub
+ * path exists solely where Supabase isn't configured (never production,
+ * see `stubAuthAllowed`), and there is no auth user id to key a
+ * `user_roles` grant on. TOTP needs Supabase, so `mfa` is inert here and
+ * the admin surface skips the second factor in stub mode.
+ */
+function stubAdminFlags(phone: string): Pick<AuthUser, 'isAdmin' | 'mfa'> {
+  const allowlist = (process.env.ADMIN_PHONES ?? '')
+    .split(',')
+    .map((raw) => raw.trim())
+    .filter(Boolean);
+  return {
+    isAdmin: Boolean(phone) && allowlist.includes(phone),
+    mfa: { enrolled: false, verified: false },
+  };
+}
+
 /** Derive a stable AuthUser from a canonical phone string. */
 export function stubUserFromPhone(phone: string): AuthUser {
   const id = createHash('sha256').update(phone).digest('hex').slice(0, 32);
-  return { id, phone, email: undefined, isStub: true };
+  return { id, phone, email: undefined, isStub: true, ...stubAdminFlags(phone) };
 }
 
 /** Derive a stable AuthUser from an email. Cookie value is `email:<addr>`. */
 export function stubUserFromEmail(email: string): AuthUser {
   const id = createHash('sha256').update(`email:${email}`).digest('hex').slice(0, 32);
-  return { id, phone: '', email, isStub: true };
+  return { id, phone: '', email, isStub: true, ...stubAdminFlags('') };
 }
 
 /** Cookie value for an email stub session. */

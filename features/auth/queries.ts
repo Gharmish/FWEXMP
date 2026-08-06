@@ -4,6 +4,8 @@ import { hasSupabaseAuth, stubAuthAllowed } from '@/lib/env';
 import { getSupabaseServerClient } from '@/lib/supabase/server';
 import { reportError } from '@/lib/log';
 import { STUB_SESSION_COOKIE, parseStubSessionCookie } from '@/features/auth/lib/stub-session';
+import { resolveIsAdmin } from '@/features/admin/roles';
+import { NO_MFA, readAdminMfaState } from '@/features/admin/mfa';
 import type { AuthUser, Session } from '@/features/auth/types';
 
 /**
@@ -30,11 +32,19 @@ export const getSession = cache(async (): Promise<Session | null> => {
       const { data, error } = await supabase.auth.getUser();
       if (error || !data.user) return null;
       const phone = data.user.phone ? `+${data.user.phone.replace(/^\+/, '')}` : '';
+      // Roles resolve here, once per request, so `isAdminUser()` can stay
+      // synchronous at all 61 call sites (see AuthUser.isAdmin). Only
+      // signed-in users reach this, and the MFA read is skipped entirely
+      // for non-admins — anonymous traffic pays for neither.
+      const isAdmin = await resolveIsAdmin(data.user.id, phone);
+      const mfa = isAdmin ? await readAdminMfaState(data.user.id) : NO_MFA;
       const user: AuthUser = {
         id: data.user.id,
         phone,
         email: data.user.email ?? undefined,
         isStub: false,
+        isAdmin,
+        mfa,
       };
       return { user };
     } catch (error) {

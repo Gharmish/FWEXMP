@@ -17,12 +17,17 @@ import { isAdminUser } from '@/features/admin/auth';
  *   2. `DATABASE_URL` must be set; admin views are a DB-only surface.
  */
 export interface AdminGuardFailure {
-  reason: 'not_admin' | 'no_db';
+  reason: 'not_admin' | 'no_db' | 'mfa_required';
 }
 
 export async function adminGuard(): Promise<AdminGuardFailure | null> {
   const user = await getCurrentUser();
   if (!isAdminUser(user)) return { reason: 'not_admin' };
+  // Defence in depth behind the layout's second-factor screen: an admin
+  // session that never completed TOTP must not be able to drive admin
+  // queries or actions directly either (2026-08-02 security audit).
+  // Stub-mode dev has no Supabase and therefore no factor to complete.
+  if (user && !user.isStub && !user.mfa.verified) return { reason: 'mfa_required' };
   if (!serverEnv.DATABASE_URL) return { reason: 'no_db' };
   return null;
 }

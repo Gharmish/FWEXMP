@@ -1,5 +1,6 @@
 import { relations, sql } from 'drizzle-orm';
 import {
+  bigint,
   boolean,
   check,
   date,
@@ -560,6 +561,13 @@ export const bookings = pgTable(
     paymentReference: text(),
     /** HyperPay COPYandPAY checkout id, set when the checkout is prepared. */
     checkoutId: text(),
+    /**
+     * SRI hash for the checkout's `paymentWidgets.js` (gateway returns it
+     * because we send `integrity=true`). Stored beside the id so the
+     * checkout-reuse path (second tab, re-submit) can rebuild the script
+     * tag with the same `integrity` attribute the fresh path uses.
+     */
+    checkoutIntegrity: text(),
     /**
      * When the live checkout was SUPERSEDED (promo/credit applied or
      * released while `processing`), making its prepared amount stale.
@@ -1752,6 +1760,83 @@ export const notificationSuppressions = pgTable(
   (t) => [unique('notification_suppressions_channel_address_uq').on(t.channel, t.address)],
 );
 
+/**
+ * Who may administer the platform (2026-08-02 security audit).
+ *
+ * Admin used to be an `ADMIN_PHONES` env allowlist only: no record of
+ * who was granted access or when, no way to revoke without a redeploy,
+ * and nothing to attach a second factor to. This table is the source of
+ * truth; the env var survives only as a bootstrap fallback so a fresh
+ * environment (or an empty table) can't lock the owner out.
+ *
+ * Append-and-revoke, never delete: a revoked grant keeps its history.
+ * `userId` references `auth.users` in the Supabase auth schema, which
+ * Drizzle doesn't model — no FK, so a deleted auth user leaves a
+ * harmless orphan row that grants nothing (the lookup starts from a
+ * live session).
+ */
+export const userRoleEnum = pgEnum('user_role', ['admin']);
+
+export const userRoles = pgTable(
+  'user_roles',
+  {
+    id: uuid().defaultRandom().primaryKey(),
+    /** `auth.users.id` of the grantee. */
+    userId: uuid().notNull(),
+    /**
+     * Phone at grant time — a readable audit trail and the bootstrap
+     * seed's join key. NOT used for authorization: the live check is by
+     * `userId`, so re-assigning a phone number can never inherit a role.
+     */
+    phone: text(),
+    role: userRoleEnum().notNull(),
+    /** Who granted it (`auth.users.id`); null for the bootstrap seed. */
+    grantedByUserId: uuid(),
+    grantedAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
+    /** Set to revoke. Revoked rows are ignored by the guard, kept for history. */
+    revokedAt: timestamp({ withTimezone: true }),
+    revokedByUserId: uuid(),
+    note: text(),
+  },
+  (t) => [
+    // The hot path: "is this signed-in user an admin right now".
+    index('user_roles_user_idx').on(t.userId).where(sql`revoked_at is null`),
+    // One live grant per (user, role) — re-granting after revocation is
+    // a new row, so the partial unique index must ignore revoked ones.
+    uniqueIndex('user_roles_active_uq')
+      .on(t.userId, t.role)
+      .where(sql`revoked_at is null`),
+  ],
+);
+
+/**
+ * Admin second factor (TOTP), 2026-08-02 security audit.
+ *
+ * In-app rather than Supabase MFA: GoTrue derives the TOTP account name
+ * from `user.GetEmail()` and refuses to enrol phone-only accounts, which
+ * is every Gharmish admin. See `lib/totp.ts`.
+ *
+ * One factor per admin — losing the device means an owner-assisted reset
+ * (delete the row), which is the same recovery story as the platform
+ * would have given us.
+ */
+export const adminTotpFactors = pgTable('admin_totp_factors', {
+  /** `auth.users.id`. One row per admin; re-enrolling replaces it. */
+  userId: uuid().primaryKey(),
+  /** Base32 secret, ENCRYPTED at rest via lib/pii-crypto (`enc:v1:` prefix). */
+  secret: text().notNull(),
+  /** Null until the first correct code proves the app is really set up. */
+  confirmedAt: timestamp({ withTimezone: true }),
+  /**
+   * Highest TOTP step already accepted. Replay guard: a code stays
+   * valid for its whole 30s window (plus skew), so without this the
+   * same six digits could be re-submitted from a second session.
+   */
+  lastUsedStep: bigint({ mode: 'number' }),
+  createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
+});
+
 /* --------------------------- Relations --------------------------- */
 
 export const hostsRelations = relations(hosts, ({ many }) => ({
@@ -1902,3 +1987,7 @@ export type NotificationDelivery = typeof notificationDeliveries.$inferSelect;
 export type NewNotificationDelivery = typeof notificationDeliveries.$inferInsert;
 export type NotificationSuppression = typeof notificationSuppressions.$inferSelect;
 export type NewNotificationSuppression = typeof notificationSuppressions.$inferInsert;
+export type UserRole = typeof userRoles.$inferSelect;
+export type NewUserRole = typeof userRoles.$inferInsert;
+export type AdminTotpFactor = typeof adminTotpFactors.$inferSelect;
+export type NewAdminTotpFactor = typeof adminTotpFactors.$inferInsert;
