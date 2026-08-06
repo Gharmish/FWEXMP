@@ -21,6 +21,7 @@ import {
   PaymentDetailsForm,
   type PaymentDetailsCopy,
 } from '@/features/payments/components/payment-details-form';
+import { CheckoutProgress } from '@/features/payments/components/checkout-progress';
 import { PaymentDeadlineNote } from '@/features/payments/components/payment-deadline-note';
 import { PromoCodeField } from '@/features/promo-codes/components/promo-code-field';
 import { WalletCheckoutField } from '@/features/wallet/components/wallet-checkout-field';
@@ -138,6 +139,21 @@ export default async function PaymentPage({ params, searchParams }: PageParams) 
             deadline: formatDeadline(projectedCancel.fullRefundUntil),
           })
         : t('cancellationInsideWindow');
+  // Short variant of the same disclosure for the trust block beside the
+  // total — one line, no explanation; the consent-line note above stays
+  // the full legal wording. Both project from the same snapshot.
+  const trustCancellationNote = !projectedCancel.allowed
+    ? t('trust.nonRefundable')
+    : projectedCancel.refund === 'partial' && projectedCancel.partialDeadline
+      ? t('trust.partialRefundUntil', {
+          amount: formatSAR(projectedCancel.amountSar, loc),
+          deadline: formatDeadline(projectedCancel.partialDeadline),
+        })
+      : projectedCancel.refund === 'full'
+        ? t('trust.freeCancelUntil', {
+            deadline: formatDeadline(projectedCancel.fullRefundUntil),
+          })
+        : t('trust.nonRefundable');
 
   // Clickwrap consent line with inline links to each binding document.
   // Built here (rich text) so the link order reads naturally per locale.
@@ -278,6 +294,15 @@ export default async function PaymentPage({ params, searchParams }: PageParams) 
           motion-free: payment must read rock-solid, and iframes repaint
           badly under transforms. */}
       <MountFade eager>
+        {/* Where the guest stands in the flow: details were captured on the
+            experience page, payment is this page, confirmation follows. */}
+        <CheckoutProgress
+          steps={[t('steps.details'), t('steps.payment'), t('steps.confirmed')]}
+          current={1}
+          label={t('steps.label')}
+          locale={loc}
+          className="mb-8"
+        />
         <header className="flex max-w-2xl flex-col gap-3">
           <p
             className={cn(
@@ -397,6 +422,25 @@ export default async function PaymentPage({ params, searchParams }: PageParams) 
                   <Price amount={vatPortionSar(booking.totalAmountSar, vatRateBps)} locale={loc} />
                 </p>
               )}
+              {/* The explicit VAT line above already says taxes are inside
+                  the total — repeat only the no-fees half then. */}
+              <p className="text-sarat-black-600 text-sm">
+                {vatEnabled ? t('noFeesNote') : `${t('totalIncludesTaxes')} ${t('noFeesNote')}`}
+              </p>
+            </div>
+            {/* Trust block beside the money: the hard charge cap and this
+                booking's cancellation deadline, one line each. */}
+            <div className="border-sarat-black/8 flex flex-col gap-2 [border-top-width:0.5px] pt-4">
+              <p className="inline-flex items-center gap-2 text-sm font-medium">
+                <Lock className="text-juniper-green-800 size-4 shrink-0" aria-hidden />
+                {t('trust.heading')}
+              </p>
+              <p className="text-sarat-black-600 text-sm leading-relaxed">
+                {t('trust.chargeCap', { amount: formatSAR(booking.totalAmountSar, loc) })}
+              </p>
+              <p className="text-sarat-black-600 text-sm leading-relaxed">
+                {trustCancellationNote}
+              </p>
             </div>
             {showWalletField && (
               <div className="border-sarat-black/8 [border-top-width:0.5px] pt-4">

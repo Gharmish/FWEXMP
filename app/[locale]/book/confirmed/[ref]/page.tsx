@@ -38,6 +38,7 @@ import { getScheduleDataBySlug } from '@/features/availability/queries';
 import type { BookableOption } from '@/features/bookings/types';
 import { vatPortionSar, vatRatePercent } from '@/features/bookings/lib/vat';
 import { PendingPaymentRefresh } from '@/features/payments/components/pending-payment-refresh';
+import { CheckoutProgress } from '@/features/payments/components/checkout-progress';
 import { PurchaseConversion } from '@/features/bookings/components/purchase-conversion';
 import { toArabicText } from '@/features/experiences/lib/arabic-content';
 import { Draw, Pop, Stagger, StaggerItem } from '@/components/ui/motion';
@@ -93,6 +94,7 @@ export default async function BookingConfirmedPage({ params, searchParams }: Pag
   const experience = experienceSlug ? await getExperienceBySlug(experienceSlug) : undefined;
 
   const t = await getTranslations('bookingConfirmed');
+  const tSteps = await getTranslations('payment.steps');
   // Instant bookings land here already `confirmed`; request bookings are
   // `pending` until the operator confirms. Drive the copy off that.
   const isConfirmed = booking?.status === 'confirmed';
@@ -179,6 +181,20 @@ export default async function BookingConfirmedPage({ params, searchParams }: Pag
     !isHoldLapsed &&
     !isFailed &&
     !isPending;
+
+  // Checkout stepper — only for bookings on the online-payment journey.
+  // Paid lands on step 3; a live/failed/processing payment sits on step 2.
+  // Terminal states (cancelled, declined, expired, lapsed hold) and plain
+  // request acknowledgements get no stepper: there is no forward progress
+  // to promise there.
+  const checkoutStep =
+    isCancelled || isDeclined || isExpired || isHoldLapsed
+      ? null
+      : paymentView === 'paid'
+        ? 2
+        : isAwaitingPayment || isFailed || isPending
+          ? 1
+          : null;
 
   const HeaderIcon =
     isCancelled || isFailed || isDeclined
@@ -493,6 +509,17 @@ export default async function BookingConfirmedPage({ params, searchParams }: Pag
         <PurchaseConversion
           reference={booking.referenceCode ?? ref}
           amountSar={booking.totalAmountSar}
+        />
+      )}
+      {/* Same stepper as the pay page, so the flow reads as one journey.
+          Not on the e-ticket: progress chrome means nothing on paper. */}
+      {checkoutStep !== null && (
+        <CheckoutProgress
+          steps={[tSteps('details'), tSteps('payment'), tSteps('confirmed')]}
+          current={checkoutStep}
+          label={tSteps('label')}
+          locale={loc}
+          className="mb-10 print:hidden"
         />
       )}
       {/* Print-only brand header: the site chrome is print-hidden, so the

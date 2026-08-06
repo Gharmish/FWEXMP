@@ -2719,6 +2719,21 @@
     "hoursLeft": "about {hours} hr {minutes} min left",
     "hoursOnlyLeft": "about {hours} hr left",
     "subtotalLabel": "Subtotal",
+    "steps": {
+      "label": "Checkout progress",
+      "details": "Details",
+      "payment": "Payment",
+      "confirmed": "Confirmed"
+    },
+    "trust": {
+      "heading": "Secure payment",
+      "chargeCap": "You won't be charged more than {amount}.",
+      "freeCancelUntil": "Free cancellation until {deadline}.",
+      "partialRefundUntil": "Cancel before {deadline} for a {amount} refund.",
+      "nonRefundable": "This experience starts soon, so payments are non-refundable."
+    },
+    "totalIncludesTaxes": "Includes applicable taxes.",
+    "noFeesNote": "No fees added at checkout.",
     "promo": {
       "label": "Have a promo code?",
       "placeholder": "Enter code",

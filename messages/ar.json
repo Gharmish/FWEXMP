@@ -2719,6 +2719,21 @@
     "hoursLeft": "نحو {hours} ساعة و{minutes} دقيقة متبقية",
     "hoursOnlyLeft": "نحو {hours} ساعة متبقية",
     "subtotalLabel": "المجموع الفرعي",
+    "steps": {
+      "label": "خطوات إتمام الحجز",
+      "details": "التفاصيل",
+      "payment": "الدفع",
+      "confirmed": "التأكيد"
+    },
+    "trust": {
+      "heading": "دفع آمن",
+      "chargeCap": "لن يُخصم منك أكثر من {amount}.",
+      "freeCancelUntil": "إلغاء مجاني حتى {deadline}.",
+      "partialRefundUntil": "عند الإلغاء قبل {deadline} يُسترد لك {amount}.",
+      "nonRefundable": "تبدأ هذه التجربة قريبًا، لذا المبالغ المدفوعة غير قابلة للاسترداد."
+    },
+    "totalIncludesTaxes": "شامل الضرائب المطبّقة.",
+    "noFeesNote": "بدون أي رسوم إضافية عند الدفع.",
     "promo": {
       "label": "لديك رمز خصم؟",
       "placeholder": "أدخل الرمز",
