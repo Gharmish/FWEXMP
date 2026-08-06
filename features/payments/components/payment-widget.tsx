@@ -106,7 +106,12 @@ export function PaymentWidget({
       // Passed through to Apple's PaymentRequest by the widget; the amount
       // itself comes from the prepared checkout, never from the browser.
       applePay: {
-        version: 3,
+        // 5, not 3: the HyperPay Apple Pay guide version-gates the mada
+        // network at Apple Pay JS ≥5 — at version 3 Safari drops mada
+        // from the sheet, and mada wallet cards are the norm here.
+        // Supported by every iOS ≥12.1 device (the widget hides the
+        // button via supportsVersion() otherwise).
+        version: 5,
         displayName: 'Gharmish',
         total: { label: 'Gharmish' },
         currencyCode: 'SAR',
