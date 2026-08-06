@@ -209,6 +209,7 @@ export async function createCheckout(
         paymentDeadline: true,
         checkoutId: true,
         checkoutIntegrity: true,
+        contactPhone: true,
         settleAnomalyAt: true,
       },
       // The experience and its host gate the charge too — see below.
@@ -382,7 +383,14 @@ export async function createCheckout(
       {
         merchantTransactionId: input.reference,
         amountSar: booking.totalAmount,
-        customer: { email: input.email, givenName: input.givenName, surname: input.surname },
+        customer: {
+          email: input.email,
+          givenName: input.givenName,
+          surname: input.surname,
+          // 3DS2 wants at least one phone; the booking's own contact
+          // phone (E.164) is the freshest one we hold for this guest.
+          mobile: booking.contactPhone ?? undefined,
+        },
         billing: {
           street1: input.street1,
           city: input.city,

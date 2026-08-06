@@ -107,6 +107,13 @@ export function buildCheckoutBody(
     integrity: 'true',
   });
 
+  // "At least one phone number" is in the 3DS2 mandatory group (like
+  // email and billing); sent when the booking has one — an email-OTP
+  // guest may not, and an absent optional beats an empty mandatory.
+  if (input.customer.mobile) {
+    body.set('customer.mobile', input.customer.mobile);
+  }
+
   // Apple Pay tokens carry no cardholder name, and the gateway declines
   // a blank holder with 100.100.401. Supply it at checkout creation from
   // the guest's own details — sheet-side injection is impossible (the

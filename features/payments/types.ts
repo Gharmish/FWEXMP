@@ -9,6 +9,12 @@ export interface HyperpayCustomer {
   email: string;
   givenName: string;
   surname: string;
+  /**
+   * E.164 phone sent as `customer.mobile`. The 3DS2 parameter reference
+   * requires at least one phone number on the checkout; optional here
+   * because an email-OTP guest may not have one yet — omitted when empty.
+   */
+  mobile?: string;
 }
 
 /**

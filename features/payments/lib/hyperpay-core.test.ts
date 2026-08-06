@@ -102,6 +102,15 @@ describe('buildCheckoutBody', () => {
     expect(buildCheckoutBody(input, liveCfg).get('integrity')).toBe('true');
   });
 
+  it('sends customer.mobile only when the booking has a phone (3DS2 phone requirement)', () => {
+    expect(buildCheckoutBody(input, testCfg).has('customer.mobile')).toBe(false);
+    const body = buildCheckoutBody(
+      { ...input, customer: { ...input.customer, mobile: '+966541104000' } },
+      testCfg,
+    );
+    expect(body.get('customer.mobile')).toBe('+966541104000');
+  });
+
   it('sends card.holder only when provided (Apple Pay channel)', () => {
     expect(buildCheckoutBody(input, testCfg).has('card.holder')).toBe(false);
     const body = buildCheckoutBody({ ...input, cardHolder: 'Sara Al Qahtani' }, testCfg);
