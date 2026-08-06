@@ -70,7 +70,6 @@ export default async function HelpPage({ params }: { params: Promise<{ locale: s
   ]);
   const values = {
     approvalHours: settings.approvalWindowHours,
-    cancelHours: settings.cancellationWindowHours,
   };
 
   // Same strings as the visible FAQ, so search results can never drift

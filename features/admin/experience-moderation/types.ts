@@ -44,10 +44,14 @@ export interface ModerationDetail {
   placeName: string;
   inclusions: readonly string[];
   whatToBring: readonly string[];
-  cancellationPolicy: string;
+  /**
+   * The ENFORCED cancellation policy — the tier every booking snapshots.
+   * The legacy free-text `cancellationPolicy` column is dead and is
+   * deliberately not surfaced here (it can contradict the tier).
+   */
+  cancellationTier: (typeof experiences.$inferSelect)['cancellationTier'];
   inclusionsAr: readonly string[];
   whatToBringAr: readonly string[];
-  cancellationPolicyAr: string;
   availabilityWeekdays: readonly number[];
   status: ExperienceStatus;
   heroImage: string | null;

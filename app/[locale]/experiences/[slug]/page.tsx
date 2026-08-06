@@ -663,7 +663,11 @@ export default async function ExperienceDetailPage({
               )}
               <Badge className="bg-success-surface text-success">
                 <ShieldCheck aria-hidden />
-                {t('freeCancellation', { hours: policyView.freeCancelHours })}
+                {/* Multi-day windows read as days ("7 days", like the tier
+                    copy everywhere else), never as "168h". */}
+                {policyView.freeCancelHours >= 72 && policyView.freeCancelHours % 24 === 0
+                  ? t('freeCancellationDays', { days: policyView.freeCancelHours / 24 })
+                  : t('freeCancellation', { hours: policyView.freeCancelHours })}
               </Badge>
               {bookedCountChip && (
                 <Badge variant="neutral">

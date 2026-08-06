@@ -124,7 +124,7 @@ The only place real money disappears today.
 ### 4.2 Launch content gates `[M]`
 
 - `submitForReview` requires `heroImage`; `approveExperience` hard-blocks on missing hero and on `titleAr`/`descriptionAr` starting with `TODO(ar)` (`features/admin/experience-moderation/actions.ts`).
-- Cancellation policy single source of truth: derive the displayed policy line from `platform_settings.cancellationWindowHours` on the detail page; retire or validate the free-text `cancellationPolicy` field against it.
+- ~~Cancellation policy single source of truth: derive the displayed policy line from `platform_settings.cancellationWindowHours` on the detail page; retire or validate the free-text `cancellationPolicy` field against it.~~ **Superseded (2026-07-17 tiers, noted 2026-08-06):** the platform-wide window itself was retired — the detail page derives its policy line from the per-experience tier snapshot (`features/bookings/lib/policy.ts`), and the free-text field is dead everywhere.
 - Host form gains `startTime` and a location picker (minimal: lat/lng map-click using the existing Mapbox meeting-point map component); stop defaulting every listing to 09:00 at Abha city centre.
 - Show start time everywhere: detail page, booking form, confirmation `detailRows`, e-ticket, emails.
 - Moderation bypass: lock content edits (moments, hero) for `paused` like `live`, or route `paused → live` after edits through `pending_review` (owner call — default: re-review when content changed since last approval).

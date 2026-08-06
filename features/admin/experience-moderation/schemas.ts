@@ -41,11 +41,12 @@ export const updateArabicCopySchema = z.object({
     .trim()
     .min(10, 'description_ar_invalid')
     .max(5000, 'description_ar_invalid'),
-  // Lists + policy are optional Arabic: empty means "not written yet"
-  // and the public site falls back to the seed dictionary / English.
+  // Lists are optional Arabic: empty means "not written yet" and the
+  // public site falls back to the seed dictionary / English. The legacy
+  // free-text cancellation policy is dead (tiers are the enforced and
+  // displayed policy) and is no longer editable.
   inclusionsArRaw: z.string().transform(linesFromTextarea),
   whatToBringArRaw: z.string().transform(linesFromTextarea),
-  cancellationPolicyAr: z.string().trim().max(1000, 'policy_ar_invalid'),
   locale: localeSchema,
 });
 

@@ -22,6 +22,7 @@ type SampleExperience = Omit<
   | 'images'
   | 'bookingMode'
   | 'cancellationTier'
+  | 'cancellationPolicy'
   | 'availabilityWeekdays'
   | 'startTime'
   | 'hostSlug'
@@ -58,6 +59,9 @@ function attachRatings(e: SampleExperience): ExperienceDetail {
     // Offline demo defaults — the live DB path carries the real values.
     bookingMode: 'request',
     cancellationTier: 'moderate',
+    // Legacy free-text policy stays empty: the tier above is the policy,
+    // and stray prose here once contradicted it ("72 hours").
+    cancellationPolicy: '',
     availabilityWeekdays: [4, 5, 6], // Thu–Sat
     startTime: '09:00',
     // Empty → the Arabic page uses the seed dictionary, same as before.
@@ -155,7 +159,6 @@ const EXPERIENCES: readonly SampleExperience[] = [
     featured: false,
     inclusions: ['Local guide', 'Aseeri breakfast', 'Hot qahwa'],
     whatToBring: ['Warm layer', 'Walking shoes'],
-    cancellationPolicy: 'Free cancellation up to 48 hours before the experience.',
     moments: [
       {
         orderIndex: 0,
@@ -196,7 +199,6 @@ const EXPERIENCES: readonly SampleExperience[] = [
     featured: true,
     inclusions: ['Traditional dinner', 'Live Aseeri music', 'Tea and qahwa'],
     whatToBring: ['Appetite', 'A light jacket for the evening'],
-    cancellationPolicy: 'Free cancellation up to 72 hours before the experience.',
     moments: [
       {
         orderIndex: 0,
@@ -246,7 +248,6 @@ const EXPERIENCES: readonly SampleExperience[] = [
     featured: false,
     inclusions: ['Coffee workshop', 'Saleeg lunch', 'Recipe card'],
     whatToBring: [],
-    cancellationPolicy: 'Free cancellation up to 24 hours before the experience.',
     moments: [
       {
         orderIndex: 0,
@@ -287,7 +288,6 @@ const EXPERIENCES: readonly SampleExperience[] = [
     featured: false,
     inclusions: ['Guided session', 'Mat', 'Herbal tea'],
     whatToBring: ['Comfortable clothing'],
-    cancellationPolicy: 'Free cancellation up to 24 hours before the experience.',
     moments: [
       {
         orderIndex: 0,
@@ -328,7 +328,6 @@ const EXPERIENCES: readonly SampleExperience[] = [
     featured: true,
     inclusions: ['Certified guide', 'Harness and helmet', 'Insurance'],
     whatToBring: ['Closed shoes', 'Water'],
-    cancellationPolicy: 'Free cancellation up to 72 hours before; weather reschedules are free.',
     moments: [
       {
         orderIndex: 0,
@@ -369,7 +368,6 @@ const EXPERIENCES: readonly SampleExperience[] = [
     featured: false,
     inclusions: ['All materials', 'Artist instruction', 'Panel to take home'],
     whatToBring: ['Clothes that can get paint on them'],
-    cancellationPolicy: 'Free cancellation up to 24 hours before the experience.',
     moments: [
       {
         orderIndex: 0,

@@ -18,8 +18,7 @@ type ErrorKey =
   | 'validation'
   | 'server'
   | 'title_ar_invalid'
-  | 'description_ar_invalid'
-  | 'policy_ar_invalid';
+  | 'description_ar_invalid';
 
 interface Copy {
   heading: string;
@@ -32,8 +31,6 @@ interface Copy {
   whatToBringLabel: string;
   /** One-item-per-line hint shared by the two list textareas. */
   listsHint: string;
-  policyLabel: string;
-  policyHint: string;
   save: string;
   saving: string;
   errors: Record<ErrorKey, string>;
@@ -46,7 +43,6 @@ export interface ArabicEditorProps {
   descriptionAr: string;
   inclusionsAr: readonly string[];
   whatToBringAr: readonly string[];
-  cancellationPolicyAr: string;
   copy: Copy;
 }
 
@@ -84,7 +80,6 @@ export function ArabicEditor({
   descriptionAr,
   inclusionsAr,
   whatToBringAr,
-  cancellationPolicyAr,
   copy,
 }: ArabicEditorProps) {
   const [state, action] = useActionState(updateExperienceArabicCopy, initialState);
@@ -92,7 +87,6 @@ export function ArabicEditor({
   const descriptionId = useId();
   const inclusionsId = useId();
   const whatToBringId = useId();
-  const policyId = useId();
 
   const error = errorMessage(state, copy);
   const isPending = titleAr.startsWith('TODO(ar') || descriptionAr.startsWith('TODO(ar');
@@ -160,22 +154,6 @@ export function ArabicEditor({
         </div>
       </div>
       <p className="text-sarat-black-600 text-sm">{copy.listsHint}</p>
-
-      <div className="flex flex-col gap-2">
-        <label htmlFor={policyId} className="text-sm font-medium">
-          {copy.policyLabel}
-        </label>
-        <textarea
-          id={policyId}
-          name="cancellationPolicyAr"
-          rows={2}
-          dir="rtl"
-          maxLength={1000}
-          defaultValue={cancellationPolicyAr}
-          className={TEXTAREA_CLASS}
-        />
-        <p className="text-sarat-black-600 text-sm">{copy.policyHint}</p>
-      </div>
 
       {error && (
         <p role="alert" className="text-al-qatt-red-800 text-sm">

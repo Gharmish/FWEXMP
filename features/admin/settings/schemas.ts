@@ -18,13 +18,6 @@ export const updateSettingsSchema = z
   .object({
     commissionPct: z.coerce.number().min(0, 'commission_range').max(50, 'commission_range'),
     enabledCategories: z.array(z.enum(EXPERIENCE_CATEGORIES)).min(1, 'categories_min'),
-    // Free-cancellation window in whole hours: 0 (refund up to the start)
-    // through 14 days. Whole hours keep the guest-facing copy simple.
-    cancellationWindowHours: z.coerce
-      .number()
-      .int('window_range')
-      .min(0, 'window_range')
-      .max(336, 'window_range'),
     // Request-to-book: hours a host has to answer before the request
     // auto-expires. Min 1 — a 0 window would expire every request instantly.
     approvalWindowHours: z.coerce

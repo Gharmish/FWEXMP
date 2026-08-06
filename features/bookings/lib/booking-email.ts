@@ -14,7 +14,8 @@ import { reportError } from '@/lib/log';
 import { hostApplications } from '@/db/schema';
 import { getBookingByReference } from '@/features/bookings/queries';
 import { vatPortionSar, vatRatePercent } from '@/features/bookings/lib/vat';
-import { startInstant, freeCancellationDeadline } from '@/features/bookings/lib/cancellation';
+import { startInstant } from '@/features/bookings/lib/cancellation';
+import { bookingOptions } from '@/features/bookings/lib/policy';
 import { splitCommission } from '@/features/bookings/lib/commission';
 import { zatcaQrPayload } from '@/features/bookings/lib/zatca-qr';
 import { renderInvoicePdf, type InvoicePdfRow } from '@/features/bookings/lib/invoice-pdf';
@@ -100,6 +101,35 @@ function paymentBrandLabel(brand: string | null, locale: Locale): string | null 
   if (brand === 'VISA') return 'Visa';
   if (brand === 'MASTER') return 'Mastercard';
   return brand;
+}
+
+/**
+ * The instant until which cancelling this booking still refunds in full
+ * — from the same `bookingOptions()` the pages and server actions run,
+ * so it is grace-aware and reschedule-anchored, unlike the retired
+ * `freeCancellationDeadline` helper. Null once that moment has passed
+ * (or the booking can no longer be cancelled): emails only ever
+ * advertise a deadline while it is still ahead.
+ */
+function fullRefundDeadlineFor(
+  booking: NonNullable<Awaited<ReturnType<typeof getBookingByReference>>>,
+  now = new Date(),
+): Date | null {
+  const { cancel } = bookingOptions({
+    status: booking.status,
+    paymentStatus: booking.paymentStatus,
+    dateStr: booking.date,
+    startTime: booking.startTime,
+    createdAt: new Date(booking.createdAt),
+    totalAmountSar: booking.totalAmountSar + booking.walletAppliedSar,
+    snapshot: booking.policy,
+    rescheduleCount: booking.rescheduleCount,
+    rescheduledFromDate: booking.rescheduledFromDate,
+    now,
+  });
+  if (!cancel.allowed) return null;
+  if (cancel.refund !== 'full' && cancel.refund !== 'none_needed') return null;
+  return now.getTime() <= cancel.fullRefundUntil.getTime() ? cancel.fullRefundUntil : null;
 }
 
 /**
@@ -255,23 +285,19 @@ export async function sendBookingReceiptEmail(reference: string): Promise<void> 
     });
   }
 
-  // Manage-booking note with the free-cancellation deadline while it's
-  // still ahead — the confirmation previously promised "we'll send the
+  // Manage-booking note with the full-refund deadline while it's still
+  // ahead (grace-aware — a late booking's grace can outlive the tier
+  // deadline) — the confirmation previously promised "we'll send the
   // meeting point before the day" and offered no way to cancel or manage.
-  const deadline = freeCancellationDeadline(
-    booking.date,
-    booking.startTime,
-    booking.policy.freeCancelHours,
-  );
-  const note =
-    Date.now() < deadline.getTime()
-      ? {
-          html: t('reminderManageWithDeadline', {
-            deadline: `${formatDate(deadline, locale, 'gregory', KSA_DATE)}, ${formatTime(deadline, locale, KSA_TIME)}`,
-            url: manageUrl,
-          }),
-        }
-      : { html: t('reminderManageNoDeadline', { url: manageUrl }) };
+  const deadline = fullRefundDeadlineFor(booking);
+  const note = deadline
+    ? {
+        html: t('reminderManageWithDeadline', {
+          deadline: `${formatDate(deadline, locale, 'gregory', KSA_DATE)}, ${formatTime(deadline, locale, KSA_TIME)}`,
+          url: manageUrl,
+        }),
+      }
+    : { html: t('reminderManageNoDeadline', { url: manageUrl }) };
 
   const subject = t('subject', { reference: booking.referenceCode });
   const { html, text } = renderReceiptEmail({
@@ -769,25 +795,21 @@ export async function sendBookingPrepareReminderEmail(
   rows.push({ label: t('partyLabel'), value: formatInteger(booking.partySize, locale) });
   rows.push({ label: t('referenceLabel'), value: booking.referenceCode });
 
-  // Free-cancellation line — shown only when the deadline is still ahead
-  // (with a 48h window it's usually already passed by the 24h mark, so we
-  // fall back to a plain "manage your booking" link). The deadline comes
-  // from the booking's own policy snapshot, never the live platform rule.
-  const deadline = freeCancellationDeadline(
-    booking.date,
-    booking.startTime,
-    booking.policy.freeCancelHours,
-  );
+  // Full-refund line — shown only while a full refund is still on the
+  // table per `bookingOptions()` (on most tiers it has lapsed by the 24h
+  // mark, so we fall back to a plain "manage your booking" link). The
+  // rule comes from the booking's own policy snapshot plus the platform
+  // grace, never the live platform settings.
+  const deadline = fullRefundDeadlineFor(booking);
   const manageUrl = `${SITE_URL}/${locale}/book/confirmed/${reference}`;
-  const note =
-    Date.now() < deadline.getTime()
-      ? {
-          html: t('reminderManageWithDeadline', {
-            deadline: `${formatDate(deadline, locale, 'gregory', KSA_DATE)}, ${formatTime(deadline, locale, KSA_TIME)}`,
-            url: manageUrl,
-          }),
-        }
-      : { html: t('reminderManageNoDeadline', { url: manageUrl }) };
+  const note = deadline
+    ? {
+        html: t('reminderManageWithDeadline', {
+          deadline: `${formatDate(deadline, locale, 'gregory', KSA_DATE)}, ${formatTime(deadline, locale, KSA_TIME)}`,
+          url: manageUrl,
+        }),
+      }
+    : { html: t('reminderManageNoDeadline', { url: manageUrl }) };
 
   const { html, text } = renderReceiptEmail({
     logoUrl: EMAIL_LOGO_URL,

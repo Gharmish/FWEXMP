@@ -93,8 +93,9 @@ export interface MomentInfo {
 /**
  * Full experience for the detail page. Extends the card summary.
  *
- * Note: `cancellationPolicy` is English-only here — guests see the
- * platform-wide translated cancellation line, not the host free text.
+ * Note: `cancellationPolicy` is the DEAD free-text column, carried only
+ * because the row mapper selects it — no surface renders it. The
+ * policy guests see and bookings enforce is `cancellationTier`.
  */
 export interface ExperienceDetail extends ExperienceSummary {
   region: string;

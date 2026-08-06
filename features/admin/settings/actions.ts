@@ -38,7 +38,6 @@ export type UpdateSettingsState =
 function submittedValues(formData: FormData): Record<string, string> {
   const keys = [
     'commissionPct',
-    'cancellationWindowHours',
     'approvalWindowHours',
     'approvalPaymentWindowHours',
     'announcementEn',
@@ -71,7 +70,6 @@ export async function updateSettings(
 
   const parsed = updateSettingsSchema.safeParse({
     commissionPct: formData.get('commissionPct'),
-    cancellationWindowHours: formData.get('cancellationWindowHours'),
     approvalWindowHours: formData.get('approvalWindowHours'),
     approvalPaymentWindowHours: formData.get('approvalPaymentWindowHours'),
     announcementEn: formData.get('announcementEn') ?? undefined,
@@ -111,7 +109,6 @@ export async function updateSettings(
         id: 'platform',
         defaultCommissionBps,
         enabledCategories: input.enabledCategories,
-        cancellationWindowHours: input.cancellationWindowHours,
         approvalWindowHours: input.approvalWindowHours,
         approvalPaymentWindowHours: input.approvalPaymentWindowHours,
         announcementEn: input.announcementEn || null,
@@ -128,7 +125,6 @@ export async function updateSettings(
         set: {
           defaultCommissionBps,
           enabledCategories: input.enabledCategories,
-          cancellationWindowHours: input.cancellationWindowHours,
           approvalWindowHours: input.approvalWindowHours,
           approvalPaymentWindowHours: input.approvalPaymentWindowHours,
           announcementEn: input.announcementEn || null,

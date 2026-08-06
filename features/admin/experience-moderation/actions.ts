@@ -159,7 +159,6 @@ export async function updateExperienceArabicCopy(
     descriptionAr: formValue(formData, 'descriptionAr'),
     inclusionsArRaw: formValue(formData, 'inclusionsArRaw'),
     whatToBringArRaw: formValue(formData, 'whatToBringArRaw'),
-    cancellationPolicyAr: formValue(formData, 'cancellationPolicyAr'),
     locale: formValue(formData, 'locale'),
   });
   if (!parsed.success) {
@@ -180,7 +179,6 @@ export async function updateExperienceArabicCopy(
         descriptionAr,
         inclusionsAr: parsed.data.inclusionsArRaw,
         whatToBringAr: parsed.data.whatToBringArRaw,
-        cancellationPolicyAr: parsed.data.cancellationPolicyAr,
         updatedAt: new Date(),
       })
       .where(eq(experiences.id, experienceId))

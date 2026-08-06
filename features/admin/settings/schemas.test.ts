@@ -18,7 +18,6 @@ describe('updateSettingsSchema', () => {
   const base = {
     commissionPct: '15',
     enabledCategories: ['nature', 'food'],
-    cancellationWindowHours: '48',
     approvalWindowHours: '24',
     approvalPaymentWindowHours: '24',
     vatEnabled: false,
@@ -31,7 +30,6 @@ describe('updateSettingsSchema', () => {
     expect(parsed.success).toBe(true);
     if (parsed.success) {
       expect(parsed.data.commissionPct).toBe(15);
-      expect(parsed.data.cancellationWindowHours).toBe(48);
       expect(parsed.data.approvalWindowHours).toBe(24);
       expect(parsed.data.approvalPaymentWindowHours).toBe(24);
     }
@@ -43,18 +41,6 @@ describe('updateSettingsSchema', () => {
     );
     expect(
       updateSettingsSchema.safeParse({ ...base, approvalPaymentWindowHours: '12.5' }).success,
-    ).toBe(false);
-  });
-
-  it('rejects a cancellation window outside 0–336 hours or fractional', () => {
-    expect(updateSettingsSchema.safeParse({ ...base, cancellationWindowHours: '-1' }).success).toBe(
-      false,
-    );
-    expect(
-      updateSettingsSchema.safeParse({ ...base, cancellationWindowHours: '337' }).success,
-    ).toBe(false);
-    expect(
-      updateSettingsSchema.safeParse({ ...base, cancellationWindowHours: '24.5' }).success,
     ).toBe(false);
   });
 

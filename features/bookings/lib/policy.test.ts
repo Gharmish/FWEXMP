@@ -97,6 +97,8 @@ describe('bookingOptions — cancellation refunds', () => {
     expect(cancel).toMatchObject({
       freeDeadline: new Date('2026-06-18T06:00:00Z'),
       partialDeadline: new Date('2026-06-19T06:00:00Z'),
+      // Booked long ago → the grace lapsed, the tier deadline governs.
+      fullRefundUntil: new Date('2026-06-18T06:00:00Z'),
     });
   });
 });
@@ -149,6 +151,33 @@ describe('bookingOptions — post-booking grace', () => {
       createdAt: new Date('2026-06-15T04:00:00Z'),
     });
     expect(cancel).toMatchObject({ allowed: true, refund: 'full', amountSar: 500 });
+  });
+
+  it('fullRefundUntil extends past the tier deadline while the grace holds', () => {
+    // strict, booked 2h ago, start 5 days out: the tier deadline
+    // (168h before start) is already behind, but the grace runs until
+    // createdAt+24h — which is sooner than the 48h-lead cutoff.
+    const { cancel } = at('2026-06-15T06:00:00Z', {
+      snapshot: CANCELLATION_TIERS.strict,
+      createdAt: new Date('2026-06-15T04:00:00Z'),
+    });
+    expect(cancel).toMatchObject({
+      freeDeadline: new Date('2026-06-13T06:00:00Z'),
+      fullRefundUntil: new Date('2026-06-16T04:00:00Z'),
+    });
+  });
+
+  it('fullRefundUntil is capped by the 48h-lead cutoff when that is sooner', () => {
+    // strict, booked 2h ago, start ~49h out: grace would run to
+    // createdAt+24h but the lead drops under 48h before that.
+    const { cancel } = at('2026-06-18T05:00:00Z', {
+      snapshot: CANCELLATION_TIERS.strict,
+      createdAt: new Date('2026-06-18T03:00:00Z'),
+    });
+    expect(cancel).toMatchObject({
+      refund: 'full',
+      fullRefundUntil: new Date('2026-06-18T06:00:00Z'),
+    });
   });
 
   it('does not apply when the start is under 48h away', () => {

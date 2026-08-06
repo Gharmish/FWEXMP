@@ -391,27 +391,28 @@ export const experiences = pgTable(
     inclusions: text().array().notNull().default([]),
     whatToBring: text().array().notNull().default([]),
     /**
-     * Legacy free-text policy. No guest surface renders it and the
-     * host/admin forms no longer collect it (the tier below replaced
-     * it); the empty-string default lets inserts omit it entirely.
+     * DEAD — legacy free-text policy. NO surface renders it and no form
+     * collects it any more (the admin moderation page was the last
+     * reader/writer, retired 2026-08-06); the empty-string default lets
+     * inserts omit it entirely. Kept only to avoid a destructive
+     * migration on the live DB.
      */
     cancellationPolicy: text().notNull().default(''),
     /**
-     * Structured cancellation policy preset — the enforced counterpart
-     * to the free-text `cancellationPolicy` above (which is display
-     * legacy only and slated for removal once every surface renders the
-     * tier). Guest cancel/reschedule rights come from the tier's
-     * parameters snapshotted onto the booking, never from this column
-     * at cancel time.
+     * Structured cancellation policy preset — THE policy. Guest
+     * cancel/reschedule rights come from the tier's parameters
+     * snapshotted onto the booking, never from this column at cancel
+     * time.
      */
     cancellationTier: cancellationTierEnum().notNull().default('moderate'),
     /**
-     * Admin-authored Arabic for the lists and policy. Empty means "not
-     * written yet" — Arabic surfaces fall back to the seed-content
-     * dictionary (`toArabicText`) and ultimately to the English text.
+     * Admin-authored Arabic for the lists. Empty means "not written
+     * yet" — Arabic surfaces fall back to the seed-content dictionary
+     * (`toArabicText`) and ultimately to the English text.
      */
     inclusionsAr: text().array().notNull().default([]),
     whatToBringAr: text().array().notNull().default([]),
+    /** DEAD — Arabic twin of `cancellationPolicy` above; same story. */
     cancellationPolicyAr: text().notNull().default(''),
     /** Recurring weekly availability: weekday indexes 0=Sun..6=Sat. */
     availabilityWeekdays: integer().array().notNull().default([]),
@@ -1489,10 +1490,11 @@ export const platformSettings = pgTable('platform_settings', {
   /** Default platform commission for NEW experiences, in basis points. */
   defaultCommissionBps: integer().notNull().default(1500),
   /**
-   * Free-cancellation window: a guest cancelling at least this many
-   * hours before the experience start gets a full refund; closer than
-   * this, the booking can still be cancelled but nothing is refunded.
-   * Platform-wide (per-experience policies stay prose for now).
+   * DEAD KNOB — the pre-2026-07 platform-wide free-cancellation window.
+   * Refunds now come from the per-booking tier snapshot
+   * (`features/bookings/lib/policy.ts`); nothing reads or writes this
+   * column any more (admin settings stopped exposing it 2026-08-06).
+   * Kept only to avoid a destructive migration on the live DB.
    */
   cancellationWindowHours: integer().notNull().default(48),
   /**
@@ -1800,7 +1802,9 @@ export const userRoles = pgTable(
   },
   (t) => [
     // The hot path: "is this signed-in user an admin right now".
-    index('user_roles_user_idx').on(t.userId).where(sql`revoked_at is null`),
+    index('user_roles_user_idx')
+      .on(t.userId)
+      .where(sql`revoked_at is null`),
     // One live grant per (user, role) — re-granting after revocation is
     // a new row, so the partial unique index must ignore revoked ones.
     uniqueIndex('user_roles_active_uq')

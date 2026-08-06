@@ -14,7 +14,7 @@ import { getStoredBillingForBooking } from '@/features/payments/queries';
 import { vatPortionSar, vatRatePercent } from '@/features/bookings/lib/vat';
 import { getPlatformSettings } from '@/lib/platform-settings';
 import { isHoldExpired } from '@/features/bookings/lib/availability';
-import { freeCancellationDeadline } from '@/features/bookings/lib/cancellation';
+import { bookingOptions } from '@/features/bookings/lib/policy';
 import { getExperienceBySlug } from '@/features/experiences/queries';
 import { hyperpayBaseUrl } from '@/features/payments/lib/hyperpay';
 import {
@@ -105,21 +105,37 @@ export default async function PaymentPage({ params, searchParams }: PageParams) 
 
   // The consent line links to the generic policy page; this note states
   // what the policy means for THIS booking, from its own cancellation-
-  // policy snapshot (the tier's full-refund window at booking time).
-  const freeCancelUntil = freeCancellationDeadline(
-    booking.date,
-    booking.startTime,
-    booking.policy.freeCancelHours,
-  );
-  const cancellationNote =
-    new Date().getTime() < freeCancelUntil.getTime()
-      ? t('cancellationFreeUntil', {
-          deadline:
-            loc === 'ar'
-              ? `${formatDate(freeCancelUntil, loc)}، ${formatTime(freeCancelUntil, loc)}`
-              : `${formatDate(freeCancelUntil, loc)}, ${formatTime(freeCancelUntil, loc)}`,
+  // policy snapshot. Projected as if the payment had already settled
+  // (`paymentStatus: 'paid'`) so the disclosure covers the post-booking
+  // grace and the tier's 50% partial step — never just the free window.
+  const projectedCancel = bookingOptions({
+    status: booking.status,
+    paymentStatus: 'paid',
+    dateStr: booking.date,
+    startTime: booking.startTime,
+    createdAt: new Date(booking.createdAt),
+    totalAmountSar: booking.totalAmountSar + booking.walletAppliedSar,
+    snapshot: booking.policy,
+    rescheduleCount: booking.rescheduleCount,
+    rescheduledFromDate: booking.rescheduledFromDate,
+    now: new Date(),
+  }).cancel;
+  const formatDeadline = (deadline: Date) =>
+    loc === 'ar'
+      ? `${formatDate(deadline, loc)}، ${formatTime(deadline, loc)}`
+      : `${formatDate(deadline, loc)}, ${formatTime(deadline, loc)}`;
+  const cancellationNote = !projectedCancel.allowed
+    ? t('cancellationInsideWindow')
+    : projectedCancel.refund === 'partial' && projectedCancel.partialDeadline
+      ? t('cancellationPartialUntil', {
+          amount: formatSAR(projectedCancel.amountSar, loc),
+          deadline: formatDeadline(projectedCancel.partialDeadline),
         })
-      : t('cancellationInsideWindow');
+      : projectedCancel.refund === 'full'
+        ? t('cancellationFreeUntil', {
+            deadline: formatDeadline(projectedCancel.fullRefundUntil),
+          })
+        : t('cancellationInsideWindow');
 
   // Clickwrap consent line with inline links to each binding document.
   // Built here (rich text) so the link order reads naturally per locale.

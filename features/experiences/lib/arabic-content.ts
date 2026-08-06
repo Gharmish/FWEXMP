@@ -50,11 +50,6 @@ const ARABIC_TEXT: Readonly<Record<string, string>> = {
   'Artist instruction': 'إرشاد من الفنانة',
   'Panel to take home': 'لوحة تأخذها معك',
   'Clothes that can get paint on them': 'ملابس لا تمانع اتساخها بالطلاء',
-  'Free cancellation up to 48 hours before the experience.': 'إلغاء مجاني حتى 48 ساعة قبل التجربة.',
-  'Free cancellation up to 72 hours before the experience.': 'إلغاء مجاني حتى 72 ساعة قبل التجربة.',
-  'Free cancellation up to 24 hours before the experience.': 'إلغاء مجاني حتى 24 ساعة قبل التجربة.',
-  'Free cancellation up to 72 hours before; weather reschedules are free.':
-    'إلغاء مجاني حتى 72 ساعة قبل التجربة، وإعادة الجدولة بسبب الطقس مجانية.',
 };
 
 export function toArabicText(text: string): string {

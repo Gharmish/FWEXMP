@@ -18,9 +18,6 @@ export interface AdminSettingsFormCopy {
   commissionSuffix: string;
   gatewayFeeLabel: string;
   gatewayFeeHint: string;
-  cancellationLabel: string;
-  cancellationHint: string;
-  cancellationSuffix: string;
   approvalLabel: string;
   approvalHint: string;
   approvalPaymentLabel: string;
@@ -56,7 +53,6 @@ export interface AdminSettingsFormProps {
   locale: Locale;
   defaultCommissionPct: number;
   defaultGatewayFeePct: number;
-  defaultCancellationWindowHours: number;
   defaultApprovalWindowHours: number;
   defaultApprovalPaymentWindowHours: number;
   defaultAnnouncementEn: string;
@@ -83,7 +79,6 @@ export function AdminSettingsForm({
   locale,
   defaultCommissionPct,
   defaultGatewayFeePct,
-  defaultCancellationWindowHours,
   defaultApprovalWindowHours,
   defaultApprovalPaymentWindowHours,
   defaultAnnouncementEn,
@@ -195,38 +190,6 @@ export function AdminSettingsForm({
         </div>
         <p className={hintClass}>{copy.gatewayFeeHint}</p>
         {fieldError('gatewayFeePct')}
-      </fieldset>
-
-      {/* Free-cancellation window */}
-      <fieldset className="flex flex-col gap-2">
-        <label htmlFor="cancellationWindowHours" className={labelClass}>
-          {copy.cancellationLabel}
-        </label>
-        <div className="flex items-center gap-2">
-          <Input
-            id="cancellationWindowHours"
-            name="cancellationWindowHours"
-            type="number"
-            inputMode="numeric"
-            min={0}
-            max={336}
-            step={1}
-            dir="ltr"
-            defaultValue={
-              state.success === false
-                ? (state.values?.cancellationWindowHours ?? defaultCancellationWindowHours)
-                : defaultCancellationWindowHours
-            }
-            className="w-32"
-            aria-invalid={fields.cancellationWindowHours ? 'true' : undefined}
-            aria-describedby={
-              fields.cancellationWindowHours ? eid('cancellationWindowHours') : undefined
-            }
-          />
-          <span className="text-sarat-black-600 text-base">{copy.cancellationSuffix}</span>
-        </div>
-        <p className={hintClass}>{copy.cancellationHint}</p>
-        {fieldError('cancellationWindowHours')}
       </fieldset>
 
       {/* Request-to-book: host approval window */}

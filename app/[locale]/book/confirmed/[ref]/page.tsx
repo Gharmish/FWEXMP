@@ -845,9 +845,18 @@ export default async function BookingConfirmedPage({ params, searchParams }: Pag
             {cancelView.refund === 'none_needed'
               ? t('cancel.policyUnpaid')
               : cancelView.refund === 'full'
-                ? t('cancel.policyRefundable', {
-                    deadline: formatDeadline(cancelView.freeDeadline),
-                  })
+                ? cancelView.partialDeadline
+                  ? // Moderate/strict: disclose the 50% step up front. The
+                    // full-refund deadline is the grace-aware one — after a
+                    // late booking it can sit past the tier deadline.
+                    t('cancel.policyRefundableThenPartial', {
+                      deadline: formatDeadline(cancelView.fullRefundUntil),
+                      amount: formatSAR(partialAmountSar, loc),
+                      partialDeadline: formatDeadline(cancelView.partialDeadline),
+                    })
+                  : t('cancel.policyRefundable', {
+                      deadline: formatDeadline(cancelView.fullRefundUntil),
+                    })
                 : cancelView.refund === 'partial' && cancelView.partialDeadline
                   ? t('cancel.policyPartial', {
                       amount: formatSAR(cancelView.amountSar, loc),

@@ -2,8 +2,9 @@ import { startInstant } from '@/features/bookings/lib/cancellation';
 
 /**
  * Structured cancellation/reschedule policy engine (2026-07 upgrade of
- * the single platform-wide window in `cancellation.ts`, which remains
- * only as the legacy rule until every caller moves here).
+ * the single platform-wide window; `cancellation.ts` now holds only the
+ * neutral `startInstant` time helper — every rule caller moved here
+ * 2026-08-06).
  *
  * Hosts pick a TIER; the numeric parameters each tier implies are
  * defined below and snapshotted onto the booking at creation
@@ -103,10 +104,17 @@ export type CancelOption =
        */
       refund: 'none_needed' | 'full' | 'partial' | 'forfeited';
       amountSar: number;
-      /** Latest instant a cancellation still refunds in full. */
+      /** Tier full-refund deadline (before the post-booking grace). */
       freeDeadline: Date;
       /** Latest instant a partial refund applies. Null = tier has none. */
       partialDeadline: Date | null;
+      /**
+       * Latest instant a cancellation refunds in FULL, including the
+       * post-booking grace — `refund === 'full'` exactly while `now` is
+       * at or before this. Display surfaces must render this, never
+       * `freeDeadline`, or they understate a graced guest's rights.
+       */
+      fullRefundUntil: Date;
     };
 
 export type RescheduleOption =
@@ -189,24 +197,23 @@ function cancelRefund(input: BookingOptionsInput, start: Date): CancelOption & {
     ? new Date(refundStart.getTime() - snapshot.partialRefundHours * HOUR_MS)
     : null;
 
-  if (input.paymentStatus !== 'paid') {
-    return { allowed: true, refund: 'none_needed', amountSar: 0, freeDeadline, partialDeadline };
-  }
-
   // Post-booking grace: booked recently and the start is still far
   // enough away → full refund even where the tier would say otherwise.
-  const inGrace =
-    now.getTime() <= input.createdAt.getTime() + POST_BOOKING_GRACE_HOURS * HOUR_MS &&
-    refundStart.getTime() - now.getTime() >= GRACE_MIN_LEAD_HOURS * HOUR_MS;
+  // Both grace conditions are "now ≤ X" bounds, so the grace holds
+  // exactly while `now` is at or before the earlier of the two.
+  const graceEnd = Math.min(
+    input.createdAt.getTime() + POST_BOOKING_GRACE_HOURS * HOUR_MS,
+    refundStart.getTime() - GRACE_MIN_LEAD_HOURS * HOUR_MS,
+  );
+  const fullRefundUntil = new Date(Math.max(freeDeadline.getTime(), graceEnd));
+  const deadlines = { freeDeadline, partialDeadline, fullRefundUntil };
 
-  if (inGrace || now.getTime() <= freeDeadline.getTime()) {
-    return {
-      allowed: true,
-      refund: 'full',
-      amountSar: totalAmountSar,
-      freeDeadline,
-      partialDeadline,
-    };
+  if (input.paymentStatus !== 'paid') {
+    return { allowed: true, refund: 'none_needed', amountSar: 0, ...deadlines };
+  }
+
+  if (now.getTime() <= fullRefundUntil.getTime()) {
+    return { allowed: true, refund: 'full', amountSar: totalAmountSar, ...deadlines };
   }
   if (partialDeadline && now.getTime() <= partialDeadline.getTime()) {
     return {
@@ -214,11 +221,10 @@ function cancelRefund(input: BookingOptionsInput, start: Date): CancelOption & {
       refund: 'partial',
       // Floor, in whole SAR — we never refund more than the fraction.
       amountSar: Math.floor((totalAmountSar * snapshot.partialRefundBps) / 10_000),
-      freeDeadline,
-      partialDeadline,
+      ...deadlines,
     };
   }
-  return { allowed: true, refund: 'forfeited', amountSar: 0, freeDeadline, partialDeadline };
+  return { allowed: true, refund: 'forfeited', amountSar: 0, ...deadlines };
 }
 
 function rescheduleOption(

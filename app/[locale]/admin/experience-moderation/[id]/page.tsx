@@ -55,6 +55,13 @@ const EVENT_TONE: Record<ModerationEventType, string> = {
 
 const WEEKDAY_LABELS = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'] as const;
 
+/** Tier → the shared `admin.experienceEdit.*` label describing its rules. */
+const TIER_LABEL_KEY = {
+  flexible: 'cancellationTierFlexible',
+  moderate: 'cancellationTierModerate',
+  strict: 'cancellationTierStrict',
+} as const;
+
 export default async function AdminExperienceModerationDetailPage({
   params,
 }: {
@@ -262,7 +269,6 @@ export default async function AdminExperienceModerationDetailPage({
           descriptionAr={detail.descriptionAr}
           inclusionsAr={detail.inclusionsAr}
           whatToBringAr={detail.whatToBringAr}
-          cancellationPolicyAr={detail.cancellationPolicyAr}
           copy={{
             heading: t('experienceModerationDetail.arabicHeading'),
             description: t('experienceModerationDetail.arabicEditorDescription'),
@@ -272,8 +278,6 @@ export default async function AdminExperienceModerationDetailPage({
             inclusionsLabel: t('experienceModerationDetail.arabicInclusionsLabel'),
             whatToBringLabel: t('experienceModerationDetail.arabicWhatToBringLabel'),
             listsHint: t('experienceModerationDetail.arabicListsHint'),
-            policyLabel: t('experienceModerationDetail.arabicPolicyLabel'),
-            policyHint: t('experienceModerationDetail.arabicPolicyHint'),
             save: t('experienceModerationDetail.arabicSave'),
             saving: t('experienceModerationDetail.arabicSaving'),
             errors: {
@@ -284,7 +288,6 @@ export default async function AdminExperienceModerationDetailPage({
               server: t('experienceActions.errors.server'),
               title_ar_invalid: t('experienceModerationDetail.arabicTitleInvalid'),
               description_ar_invalid: t('experienceModerationDetail.arabicDescriptionInvalid'),
-              policy_ar_invalid: t('experienceModerationDetail.arabicPolicyInvalid'),
             },
           }}
         />
@@ -316,10 +319,14 @@ export default async function AdminExperienceModerationDetailPage({
         </section>
       )}
 
-      {/* Cancellation */}
+      {/* Cancellation — the enforced tier, never the legacy free text
+          (which could promise e.g. "72 hours" while bookings snapshot
+          the tier's 48h/50% rule). */}
       <section className="flex flex-col gap-3">
         <h2 className={eyebrowClassName}>{t('experienceModerationDetail.cancellation')}</h2>
-        <p className="text-base leading-relaxed whitespace-pre-line">{detail.cancellationPolicy}</p>
+        <p className="text-base leading-relaxed">
+          {t(`experienceEdit.${TIER_LABEL_KEY[detail.cancellationTier]}`)}
+        </p>
       </section>
 
       {/* History */}
