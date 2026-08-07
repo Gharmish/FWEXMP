@@ -43,10 +43,13 @@ export interface PolicySnapshot {
 }
 
 /**
- * The three presets (owner-approved 2026-07-17). `moderate` matches the
- * previous platform-wide rule (48h full refund) with a 50% step added,
- * so it is both the default for new experiences and the backfill for
- * every booking created before tiers existed.
+ * The three presets (owner-approved 2026-07-17; strict's partial step
+ * widened 48h → 72h by owner decision 2026-08-07 — "no refund <72h").
+ * `moderate` matches the previous platform-wide rule (48h full refund)
+ * with a 50% step added, so it is both the default for new experiences
+ * and the backfill for every booking created before tiers existed.
+ * Edits here apply to NEW bookings only: existing bookings keep the
+ * snapshot taken at creation, by design.
  */
 export const CANCELLATION_TIERS: Record<CancellationTier, PolicySnapshot> = {
   flexible: {
@@ -66,7 +69,7 @@ export const CANCELLATION_TIERS: Record<CancellationTier, PolicySnapshot> = {
   strict: {
     policyTier: 'strict',
     freeCancelHours: 168,
-    partialRefundHours: 48,
+    partialRefundHours: 72,
     partialRefundBps: 5000,
     rescheduleCutoffHours: 48,
   },

@@ -32,7 +32,7 @@ describe('policySnapshotFor', () => {
     expect(policySnapshotFor('strict')).toEqual({
       policyTier: 'strict',
       freeCancelHours: 168,
-      partialRefundHours: 48,
+      partialRefundHours: 72,
       partialRefundBps: 5000,
       rescheduleCutoffHours: 48,
     });
