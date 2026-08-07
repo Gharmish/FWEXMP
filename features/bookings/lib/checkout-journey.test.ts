@@ -67,15 +67,30 @@ describe('checkoutJourneyStep', () => {
     ).toBeNull();
   });
 
-  it('renders nothing for non-confirmed statuses, paid or not', () => {
-    for (const status of [
-      'pending',
-      'declined',
-      'expired',
-      'cancelled',
-      'refunded',
-      'completed',
-    ] as const) {
+  it('checks every step off for a completed paid booking', () => {
+    expect(
+      checkoutJourneyStep({
+        status: 'completed',
+        paymentStatus: 'paid',
+        paymentDeadline: null,
+        now: NOW,
+      }),
+    ).toBe(3);
+  });
+
+  it('renders nothing for a completed booking that never paid online', () => {
+    expect(
+      checkoutJourneyStep({
+        status: 'completed',
+        paymentStatus: 'unpaid',
+        paymentDeadline: null,
+        now: NOW,
+      }),
+    ).toBeNull();
+  });
+
+  it('renders nothing for broken-off statuses, paid or not', () => {
+    for (const status of ['pending', 'declined', 'expired', 'cancelled', 'refunded'] as const) {
       expect(
         checkoutJourneyStep({
           status,

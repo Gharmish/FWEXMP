@@ -190,15 +190,18 @@ export default async function BookingConfirmedPage({ params, searchParams }: Pag
     !isPending;
 
   // Checkout stepper — only for bookings on the online-payment journey.
-  // Paid lands on step 3; a live/failed/processing payment sits on step 2.
-  // Terminal states (cancelled, declined, expired, lapsed hold) and plain
-  // request acknowledgements get no stepper: there is no forward progress
-  // to promise there.
+  // Paid lands on step 3 (all checked once the experience is completed);
+  // a live/failed/processing payment sits on step 2. Broken-off states
+  // (cancelled, declined, expired, lapsed hold) and plain request
+  // acknowledgements get no stepper: there is no forward progress to
+  // promise there.
   const checkoutStep =
     isCancelled || isDeclined || isExpired || isHoldLapsed
       ? null
       : paymentView === 'paid'
-        ? 2
+        ? booking?.status === 'completed'
+          ? 3
+          : 2
         : isAwaitingPayment || isFailed || isPending
           ? 1
           : null;
