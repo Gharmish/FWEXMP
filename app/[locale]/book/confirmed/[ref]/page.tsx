@@ -11,9 +11,10 @@ import { formatDate, formatInteger, formatSAR, formatTime } from '@/lib/format';
 import { Price } from '@/components/ui/price';
 import { getExperienceBySlug } from '@/features/experiences/queries';
 import {
-  getBookingByReferenceForViewer,
+  getBookingViewForViewer,
   getHostContactPhoneForBooking,
 } from '@/features/bookings/queries';
+import { BookingAccessNotice } from '@/features/bookings/components/booking-access-notice';
 import { whatsappLink } from '@/lib/whatsapp';
 import { PrintButton } from '@/components/ui/print-button';
 import { GharmishLogo } from '@/components/layout/gharmish-logo';
@@ -70,11 +71,15 @@ interface PageParams {
 }
 
 export async function generateMetadata({ params }: PageParams): Promise<Metadata> {
-  const { locale } = await params;
-  const t = await getTranslations({ locale, namespace: 'bookingConfirmed.meta' });
-  const title = t('title');
+  const { locale, ref } = await params;
+  const t = await getTranslations({ locale, namespace: 'bookingConfirmed' });
+  // A withheld booking renders the sign-in state, so the tab must not
+  // announce "Booking request received". The lookup is React-cached —
+  // the render below reuses this exact result, no second query.
+  const restricted =
+    UUID_RE.test(ref) && (await getBookingViewForViewer(ref)).state === 'forbidden';
   return {
-    title,
+    title: restricted ? t('restricted.title') : t('meta.title'),
     // Confirmation URLs are private to the requester; tell crawlers to skip.
     robots: { index: false, follow: false },
   };
@@ -96,8 +101,20 @@ export default async function BookingConfirmedPage({ params, searchParams }: Pag
   const slugFromQuery = asString(sp.slug);
 
   // Prefer the DB-backed booking when available; fall back to the slug
-  // we passed through the redirect (preview / not-yet-found path).
-  const booking = await getBookingByReferenceForViewer(ref);
+  // we passed through the redirect (preview path).
+  //
+  // The three withheld states are NOT the same page (2026-08-08):
+  //   - `forbidden` — the booking is real but this browser/account can't
+  //     prove it owns it. Its own honest state; the old code showed the
+  //     developer preview copy ("the request was not stored"), which a
+  //     guest reads as "my paid booking is gone". Access itself is
+  //     unchanged — the reference still proves nothing on its own.
+  //   - `not_found` — no such booking: a plain 404, like a malformed ref.
+  //   - `no_db` — genuine preview environment; the ONLY preview copy path.
+  const view = await getBookingViewForViewer(ref);
+  if (view.state === 'not_found') notFound();
+  if (view.state === 'forbidden') return <BookingAccessNotice locale={loc} />;
+  const booking = view.state === 'ok' ? view.booking : undefined;
   const experienceSlug = booking?.experienceSlug ?? slugFromQuery;
   const experience = experienceSlug ? await getExperienceBySlug(experienceSlug) : undefined;
 
@@ -314,7 +331,10 @@ export default async function BookingConfirmedPage({ params, searchParams }: Pag
                 ? t('approvedDescription', {
                     deadline: formatDeadline(new Date(booking.paymentDeadline)),
                   })
-                : !booking
+                : // No booking here means exactly one thing now: no DB at
+                  // all. Unauthorized viewers returned above, unknown
+                  // references 404'd — neither reaches this preview copy.
+                  !booking
                   ? t('descriptionPreview')
                   : isConfirmed
                     ? t('descriptionConfirmed')
@@ -543,7 +563,7 @@ export default async function BookingConfirmedPage({ params, searchParams }: Pag
       ? googleCalendarUrl({
           start: calendarStart,
           durationMinutes: experience.durationMinutes,
-          summary: title ?? (booking.referenceCode ?? ref),
+          summary: title ?? booking.referenceCode ?? ref,
           location: placeName,
           description: calendarEventDescription({
             referenceLine: `${t('referenceLabel')}: ${booking.referenceCode ?? ref}`,

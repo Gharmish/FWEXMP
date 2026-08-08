@@ -1,3 +1,4 @@
+import { cache } from 'react';
 import { and, desc, eq, sql } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import { boundedQuery } from '@/lib/deadline';
@@ -180,26 +181,68 @@ export async function getBookingByReference(reference: string): Promise<BookingD
 }
 
 /**
- * Like {@link getBookingByReference}, but authorizes the *viewer* first —
- * returns the detail only when the caller owns the booking or holds it in
- * their last-booking cookie (see {@link bookingViewerCanAccess}). Use this
- * for any page that renders guest PII keyed off a URL reference; returns
- * undefined for an unauthorized viewer, which the pages render as the
- * generic / preview state (no PII leak).
+ * Why a viewer is (or isn't) seeing a booking.
+ *
+ * The three "no booking" reasons are NOT interchangeable and pages must
+ * not collapse them (2026-08-08): a preview environment with no database
+ * is a developer state, an unknown reference is a broken link, and
+ * "exists but this viewer isn't authorized" is the ordinary, expected
+ * outcome for a real guest — the anonymous booking flow authorizes on a
+ * per-browser cookie, so opening the emailed link on a second device,
+ * after clearing cookies, or after a newer booking overwrote the cookie
+ * all land here. Telling that guest their booking "was not stored" is a
+ * lie about a real (often paid) booking.
+ */
+export type BookingViewerResult =
+  | { state: 'ok'; booking: BookingDetail }
+  /** No DATABASE_URL — genuine preview/no-DB environment. */
+  | { state: 'no_db' }
+  /** No row carries this reference. */
+  | { state: 'not_found' }
+  /** The row exists; this viewer has neither proof of ownership. */
+  | { state: 'forbidden' };
+
+/**
+ * Like {@link getBookingByReference}, but authorizes the *viewer* first
+ * and reports WHY when it withholds the booking (see
+ * {@link BookingViewerResult}). Access itself is unchanged: the caller
+ * must own the booking or hold it in their last-booking cookie (see
+ * {@link bookingViewerCanAccess}) — the reference alone never suffices,
+ * and no detail (no PII) is returned in any other state.
+ */
+/*
+ * React `cache()`-wrapped: the confirmation page resolves the same
+ * reference in `generateMetadata` (the tab title differs when access is
+ * withheld) and again in the render. Scope is one request, so a second
+ * viewer never sees the first one's answer.
+ */
+export const getBookingViewForViewer = cache(
+  async (reference: string): Promise<BookingViewerResult> => {
+    if (!hasDb()) return { state: 'no_db' };
+    const owner = await boundedQuery('bookings:viewerLookup', () =>
+      db.query.bookings.findFirst({
+        where: eq(bookings.idempotencyKey, reference),
+        columns: { guestId: true },
+      }),
+    );
+    if (!owner) return { state: 'not_found' };
+    if (!(await bookingViewerCanAccess(reference, owner.guestId))) return { state: 'forbidden' };
+    const booking = await getBookingByReference(reference);
+    // Vanished between the two reads (deleted mid-render) — same as unknown.
+    return booking ? { state: 'ok', booking } : { state: 'not_found' };
+  },
+);
+
+/**
+ * {@link getBookingViewForViewer} for callers that only need the booking
+ * and treat every withheld state the same (route handlers, the pay page).
+ * Pages whose *copy* differs per state must use the discriminated form.
  */
 export async function getBookingByReferenceForViewer(
   reference: string,
 ): Promise<BookingDetail | undefined> {
-  if (!hasDb()) return undefined;
-  const owner = await boundedQuery('bookings:viewerLookup', () =>
-    db.query.bookings.findFirst({
-      where: eq(bookings.idempotencyKey, reference),
-      columns: { guestId: true },
-    }),
-  );
-  if (!owner) return undefined;
-  if (!(await bookingViewerCanAccess(reference, owner.guestId))) return undefined;
-  return getBookingByReference(reference);
+  const view = await getBookingViewForViewer(reference);
+  return view.state === 'ok' ? view.booking : undefined;
 }
 
 /** A booking as the profile history list renders it — carries the bilingual experience title. */

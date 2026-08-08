@@ -20,7 +20,7 @@ import { buttonVariants } from '@/components/ui/button';
 import { Price } from '@/components/ui/price';
 import { PrintButton } from '@/components/ui/print-button';
 import { GharmishLogo } from '@/components/layout/gharmish-logo';
-import { getBookingByReferenceForViewer } from '@/features/bookings/queries';
+import { getBookingViewForViewer } from '@/features/bookings/queries';
 import { getExperienceBySlug } from '@/features/experiences/queries';
 import { toArabicText } from '@/features/experiences/lib/arabic-content';
 import { startInstant } from '@/features/bookings/lib/cancellation';
@@ -80,8 +80,16 @@ export default async function BookingInvoicePage({ params }: PageParams) {
 
   if (!UUID_RE.test(ref)) notFound();
 
-  const booking = await getBookingByReferenceForViewer(ref);
-  if (!booking) notFound();
+  const view = await getBookingViewForViewer(ref);
+  if (view.state !== 'ok') {
+    // The receipt is emailed as a link, so the guest who opens it on a
+    // second device is authorized for nothing here. A hard 404 on their
+    // own paid booking is the wrong answer: hand them to the booking
+    // page, which explains the state and offers the way back in.
+    if (view.state === 'forbidden') redirect({ href: `/book/confirmed/${ref}`, locale: loc });
+    notFound();
+  }
+  const booking = view.booking;
   // No money has moved → nothing to document yet. Send the guest to the
   // booking page, which knows how to talk about every pre-payment state.
   if (!booking.paidAt) redirect({ href: `/book/confirmed/${ref}`, locale: loc });

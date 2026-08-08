@@ -2508,6 +2508,15 @@
     "descriptionStored": "We've sent your request to the host. You won't be charged unless they accept — we'll let you know the moment they respond.",
     "descriptionConfirmed": "Your spot is confirmed. We'll send the meeting point and what to bring before the day.",
     "descriptionPreview": "This is a preview environment — the request was not stored, but the booking flow works end-to-end. In production this page would show your booking details.",
+    "restricted": {
+      "eyebrow": "Private booking",
+      "title": "Sign in to see this booking",
+      "description": "Your booking is safe — we just can't show it on this browser. For privacy, booking details are only shown to the guest who made the booking. Sign in with the phone number you used when booking and it will be waiting in your activity.",
+      "deviceHint": "Booked on another phone or computer? Opening this link on that device works too.",
+      "signIn": "Sign in to view",
+      "myBookings": "Go to your activity",
+      "help": "Get help"
+    },
     "referenceLabel": "Reference",
     "experienceLabel": "Experience",
     "placeLabel": "Where",
