@@ -16,7 +16,9 @@ import {
   ACTIVE_BOOKING_STATUSES,
   PAYMENT_HOLD_MINUTES,
   isDateBookable,
+  isHoldExpired,
   remainingCapacity,
+  slotCloseInstantMs,
 } from '@/features/bookings/lib/availability';
 import { holdStillCounts } from '@/features/bookings/lib/capacity-sql';
 import { generateReferenceCode } from '@/features/bookings/lib/reference-code';
@@ -105,8 +107,10 @@ function activePhoneHolds(phone: string) {
     eq(bookings.contactPhone, phone),
     inArray(bookings.status, ['pending', 'confirmed']),
     ne(bookings.paymentStatus, 'paid'),
+    // Lapsed payment holds AND lapsed approval windows both stop
+    // counting here — the latter predicate moved into holdStillCounts
+    // (2026-08-02 ops audit) so capacity sums agree with this throttle.
     holdStillCounts(),
-    sql`not (${bookings.status} = 'pending' and ${bookings.approvalDeadline} is not null and ${bookings.approvalDeadline} <= now())`,
   );
 }
 
@@ -329,18 +333,26 @@ export async function requestBooking(
   // would misreport `too_many` for the guest's own booking. Kept outside
   // the main try so redirect()'s control-flow throw can't be caught below;
   // the unique-constraint catch in the insert path is the race-proof
-  // backstop for two retries arriving at once. The confirmation page
-  // renders every state (incl. awaiting-payment with a pay link), so it's
-  // the safe landing for both booking modes.
+  // backstop for two retries arriving at once.
   if (input.idempotencyKey) {
-    let existing = false;
+    let existing:
+      | {
+          status: string;
+          paymentStatus: string;
+          paymentDeadline: Date | null;
+          settleAnomalyAt: Date | null;
+        }
+      | undefined;
     try {
-      existing = Boolean(
-        await db.query.bookings.findFirst({
-          where: (b) => eq(b.idempotencyKey, reference),
-          columns: { id: true },
-        }),
-      );
+      existing = await db.query.bookings.findFirst({
+        where: (b) => eq(b.idempotencyKey, reference),
+        columns: {
+          status: true,
+          paymentStatus: true,
+          paymentDeadline: true,
+          settleAnomalyAt: true,
+        },
+      });
     } catch (error) {
       // Lookup hiccup → proceed with the normal flow; the constraint
       // backstop still dedupes.
@@ -348,7 +360,26 @@ export async function requestBooking(
     }
     if (existing) {
       await writeLastBookingCookie(reference, input.experienceSlug);
-      redirect({ href: confirmedPath, locale: input.locale });
+      // Land the replay where the WINNING submit landed (2026-08-02 ops
+      // audit P2 — the two dedupe layers used to disagree: the constraint
+      // backstop went to the pay page while this path always went to the
+      // confirmation page, so a double-tap's outcome depended on which
+      // millisecond the retry arrived). A confirmed hold still awaiting
+      // payment goes back to the pay step — same conditions createCheckout
+      // itself enforces (live hold, not paid, no unresolved settle
+      // anomaly). Every other state — paid, pending approval, expired,
+      // payments off, under review — belongs on the confirmation page,
+      // which renders all of them (incl. a pay link where relevant).
+      const awaitingPayment =
+        existing.status === 'confirmed' &&
+        existing.paymentStatus !== 'paid' &&
+        existing.settleAnomalyAt === null &&
+        existing.paymentDeadline !== null &&
+        !isHoldExpired(existing.paymentDeadline, new Date());
+      redirect({
+        href: awaitingPayment ? `/book/${reference}/pay?${slugParam}` : confirmedPath,
+        locale: input.locale,
+      });
     }
   }
 
@@ -357,6 +388,7 @@ export async function requestBooking(
       where: (e) => eq(e.slug, input.experienceSlug),
       columns: {
         id: true,
+        status: true,
         priceSar: true,
         maxGroupSize: true,
         startTime: true,
@@ -370,9 +402,21 @@ export async function requestBooking(
         blackoutDates: true,
         stopSellDates: true,
       },
+      with: { host: { columns: { verificationStatus: true } } },
     });
 
-    if (!experience) {
+    // Only live listings from non-suspended hosts are bookable
+    // (2026-08-02 ops audit): the catalog already hides the rest, but
+    // this action was reachable by direct POST with any slug, so
+    // draft/paused/archived supply — and suspended hosts' listings —
+    // could still take bookings that payment would dead-end later.
+    // `notFound` on purpose: a guest has no business learning that an
+    // unpublished slug exists.
+    if (
+      !experience ||
+      experience.status !== 'live' ||
+      experience.host.verificationStatus === 'suspended'
+    ) {
       return { success: false, message: 'notFound', values: currentValues(formData) };
     }
 
@@ -579,7 +623,9 @@ export async function requestBooking(
       partySize: input.partySize,
       totalAmount: experience.priceSar * input.partySize,
       // Snapshots — a later commission or policy edit applies to future
-      // bookings only, never restating an existing booking's terms.
+      // bookings only, never restating an existing booking's terms. The
+      // tier's parameters come from the DB source of truth (degrading to
+      // the code defaults exactly like the guest-facing surfaces do).
       commissionBps: experience.commissionBps,
       ...policySnapshotFor(experience.cancellationTier),
       idempotencyKey: reference,
@@ -605,15 +651,24 @@ export async function requestBooking(
       nextPath = `/book/${reference}/pay?${slugParam}`;
     }
 
-    if (experience.bookingMode === 'instant') {
-      // Instant experiences auto-confirm, but only if the date still has
-      // room. Lock the experience row for the duration of the transaction
-      // so concurrent bookings for the same experience serialize: each
-      // re-sums active party sizes on the date and inserts only if there
-      // is room. This *closes* the overbook window (a read-then-write
-      // TOCTOU otherwise) rather than merely narrowing it. Capacity is
-      // derived from bookings, so the experience row is the lock anchor.
-      const outcome = await db.transaction(async (tx) => {
+    // Both modes insert only if the date still has room. Lock the
+    // experience row for the duration of the transaction so concurrent
+    // bookings for the same experience serialize: each re-sums active
+    // party sizes on the date and inserts only if there is room. This
+    // *closes* the overbook window (a read-then-write TOCTOU otherwise)
+    // rather than merely narrowing it. Capacity is derived from
+    // bookings, so the experience row is the lock anchor — the same
+    // anchor approve/reschedule take.
+    //
+    // Request mode used to skip this gate ("the host confirms, capacity
+    // is enforced there"), but a `pending` row consumes capacity the
+    // moment it exists (2026-08-02 ops audit): a request beyond the
+    // date's remaining room could never be approved anyway, and free
+    // anonymous requests could zero out a calendar for the whole
+    // approval window. Refusing at creation closes that hole and tells
+    // the guest the truth — the date is full.
+    const insertIfRoom = (row: typeof bookings.$inferInsert): Promise<'full' | 'ok'> =>
+      db.transaction(async (tx) => {
         await tx.execute(
           sql`select 1 from ${experiences} where ${experiences.id} = ${experience.id} for update`,
         );
@@ -631,34 +686,51 @@ export async function requestBooking(
         if (remainingCapacity(experience.maxGroupSize, booked) < input.partySize) {
           return 'full' as const;
         }
-        // When online payment is required, stamp a hold deadline: the booking
-        // is created `confirmed` (so it holds the spot during payment) but the
-        // release job frees it if payment never completes. Null when payment is
-        // off — the booking is final on insert and never expires.
-        const paymentDeadline = hasHyperpay()
-          ? new Date(Date.now() + PAYMENT_HOLD_MINUTES * 60_000)
-          : null;
-        await tx
-          .insert(bookings)
-          .values({ ...bookingValues, status: 'confirmed', paymentDeadline });
+        await tx.insert(bookings).values(row);
         return 'ok' as const;
       });
-      if (outcome === 'full') {
-        return {
-          success: false,
-          message: 'date_full',
-          fields: { preferredDate: 'date_full' },
-          values: currentValues(formData),
-        };
-      }
+
+    let outcome: 'full' | 'ok';
+    if (experience.bookingMode === 'instant') {
+      // When online payment is required, stamp a hold deadline: the booking
+      // is created `confirmed` (so it holds the spot during payment) but the
+      // release job frees it if payment never completes. Null when payment is
+      // off — the booking is final on insert and never expires.
+      const paymentDeadline = hasHyperpay()
+        ? new Date(Date.now() + PAYMENT_HOLD_MINUTES * 60_000)
+        : null;
+      outcome = await insertIfRoom({ ...bookingValues, status: 'confirmed', paymentDeadline });
     } else {
-      // Request mode: no capacity gate at request time — the host (or
-      // admin) confirms each request, and capacity is enforced there.
-      // The approval window starts now; the cron expires undecided
-      // requests past the deadline.
+      // Request mode: the host (or admin) confirms each request, and
+      // capacity is re-asserted there under the same lock. The approval
+      // window starts now; the cron expires undecided requests past the
+      // deadline.
       const { approvalWindowHours } = await getPlatformSettings();
-      const approvalDeadline = new Date(Date.now() + approvalWindowHours * 3_600_000);
-      await db.insert(bookings).values({ ...bookingValues, status: 'pending', approvalDeadline });
+      // Clamp the window to the slot itself (2026-08-02 ops audit P0-2):
+      // `now + 24h` unclamped let a request for tomorrow morning sit
+      // pending THROUGH the event while holding its seat. The deadline
+      // never extends past local start minus the booking cutoff — the
+      // same lead time the `isDateBookable` gate above just enforced —
+      // so an undecided request expires while the guest can still book
+      // elsewhere, and a decision always leaves room to pay and attend.
+      const windowEndMs = Date.now() + approvalWindowHours * 3_600_000;
+      const slotCloseMs = slotCloseInstantMs(
+        input.preferredDate,
+        experience.startTime,
+        experience.bookingCutoffHours * 60,
+      );
+      const approvalDeadline = new Date(
+        slotCloseMs === null ? windowEndMs : Math.min(windowEndMs, slotCloseMs),
+      );
+      outcome = await insertIfRoom({ ...bookingValues, status: 'pending', approvalDeadline });
+    }
+    if (outcome === 'full') {
+      return {
+        success: false,
+        message: 'date_full',
+        fields: { preferredDate: 'date_full' },
+        values: currentValues(formData),
+      };
     }
   } catch (error) {
     // Race-proof replay backstop: two concurrent retries can both pass the

@@ -15,7 +15,14 @@ import { bookings } from '@/db/schema';
  * free, anonymous bookings could hold every seat indefinitely.
  * `processing` rows always count: a checkout exists, payment may be in
  * flight. Uses the database clock (`now()`) so all callers agree.
+ *
+ * The same applies to a `pending` request whose approval window has
+ * lapsed (2026-08-02 ops audit): the cron will expire it, but until
+ * that pass runs it must not block real guests from the date. This
+ * predicate previously lived only in the phone-throttle query, so
+ * every capacity sum over-counted by up to one cron interval.
  */
 export function holdStillCounts(): SQL {
-  return sql`not (${bookings.paymentStatus} in ('unpaid', 'failed') and ${bookings.paymentDeadline} is not null and ${bookings.paymentDeadline} <= now())`;
+  return sql`not (${bookings.paymentStatus} in ('unpaid', 'failed') and ${bookings.paymentDeadline} is not null and ${bookings.paymentDeadline} <= now())
+    and not (${bookings.status} = 'pending' and ${bookings.approvalDeadline} is not null and ${bookings.approvalDeadline} <= now())`;
 }

@@ -143,6 +143,53 @@ export function isDateBookable(input: BookableInput): BookableResult {
 }
 
 /**
+ * UTC instant (ms) when a slot stops accepting action: the experience's
+ * local start minus `cutoffMinutes`. Riyadh has been fixed at UTC+3 with
+ * no DST since 1947, so the offset is safe to hardcode. Null when either
+ * input is malformed — callers treat null as "no clamp available".
+ */
+export function slotCloseInstantMs(
+  dateStr: string,
+  startTime: string | null | undefined,
+  cutoffMinutes: number,
+): number | null {
+  if (!DATE_RE.test(dateStr)) return null;
+  const start = startTime ? minutesOfDay(startTime) : null;
+  if (start === null) return null;
+  const midnightMs = Date.parse(`${dateStr}T00:00:00+03:00`);
+  if (Number.isNaN(midnightMs)) return null;
+  return midnightMs + (start - cutoffMinutes) * 60_000;
+}
+
+/**
+ * Has the slot's action window closed — is "now" at or past the local
+ * start minus `cutoffMinutes`? The time-only sibling of `isDateBookable`
+ * for RE-asserting the clock on transitions after creation (2026-08-02
+ * ops audit P0-2: approval could land after the experience started, and
+ * checkout never looked at the date at all, so a guest could be charged
+ * for an experience that had already happened). Weekday/blackout checks
+ * don't belong on those paths — the booking already exists for its date
+ * — but the clock does. Malformed dates answer `true` (closed): these
+ * are money paths, so they fail safe.
+ */
+export function startWindowClosed(input: {
+  dateStr: string;
+  todayStr: string;
+  startTime?: string | null;
+  nowMinutes: number;
+  cutoffMinutes?: number;
+}): boolean {
+  if (!DATE_RE.test(input.dateStr) || !DATE_RE.test(input.todayStr)) return true;
+  if (input.dateStr < input.todayStr) return true;
+  if (input.dateStr > input.todayStr) return false;
+  const start = input.startTime ? minutesOfDay(input.startTime) : null;
+  // Date-only granularity: with no parsable start time the slot stays
+  // open through its local day, matching `isDateBookable`'s behavior.
+  if (start === null) return false;
+  return input.nowMinutes >= start - (input.cutoffMinutes ?? 0);
+}
+
+/**
  * Remaining spots on a date = group cap minus spots already taken by
  * active bookings (pending/confirmed/completed) on that date. Never
  * negative.

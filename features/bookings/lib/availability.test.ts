@@ -7,6 +7,8 @@ import {
   isHoldExpired,
   minutesOfDay,
   remainingCapacity,
+  slotCloseInstantMs,
+  startWindowClosed,
   weekdayOf,
 } from '@/features/bookings/lib/availability';
 
@@ -211,6 +213,60 @@ describe('bookableDates', () => {
       cutoffMinutes: BOOKING_CUTOFF_MINUTES,
     });
     expect(out.map((d) => d.date)).toContain('2026-05-29');
+  });
+});
+
+describe('slotCloseInstantMs', () => {
+  it('is local start minus the cutoff, in fixed UTC+3', () => {
+    // 09:00 Riyadh on 2026-06-05 = 06:00Z; minus 120min = 04:00Z.
+    expect(slotCloseInstantMs('2026-06-05', '09:00', 120)).toBe(
+      Date.parse('2026-06-05T04:00:00Z'),
+    );
+  });
+
+  it('with cutoff 0 it is the start instant itself', () => {
+    expect(slotCloseInstantMs('2026-06-05', '09:00', 0)).toBe(Date.parse('2026-06-05T06:00:00Z'));
+  });
+
+  it('answers null on malformed inputs (no clamp available)', () => {
+    expect(slotCloseInstantMs('junk', '09:00', 0)).toBeNull();
+    expect(slotCloseInstantMs('2026-06-05', 'later', 0)).toBeNull();
+    expect(slotCloseInstantMs('2026-06-05', null, 0)).toBeNull();
+  });
+});
+
+describe('startWindowClosed', () => {
+  const base = { dateStr: '2026-06-05', todayStr: '2026-06-05', startTime: '09:00' };
+
+  it('is closed once the local start has passed', () => {
+    expect(startWindowClosed({ ...base, nowMinutes: 9 * 60 + 1 })).toBe(true);
+  });
+
+  it('closes exactly at start (>= boundary — never charge at/after start)', () => {
+    expect(startWindowClosed({ ...base, nowMinutes: 9 * 60 })).toBe(true);
+  });
+
+  it('stays open before the start with no cutoff', () => {
+    expect(startWindowClosed({ ...base, nowMinutes: 8 * 60 })).toBe(false);
+  });
+
+  it('applies the lead-time window when a cutoff is given', () => {
+    expect(startWindowClosed({ ...base, nowMinutes: 8 * 60, cutoffMinutes: 120 })).toBe(true);
+    expect(startWindowClosed({ ...base, nowMinutes: 6 * 60, cutoffMinutes: 120 })).toBe(false);
+  });
+
+  it('a past date is always closed and a future date always open', () => {
+    expect(startWindowClosed({ ...base, dateStr: '2026-06-04', nowMinutes: 0 })).toBe(true);
+    expect(startWindowClosed({ ...base, dateStr: '2026-06-06', nowMinutes: 23 * 60 })).toBe(false);
+  });
+
+  it('date-only granularity: no parsable start keeps the local day open', () => {
+    expect(startWindowClosed({ ...base, startTime: null, nowMinutes: 23 * 60 })).toBe(false);
+    expect(startWindowClosed({ ...base, startTime: 'junk', nowMinutes: 23 * 60 })).toBe(false);
+  });
+
+  it('fails safe (closed) on malformed dates — these guard money paths', () => {
+    expect(startWindowClosed({ ...base, dateStr: 'junk', nowMinutes: 0 })).toBe(true);
   });
 });
 

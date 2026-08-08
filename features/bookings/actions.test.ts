@@ -76,7 +76,10 @@ vi.mock('@/features/bookings/lib/availability', () => ({
   PAYMENT_HOLD_MINUTES: 25,
   BOOKING_CUTOFF_MINUTES: 120,
   isDateBookable: () => ({ ok: true }),
+  isHoldExpired: (deadline: Date | null, now: Date) =>
+    deadline !== null && deadline.getTime() <= now.getTime(),
   remainingCapacity: (max: number, booked: number) => Math.max(0, max - booked),
+  slotCloseInstantMs: () => slotCloseMs,
 }));
 
 vi.mock('@/features/bookings/lib/reference-code', () => ({
@@ -103,9 +106,19 @@ interface MockExperience {
   availabilityWeekdays: string[];
   blackoutDates: string[];
   stopSellDates: string[];
+  status: string;
+  host: { verificationStatus: string };
 }
 let experience: MockExperience | undefined;
-let replayRow: { id: string } | undefined;
+let replayRow:
+  | {
+      id: string;
+      status?: string;
+      paymentStatus?: string;
+      paymentDeadline?: Date | null;
+      settleAnomalyAt?: Date | null;
+    }
+  | undefined;
 let guestRow:
   | {
       id: string;
@@ -120,6 +133,8 @@ const guestUpdates: Array<Record<string, unknown>> = [];
 let phoneHolds = 0;
 let ipRecent = 0;
 let txBookedSum = 0;
+/** Mocked slot-close instant for the approval-deadline clamp; null = no clamp. */
+let slotCloseMs: number | null = null;
 let insertBookingError: Error | null = null;
 const insertedBookings: Array<Record<string, unknown>> = [];
 
@@ -237,6 +252,7 @@ beforeEach(() => {
   phoneHolds = 0;
   ipRecent = 0;
   txBookedSum = 0;
+  slotCloseMs = null;
   experience = {
     id: 'e-1',
     priceSar: 260,
@@ -249,6 +265,8 @@ beforeEach(() => {
     availabilityWeekdays: ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'],
     blackoutDates: [],
     stopSellDates: [],
+    status: 'live',
+    host: { verificationStatus: 'verified' },
   };
 });
 
@@ -282,6 +300,17 @@ describe('requestBooking — happy paths', () => {
     expect(insertedBookings[0].paymentDeadline).toBeUndefined();
   });
 
+  it('request mode: clamps the approval deadline to the slot close when it lands sooner (P0-2)', async () => {
+    experience = { ...experience!, bookingMode: 'request' };
+    // Slot closes in 1h — sooner than the 24h approval window.
+    slotCloseMs = Date.now() + 3_600_000;
+
+    await runExpectingRedirect(form());
+
+    const deadline = insertedBookings[0].approvalDeadline as Date;
+    expect(deadline.getTime()).toBe(slotCloseMs);
+  });
+
   it('falls back to a server-minted UUID when the form posts no key', async () => {
     const target = await runExpectingRedirect(form({ idempotencyKey: '' }));
 
@@ -293,13 +322,49 @@ describe('requestBooking — happy paths', () => {
 
 describe('requestBooking — idempotent replays (H10)', () => {
   it('fast path: an already-used key lands on the existing booking without inserting', async () => {
-    replayRow = { id: 'b-existing' };
+    replayRow = {
+      id: 'b-existing',
+      status: 'confirmed',
+      paymentStatus: 'paid',
+      paymentDeadline: null,
+      settleAnomalyAt: null,
+    };
 
     const target = await runExpectingRedirect(form());
 
     expect(target.href).toBe(`/book/confirmed/${IDEMPOTENCY_KEY}?slug=asiri-coffee`);
     expect(insertedBookings).toHaveLength(0);
     expect(afterCallbacks).toHaveLength(0); // no duplicate emails
+  });
+
+  it('fast path: a replay of a confirmed hold still awaiting payment lands on the pay page, matching the winner', async () => {
+    replayRow = {
+      id: 'b-existing',
+      status: 'confirmed',
+      paymentStatus: 'unpaid',
+      paymentDeadline: new Date(Date.now() + 10 * 60_000),
+      settleAnomalyAt: null,
+    };
+
+    const target = await runExpectingRedirect(form());
+
+    expect(target.href).toBe(`/book/${IDEMPOTENCY_KEY}/pay?slug=asiri-coffee`);
+    expect(insertedBookings).toHaveLength(0);
+    expect(afterCallbacks).toHaveLength(0);
+  });
+
+  it('fast path: an expired hold replays to the confirmation page, never a dead pay step', async () => {
+    replayRow = {
+      id: 'b-existing',
+      status: 'confirmed',
+      paymentStatus: 'unpaid',
+      paymentDeadline: new Date(Date.now() - 60_000),
+      settleAnomalyAt: null,
+    };
+
+    const target = await runExpectingRedirect(form());
+
+    expect(target.href).toBe(`/book/confirmed/${IDEMPOTENCY_KEY}?slug=asiri-coffee`);
   });
 
   it('backstop: losing the insert race on the idempotency constraint redirects instead of erroring', async () => {
@@ -358,6 +423,32 @@ describe('requestBooking — throttles & guards', () => {
     txBookedSum = 11; // 11 + 2 > max 12
     const state = await requestBooking(initial, form());
     expect(state).toMatchObject({ success: false, message: 'date_full' });
+  });
+
+  it('refuses a request-mode booking when the date is full (2026-08-02 audit)', async () => {
+    experience = { ...experience!, bookingMode: 'request' };
+    txBookedSum = 11; // 11 + 2 > max 12
+    const state = await requestBooking(initial, form());
+    expect(state).toMatchObject({
+      success: false,
+      message: 'date_full',
+      fields: { preferredDate: 'date_full' },
+    });
+    expect(insertedBookings).toHaveLength(0);
+  });
+
+  it('refuses to book a non-live listing — direct POSTs answer notFound (2026-08-02 audit)', async () => {
+    experience = { ...experience!, status: 'paused' };
+    const state = await requestBooking(initial, form());
+    expect(state).toMatchObject({ success: false, message: 'notFound' });
+    expect(insertedBookings).toHaveLength(0);
+  });
+
+  it("refuses to book a suspended host's listing (2026-08-02 audit)", async () => {
+    experience = { ...experience!, host: { verificationStatus: 'suspended' } };
+    const state = await requestBooking(initial, form());
+    expect(state).toMatchObject({ success: false, message: 'notFound' });
+    expect(insertedBookings).toHaveLength(0);
   });
 
   it('rejects a party larger than the group size before touching capacity', async () => {
