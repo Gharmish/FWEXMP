@@ -11,11 +11,12 @@
 -- Arabic surfaces stop rendering the Latin name.
 --
 -- Deliberately NOT touched:
---   * photo_url still points at storage key hosts/faisal-al-qahtani/profile.jpg
---     — the stored absolute URL keeps working and the key is not user-visible
---     content; moving storage objects is a separate (optional) chore.
 --   * db/seed.ts + features/*/lib/sample-data.ts keep the fictional Faisal
 --     persona for the no-DB dev fallback.
+--
+-- Follow-up: the storage key was moved too, see
+-- 2026-08-08-move-host-photo-storage-key.sql (this file originally recorded
+-- photo_url as deliberately left on the old key; that is no longer true).
 
 UPDATE hosts
 SET slug = 'abdulaziz-alasmari'
