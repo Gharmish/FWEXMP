@@ -55,3 +55,9 @@ export function redirect(args: Parameters<typeof nav.redirect>[0]): never {
   nav.redirect(args);
   throw new Error('next-intl redirect returned without throwing NEXT_REDIRECT');
 }
+
+/** Permanent (308) variant — same `never`-typing rationale as `redirect`. */
+export function permanentRedirect(args: Parameters<typeof nav.permanentRedirect>[0]): never {
+  nav.permanentRedirect(args);
+  throw new Error('next-intl permanentRedirect returned without throwing NEXT_REDIRECT');
+}

@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import { ArrowLeft, Star } from 'lucide-react';
 import { notFound } from 'next/navigation';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
-import { Link } from '@/lib/i18n';
+import { Link, permanentRedirect } from '@/lib/i18n';
 import { routing, type Locale } from '@/lib/i18n';
 import { SITE_NAME, SITE_URL } from '@/lib/site';
 import { cn } from '@/lib/utils';
@@ -22,6 +22,18 @@ import {
 } from '@/features/hosts/queries';
 import { getWishlistSet } from '@/features/wishlist/queries';
 import { WishlistButton } from '@/features/wishlist/components/wishlist-button';
+
+/**
+ * The live seed host "Faisal Al Qahtani" was renamed to the real owner
+ * (Abdulaziz Alasmari, 2026-08-08) and re-slugged; indexed/shared links to
+ * the old personal-name slug 301 to the new one. Redirect only fires when
+ * the legacy slug no longer resolves AND the target does — so the no-DB
+ * sample fallback (which still uses the Faisal persona) keeps rendering
+ * directly, and a not-yet-renamed DB never redirects into a 404.
+ */
+const LEGACY_HOST_SLUGS: Readonly<Record<string, string>> = {
+  'faisal-al-qahtani': 'abdulaziz-alasmari',
+};
 
 export async function generateStaticParams() {
   const slugs = await getAllHostSlugs();
@@ -72,7 +84,13 @@ export default async function HostProfilePage({
   const loc = locale as Locale;
 
   const host = await getHostBySlug(slug);
-  if (!host) notFound();
+  if (!host) {
+    const canonical = LEGACY_HOST_SLUGS[slug];
+    if (canonical && (await getHostBySlug(canonical))) {
+      permanentRedirect({ href: `/hosts/${canonical}`, locale: loc });
+    }
+    notFound();
+  }
 
   const [experiences, savedSlugs, responseStats] = await Promise.all([
     getExperiencesByHostSlug(slug),
