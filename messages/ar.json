@@ -2596,6 +2596,10 @@
     },
     "printTicket": "طباعة أو حفظ PDF",
     "viewInvoice": "عرض الفاتورة",
+    "calendar": {
+      "google": "أضِف إلى تقويم Google",
+      "ics": "أضِف إلى Apple / Outlook"
+    },
     "dispute": {
       "summary": "هناك خطأ ما؟ أبلغ عن مشكلة",
       "label": "أخبرنا بما حدث",

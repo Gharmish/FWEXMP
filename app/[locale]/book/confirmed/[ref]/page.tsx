@@ -22,6 +22,14 @@ import { ReviewForm } from '@/features/reviews/components/review-form';
 import { getReviewForBooking } from '@/features/reviews/queries';
 import { hasOpenDisputeForBooking } from '@/features/disputes/queries';
 import { CancelBookingButton } from '@/features/bookings/components/cancel-booking-button';
+import { AddToCalendar } from '@/features/bookings/components/add-to-calendar';
+import {
+  calendarEventDescription,
+  googleCalendarUrl,
+  googleMapsLink,
+} from '@/features/bookings/lib/calendar-links';
+import { startInstant } from '@/features/bookings/lib/cancellation';
+import { SITE_URL } from '@/lib/site';
 import { VerifiedBadge } from '@/features/hosts/components/verified-badge';
 import { RescheduleBooking } from '@/features/bookings/components/reschedule-booking';
 import { RefundToCardButton } from '@/features/wallet/components/refund-to-card-button';
@@ -511,6 +519,32 @@ export default async function BookingConfirmedPage({ params, searchParams }: Pag
       )
     : 0;
 
+  // "Add to calendar" — only an upcoming confirmed booking with nothing
+  // owed belongs in a guest's calendar (the same settled gate as the
+  // e-ticket row it renders in, narrowed to confirmed + future start).
+  // Needs the live listing for duration/location; a retired listing
+  // just drops the buttons.
+  const calendarStart = booking ? startInstant(booking.date, booking.startTime) : null;
+  const calendarGoogleUrl =
+    booking &&
+    experience &&
+    calendarStart &&
+    calendarStart.getTime() > new Date().getTime() &&
+    booking.status === 'confirmed' &&
+    (booking.paymentStatus === 'paid' || booking.paymentDeadline === null)
+      ? googleCalendarUrl({
+          start: calendarStart,
+          durationMinutes: experience.durationMinutes,
+          summary: title ?? (booking.referenceCode ?? ref),
+          location: placeName,
+          description: calendarEventDescription({
+            referenceLine: `${t('referenceLabel')}: ${booking.referenceCode ?? ref}`,
+            manageUrl: `${SITE_URL}/${loc}/book/confirmed/${ref}`,
+            mapUrl: googleMapsLink(experience.lat, experience.lng),
+          }),
+        })
+      : null;
+
   return (
     <article className="mx-auto w-full max-w-3xl px-6 py-20">
       {/* Ad-platform purchase conversion — only for a DB-verified paid
@@ -626,6 +660,15 @@ export default async function BookingConfirmedPage({ params, searchParams }: Pag
                 >
                   {t('viewInvoice')}
                 </Link>
+              )}
+              {/* Upcoming confirmed bookings only — Google deep link plus
+                  an .ics download for Apple Calendar / Outlook. */}
+              {calendarGoogleUrl && (
+                <AddToCalendar
+                  googleUrl={calendarGoogleUrl}
+                  icsHref={`/api/bookings/${ref}/calendar?locale=${loc}`}
+                  labels={{ google: t('calendar.google'), ics: t('calendar.ics') }}
+                />
               )}
             </div>
           )}

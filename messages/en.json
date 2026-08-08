@@ -2596,6 +2596,10 @@
     },
     "printTicket": "Print or save as PDF",
     "viewInvoice": "View invoice",
+    "calendar": {
+      "google": "Add to Google Calendar",
+      "ics": "Add to Apple / Outlook"
+    },
     "dispute": {
       "summary": "Something not right? Report a problem",
       "label": "Tell us what happened",
