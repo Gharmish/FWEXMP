@@ -105,15 +105,15 @@ export const CATEGORIES: readonly CategoryMeta[] = [
  */
 const PHOTOS_BASE = 'https://xjgpflzkpydfpuomqhuq.supabase.co/storage/v1/object/public/photos';
 
-const FAISAL: HostInfo = {
-  name: 'Faisal Al Qahtani',
-  slug: hostSlug('Faisal Al Qahtani'),
+const ABDULAZIZ: HostInfo = {
+  name: 'Abdulaziz Alasmari',
+  slug: hostSlug('Abdulaziz Alasmari'),
   bioEn:
-    'A third-generation farmer from Habala who grew up among the juniper terraces. Faisal hosts small groups to share Aseeri food, music, and the slow rhythm of mountain life.',
+    'A third-generation farmer from Habala who grew up among the juniper terraces. Abdulaziz hosts small groups to share Aseeri food, music, and the slow rhythm of mountain life.',
   bioAr:
-    'مزارع من الجيل الثالث من الحبلة، نشأ بين مدرجات العرعر. يستضيف فيصل مجموعات صغيرة ليشاركهم طعام عسير وموسيقاها وإيقاع الحياة الجبلية الهادئ.',
+    'مزارع من الجيل الثالث من الحبلة، نشأ بين مدرجات العرعر. يستضيف عبدالعزيز مجموعات صغيرة ليشاركهم طعام عسير وموسيقاها وإيقاع الحياة الجبلية الهادئ.',
   verified: true,
-  photoUrl: `${PHOTOS_BASE}/hosts/faisal-al-qahtani/avatar.jpg`,
+  photoUrl: `${PHOTOS_BASE}/hosts/abdulaziz-alasmari/avatar.jpg`,
   languages: ['ar'],
 };
 
@@ -154,8 +154,8 @@ const EXPERIENCES: readonly SampleExperience[] = [
     region: 'Aseer',
     minAge: 12,
     maxGroupSize: 8,
-    hostName: FAISAL.name,
-    host: FAISAL,
+    hostName: ABDULAZIZ.name,
+    host: ABDULAZIZ,
     featured: false,
     inclusions: ['Local guide', 'Aseeri breakfast', 'Hot qahwa'],
     whatToBring: ['Warm layer', 'Walking shoes'],
@@ -194,8 +194,8 @@ const EXPERIENCES: readonly SampleExperience[] = [
     region: 'Aseer',
     minAge: 0,
     maxGroupSize: 10,
-    hostName: FAISAL.name,
-    host: FAISAL,
+    hostName: ABDULAZIZ.name,
+    host: ABDULAZIZ,
     featured: true,
     inclusions: ['Traditional dinner', 'Live Aseeri music', 'Tea and qahwa'],
     whatToBring: ['Appetite', 'A light jacket for the evening'],
@@ -243,8 +243,8 @@ const EXPERIENCES: readonly SampleExperience[] = [
     region: 'Aseer',
     minAge: 6,
     maxGroupSize: 12,
-    hostName: FAISAL.name,
-    host: FAISAL,
+    hostName: ABDULAZIZ.name,
+    host: ABDULAZIZ,
     featured: false,
     inclusions: ['Coffee workshop', 'Saleeg lunch', 'Recipe card'],
     whatToBring: [],

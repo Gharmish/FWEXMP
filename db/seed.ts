@@ -19,16 +19,16 @@ async function seed() {
   await db.delete(hosts);
 
   console.warn('Inserting hosts…');
-  const [faisal, asirAdventures] = await db
+  const [abdulaziz, asirAdventures] = await db
     .insert(hosts)
     .values([
       {
-        name: 'Faisal Al Qahtani',
-        slug: 'faisal-al-qahtani',
+        name: 'Abdulaziz Alasmari',
+        slug: 'abdulaziz-alasmari',
         bioEn:
-          'A third-generation farmer from Habala who grew up among the juniper terraces. Faisal hosts small groups to share Aseeri food, music, and the slow rhythm of mountain life.',
+          'A third-generation farmer from Habala who grew up among the juniper terraces. Abdulaziz hosts small groups to share Aseeri food, music, and the slow rhythm of mountain life.',
         bioAr:
-          'مزارع من الجيل الثالث من الحبلة، نشأ بين مدرجات العرعر. يستضيف فيصل مجموعات صغيرة ليشاركهم طعام عسير وموسيقاها وإيقاع الحياة الجبلية الهادئ.',
+          'مزارع من الجيل الثالث من الحبلة، نشأ بين مدرجات العرعر. يستضيف عبدالعزيز مجموعات صغيرة ليشاركهم طعام عسير وموسيقاها وإيقاع الحياة الجبلية الهادئ.',
         verificationStatus: 'verified',
         languages: ['ar', 'en'],
       },
@@ -79,7 +79,7 @@ async function seed() {
       descriptionAr:
         'نلتقي قبل الشروق ونسير في مسارات جبل السودة، أعلى قمم السعودية، بينما يتحرك الضباب بين أشجار العرعر العتيقة. يقرأ لك المضيف ملامح المكان؛ الأشجار والمدرجات والطيور، بوتيرة هادئة لا تستعجل.',
       category: 'nature',
-      hostId: faisal.id,
+      hostId: abdulaziz.id,
       durationMinutes: 180,
       maxGroupSize: 8,
       minAge: 12,
@@ -103,7 +103,7 @@ async function seed() {
       descriptionAr:
         'اقضِ أمسية مع رجال الزهور من قحطان، الذين يضعون أكاليل القطيفة والأعشاب العطرية. شاركهم القصص والموسيقى ووجبة منزلية على شرفة تطل على وادي الحبلة حين يميل الضوء إلى الذهبي.',
       category: 'heritage',
-      hostId: faisal.id,
+      hostId: abdulaziz.id,
       durationMinutes: 240,
       maxGroupSize: 10,
       minAge: 0,
@@ -127,7 +127,7 @@ async function seed() {
       descriptionAr:
         'حمص واطحن البن الأخضر على الطريقة العسيرية، وتعرّف على آداب تقديم الدلة، ثم اجلس إلى غداء سليق هادئ. بعد ظهر عملي في مجلس عائلي في أبها القديمة.',
       category: 'food',
-      hostId: faisal.id,
+      hostId: abdulaziz.id,
       durationMinutes: 150,
       maxGroupSize: 12,
       minAge: 6,

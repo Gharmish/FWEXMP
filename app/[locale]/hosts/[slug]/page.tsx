@@ -27,9 +27,8 @@ import { WishlistButton } from '@/features/wishlist/components/wishlist-button';
  * The live seed host "Faisal Al Qahtani" was renamed to the real owner
  * (Abdulaziz Alasmari, 2026-08-08) and re-slugged; indexed/shared links to
  * the old personal-name slug 301 to the new one. Redirect only fires when
- * the legacy slug no longer resolves AND the target does — so the no-DB
- * sample fallback (which still uses the Faisal persona) keeps rendering
- * directly, and a not-yet-renamed DB never redirects into a 404.
+ * the legacy slug no longer resolves AND the target does, so a database
+ * still holding the pre-rename row never redirects into a 404.
  */
 const LEGACY_HOST_SLUGS: Readonly<Record<string, string>> = {
   'faisal-al-qahtani': 'abdulaziz-alasmari',

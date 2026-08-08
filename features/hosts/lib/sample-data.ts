@@ -17,15 +17,15 @@ const PHOTOS_BASE = 'https://xjgpflzkpydfpuomqhuq.supabase.co/storage/v1/object/
 
 const HOSTS: readonly HostProfile[] = [
   {
-    slug: hostSlug('Faisal Al Qahtani'),
-    name: 'Faisal Al Qahtani',
+    slug: hostSlug('Abdulaziz Alasmari'),
+    name: 'Abdulaziz Alasmari',
     bioEn:
-      'A third-generation farmer from Habala who grew up among the juniper terraces. Faisal hosts small groups to share Aseeri food, music, and the slow rhythm of mountain life.',
+      'A third-generation farmer from Habala who grew up among the juniper terraces. Abdulaziz hosts small groups to share Aseeri food, music, and the slow rhythm of mountain life.',
     bioAr:
-      'مزارع من الجيل الثالث من الحبلة، نشأ بين مدرجات العرعر. يستضيف فيصل مجموعات صغيرة ليشاركهم طعام عسير وموسيقاها وإيقاع الحياة الجبلية الهادئ.',
+      'مزارع من الجيل الثالث من الحبلة، نشأ بين مدرجات العرعر. يستضيف عبدالعزيز مجموعات صغيرة ليشاركهم طعام عسير وموسيقاها وإيقاع الحياة الجبلية الهادئ.',
     verified: true,
     languages: ['ar', 'en'],
-    photoUrl: `${PHOTOS_BASE}/hosts/faisal-al-qahtani/avatar.jpg`,
+    photoUrl: `${PHOTOS_BASE}/hosts/abdulaziz-alasmari/avatar.jpg`,
     joinedAt: '2025-08-01T00:00:00.000Z',
   },
   {

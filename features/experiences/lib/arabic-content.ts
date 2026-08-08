@@ -2,10 +2,11 @@
 // 2026-07-08 "Aseer" spelling migration still carry the old English
 // strings, and a missing key silently falls back to English.
 const ARABIC_TEXT: Readonly<Record<string, string>> = {
-  // The live host row was renamed from the seed persona "Faisal Al
-  // Qahtani" to the real owner; the Faisal key stays because the no-DB
-  // sample-data fallback still uses that persona.
   'Abdulaziz Alasmari': 'عبدالعزيز الأسمري',
+  // Retired 2026-08-08: the host formerly seeded as "Faisal Al Qahtani"
+  // is the row above. Kept per this file's convention — a dev database
+  // seeded before the rename still carries the old English string, and a
+  // missing key silently falls back to Latin text on the Arabic page.
   'Faisal Al Qahtani': 'فيصل القحطاني',
   'Asir Adventures Co.': 'شركة مغامرات عسير',
   'Jabal Sawda': 'جبل السودة',

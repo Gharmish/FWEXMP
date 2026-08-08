@@ -121,8 +121,8 @@ function makeExperience(
     city: overrides.city ?? 'Abha',
     maxGroupSize: overrides.maxGroupSize ?? 10,
     availabilityWeekdays: overrides.availabilityWeekdays ?? [4, 5, 6],
-    hostName: overrides.hostName ?? 'Faisal Al Qahtani',
-    hostSlug: overrides.hostSlug ?? 'faisal-al-qahtani',
+    hostName: overrides.hostName ?? 'Abdulaziz Alasmari',
+    hostSlug: overrides.hostSlug ?? 'abdulaziz-alasmari',
     featured: overrides.featured ?? false,
     bookingMode: overrides.bookingMode ?? 'request',
     ratingAverage: overrides.ratingAverage ?? null,
@@ -169,12 +169,12 @@ const EMPTY_AGGREGATE: ReviewAggregate = {
 };
 
 const SAMPLE_HOST: HostInfo = {
-  name: 'Faisal Al Qahtani',
-  slug: 'faisal-al-qahtani',
+  name: 'Abdulaziz Alasmari',
+  slug: 'abdulaziz-alasmari',
   bioEn:
-    'A third-generation farmer from Habala who grew up among the juniper terraces. Faisal hosts small groups to share Aseeri food, music, and the slow rhythm of mountain life.',
+    'A third-generation farmer from Habala who grew up among the juniper terraces. Abdulaziz hosts small groups to share Aseeri food, music, and the slow rhythm of mountain life.',
   bioAr:
-    'مزارع من الجيل الثالث من الحبلة، نشأ بين مدرجات العرعر. يستضيف فيصل مجموعات صغيرة ليشاركهم طعام عسير وموسيقاها وإيقاع الحياة الجبلية الهادئ.',
+    'مزارع من الجيل الثالث من الحبلة، نشأ بين مدرجات العرعر. يستضيف عبدالعزيز مجموعات صغيرة ليشاركهم طعام عسير وموسيقاها وإيقاع الحياة الجبلية الهادئ.',
   verified: true,
   photoUrl: null,
   languages: ['ar'],
@@ -416,9 +416,9 @@ export default async function StyleGuidePage({ params }: { params: Promise<{ loc
 
       <Section title="Avatar">
         <div className="flex items-center gap-4">
-          <Avatar name="Faisal Al Qahtani" size="sm" />
-          <Avatar name="Faisal Al Qahtani" size="md" />
-          <Avatar name="Faisal Al Qahtani" size="lg" />
+          <Avatar name="Abdulaziz Alasmari" size="sm" />
+          <Avatar name="Abdulaziz Alasmari" size="md" />
+          <Avatar name="Abdulaziz Alasmari" size="lg" />
         </div>
       </Section>
 
