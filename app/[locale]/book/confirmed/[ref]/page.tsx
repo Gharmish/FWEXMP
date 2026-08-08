@@ -36,6 +36,7 @@ import { RescheduleBooking } from '@/features/bookings/components/reschedule-boo
 import { RefundToCardButton } from '@/features/wallet/components/refund-to-card-button';
 import { getSessionGuestId } from '@/features/wallet/queries';
 import { bookingOptions } from '@/features/bookings/lib/policy';
+import { resolvePaymentView } from '@/features/payments/lib/payment-view';
 import {
   addDays,
   bookableDates,
@@ -130,43 +131,28 @@ export default async function BookingConfirmedPage({ params, searchParams }: Pag
       : experience.placeName
     : null;
 
-  // Payment outcome view. The `/pay/return` route appends `?payment=<outcome>`
-  // and settlement has already written the authoritative `paymentStatus`, so
-  // the DB wins and the query param is only a fallback. A `null` view is
-  // the request-to-book / preview path that never involved online payment — its
-  // copy is unchanged.
-  //
-  // Only `rejected` is a DETERMINATE decline. `error` (settle could not
-  // reach a verdict — the row stays `processing`) reads as pending, not
-  // failed: the failed copy states "your card wasn't charged" and offers
-  // a retry, and on an indeterminate outcome we know neither. The return
-  // route already maps that outcome to `pending`; this keeps a stale or
-  // hand-edited `?payment=error` from asserting it anyway.
-  const paymentHint = asString(sp.payment);
-  const paymentView: 'paid' | 'failed' | 'pending' | null =
-    booking?.paymentStatus === 'paid' || paymentHint === 'success'
-      ? 'paid'
-      : booking?.paymentStatus === 'failed' || paymentHint === 'rejected'
-        ? 'failed'
-        : booking?.paymentStatus === 'processing' ||
-            paymentHint === 'pending' ||
-            paymentHint === 'error'
-          ? 'pending'
-          : null;
-
   // An online-payment hold whose window has passed without settling.
   // The cron will release it (→ cancelled) on its next run; until then
   // the page must already tell the truth: the spot is no longer held,
-  // nothing was charged, and retrying payment is refused. Takes
-  // precedence over the failed state — "try payment again" would only
-  // bounce off `createCheckout`'s expiry guard.
+  // nothing was charged, and retrying payment is refused.
   const isHoldLapsed = Boolean(
     booking &&
     booking.status === 'confirmed' &&
     (booking.paymentStatus === 'unpaid' || booking.paymentStatus === 'failed') &&
     isHoldExpired(booking.paymentDeadline ? new Date(booking.paymentDeadline) : null, new Date()),
   );
-  const isFailed = paymentView === 'failed' && !isHoldLapsed;
+
+  // Which payment story to tell. The rules — DB over hint, indeterminate
+  // outcomes never reaching the "your card wasn't charged" copy, a lapsed
+  // hold outranking both — live in `resolvePaymentView`, where they are
+  // unit-tested; every one of them was a production bug first.
+  const paymentHint = asString(sp.payment);
+  const paymentView = resolvePaymentView({
+    paymentStatus: booking?.paymentStatus,
+    hint: paymentHint,
+    holdLapsed: isHoldLapsed,
+  });
+  const isFailed = paymentView === 'failed';
   const isPending = paymentView === 'pending';
 
   /** Money-relevant deadlines carry a time-of-day, so render it. */

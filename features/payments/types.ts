@@ -3,6 +3,7 @@
  * Platform parameter reference (https://hyperpay.docs.oppwa.com/reference/parameters)
  * and the test-server requirements from the HyperPay onboarding email.
  */
+import type { bookings } from '@/db/schema';
 
 /** Customer identity fields required for 3D Secure 2.0 risk checks. */
 export interface HyperpayCustomer {
@@ -106,3 +107,13 @@ export interface PaymentStatusResponse {
 
 /** Outcome classification derived from a result code. */
 export type PaymentOutcome = 'success' | 'pending' | 'rejected';
+
+/** A booking's persisted payment lifecycle (`payment_status` enum). */
+export type PaymentStatus = (typeof bookings.$inferSelect)['paymentStatus'];
+
+/**
+ * Which payment story the confirmation page tells. `null` is the
+ * request-to-book / preview path that never involved online payment —
+ * it gets the plain acknowledgement copy, not a payment view.
+ */
+export type PaymentView = 'paid' | 'failed' | 'pending' | null;
