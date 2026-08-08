@@ -26,14 +26,31 @@ export async function GET(
     const outcome = await settleBooking(reference);
     // `already_settled` is a replayed/refreshed return URL on a paid
     // booking — display as success, but fire no side effects.
-    // `anomaly` means a REAL capture that can't be matched to this
-    // booking (amount/currency drift). Surface it as `pending`, never as
-    // a fresh payment prompt (2026-07-28 fifth audit): the booking row
-    // is deliberately left untouched, so without this mapping the
-    // confirmation page fell through to its awaiting-payment state and
-    // asked a guest whose card was just charged to pay again.
+    //
+    // `anomaly` and `error` are the two INDETERMINATE outcomes, and both
+    // surface as `pending`. Neither may ever be shown as a decline: the
+    // booking row is deliberately left untouched in both cases, so the
+    // capture may well have succeeded at the gateway.
+    //   - `anomaly` is a REAL capture that can't be matched to this
+    //     booking (amount/currency drift) — mapped here by the
+    //     2026-07-28 fifth audit, because without it the confirmation
+    //     page fell through to its awaiting-payment state and asked a
+    //     guest whose card was just charged to pay again.
+    //   - `error` is a settle we could not complete (gateway status
+    //     unreachable after its one retry, or the strict platform-
+    //     settings read threw). Same reasoning, and the same fix: it
+    //     used to pass through as `payment=error`, which the
+    //     confirmation page rendered as "your card wasn't charged — try
+    //     the payment again". We do not know that, and inviting a second
+    //     attempt on a possibly-captured card is the one outcome the
+    //     indeterminate states exist to avoid.
+    // The webhook and the cron reconcile pass resolve both for real.
     const hint =
-      outcome === 'already_settled' ? 'success' : outcome === 'anomaly' ? 'pending' : outcome;
+      outcome === 'already_settled'
+        ? 'success'
+        : outcome === 'anomaly' || outcome === 'error'
+          ? 'pending'
+          : outcome;
     confirmed.searchParams.set('payment', hint);
     // On the actual paid transition, send the booking receipt. Best-effort
     // and gated (no-op without email configured / no guest email) — it must

@@ -115,17 +115,25 @@ export default async function BookingConfirmedPage({ params, searchParams }: Pag
 
   // Payment outcome view. The `/pay/return` route appends `?payment=<outcome>`
   // and settlement has already written the authoritative `paymentStatus`, so
-  // the DB wins and the query param is only a fallback (it also covers the
-  // `error` case, where the booking row was left untouched). A `null` view is
+  // the DB wins and the query param is only a fallback. A `null` view is
   // the request-to-book / preview path that never involved online payment — its
   // copy is unchanged.
+  //
+  // Only `rejected` is a DETERMINATE decline. `error` (settle could not
+  // reach a verdict — the row stays `processing`) reads as pending, not
+  // failed: the failed copy states "your card wasn't charged" and offers
+  // a retry, and on an indeterminate outcome we know neither. The return
+  // route already maps that outcome to `pending`; this keeps a stale or
+  // hand-edited `?payment=error` from asserting it anyway.
   const paymentHint = asString(sp.payment);
   const paymentView: 'paid' | 'failed' | 'pending' | null =
     booking?.paymentStatus === 'paid' || paymentHint === 'success'
       ? 'paid'
-      : booking?.paymentStatus === 'failed' || paymentHint === 'rejected' || paymentHint === 'error'
+      : booking?.paymentStatus === 'failed' || paymentHint === 'rejected'
         ? 'failed'
-        : booking?.paymentStatus === 'processing' || paymentHint === 'pending'
+        : booking?.paymentStatus === 'processing' ||
+            paymentHint === 'pending' ||
+            paymentHint === 'error'
           ? 'pending'
           : null;
 
