@@ -42,7 +42,11 @@ export async function HostCard({ host, locale, responseStats }: HostCardProps) {
     <div className="flex flex-col gap-4">
       <div className="flex items-center gap-4">
         <Avatar name={name} src={host.photoUrl ?? undefined} size="lg" />
-        <div className="flex flex-col gap-1">
+        {/* `min-w-0`: without it this flex child keeps its default
+            `min-width: auto` and can never shrink below the widest chip,
+            which pushed the whole detail page into a sideways scroll on a
+            320px screen. Lets the chip row actually wrap. */}
+        <div className="flex min-w-0 flex-col gap-1">
           <span className="text-lg font-medium">{name}</span>
           <div className="flex flex-wrap items-center gap-2">
             {host.verified && (
