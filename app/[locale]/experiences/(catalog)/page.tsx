@@ -167,7 +167,7 @@ export default async function ExperiencesIndexPage({
     <div className="flex flex-col">
       <JsonLd data={jsonLd} />
 
-      <section className="mx-auto w-full max-w-6xl px-6 py-20 sm:py-24">
+      <section className="mx-auto w-full max-w-6xl px-6 py-12 sm:py-24">
         <div className="flex max-w-3xl flex-col gap-5">
           <MountFade eager delay={0}>
             <p className={eyebrowClassName}>{t('eyebrow')}</p>
@@ -185,7 +185,7 @@ export default async function ExperiencesIndexPage({
 
       {showFeatured && featured.length > 0 && (
         <section className="border-sarat-black/8 [border-top-width:0.5px]">
-          <div className="mx-auto w-full max-w-6xl px-6 py-16">
+          <div className="mx-auto w-full max-w-6xl px-6 py-10 sm:py-16">
             <h2 className="font-display mb-8 text-3xl font-medium tracking-[-0.03em]">
               {t('featured')}
             </h2>
@@ -211,7 +211,7 @@ export default async function ExperiencesIndexPage({
       )}
 
       <section className="border-sarat-black/8 [border-top-width:0.5px]">
-        <div className="mx-auto flex w-full max-w-6xl flex-col gap-10 px-6 py-16 sm:py-20">
+        <div className="mx-auto flex w-full max-w-6xl flex-col gap-8 px-6 py-10 sm:gap-10 sm:py-20">
           <div className="flex flex-col gap-6">
             <h2 className="font-display text-3xl font-medium tracking-[-0.03em]">{t('all')}</h2>
 

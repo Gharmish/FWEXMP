@@ -38,11 +38,14 @@ export async function MeetingPointMap({ lat, lng, placeName, location }: Meeting
         <MapPin className="size-5 shrink-0" aria-hidden />
         {placeName} · {location}
       </p>
+      {/* On phones the embed is display-only: an interactive iframe under a
+          scrolling thumb traps the page scroll into map panning. The Google
+          Maps link below is the real navigation path guests use. */}
       <iframe
         src={embedSrc}
         title={t('mapTitle', { place: placeName })}
         loading="lazy"
-        className="rounded-image border-sarat-black/8 aspect-[16/9] w-full [border-width:0.5px]"
+        className="rounded-image border-sarat-black/8 pointer-events-none aspect-[16/9] w-full [border-width:0.5px] sm:pointer-events-auto"
       />
       <a
         href={directionsHref}

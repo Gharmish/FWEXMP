@@ -1,6 +1,6 @@
 'use client';
 
-import { useOptimistic, useTransition } from 'react';
+import { useOptimistic, useState, useTransition } from 'react';
 import { Heart } from 'lucide-react';
 import { motion, useReducedMotion } from 'framer-motion';
 import { useTranslations } from 'next-intl';
@@ -34,8 +34,12 @@ export function WishlistButton({ slug, isSaved, surface = 'light' }: WishlistBut
   const [optimisticSaved, setOptimisticSaved] = useOptimistic(isSaved);
   const [isPending, startTransition] = useTransition();
   const reduce = useReducedMotion();
+  // Springs support exactly two keyframes, so the pop is initial→animate on a
+  // keyed remount — and only after a real toggle, never on page load.
+  const [interacted, setInteracted] = useState(false);
 
   function handleClick() {
+    setInteracted(true);
     startTransition(async () => {
       setOptimisticSaved(!optimisticSaved);
       await toggleWishlist(slug);
@@ -90,8 +94,8 @@ export function WishlistButton({ slug, isSaved, surface = 'light' }: WishlistBut
     <motion.button {...sharedProps} whileTap={{ scale: 0.88 }}>
       <motion.span
         key={optimisticSaved ? 'saved' : 'unsaved'}
-        initial={false}
-        animate={optimisticSaved ? { scale: [1, 1.3, 1] } : { scale: 1 }}
+        initial={interacted ? { scale: optimisticSaved ? 1.35 : 0.85 } : false}
+        animate={{ scale: 1 }}
         transition={SPRING}
       >
         {Icon}

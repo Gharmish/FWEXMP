@@ -196,7 +196,10 @@ export async function ExperienceCard({
               <h3 className="font-display text-2xl font-medium tracking-[-0.025em] text-balance">
                 {title}
               </h3>
-              <p className={`text-base ${muted}`}>{description}</p>
+              {/* Phones get the single-column grid — clamp so one wordy
+                  listing can't push the next card two screens away. The
+                  full text lives on the detail page. */}
+              <p className={`text-base max-sm:line-clamp-3 ${muted}`}>{description}</p>
             </div>
 
             <div

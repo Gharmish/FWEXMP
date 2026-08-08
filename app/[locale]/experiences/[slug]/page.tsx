@@ -372,7 +372,13 @@ export default async function ExperienceDetailPage({
       label: t('highlights.group'),
       value: t('highlights.groupValue', { count: maxGroupSize }),
     },
-    { key: 'age', Icon: Cake, label: t('highlights.age'), value: minAge },
+    {
+      key: 'age',
+      Icon: Cake,
+      label: t('highlights.age'),
+      // "Min age 0" reads as a data glitch — say what it means instead.
+      value: exp.minAge > 0 ? minAge : t('highlights.ageAll'),
+    },
   ];
 
   const url = `${SITE_URL}/${loc}/experiences/${exp.slug}`;
@@ -696,7 +702,7 @@ export default async function ExperienceDetailPage({
               </span>
               <span className="flex items-center gap-2">
                 <Cake className="size-4 shrink-0" aria-hidden />
-                {t('minAge', { age: minAge })}
+                {exp.minAge > 0 ? t('minAge', { age: minAge }) : t('minAgeAll')}
               </span>
             </div>
             {previewMode ? (

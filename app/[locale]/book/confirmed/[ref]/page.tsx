@@ -546,7 +546,7 @@ export default async function BookingConfirmedPage({ params, searchParams }: Pag
       : null;
 
   return (
-    <article className="mx-auto w-full max-w-3xl px-6 py-20">
+    <article className="mx-auto w-full max-w-3xl px-6 py-10 sm:py-20">
       {/* Ad-platform purchase conversion — only for a DB-verified paid
           booking (the query-param hint alone never fires money events). */}
       {booking && booking.paymentStatus === 'paid' && (

@@ -55,6 +55,10 @@ export function VerifiedBadge({
           onClick={() => setOpen(true)}
           className={cn(
             'border-sarat-black/8 text-sarat-black hover:border-juniper-green inline-flex min-h-8 items-center gap-1.5 rounded-full border bg-white ps-1.5 pe-3 text-xs font-medium transition-colors duration-200',
+            // The pill reads at 32px, but a thumb needs 44px. Grow the hit
+            // area with a centred pseudo-element so the visual size and the
+            // surrounding text rhythm are untouched.
+            "relative before:absolute before:inset-x-0 before:top-1/2 before:h-11 before:-translate-y-1/2 before:content-['']",
             className,
           )}
         >

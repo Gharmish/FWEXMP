@@ -19,7 +19,9 @@ export function SignOutButton({ locale, label }: SignOutButtonProps) {
       <button
         type="submit"
         aria-label={label}
-        className="text-sarat-black-600 inline-flex min-h-11 items-center gap-2 px-2 text-sm font-medium transition-opacity duration-200 hover:opacity-60"
+        // Below `sm` the label is hidden, so without a min width this
+        // collapses to a 36px icon-only tap target.
+        className="text-sarat-black-600 inline-flex min-h-11 min-w-11 items-center justify-center gap-2 px-2 text-sm font-medium transition-opacity duration-200 hover:opacity-60 sm:justify-start"
       >
         <LogOut className="size-5 shrink-0 rtl:rotate-180" strokeWidth={1.5} aria-hidden />
         <span className="hidden sm:inline">{label}</span>

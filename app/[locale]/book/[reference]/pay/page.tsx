@@ -289,7 +289,7 @@ export default async function PaymentPage({ params, searchParams }: PageParams) 
   ];
 
   return (
-    <article className="mx-auto w-full max-w-6xl px-6 py-16">
+    <article className="mx-auto w-full max-w-6xl px-6 py-10 sm:py-16">
       {/* Entrance on the header only. The HyperPay widget below stays
           motion-free: payment must read rock-solid, and iframes repaint
           badly under transforms. */}

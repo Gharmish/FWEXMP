@@ -2390,13 +2390,15 @@
     "hostedBy": "يقدّمها",
     "groupSizeUpTo": "حتى {count} ضيفاً",
     "minAge": "الحد الأدنى للعمر {age}",
+    "minAgeAll": "مناسبة لجميع الأعمار",
     "highlights": {
       "heading": "نظرة سريعة",
       "duration": "المدة",
       "starts": "يبدأ",
       "group": "حجم المجموعة",
       "groupValue": "حتى {count}",
-      "age": "الحد الأدنى للعمر"
+      "age": "الحد الأدنى للعمر",
+      "ageAll": "جميع الأعمار"
     },
     "requestToBook": "اطلب الحجز",
     "translationPending": "الترجمة قيد المراجعة.",

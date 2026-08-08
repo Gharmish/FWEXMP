@@ -2390,13 +2390,15 @@
     "hostedBy": "Hosted by",
     "groupSizeUpTo": "Up to {count} guests",
     "minAge": "Minimum age {age}",
+    "minAgeAll": "All ages welcome",
     "highlights": {
       "heading": "At a glance",
       "duration": "Duration",
       "starts": "Starts",
       "group": "Group size",
       "groupValue": "Up to {count}",
-      "age": "Min age"
+      "age": "Min age",
+      "ageAll": "All ages"
     },
     "requestToBook": "Request to book",
     "translationPending": "Translation pending.",
