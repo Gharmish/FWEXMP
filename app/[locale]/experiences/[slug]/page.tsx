@@ -145,34 +145,42 @@ export default async function ExperienceDetailPage({
   }).format(new Date());
   const [nowRiyadhH, nowRiyadhM] = nowRiyadhHm.split(':').map(Number);
   const nowMinutesRiyadh = nowRiyadhH * 60 + nowRiyadhM;
-  const [
-    ratingAggregate,
-    t,
-    te,
-    tb,
-    tTiers,
-    schedule,
-    settings,
-    completedCount,
-    hostResponseStats,
-    knownGuest,
-    policyTiers,
-  ] = await Promise.all([
-    getReviewAggregateForExperience(slug),
+  // DB reads go out in WAVES OF ≤4, never one wide Promise.all — the same
+  // rule the admin dashboard already follows. The postgres.js pool is
+  // `max: 5` per lambda (lib/db.ts), and a `boundedQuery` deadline starts
+  // when its promise is CREATED, not when it acquires a connection. So a
+  // fan-out wider than the pool makes the queued tail burn its whole 8s
+  // deadline waiting for a slot, time out, and abandon the connection —
+  // which is precisely how this page came to render in ~9s while every
+  // query it runs measures under 20ms server-side (2026-08-08).
+  //
+  // Translations are not DB work and hold no connection, so they ride
+  // along with the first wave for free.
+  const [t, te, tb, tTiers] = await Promise.all([
     getTranslations('experienceDetail'),
     getTranslations('experience'),
     getTranslations('bookingRequest'),
     getTranslations('cancellationTiers'),
+  ]);
+  // Wave 1 — the four reads the page cannot render without. Each of these
+  // is one connection at a time (getReviewAggregate/getScheduleDataBySlug
+  // issue their lookup then their aggregate sequentially inside).
+  const [ratingAggregate, schedule, settings, policyTiers] = await Promise.all([
+    getReviewAggregateForExperience(slug),
     getScheduleDataBySlug(slug, todayRiyadh, addDays(todayRiyadh, BOOKING_HORIZON_DAYS)),
     getPlatformSettings(),
+    // DB-backed tier parameters — the same rows booking creation snapshots.
+    getCancellationTiers(),
+  ]);
+  // Wave 2 — social proof and prefill. Nothing above depends on these, so
+  // they are deferred rather than dropped.
+  const [completedCount, hostResponseStats, knownGuest] = await Promise.all([
     getCompletedBookingsCountForExperience(exp.slug),
     getHostResponseStats(exp.hostSlug),
     // Prefill for a returning/signed-in guest so they don't retype contact
     // details. Empty for a first-time visitor. Not needed in preview mode
     // (booking form is disabled), but cheap enough to always resolve.
     getKnownGuestDetails(),
-    // DB-backed tier parameters — the same rows booking creation snapshots.
-    getCancellationTiers(),
   ]);
   // The tier's parameters — what new bookings will snapshot; drives the
   // cancellation section, the free-cancellation trust chip, and the
