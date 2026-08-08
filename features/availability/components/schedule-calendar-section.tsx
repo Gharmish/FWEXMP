@@ -73,7 +73,12 @@ export async function ScheduleCalendarSection({
         openDay: t('openDay'),
         closeToNew: t('closeToNew'),
         reopenToNew: t('reopenToNew'),
-        spots: t('spots'),
+        // Raw template on purpose: `{booked}/{total}` is substituted
+        // per cell in the client component, so formatting it here (with
+        // no values to give it) throws next-intl's FORMATTING_ERROR.
+        // Safe as a raw pass-through — it carries no plural/select logic
+        // and both locales use the same two placeholders.
+        spots: t.raw('spots'),
         legendAvailable: t('legendAvailable'),
         legendFull: t('legendFull'),
         legendStopSell: t('legendStopSell'),
