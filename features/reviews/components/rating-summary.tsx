@@ -25,8 +25,14 @@ export function RatingSummary({ aggregate, locale }: RatingSummaryProps) {
 
   if (count === 0 || average === null) {
     return (
-      <div className="flex flex-col gap-2">
-        <p className="text-sarat-black-600 text-base">{t('noReviews')}</p>
+      <div className="border-sarat-black/8 rounded-card flex flex-col items-center gap-3 [border-width:0.5px] px-6 py-10 text-center">
+        <div className="text-sarat-black/20 flex gap-1" aria-hidden>
+          {[0, 1, 2, 3, 4].map((i) => (
+            <Star key={i} className="size-5 fill-current" />
+          ))}
+        </div>
+        <p className="text-base font-medium">{t('emptyTitle')}</p>
+        <p className="text-sarat-black-600 max-w-md text-sm leading-relaxed">{t('emptyBody')}</p>
       </div>
     );
   }

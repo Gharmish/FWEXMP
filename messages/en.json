@@ -2996,7 +2996,8 @@
   "reviews": {
     "eyebrow": "From guests",
     "heading": "Reviews",
-    "noReviews": "No reviews yet — be the first to share this experience.",
+    "emptyTitle": "No reviews yet",
+    "emptyBody": "This experience is new to Gharmish. Reviews come only from guests who have completed it, so everything you read here is first-hand — book it and yours could be the first.",
     "outOf": "of {max}",
     "basedOn": "{n, plural, one {Based on {count} review} other {Based on {count} reviews}}",
     "ratingLabel": "Rated {rating} out of 5",
