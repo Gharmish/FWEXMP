@@ -6,6 +6,8 @@ import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { Link } from '@/lib/i18n';
 import type { Locale } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
+import { getCancellationTiers } from '@/lib/cancellation-policy';
+import { tierDescription } from '@/features/bookings/lib/policy-copy';
 import { Badge } from '@/components/ui/badge';
 import { formatDate } from '@/lib/format';
 import { Price } from '@/components/ui/price';
@@ -55,13 +57,6 @@ const EVENT_TONE: Record<ModerationEventType, string> = {
 
 const WEEKDAY_LABELS = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'] as const;
 
-/** Tier → the shared `admin.experienceEdit.*` label describing its rules. */
-const TIER_LABEL_KEY = {
-  flexible: 'cancellationTierFlexible',
-  moderate: 'cancellationTierModerate',
-  strict: 'cancellationTierStrict',
-} as const;
-
 export default async function AdminExperienceModerationDetailPage({
   params,
 }: {
@@ -101,11 +96,13 @@ export default async function AdminExperienceModerationDetailPage({
   const detail = await getModerationDetail(id);
   if (!detail) notFound();
 
-  const [t, tCat, tWeek, tPhoto] = await Promise.all([
+  const [t, tCat, tWeek, tPhoto, tTiers, policyTiers] = await Promise.all([
     getTranslations('admin'),
     getTranslations('hostExperiences.form.categories'),
     getTranslations('hostExperiences.form.weekdays'),
     getTranslations('hostExperiences.photo'),
+    getTranslations('cancellationTiers'),
+    getCancellationTiers(),
   ]);
   const eyebrowClassName = cn(
     'text-sarat-black-600 font-medium text-[11px]',
@@ -319,13 +316,13 @@ export default async function AdminExperienceModerationDetailPage({
         </section>
       )}
 
-      {/* Cancellation — the enforced tier, never the legacy free text
-          (which could promise e.g. "72 hours" while bookings snapshot
-          the tier's 48h/50% rule). */}
+      {/* Cancellation — the enforced tier's DB-backed rules, never the
+          legacy free text (which could promise terms bookings don't
+          snapshot). */}
       <section className="flex flex-col gap-3">
         <h2 className={eyebrowClassName}>{t('experienceModerationDetail.cancellation')}</h2>
         <p className="text-base leading-relaxed">
-          {t(`experienceEdit.${TIER_LABEL_KEY[detail.cancellationTier]}`)}
+          {tierDescription(policyTiers[detail.cancellationTier], tTiers)}
         </p>
       </section>
 

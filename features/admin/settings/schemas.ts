@@ -68,3 +68,45 @@ export type UpdateSettingsInput = z.infer<typeof updateSettingsSchema>;
 export function commissionPctToBps(pct: number): number {
   return Math.round(pct * 100);
 }
+
+/**
+ * One cancellation tier's editable parameters. Percent (0–100) in the
+ * UI, stored as basis points by the action. `partial_window_order`
+ * guards the refund ladder: a partial step must sit strictly INSIDE the
+ * free window, or the 50% promise would be unreachable / shadow the
+ * full-refund promise (mirrors `isCoherent` in lib/cancellation-policy,
+ * which quarantines any incoherent row that reached the DB anyway).
+ */
+const tierParamsSchema = z
+  .object({
+    freeCancelHours: z.coerce
+      .number()
+      .int('window_range')
+      .min(1, 'window_range')
+      .max(2160, 'window_range'),
+    partialRefundPct: z.coerce.number().int('pct_range').min(0, 'pct_range').max(100, 'pct_range'),
+    partialRefundHours: z.coerce
+      .number()
+      .int('window_range')
+      .min(0, 'window_range')
+      .max(2160, 'window_range'),
+    rescheduleCutoffHours: z.coerce
+      .number()
+      .int('window_range')
+      .min(1, 'window_range')
+      .max(2160, 'window_range'),
+  })
+  .superRefine((v, ctx) => {
+    if (v.partialRefundPct > 0 && (v.partialRefundHours < 1 || v.partialRefundHours >= v.freeCancelHours)) {
+      ctx.addIssue({ code: 'custom', path: ['partialRefundHours'], message: 'partial_window_order' });
+    }
+  });
+
+export const updateCancellationPoliciesSchema = z.object({
+  flexible: tierParamsSchema,
+  moderate: tierParamsSchema,
+  strict: tierParamsSchema,
+  locale: localeSchema,
+});
+
+export type UpdateCancellationPoliciesInput = z.infer<typeof updateCancellationPoliciesSchema>;

@@ -538,9 +538,14 @@ End user. Has:
   tier snapshotted onto the booking at creation** (`policy_tier`,
   `free_cancel_hours`, `partial_refund_hours`, `partial_refund_bps`,
   `reschedule_cutoff_hours`) — NOT from a platform-wide setting. The
-  engine is `features/bookings/lib/policy.ts`; tiers include a **50%
-  partial** step and a reschedule right. Always read the booking's own
-  snapshot: a later tier edit must never restate an existing booking.
+  engine is `features/bookings/lib/policy.ts`; the tier PARAMETERS live
+  in the **`cancellation_policies` DB table** (one row per tier, edited
+  in `/admin/settings`, read via `lib/cancellation-policy.ts`, code
+  defaults as the fallback — unified 2026-08-08); tiers include a **50%
+  partial** step and a reschedule right, and every surface (pickers,
+  policy pages, both locales) renders from the same rows. Always read
+  the booking's own snapshot: a later tier edit must never restate an
+  existing booking.
   Refunds go through the HyperPay refund API first; if the gateway
   refuses, the booking is stamped `refund_due_sar` and the admin
   reverses manually, then records it via the admin refund action.

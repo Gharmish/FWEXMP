@@ -1,5 +1,6 @@
 import type { getTranslations } from 'next-intl/server';
 import type { ExperienceFormCopy } from '@/app/[locale]/host/(dashboard)/experiences/[id]/experience-form';
+import type { CancellationTier } from '@/features/bookings/lib/policy';
 import { BOOKING_CUTOFF_OPTIONS } from '@/features/host-experiences/schemas';
 
 /**
@@ -13,7 +14,15 @@ import { BOOKING_CUTOFF_OPTIONS } from '@/features/host-experiences/schemas';
  */
 type Translator = Awaited<ReturnType<typeof getTranslations>>;
 
-export function buildExperienceFormCopy(t: Translator): ExperienceFormCopy {
+export function buildExperienceFormCopy(
+  t: Translator,
+  /**
+   * Tier descriptions rendered from the DB-backed policy parameters
+   * (`tierDescriptions(await getCancellationTiers(), tTiers)`) — the
+   * picker must state the same numbers the engine will snapshot.
+   */
+  cancellationTiers: Record<CancellationTier, string>,
+): ExperienceFormCopy {
   return {
     sectionBasics: t('sectionBasics'),
     sectionPracticalities: t('sectionPracticalities'),
@@ -61,11 +70,7 @@ export function buildExperienceFormCopy(t: Translator): ExperienceFormCopy {
     whatToBringPlaceholder: t('whatToBringPlaceholder'),
     whatToBringHint: t('whatToBringHint'),
     cancellationLabel: t('cancellationLabel'),
-    cancellationTiers: {
-      flexible: t('cancellationTierFlexible'),
-      moderate: t('cancellationTierModerate'),
-      strict: t('cancellationTierStrict'),
-    },
+    cancellationTiers,
     cancellationHint: t('cancellationHint'),
     weekdaysLabel: t('weekdaysLabel'),
     weekdaysHint: t('weekdaysHint'),

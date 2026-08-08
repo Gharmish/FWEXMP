@@ -164,11 +164,44 @@ export const paymentStatusEnum = pgEnum('payment_status', [
 /**
  * Host-selected cancellation policy preset. The tier is the ONLY
  * enforceable policy input — the numeric windows/percentages it implies
- * live in code (`features/bookings/lib/policy.ts`) and are SNAPSHOTTED
- * onto each booking at creation, so a host switching tiers never
- * changes the rights of an existing booking.
+ * live in `cancellation_policies` below (read through
+ * `lib/cancellation-policy.ts`, code defaults in
+ * `features/bookings/lib/policy.ts` as the no-row/DB-error fallback) and
+ * are SNAPSHOTTED onto each booking at creation, so neither a host
+ * switching tiers nor an admin editing a tier's numbers ever changes
+ * the rights of an existing booking.
  */
 export const cancellationTierEnum = pgEnum('cancellation_tier', ['flexible', 'moderate', 'strict']);
+
+/**
+ * THE cancellation-policy source of truth (2026-08-08: unified from the
+ * former code-only `CANCELLATION_TIERS` constant): one row per tier,
+ * seeded with the owner-approved parameters and editable in
+ * `/admin/settings` without a deploy. Every surface — booking-creation
+ * snapshots, the experience page's policy line, host/admin tier
+ * pickers, and the public /cancellation-policy page — renders from
+ * these rows via `getCancellationTiers()`; the EN and AR copy are both
+ * ICU-parameterized on the same values so the locales cannot state
+ * different rules. Absent rows / read failures degrade per tier to the
+ * code defaults, so public pages never depend on this table existing.
+ */
+export const cancellationPolicies = pgTable('cancellation_policies', {
+  tier: cancellationTierEnum().primaryKey(),
+  /** Cancelling ≥ this many hours before start refunds in full. */
+  freeCancelHours: integer().notNull(),
+  /**
+   * After the full-refund deadline, cancelling ≥ this many hours before
+   * start refunds `partialRefundBps` of the charge. bps 0 = the tier has
+   * no partial step (hours then irrelevant).
+   */
+  partialRefundHours: integer().notNull(),
+  partialRefundBps: integer().notNull(),
+  /** Guests may move the booking ≥ this many hours before start. */
+  rescheduleCutoffHours: integer().notNull(),
+  updatedAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
+  /** Admin user id of the last editor (auth user id, not a FK). */
+  updatedByAdminId: text(),
+});
 
 /**
  * Who called a booking off. `guest` = self-service cancellation,

@@ -6,6 +6,8 @@ import { Link } from '@/lib/i18n';
 import type { Locale } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
 import { getAdminExperienceForEdit, isAdminAndDbReady } from '@/features/admin/experiences/queries';
+import { getCancellationTiers } from '@/lib/cancellation-policy';
+import { tierDescriptions } from '@/features/bookings/lib/policy-copy';
 import { BOOKING_MODES, EXPERIENCE_STATUSES } from '@/features/admin/experiences/schemas';
 import { EXPERIENCE_CATEGORIES } from '@/features/host-experiences/schemas';
 import { getEnabledCities } from '@/lib/cities';
@@ -66,17 +68,20 @@ export default async function AdminExperienceEditPage({
   const experience = await getAdminExperienceForEdit(id);
   if (!experience) notFound();
 
-  const [tE, tMode, tStatus, tCat, tWeek, tG, tCrop, enabledCities] = await Promise.all([
-    getTranslations('admin.experienceEdit'),
-    getTranslations('admin.bookingMode'),
-    getTranslations('admin.experienceStatus'),
-    getTranslations('hostExperiences.form.categories'),
-    getTranslations('hostExperiences.form.weekdays'),
-    getTranslations('admin.gallery'),
-    // The crop sheet is shared with the host photo pipeline — same strings.
-    getTranslations('hostExperiences.photo.crop'),
-    getEnabledCities(),
-  ]);
+  const [tE, tTiers, tMode, tStatus, tCat, tWeek, tG, tCrop, enabledCities, policyTiers] =
+    await Promise.all([
+      getTranslations('admin.experienceEdit'),
+      getTranslations('cancellationTiers'),
+      getTranslations('admin.bookingMode'),
+      getTranslations('admin.experienceStatus'),
+      getTranslations('hostExperiences.form.categories'),
+      getTranslations('hostExperiences.form.weekdays'),
+      getTranslations('admin.gallery'),
+      // The crop sheet is shared with the host photo pipeline — same strings.
+      getTranslations('hostExperiences.photo.crop'),
+      getEnabledCities(),
+      getCancellationTiers(),
+    ]);
   const cityOptions = enabledCities.map((c) => ({
     nameEn: c.nameEn,
     region: c.region,
@@ -139,11 +144,7 @@ export default async function AdminExperienceEditPage({
     whatToBring: tE('whatToBring'),
     whatToBringHint: tE('whatToBringHint'),
     cancellationPolicy: tE('cancellationPolicy'),
-    cancellationTiers: {
-      flexible: tE('cancellationTierFlexible'),
-      moderate: tE('cancellationTierModerate'),
-      strict: tE('cancellationTierStrict'),
-    },
+    cancellationTiers: tierDescriptions(policyTiers, tTiers),
     availabilityWeekdays: tE('availabilityWeekdays'),
     blackoutHint: tE('blackoutHint'),
     submit: tE('submit'),

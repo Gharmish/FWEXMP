@@ -38,7 +38,8 @@ import { MeetingPointMap } from '@/features/experiences/components/meeting-point
 import { trackExperienceView, utmFromSearchParams } from '@/features/analytics/capture';
 import { getScheduleDataBySlug } from '@/features/availability/queries';
 import { addDays, bookableDates } from '@/features/bookings/lib/availability';
-import { CANCELLATION_TIERS } from '@/features/bookings/lib/policy';
+import { getCancellationTiers } from '@/lib/cancellation-policy';
+import { policyWindow } from '@/features/bookings/lib/policy-copy';
 import { vatRatePercent } from '@/features/bookings/lib/vat';
 import { getPlatformSettings } from '@/lib/platform-settings';
 import { getCompletedBookingsCountForExperience } from '@/features/bookings/queries';
@@ -148,16 +149,19 @@ export default async function ExperienceDetailPage({
     t,
     te,
     tb,
+    tTiers,
     schedule,
     settings,
     completedCount,
     hostResponseStats,
     knownGuest,
+    policyTiers,
   ] = await Promise.all([
     getReviewAggregateForExperience(slug),
     getTranslations('experienceDetail'),
     getTranslations('experience'),
     getTranslations('bookingRequest'),
+    getTranslations('cancellationTiers'),
     getScheduleDataBySlug(slug, todayRiyadh, addDays(todayRiyadh, BOOKING_HORIZON_DAYS)),
     getPlatformSettings(),
     getCompletedBookingsCountForExperience(exp.slug),
@@ -166,6 +170,8 @@ export default async function ExperienceDetailPage({
     // details. Empty for a first-time visitor. Not needed in preview mode
     // (booking form is disabled), but cheap enough to always resolve.
     getKnownGuestDetails(),
+    // DB-backed tier parameters — the same rows booking creation snapshots.
+    getCancellationTiers(),
   ]);
   const availableDates = (
     schedule
@@ -200,7 +206,7 @@ export default async function ExperienceDetailPage({
   // cancellation section and the free-cancellation trust chip. The
   // `moderate` fallback covers detail objects cached (unstable_cache)
   // before the tier field existed.
-  const policyView = CANCELLATION_TIERS[exp.cancellationTier] ?? CANCELLATION_TIERS.moderate;
+  const policyView = policyTiers[exp.cancellationTier] ?? policyTiers.moderate;
 
   const title = loc === 'ar' ? exp.titleAr : exp.titleEn;
   const description = loc === 'ar' ? exp.descriptionAr : exp.descriptionEn;
@@ -608,14 +614,14 @@ export default async function ExperienceDetailPage({
             <p className="text-sarat-black-600 text-base">
               {policyView.partialRefundBps > 0
                 ? t('cancellationTierLine', {
-                    freeHours: policyView.freeCancelHours,
+                    freeWindow: policyWindow(policyView.freeCancelHours, tTiers),
                     partialPct: policyView.partialRefundBps / 100,
-                    partialHours: policyView.partialRefundHours,
-                    rescheduleHours: policyView.rescheduleCutoffHours,
+                    partialWindow: policyWindow(policyView.partialRefundHours, tTiers),
+                    rescheduleWindow: policyWindow(policyView.rescheduleCutoffHours, tTiers),
                   })
                 : t('cancellationTierLineNoPartial', {
-                    freeHours: policyView.freeCancelHours,
-                    rescheduleHours: policyView.rescheduleCutoffHours,
+                    freeWindow: policyWindow(policyView.freeCancelHours, tTiers),
+                    rescheduleWindow: policyWindow(policyView.rescheduleCutoffHours, tTiers),
                   })}
             </p>
           </section>
@@ -664,10 +670,11 @@ export default async function ExperienceDetailPage({
               <Badge className="bg-success-surface text-success">
                 <ShieldCheck aria-hidden />
                 {/* Multi-day windows read as days ("7 days", like the tier
-                    copy everywhere else), never as "168h". */}
-                {policyView.freeCancelHours >= 72 && policyView.freeCancelHours % 24 === 0
-                  ? t('freeCancellationDays', { days: policyView.freeCancelHours / 24 })
-                  : t('freeCancellation', { hours: policyView.freeCancelHours })}
+                    copy everywhere else), never as "168h" — policyWindow
+                    owns that rule. */}
+                {t('freeCancellationBadge', {
+                  window: policyWindow(policyView.freeCancelHours, tTiers),
+                })}
               </Badge>
               {bookedCountChip && (
                 <Badge variant="neutral">

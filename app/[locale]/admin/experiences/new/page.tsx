@@ -6,7 +6,9 @@ import { Link } from '@/lib/i18n';
 import type { Locale } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
 import { isAdminAndDbReady, listHostsForSelect } from '@/features/admin/experiences/queries';
+import { getCancellationTiers } from '@/lib/cancellation-policy';
 import { getPlatformSettings } from '@/lib/platform-settings';
+import { tierDescriptions } from '@/features/bookings/lib/policy-copy';
 import { getEnabledCities } from '@/lib/cities';
 import { BOOKING_MODES, EXPERIENCE_STATUSES } from '@/features/admin/experiences/schemas';
 import { EXPERIENCE_CATEGORIES } from '@/features/host-experiences/schemas';
@@ -54,16 +56,19 @@ export default async function AdminExperienceNewPage({
   }
   if (block?.reason === 'not_admin') notFound();
 
-  const [hosts, settings, enabledCities, tE, tMode, tStatus, tCat, tWeek] = await Promise.all([
-    listHostsForSelect(),
-    getPlatformSettings(),
-    getEnabledCities(),
-    getTranslations('admin.experienceEdit'),
-    getTranslations('admin.bookingMode'),
-    getTranslations('admin.experienceStatus'),
-    getTranslations('hostExperiences.form.categories'),
-    getTranslations('hostExperiences.form.weekdays'),
-  ]);
+  const [hosts, settings, enabledCities, policyTiers, tE, tTiers, tMode, tStatus, tCat, tWeek] =
+    await Promise.all([
+      listHostsForSelect(),
+      getPlatformSettings(),
+      getEnabledCities(),
+      getCancellationTiers(),
+      getTranslations('admin.experienceEdit'),
+      getTranslations('cancellationTiers'),
+      getTranslations('admin.bookingMode'),
+      getTranslations('admin.experienceStatus'),
+      getTranslations('hostExperiences.form.categories'),
+      getTranslations('hostExperiences.form.weekdays'),
+    ]);
   const cityOptions = enabledCities.map((c) => ({
     nameEn: c.nameEn,
     region: c.region,
@@ -101,11 +106,7 @@ export default async function AdminExperienceNewPage({
     whatToBring: tE('whatToBring'),
     whatToBringHint: tE('whatToBringHint'),
     cancellationPolicy: tE('cancellationPolicy'),
-    cancellationTiers: {
-      flexible: tE('cancellationTierFlexible'),
-      moderate: tE('cancellationTierModerate'),
-      strict: tE('cancellationTierStrict'),
-    },
+    cancellationTiers: tierDescriptions(policyTiers, tTiers),
     availabilityWeekdays: tE('availabilityWeekdays'),
     blackoutHint: tE('blackoutHint'),
     submit: tE('createSubmit'),

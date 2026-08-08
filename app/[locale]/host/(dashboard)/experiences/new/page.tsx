@@ -4,8 +4,10 @@ import { redirect } from '@/lib/i18n';
 import type { Locale } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
 import { getCurrentUser } from '@/features/auth/queries';
+import { getCancellationTiers } from '@/lib/cancellation-policy';
 import { getEnabledCities } from '@/lib/cities';
 import { getHostDashboard } from '@/features/host-dashboard/queries';
+import { tierDescriptions } from '@/features/bookings/lib/policy-copy';
 import { ExperienceForm } from '@/app/[locale]/host/(dashboard)/experiences/[id]/experience-form';
 import { buildExperienceFormCopy } from '@/app/[locale]/host/(dashboard)/experiences/[id]/build-form-copy';
 
@@ -41,10 +43,12 @@ export default async function NewExperiencePage({
     redirect({ href: '/host/apply', locale: loc });
   }
 
-  const [t, tForm, enabledCities] = await Promise.all([
+  const [t, tForm, tTiers, enabledCities, policyTiers] = await Promise.all([
     getTranslations('hostExperiences'),
     getTranslations('hostExperiences.form'),
+    getTranslations('cancellationTiers'),
     getEnabledCities(),
+    getCancellationTiers(),
   ]);
   const cityOptions = enabledCities.map((c) => ({
     nameEn: c.nameEn,
@@ -76,7 +80,7 @@ export default async function NewExperiencePage({
           <ExperienceForm
             mode="create"
             locale={loc}
-            copy={buildExperienceFormCopy(tForm)}
+            copy={buildExperienceFormCopy(tForm, tierDescriptions(policyTiers, tTiers))}
             cityOptions={cityOptions}
           />
         </div>

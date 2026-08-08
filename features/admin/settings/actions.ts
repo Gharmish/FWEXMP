@@ -3,11 +3,15 @@
 import { revalidatePath } from 'next/cache';
 import { db } from '@/lib/db';
 import { serverEnv } from '@/lib/env';
-import { platformSettings } from '@/db/schema';
+import { cancellationPolicies, platformSettings } from '@/db/schema';
 import { reportError } from '@/lib/log';
 import { getCurrentUser } from '@/features/auth/queries';
 import { isAdminUser } from '@/features/admin/auth';
-import { commissionPctToBps, updateSettingsSchema } from '@/features/admin/settings/schemas';
+import {
+  commissionPctToBps,
+  updateCancellationPoliciesSchema,
+  updateSettingsSchema,
+} from '@/features/admin/settings/schemas';
 
 /**
  * Update the platform settings singleton. Upserts the `id = 'platform'` row
@@ -150,6 +154,96 @@ export async function updateSettings(
   // VAT disclosure lines render on the detail + payment surfaces.
   revalidatePath('/[locale]/experiences/[slug]', 'page');
   revalidatePath('/[locale]/book/[reference]/pay', 'page');
+
+  return { success: true };
+}
+
+/**
+ * Update the three `cancellation_policies` rows — the DB source of truth
+ * every policy surface renders from and every new booking snapshots
+ * (2026-08-08 unification). Existing bookings keep their creation-time
+ * snapshot, so edits here can never restate a guest's rights.
+ */
+export type UpdateCancellationPoliciesState = UpdateSettingsState;
+
+const TIER_KEYS = ['flexible', 'moderate', 'strict'] as const;
+const TIER_FIELDS = [
+  'freeCancelHours',
+  'partialRefundPct',
+  'partialRefundHours',
+  'rescheduleCutoffHours',
+] as const;
+
+/** Flat `tier.field` echo of every submitted input (same rationale as above). */
+function submittedTierValues(formData: FormData): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const tier of TIER_KEYS) {
+    for (const field of TIER_FIELDS) {
+      const value = formData.get(`${tier}.${field}`);
+      if (typeof value === 'string') out[`${tier}.${field}`] = value;
+    }
+  }
+  return out;
+}
+
+export async function updateCancellationPolicies(
+  _previous: UpdateCancellationPoliciesState,
+  formData: FormData,
+): Promise<UpdateCancellationPoliciesState> {
+  const guard = await requireAdmin();
+  if ('error' in guard) return guard.error;
+
+  const tierInput = (tier: (typeof TIER_KEYS)[number]) =>
+    Object.fromEntries(TIER_FIELDS.map((field) => [field, formData.get(`${tier}.${field}`)]));
+  const parsed = updateCancellationPoliciesSchema.safeParse({
+    flexible: tierInput('flexible'),
+    moderate: tierInput('moderate'),
+    strict: tierInput('strict'),
+    locale: formData.get('locale'),
+  });
+
+  if (!parsed.success) {
+    const fields: Record<string, string> = {};
+    for (const issue of parsed.error.issues) {
+      // Nested path (`['strict','partialRefundHours']`) → the flat
+      // `strict.partialRefundHours` key the form inputs are named with.
+      const key = issue.path.filter((p): p is string => typeof p === 'string').join('.');
+      if (key) fields[key] = issue.message;
+    }
+    return {
+      success: false,
+      message: 'validation',
+      fields,
+      values: submittedTierValues(formData),
+    };
+  }
+
+  const now = new Date();
+  try {
+    for (const tier of TIER_KEYS) {
+      const params = parsed.data[tier];
+      const row = {
+        freeCancelHours: params.freeCancelHours,
+        partialRefundHours: params.partialRefundHours,
+        partialRefundBps: commissionPctToBps(params.partialRefundPct),
+        rescheduleCutoffHours: params.rescheduleCutoffHours,
+        updatedByAdminId: guard.adminUserId,
+        updatedAt: now,
+      };
+      await db
+        .insert(cancellationPolicies)
+        .values({ tier, ...row })
+        .onConflictDoUpdate({ target: cancellationPolicies.tier, set: row });
+    }
+  } catch (error) {
+    reportError(error, { surface: 'admin:updateCancellationPolicies' });
+    return { success: false, message: 'server', values: submittedTierValues(formData) };
+  }
+
+  // Every surface that renders the tier parameters.
+  revalidatePath('/[locale]/admin/settings', 'page');
+  revalidatePath('/[locale]/experiences/[slug]', 'page');
+  revalidatePath('/[locale]/cancellation-policy', 'page');
 
   return { success: true };
 }

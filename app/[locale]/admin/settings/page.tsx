@@ -7,7 +7,10 @@ import type { Locale } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
 import { EXPERIENCE_CATEGORIES } from '@/features/host-experiences/schemas';
 import { getPlatformSettings, isAdminAndDbReady } from '@/features/admin/settings/queries';
+import { getCancellationTiers } from '@/lib/cancellation-policy';
+import { tierDescriptions, tierName } from '@/features/bookings/lib/policy-copy';
 import { AdminSettingsForm } from '@/app/[locale]/admin/settings/admin-settings-form';
+import { AdminCancellationPoliciesForm } from '@/app/[locale]/admin/settings/admin-cancellation-policies-form';
 
 export async function generateMetadata({
   params,
@@ -66,7 +69,35 @@ export default async function AdminSettingsPage({
     );
   }
 
-  const settings = await getPlatformSettings();
+  const [settings, policyTiers, tTiers] = await Promise.all([
+    getPlatformSettings(),
+    getCancellationTiers(),
+    getTranslations('cancellationTiers'),
+  ]);
+
+  const policiesCopy = {
+    tierNames: {
+      flexible: tierName('flexible', tTiers),
+      moderate: tierName('moderate', tTiers),
+      strict: tierName('strict', tTiers),
+    },
+    tierDescriptions: tierDescriptions(policyTiers, tTiers),
+    freeCancelLabel: t('settings.policyFreeCancelLabel'),
+    partialPctLabel: t('settings.policyPartialPctLabel'),
+    partialWindowLabel: t('settings.policyPartialWindowLabel'),
+    rescheduleLabel: t('settings.policyRescheduleLabel'),
+    hoursSuffix: t('settings.hoursSuffix'),
+    pctSuffix: t('settings.policyPctSuffix'),
+    hint: t('settings.policiesHint'),
+    save: t('settings.policiesSave'),
+    saving: t('settings.saving'),
+    success: t('settings.success'),
+    fieldInvalid: t('settings.fieldInvalid'),
+    formServer: t('settings.formServer'),
+    formForbidden: t('settings.formForbidden'),
+    formValidation: t('settings.formValidation'),
+    partialOrderError: t('settings.policyPartialOrderError'),
+  };
 
   const copy = {
     commissionLabel: t('settings.commissionLabel'),
@@ -132,6 +163,20 @@ export default async function AdminSettingsPage({
         defaultVatRegistrationNumber={settings.vatRegistrationNumber ?? ''}
         copy={copy}
       />
+
+      {/* Cancellation-policy tiers — the DB source of truth every policy
+          surface renders from and every new booking snapshots. Existing
+          bookings keep their creation-time snapshot, so edits here never
+          restate a guest's rights. */}
+      <div className="border-sarat-black/8 flex flex-col gap-6 [border-top-width:0.5px] pt-10">
+        <div className="flex flex-col gap-2">
+          <p className={eyebrowClassName}>{t('settings.policiesEyebrow')}</p>
+          <h2 className="font-display text-2xl font-medium tracking-[-0.025em]">
+            {t('settings.policiesTitle')}
+          </h2>
+        </div>
+        <AdminCancellationPoliciesForm locale={loc} tiers={policyTiers} copy={policiesCopy} />
+      </div>
     </div>
   );
 }

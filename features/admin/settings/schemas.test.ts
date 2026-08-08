@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { commissionPctToBps, updateSettingsSchema } from '@/features/admin/settings/schemas';
+import {
+  commissionPctToBps,
+  updateCancellationPoliciesSchema,
+  updateSettingsSchema,
+} from '@/features/admin/settings/schemas';
 
 describe('commissionPctToBps', () => {
   it('converts whole and fractional percentages to basis points', () => {
@@ -89,6 +93,67 @@ describe('updateSettingsSchema', () => {
   it('rejects a malformed number even while VAT is off (bad data never persists)', () => {
     expect(
       updateSettingsSchema.safeParse({ ...base, vatRegistrationNumber: '3abc3' }).success,
+    ).toBe(false);
+  });
+});
+
+describe('updateCancellationPoliciesSchema', () => {
+  const tier = {
+    freeCancelHours: '48',
+    partialRefundPct: '50',
+    partialRefundHours: '24',
+    rescheduleCutoffHours: '24',
+  };
+  const base = { flexible: tier, moderate: tier, strict: tier, locale: 'en' };
+
+  it('parses form strings into integer parameters', () => {
+    const parsed = updateCancellationPoliciesSchema.safeParse(base);
+    expect(parsed.success).toBe(true);
+    if (parsed.success) {
+      expect(parsed.data.moderate).toEqual({
+        freeCancelHours: 48,
+        partialRefundPct: 50,
+        partialRefundHours: 24,
+        rescheduleCutoffHours: 24,
+      });
+    }
+  });
+
+  it('allows a tier with no partial step (pct 0), whatever its hours say', () => {
+    const flexible = { ...tier, partialRefundPct: '0', partialRefundHours: '24' };
+    expect(updateCancellationPoliciesSchema.safeParse({ ...base, flexible }).success).toBe(true);
+  });
+
+  it('refuses a partial window at or outside the free window — the ladder would invert', () => {
+    for (const partialRefundHours of ['48', '72', '0']) {
+      const strict = { ...tier, partialRefundHours };
+      const parsed = updateCancellationPoliciesSchema.safeParse({ ...base, strict });
+      expect(parsed.success).toBe(false);
+      if (!parsed.success) {
+        expect(parsed.error.issues[0]?.path).toEqual(['strict', 'partialRefundHours']);
+        expect(parsed.error.issues[0]?.message).toBe('partial_window_order');
+      }
+    }
+  });
+
+  it('refuses non-integer or out-of-range windows', () => {
+    expect(
+      updateCancellationPoliciesSchema.safeParse({
+        ...base,
+        moderate: { ...tier, freeCancelHours: '48.5' },
+      }).success,
+    ).toBe(false);
+    expect(
+      updateCancellationPoliciesSchema.safeParse({
+        ...base,
+        moderate: { ...tier, freeCancelHours: '0' },
+      }).success,
+    ).toBe(false);
+    expect(
+      updateCancellationPoliciesSchema.safeParse({
+        ...base,
+        moderate: { ...tier, partialRefundPct: '101' },
+      }).success,
     ).toBe(false);
   });
 });

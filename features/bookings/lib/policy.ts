@@ -43,13 +43,18 @@ export interface PolicySnapshot {
 }
 
 /**
- * The three presets (owner-approved 2026-07-17; strict's partial step
- * widened 48h → 72h by owner decision 2026-08-07 — "no refund <72h").
+ * CODE DEFAULTS for the three presets (owner-approved 2026-07-17;
+ * strict's partial step widened 48h → 72h by owner decision 2026-08-07).
+ * Since 2026-08-08 the LIVE parameters are the `cancellation_policies`
+ * DB rows read through `lib/cancellation-policy.ts` — every runtime
+ * surface goes through that (booking snapshots, experience page, tier
+ * pickers, /cancellation-policy). This constant is the seed + the
+ * degrade-on-DB-error fallback; keep the two in the same shape.
  * `moderate` matches the previous platform-wide rule (48h full refund)
  * with a 50% step added, so it is both the default for new experiences
  * and the backfill for every booking created before tiers existed.
- * Edits here apply to NEW bookings only: existing bookings keep the
- * snapshot taken at creation, by design.
+ * Edits (code or DB) apply to NEW bookings only: existing bookings keep
+ * the snapshot taken at creation, by design.
  */
 export const CANCELLATION_TIERS: Record<CancellationTier, PolicySnapshot> = {
   flexible: {
@@ -90,7 +95,12 @@ export const GRACE_MIN_LEAD_HOURS = 48;
  */
 export const MAX_RESCHEDULES = 1;
 
-/** Snapshot to stamp onto a booking created under `tier`. */
+/**
+ * Snapshot to stamp onto a booking created under `tier`, from the CODE
+ * DEFAULTS. Pure helper for tests and fallbacks — live booking creation
+ * snapshots from the DB via `getTierSnapshot()` in
+ * `lib/cancellation-policy.ts`.
+ */
 export function policySnapshotFor(tier: CancellationTier): PolicySnapshot {
   return CANCELLATION_TIERS[tier];
 }

@@ -402,7 +402,17 @@
       "vatNumberHint": "The 15 digits on your ZATCA certificate, starting and ending with 3. Required to turn VAT on; printed on every tax invoice.",
       "vatConfirmTitle": "Turn on VAT?",
       "vatConfirmDescription": "From this moment every newly settled payment is stamped with the VAT rate, and its receipt becomes a simplified tax invoice carrying your registration number and a ZATCA QR code. Guest prices do not change, and earlier bookings are not restated. Confirm only if your ZATCA registration is active.",
-      "vatConfirmAction": "Turn on VAT and save"
+      "vatConfirmAction": "Turn on VAT and save",
+      "policiesEyebrow": "Cancellation policies",
+      "policiesTitle": "Cancellation policy tiers",
+      "policiesHint": "The rules behind Flexible, Moderate and Strict — what guests see on every listing, what the policy pages state, and what each new booking locks in at creation. Existing bookings always keep the rules they were booked under.",
+      "policyFreeCancelLabel": "Full refund until (hours before start)",
+      "policyPartialPctLabel": "Partial refund",
+      "policyPartialWindowLabel": "Partial refund until (hours before start)",
+      "policyRescheduleLabel": "Reschedule until (hours before start)",
+      "policyPctSuffix": "%",
+      "policyPartialOrderError": "The partial-refund window must end closer to the start than the full-refund window.",
+      "policiesSave": "Save cancellation policies"
     },
     "catalog": {
       "eyebrow": "Catalogue",
@@ -684,9 +694,6 @@
       "whatToBring": "What to bring",
       "whatToBringHint": "One item per line.",
       "cancellationPolicy": "Cancellation policy",
-      "cancellationTierFlexible": "Flexible — free cancellation with a full refund until 24 hours before the start",
-      "cancellationTierModerate": "Moderate — full refund until 48 hours before; 50% until 24 hours before; no refund after that",
-      "cancellationTierStrict": "Strict — full refund until 7 days before; 50% until 72 hours before; no refund after that",
       "availabilityWeekdays": "Available days",
       "blackoutHint": "Close or reopen specific dates on the availability calendar below.",
       "submit": "Save changes",
@@ -2133,9 +2140,6 @@
       "whatToBringPlaceholder": "Comfortable walking shoes\nA layer for the evening",
       "whatToBringHint": "One per line. Leave blank if nothing.",
       "cancellationLabel": "Cancellation policy",
-      "cancellationTierFlexible": "Flexible — free cancellation with a full refund until 24 hours before the start",
-      "cancellationTierModerate": "Moderate — full refund until 48 hours before; 50% until 24 hours before; no refund after that",
-      "cancellationTierStrict": "Strict — full refund until 7 days before; 50% until 72 hours before; no refund after that",
       "cancellationHint": "This is what guests see on your listing and what each booking enforces. Guests can also move a booking to another open date once, within the same policy.",
       "weekdaysLabel": "Available days (recurring)",
       "weekdaysHint": "Weekdays this experience runs. Close or reopen specific dates on the availability calendar.",
@@ -2399,8 +2403,6 @@
     "instantBadge": "Instant book — confirmed right away",
     "womenOnlyBadge": "Women only",
     "requestBadge": "Request to book",
-    "freeCancellation": "Free cancellation until {hours}h before",
-    "freeCancellationDays": "Free cancellation until {days} days before",
     "bookedCount": "{count}+ booked",
     "meetingPoint": {
       "heading": "Meeting point",
@@ -2408,12 +2410,13 @@
       "directions": "Open in Google Maps"
     },
     "startsAt": "Starts at {time}",
-    "cancellationTierLine": "Free cancellation with a full refund until {freeHours} hours before the start, then a {partialPct}% refund until {partialHours} hours before. You can also move your booking to another open date once, up to {rescheduleHours} hours before — all from your booking page.",
-    "cancellationTierLineNoPartial": "Free cancellation with a full refund until {freeHours} hours before the start; closer than that, the payment is non-refundable. You can also move your booking to another open date once, up to {rescheduleHours} hours before — all from your booking page.",
+    "cancellationTierLine": "Free cancellation with a full refund until {freeWindow} before the start, then a {partialPct}% refund until {partialWindow} before. You can also move your booking to another open date once, up to {rescheduleWindow} before — all from your booking page.",
+    "cancellationTierLineNoPartial": "Free cancellation with a full refund until {freeWindow} before the start; closer than that, the payment is non-refundable. You can also move your booking to another open date once, up to {rescheduleWindow} before — all from your booking page.",
     "preview": {
       "banner": "Preview — this is how your listing looks to guests. Only you (and the review team) can see this page until it's live.",
       "bookingDisabled": "Booking opens once your listing is live."
-    }
+    },
+    "freeCancellationBadge": "Free cancellation until {window} before"
   },
   "availabilityCalendar": {
     "heading": "Availability calendar",
@@ -3266,8 +3269,8 @@
     "intro": "Three clear policies, in plain language — the same rules our system actually enforces, fixed on your booking the moment you book, with no fine print.",
     "freeWindow": {
       "heading": "Free cancellation window",
-      "body1": "You can cancel any booking before it starts, from your booking page. Every experience shows one of three cancellation policies: Flexible (full refund until 24 hours before the start), Moderate (full refund until 48 hours before, then a 50% refund until 24 hours before) or Strict (full refund until 7 days before, then 50% until 72 hours before). The policy shown when you booked is the one that applies — it never changes after you book.",
-      "body2": "Two extras apply on top of any policy: cancel within 24 hours of booking (while the start is still at least 48 hours away) and you're always refunded in full; and you can move a booking to another open date once, free of charge, within the window your policy allows. Past a policy's last refund step the booking can still be cancelled, but the payment is not refunded — your host has already planned and turned others away."
+      "body1": "You can cancel any booking before it starts, from your booking page. Every experience shows one of three cancellation policies: {flexName} (free cancellation with a full refund until {flexFree} before the start), {modName} (full refund until {modFree} before, then a {modPct}% refund until {modPartial} before) or {strictName} (full refund until {strictFree} before, then {strictPct}% until {strictPartial} before). The policy shown when you booked is the one that applies — it never changes after you book.",
+      "body2": "Two extras apply on top of any policy: cancel within {graceHours} hours of booking (while the start is still at least {graceLead} hours away) and you're always refunded in full; and you can move a booking to another open date once, free of charge, within the window your policy allows. Past a policy's last refund step the booking can still be cancelled, but the payment is not refunded — your host has already planned and turned others away."
     },
     "requests": {
       "heading": "Booking requests",
@@ -3552,5 +3555,14 @@
     "earningsCta": "See your earnings",
     "paidClosing": "Thank you for hosting with Gharmish.",
     "footer": "Gharmish — experiences hosted by the people who know Aseer best."
+  },
+  "cancellationTiers": {
+    "name_flexible": "Flexible",
+    "name_moderate": "Moderate",
+    "name_strict": "Strict",
+    "windowHours": "{count, plural, one {{n} hour} other {{n} hours}}",
+    "windowDays": "{count, plural, one {{n} day} other {{n} days}}",
+    "descNoPartial": "{name} — free cancellation with a full refund until {freeWindow} before the start; no refund after that",
+    "descWithPartial": "{name} — full refund until {freeWindow} before the start; {pct}% refund until {partialWindow} before; no refund after that"
   }
 }

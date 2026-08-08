@@ -22,7 +22,7 @@ import {
 } from '@/features/bookings/lib/availability';
 import { holdStillCounts } from '@/features/bookings/lib/capacity-sql';
 import { generateReferenceCode } from '@/features/bookings/lib/reference-code';
-import { policySnapshotFor } from '@/features/bookings/lib/policy';
+import { getTierSnapshot } from '@/lib/cancellation-policy';
 import { CURRENT_TERMS_VERSION } from '@/lib/legal';
 import {
   LAST_BOOKING_COOKIE,
@@ -627,7 +627,7 @@ export async function requestBooking(
       // tier's parameters come from the DB source of truth (degrading to
       // the code defaults exactly like the guest-facing surfaces do).
       commissionBps: experience.commissionBps,
-      ...policySnapshotFor(experience.cancellationTier),
+      ...(await getTierSnapshot(experience.cancellationTier)),
       idempotencyKey: reference,
       // Human reference (GH-XXXXXX) — display identity only; the UUID
       // above stays the URL capability. Unique-constraint collision is

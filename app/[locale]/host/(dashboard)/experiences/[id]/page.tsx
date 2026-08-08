@@ -11,7 +11,9 @@ import { Badge } from '@/components/ui/badge';
 import { Price } from '@/components/ui/price';
 import { splitCommission } from '@/features/bookings/lib/commission';
 import { getCurrentUser } from '@/features/auth/queries';
+import { getCancellationTiers } from '@/lib/cancellation-policy';
 import { getEnabledCities } from '@/lib/cities';
+import { tierDescriptions } from '@/features/bookings/lib/policy-copy';
 import { getHostDashboard } from '@/features/host-dashboard/queries';
 import { getMyExperienceById, getMyExperienceMoments } from '@/features/host-experiences/queries';
 import {
@@ -106,11 +108,13 @@ export default async function EditExperiencePage({
       ? await getLatestModerationDecision(experience.id)
       : null;
 
-  const [t, tForm, momentRows, enabledCities] = await Promise.all([
+  const [t, tForm, tTiers, momentRows, enabledCities, policyTiers] = await Promise.all([
     getTranslations('hostExperiences'),
     getTranslations('hostExperiences.form'),
+    getTranslations('cancellationTiers'),
     getMyExperienceMoments(id),
     getEnabledCities(),
+    getCancellationTiers(),
   ]);
   const cityOptions = enabledCities.map((c) => ({
     nameEn: c.nameEn,
@@ -435,7 +439,7 @@ export default async function EditExperiencePage({
               mode="edit"
               locale={loc}
               experience={experience}
-              copy={buildExperienceFormCopy(tForm)}
+              copy={buildExperienceFormCopy(tForm, tierDescriptions(policyTiers, tTiers))}
               cityOptions={cityOptions}
             />
           </div>

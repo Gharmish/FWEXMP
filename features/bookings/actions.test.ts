@@ -65,6 +65,16 @@ vi.mock('@/lib/platform-settings', () => ({
   getPlatformSettings: async () => ({ approvalWindowHours: 24 }),
 }));
 
+// Snapshot source — serve the code defaults so the db mock below never
+// sees the tier read (the real module degrades identically on error).
+vi.mock('@/lib/cancellation-policy', async () => {
+  const { CANCELLATION_TIERS } = await import('@/features/bookings/lib/policy');
+  return {
+    getCancellationTiers: async () => CANCELLATION_TIERS,
+    getTierSnapshot: async (tier: keyof typeof CANCELLATION_TIERS) => CANCELLATION_TIERS[tier],
+  };
+});
+
 vi.mock('@/features/bookings/lib/capacity-sql', () => ({
   holdStillCounts: () => undefined,
 }));

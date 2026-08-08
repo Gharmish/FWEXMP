@@ -2,7 +2,10 @@ import type { Metadata } from 'next';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
 import type { Locale } from '@/lib/i18n';
 import { InfoPage } from '@/components/layout/info-page';
+import { getCancellationTiers } from '@/lib/cancellation-policy';
 import { getPlatformSettings } from '@/lib/platform-settings';
+import { GRACE_MIN_LEAD_HOURS, POST_BOOKING_GRACE_HOURS } from '@/features/bookings/lib/policy';
+import { policyWindow, tierName } from '@/features/bookings/lib/policy-copy';
 
 export async function generateMetadata({
   params,
@@ -24,12 +27,15 @@ export default async function CancellationPolicyPage({
   const { locale } = await params;
   setRequestLocale(locale);
   const loc = locale as Locale;
-  // The numbers on this page are the live platform settings — the same
-  // values the cancel/approval actions enforce, never hardcoded copy.
-  const [t, tRelated, settings] = await Promise.all([
+  // The numbers on this page are the live platform settings and the
+  // DB-backed cancellation tiers — the same values the cancel/approval
+  // actions enforce, never hardcoded copy.
+  const [t, tTiers, tRelated, settings, tiers] = await Promise.all([
     getTranslations('cancellationPolicyPage'),
+    getTranslations('cancellationTiers'),
     getTranslations('infoRelated'),
     getPlatformSettings(),
+    getCancellationTiers(),
   ]);
   const approvalHours = settings.approvalWindowHours;
   const payHours = settings.approvalPaymentWindowHours;
@@ -37,13 +43,32 @@ export default async function CancellationPolicyPage({
   const sections = [
     {
       heading: t('freeWindow.heading'),
-      // Refund rules are the per-booking TIER snapshots
-      // (features/bookings/lib/policy.ts), not the legacy platform-wide
-      // window — the copy describes the tiers and takes no parameters.
+      // Refund rules are the DB-backed tier parameters that new bookings
+      // snapshot (lib/cancellation-policy.ts) plus the code-level grace
+      // constants — every number below is interpolated, never hand-written,
+      // so EN and AR always state the same rules.
       body: (
         <>
-          <p>{t('freeWindow.body1')}</p>
-          <p>{t('freeWindow.body2')}</p>
+          <p>
+            {t('freeWindow.body1', {
+              flexName: tierName('flexible', tTiers),
+              flexFree: policyWindow(tiers.flexible.freeCancelHours, tTiers),
+              modName: tierName('moderate', tTiers),
+              modFree: policyWindow(tiers.moderate.freeCancelHours, tTiers),
+              modPct: tiers.moderate.partialRefundBps / 100,
+              modPartial: policyWindow(tiers.moderate.partialRefundHours, tTiers),
+              strictName: tierName('strict', tTiers),
+              strictFree: policyWindow(tiers.strict.freeCancelHours, tTiers),
+              strictPct: tiers.strict.partialRefundBps / 100,
+              strictPartial: policyWindow(tiers.strict.partialRefundHours, tTiers),
+            })}
+          </p>
+          <p>
+            {t('freeWindow.body2', {
+              graceHours: POST_BOOKING_GRACE_HOURS,
+              graceLead: GRACE_MIN_LEAD_HOURS,
+            })}
+          </p>
         </>
       ),
     },
