@@ -614,6 +614,12 @@ export function BookingRequestForm({
                 {copy.preferredDateHint}
               </p>
             )}
+            {/* The chosen date's EXACT cancellation deadline (pre-formatted
+                server-side from the policy engine) — the generic "until 24
+                hours before" tier copy made concrete, updating per date. */}
+            {selectedOption?.cancellationNote && (
+              <p className="text-sarat-black-600 text-sm">{selectedOption.cancellationNote}</p>
+            )}
             <FieldError
               id={errorId('preferredDate')}
               message={messageForField('preferredDate', errorFor('preferredDate'), copy)}

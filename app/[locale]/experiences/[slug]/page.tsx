@@ -38,6 +38,7 @@ import { MeetingPointMap } from '@/features/experiences/components/meeting-point
 import { trackExperienceView, utmFromSearchParams } from '@/features/analytics/capture';
 import { getScheduleDataBySlug } from '@/features/availability/queries';
 import { addDays, bookableDates } from '@/features/bookings/lib/availability';
+import { bookingOptions } from '@/features/bookings/lib/policy';
 import { getCancellationTiers } from '@/lib/cancellation-policy';
 import { policyWindow } from '@/features/bookings/lib/policy-copy';
 import { vatRatePercent } from '@/features/bookings/lib/vat';
@@ -173,6 +174,52 @@ export default async function ExperienceDetailPage({
     // DB-backed tier parameters — the same rows booking creation snapshots.
     getCancellationTiers(),
   ]);
+  // The tier's parameters — what new bookings will snapshot; drives the
+  // cancellation section, the free-cancellation trust chip, and the
+  // per-date deadline notes below. The `moderate` fallback covers detail
+  // objects cached (unstable_cache) before the tier field existed.
+  const policyView = policyTiers[exp.cancellationTier] ?? policyTiers.moderate;
+
+  // The exact cancellation deadline a booking made NOW on a given date
+  // would carry — the same `bookingOptions` projection the payment page
+  // renders, so "until 24 hours before" becomes a concrete date + time
+  // the moment the guest picks a day. One `now` for the whole list keeps
+  // the notes mutually consistent within the request.
+  const projectionNow = new Date();
+  const formatDeadline = (deadline: Date) =>
+    loc === 'ar'
+      ? `${formatDate(deadline, loc)}، ${formatTime(deadline, loc)}`
+      : `${formatDate(deadline, loc)}, ${formatTime(deadline, loc)}`;
+  const cancellationNoteFor = (dateStr: string, startTime: string): string => {
+    const projected = bookingOptions({
+      status: 'confirmed',
+      // Projected as already paid so the note covers the post-booking
+      // grace and the tier's partial step — never just the free window.
+      paymentStatus: 'paid',
+      dateStr,
+      startTime,
+      createdAt: projectionNow,
+      // The note speaks in percentages, not amounts (the total depends on
+      // the party size the guest hasn't picked yet) — the refund base is
+      // irrelevant here.
+      totalAmountSar: 0,
+      snapshot: policyView,
+      rescheduleCount: 0,
+      now: projectionNow,
+    }).cancel;
+    if (!projected.allowed) return tb('cancellationNoRefund');
+    if (projected.refund === 'full' || projected.refund === 'none_needed') {
+      return tb('cancellationFreeUntil', { deadline: formatDeadline(projected.fullRefundUntil) });
+    }
+    if (projected.refund === 'partial' && projected.partialDeadline) {
+      return tb('cancellationPartialUntil', {
+        percent: policyView.partialRefundBps / 100,
+        deadline: formatDeadline(projected.partialDeadline),
+      });
+    }
+    return tb('cancellationNoRefund');
+  };
+
   const availableDates = (
     schedule
       ? bookableDates({
@@ -200,13 +247,10 @@ export default async function ExperienceDetailPage({
     // ICU-format the count server-side; passing the raw template to the
     // client and formatting there breaks next-intl's placeholder handling.
     spotsLabel: tb('spotsLeft', { count: d.remaining }),
+    // `schedule` is necessarily non-null when the list has entries, but the
+    // narrowing doesn't cross the callback boundary — re-check instead of `!`.
+    cancellationNote: schedule ? cancellationNoteFor(d.date, schedule.startTime) : undefined,
   }));
-
-  // The tier's parameters — what new bookings will snapshot; drives the
-  // cancellation section and the free-cancellation trust chip. The
-  // `moderate` fallback covers detail objects cached (unstable_cache)
-  // before the tier field existed.
-  const policyView = policyTiers[exp.cancellationTier] ?? policyTiers.moderate;
 
   const title = loc === 'ar' ? exp.titleAr : exp.titleEn;
   const description = loc === 'ar' ? exp.descriptionAr : exp.descriptionEn;
