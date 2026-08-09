@@ -25,6 +25,23 @@ const navLinkClass =
   'text-sarat-black inline-flex min-h-11 min-w-11 items-center justify-center gap-2 px-1 text-sm font-medium whitespace-nowrap transition-opacity duration-200 hover:opacity-60 sm:px-2';
 
 /**
+ * The host entry point steps out of the bar below 380px.
+ *
+ * Signed in, the bar carries five 44px targets — 220px of touch target
+ * before the wordmark, gaps or padding, which cannot fit 320px however
+ * the spacing is tuned; the bar overflowed and scrolled the whole
+ * document sideways. Signed out there are four and it fits, which is why
+ * this only ever reproduced with a session cookie (2026-08-09).
+ *
+ * The host link is the one item that is safely droppable: `/hosting` is
+ * also in the footer and on the home page. Discover, the account link and
+ * the language switcher are all essential, and sign-out lives ONLY here —
+ * hiding any of those would strand the user. Shrinking the targets below
+ * 44px was the alternative and loses more (BRIEF §6 accessibility).
+ */
+const hostNavLinkClass = `${navLinkClass} max-[380px]:hidden`;
+
+/**
  * Sticky, blurred top nav. Restraint-first (BRIEF §3): no shadow, a
  * single 0.5px bottom hairline, brand tokens only. Logical spacing so
  * it mirrors cleanly in RTL. Links are intentionally minimal — no dead
@@ -73,7 +90,7 @@ async function AuthNavLinks({ locale }: { locale: Locale }) {
           host entry point lives in the bar, not just the footer.
           Existing hosts see their dashboard instead. */}
       {!isHost && (
-        <Link href="/hosting" className={navLinkClass} aria-label={t('becomeHost')}>
+        <Link href="/hosting" className={hostNavLinkClass} aria-label={t('becomeHost')}>
           <Store className="size-5 shrink-0" strokeWidth={1.5} aria-hidden />
           <span className="hidden sm:inline">{t('becomeHost')}</span>
         </Link>
@@ -81,7 +98,7 @@ async function AuthNavLinks({ locale }: { locale: Locale }) {
       {user ? (
         <>
           {isHost && (
-            <Link href="/host" className={navLinkClass} aria-label={t('hostDashboard')}>
+            <Link href="/host" className={hostNavLinkClass} aria-label={t('hostDashboard')}>
               <Store className="size-5 shrink-0" strokeWidth={1.5} aria-hidden />
               <span className="hidden sm:inline">{t('hostDashboard')}</span>
             </Link>
