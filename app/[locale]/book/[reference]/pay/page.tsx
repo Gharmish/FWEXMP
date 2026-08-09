@@ -31,6 +31,7 @@ import { PaymentMarks } from '@/components/layout/payment-marks';
 import { VerifiedBadge } from '@/features/hosts/components/verified-badge';
 import { toArabicText } from '@/features/experiences/lib/arabic-content';
 import { cn } from '@/lib/utils';
+import { BOOKING_LINK_TOKEN_PARAM } from '@/features/bookings/lib/link-token';
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -62,13 +63,28 @@ export default async function PaymentPage({ params, searchParams }: PageParams) 
 
   const sp = await searchParams;
   const slugFromQuery = asString(sp.slug);
-  const confirmedHref = `/${locale}/book/confirmed/${reference}${slugFromQuery ? `?slug=${encodeURIComponent(slugFromQuery)}` : ''}`;
+  // Signed proof from the pay link we emailed/WhatsApped. Pay-after-
+  // approval is reached from that message, and the browser that opens it
+  // holds no last-booking cookie — WhatsApp's in-app browser keeps its
+  // own jar. Forwarded into the checkout and promo forms so the whole
+  // page works, not just the render (see `checkoutViewerCanAccess`).
+  const linkToken = asString(sp[BOOKING_LINK_TOKEN_PARAM]);
+  const tokenParam = linkToken
+    ? `${BOOKING_LINK_TOKEN_PARAM}=${encodeURIComponent(linkToken)}`
+    : '';
+  const confirmedQuery = [
+    slugFromQuery ? `slug=${encodeURIComponent(slugFromQuery)}` : '',
+    tokenParam,
+  ]
+    .filter(Boolean)
+    .join('&');
+  const confirmedHref = `/${locale}/book/confirmed/${reference}${confirmedQuery ? `?${confirmedQuery}` : ''}`;
 
   // Payment off (no HyperPay) or nothing to settle → fall back to the
   // request-to-book confirmation page.
   if (!hasHyperpay()) redirect(confirmedHref);
 
-  const booking = await getBookingByReferenceForViewer(reference);
+  const booking = await getBookingByReferenceForViewer(reference, linkToken);
   if (!booking) redirect(confirmedHref);
   if (booking.paymentStatus === 'paid') redirect(confirmedHref);
   // Pay-after-approval: a request the host hasn't accepted (or that was
@@ -477,6 +493,7 @@ export default async function PaymentPage({ params, searchParams }: PageParams) 
                 reference={reference}
                 slug={experienceSlug ?? ''}
                 locale={loc}
+                linkToken={linkToken}
                 appliedCode={booking.promoCode}
                 copy={promoCopy}
               />
@@ -507,6 +524,7 @@ export default async function PaymentPage({ params, searchParams }: PageParams) 
             reference={reference}
             locale={loc}
             slug={experienceSlug ?? ''}
+            linkToken={linkToken}
             totalSar={booking.totalAmountSar}
             copy={copy}
             applePayEnabled={hasHyperpayApplePay()}

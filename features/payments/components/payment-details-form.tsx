@@ -214,6 +214,13 @@ export interface PaymentDetailsFormProps {
   reference: string;
   locale: Locale;
   slug: string;
+  /**
+   * Signed token from the pay link we sent this guest, forwarded to the
+   * action so a cookieless browser (WhatsApp's in-app one, or a second
+   * device) can still finish paying. Undefined for the in-session flow.
+   */
+  linkToken?: string;
+
   /** Charged total in SAR — shown on the submit CTA. */
   totalSar: number;
   copy: PaymentDetailsCopy;
@@ -235,6 +242,7 @@ export function PaymentDetailsForm({
   reference,
   locale,
   slug,
+  linkToken,
   totalSar,
   copy,
   applePayEnabled = false,
@@ -412,6 +420,7 @@ export function PaymentDetailsForm({
   return (
     <form action={submitAction} noValidate className="flex flex-col gap-6">
       <input type="hidden" name="reference" value={reference} />
+      {linkToken && <input type="hidden" name="token" value={linkToken} />}
       <input type="hidden" name="locale" value={locale} />
       <input type="hidden" name="slug" value={slug} />
 

@@ -34,6 +34,13 @@ export interface PromoCodeFieldProps {
   reference: string;
   slug: string;
   locale: Locale;
+  /**
+   * Signed token from the pay link we sent this guest, forwarded to the
+   * action so a cookieless browser (WhatsApp's in-app one, or a second
+   * device) can still finish paying. Undefined for the in-session flow.
+   */
+  linkToken?: string;
+
   /** The code already on the booking, if any — drives applied vs entry view. */
   appliedCode: string | null;
   copy: PromoCodeFieldCopy;
@@ -90,6 +97,7 @@ export function PromoCodeField({
   reference,
   slug,
   locale,
+  linkToken,
   appliedCode,
   copy,
 }: PromoCodeFieldProps) {
@@ -131,6 +139,7 @@ export function PromoCodeField({
     return (
       <form action={removeAction} className="flex flex-col gap-2">
         <input type="hidden" name="reference" value={reference} />
+        {linkToken && <input type="hidden" name="token" value={linkToken} />}
         <input type="hidden" name="slug" value={slug} />
         <input type="hidden" name="locale" value={locale} />
         <div className="border-juniper-green/30 bg-juniper-green-50 rounded-input flex flex-wrap items-center gap-3 [border-width:0.5px] px-4 py-3">
@@ -158,6 +167,7 @@ export function PromoCodeField({
   return (
     <form action={applyAction} className="flex flex-col gap-2">
       <input type="hidden" name="reference" value={reference} />
+      {linkToken && <input type="hidden" name="token" value={linkToken} />}
       <input type="hidden" name="slug" value={slug} />
       <input type="hidden" name="locale" value={locale} />
       <label

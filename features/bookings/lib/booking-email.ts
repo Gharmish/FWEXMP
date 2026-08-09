@@ -19,7 +19,11 @@ import { bookingOptions } from '@/features/bookings/lib/policy';
 import { splitCommission } from '@/features/bookings/lib/commission';
 import { zatcaQrPayload } from '@/features/bookings/lib/zatca-qr';
 import { renderInvoicePdf, type InvoicePdfRow } from '@/features/bookings/lib/invoice-pdf';
-import { bookingInvoiceUrl, bookingManageUrl } from '@/features/bookings/lib/link-token';
+import {
+  bookingInvoiceUrl,
+  bookingManageUrl,
+  bookingPayUrl,
+} from '@/features/bookings/lib/link-token';
 import { getExperienceBySlug } from '@/features/experiences/queries';
 import { toArabicText } from '@/features/experiences/lib/arabic-content';
 import { renderBookingIcs } from './booking-ics';
@@ -1042,7 +1046,7 @@ export async function sendBookingApprovedEmail(reference: string): Promise<void>
 
   const needsPayment =
     hasHyperpay() && booking.paymentStatus !== 'paid' && booking.paymentDeadline !== null;
-  const payUrl = `${SITE_URL}/${locale}/book/${reference}/pay?slug=${encodeURIComponent(booking.experienceSlug)}`;
+  const payUrl = bookingPayUrl(locale, reference, booking.experienceSlug);
   if (needsPayment && booking.paymentDeadline) {
     // Date AND time — the spot is released at a wall-clock moment.
     const d = new Date(booking.paymentDeadline);
@@ -1655,7 +1659,7 @@ export async function sendBookingPaymentFailedEmail(reference: string): Promise<
     });
   }
 
-  const payUrl = `${SITE_URL}/${locale}/book/${reference}/pay?slug=${encodeURIComponent(booking.experienceSlug)}`;
+  const payUrl = bookingPayUrl(locale, reference, booking.experienceSlug);
   const subject = t('paymentFailedSubject', { reference: booking.referenceCode });
   const { html, text } = renderReceiptEmail({
     logoUrl: EMAIL_LOGO_URL,

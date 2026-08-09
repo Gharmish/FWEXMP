@@ -33,7 +33,8 @@ vi.mock('next/headers', () => ({
   }),
 }));
 
-import { bookingViewerCanAccess } from './access';
+import { bookingLinkToken } from './link-token';
+import { bookingViewerCanAccess, checkoutViewerCanAccess } from './access';
 
 beforeEach(() => {
   currentUser = null;
@@ -89,5 +90,43 @@ describe('bookingViewerCanAccess', () => {
     cookieValue = 'not-json-at-all';
 
     expect(await bookingViewerCanAccess(REFERENCE, BOOKING_GUEST_ID)).toBe(false);
+  });
+});
+
+/**
+ * The checkout family is the one place the link token is accepted, so
+ * these are the cases that keep it from becoming a general skeleton key:
+ * it must authorize the booking it was minted for and nothing else, and
+ * it must not be forgeable from the reference alone.
+ */
+describe('checkoutViewerCanAccess', () => {
+  it('allows the guest holding the token from the pay link we sent', async () => {
+    expect(
+      await checkoutViewerCanAccess(REFERENCE, BOOKING_GUEST_ID, bookingLinkToken(REFERENCE)),
+    ).toBe(true);
+  });
+
+  it('still denies the bare reference with no token and no cookie', async () => {
+    expect(await checkoutViewerCanAccess(REFERENCE, BOOKING_GUEST_ID, undefined)).toBe(false);
+    expect(await checkoutViewerCanAccess(REFERENCE, BOOKING_GUEST_ID, '')).toBe(false);
+  });
+
+  it('denies a forged token', async () => {
+    expect(await checkoutViewerCanAccess(REFERENCE, BOOKING_GUEST_ID, 'made-up-token')).toBe(false);
+  });
+
+  it("denies another booking's token", async () => {
+    expect(
+      await checkoutViewerCanAccess(REFERENCE, BOOKING_GUEST_ID, bookingLinkToken(OTHER_REFERENCE)),
+    ).toBe(false);
+  });
+
+  it('falls back to the ordinary proof when no token is presented', async () => {
+    cookieValue = serializeLastBookingCookie({
+      reference: REFERENCE,
+      experienceSlug: 'some-slug',
+    });
+
+    expect(await checkoutViewerCanAccess(REFERENCE, BOOKING_GUEST_ID, undefined)).toBe(true);
   });
 });

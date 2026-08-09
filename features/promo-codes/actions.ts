@@ -8,7 +8,7 @@ import { serverEnv } from '@/lib/env';
 import { bookings, promoCodes } from '@/db/schema';
 import { reportError } from '@/lib/log';
 import { isHoldExpired } from '@/features/bookings/lib/availability';
-import { bookingViewerCanAccess } from '@/features/bookings/lib/access';
+import { checkoutViewerCanAccess } from '@/features/bookings/lib/access';
 import { recordPaymentEvent } from '@/features/payments/ledger';
 import { computeDiscountSar } from '@/features/promo-codes/lib/discount';
 import { promoAttemptAllowed, recordPromoAttempt } from '@/features/promo-codes/lib/throttle';
@@ -110,6 +110,7 @@ export async function applyPromo(
     code: formData.get('code'),
     slug: formData.get('slug') || undefined,
     locale: formData.get('locale'),
+    linkToken: formData.get('token') || undefined,
   });
   if (!parsed.success) return fail('validation');
   const input = parsed.data;
@@ -129,7 +130,7 @@ export async function applyPromo(
       },
     });
     if (!existing) return fail('not_found');
-    if (!(await bookingViewerCanAccess(input.reference, existing.guestId)))
+    if (!(await checkoutViewerCanAccess(input.reference, existing.guestId, input.linkToken)))
       return fail('not_found');
     if (existing.paymentStatus === 'paid') return fail('already_paid');
     if (existing.status !== 'confirmed') return fail('unavailable');
@@ -320,6 +321,7 @@ export async function removePromo(
     reference: formData.get('reference'),
     slug: formData.get('slug') || undefined,
     locale: formData.get('locale'),
+    linkToken: formData.get('token') || undefined,
   });
   if (!parsed.success) return err('validation');
   const input = parsed.data;
@@ -330,7 +332,8 @@ export async function removePromo(
       columns: { id: true, guestId: true, paymentStatus: true, checkoutId: true },
     });
     if (!existing) return err('not_found');
-    if (!(await bookingViewerCanAccess(input.reference, existing.guestId))) return err('not_found');
+    if (!(await checkoutViewerCanAccess(input.reference, existing.guestId, input.linkToken)))
+      return err('not_found');
     if (existing.paymentStatus === 'paid') return err('already_paid');
 
     // Same supersession as applyPromo, for the same reason in reverse:

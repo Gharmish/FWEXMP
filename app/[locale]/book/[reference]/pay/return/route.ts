@@ -1,6 +1,8 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { settleBooking } from '@/features/payments/settle';
 import { sendBookingReceiptEmail } from '@/features/bookings/lib/booking-email';
+import { BOOKING_LINK_TOKEN_PARAM, bookingLinkToken } from '@/features/bookings/lib/link-token';
+import { getBookingByReferenceForViewer } from '@/features/bookings/queries';
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -21,6 +23,19 @@ export async function GET(
 
   const confirmed = new URL(`/${loc}/book/confirmed/${reference}`, request.nextUrl.origin);
   if (slug) confirmed.searchParams.set('slug', slug);
+  // Carry ownership across the gateway round trip. A guest who came from
+  // the emailed pay link has no cookie, so without this they would be
+  // bounced to the sign-in wall the instant their card cleared. Minted
+  // here rather than round-tripped through HyperPay — this route knows
+  // the reference, so the token never has to leave our origin.
+  //
+  // Only for the browsers that need it: a guest who already proves
+  // ownership the ordinary way keeps a clean URL, and the token stays
+  // out of their history.
+  if (UUID_RE.test(reference) && !(await getBookingByReferenceForViewer(reference))) {
+    const token = bookingLinkToken(reference);
+    if (token) confirmed.searchParams.set(BOOKING_LINK_TOKEN_PARAM, token);
+  }
 
   if (UUID_RE.test(reference)) {
     const outcome = await settleBooking(reference);

@@ -77,12 +77,20 @@ export const setPromoActiveSchema = z.object({
   locale: localeSchema,
 });
 
+/**
+ * Signed proof from the pay link we sent the guest, forwarded by the
+ * checkout forms so a cookieless browser can still finish paying — see
+ * `checkoutViewerCanAccess`. Absent for the ordinary in-session flow.
+ */
+const linkTokenSchema = z.string().max(64).optional();
+
 /** Guest checkout: apply a code to a booking (referenced by its UUID). */
 export const applyPromoSchema = z.object({
   reference: z.string().uuid(),
   code: codeSchema,
   slug: z.string().trim().optional(),
   locale: localeSchema,
+  linkToken: linkTokenSchema,
 });
 
 export type ApplyPromoInput = z.infer<typeof applyPromoSchema>;
@@ -92,4 +100,5 @@ export const removePromoSchema = z.object({
   reference: z.string().uuid(),
   slug: z.string().trim().optional(),
   locale: localeSchema,
+  linkToken: linkTokenSchema,
 });

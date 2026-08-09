@@ -4,6 +4,7 @@ import { db } from '@/lib/db';
 import { guests } from '@/db/schema';
 import { getCurrentUser } from '@/features/auth/queries';
 import { LAST_BOOKING_COOKIE, parseLastBookingCookie } from '@/features/account/cookie';
+import { bookingLinkTokenValid } from '@/features/bookings/lib/link-token';
 
 /**
  * Authorize access to a booking addressed by its public reference (the
@@ -37,4 +38,33 @@ export async function bookingViewerCanAccess(
   const store = await cookies();
   const hint = parseLastBookingCookie(store.get(LAST_BOOKING_COOKIE)?.value);
   return hint?.reference === reference;
+}
+
+/**
+ * Ownership for the CHECKOUT path: the signed link token, or the
+ * ordinary proof above.
+ *
+ * This is the ONLY mutation family that accepts the token (2026-08-09).
+ * The pay link is emailed and WhatsApped to the guest, and the guest who
+ * taps it holds no cookie — the in-app browser has its own jar — so
+ * pay-after-approval dead-ended for exactly the guests it was sent to.
+ *
+ * Safe to widen here because every action behind it only finishes paying
+ * for the booking the link belongs to: charging a card, applying a promo
+ * or lifting one. None moves money OUT, none destroys state. Cancel,
+ * reschedule, refund and dispute keep requiring
+ * {@link bookingViewerCanAccess} on its own, and wallet credit is
+ * separately session-owned, so a token-only viewer never sees a balance
+ * to spend.
+ *
+ * Call this rather than re-implementing the disjunction — the set of
+ * token-payable actions has to stay greppable.
+ */
+export async function checkoutViewerCanAccess(
+  reference: string,
+  bookingGuestId: string,
+  token: string | null | undefined,
+): Promise<boolean> {
+  if (bookingLinkTokenValid(reference, token)) return true;
+  return bookingViewerCanAccess(reference, bookingGuestId);
 }

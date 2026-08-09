@@ -26,9 +26,15 @@ import type { Locale } from '@/lib/i18n';
  *
  *  - ONE booking. The tag covers the reference, so a token cannot be
  *    re-pointed at another booking.
- *  - READ only. Cancel, reschedule, refund and review still go through
- *    `bookingViewerCanAccess`, which never looks at the token — money
- *    and state changes keep requiring the cookie or a signed-in account.
+ *  - Reads, plus finishing the payment. Every read goes through
+ *    `getBookingViewForViewer`; the checkout family (create checkout,
+ *    apply/remove promo) goes through `checkoutViewerCanAccess`, added
+ *    2026-08-09 because the emailed pay link dead-ended the same way the
+ *    receipt link did. Nothing else: cancel, reschedule, refund, dispute
+ *    and review still require the cookie or a signed-in account, and
+ *    wallet credit is session-owned, so a token-only viewer never sees a
+ *    balance to spend. The line is that a token can pay FOR this
+ *    booking, never move money out of it or destroy it.
  *  - No expiry. A tax invoice is a keepable document the guest may open
  *    months later, and an expired receipt link is the same dead end this
  *    fixes. The blast radius of a leaked token is one booking's details,
@@ -111,4 +117,18 @@ export function bookingManageUrl(locale: Locale, reference: string): string {
 /** Absolute URL to the booking's receipt / tax invoice, carrying the token. */
 export function bookingInvoiceUrl(locale: Locale, reference: string): string {
   return `${SITE_URL}/${locale}/book/confirmed/${reference}/invoice${tokenQuery(reference)}`;
+}
+
+/**
+ * Absolute URL to the checkout for an approved booking, carrying the
+ * token. Pay-after-approval is reached from the approval email and
+ * WhatsApp message, so this link has to work in a browser that never
+ * made the booking — the token is what lets `createCheckout` and the
+ * promo actions run there (see `checkoutViewerCanAccess`).
+ */
+export function bookingPayUrl(locale: Locale, reference: string, slug: string): string {
+  const token = bookingLinkToken(reference);
+  const query = new URLSearchParams({ slug });
+  if (token) query.set(BOOKING_LINK_TOKEN_PARAM, token);
+  return `${SITE_URL}/${locale}/book/${reference}/pay?${query.toString()}`;
 }

@@ -7,7 +7,7 @@ import { db } from '@/lib/db';
 import { serverEnv, hasHyperpay, hasHyperpayApplePay } from '@/lib/env';
 import { bookings, guests } from '@/db/schema';
 import { isHoldExpired } from '@/features/bookings/lib/availability';
-import { bookingViewerCanAccess } from '@/features/bookings/lib/access';
+import { checkoutViewerCanAccess } from '@/features/bookings/lib/access';
 import { reportError } from '@/lib/log';
 import { paymentDetailsSchema } from '@/features/payments/schemas';
 import { hyperpayBaseUrl, prepareCheckout } from '@/features/payments/lib/hyperpay';
@@ -52,6 +52,10 @@ const createCheckoutSchema = paymentDetailsSchema
     reference: z.string().regex(UUID_RE),
     locale: z.enum(['en', 'ar']),
     slug: z.string().min(1),
+    // Signed proof from the pay link we emailed/WhatsApped, for the
+    // browser that holds no last-booking cookie. Absent for the ordinary
+    // in-session checkout, which authorizes on the cookie or the account.
+    linkToken: z.string().max(64).optional(),
     // Payment method chosen before the widget mounts. Apple Pay lives on
     // its own gateway entity, so it needs its own checkout; a tampered or
     // stale 'applepay' submit degrades to 'card' below when the Apple Pay
@@ -164,6 +168,7 @@ export async function createCheckout(
     reference: formValue(formData, 'reference'),
     locale: formValue(formData, 'locale'),
     slug: formValue(formData, 'slug'),
+    linkToken: formValue(formData, 'token') || undefined,
     givenName: formValue(formData, 'givenName'),
     surname: formValue(formData, 'surname'),
     email: formValue(formData, 'email'),
@@ -226,8 +231,9 @@ export async function createCheckout(
     }
     // Authorize the caller before touching the booking (set-email, checkout).
     // The reference alone must not let a stranger drive someone's payment or
-    // set their email — require ownership or the browser's booking cookie.
-    if (!(await bookingViewerCanAccess(input.reference, booking.guestId))) {
+    // set their email — require ownership, the browser's booking cookie, or
+    // the signed token from the pay link we sent this guest.
+    if (!(await checkoutViewerCanAccess(input.reference, booking.guestId, input.linkToken))) {
       return { status: 'error', error: 'notFound', values: echoValues(formData) };
     }
     if (booking.paymentStatus === 'paid') {
