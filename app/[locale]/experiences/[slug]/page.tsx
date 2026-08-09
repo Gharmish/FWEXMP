@@ -694,6 +694,9 @@ export default async function ExperienceDetailPage({
           <ReviewsSection
             experienceSlug={exp.slug}
             locale={loc}
+            // Reuse the wave-1 aggregate the JSON-LD above already needed,
+            // instead of letting this section re-read it.
+            aggregate={ratingAggregate}
             showAll={showAllReviews}
             showAllHref={`/experiences/${exp.slug}?reviews=all#reviews`}
           />

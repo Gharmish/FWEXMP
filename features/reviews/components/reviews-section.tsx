@@ -2,10 +2,8 @@ import { getTranslations } from 'next-intl/server';
 import { Link } from '@/lib/i18n';
 import type { Locale } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
-import {
-  getReviewAggregateForExperience,
-  getReviewsForExperience,
-} from '@/features/reviews/queries';
+import { getReviewsForExperience } from '@/features/reviews/queries';
+import type { ReviewAggregate } from '@/features/reviews/types';
 import { Stagger, StaggerItem } from '@/components/ui/motion';
 import { RatingSummary } from '@/features/reviews/components/rating-summary';
 import { ReviewCard } from '@/features/reviews/components/review-card';
@@ -13,6 +11,17 @@ import { ReviewCard } from '@/features/reviews/components/review-card';
 interface ReviewsSectionProps {
   experienceSlug: string;
   locale: Locale;
+  /**
+   * The already-fetched aggregate for this experience, passed down rather
+   * than re-read here. The detail page fetches it for its JSON-LD anyway,
+   * so fetching it again in this section ran the same lookup + groupBy a
+   * second time on every render — and because this section resolves after
+   * the page's own waves, that duplicate was the read most likely to be
+   * still in flight when the response completed, leaving a connection
+   * abandoned mid-statement (2026-08-08; see the wave comment in the
+   * detail page for why an abandoned read is so costly here).
+   */
+  aggregate: ReviewAggregate;
   /** Render the full list (`?reviews=all`) instead of the first page. */
   showAll?: boolean;
   /** Href that re-renders the page with every review visible. */
@@ -37,14 +46,15 @@ const ALL_VISIBLE_CAP = 100;
 export async function ReviewsSection({
   experienceSlug,
   locale,
+  aggregate,
   showAll = false,
   showAllHref,
 }: ReviewsSectionProps) {
   const t = await getTranslations('reviews');
-  const [visible, aggregate] = await Promise.all([
-    getReviewsForExperience(experienceSlug, showAll ? ALL_VISIBLE_CAP : INITIAL_VISIBLE),
-    getReviewAggregateForExperience(experienceSlug),
-  ]);
+  const visible = await getReviewsForExperience(
+    experienceSlug,
+    showAll ? ALL_VISIBLE_CAP : INITIAL_VISIBLE,
+  );
 
   const hidden = Math.max(0, aggregate.count - visible.length);
   const eyebrowClassName = cn(
