@@ -898,7 +898,7 @@ export function BookingRequestForm({
                   <span className="flex min-w-0 flex-col gap-0.5">
                     <span className="truncate text-sm font-medium">{booking.title}</span>
                     <span className="text-sarat-black-600 text-sm">
-                      {formatDate(new Date(`${booking.date}T00:00:00`), locale, 'gregory', {
+                      {formatDate(new Date(`${booking.date}T00:00:00+03:00`), locale, 'gregory', {
                         day: 'numeric',
                         month: 'long',
                       })}{' '}

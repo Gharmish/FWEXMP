@@ -17,6 +17,7 @@ import type {
   SparklinePoint,
 } from '@/features/admin/analytics/types';
 import { adminGuard } from '@/features/admin/guard';
+import { RIYADH_UTC_OFFSET_HOURS } from '@/features/bookings/lib/cancellation';
 
 /**
  * Admin analytics. Same guard chassis as the other admin surfaces.
@@ -118,21 +119,33 @@ export function statsForWindow(
   return out;
 }
 
+/**
+ * The Riyadh calendar day an instant falls on, `YYYY-MM-DD`.
+ *
+ * Bucketing on the raw UTC day put every booking placed between 00:00
+ * and 03:00 Riyadh on the PREVIOUS day's bar — three hours of every day
+ * attributed to the wrong date. The admin reads these bars against
+ * Saudi trading days, so the buckets have to be Saudi days.
+ */
+function riyadhDay(instant: Date): string {
+  return new Date(instant.getTime() + RIYADH_UTC_OFFSET_HOURS * 60 * 60 * 1000)
+    .toISOString()
+    .slice(0, 10);
+}
+
 function sparkline(rows: readonly BookingForAggregation[], days: number): SparklinePoint[] {
   const now = new Date();
-  // Build day buckets [today-days+1 … today] inclusive.
+  // Build day buckets [today-days+1 … today] inclusive, in Riyadh days.
   const buckets = new Map<string, SparklinePoint>();
   for (let i = days - 1; i >= 0; i--) {
-    const d = new Date(now);
-    d.setUTCHours(0, 0, 0, 0);
-    d.setUTCDate(d.getUTCDate() - i);
-    const key = d.toISOString().slice(0, 10);
+    const d = new Date(now.getTime() - i * 24 * 60 * 60 * 1000);
+    const key = riyadhDay(d);
     buckets.set(key, { date: key, bookings: 0, gmvSar: 0 });
   }
   const cutoffMs = now.getTime() - days * 24 * 60 * 60 * 1000;
   for (const row of rows) {
     if (row.createdAt.getTime() < cutoffMs) continue;
-    const key = row.createdAt.toISOString().slice(0, 10);
+    const key = riyadhDay(row.createdAt);
     const bucket = buckets.get(key);
     if (!bucket) continue;
     if (isRevenue(row.status)) {

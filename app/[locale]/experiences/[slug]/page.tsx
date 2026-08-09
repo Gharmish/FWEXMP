@@ -17,6 +17,16 @@ import { notFound } from 'next/navigation';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { cn } from '@/lib/utils';
 import { durationHours, formatInteger, formatDate, formatTime } from '@/lib/format';
+import { startInstant } from '@/features/bookings/lib/cancellation';
+
+/**
+ * Any Riyadh calendar day, used purely to turn an `HH:mm` catalogue
+ * time into an instant `formatTime` can render. The date is discarded;
+ * what matters is that the clock time is pinned to Asia/Riyadh, because
+ * `formatTime` always formats IN Riyadh — so a server-local parse on a
+ * UTC host printed every advertised start time three hours late.
+ */
+const RIYADH_CLOCK_ANCHOR = '2000-01-01';
 import { Price } from '@/components/ui/price';
 import { Link } from '@/lib/i18n';
 import type { Locale } from '@/lib/i18n';
@@ -416,7 +426,7 @@ export default async function ExperienceDetailPage({
       key: 'starts',
       Icon: Sunrise,
       label: t('highlights.starts'),
-      value: formatTime(new Date(`2000-01-01T${exp.startTime}:00`), loc),
+      value: formatTime(startInstant(RIYADH_CLOCK_ANCHOR, exp.startTime), loc),
     },
     {
       key: 'group',
@@ -760,7 +770,7 @@ export default async function ExperienceDetailPage({
               <span className="flex items-center gap-2">
                 <Sunrise className="size-4 shrink-0" aria-hidden />
                 {t('startsAt', {
-                  time: formatTime(new Date(`2000-01-01T${exp.startTime}:00`), loc),
+                  time: formatTime(startInstant(RIYADH_CLOCK_ANCHOR, exp.startTime), loc),
                 })}
               </span>
               <span className="flex items-center gap-2">

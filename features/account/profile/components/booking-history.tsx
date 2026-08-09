@@ -5,6 +5,7 @@ import { BookingStatusBadge } from '@/features/bookings/components/booking-statu
 import { CheckoutProgress } from '@/features/payments/components/checkout-progress';
 import { checkoutJourneyStep } from '@/features/bookings/lib/checkout-journey';
 import { formatDate, formatInteger } from '@/lib/format';
+import { startInstant } from '@/features/bookings/lib/cancellation';
 import type { Booking } from '@/db/schema';
 import type { GuestBookingSummary } from '@/features/bookings/queries';
 
@@ -50,7 +51,7 @@ export function BookingHistory({ bookings, locale, copy }: BookingHistoryProps) 
                 {locale === 'ar' ? booking.experienceTitleAr : booking.experienceTitleEn}
               </Link>
               <p className="text-sarat-black-600 text-sm">
-                {formatDate(new Date(`${booking.date}T${booking.startTime}:00`), locale)}
+                {formatDate(startInstant(booking.date, booking.startTime), locale)}
                 {' · '}
                 {copy.partyLabel} {formatInteger(booking.partySize, locale)}
                 {' · '}

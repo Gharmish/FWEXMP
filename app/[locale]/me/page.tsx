@@ -23,6 +23,7 @@ import { buildBookingStatusLabels } from '@/features/bookings/lib/status-labels'
 import { ReviewForm } from '@/features/reviews/components/review-form';
 import { toArabicText } from '@/features/experiences/lib/arabic-content';
 import { formatDate, formatInteger } from '@/lib/format';
+import { startInstant } from '@/features/bookings/lib/cancellation';
 import { Price } from '@/components/ui/price';
 
 export async function generateMetadata({
@@ -215,7 +216,7 @@ export default async function MePage({ params }: { params: Promise<{ locale: str
                     <dt className="text-sarat-black-600 text-sm">{t('dateLabel')}</dt>
                     <dd className="text-base font-medium">
                       {formatDate(
-                        new Date(`${lastBooking.booking.date}T${lastBooking.booking.startTime}:00`),
+                        startInstant(lastBooking.booking.date, lastBooking.booking.startTime),
                         loc,
                       )}
                     </dd>

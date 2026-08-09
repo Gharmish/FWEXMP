@@ -11,7 +11,8 @@
  * the 14th" means the same thing on the server in any region.
  */
 
-const RIYADH_UTC_OFFSET_HOURS = 3;
+/** Saudi Arabia is UTC+3 year-round — no DST, so a fixed offset is exact. */
+export const RIYADH_UTC_OFFSET_HOURS = 3;
 
 /** Experience start as an absolute instant, from local date + HH:MM. */
 export function startInstant(dateStr: string, startTime: string): Date {

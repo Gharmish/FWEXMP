@@ -8,6 +8,7 @@ import type { Locale } from '@/lib/i18n';
 import { MountFade } from '@/components/ui/motion';
 import { hasHyperpay, hasHyperpayApplePay } from '@/lib/env';
 import { formatDate, formatInteger, formatSAR, formatTime } from '@/lib/format';
+import { startInstant } from '@/features/bookings/lib/cancellation';
 import { Price } from '@/components/ui/price';
 import { getBookingByReferenceForViewer } from '@/features/bookings/queries';
 import { getStoredBillingForBooking } from '@/features/payments/queries';
@@ -297,7 +298,10 @@ export default async function PaymentPage({ params, searchParams }: PageParams) 
   // The booking's facts (date/time/guests) render as a two-column grid;
   // the experience itself gets a thumbnail header and the money gets its
   // own emphasized block — three visual tiers instead of one flat list.
-  const startsAt = new Date(`${booking.date}T${booking.startTime}:00`);
+  // KSA-pinned (a bare `new Date(date T time)` is read in SERVER-local
+  // time, so on a UTC host every start time rendered +3h — `formatTime`
+  // pins Asia/Riyadh on the way out but cannot undo a mis-parsed input).
+  const startsAt = startInstant(booking.date, booking.startTime);
   const facts: Array<{ label: string; value: string }> = [
     { label: t('dateLabel'), value: formatDate(startsAt, loc) },
     { label: t('timeLabel'), value: formatTime(startsAt, loc) },
