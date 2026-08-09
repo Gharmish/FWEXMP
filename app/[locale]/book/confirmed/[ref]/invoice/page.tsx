@@ -8,19 +8,14 @@ import { cn } from '@/lib/utils';
 import { Link, redirect } from '@/lib/i18n';
 import type { Locale } from '@/lib/i18n';
 import { formatDate, formatInteger, formatSAR, formatTime } from '@/lib/format';
-import {
-  SITE_URL,
-  SITE_NAME,
-  SUPPORT_EMAIL,
-  SELLER_LEGAL_NAME,
-  COMMERCIAL_REGISTRATION,
-} from '@/lib/site';
+import { SITE_NAME, SUPPORT_EMAIL, SELLER_LEGAL_NAME, COMMERCIAL_REGISTRATION } from '@/lib/site';
 import { whatsappShareLink } from '@/lib/whatsapp';
 import { buttonVariants } from '@/components/ui/button';
 import { Price } from '@/components/ui/price';
 import { PrintButton } from '@/components/ui/print-button';
 import { GharmishLogo } from '@/components/layout/gharmish-logo';
 import { getBookingViewForViewer } from '@/features/bookings/queries';
+import { BOOKING_LINK_TOKEN_PARAM, bookingInvoiceUrl } from '@/features/bookings/lib/link-token';
 import { getExperienceBySlug } from '@/features/experiences/queries';
 import { toArabicText } from '@/features/experiences/lib/arabic-content';
 import { startInstant } from '@/features/bookings/lib/cancellation';
@@ -36,6 +31,11 @@ const BRAND_NAMES: Record<string, string> = {
   MASTER: 'Mastercard',
 };
 
+function asString(value: string | string[] | undefined): string | undefined {
+  if (!value) return undefined;
+  return Array.isArray(value) ? value[0] : value;
+}
+
 const KSA_TIME: Intl.DateTimeFormatOptions = { timeZone: 'Asia/Riyadh' };
 const KSA_DATE: Intl.DateTimeFormatOptions = {
   day: 'numeric',
@@ -46,6 +46,7 @@ const KSA_DATE: Intl.DateTimeFormatOptions = {
 
 interface PageParams {
   params: Promise<{ locale: string; ref: string }>;
+  searchParams: Promise<Readonly<Record<string, string | string[] | undefined>>>;
 }
 
 export async function generateMetadata({ params }: PageParams): Promise<Metadata> {
@@ -70,29 +71,41 @@ export async function generateMetadata({ params }: PageParams): Promise<Metadata
  *
  * Browser print (the PrintButton) is the save-as-PDF mechanism — the
  * site chrome is already `print:hidden`, so paper carries just this
- * document. The email receipt links here; WhatsApp delivery is the
- * share button (wa.me) until the Business API lands.
+ * document. The email receipt and the WhatsApp confirmation both link
+ * here, carrying the signed `?k=` token that authorizes the read.
  */
-export default async function BookingInvoicePage({ params }: PageParams) {
+export default async function BookingInvoicePage({ params, searchParams }: PageParams) {
   const { locale, ref } = await params;
   setRequestLocale(locale);
   const loc = locale as Locale;
 
   if (!UUID_RE.test(ref)) notFound();
 
-  const view = await getBookingViewForViewer(ref);
+  // The token from the link we sent this guest — their proof of
+  // ownership when the browser holds no cookie, which is every WhatsApp
+  // tap (the in-app browser has its own cookie jar) and every emailed
+  // link opened on a second device.
+  const token = asString((await searchParams)[BOOKING_LINK_TOKEN_PARAM]);
+  const tokenQuery = token
+    ? `?${BOOKING_LINK_TOKEN_PARAM}=${encodeURIComponent(token)}`
+    : '';
+
+  const view = await getBookingViewForViewer(ref, token);
   if (view.state !== 'ok') {
-    // The receipt is emailed as a link, so the guest who opens it on a
-    // second device is authorized for nothing here. A hard 404 on their
-    // own paid booking is the wrong answer: hand them to the booking
-    // page, which explains the state and offers the way back in.
+    // A tokenless or stale link still reaches a guest who can't prove
+    // ownership here. A hard 404 on their own paid booking is the wrong
+    // answer: hand them to the booking page, which explains the state
+    // and offers the way back in.
     if (view.state === 'forbidden') redirect({ href: `/book/confirmed/${ref}`, locale: loc });
     notFound();
   }
   const booking = view.booking;
   // No money has moved → nothing to document yet. Send the guest to the
   // booking page, which knows how to talk about every pre-payment state.
-  if (!booking.paidAt) redirect({ href: `/book/confirmed/${ref}`, locale: loc });
+  // The token rides along so the page opens for them too.
+  if (!booking.paidAt) {
+    redirect({ href: `/book/confirmed/${ref}${tokenQuery}`, locale: loc });
+  }
 
   // Issued invoices are immutable: prefer the settlement snapshots and
   // fall back to live lookups only for rows settled before the columns
@@ -200,7 +213,11 @@ export default async function BookingInvoicePage({ params }: PageParams) {
       )
     : null;
 
-  const invoiceUrl = `${SITE_URL}/${loc}/book/confirmed/${ref}/invoice`;
+  // The shared copy carries the token: the point of this button is that
+  // the guest can keep their receipt in WhatsApp and open it later, when
+  // the in-app browser has no cookie. Forwarding it hands over read
+  // access to this one booking — the guest's own document, their call.
+  const invoiceUrl = bookingInvoiceUrl(loc, ref);
   const shareHref = whatsappShareLink(
     t('whatsappMessage', { reference: booking.referenceCode, url: invoiceUrl }),
   );
@@ -437,7 +454,7 @@ export default async function BookingInvoicePage({ params }: PageParams) {
           {t('whatsappAction')}
         </a>
         <Link
-          href={`/book/confirmed/${ref}`}
+          href={`/book/confirmed/${ref}${tokenQuery}`}
           className="text-sarat-black-600 inline-flex min-h-11 items-center gap-2 text-sm font-medium transition-opacity duration-200 hover:opacity-60"
         >
           <ArrowLeft className="size-4 shrink-0 rtl:rotate-180" aria-hidden />

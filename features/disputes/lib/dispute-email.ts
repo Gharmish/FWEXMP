@@ -10,6 +10,7 @@ import { dispatchNotification } from '@/lib/notifications/dispatch';
 import { hostNotificationContact } from '@/lib/notifications/host-contact';
 import { SITE_URL } from '@/lib/site';
 import { renderReceiptEmail } from '@/features/bookings/lib/booking-email-render';
+import { bookingManageUrl } from '@/features/bookings/lib/link-token';
 
 /** Brand wordmark for email headers — PNG (clients don't render SVG). */
 const EMAIL_LOGO_URL = `${SITE_URL}/images/gharmish-wordmark.png`;
@@ -77,7 +78,9 @@ export async function sendDisputeResolvedEmail(
     rows,
     cta: {
       label: t('viewBookingCta'),
-      url: `${SITE_URL}/${locale}/book/confirmed/${dispute.booking.referenceCode}`,
+      // The URL takes the reference UUID, never the GH- code: the page
+      // 404s on anything that isn't UUID-shaped (2026-08-09).
+      url: bookingManageUrl(locale, dispute.booking.idempotencyKey),
     },
     closing: t('closing'),
     footer: t('footer'),
@@ -124,7 +127,7 @@ export async function sendDisputeReceivedEmail(referenceCode: string): Promise<v
     ],
     cta: {
       label: t('viewBookingCta'),
-      url: `${SITE_URL}/${locale}/book/confirmed/${booking.idempotencyKey}`,
+      url: bookingManageUrl(locale, booking.idempotencyKey),
     },
     closing: t('receivedClosing'),
     footer: t('footer'),

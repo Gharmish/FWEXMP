@@ -19,6 +19,7 @@ import { bookingOptions } from '@/features/bookings/lib/policy';
 import { splitCommission } from '@/features/bookings/lib/commission';
 import { zatcaQrPayload } from '@/features/bookings/lib/zatca-qr';
 import { renderInvoicePdf, type InvoicePdfRow } from '@/features/bookings/lib/invoice-pdf';
+import { bookingInvoiceUrl, bookingManageUrl } from '@/features/bookings/lib/link-token';
 import { getExperienceBySlug } from '@/features/experiences/queries';
 import { toArabicText } from '@/features/experiences/lib/arabic-content';
 import { renderBookingIcs } from './booking-ics';
@@ -259,8 +260,8 @@ export async function sendBookingReceiptEmail(reference: string): Promise<void> 
   const hasInvoicePdf = pdfAttachments.length > 0;
   const attachments = [...pdfAttachments];
 
-  const invoiceUrl = `${SITE_URL}/${locale}/book/confirmed/${reference}/invoice`;
-  const manageUrl = `${SITE_URL}/${locale}/book/confirmed/${reference}`;
+  const invoiceUrl = bookingInvoiceUrl(locale, reference);
+  const manageUrl = bookingManageUrl(locale, reference);
   const mapUrl = experience ? googleMapsLink(experience.lat, experience.lng) : null;
 
   // Calendar event alongside the PDF — a date-bound booking the guest
@@ -565,13 +566,13 @@ export async function sendBookingCancellationEmail(
     refund === 'wallet_credited'
       ? {
           label: t('viewWalletCredit'),
-          url: `${SITE_URL}/${locale}/book/confirmed/${reference}`,
+          url: bookingManageUrl(locale, reference),
         }
       : undefined;
   const cancelSubject = t('cancelSubject', { reference: booking.referenceCode });
   const cancelCtaUrl = showDocument
-    ? `${SITE_URL}/${locale}/book/confirmed/${reference}/invoice`
-    : (walletCta?.url ?? `${SITE_URL}/${locale}/book/confirmed/${reference}`);
+    ? bookingInvoiceUrl(locale, reference)
+    : (walletCta?.url ?? bookingManageUrl(locale, reference));
   const { html, text } = renderReceiptEmail({
     logoUrl: EMAIL_LOGO_URL,
     subject: cancelSubject,
@@ -663,7 +664,7 @@ export async function sendBookingRescheduledEmail(
     ...details.rows,
   ];
 
-  const bookingUrl = `${SITE_URL}/${locale}/book/confirmed/${reference}`;
+  const bookingUrl = bookingManageUrl(locale, reference);
   const subject = t('rescheduledSubject', { reference: booking.referenceCode });
   const { html, text } = renderReceiptEmail({
     logoUrl: EMAIL_LOGO_URL,
@@ -801,7 +802,7 @@ export async function sendBookingPrepareReminderEmail(
   // rule comes from the booking's own policy snapshot plus the platform
   // grace, never the live platform settings.
   const deadline = fullRefundDeadlineFor(booking);
-  const manageUrl = `${SITE_URL}/${locale}/book/confirmed/${reference}`;
+  const manageUrl = bookingManageUrl(locale, reference);
   const note = deadline
     ? {
         html: t('reminderManageWithDeadline', {
@@ -910,7 +911,7 @@ export async function sendBookingDepartureReminderEmail(
         '1': booking.guestName,
         '2': placeName ?? title ?? t('genericExperience'),
         '3': time,
-        '4': mapUrl ?? `${SITE_URL}/${locale}/book/confirmed/${reference}`,
+        '4': mapUrl ?? bookingManageUrl(locale, reference),
       },
     },
   });
@@ -1067,7 +1068,7 @@ export async function sendBookingApprovedEmail(reference: string): Promise<void>
       ? { label: t('completePaymentCta'), url: payUrl }
       : {
           label: t('rescheduledCta'),
-          url: `${SITE_URL}/${locale}/book/confirmed/${reference}`,
+          url: bookingManageUrl(locale, reference),
         },
     closing: needsPayment ? t('approvedPayClosing') : t('approvedClosing'),
     footer: t('footer'),
@@ -1090,7 +1091,7 @@ export async function sendBookingApprovedEmail(reference: string): Promise<void>
         // Var 5 is the action link: the payment page while payment is
         // due, the booking page otherwise (the template copy reads
         // "details and next steps" either way).
-        '5': needsPayment ? payUrl : `${SITE_URL}/${locale}/book/confirmed/${reference}`,
+        '5': needsPayment ? payUrl : bookingManageUrl(locale, reference),
       },
     },
   });

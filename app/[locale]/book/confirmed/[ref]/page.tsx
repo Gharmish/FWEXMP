@@ -30,7 +30,10 @@ import {
   googleMapsLink,
 } from '@/features/bookings/lib/calendar-links';
 import { startInstant } from '@/features/bookings/lib/cancellation';
-import { SITE_URL } from '@/lib/site';
+import {
+  BOOKING_LINK_TOKEN_PARAM,
+  bookingManageUrl,
+} from '@/features/bookings/lib/link-token';
 import { VerifiedBadge } from '@/features/hosts/components/verified-badge';
 import { RescheduleBooking } from '@/features/bookings/components/reschedule-booking';
 import { RefundToCardButton } from '@/features/wallet/components/refund-to-card-button';
@@ -70,14 +73,17 @@ interface PageParams {
   searchParams: Promise<Readonly<Record<string, string | string[] | undefined>>>;
 }
 
-export async function generateMetadata({ params }: PageParams): Promise<Metadata> {
+export async function generateMetadata({ params, searchParams }: PageParams): Promise<Metadata> {
   const { locale, ref } = await params;
   const t = await getTranslations({ locale, namespace: 'bookingConfirmed' });
   // A withheld booking renders the sign-in state, so the tab must not
-  // announce "Booking request received". The lookup is React-cached —
-  // the render below reuses this exact result, no second query.
+  // announce "Booking request received". The lookup is React-cached on
+  // (ref, token) — the render below reuses this exact result, no second
+  // query, so the token has to be passed here too or the two calls
+  // disagree and each runs its own query.
+  const token = asString((await searchParams)[BOOKING_LINK_TOKEN_PARAM]);
   const restricted =
-    UUID_RE.test(ref) && (await getBookingViewForViewer(ref)).state === 'forbidden';
+    UUID_RE.test(ref) && (await getBookingViewForViewer(ref, token)).state === 'forbidden';
   return {
     title: restricted ? t('restricted.title') : t('meta.title'),
     // Confirmation URLs are private to the requester; tell crawlers to skip.
@@ -99,6 +105,11 @@ export default async function BookingConfirmedPage({ params, searchParams }: Pag
 
   const sp = await searchParams;
   const slugFromQuery = asString(sp.slug);
+  // Signed proof of ownership from the link we sent (email / WhatsApp),
+  // for the browser that holds no last-booking cookie. Read-only: the
+  // cancel and reschedule actions below re-check ownership without it.
+  const token = asString(sp[BOOKING_LINK_TOKEN_PARAM]);
+  const tokenQuery = token ? `?${BOOKING_LINK_TOKEN_PARAM}=${encodeURIComponent(token)}` : '';
 
   // Prefer the DB-backed booking when available; fall back to the slug
   // we passed through the redirect (preview path).
@@ -111,7 +122,7 @@ export default async function BookingConfirmedPage({ params, searchParams }: Pag
   //     unchanged — the reference still proves nothing on its own.
   //   - `not_found` — no such booking: a plain 404, like a malformed ref.
   //   - `no_db` — genuine preview environment; the ONLY preview copy path.
-  const view = await getBookingViewForViewer(ref);
+  const view = await getBookingViewForViewer(ref, token);
   if (view.state === 'not_found') notFound();
   if (view.state === 'forbidden') return <BookingAccessNotice locale={loc} />;
   const booking = view.state === 'ok' ? view.booking : undefined;
@@ -567,7 +578,9 @@ export default async function BookingConfirmedPage({ params, searchParams }: Pag
           location: placeName,
           description: calendarEventDescription({
             referenceLine: `${t('referenceLabel')}: ${booking.referenceCode ?? ref}`,
-            manageUrl: `${SITE_URL}/${loc}/book/confirmed/${ref}`,
+            // Tokened: this URL lives on inside a calendar event the
+            // guest opens weeks later, often on another device.
+            manageUrl: bookingManageUrl(loc, ref),
             mapUrl: googleMapsLink(experience.lat, experience.lng),
           }),
         })
@@ -680,7 +693,7 @@ export default async function BookingConfirmedPage({ params, searchParams }: Pag
                   only exists once money actually moved. */}
               {booking.paidAt && (
                 <Link
-                  href={`/book/confirmed/${ref}/invoice`}
+                  href={`/book/confirmed/${ref}/invoice${tokenQuery}`}
                   className={cn(
                     buttonVariants({ variant: 'secondary', size: 'md' }),
                     'print:hidden',
@@ -694,7 +707,9 @@ export default async function BookingConfirmedPage({ params, searchParams }: Pag
               {calendarGoogleUrl && (
                 <AddToCalendar
                   googleUrl={calendarGoogleUrl}
-                  icsHref={`/api/bookings/${ref}/calendar?locale=${loc}`}
+                  icsHref={`/api/bookings/${ref}/calendar?locale=${loc}${
+                    token ? `&${BOOKING_LINK_TOKEN_PARAM}=${encodeURIComponent(token)}` : ''
+                  }`}
                   labels={{ google: t('calendar.google'), ics: t('calendar.ics') }}
                 />
               )}

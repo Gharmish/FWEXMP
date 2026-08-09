@@ -6,6 +6,7 @@ import { serverEnv } from '@/lib/env';
 import { bookings, experiences } from '@/db/schema';
 import type { Booking } from '@/db/schema';
 import { bookingViewerCanAccess } from '@/features/bookings/lib/access';
+import { bookingLinkTokenValid } from '@/features/bookings/lib/link-token';
 import type { PolicySnapshot } from '@/features/bookings/lib/policy';
 import { reportError } from '@/lib/log';
 
@@ -205,19 +206,25 @@ export type BookingViewerResult =
 /**
  * Like {@link getBookingByReference}, but authorizes the *viewer* first
  * and reports WHY when it withholds the booking (see
- * {@link BookingViewerResult}). Access itself is unchanged: the caller
- * must own the booking or hold it in their last-booking cookie (see
- * {@link bookingViewerCanAccess}) — the reference alone never suffices,
+ * {@link BookingViewerResult}). The caller must own the booking, hold it
+ * in their last-booking cookie (see {@link bookingViewerCanAccess}), or
+ * present the signed `token` from a link we sent them (see
+ * {@link bookingLinkTokenValid}) — the reference alone never suffices,
  * and no detail (no PII) is returned in any other state.
+ *
+ * The token authorizes READS only. It is deliberately not plumbed into
+ * `bookingViewerCanAccess`, so cancel, reschedule, refund and review
+ * still demand the cookie or a signed-in account (2026-08-09).
  */
 /*
  * React `cache()`-wrapped: the confirmation page resolves the same
  * reference in `generateMetadata` (the tab title differs when access is
  * withheld) and again in the render. Scope is one request, so a second
- * viewer never sees the first one's answer.
+ * viewer never sees the first one's answer. The token is part of the
+ * cache key, so a tokenless read never reuses a tokened answer.
  */
 export const getBookingViewForViewer = cache(
-  async (reference: string): Promise<BookingViewerResult> => {
+  async (reference: string, token?: string | null): Promise<BookingViewerResult> => {
     if (!hasDb()) return { state: 'no_db' };
     const owner = await boundedQuery('bookings:viewerLookup', () =>
       db.query.bookings.findFirst({
@@ -226,7 +233,10 @@ export const getBookingViewForViewer = cache(
       }),
     );
     if (!owner) return { state: 'not_found' };
-    if (!(await bookingViewerCanAccess(reference, owner.guestId))) return { state: 'forbidden' };
+    const allowed =
+      bookingLinkTokenValid(reference, token) ||
+      (await bookingViewerCanAccess(reference, owner.guestId));
+    if (!allowed) return { state: 'forbidden' };
     const booking = await getBookingByReference(reference);
     // Vanished between the two reads (deleted mid-render) — same as unknown.
     return booking ? { state: 'ok', booking } : { state: 'not_found' };
@@ -240,8 +250,9 @@ export const getBookingViewForViewer = cache(
  */
 export async function getBookingByReferenceForViewer(
   reference: string,
+  token?: string | null,
 ): Promise<BookingDetail | undefined> {
-  const view = await getBookingViewForViewer(reference);
+  const view = await getBookingViewForViewer(reference, token);
   return view.state === 'ok' ? view.booking : undefined;
 }
 

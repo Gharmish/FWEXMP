@@ -1,7 +1,10 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { getTranslations } from 'next-intl/server';
 import { reportError } from '@/lib/log';
-import { SITE_URL } from '@/lib/site';
+import {
+  BOOKING_LINK_TOKEN_PARAM,
+  bookingManageUrl,
+} from '@/features/bookings/lib/link-token';
 import { renderBookingIcs } from '@/features/bookings/lib/booking-ics';
 import { calendarEventDescription, googleMapsLink } from '@/features/bookings/lib/calendar-links';
 import { startInstant } from '@/features/bookings/lib/cancellation';
@@ -41,12 +44,15 @@ export async function GET(
 
   const localeParam = request.nextUrl.searchParams.get('locale');
   const locale = localeParam === 'ar' ? 'ar' : 'en';
+  // Signed proof from a link we sent — the confirmation page forwards it
+  // onto this href so the .ics stays reachable for a cookieless browser.
+  const token = request.nextUrl.searchParams.get(BOOKING_LINK_TOKEN_PARAM);
 
   // Degrade on a hung/failed DB read instead of 500ing — the guest can
   // retry from the still-open confirmation page.
   let view;
   try {
-    view = await getBookingViewForViewer(ref);
+    view = await getBookingViewForViewer(ref, token);
   } catch (error) {
     reportError(error, { surface: 'bookings:calendarRoute', reference: ref });
     return NextResponse.json({ error: 'unavailable' }, { status: 503 });
@@ -97,7 +103,7 @@ export async function GET(
     location: placeName,
     description: calendarEventDescription({
       referenceLine: `${t('referenceLabel')}: ${referenceCode}`,
-      manageUrl: `${SITE_URL}/${locale}/book/confirmed/${ref}`,
+      manageUrl: bookingManageUrl(locale, ref),
       mapUrl: experience ? googleMapsLink(experience.lat, experience.lng) : null,
     }),
   });
