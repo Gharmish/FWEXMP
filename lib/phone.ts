@@ -31,6 +31,21 @@ export interface Country {
 
 export const DEFAULT_COUNTRY = 'SA';
 
+/**
+ * Transliterate Arabic-Indic (٠-٩, U+0660–0669) and Extended Arabic-Indic
+ * (۰-۹, U+06F0–06F9) digits to ASCII. Guests in Arabic locales often paste
+ * numbers from WhatsApp/notes with these codepoints; JS `\d`/`\D` are
+ * ASCII-only, so they must be transliterated before any digit strip or the
+ * whole number is silently discarded.
+ */
+export function toAsciiDigits(value: string): string {
+  return value.replace(/[٠-٩۰-۹]/g, (d) => {
+    const cp = d.codePointAt(0)!;
+    const zero = cp >= 0x06f0 ? 0x06f0 : 0x0660;
+    return String(cp - zero);
+  });
+}
+
 /** Israel — excluded from the picker and rejected by validation. */
 const EXCLUDED_ISO = 'IL';
 const EXCLUDED_DIAL = '972';
@@ -80,7 +95,7 @@ export function countryName(iso: string, locale: Locale): string {
  */
 export function toE164(iso: string, national: string): string | null {
   const country = iso.toUpperCase();
-  const digits = national.replace(/\D/g, '');
+  const digits = toAsciiDigits(national).replace(/\D/g, '');
   if (!digits || country === EXCLUDED_ISO) return null;
   try {
     const parsed = parsePhoneNumberFromString(digits, country as CountryCode);
@@ -125,7 +140,7 @@ export function isValidE164(value: string): boolean {
  * anything invalid for its country or excluded.
  */
 export function normalizeToE164(input: string): string | null {
-  const trimmed = input.trim();
+  const trimmed = toAsciiDigits(input.trim());
   const parsed = trimmed.startsWith('+')
     ? parsePhoneNumberFromString(trimmed)
     : parsePhoneNumberFromString(trimmed, DEFAULT_COUNTRY as CountryCode);

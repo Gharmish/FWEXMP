@@ -55,6 +55,14 @@ describe('toE164', () => {
     expect(toE164('IL', '501234567')).toBeNull();
     expect(toE164('SA', '')).toBeNull();
   });
+
+  it('transliterates Arabic-Indic and Extended Arabic-Indic digits', () => {
+    expect(toE164('SA', '٠٥١٢٣٤٥٦٧٨')).toBe('+966512345678');
+    expect(toE164('SA', '۰۵۱۲۳۴۵۶۷۸')).toBe('+966512345678');
+    // Mixed scripts and separators, as pasted from WhatsApp/notes.
+    expect(toE164('SA', '٠٥١٢ ٣٤٥ ٦٧٨')).toBe('+966512345678');
+    expect(toE164('SA', '05١٢345٦٧8')).toBe('+966512345678');
+  });
 });
 
 describe('isValidE164', () => {
@@ -91,6 +99,12 @@ describe('normalizeToE164', () => {
   it('rejects Israel and junk', () => {
     expect(normalizeToE164('+972501234567')).toBeNull();
     expect(normalizeToE164('not-a-number')).toBeNull();
+  });
+
+  it('transliterates Arabic-Indic and Extended Arabic-Indic digits', () => {
+    expect(normalizeToE164('٠٥١٢٣٤٥٦٧٨')).toBe('+966512345678');
+    expect(normalizeToE164('۰۵۱۲۳۴۵۶۷۸')).toBe('+966512345678');
+    expect(normalizeToE164('+٩٦٦٥١٢٣٤٥٦٧٨')).toBe('+966512345678');
   });
 });
 

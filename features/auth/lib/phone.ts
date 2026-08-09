@@ -1,3 +1,5 @@
+import { toAsciiDigits } from '@/lib/phone';
+
 /**
  * KSA phone normalisation for the auth layer.
  *
@@ -16,7 +18,7 @@
  * `bookingRequestSchema` so the two flows stay consistent.
  */
 export function toE164Saudi(input: string): string | null {
-  const digits = input.replace(/\D/g, '');
+  const digits = toAsciiDigits(input).replace(/\D/g, '');
   let local: string | null = null;
 
   if (digits.length === 10 && digits.startsWith('05')) {

@@ -47,6 +47,12 @@ describe('toE164Saudi', () => {
   it('handles the stray-leading-0 paste case', () => {
     expect(toE164Saudi('+09665 12 34 56 78')).toBe('+966512345678');
   });
+
+  it('transliterates Arabic-Indic and Extended Arabic-Indic digits', () => {
+    expect(toE164Saudi('٠٥١٢٣٤٥٦٧٨')).toBe('+966512345678');
+    expect(toE164Saudi('۰۵۱۲۳۴۵۶۷۸')).toBe('+966512345678');
+    expect(toE164Saudi('+٩٦٦ ٥١ ٢٣٤ ٥٦٧٨')).toBe('+966512345678');
+  });
 });
 
 describe('isSaudiMobile', () => {
