@@ -558,9 +558,21 @@ export default async function ExperienceDetailPage({
         ))}
       </section>
 
-      <div className="mt-10 grid gap-12 lg:grid-cols-[1fr_360px]">
-        {/* Left: content */}
-        <div className="flex flex-col gap-12">
+      {/* Both tracks are minmax(0,…), never a bare `1fr` or an implicit
+          `auto`. A grid item defaults to `min-width: auto`, i.e. it refuses
+          to shrink below its own min-content, and an `auto`/`1fr` track
+          honours that floor — so one long unbreakable string anywhere in
+          this subtree widens the column past its container and the whole
+          document scrolls sideways. Flooring at 0 makes the track win and
+          the content wrap instead. Latent until some copy trips it, which
+          is why it must not depend on today's strings (2026-08-08). */}
+      <div className="mt-10 grid grid-cols-[minmax(0,1fr)] gap-12 lg:grid-cols-[minmax(0,1fr)_360px]">
+        {/* Left: content. `min-w-0` is load-bearing, not cosmetic: a grid
+            item defaults to `min-width: auto` and so refuses to shrink below
+            its own min-content, overflowing the track no matter how the
+            track is sized. Flooring the track alone does NOT fix that —
+            measured. */}
+        <div className="flex min-w-0 flex-col gap-12">
           <section className="flex flex-col gap-3">
             <h2 className="font-display text-2xl font-medium tracking-[-0.025em]">{t('about')}</h2>
             {/* ~65–75ch measure: long prose past 80ch is fatiguing to track. */}
@@ -705,7 +717,7 @@ export default async function ExperienceDetailPage({
         {/* Right: sticky price / booking panel. On short viewports the panel
             can be taller than the screen, so it scrolls within itself —
             keeping the submit button reachable without scrolling the page. */}
-        <aside className="lg:sticky lg:top-20 lg:max-h-[calc(100vh-6rem)] lg:self-start lg:overflow-y-auto">
+        <aside className="min-w-0 lg:sticky lg:top-20 lg:max-h-[calc(100vh-6rem)] lg:self-start lg:overflow-y-auto">
           <MountFade
             eager
             className="rounded-card border-sarat-black/8 flex flex-col gap-5 [border-width:0.5px] p-6"
