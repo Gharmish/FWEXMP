@@ -74,6 +74,7 @@ function config(channel: PaymentChannel = 'card'): HyperpayConfig {
         : serverEnv.HYPERPAY_ENTITY_ID,
     mode: serverEnv.HYPERPAY_MODE,
     testConnector: serverEnv.HYPERPAY_TEST_CONNECTOR,
+    channel,
   };
 }
 

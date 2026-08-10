@@ -24,13 +24,30 @@ const input: PrepareCheckoutInput = {
   },
 };
 
-const testCfg: HyperpayConfig = { entityId: 'ent_test', mode: 'test', testConnector: 'external' };
+const testCfg: HyperpayConfig = {
+  entityId: 'ent_test',
+  mode: 'test',
+  testConnector: 'external',
+  channel: 'card',
+};
 const internalCfg: HyperpayConfig = {
   entityId: 'ent_test',
   mode: 'test',
   testConnector: 'internal',
+  channel: 'card',
 };
-const liveCfg: HyperpayConfig = { entityId: 'ent_live', mode: 'live', testConnector: 'external' };
+const liveCfg: HyperpayConfig = {
+  entityId: 'ent_live',
+  mode: 'live',
+  testConnector: 'external',
+  channel: 'card',
+};
+const applePayCfg: HyperpayConfig = {
+  entityId: 'ent_applepay',
+  mode: 'test',
+  testConnector: 'external',
+  channel: 'applepay',
+};
 
 describe('classifyResult', () => {
   it('treats the standard success groups as success', () => {
@@ -143,6 +160,15 @@ describe('buildCheckoutBody', () => {
     expect(body.get('testMode')).toBeNull();
     expect(body.get('customParameters[3DS2_enrolled]')).toBeNull();
   });
+
+  it('NEVER adds the test-only flags on the applepay channel (HyperPay 2026-08-10)', () => {
+    const body = buildCheckoutBody(input, applePayCfg);
+    expect(body.get('testMode')).toBeNull();
+    expect(body.get('customParameters[3DS2_enrolled]')).toBeNull();
+    // The rest of the body is unchanged — only the flags are gated.
+    expect(body.get('entityId')).toBe('ent_applepay');
+    expect(body.get('integrity')).toBe('true');
+  });
 });
 
 describe('buildRefundBody', () => {
@@ -161,5 +187,9 @@ describe('buildRefundBody', () => {
     expect(buildRefundBody(100, testCfg).get('testMode')).toBe('EXTERNAL');
     expect(buildRefundBody(100, internalCfg).get('testMode')).toBeNull();
     expect(buildRefundBody(100, liveCfg).get('testMode')).toBeNull();
+  });
+
+  it('omits the test flag on the applepay channel, matching its debits', () => {
+    expect(buildRefundBody(100, applePayCfg).get('testMode')).toBeNull();
   });
 });

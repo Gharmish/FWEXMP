@@ -61,7 +61,8 @@ export function baseUrlFor(mode: HyperpayConfig['mode'], override: string): stri
  * customer/billing details travel — just entity, amount, currency.
  * Same test-flag rule as checkouts: `testMode=EXTERNAL` never reaches
  * the live server, and travels only for the external test connector so
- * a refund matches the routing of the debit it reverses.
+ * a refund matches the routing of the debit it reverses — which means
+ * it also stays off the applepay channel, whose debits never carry it.
  */
 export function buildRefundBody(amountSar: number, cfg: HyperpayConfig): URLSearchParams {
   const body = new URLSearchParams({
@@ -70,7 +71,7 @@ export function buildRefundBody(amountSar: number, cfg: HyperpayConfig): URLSear
     currency: 'SAR',
     paymentType: 'RF',
   });
-  if (cfg.mode === 'test' && cfg.testConnector === 'external') {
+  if (cfg.mode === 'test' && cfg.testConnector === 'external' && cfg.channel !== 'applepay') {
     body.set('testMode', 'EXTERNAL');
   }
   return body;
@@ -81,11 +82,15 @@ export function buildRefundBody(amountSar: number, cfg: HyperpayConfig): URLSear
  * the test-flag gating and parameter set are unit-testable without env.
  *
  * `testMode=EXTERNAL` and `customParameters[3DS2_enrolled]=true` are
- * added **only in test mode with the `external` connector** — they must
- * never reach the live server. Omitting them routes the test server to
- * OPPWA's internal simulator (2026-07-12: HyperPay's external MPGS test
- * terminal declines MADA/MASTER with 800.100.156 INVALID_REQUEST, so
- * `internal` is the workaround until they fix their side).
+ * added **only in test mode with the `external` connector, and never on
+ * the applepay channel** — they must not reach the live server, and
+ * HyperPay confirmed (2026-08-10 meeting) they must not travel with
+ * Apple Pay checkouts either: the wallet token carries its own
+ * cryptogram, so 3DS enrolment/external-acquirer routing don't apply.
+ * Omitting them on cards routes the test server to OPPWA's internal
+ * simulator (2026-07-12: HyperPay's external MPGS test terminal
+ * declines MADA/MASTER with 800.100.156 INVALID_REQUEST, so `internal`
+ * is the workaround until they fix their side).
  */
 export function buildCheckoutBody(
   input: PrepareCheckoutInput,
@@ -137,7 +142,7 @@ export function buildCheckoutBody(
     if (value) body.set(param, value);
   }
 
-  if (cfg.mode === 'test' && cfg.testConnector === 'external') {
+  if (cfg.mode === 'test' && cfg.testConnector === 'external' && cfg.channel !== 'applepay') {
     body.set('testMode', 'EXTERNAL');
     body.set('customParameters[3DS2_enrolled]', 'true');
   }

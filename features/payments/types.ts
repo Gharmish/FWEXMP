@@ -68,9 +68,13 @@ export interface HyperpayConfig {
    * MPGS test terminal (requires `testMode=EXTERNAL` + the 3DS2 custom
    * parameter); `internal` = OPPWA's built-in simulator (no test flags —
    * the widget walks through a simulated 3DS/acquirer page instead).
-   * Ignored in live mode.
+   * Ignored in live mode, and irrelevant to Apple Pay: wallet tokens
+   * carry their own cryptogram, so the test flags must never travel on
+   * the applepay channel (HyperPay, 2026-08-10 meeting).
    */
   testConnector: 'external' | 'internal';
+  /** Channel this config targets — gates the test-only flags off Apple Pay. */
+  channel: PaymentChannel;
 }
 
 /** Result block returned on every OPPWA response. */
