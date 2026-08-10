@@ -375,6 +375,12 @@ interface TracePathProps {
   d: string;
   className?: string;
   delay?: number;
+  /**
+   * Animate even during the initial document load (same contract as
+   * MountFade's `eager`). Only for decorative strokes that are never the
+   * LCP candidate — an eager path SSRs undrawn until hydration.
+   */
+  eager?: boolean;
 }
 
 /**
@@ -383,7 +389,7 @@ interface TracePathProps {
  * fully drawn under reduced motion. Non-scaling stroke keeps the hairline
  * true inside stretched (`preserveAspectRatio="none"`) viewBoxes.
  */
-export function TracePath({ d, className, delay = 0 }: TracePathProps) {
+export function TracePath({ d, className, delay = 0, eager = false }: TracePathProps) {
   const reduce = useReducedMotion();
   const shared = {
     d,
@@ -396,7 +402,7 @@ export function TracePath({ d, className, delay = 0 }: TracePathProps) {
     vectorEffect: 'non-scaling-stroke',
   } as const;
   const isInitial = useIsInitialDocumentLoad();
-  if (reduce || isInitial) return <path {...shared} />;
+  if (reduce || (isInitial && !eager)) return <path {...shared} />;
   return (
     <motion.path
       {...shared}

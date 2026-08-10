@@ -370,6 +370,25 @@ body {
   }
 }
 
+/* Hero highlands mist (components/marketing/hero-highlands.tsx). Ambient
+ * infinite drift can't ride the one spring — like the category-tile
+ * marquee, it's the sanctioned exception to the spring-only rule. Two
+ * phase-shifted variants so the bands never move in lockstep. The global
+ * reduced-motion rule below freezes both. */
+@theme {
+  --animate-mist-a: mist-drift 26s ease-in-out -8s infinite alternate;
+  --animate-mist-b: mist-drift 36s ease-in-out infinite alternate-reverse;
+
+  @keyframes mist-drift {
+    from {
+      transform: translateX(-5%);
+    }
+    to {
+      transform: translateX(5%);
+    }
+  }
+}
+
 /* Honor reduced-motion globally (BRIEF.md motion + accessibility). */
 @media (prefers-reduced-motion: reduce) {
   *,

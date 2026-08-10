@@ -2328,6 +2328,15 @@
   "home": {
     "eyebrow": "Abha · Aseer",
     "headline": "Experiences hosted by the people who know Aseer best.",
+    "headlineTemplate": "{word} experiences hosted by the people who know Aseer best.",
+    "headlineWords": {
+      "nature": "Nature",
+      "heritage": "Heritage",
+      "food": "Food",
+      "wellness": "Wellness",
+      "adventure": "Adventure",
+      "family": "Family"
+    },
     "intro": "A curated marketplace of authentic Aseeri experiences — heritage, mountains, food, and more — co-created with local hosts.",
     "cta": "Discover experiences",
     "originalsTitle": "Gharmish Originals",

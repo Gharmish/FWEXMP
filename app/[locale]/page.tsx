@@ -14,16 +14,7 @@ import { JsonLd } from '@/components/seo/json-ld';
 import { ExperienceCard } from '@/features/experiences/components/experience-card';
 import { ExperienceCardSkeleton } from '@/features/experiences/components/experience-card-skeleton';
 import { Skeleton } from '@/components/ui/skeleton';
-import Image from 'next/image';
-import {
-  FadeIn,
-  MountFade,
-  ParallaxY,
-  RiseIn,
-  RiseInWords,
-  Stagger,
-  StaggerItem,
-} from '@/components/ui/motion';
+import { FadeIn, MountFade, RiseInWords, Stagger, StaggerItem } from '@/components/ui/motion';
 import { CATEGORIES } from '@/features/experiences/lib/sample-data';
 import { getPlatformSettings } from '@/lib/platform-settings';
 import { getExperiences, getFeaturedExperiences } from '@/features/experiences/queries';
@@ -36,7 +27,8 @@ import { SocialProofStrip } from '@/features/reviews/components/social-proof-str
 import { WhyGharmish } from '@/components/marketing/why-gharmish';
 import { HostCta } from '@/components/marketing/host-cta';
 import { CategoryTiles } from '@/components/marketing/category-tiles';
-import { HeroRidgeline } from '@/components/marketing/hero-ridgeline';
+import { HeroHighlands } from '@/components/marketing/hero-highlands';
+import { HeroHeadline } from '@/components/marketing/hero-headline';
 
 const languagesAlternates = Object.fromEntries(routing.locales.map((l) => [l, `${SITE_URL}/${l}`]));
 
@@ -86,17 +78,25 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
   // is white-screen time on every visit).
   const [experiences, settings] = await Promise.all([getExperiences(), getPlatformSettings()]);
   const categories = CATEGORIES.filter((c) => settings.enabledCategories.includes(c.key));
-  // Editorial hero photograph — the most on-brand landscape available
-  // (nature first, then adventure, then heritage, then anything shot).
-  // Null degrades to the type-only hero, so thin photography never
-  // breaks the page.
-  const heroImagePriority: readonly Category[] = ['nature', 'adventure', 'heritage'];
-  const heroImage =
-    heroImagePriority
-      .map((c) => experiences.find((e) => e.category === c && e.heroImage)?.heroImage)
-      .find(Boolean) ??
-    experiences.find((e) => e.heroImage)?.heroImage ??
-    null;
+  // Rotating headline words — only enabled categories, in taxonomy order.
+  // (women_only is excluded: it doesn't compose grammatically in either
+  // locale's headline template.) Short forms live in messages, not
+  // CategoryMeta: the tile label "Food & coffee" is too long mid-sentence.
+  const headlineWords = (
+    [
+      { key: 'nature', label: t('headlineWords.nature') },
+      { key: 'heritage', label: t('headlineWords.heritage') },
+      { key: 'food', label: t('headlineWords.food') },
+      { key: 'wellness', label: t('headlineWords.wellness') },
+      { key: 'adventure', label: t('headlineWords.adventure') },
+      { key: 'family', label: t('headlineWords.family') },
+    ] as const satisfies readonly { key: Category; label: string }[]
+  ).filter((w) => settings.enabledCategories.includes(w.key));
+  // The template's {word} placeholder splits it into the static halves
+  // around the rotating slot (t.raw: interpolating would need a value).
+  const [headlinePrefix = '', headlineSuffix = ''] = (
+    t.raw('headlineTemplate') as string
+  ).split('{word}');
   // Admin-set announcement band (Eid hours, road closures, …). Per
   // locale; an empty value in the active locale hides the band.
   const announcement = loc === 'ar' ? settings.announcementAr : settings.announcementEn;
@@ -134,63 +134,50 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
           {announcement}
         </p>
       )}
-      {/* Hero — editorial split: the headline cascades in word by word on
-          the inline-start side; a tall Aseer photograph settles from a slow
-          Ken Burns zoom and drifts on scroll at the end side (desktop only —
-          mobile keeps the fast type-forward hero). A hairline Sarawat
-          ridgeline traces itself in below as the section divider. All LCP
-          candidates stay transform-only: RiseInWords on the H1, scale-settle
-          + ParallaxY on the image; nothing ever renders at opacity 0. */}
-      <section>
-        <div className="mx-auto w-full max-w-6xl px-6 pt-24 pb-10 sm:pt-32 sm:pb-12">
-          <div
-            className={cn(
-              'grid items-center gap-12',
-              heroImage && 'lg:grid-cols-[1fr_minmax(0,420px)]',
-            )}
-          >
-            <div className="flex max-w-3xl flex-col gap-6">
-              <MountFade eager delay={0}>
-                <p className={eyebrowClassName}>{t('eyebrow')}</p>
-              </MountFade>
-              <h1 className="font-display text-5xl font-semibold tracking-[-0.035em] text-balance sm:text-6xl">
-                <RiseInWords text={t('headline')} delay={0.05} />
-              </h1>
-              <MountFade eager delay={0.25}>
-                <p className="text-sarat-black-600 max-w-xl text-lg">{t('intro')}</p>
-              </MountFade>
-              <MountFade eager delay={0.33}>
-                <div>
-                  <Link
-                    href="/experiences"
-                    className={cn(buttonVariants({ variant: 'primary', size: 'lg' }))}
-                  >
-                    {t('cta')}
-                  </Link>
-                </div>
-              </MountFade>
-            </div>
-            {heroImage && (
-              <div className="rounded-image relative hidden aspect-[4/5] overflow-hidden lg:block">
-                {/* Bleed matches the drift distance so edges never show; the
-                    Ken Burns settle only ever adds bleed on top of that. */}
-                <ParallaxY distance={20} className="absolute -inset-5">
-                  <RiseIn y={0} scale={1.06} delay={0.1} className="absolute inset-0">
-                    <Image
-                      src={heroImage}
-                      alt={t('heroImageAlt')}
-                      fill
-                      priority
-                      sizes="(min-width: 1024px) 420px, 0px"
-                      className="object-cover"
-                    />
-                  </RiseIn>
-                </ParallaxY>
+      {/* Hero — living highlands: the headline cascades in word by word
+          with one slot rotating through the enabled categories in their
+          brand tones, over layered Sarat ridge silhouettes that settle on
+          load, drift apart on scroll, and breathe with slow mist. Screen
+          readers get the canonical positioning statement (sr-only); the
+          animated presentation is aria-hidden. Everything on the load path
+          stays transform-only — nothing ever renders at opacity 0. */}
+      <section className="relative">
+        <HeroHighlands />
+        <div className="relative mx-auto w-full max-w-6xl px-6 pt-24 pb-40 sm:pt-32 sm:pb-52 lg:pb-60">
+          <div className="flex max-w-3xl flex-col gap-6">
+            <MountFade eager delay={0}>
+              <p className={eyebrowClassName}>{t('eyebrow')}</p>
+            </MountFade>
+            <h1 className="font-display text-5xl font-semibold tracking-[-0.035em] text-balance sm:text-6xl">
+              <span className="sr-only">{t('headline')}</span>
+              {headlineWords.length > 0 ? (
+                <HeroHeadline
+                  prefix={headlinePrefix.trim()}
+                  suffix={headlineSuffix.trim()}
+                  words={headlineWords}
+                />
+              ) : (
+                // Every category disabled — fall back to the plain cascade.
+                <span aria-hidden>
+                  <RiseInWords text={t('headline')} delay={0.05} />
+                </span>
+              )}
+            </h1>
+            <MountFade eager delay={0.3}>
+              <p className="text-sarat-black-600 max-w-xl text-lg">{t('intro')}</p>
+            </MountFade>
+            <MountFade eager delay={0.4}>
+              <div>
+                <Link
+                  href="/experiences"
+                  className={cn(buttonVariants({ variant: 'primary', size: 'lg' }))}
+                >
+                  {t('cta')}
+                </Link>
               </div>
-            )}
+            </MountFade>
           </div>
         </div>
-        <HeroRidgeline />
       </section>
 
       {/* Category tiles — discovery row and the page's one moment of colour
