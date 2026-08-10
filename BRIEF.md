@@ -85,7 +85,7 @@ Status chips and banners always pair a `*-surface` background with the matching 
 | Adventure                | Soudah Sunset                        | المغامرة       |
 | Family                   | Sarawat Blue                         | العائلة        |
 | Women only               | Tihama Coral                         | للنساء فقط     |
-| Originals (premium tier) | Sarat Black bg + Saffron Gold accent | أصول غارميش    |
+| Originals (premium tier) | Sarat Black bg + Saffron Gold accent | تجارب غارميش الأصلية |
 
 ### Typography
 

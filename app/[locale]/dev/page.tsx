@@ -91,7 +91,7 @@ const TYPE_SCALE = [
     role: 'Eyebrow',
     cls: 'font-medium text-[11px] tracking-[0.2em] uppercase',
     en: 'Originals',
-    ar: 'أصول',
+    ar: 'تجارب غارميش الأصلية',
   },
 ] as const;
 
@@ -503,7 +503,7 @@ export default async function StyleGuidePage({ params }: { params: Promise<{ loc
             experience={makeExperience({
               slug: 'dev-originals',
               titleEn: 'Originals tier — saved state',
-              titleAr: 'فئة الأصول — محفوظ',
+              titleAr: 'فئة التجارب الأصلية — محفوظ',
               featured: true,
               category: 'heritage',
               priceSar: 980,
