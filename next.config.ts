@@ -66,9 +66,9 @@ const nextConfig: NextConfig = {
     // generation ENOENTs in production.
     '/[locale]/book/[reference]/pay/return': [
       './lib/og/fonts/*.ttf',
-      './public/images/gharmish-wordmark.png',
+      './public/images/gharmish-email-logo.png',
     ],
-    '/api/webhooks/hyperpay': ['./lib/og/fonts/*.ttf', './public/images/gharmish-wordmark.png'],
+    '/api/webhooks/hyperpay': ['./lib/og/fonts/*.ttf', './public/images/gharmish-email-logo.png'],
   },
   images: {
     /**

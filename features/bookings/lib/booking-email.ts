@@ -47,7 +47,7 @@ function bidiIsolate(value: string): string {
 }
 
 /** Brand wordmark for email headers — PNG (clients don't render SVG). */
-const EMAIL_LOGO_URL = `${SITE_URL}/images/gharmish-wordmark.png`;
+const EMAIL_LOGO_URL = `${SITE_URL}/images/gharmish-email-logo.png`;
 
 /**
  * The experience's branded OG card (1200×630 PNG, localized, RTL-aware)

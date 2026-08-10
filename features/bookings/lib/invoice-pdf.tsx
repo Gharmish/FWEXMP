@@ -50,17 +50,17 @@ Font.register({
 Font.registerHyphenationCallback((word) => [word]);
 
 /**
- * Brand wordmark (black-on-transparent PNG, 1380×393) embedded as a data
+ * Brand lockup (black-on-transparent PNG, 1093×144) embedded as a data
  * URI so the header carries the real logo, not a text fallback. Read once,
  * lazily and defensively — a missing/unreadable asset must never break PDF
  * generation, so we fall back to the "Gharmish" wordmark text.
  */
-const WORDMARK_ASPECT = 1380 / 393;
+const WORDMARK_ASPECT = 1093 / 144;
 let wordmarkDataUri: string | null | undefined;
 function loadWordmark(): string | null {
   if (wordmarkDataUri !== undefined) return wordmarkDataUri;
   try {
-    const bytes = fs.readFileSync(path.join(process.cwd(), 'public/images/gharmish-wordmark.png'));
+    const bytes = fs.readFileSync(path.join(process.cwd(), 'public/images/gharmish-email-logo.png'));
     wordmarkDataUri = `data:image/png;base64,${bytes.toString('base64')}`;
   } catch {
     wordmarkDataUri = null;
@@ -164,7 +164,7 @@ export async function renderInvoicePdf(input: InvoicePdfInput): Promise<Buffer> 
               // eslint-disable-next-line jsx-a11y/alt-text -- @react-pdf Image is a PDF primitive with no alt prop; the brand name is in the seller lines and QR caption below.
               <Image
                 src={wordmark}
-                style={{ width: 118, height: 118 / WORDMARK_ASPECT, marginBottom: 8 }}
+                style={{ width: 180, height: 180 / WORDMARK_ASPECT, marginBottom: 8 }}
               />
             ) : (
               <Text style={[styles.brand, { marginBottom: 4 }]}>Gharmish</Text>

@@ -13,7 +13,7 @@ import { bookings } from '@/db/schema';
 import { renderReceiptEmail } from '@/features/bookings/lib/booking-email-render';
 
 /** Brand wordmark for email headers — PNG (clients don't render SVG). */
-const EMAIL_LOGO_URL = `${SITE_URL}/images/gharmish-wordmark.png`;
+const EMAIL_LOGO_URL = `${SITE_URL}/images/gharmish-email-logo.png`;
 
 /**
  * Tell the guest their review got a reply. Without this the reply only

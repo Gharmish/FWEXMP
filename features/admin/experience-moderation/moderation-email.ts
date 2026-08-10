@@ -10,7 +10,7 @@ import { SITE_URL } from '@/lib/site';
 import { renderReceiptEmail } from '@/features/bookings/lib/booking-email-render';
 
 /** Brand wordmark for email headers — PNG (clients don't render SVG). */
-const EMAIL_LOGO_URL = `${SITE_URL}/images/gharmish-wordmark.png`;
+const EMAIL_LOGO_URL = `${SITE_URL}/images/gharmish-email-logo.png`;
 
 export type ModerationDecision = 'approved' | 'rejected' | 'changes_requested';
 

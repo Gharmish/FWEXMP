@@ -13,7 +13,7 @@ import { renderReceiptEmail } from '@/features/bookings/lib/booking-email-render
 import { bookingManageUrl } from '@/features/bookings/lib/link-token';
 
 /** Brand wordmark for email headers — PNG (clients don't render SVG). */
-const EMAIL_LOGO_URL = `${SITE_URL}/images/gharmish-wordmark.png`;
+const EMAIL_LOGO_URL = `${SITE_URL}/images/gharmish-email-logo.png`;
 
 /**
  * Tell the guest their report was handled (the "guest resolution

@@ -103,7 +103,7 @@ export function renderReceiptEmail(content: ReceiptContent): { html: string; tex
   // The wordmark is an inline (not block) img so its alignment follows
   // the document direction — start-aligned in both LTR and RTL.
   const logoHtml = content.logoUrl
-    ? `<tr><td style="padding-bottom:${content.sellerLines?.length ? 8 : 24}px"><img src="${esc(content.logoUrl)}" width="126" height="36" alt="Gharmish" style="border:0;outline:none" /></td></tr>\n`
+    ? `<tr><td style="padding-bottom:${content.sellerLines?.length ? 8 : 24}px"><img src="${esc(content.logoUrl)}" width="273" height="36" alt="Gharmish — Experiences Marketplace" style="border:0;outline:none" /></td></tr>\n`
     : '';
 
   // Seller identity (name / CR / region) — small muted lines that make the
