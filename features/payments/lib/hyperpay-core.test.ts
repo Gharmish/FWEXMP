@@ -169,6 +169,30 @@ describe('buildCheckoutBody', () => {
     expect(body.get('entityId')).toBe('ent_applepay');
     expect(body.get('integrity')).toBe('true');
   });
+
+  it('keeps the applepay body minimal: no card.holder, no customer.mobile (guide audit 2026-08-10)', () => {
+    const body = buildCheckoutBody(
+      {
+        ...input,
+        cardHolder: 'Sara Al Qahtani',
+        customer: { ...input.customer, mobile: '+966541104000' },
+      },
+      applePayCfg,
+    );
+    expect(body.has('card.holder')).toBe(false);
+    expect(body.has('customer.mobile')).toBe(false);
+    // The same inputs DO travel on the card channel.
+    const cardBody = buildCheckoutBody(
+      {
+        ...input,
+        cardHolder: 'Sara Al Qahtani',
+        customer: { ...input.customer, mobile: '+966541104000' },
+      },
+      testCfg,
+    );
+    expect(cardBody.get('card.holder')).toBe('Sara Al Qahtani');
+    expect(cardBody.get('customer.mobile')).toBe('+966541104000');
+  });
 });
 
 describe('buildRefundBody', () => {

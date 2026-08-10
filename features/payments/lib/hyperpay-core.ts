@@ -115,16 +115,23 @@ export function buildCheckoutBody(
   // "At least one phone number" is in the 3DS2 mandatory group (like
   // email and billing); sent when the booking has one — an email-OTP
   // guest may not, and an absent optional beats an empty mandatory.
-  if (input.customer.mobile) {
+  // Cards only: the Apple Pay guide requires no customer phone, the
+  // July 2026 working integration never sent one, and every post-July
+  // extra on the applepay body is a suspect in the zero-transaction
+  // failures (2026-08-10 guide audit) — wallet checkouts stay minimal.
+  if (input.customer.mobile && cfg.channel !== 'applepay') {
     body.set('customer.mobile', input.customer.mobile);
   }
 
   // Apple Pay tokens carry no cardholder name, and the gateway declines
-  // a blank holder with 100.100.401. Supply it at checkout creation from
-  // the guest's own details — sheet-side injection is impossible (the
-  // widget's submitOnPaymentAuthorized duplicates parameters and the
-  // gateway rejects the submission outright).
-  if (input.cardHolder) {
+  // a blank holder with 100.100.401. `card.holder` at checkout creation
+  // was the 2026-07-15 workaround, but it was only ever probe-verified
+  // at CREATION — no token submission ran between 07-15 and the 08-06
+  // zero-transaction failures, so it is a prime suspect and the guide
+  // lists no holder param for Apple Pay. Dropped for wallets
+  // (2026-08-10); if declines return as 100.100.401, that is HyperPay's
+  // risk team's fix to make, not ours.
+  if (input.cardHolder && cfg.channel !== 'applepay') {
     body.set('card.holder', input.cardHolder);
   }
 

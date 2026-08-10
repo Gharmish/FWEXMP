@@ -106,28 +106,26 @@ export function PaymentWidget({
       // Passed through to Apple's PaymentRequest by the widget; the amount
       // itself comes from the prepared checkout, never from the browser.
       //
-      // This block mirrors the script HyperPay sent in the 2026-08-10
-      // meeting, verbatim except their sample placeholders (MyStore /
-      // COMPANY, INC. / amount 0.10 — the real amount auto-fills from the
-      // checkout). Their `version: 3` contradicts their own guide's
-      // mada-needs-≥5 rule, and `applePayCapabilities` availability mode
-      // needed `merchantIdentifier` per the widget source — both applied
-      // as instructed; revisit with HyperPay if mada drops off the sheet
-      // or the button vanishes.
+      // Guide-exact per hyperpay.docs.oppwa.com (2026-08-10 audit), NOT
+      // the boilerplate their support sent that day — that script broke
+      // their own documented rules twice: `version: 3` (guide: "Mada
+      // support requires version 5+") and `applePayCapabilities`
+      // availability without the `merchantIdentifier` the guide requires
+      // for that mode. Default availability (canMakePayments) needs no
+      // identifier and is what the July working integration used.
       //
       // Do NOT add requiredBillingContactFields/submitOnPaymentAuthorized:
       // appending sheet contacts duplicates the checkout's customer/billing
       // parameters and the gateway rejects the submission with 200.300.404
-      // (verified 2026-07-14/15). The cardholder name the Apple token lacks
-      // is supplied server-side — `card.holder` on the applepay-channel
-      // checkout (hyperpay-core).
+      // (verified 2026-07-14/15).
       applePay: {
-        version: 3,
-        checkAvailability: 'applePayCapabilities',
+        version: 5,
         displayName: 'Gharmish',
         total: { label: 'Gharmish' },
-        supportedNetworks: ['mada', 'masterCard', 'visa'],
+        currencyCode: 'SAR',
         countryCode: 'SA',
+        supportedNetworks: ['mada', 'masterCard', 'visa'],
+        merchantCapabilities: ['supports3DS', 'supportsCredit', 'supportsDebit'],
         buttonStyle: 'black',
       },
       onReady: () => {
