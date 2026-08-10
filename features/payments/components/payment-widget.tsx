@@ -105,27 +105,30 @@ export function PaymentWidget({
       },
       // Passed through to Apple's PaymentRequest by the widget; the amount
       // itself comes from the prepared checkout, never from the browser.
+      //
+      // This block mirrors the script HyperPay sent in the 2026-08-10
+      // meeting, verbatim except their sample placeholders (MyStore /
+      // COMPANY, INC. / amount 0.10 — the real amount auto-fills from the
+      // checkout). Their `version: 3` contradicts their own guide's
+      // mada-needs-≥5 rule, and `applePayCapabilities` availability mode
+      // needed `merchantIdentifier` per the widget source — both applied
+      // as instructed; revisit with HyperPay if mada drops off the sheet
+      // or the button vanishes.
+      //
+      // Do NOT add requiredBillingContactFields/submitOnPaymentAuthorized:
+      // appending sheet contacts duplicates the checkout's customer/billing
+      // parameters and the gateway rejects the submission with 200.300.404
+      // (verified 2026-07-14/15). The cardholder name the Apple token lacks
+      // is supplied server-side — `card.holder` on the applepay-channel
+      // checkout (hyperpay-core).
       applePay: {
-        // 5, not 3: the HyperPay Apple Pay guide version-gates the mada
-        // network at Apple Pay JS ≥5 — at version 3 Safari drops mada
-        // from the sheet, and mada wallet cards are the norm here.
-        // Supported by every iOS ≥12.1 device (the widget hides the
-        // button via supportsVersion() otherwise).
-        version: 5,
+        version: 3,
+        checkAvailability: 'applePayCapabilities',
         displayName: 'Gharmish',
         total: { label: 'Gharmish' },
-        currencyCode: 'SAR',
-        countryCode: 'SA',
         supportedNetworks: ['mada', 'masterCard', 'visa'],
-        merchantCapabilities: ['supports3DS', 'supportsCredit', 'supportsDebit'],
-        // Do NOT use requiredBillingContactFields/submitOnPaymentAuthorized
-        // here: appending sheet contacts at payment time duplicates the
-        // customer/billing parameters our checkout already carries, and
-        // the gateway rejects the whole submission with 200.300.404
-        // (verified 2026-07-14/15 across three variants). The cardholder
-        // name the Apple token lacks is supplied server-side instead —
-        // `card.holder` on the applepay-channel checkout (hyperpay-core).
-        style: 'black',
+        countryCode: 'SA',
+        buttonStyle: 'black',
       },
       onReady: () => {
         // The moment money leaves is where the amount must be visible —
