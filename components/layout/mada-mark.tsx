@@ -1,18 +1,20 @@
+import { cn } from '@/lib/utils';
+
 /**
  * Official mada network mark (Saudi Payments brand asset, supplied 2026-07-09).
  * The bicolour blocks and Arabic/Latin wordmark keep their trademarked
  * colours — the ONE sanctioned exception to BRIEF §3's palette rule
  * (owner-approved 2026-07-08): third-party payment marks must read as the
- * real badges. Rendered on a white tile by {@link PaymentMarks}.
+ * real badges. Rendered inside a framed badge by {@link PaymentMarks}.
  */
-export function MadaMark({ name }: { name: string }) {
+export function MadaMark({ name, className }: { name: string; className?: string }) {
   return (
     <svg
       role="img"
       aria-label={name}
       viewBox="0 0 796.2 265.5"
       focusable={false}
-      className="h-5 w-auto"
+      className={cn('h-5 w-auto', className)}
     >
       <g>
         <rect y="153.1" fill="#84B740" width="336.8" height="112.2" />

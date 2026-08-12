@@ -2,17 +2,21 @@ import { cn } from '@/lib/utils';
 import { MadaMark } from '@/components/layout/mada-mark';
 
 /**
- * Payment-network marks, shared by the footer and the checkout page.
+ * Payment-network badges, shared by the footer and the checkout page.
  *
- * This is the ONE sanctioned exception to BRIEF §3's palette rule
- * (owner-approved 2026-07-08): Visa, Mastercard, and mada are trademarked marks
- * and must appear in their own brand colours to read as the real payment badges
- * — the palette rule governs our surfaces, not third-party logos. Apple Pay is
- * drawn in `sarat-black`, which is already on-palette. Each mark sits on a white
- * tile so the colours stay legible on any surface, mirroring how the card badges
- * appear at checkout. mada uses the official Saudi Payments lockup
- * ({@link MadaMark}); Visa is its official vector wordmark, Mastercard its
- * two-circle symbol + wordmark, all drawn inline below.
+ * House style (owner-supplied asset spec, 2026-08-12): every network sits in
+ * an identical framed badge — Apple Pay's own badge geometry (25:16 aspect,
+ * white fill, black border at 3.33% of height, corner radius at 13.99% of
+ * height) applied to all four — so the row needs no per-logo tuning and reads
+ * on any surface without a plate. Marks are drawn as inline vectors rather
+ * than the supplied rasters, and Mastercard uses the current two-circle
+ * symbol rather than the retired pre-2016 lockup in the asset set (both
+ * swaps recommended by that set's own README).
+ *
+ * Palette: the ONE sanctioned exception to BRIEF §3's palette rule
+ * (owner-approved 2026-07-08) — Visa, Mastercard, and mada are trademarked
+ * marks and keep their own brand colours; the frame and Apple Pay are drawn
+ * in `sarat-black`, which is on-palette.
  */
 
 interface PaymentMarksProps {
@@ -28,8 +32,9 @@ interface PaymentMarksProps {
   className?: string;
 }
 
-const tileClassName =
-  'border-sarat-black/8 inline-flex h-7 items-center rounded-md border-[0.5px] bg-white px-2.5';
+// 50×32 badge per logos.json: radius 32 × 13.99% ≈ 4.5px, border 32 × 3.33% ≈ 1px.
+const badgeClassName =
+  'border-sarat-black flex aspect-[25/16] h-8 items-center justify-center rounded-[4.5px] border bg-white';
 
 function VisaMark({ name }: { name: string }) {
   // Official Visa wordmark, drawn as vector letterforms in Visa blue (#1434CB)
@@ -40,7 +45,7 @@ function VisaMark({ name }: { name: string }) {
       aria-label={name}
       viewBox="0 0 750 244"
       focusable={false}
-      className="h-3 w-auto"
+      className="h-[11px] w-auto"
     >
       <path
         fill="#1434CB"
@@ -57,26 +62,19 @@ function VisaMark({ name }: { name: string }) {
 
 function MastercardMark({ name }: { name: string }) {
   // Official Mastercard symbol: two interlocking circles (red left, amber
-  // right, orange lens where they overlap) with the lowercase wordmark beneath.
+  // right, orange lens where they overlap). At badge size the symbol stands
+  // alone, per Mastercard's small-size usage.
   return (
     <svg
       role="img"
       aria-label={name}
-      viewBox="0 0 132 100"
+      viewBox="20 6 92 68"
       focusable={false}
-      className="h-4 w-auto"
+      className="h-[18px] w-auto"
     >
       <circle cx="54" cy="40" r="34" fill="#EB001B" />
       <circle cx="78" cy="40" r="34" fill="#F79E1B" />
       <path fill="#FF5F00" d="M66 14.6a34 34 0 0 1 0 50.8 34 34 0 0 1 0-50.8z" />
-      <text
-        x="66"
-        y="96"
-        textAnchor="middle"
-        className="fill-sarat-black [font-family:Arial,Helvetica,sans-serif] text-[20px] font-medium lowercase"
-      >
-        mastercard
-      </text>
     </svg>
   );
 }
@@ -87,14 +85,16 @@ function ApplePayMark({ name }: { name: string }) {
     <span
       role="img"
       aria-label={name}
-      className="text-sarat-black inline-flex items-center gap-0.5 text-[13px] leading-none font-medium"
+      // The Apple Pay lockup always reads glyph-then-"Pay", even in RTL.
+      dir="ltr"
+      className="text-sarat-black inline-flex items-center gap-0.5 text-xs leading-none font-medium"
     >
       <svg
         viewBox="0 0 24 24"
         fill="currentColor"
         aria-hidden
         focusable={false}
-        className="h-3.5 w-auto"
+        className="h-3 w-auto"
       >
         <path d="M17.05 12.04c-.03-2.4 1.96-3.55 2.05-3.61-1.12-1.63-2.86-1.86-3.48-1.88-1.48-.15-2.89.87-3.64.87-.75 0-1.91-.85-3.14-.83-1.62.02-3.11.94-3.94 2.39-1.68 2.91-.43 7.22 1.2 9.58.8 1.16 1.75 2.46 3 2.41 1.2-.05 1.66-.78 3.11-.78 1.45 0 1.86.78 3.13.75 1.29-.02 2.11-1.18 2.9-2.34.91-1.34 1.29-2.64 1.31-2.71-.03-.01-2.51-.96-2.54-3.83zM14.7 5.36c.66-.8 1.11-1.92.99-3.03-.95.04-2.11.63-2.79 1.43-.61.71-1.15 1.85-1 2.94 1.06.08 2.14-.54 2.8-1.34z" />
       </svg>
@@ -104,19 +104,20 @@ function ApplePayMark({ name }: { name: string }) {
 }
 
 export function PaymentMarks({ label, names, className }: PaymentMarksProps) {
+  // Badge order follows the asset spec (logos.json).
   return (
     <ul aria-label={label} className={cn('flex flex-wrap items-center gap-2', className)}>
-      <li className={tileClassName}>
-        <MadaMark name={names.mada} />
+      <li className={badgeClassName}>
+        <ApplePayMark name={names.applePay} />
       </li>
-      <li className={tileClassName}>
+      <li className={badgeClassName}>
         <VisaMark name={names.visa} />
       </li>
-      <li className={tileClassName}>
+      <li className={badgeClassName}>
         <MastercardMark name={names.mastercard} />
       </li>
-      <li className={tileClassName}>
-        <ApplePayMark name={names.applePay} />
+      <li className={badgeClassName}>
+        <MadaMark name={names.mada} className="h-[11px]" />
       </li>
     </ul>
   );
