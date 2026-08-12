@@ -63,7 +63,7 @@ function RidgeLayer({ crest, fill, stroke, parallax, rise }: RidgeLayerProps) {
           className="absolute inset-0 size-full"
         >
           <path d={crest + CLOSE} className={fill} />
-          {stroke && <TracePath d={crest} className={stroke} delay={rise.delay + 0.2} eager />}
+          {stroke && <TracePath d={crest} className={stroke} delay={rise.delay + 0.12} eager />}
         </svg>
       </RiseIn>
     </ParallaxY>
@@ -81,7 +81,7 @@ export function HeroHighlands() {
         fill="fill-habala-mist-100/80"
         stroke="text-habala-mist-200"
         parallax={6}
-        rise={{ y: 34, delay: 0.3 }}
+        rise={{ y: 34, delay: 0.18 }}
       />
       {/* Mist between far and mid ridges. */}
       <div className="animate-mist-a absolute bottom-[38%] start-[6%] h-16 w-[45%] rounded-full bg-white/60 blur-2xl" />
@@ -89,7 +89,7 @@ export function HeroHighlands() {
         crest={CREST_MID}
         fill="fill-habala-mist-200/70"
         parallax={12}
-        rise={{ y: 26, delay: 0.2 }}
+        rise={{ y: 26, delay: 0.1 }}
       />
       <div className="animate-mist-b absolute bottom-[16%] end-[4%] h-20 w-[55%] rounded-full bg-habala-mist-100/70 blur-3xl" />
       <RidgeLayer
@@ -97,7 +97,7 @@ export function HeroHighlands() {
         fill="fill-juniper-green-100/60"
         stroke="text-juniper-green-200"
         parallax={20}
-        rise={{ y: 18, delay: 0.1 }}
+        rise={{ y: 18, delay: 0.05 }}
       />
       <div className="animate-mist-a absolute bottom-[4%] start-[24%] h-14 w-[40%] rounded-full bg-white/50 blur-2xl" />
       {/* Hand-off: the scene dissolves into the white catalog surface. */}

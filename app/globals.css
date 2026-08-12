@@ -376,8 +376,8 @@ body {
  * phase-shifted variants so the bands never move in lockstep. The global
  * reduced-motion rule below freezes both. */
 @theme {
-  --animate-mist-a: mist-drift 26s ease-in-out -8s infinite alternate;
-  --animate-mist-b: mist-drift 36s ease-in-out infinite alternate-reverse;
+  --animate-mist-a: mist-drift 18s ease-in-out -6s infinite alternate;
+  --animate-mist-b: mist-drift 26s ease-in-out infinite alternate-reverse;
 
   @keyframes mist-drift {
     from {

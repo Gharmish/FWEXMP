@@ -46,9 +46,9 @@ const WORD_TONE: Record<Category, string> = {
   women_only: 'text-tihama-coral-800',
 };
 
-const BASE_DELAY = 0.05;
-const STAGGER = 0.04;
-const ROTATE_MS = 3200;
+const BASE_DELAY = 0.03;
+const STAGGER = 0.025;
+const ROTATE_MS = 2400;
 
 const splitWords = (text: string) => text.split(' ').filter(Boolean);
 
@@ -64,7 +64,12 @@ export function HeroHeadline({ prefix, suffix, words }: HeroHeadlineProps) {
 
   useEffect(() => {
     if (reduce || words.length < 2) return;
-    const id = setInterval(() => setIndex((i) => (i + 1) % words.length), ROTATE_MS);
+    const id = setInterval(() => {
+      // A hidden tab freezes rAF, so exits can't run — advancing anyway
+      // piles un-exited words into the DOM until the tab returns.
+      if (document.hidden) return;
+      setIndex((i) => (i + 1) % words.length);
+    }, ROTATE_MS);
     return () => clearInterval(id);
   }, [reduce, words.length]);
 

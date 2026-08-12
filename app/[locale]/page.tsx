@@ -163,10 +163,10 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
                 </span>
               )}
             </h1>
-            <MountFade eager delay={0.3}>
+            <MountFade eager delay={0.2}>
               <p className="text-sarat-black-600 max-w-xl text-lg">{t('intro')}</p>
             </MountFade>
-            <MountFade eager delay={0.4}>
+            <MountFade eager delay={0.28}>
               <div>
                 <Link
                   href="/experiences"
