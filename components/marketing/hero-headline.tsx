@@ -133,17 +133,19 @@ export function HeroHeadline({ prefix, suffix, words }: HeroHeadlineProps) {
             animate={widths ? { width: widths[index] } : undefined}
             transition={SPRING}
           >
-            {/* Invisible copies of every word, measured for the width spring. */}
-            <span
-              ref={measureRef}
-              aria-hidden
-              className="invisible absolute start-0 top-0 whitespace-nowrap"
-            >
-              {words.map((w) => (
-                <span key={w.key} className="inline-block">
-                  {w.label}
-                </span>
-              ))}
+            {/* Invisible copies of every word, measured for the width spring.
+                The size-0 overflow-hidden wrapper keeps this row (all words
+                on one nowrap line, far wider than the slot) out of the page's
+                scrollable overflow — visibility:hidden alone still let it pan
+                the whole viewport sideways on mobile. */}
+            <span aria-hidden className="absolute start-0 top-0 size-0 overflow-hidden">
+              <span ref={measureRef} className="invisible whitespace-nowrap">
+                {words.map((w) => (
+                  <span key={w.key} className="inline-block">
+                    {w.label}
+                  </span>
+                ))}
+              </span>
             </span>
             {/* popLayout pops the exiting word out of flow, so the incoming
                 word and the width spring land together — no dead gap (wait
