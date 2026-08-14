@@ -16,6 +16,7 @@ import {
 } from '@/features/bookings/queries';
 import { BookingAccessNotice } from '@/features/bookings/components/booking-access-notice';
 import { whatsappLink } from '@/lib/whatsapp';
+import { SITE_URL } from '@/lib/site';
 import { PrintButton } from '@/components/ui/print-button';
 import { GharmishLogo } from '@/components/layout/gharmish-logo';
 import { ReportProblemForm } from '@/features/disputes/components/report-problem-form';
@@ -94,9 +95,20 @@ export async function generateMetadata({ params, searchParams }: PageParams): Pr
     // without an explicit openGraph block the shallow metadata merge shows
     // the root layout's bare brand og:title. Deliberately generic copy only —
     // no booking details may leak into a preview (the crawler holds the
-    // tokenized URL). og:image stays the locale-level brand card.
-    openGraph: { title, description: tSite('description') },
-    twitter: { card: 'summary_large_image', title, description: tSite('description') },
+    // tokenized URL). Declaring the block replaces the parent's resolved
+    // openGraph wholesale — including the [locale]-level opengraph-image
+    // file convention — so the brand card must be re-attached explicitly.
+    openGraph: {
+      title,
+      description: tSite('description'),
+      images: [{ url: `${SITE_URL}/${locale}/opengraph-image`, width: 1200, height: 630 }],
+    },
+    twitter: {
+      card: 'summary_large_image',
+      title,
+      description: tSite('description'),
+      images: [`${SITE_URL}/${locale}/opengraph-image`],
+    },
   };
 }
 
