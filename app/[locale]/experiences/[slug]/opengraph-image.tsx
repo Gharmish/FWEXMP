@@ -5,6 +5,7 @@ import { CATEGORIES } from '@/features/experiences/lib/sample-data';
 import { getExperienceBySlug } from '@/features/experiences/queries';
 import { toArabicText } from '@/features/experiences/lib/arabic-content';
 import { loadOgFonts } from '@/lib/og/og-fonts';
+import { mirrorTokens, nbspJoin, splitBalanced } from '@/lib/og/satori-arabic';
 import { SITE_NAME } from '@/lib/site';
 
 // Queries the DB (Drizzle/postgres), so this must run on Node, not Edge.
@@ -60,7 +61,9 @@ export default async function Image({
           fontFamily,
           fontSize: 56,
           fontWeight: 600,
-          letterSpacing: isAr ? 0 : '-0.03em',
+          // Never pass letterSpacing (even 0) on Arabic runs — any value
+          // pushes Satori into per-cluster layout, which destroys spacing.
+          ...(isAr ? {} : { letterSpacing: '-0.03em' }),
         }}
       >
         {wordmark}
@@ -90,6 +93,28 @@ export default async function Image({
   }).format(exp.priceSar);
   const price = t('experience.price', { price: priceNumber });
 
+  // Satori-safe Arabic runs: NBSP-joined so each renders as one unbreakable
+  // run — Satori splits normal spaces into per-word flex boxes and destroys
+  // RTL order ("رجال الزهور" fused). See lib/og/satori-arabic.
+  const categoryDisplay = isAr ? nbspJoin(categoryLabel) : categoryLabel;
+  const hostNameDisplay = isAr ? nbspJoin(hostName) : hostName;
+  const locationDisplay = isAr ? nbspJoin(location) : location;
+  // The price mixes digits and Arabic ("480 ر.س"): a digit-leading run makes
+  // Satori lay the whole run out LTR (NBSP and RLM don't help — RLM even
+  // tofus), so the tokens are mirrored as flex boxes instead. English keeps
+  // the plain string; Arabic goes through mirrorTokens, which also explodes
+  // "ر.س" so its period can't flip the letters.
+  const priceTokens = isAr
+    ? mirrorTokens(price)
+    : price.split(' ').map((text, i) => ({ text, spaceBefore: i > 0 }));
+
+  // Arabic titles are pre-split into unbreakable lines (Satori's own Arabic
+  // wrapping fuses words); English keeps Satori's native block wrapping.
+  const titleSize = title.length > 60 ? 60 : title.length > 36 ? 68 : 80;
+  const titleLines = isAr
+    ? splitBalanced(title, Math.floor(1010 / (titleSize * 0.5))).map(nbspJoin)
+    : [];
+
   return new ImageResponse(
     <div
       lang={locale}
@@ -106,17 +131,26 @@ export default async function Image({
         padding: 72,
       }}
     >
-      {/* Top: wordmark + category accent */}
+      {/* Top: wordmark + category accent. Satori ignores `dir` for box
+          alignment, so RTL mirroring is done manually with row-reverse. */}
       <div
         style={{
           display: 'flex',
+          flexDirection: isAr ? 'row-reverse' : 'row',
           alignItems: 'center',
           justifyContent: 'space-between',
           width: '100%',
         }}
       >
         <div style={{ display: 'flex', fontSize: 32, fontWeight: 600 }}>{wordmark}</div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+        <div
+          style={{
+            display: 'flex',
+            flexDirection: isAr ? 'row-reverse' : 'row',
+            alignItems: 'center',
+            gap: 14,
+          }}
+        >
           <div
             style={{
               width: 16,
@@ -132,48 +166,104 @@ export default async function Image({
               fontSize: 24,
               fontWeight: 500,
               color: muted,
-              letterSpacing: isAr ? 0 : '0.02em',
+              ...(isAr ? {} : { letterSpacing: '0.02em' }),
             }}
           >
-            {categoryLabel}
+            {categoryDisplay}
           </div>
         </div>
       </div>
 
       {/* Middle: title */}
-      <div
-        style={{
-          // A plain block wraps predictably in Satori; `-webkit-box` clamping
-          // mis-justifies Arabic. Titles wrap naturally within the frame.
-          display: 'block',
-          textAlign: isAr ? 'right' : 'left',
-          fontSize: title.length > 60 ? 60 : title.length > 36 ? 68 : 80,
-          fontWeight: 600,
-          lineHeight: 1.1,
-          letterSpacing: isAr ? 0 : '-0.035em',
-          maxWidth: 1010,
-          maxHeight: 320,
-          overflow: 'hidden',
-        }}
-      >
-        {title}
-      </div>
+      {isAr ? (
+        <div
+          style={{
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'flex-end',
+            alignSelf: 'flex-end',
+            gap: 6,
+            fontSize: titleSize,
+            fontWeight: 600,
+            lineHeight: 1.1,
+            maxWidth: 1010,
+            // Room below the last baseline for yeh dots — overflow clips at
+            // the padding edge (see lib/og/satori-arabic rule 4).
+            paddingBottom: Math.round(titleSize * 0.45),
+            maxHeight: 320,
+            overflow: 'hidden',
+          }}
+        >
+          {titleLines.map((line, i) => (
+            <div key={i} style={{ display: 'flex' }}>
+              {line}
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div
+          style={{
+            // A plain block wraps predictably in Satori for Latin text.
+            display: 'block',
+            textAlign: 'left',
+            fontSize: titleSize,
+            fontWeight: 600,
+            lineHeight: 1.1,
+            letterSpacing: '-0.035em',
+            maxWidth: 1010,
+            maxHeight: 320,
+            overflow: 'hidden',
+          }}
+        >
+          {title}
+        </div>
+      )}
 
-      {/* Bottom: host · location · price */}
+      {/* Bottom: host · location · price — rows mirrored manually for RTL. */}
       <div
         style={{
           display: 'flex',
+          flexDirection: isAr ? 'row-reverse' : 'row',
           alignItems: 'center',
           justifyContent: 'space-between',
           width: '100%',
         }}
       >
-        <div style={{ display: 'flex', fontSize: 28, color: muted }}>
-          {hostName}
+        <div
+          style={{
+            display: 'flex',
+            flexDirection: isAr ? 'row-reverse' : 'row',
+            fontSize: 28,
+            color: muted,
+          }}
+        >
+          {hostNameDisplay}
           <span style={{ display: 'flex', padding: '0 12px' }}>·</span>
-          {location}
+          {locationDisplay}
         </div>
-        <div style={{ display: 'flex', fontSize: 32, fontWeight: 600, color: fg }}>{price}</div>
+        <div
+          style={{
+            display: 'flex',
+            flexDirection: isAr ? 'row-reverse' : 'row',
+            fontSize: 32,
+            fontWeight: 600,
+            color: fg,
+          }}
+        >
+          {priceTokens.map((token, i) => (
+            <div
+              key={i}
+              style={{
+                display: 'flex',
+                // In row-reverse, marginRight separates a box from the one
+                // before it (physically to its right) — a mirrored space.
+                ...(token.spaceBefore ? (isAr ? { marginRight: 10 } : { marginLeft: 10 }) : {}),
+              }}
+            >
+              {token.text}
+            </div>
+          ))}
+        </div>
       </div>
     </div>,
     { ...size, fonts },

@@ -4,6 +4,7 @@ import { getExperiencesByHostSlug, getHostBySlug } from '@/features/hosts/querie
 import { toArabicText } from '@/features/experiences/lib/arabic-content';
 import { pickLocalized } from '@/lib/ar-placeholder';
 import { loadOgFonts } from '@/lib/og/og-fonts';
+import { nbspJoin, splitBalanced, wrapToLines } from '@/lib/og/satori-arabic';
 import { SITE_NAME } from '@/lib/site';
 
 /** First-two-word initials — mirrors components/ui/avatar's fallback. */
@@ -101,7 +102,9 @@ export default async function Image({
           fontFamily,
           fontSize: 56,
           fontWeight: 600,
-          letterSpacing: isAr ? 0 : '-0.03em',
+          // Never pass letterSpacing (even 0) on Arabic runs — any value
+          // pushes Satori into per-cluster layout, which destroys spacing.
+          ...(isAr ? {} : { letterSpacing: '-0.03em' }),
         }}
       >
         {wordmark}
@@ -146,6 +149,24 @@ export default async function Image({
     ? t('host.verified')
     : t('host.unverified', { siteName: SITE_NAME });
 
+  // Satori-safe Arabic runs: NBSP-joined so each renders as one unbreakable
+  // run — Satori splits normal spaces into per-word flex boxes and destroys
+  // RTL order/spacing. Multi-line Arabic (name, bio) is pre-split manually
+  // because Satori's own Arabic wrapping fuses words. See lib/og/satori-arabic.
+  const kickerDisplay = isAr ? nbspJoin(hostKicker) : hostKicker;
+  // The count label mixes digits and Arabic ("5 تجربة"): a digit-leading run
+  // makes Satori lay the whole run out LTR regardless of NBSP joining, so the
+  // parts are mirrored as flex boxes instead.
+  const experienceLabelParts = experienceLabel.split(' ');
+  const nameSize = name.length > 28 ? 56 : 68;
+  const nameLines = isAr
+    ? splitBalanced(name, Math.floor(788 / (nameSize * 0.5))).map(nbspJoin)
+    : [];
+  // Three lines at lineHeight 1.5 fit the 132px bio box (3 × 42 = 126) and
+  // keep most of the bio visible now that sentence-aware wrapping may spend
+  // a line ending on a sentence mark.
+  const bioLines = isAr && bio ? wrapToLines(bio, 44, 3).map(nbspJoin) : [];
+
   return new ImageResponse(
     <div
       lang={locale}
@@ -162,17 +183,26 @@ export default async function Image({
         padding: 72,
       }}
     >
-      {/* Top: wordmark + verified accent */}
+      {/* Top: wordmark + verified accent. Satori ignores `dir` for box
+          alignment, so RTL mirroring is done manually with row-reverse. */}
       <div
         style={{
           display: 'flex',
+          flexDirection: isAr ? 'row-reverse' : 'row',
           alignItems: 'center',
           justifyContent: 'space-between',
           width: '100%',
         }}
       >
         <div style={{ display: 'flex', fontSize: 32, fontWeight: 600 }}>{wordmark}</div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+        <div
+          style={{
+            display: 'flex',
+            flexDirection: isAr ? 'row-reverse' : 'row',
+            alignItems: 'center',
+            gap: 14,
+          }}
+        >
           <div
             style={{
               width: 16,
@@ -188,16 +218,24 @@ export default async function Image({
               fontSize: 24,
               fontWeight: 500,
               color: muted,
-              letterSpacing: isAr ? 0 : '0.02em',
+              ...(isAr ? {} : { letterSpacing: '0.02em' }),
             }}
           >
-            {hostKicker}
+            {kickerDisplay}
           </div>
         </div>
       </div>
 
-      {/* Middle: host photo + name + bio */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 44, maxHeight: 360 }}>
+      {/* Middle: host photo + name + bio — photo sits right in RTL. */}
+      <div
+        style={{
+          display: 'flex',
+          flexDirection: isAr ? 'row-reverse' : 'row',
+          alignItems: 'center',
+          gap: 44,
+          maxHeight: 360,
+        }}
+      >
         {photoDataUri ? (
           <img
             src={photoDataUri}
@@ -245,41 +283,91 @@ export default async function Image({
             overflow: 'hidden',
           }}
         >
-          <div
-            style={{
-              display: 'block',
-              fontSize: name.length > 28 ? 56 : 68,
-              fontWeight: 600,
-              lineHeight: 1.05,
-              letterSpacing: isAr ? 0 : '-0.035em',
-              maxHeight: 150,
-              overflow: 'hidden',
-            }}
-          >
-            {name}
-          </div>
-          {bio && (
+          {isAr ? (
             <div
               style={{
-                display: 'block',
-                fontSize: 28,
-                fontWeight: 400,
-                lineHeight: isAr ? 1.7 : 1.4,
-                color: muted,
-                maxHeight: 132,
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'flex-end',
+                fontSize: nameSize,
+                fontWeight: 600,
+                lineHeight: 1.05,
+                // Room below the last baseline for yeh dots — overflow clips
+                // at the padding edge (see lib/og/satori-arabic rule 4).
+                paddingBottom: Math.round(nameSize * 0.45),
+                maxHeight: 150 + Math.round(nameSize * 0.45),
                 overflow: 'hidden',
               }}
             >
-              {bio}
+              {nameLines.map((line, i) => (
+                <div key={i} style={{ display: 'flex' }}>
+                  {line}
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div
+              style={{
+                display: 'block',
+                fontSize: nameSize,
+                fontWeight: 600,
+                lineHeight: 1.05,
+                letterSpacing: '-0.035em',
+                maxHeight: 150,
+                overflow: 'hidden',
+              }}
+            >
+              {name}
             </div>
           )}
+          {isAr
+            ? bioLines.length > 0 && (
+                <div
+                  style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'flex-end',
+                    fontSize: 28,
+                    fontWeight: 400,
+                    lineHeight: 1.5,
+                    color: muted,
+                    // Yeh-dot room below the last line (satori-arabic rule 4).
+                    paddingBottom: 13,
+                    maxHeight: 145,
+                    overflow: 'hidden',
+                  }}
+                >
+                  {bioLines.map((line, i) => (
+                    <div key={i} style={{ display: 'flex' }}>
+                      {line}
+                    </div>
+                  ))}
+                </div>
+              )
+            : bio && (
+                <div
+                  style={{
+                    display: 'block',
+                    fontSize: 28,
+                    fontWeight: 400,
+                    lineHeight: 1.4,
+                    color: muted,
+                    maxHeight: 132,
+                    overflow: 'hidden',
+                  }}
+                >
+                  {bio}
+                </div>
+              )}
         </div>
       </div>
 
-      {/* Bottom: rating · experience count */}
+      {/* Bottom: rating · experience count — mirrored to start from the
+          right edge in RTL (row-reverse makes main-start the right edge). */}
       <div
         style={{
           display: 'flex',
+          flexDirection: isAr ? 'row-reverse' : 'row',
           alignItems: 'center',
           gap: 16,
           fontSize: 28,
@@ -287,7 +375,15 @@ export default async function Image({
         }}
       >
         {ratingLabel && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: fg }}>
+          <div
+            style={{
+              display: 'flex',
+              flexDirection: isAr ? 'row-reverse' : 'row',
+              alignItems: 'center',
+              gap: 8,
+              color: fg,
+            }}
+          >
             {/* Inline SVG star — the Satori font subset has no ★ glyph, so a
                   vector path renders reliably where a text glyph would tofu. */}
             <svg width="28" height="28" viewBox="0 0 24 24" fill={accent}>
@@ -297,7 +393,19 @@ export default async function Image({
           </div>
         )}
         {ratingLabel && <span style={{ display: 'flex' }}>·</span>}
-        <div style={{ display: 'flex' }}>{experienceLabel}</div>
+        <div
+          style={{
+            display: 'flex',
+            flexDirection: isAr ? 'row-reverse' : 'row',
+            gap: 8,
+          }}
+        >
+          {experienceLabelParts.map((part, i) => (
+            <div key={i} style={{ display: 'flex' }}>
+              {part}
+            </div>
+          ))}
+        </div>
       </div>
     </div>,
     { ...size, fonts },

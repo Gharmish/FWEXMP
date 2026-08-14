@@ -1,6 +1,7 @@
 import { ImageResponse } from 'next/og';
 import { getTranslations } from 'next-intl/server';
 import { loadOgFonts } from '@/lib/og/og-fonts';
+import { nbspJoin, splitBalanced, splitDashAsides } from '@/lib/og/satori-arabic';
 import { SITE_NAME } from '@/lib/site';
 
 // loadOgFonts reads TTFs off disk, so this must run on Node, not Edge.
@@ -17,19 +18,23 @@ export const contentType = 'image/png';
  * the Saffron Gold accent. Per-experience and per-host cards keep their
  * richer segment-level renderers.
  */
-function splitBalanced(text: string): string[] {
-  const words = text.split(' ');
-  if (words.length < 4) return [text];
-  const mid = Math.ceil(words.length / 2);
-  return [words.slice(0, mid).join(' '), words.slice(mid).join(' ')];
-}
-
 export default async function Image({ params }: { params: Promise<{ locale: string }> }) {
   const { locale } = await params;
   const isAr = locale === 'ar';
   const fonts = await loadOgFonts();
   const tOg = await getTranslations({ locale, namespace: 'ogImage' });
   const tSite = await getTranslations({ locale, namespace: 'siteMeta' });
+
+  // Arabic tagline lines are pre-split so no line ever wraps or carries a
+  // neutral mark mid-run (Satori scrambles both): the em-dash aside becomes a
+  // line break, each part balances under a hard width budget, and the final
+  // period ends the last line — the one spot Satori renders it correctly.
+  // Content box 1056px / (0.5 × 54px font) ≈ 39 chars.
+  const taglineLines = isAr
+    ? splitDashAsides(tSite('description')).flatMap((part) =>
+        splitBalanced(part, Math.floor(1056 / (54 * 0.5))).map(nbspJoin),
+      )
+    : [];
 
   return new ImageResponse(
     <div
@@ -70,34 +75,51 @@ export default async function Image({ params }: { params: Promise<{ locale: stri
         />
       </div>
 
-      {/* Satori fuses and mis-spaces Arabic the moment a text run has to
-          WRAP (the same bug mangles the live per-experience cards). Runs
-          that fit on one line render correctly — so the tagline is
-          pre-split into balanced lines and sized so no line ever wraps.
-          Arabic is set smaller for that reason (54 vs 68). */}
-      <div
-        style={{
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: isAr ? 'flex-end' : 'flex-start',
-          gap: 6,
-          fontSize: isAr ? 54 : 68,
-          fontWeight: 600,
-          lineHeight: 1.3,
-          // Latin-only: ANY letterSpacing value (even 0) pushes Satori into
-          // its per-cluster layout path, which destroys Arabic word spacing.
-          ...(isAr ? {} : { letterSpacing: '-0.035em' }),
-        }}
-      >
-        {splitBalanced(tSite('description')).map((line, i) => (
-          <div key={i} style={{ display: 'flex' }}>
-            {/* NBSP-join Arabic words: Satori splits normal spaces into
-                per-word flex boxes and mis-spaces RTL runs; an unbreakable
-                run goes through text shaping whole and comes out right. */}
-            {isAr ? line.replaceAll(' ', ' ') : line}
-          </div>
-        ))}
-      </div>
+      {/* Arabic is set smaller (54 vs 68) so the pre-split lines always fit
+          the content box; English keeps Satori's native Latin wrapping in a
+          plain block. See lib/og/satori-arabic for the Arabic rules. */}
+      {isAr ? (
+        <div
+          style={{
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'flex-end',
+            alignSelf: 'flex-end',
+            gap: 6,
+            fontSize: 54,
+            fontWeight: 600,
+            lineHeight: 1.3,
+            maxWidth: 1056,
+            // Yeh-dot room below the last line (satori-arabic rule 4).
+            paddingBottom: 24,
+            overflow: 'hidden',
+          }}
+        >
+          {taglineLines.map((line, i) => (
+            <div key={i} style={{ display: 'flex' }}>
+              {line}
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div
+          style={{
+            display: 'block',
+            textAlign: 'left',
+            fontSize: 68,
+            fontWeight: 600,
+            lineHeight: 1.3,
+            // ANY letterSpacing value (even 0) would push Satori into its
+            // per-cluster layout path — Latin-only branch, so it's safe here.
+            letterSpacing: '-0.035em',
+            maxWidth: 1010,
+            maxHeight: 360,
+            overflow: 'hidden',
+          }}
+        >
+          {tSite('description')}
+        </div>
+      )}
 
       <div
         style={{
