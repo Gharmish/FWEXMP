@@ -2,15 +2,39 @@ import type { Metadata } from 'next';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
 import type { Locale } from '@/lib/i18n';
 import { InfoPage } from '@/components/layout/info-page';
-import { SUPPORT_EMAIL } from '@/lib/site';
+import { SITE_URL, SUPPORT_EMAIL } from '@/lib/site';
 
 export async function generateMetadata({
   params,
 }: {
   params: Promise<{ locale: string }>;
 }): Promise<Metadata> {
-  const t = await getTranslations({ locale: (await params).locale, namespace: 'privacyPage' });
-  return { title: t('title'), description: t('intro') };
+  const { locale } = await params;
+  const t = await getTranslations({ locale, namespace: 'privacyPage' });
+  const title = t('title');
+  const description = t('intro');
+  return {
+    title,
+    description,
+    // Privacy links get shared with guests and hosts, so the preview should
+    // name the page — without an explicit openGraph block the shallow
+    // metadata merge shows the root layout's bare brand og:title. Declaring
+    // the block replaces the parent's resolved openGraph wholesale, so the
+    // [locale]-level brand card must be re-attached explicitly.
+    openGraph: {
+      title,
+      description,
+      url: `${SITE_URL}/${locale}/privacy`,
+      type: 'website',
+      images: [{ url: `${SITE_URL}/${locale}/opengraph-image`, width: 1200, height: 630 }],
+    },
+    twitter: {
+      card: 'summary_large_image',
+      title,
+      description,
+      images: [`${SITE_URL}/${locale}/opengraph-image`],
+    },
+  };
 }
 
 const inlineLinkClassName =
