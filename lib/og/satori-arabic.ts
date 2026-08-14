@@ -25,6 +25,13 @@
  * path, which destroys Arabic word spacing.
  */
 
+import {
+  PLEX_ARABIC_400,
+  PLEX_ARABIC_600,
+  PLEX_LIGATURES_400,
+  PLEX_LIGATURES_600,
+} from './plex-arabic-metrics';
+
 const NBSP = '\u00A0';
 
 /**
@@ -42,6 +49,69 @@ const NBSP = '\u00A0';
  * resolves RTL and renders correctly mid-run.
  */
 const MID_RUN_BREAKERS = /[.!?\u061f\u2026:;\u061b]/;
+
+/** Letters that never connect to the FOLLOWING letter (right-joining only). */
+const RIGHT_JOIN_ONLY = new Set('اأإآدذرزوؤةى');
+
+function isArabicLetter(ch: string): boolean {
+  return (ch >= 'ء' && ch <= 'ي') || ch === 'ة' || ch === 'ى';
+}
+
+function connectsForward(ch: string): boolean {
+  return isArabicLetter(ch) && ch !== 'ء' && !RIGHT_JOIN_ONLY.has(ch);
+}
+
+/**
+ * How many pixels Satori OVER-measures this Arabic run by. Satori measures
+ * runs with ISOLATED glyph advances but draws them SHAPED (contextual forms
+ * are narrower), leaving a blank phantom on the RIGHT of the run box that
+ * breaks right-alignment (verified pixel-exact against the live cards:
+ * observed indents 145/56/95/165px vs computed 146/53/90/169px). Callers
+ * cancel it with `marginRight: -overhang` on the box — the phantom carries
+ * no ink, so pulling it past the container edge clips nothing. The result is
+ * shaved by 0.06em so a rounding mismatch can never push real ink into the
+ * clipped zone.
+ */
+export function arabicOverhang(text: string, fontSizePx: number, weight: 400 | 600): number {
+  const table = weight === 600 ? PLEX_ARABIC_600 : PLEX_ARABIC_400;
+  const ligatures = weight === 600 ? PLEX_LIGATURES_600 : PLEX_LIGATURES_400;
+  const chars = [...text];
+  // First pass: contextual form per character (0 iso, 1 init, 2 medi, 3 fina).
+  const formOf: number[] = new Array<number>(chars.length).fill(0);
+  let isolated = 0;
+  let shaped = 0;
+  for (let i = 0; i < chars.length; i++) {
+    const ch = chars[i]!;
+    const forms = table.get(ch.codePointAt(0)!);
+    if (!forms) continue;
+    isolated += forms[0];
+    if (!isArabicLetter(ch)) {
+      shaped += forms[0];
+      continue;
+    }
+    const prev = i > 0 ? chars[i - 1]! : '';
+    const next = i + 1 < chars.length ? chars[i + 1]! : '';
+    const joinsPrev = prev !== '' && connectsForward(prev);
+    const joinsNext = connectsForward(ch) && next !== '' && isArabicLetter(next);
+    const form = joinsPrev ? (joinsNext ? 2 : 3) : joinsNext ? 1 : 0;
+    formOf[i] = form;
+    shaped += forms[form]!;
+  }
+  // Second pass: the renderer also fuses rlig pairs (لا, في, …) into single
+  // narrower ligature glyphs — subtract those savings too (greedy,
+  // non-overlapping, matching opentype.js).
+  for (let i = 0; i + 1 < chars.length; i++) {
+    const a = chars[i]!.codePointAt(0)!;
+    const b = chars[i + 1]!.codePointAt(0)!;
+    const key = `${a.toString(16).toUpperCase()}:${formOf[i]}|${b.toString(16).toUpperCase()}:${formOf[i + 1]}`;
+    const saved = ligatures.get(key);
+    if (saved) {
+      shaped -= saved;
+      i++;
+    }
+  }
+  return Math.max(0, ((isolated - shaped) / 1000 - 0.06) * fontSizePx);
+}
 
 export interface ArabicLine {
   /** NBSP-joined words — renders as one correctly-shaped RTL run. */

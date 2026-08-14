@@ -1,7 +1,12 @@
 import { ImageResponse } from 'next/og';
 import { getTranslations } from 'next-intl/server';
 import { loadOgFonts } from '@/lib/og/og-fonts';
-import { splitBalanced, splitDashAsides, toArabicLine } from '@/lib/og/satori-arabic';
+import {
+  arabicOverhang,
+  splitBalanced,
+  splitDashAsides,
+  toArabicLine,
+} from '@/lib/og/satori-arabic';
 import { SITE_NAME } from '@/lib/site';
 
 // loadOgFonts reads TTFs off disk, so this must run on Node, not Edge.
@@ -24,6 +29,7 @@ export default async function Image({ params }: { params: Promise<{ locale: stri
   const fonts = await loadOgFonts();
   const tOg = await getTranslations({ locale, namespace: 'ogImage' });
   const tSite = await getTranslations({ locale, namespace: 'siteMeta' });
+  const wordmark = tOg('wordmark');
 
   // Arabic tagline lines are pre-split so no line ever wraps or carries a
   // neutral mark mid-run (Satori scrambles both): the em-dash aside becomes a
@@ -32,7 +38,11 @@ export default async function Image({ params }: { params: Promise<{ locale: stri
   // Content box 1056px / (0.5 × 54px font) ≈ 39 chars.
   const taglineLines = isAr
     ? splitDashAsides(tSite('description')).flatMap((part) =>
-        splitBalanced(part, Math.floor(1056 / (54 * 0.5))).map(toArabicLine),
+        splitBalanced(part, Math.floor(1056 / (54 * 0.5)))
+          .map(toArabicLine)
+          // marginRight: -overhang cancels Satori's isolated-advance
+          // over-measure so glyph right edges align (satori-arabic).
+          .map((line) => ({ ...line, overhang: arabicOverhang(line.run, 54, 600) })),
       )
     : [];
 
@@ -63,7 +73,16 @@ export default async function Image({ params }: { params: Promise<{ locale: stri
           width: '100%',
         }}
       >
-        <div style={{ display: 'flex', fontSize: 40, fontWeight: 600 }}>{tOg('wordmark')}</div>
+        <div
+          style={{
+            display: 'flex',
+            fontSize: 40,
+            fontWeight: 600,
+            ...(isAr ? { marginRight: -arabicOverhang(wordmark, 40, 600) } : {}),
+          }}
+        >
+          {wordmark}
+        </div>
         <div
           style={{
             display: 'flex',
@@ -98,7 +117,14 @@ export default async function Image({ params }: { params: Promise<{ locale: stri
           {taglineLines.map((line, i) => (
             // row-reverse [run][mark]: a trailing mark left inside the run
             // renders on the wrong (right) side. See lib/og/satori-arabic.
-            <div key={i} style={{ display: 'flex', flexDirection: 'row-reverse' }}>
+            <div
+              key={i}
+              style={{
+                display: 'flex',
+                flexDirection: 'row-reverse',
+                marginRight: -line.overhang,
+              }}
+            >
               <div style={{ display: 'flex' }}>{line.run}</div>
               {line.mark && <div style={{ display: 'flex' }}>{line.mark}</div>}
             </div>

@@ -4,7 +4,13 @@ import { getExperiencesByHostSlug, getHostBySlug } from '@/features/hosts/querie
 import { toArabicText } from '@/features/experiences/lib/arabic-content';
 import { pickLocalized } from '@/lib/ar-placeholder';
 import { loadOgFonts } from '@/lib/og/og-fonts';
-import { nbspJoin, splitBalanced, toArabicLine, wrapToLines } from '@/lib/og/satori-arabic';
+import {
+  arabicOverhang,
+  nbspJoin,
+  splitBalanced,
+  toArabicLine,
+  wrapToLines,
+} from '@/lib/og/satori-arabic';
 import { SITE_NAME } from '@/lib/site';
 
 /** First-two-word initials — mirrors components/ui/avatar's fallback. */
@@ -104,7 +110,11 @@ export default async function Image({
           fontWeight: 600,
           // Never pass letterSpacing (even 0) on Arabic runs — any value
           // pushes Satori into per-cluster layout, which destroys spacing.
-          ...(isAr ? {} : { letterSpacing: '-0.03em' }),
+          // The negative margin keeps the ink truly centred despite Satori's
+          // isolated-advance over-measure (satori-arabic `arabicOverhang`).
+          ...(isAr
+            ? { marginRight: -arabicOverhang(wordmark, 56, 600) }
+            : { letterSpacing: '-0.03em' }),
         }}
       >
         {wordmark}
@@ -154,18 +164,31 @@ export default async function Image({
   // RTL order/spacing. Multi-line Arabic (name, bio) is pre-split manually
   // because Satori's own Arabic wrapping fuses words. See lib/og/satori-arabic.
   const kickerDisplay = isAr ? nbspJoin(hostKicker) : hostKicker;
+  // marginRight: -overhang on every right-anchored Arabic box cancels
+  // Satori's isolated-advance over-measure (satori-arabic `arabicOverhang`);
+  // without it each box carries a variable blank phantom on its right that
+  // breaks right alignment and inflates gaps.
+  const wordmarkOverhang = isAr ? arabicOverhang(wordmark, 32, 600) : 0;
+  const kickerOverhang = isAr ? arabicOverhang(kickerDisplay, 24, 400) : 0;
   // The count label mixes digits and Arabic ("5 تجربة"): a digit-leading run
   // makes Satori lay the whole run out LTR regardless of NBSP joining, so the
   // parts are mirrored as flex boxes instead.
   const experienceLabelParts = experienceLabel.split(' ');
   const nameSize = name.length > 28 ? 56 : 68;
   const nameLines = isAr
-    ? splitBalanced(name, Math.floor(788 / (nameSize * 0.5))).map(toArabicLine)
+    ? splitBalanced(name, Math.floor(788 / (nameSize * 0.5)))
+        .map(toArabicLine)
+        .map((line) => ({ ...line, overhang: arabicOverhang(line.run, nameSize, 600) }))
     : [];
   // Three lines at lineHeight 1.5 fit the 132px bio box (3 × 42 = 126) and
   // keep most of the bio visible now that sentence-aware wrapping may spend
   // a line ending on a sentence mark.
-  const bioLines = isAr && bio ? wrapToLines(bio, 44, 3).map(toArabicLine) : [];
+  const bioLines =
+    isAr && bio
+      ? wrapToLines(bio, 44, 3)
+          .map(toArabicLine)
+          .map((line) => ({ ...line, overhang: arabicOverhang(line.run, 28, 400) }))
+      : [];
 
   return new ImageResponse(
     <div
@@ -194,7 +217,11 @@ export default async function Image({
           width: '100%',
         }}
       >
-        <div style={{ display: 'flex', fontSize: 32, fontWeight: 600 }}>{wordmark}</div>
+        <div
+          style={{ display: 'flex', fontSize: 32, fontWeight: 600, marginRight: -wordmarkOverhang }}
+        >
+          {wordmark}
+        </div>
         <div
           style={{
             display: 'flex',
@@ -218,7 +245,7 @@ export default async function Image({
               fontSize: 24,
               fontWeight: 500,
               color: muted,
-              ...(isAr ? {} : { letterSpacing: '0.02em' }),
+              ...(isAr ? { marginRight: -kickerOverhang } : { letterSpacing: '0.02em' }),
             }}
           >
             {kickerDisplay}
@@ -300,7 +327,14 @@ export default async function Image({
               }}
             >
               {nameLines.map((line, i) => (
-                <div key={i} style={{ display: 'flex', flexDirection: 'row-reverse' }}>
+                <div
+                  key={i}
+                  style={{
+                    display: 'flex',
+                    flexDirection: 'row-reverse',
+                    marginRight: -line.overhang,
+                  }}
+                >
                   <div style={{ display: 'flex' }}>{line.run}</div>
                   {line.mark && <div style={{ display: 'flex' }}>{line.mark}</div>}
                 </div>
@@ -339,7 +373,14 @@ export default async function Image({
                   }}
                 >
                   {bioLines.map((line, i) => (
-                    <div key={i} style={{ display: 'flex', flexDirection: 'row-reverse' }}>
+                    <div
+                      key={i}
+                      style={{
+                        display: 'flex',
+                        flexDirection: 'row-reverse',
+                        marginRight: -line.overhang,
+                      }}
+                    >
                       <div style={{ display: 'flex' }}>{line.run}</div>
                       {line.mark && <div style={{ display: 'flex' }}>{line.mark}</div>}
                     </div>
@@ -403,7 +444,15 @@ export default async function Image({
           }}
         >
           {experienceLabelParts.map((part, i) => (
-            <div key={i} style={{ display: 'flex' }}>
+            <div
+              key={i}
+              style={{
+                display: 'flex',
+                // Cancel the phantom on Arabic parts so the digit↔word gap
+                // is the real 8px (satori-arabic `arabicOverhang`).
+                ...(isAr ? { marginRight: -arabicOverhang(part, 28, 400) } : {}),
+              }}
+            >
               {part}
             </div>
           ))}

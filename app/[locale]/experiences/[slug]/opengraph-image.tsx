@@ -5,7 +5,13 @@ import { CATEGORIES } from '@/features/experiences/lib/sample-data';
 import { getExperienceBySlug } from '@/features/experiences/queries';
 import { toArabicText } from '@/features/experiences/lib/arabic-content';
 import { loadOgFonts } from '@/lib/og/og-fonts';
-import { mirrorTokens, nbspJoin, splitBalanced, toArabicLine } from '@/lib/og/satori-arabic';
+import {
+  arabicOverhang,
+  mirrorTokens,
+  nbspJoin,
+  splitBalanced,
+  toArabicLine,
+} from '@/lib/og/satori-arabic';
 import { SITE_NAME } from '@/lib/site';
 
 // Queries the DB (Drizzle/postgres), so this must run on Node, not Edge.
@@ -63,7 +69,11 @@ export default async function Image({
           fontWeight: 600,
           // Never pass letterSpacing (even 0) on Arabic runs — any value
           // pushes Satori into per-cluster layout, which destroys spacing.
-          ...(isAr ? {} : { letterSpacing: '-0.03em' }),
+          // The negative margin keeps the ink truly centred despite Satori's
+          // isolated-advance over-measure (satori-arabic `arabicOverhang`).
+          ...(isAr
+            ? { marginRight: -arabicOverhang(wordmark, 56, 600) }
+            : { letterSpacing: '-0.03em' }),
         }}
       >
         {wordmark}
@@ -99,6 +109,14 @@ export default async function Image({
   const categoryDisplay = isAr ? nbspJoin(categoryLabel) : categoryLabel;
   const hostNameDisplay = isAr ? nbspJoin(hostName) : hostName;
   const locationDisplay = isAr ? nbspJoin(location) : location;
+  // marginRight: -overhang on every right-anchored Arabic box cancels
+  // Satori's isolated-advance over-measure (satori-arabic `arabicOverhang`);
+  // without it each box carries a variable blank phantom on its right that
+  // breaks right alignment and inflates gaps.
+  const wordmarkOverhang = isAr ? arabicOverhang(wordmark, 32, 600) : 0;
+  const categoryOverhang = isAr ? arabicOverhang(categoryDisplay, 24, 400) : 0;
+  const hostNameOverhang = isAr ? arabicOverhang(hostNameDisplay, 28, 400) : 0;
+  const locationOverhang = isAr ? arabicOverhang(locationDisplay, 28, 400) : 0;
   // The price mixes digits and Arabic ("480 ر.س"): a digit-leading run makes
   // Satori lay the whole run out LTR (NBSP and RLM don't help — RLM even
   // tofus), so the tokens are mirrored as flex boxes instead. English keeps
@@ -112,7 +130,9 @@ export default async function Image({
   // wrapping fuses words); English keeps Satori's native block wrapping.
   const titleSize = title.length > 60 ? 60 : title.length > 36 ? 68 : 80;
   const titleLines = isAr
-    ? splitBalanced(title, Math.floor(1010 / (titleSize * 0.5))).map(toArabicLine)
+    ? splitBalanced(title, Math.floor(1010 / (titleSize * 0.5)))
+        .map(toArabicLine)
+        .map((line) => ({ ...line, overhang: arabicOverhang(line.run, titleSize, 600) }))
     : [];
 
   return new ImageResponse(
@@ -142,7 +162,11 @@ export default async function Image({
           width: '100%',
         }}
       >
-        <div style={{ display: 'flex', fontSize: 32, fontWeight: 600 }}>{wordmark}</div>
+        <div
+          style={{ display: 'flex', fontSize: 32, fontWeight: 600, marginRight: -wordmarkOverhang }}
+        >
+          {wordmark}
+        </div>
         <div
           style={{
             display: 'flex',
@@ -166,7 +190,7 @@ export default async function Image({
               fontSize: 24,
               fontWeight: 500,
               color: muted,
-              ...(isAr ? {} : { letterSpacing: '0.02em' }),
+              ...(isAr ? { marginRight: -categoryOverhang } : { letterSpacing: '0.02em' }),
             }}
           >
             {categoryDisplay}
@@ -196,8 +220,16 @@ export default async function Image({
         >
           {titleLines.map((line, i) => (
             // row-reverse [run][mark]: a trailing mark left inside the run
-            // renders on the wrong (right) side. See lib/og/satori-arabic.
-            <div key={i} style={{ display: 'flex', flexDirection: 'row-reverse' }}>
+            // renders on the wrong (right) side; marginRight cancels Satori's
+            // isolated-advance over-measure. See lib/og/satori-arabic.
+            <div
+              key={i}
+              style={{
+                display: 'flex',
+                flexDirection: 'row-reverse',
+                marginRight: -line.overhang,
+              }}
+            >
               <div style={{ display: 'flex' }}>{line.run}</div>
               {line.mark && <div style={{ display: 'flex' }}>{line.mark}</div>}
             </div>
@@ -240,9 +272,9 @@ export default async function Image({
             color: muted,
           }}
         >
-          {hostNameDisplay}
+          <div style={{ display: 'flex', marginRight: -hostNameOverhang }}>{hostNameDisplay}</div>
           <span style={{ display: 'flex', padding: '0 12px' }}>·</span>
-          {locationDisplay}
+          <div style={{ display: 'flex', marginRight: -locationOverhang }}>{locationDisplay}</div>
         </div>
         <div
           style={{
