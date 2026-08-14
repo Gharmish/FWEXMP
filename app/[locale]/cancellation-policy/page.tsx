@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
 import type { Locale } from '@/lib/i18n';
+import { SITE_URL } from '@/lib/site';
 import { InfoPage } from '@/components/layout/info-page';
 import { getCancellationTiers } from '@/lib/cancellation-policy';
 import { getPlatformSettings } from '@/lib/platform-settings';
@@ -12,11 +13,32 @@ export async function generateMetadata({
 }: {
   params: Promise<{ locale: string }>;
 }): Promise<Metadata> {
-  const t = await getTranslations({
-    locale: (await params).locale,
-    namespace: 'cancellationPolicyPage',
-  });
-  return { title: t('title'), description: t('intro') };
+  const { locale } = await params;
+  const t = await getTranslations({ locale, namespace: 'cancellationPolicyPage' });
+  const title = t('title');
+  const description = t('intro');
+  return {
+    title,
+    description,
+    // Policy links get shared with guests over WhatsApp, so the preview
+    // should name the page — without an explicit openGraph block the shallow
+    // metadata merge shows the root layout's bare brand og:title. Declaring
+    // the block replaces the parent's resolved openGraph wholesale, so the
+    // [locale]-level brand card must be re-attached explicitly.
+    openGraph: {
+      title,
+      description,
+      url: `${SITE_URL}/${locale}/cancellation-policy`,
+      type: 'website',
+      images: [{ url: `${SITE_URL}/${locale}/opengraph-image`, width: 1200, height: 630 }],
+    },
+    twitter: {
+      card: 'summary_large_image',
+      title,
+      description,
+      images: [`${SITE_URL}/${locale}/opengraph-image`],
+    },
+  };
 }
 
 export default async function CancellationPolicyPage({
