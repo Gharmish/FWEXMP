@@ -84,10 +84,19 @@ export async function generateMetadata({ params, searchParams }: PageParams): Pr
   const token = asString((await searchParams)[BOOKING_LINK_TOKEN_PARAM]);
   const restricted =
     UUID_RE.test(ref) && (await getBookingViewForViewer(ref, token)).state === 'forbidden';
+  const title = restricted ? t('restricted.title') : t('meta.title');
+  const tSite = await getTranslations({ locale, namespace: 'siteMeta' });
   return {
-    title: restricted ? t('restricted.title') : t('meta.title'),
+    title,
     // Confirmation URLs are private to the requester; tell crawlers to skip.
     robots: { index: false, follow: false },
+    // Booking links are delivered over WhatsApp, so the link preview matters:
+    // without an explicit openGraph block the shallow metadata merge shows
+    // the root layout's bare brand og:title. Deliberately generic copy only —
+    // no booking details may leak into a preview (the crawler holds the
+    // tokenized URL). og:image stays the locale-level brand card.
+    openGraph: { title, description: tSite('description') },
+    twitter: { card: 'summary_large_image', title, description: tSite('description') },
   };
 }
 
