@@ -8,7 +8,13 @@ import { cn } from '@/lib/utils';
 import { Link, redirect } from '@/lib/i18n';
 import type { Locale } from '@/lib/i18n';
 import { formatDate, formatInteger, formatSAR, formatTime } from '@/lib/format';
-import { SITE_NAME, SUPPORT_EMAIL, SELLER_LEGAL_NAME, COMMERCIAL_REGISTRATION } from '@/lib/site';
+import {
+  SITE_NAME,
+  SITE_URL,
+  SUPPORT_EMAIL,
+  SELLER_LEGAL_NAME,
+  COMMERCIAL_REGISTRATION,
+} from '@/lib/site';
 import { whatsappShareLink } from '@/lib/whatsapp';
 import { buttonVariants } from '@/components/ui/button';
 import { Price } from '@/components/ui/price';
@@ -52,10 +58,29 @@ interface PageParams {
 export async function generateMetadata({ params }: PageParams): Promise<Metadata> {
   const { locale } = await params;
   const t = await getTranslations({ locale, namespace: 'invoice.meta' });
+  const tSite = await getTranslations({ locale, namespace: 'siteMeta' });
+  const title = t('title');
   return {
-    title: t('title'),
+    title,
     // Invoice URLs are private capability links; crawlers must skip them.
     robots: { index: false, follow: false },
+    // Invoice links are delivered to guests (email/WhatsApp), so the link
+    // preview matters. Deliberately generic copy only — no billing details
+    // may leak into a preview. Declaring the block replaces the parent's
+    // resolved openGraph wholesale — including the [locale]-level
+    // opengraph-image file convention — so the brand card must be
+    // re-attached explicitly.
+    openGraph: {
+      title,
+      description: tSite('description'),
+      images: [{ url: `${SITE_URL}/${locale}/opengraph-image`, width: 1200, height: 630 }],
+    },
+    twitter: {
+      card: 'summary_large_image',
+      title,
+      description: tSite('description'),
+      images: [`${SITE_URL}/${locale}/opengraph-image`],
+    },
   };
 }
 
@@ -86,9 +111,7 @@ export default async function BookingInvoicePage({ params, searchParams }: PageP
   // tap (the in-app browser has its own cookie jar) and every emailed
   // link opened on a second device.
   const token = asString((await searchParams)[BOOKING_LINK_TOKEN_PARAM]);
-  const tokenQuery = token
-    ? `?${BOOKING_LINK_TOKEN_PARAM}=${encodeURIComponent(token)}`
-    : '';
+  const tokenQuery = token ? `?${BOOKING_LINK_TOKEN_PARAM}=${encodeURIComponent(token)}` : '';
 
   const view = await getBookingViewForViewer(ref, token);
   if (view.state !== 'ok') {
