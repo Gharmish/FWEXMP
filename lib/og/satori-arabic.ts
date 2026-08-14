@@ -28,15 +28,40 @@
 const NBSP = '\u00A0';
 
 /**
- * Neutral punctuation that Satori's broken bidi reorders when it appears
- * MID-run: it splits the run at the mark and lays the fragments out LTR
- * ("مدرجات العرعر. يستضيف" comes out scrambled). TRAILING marks on a run are
- * safe — Satori places them on the left end, where RTL sentence punctuation
- * belongs. So every helper here guarantees these marks only ever END a line,
- * never sit inside one. The Arabic comma (،) is NOT in this set: between two
- * Arabic words it resolves RTL and renders correctly mid-run.
+ * Neutral punctuation Satori cannot place inside an RTL run:
+ *
+ * - MID-run, it splits the run at the mark and lays the fragments out LTR
+ *   ("مدرجات العرعر. يستضيف" comes out scrambled) — so every wrapper here
+ *   guarantees these marks only ever END a line, never sit inside one.
+ * - TRAILING, the words stay in correct RTL order but the mark itself lands
+ *   on the RIGHT end of the line (".بدايتنا" instead of "عسير.") — so call
+ *   sites render lines through {@link toArabicLine}, which peels the mark
+ *   into its own flex box mirrored to the left with row-reverse.
+ *
+ * The Arabic comma (،) is NOT in this set: between two Arabic words it
+ * resolves RTL and renders correctly mid-run.
  */
 const MID_RUN_BREAKERS = /[.!?\u061f\u2026:;\u061b]/;
+
+export interface ArabicLine {
+  /** NBSP-joined words — renders as one correctly-shaped RTL run. */
+  run: string;
+  /** Trailing mark to render as its own box on the line's left, or null. */
+  mark: string | null;
+}
+
+/**
+ * Prepare one pre-wrapped line for rendering: NBSP-join the words and peel
+ * any trailing neutral mark into `mark`. Render as
+ * `flexDirection: 'row-reverse'` → [run][mark] so the mark sits on the left,
+ * where RTL sentence punctuation belongs (leaving it inside the run puts it
+ * on the right — see MID_RUN_BREAKERS).
+ */
+export function toArabicLine(line: string): ArabicLine {
+  const m = line.match(/[.:;؛؟?!…]+$/u);
+  if (!m || m[0].length === line.length) return { run: nbspJoin(line), mark: null };
+  return { run: nbspJoin(line.slice(0, -m[0].length).trimEnd()), mark: m[0] };
+}
 
 /** Join a run's words with NBSP so Satori shapes it whole (Arabic only). */
 export function nbspJoin(text: string): string {

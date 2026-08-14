@@ -5,7 +5,7 @@ import { CATEGORIES } from '@/features/experiences/lib/sample-data';
 import { getExperienceBySlug } from '@/features/experiences/queries';
 import { toArabicText } from '@/features/experiences/lib/arabic-content';
 import { loadOgFonts } from '@/lib/og/og-fonts';
-import { mirrorTokens, nbspJoin, splitBalanced } from '@/lib/og/satori-arabic';
+import { mirrorTokens, nbspJoin, splitBalanced, toArabicLine } from '@/lib/og/satori-arabic';
 import { SITE_NAME } from '@/lib/site';
 
 // Queries the DB (Drizzle/postgres), so this must run on Node, not Edge.
@@ -112,7 +112,7 @@ export default async function Image({
   // wrapping fuses words); English keeps Satori's native block wrapping.
   const titleSize = title.length > 60 ? 60 : title.length > 36 ? 68 : 80;
   const titleLines = isAr
-    ? splitBalanced(title, Math.floor(1010 / (titleSize * 0.5))).map(nbspJoin)
+    ? splitBalanced(title, Math.floor(1010 / (titleSize * 0.5))).map(toArabicLine)
     : [];
 
   return new ImageResponse(
@@ -195,8 +195,11 @@ export default async function Image({
           }}
         >
           {titleLines.map((line, i) => (
-            <div key={i} style={{ display: 'flex' }}>
-              {line}
+            // row-reverse [run][mark]: a trailing mark left inside the run
+            // renders on the wrong (right) side. See lib/og/satori-arabic.
+            <div key={i} style={{ display: 'flex', flexDirection: 'row-reverse' }}>
+              <div style={{ display: 'flex' }}>{line.run}</div>
+              {line.mark && <div style={{ display: 'flex' }}>{line.mark}</div>}
             </div>
           ))}
         </div>

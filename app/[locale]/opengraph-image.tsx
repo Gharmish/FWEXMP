@@ -1,7 +1,7 @@
 import { ImageResponse } from 'next/og';
 import { getTranslations } from 'next-intl/server';
 import { loadOgFonts } from '@/lib/og/og-fonts';
-import { nbspJoin, splitBalanced, splitDashAsides } from '@/lib/og/satori-arabic';
+import { splitBalanced, splitDashAsides, toArabicLine } from '@/lib/og/satori-arabic';
 import { SITE_NAME } from '@/lib/site';
 
 // loadOgFonts reads TTFs off disk, so this must run on Node, not Edge.
@@ -32,7 +32,7 @@ export default async function Image({ params }: { params: Promise<{ locale: stri
   // Content box 1056px / (0.5 × 54px font) ≈ 39 chars.
   const taglineLines = isAr
     ? splitDashAsides(tSite('description')).flatMap((part) =>
-        splitBalanced(part, Math.floor(1056 / (54 * 0.5))).map(nbspJoin),
+        splitBalanced(part, Math.floor(1056 / (54 * 0.5))).map(toArabicLine),
       )
     : [];
 
@@ -96,8 +96,11 @@ export default async function Image({ params }: { params: Promise<{ locale: stri
           }}
         >
           {taglineLines.map((line, i) => (
-            <div key={i} style={{ display: 'flex' }}>
-              {line}
+            // row-reverse [run][mark]: a trailing mark left inside the run
+            // renders on the wrong (right) side. See lib/og/satori-arabic.
+            <div key={i} style={{ display: 'flex', flexDirection: 'row-reverse' }}>
+              <div style={{ display: 'flex' }}>{line.run}</div>
+              {line.mark && <div style={{ display: 'flex' }}>{line.mark}</div>}
             </div>
           ))}
         </div>

@@ -4,7 +4,7 @@ import { getExperiencesByHostSlug, getHostBySlug } from '@/features/hosts/querie
 import { toArabicText } from '@/features/experiences/lib/arabic-content';
 import { pickLocalized } from '@/lib/ar-placeholder';
 import { loadOgFonts } from '@/lib/og/og-fonts';
-import { nbspJoin, splitBalanced, wrapToLines } from '@/lib/og/satori-arabic';
+import { nbspJoin, splitBalanced, toArabicLine, wrapToLines } from '@/lib/og/satori-arabic';
 import { SITE_NAME } from '@/lib/site';
 
 /** First-two-word initials — mirrors components/ui/avatar's fallback. */
@@ -160,12 +160,12 @@ export default async function Image({
   const experienceLabelParts = experienceLabel.split(' ');
   const nameSize = name.length > 28 ? 56 : 68;
   const nameLines = isAr
-    ? splitBalanced(name, Math.floor(788 / (nameSize * 0.5))).map(nbspJoin)
+    ? splitBalanced(name, Math.floor(788 / (nameSize * 0.5))).map(toArabicLine)
     : [];
   // Three lines at lineHeight 1.5 fit the 132px bio box (3 × 42 = 126) and
   // keep most of the bio visible now that sentence-aware wrapping may spend
   // a line ending on a sentence mark.
-  const bioLines = isAr && bio ? wrapToLines(bio, 44, 3).map(nbspJoin) : [];
+  const bioLines = isAr && bio ? wrapToLines(bio, 44, 3).map(toArabicLine) : [];
 
   return new ImageResponse(
     <div
@@ -300,8 +300,9 @@ export default async function Image({
               }}
             >
               {nameLines.map((line, i) => (
-                <div key={i} style={{ display: 'flex' }}>
-                  {line}
+                <div key={i} style={{ display: 'flex', flexDirection: 'row-reverse' }}>
+                  <div style={{ display: 'flex' }}>{line.run}</div>
+                  {line.mark && <div style={{ display: 'flex' }}>{line.mark}</div>}
                 </div>
               ))}
             </div>
@@ -338,8 +339,9 @@ export default async function Image({
                   }}
                 >
                   {bioLines.map((line, i) => (
-                    <div key={i} style={{ display: 'flex' }}>
-                      {line}
+                    <div key={i} style={{ display: 'flex', flexDirection: 'row-reverse' }}>
+                      <div style={{ display: 'flex' }}>{line.run}</div>
+                      {line.mark && <div style={{ display: 'flex' }}>{line.mark}</div>}
                     </div>
                   ))}
                 </div>
