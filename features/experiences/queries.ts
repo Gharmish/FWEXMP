@@ -141,6 +141,10 @@ function toDetail(
     whatToBringAr: row.whatToBringAr,
     cancellationPolicy: row.cancellationPolicy,
     cancellationTier: row.cancellationTier,
+    // Optional editorial story — same placeholder guard as every other
+    // Arabic column; null until real content is written (never fabricated).
+    storyEn: row.storyEn,
+    storyAr: row.storyAr !== null && !isArPlaceholder(row.storyAr) ? row.storyAr : row.storyEn,
     host: toHostInfo(row.host),
     moments: [...row.moments].sort((a, b) => a.orderIndex - b.orderIndex).map(toMomentInfo),
     images: row.images,

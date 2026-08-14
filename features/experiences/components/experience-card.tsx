@@ -212,7 +212,7 @@ export async function ExperienceCard({
               </span>
               <span aria-hidden>·</span>
               <span className="inline-flex items-center gap-1.5">
-                {hostName}
+                {t('withHost', { name: hostName })}
                 {/* Micro-seal, not the tappable lockup: the whole card is one
                     Link, so a nested button would be invalid — the card builds
                     the reflex, the detail page opens the door. */}

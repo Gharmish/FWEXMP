@@ -126,6 +126,14 @@ export interface ExperienceDetail extends ExperienceSummary {
    * above is legacy and no longer shown to guests.
    */
   cancellationTier: CancellationTier;
+  /**
+   * Optional "story behind this experience" — editorial prose written by
+   * the host/curation team (db `experiences.story_en/story_ar`). `null`
+   * until real content exists; the detail page hides the section then.
+   * Undefined on the sample-data path.
+   */
+  storyEn?: string | null;
+  storyAr?: string | null;
   host: HostInfo;
   moments: MomentInfo[];
   /**

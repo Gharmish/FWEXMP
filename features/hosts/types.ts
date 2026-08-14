@@ -10,4 +10,12 @@ export interface HostProfile extends HostInfo {
   slug: string;
   /** ISO-8601 (UTC) of when the host joined — drives "Hosting since {year}". */
   joinedAt: string;
+  /**
+   * Optional long-form host story (db `hosts.story_en/story_ar`) — why
+   * they host and their connection to the place. `null` until real
+   * content exists; the profile hides the section then. Undefined on
+   * the sample-data path.
+   */
+  storyEn?: string | null;
+  storyAr?: string | null;
 }

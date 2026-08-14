@@ -8,7 +8,7 @@
 
 export type HostProfileErrorKey = 'no_db' | 'no_auth' | 'validation' | 'server';
 
-export type HostProfileField = 'name' | 'bioEn' | 'bioAr' | 'languages';
+export type HostProfileField = 'name' | 'bioEn' | 'bioAr' | 'storyEn' | 'storyAr' | 'languages';
 
 /** `useActionState` shape for the profile details form (discriminated union). */
 export type HostProfileFormState =
@@ -18,7 +18,14 @@ export type HostProfileFormState =
       status: 'error';
       message: HostProfileErrorKey;
       fields?: Partial<Record<HostProfileField, true>>;
-      values?: { name: string; bioEn: string; bioAr: string; languages: string[] };
+      values?: {
+        name: string;
+        bioEn: string;
+        bioAr: string;
+        storyEn: string;
+        storyAr: string;
+        languages: string[];
+      };
     };
 
 export type HostPhotoErrorKey =

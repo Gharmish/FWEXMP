@@ -101,6 +101,11 @@ export default async function HostProfilePage({
 
   const name = loc === 'ar' ? toArabicText(host.name) : host.name;
   const bio = pickLocalized(loc, host.bioEn, host.bioAr);
+  // Optional long-form host story — hidden until real content exists.
+  const story =
+    host.storyEn || host.storyAr
+      ? pickLocalized(loc, host.storyEn ?? host.storyAr ?? '', host.storyAr ?? host.storyEn ?? '')
+      : null;
 
   const eyebrowClassName = cn(
     'text-sarat-black-600 font-medium text-[11px]',
@@ -239,6 +244,23 @@ export default async function HostProfilePage({
           </header>
         </div>
       </div>
+
+      {/* Their story — optional long-form prose (hosts.story_en/ar); the
+          section exists only when the host has actually written one. */}
+      {story && (
+        <div className="border-sarat-black/8 [border-bottom-width:0.5px]">
+          <div className="mx-auto w-full max-w-6xl px-6 py-12">
+            <section className="flex flex-col gap-4">
+              <h2 className="font-display text-2xl font-medium tracking-[-0.025em]">
+                {t('storyHeading', { name })}
+              </h2>
+              <p className="text-sarat-black-600 max-w-[68ch] text-lg leading-relaxed whitespace-pre-line">
+                {story}
+              </p>
+            </section>
+          </div>
+        </div>
+      )}
 
       <div className="mx-auto w-full max-w-6xl px-6 py-12">
         <section className="flex flex-col gap-8">

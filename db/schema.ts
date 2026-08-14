@@ -320,6 +320,13 @@ export const hosts = pgTable('hosts', {
   slug: text().notNull().unique(),
   bioEn: text().notNull(),
   bioAr: text().notNull(),
+  /**
+   * Optional long-form host story — why they host, their connection to
+   * the place. Rendered on /hosts/[slug] only when written; never
+   * AI-fabricated (brand mandate 2026-08-14).
+   */
+  storyEn: text(),
+  storyAr: text(),
   photoUrl: text(),
   /** National ID (individual) or CR number (company) — KYC, Sprint 4+. */
   nationalId: text(),
@@ -407,6 +414,13 @@ export const experiences = pgTable(
     /** Rich prose for humans + LLMs (BRIEF §6). */
     descriptionEn: text().notNull(),
     descriptionAr: text().notNull(),
+    /**
+     * Optional "story behind this experience" — why it exists, told by
+     * the host/curation team. Rendered on the detail page only when
+     * written; never AI-fabricated (brand mandate 2026-08-14).
+     */
+    storyEn: text(),
+    storyAr: text(),
     category: categoryEnum().notNull(),
     hostId: uuid()
       .notNull()

@@ -21,6 +21,22 @@ export const hostProfileSchema = z
       .max(1200, 'bio_ar_long')
       .refine((v) => v.length === 0 || v.length >= 40, 'bio_ar_short')
       .default(''),
+    // Optional long-form story ("Their story" on /hosts/[slug]) — the
+    // host's own words about why they host and their tie to the place.
+    // Fully optional in both languages; empty stores NULL (the public
+    // section hides itself), so no host ever sees a required-story wall.
+    storyEn: z
+      .string()
+      .trim()
+      .max(2000, 'story_long')
+      .refine((v) => v.length === 0 || v.length >= 80, 'story_short')
+      .default(''),
+    storyAr: z
+      .string()
+      .trim()
+      .max(2000, 'story_ar_long')
+      .refine((v) => v.length === 0 || v.length >= 80, 'story_ar_short')
+      .default(''),
     languages: z
       .array(z.enum(HOST_LANGUAGE_OPTIONS))
       .min(1, 'languages_required')

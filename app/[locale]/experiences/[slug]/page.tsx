@@ -272,6 +272,8 @@ export default async function ExperienceDetailPage({
 
   const title = loc === 'ar' ? exp.titleAr : exp.titleEn;
   const description = loc === 'ar' ? exp.descriptionAr : exp.descriptionEn;
+  // Optional editorial story — null/undefined (sample path) hides the section.
+  const story = (loc === 'ar' ? exp.storyAr : exp.storyEn)?.trim() || null;
   const placeName = loc === 'ar' ? toArabicText(exp.placeName) : exp.placeName;
   const city = loc === 'ar' ? toArabicText(exp.city) : exp.city;
   const region = loc === 'ar' ? toArabicText(exp.region) : exp.region;
@@ -591,6 +593,27 @@ export default async function ExperienceDetailPage({
             </p>
           </section>
 
+          {/* The story behind this experience — optional editorial prose;
+              renders only when real content exists (no fabrication). */}
+          {story && (
+            <section className="flex flex-col gap-3">
+              <h2 className="font-display text-2xl font-medium tracking-[-0.025em]">
+                {t('story')}
+              </h2>
+              <p className="text-sarat-black-600 max-w-[68ch] text-lg leading-relaxed">{story}</p>
+            </section>
+          )}
+
+          {/* Your host — the person early in the read (brand hierarchy:
+              guest → host → place; the host is the way in, not a footnote
+              below the cancellation policy). */}
+          <section className="flex flex-col gap-4">
+            <h2 className="font-display text-2xl font-medium tracking-[-0.025em]">
+              {t('hostedBy')}
+            </h2>
+            <HostCard host={exp.host} locale={loc} responseStats={hostResponseStats} />
+          </section>
+
           {exp.moments.length > 0 && (
             <section className="flex flex-col gap-5">
               <FadeIn>
@@ -704,13 +727,6 @@ export default async function ExperienceDetailPage({
                     rescheduleWindow: policyWindow(policyView.rescheduleCutoffHours, tTiers),
                   })}
             </p>
-          </section>
-
-          <section className="border-sarat-black/8 flex flex-col gap-4 [border-top-width:0.5px] pt-10">
-            <h2 className="font-display text-2xl font-medium tracking-[-0.025em]">
-              {t('hostedBy')}
-            </h2>
-            <HostCard host={exp.host} locale={loc} responseStats={hostResponseStats} />
           </section>
 
           <ReviewsSection

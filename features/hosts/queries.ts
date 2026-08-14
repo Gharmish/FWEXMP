@@ -28,6 +28,8 @@ function toProfile(row: Host): HostProfile {
     name: row.name,
     bioEn: row.bioEn,
     bioAr: row.bioAr,
+    storyEn: row.storyEn,
+    storyAr: row.storyAr,
     verified: row.verificationStatus === 'verified',
     languages: row.languages,
     photoUrl: row.photoUrl,

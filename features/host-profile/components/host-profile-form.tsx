@@ -17,6 +17,10 @@ export interface HostProfileFormCopy {
   bioHint: string;
   bioArLabel: string;
   bioArHint: string;
+  storyLabel: string;
+  storyHint: string;
+  storyArLabel: string;
+  storyArHint: string;
   languagesLabel: string;
   /** Display label per offered language code. */
   languageLabels: Record<(typeof HOST_LANGUAGE_OPTIONS)[number], string>;
@@ -26,12 +30,21 @@ export interface HostProfileFormCopy {
   nameError: string;
   bioError: string;
   bioArError: string;
+  storyError: string;
+  storyArError: string;
   languagesError: string;
   errors: Record<HostProfileErrorKey, string>;
 }
 
 export interface HostProfileFormProps {
-  profile: { name: string; bioEn: string; bioAr: string; languages: readonly string[] };
+  profile: {
+    name: string;
+    bioEn: string;
+    bioAr: string;
+    storyEn: string;
+    storyAr: string;
+    languages: readonly string[];
+  };
   copy: HostProfileFormCopy;
 }
 
@@ -58,6 +71,8 @@ export function HostProfileForm({ profile, copy }: HostProfileFormProps) {
   const nameId = useId();
   const bioId = useId();
   const bioArId = useId();
+  const storyId = useId();
+  const storyArId = useId();
   const langId = useId();
 
   // Save feedback springs in as a toast; useActionState returns a fresh
@@ -70,6 +85,8 @@ export function HostProfileForm({ profile, copy }: HostProfileFormProps) {
   const nameError = errored?.fields?.name ? copy.nameError : undefined;
   const bioError = errored?.fields?.bioEn ? copy.bioError : undefined;
   const bioArError = errored?.fields?.bioAr ? copy.bioArError : undefined;
+  const storyError = errored?.fields?.storyEn ? copy.storyError : undefined;
+  const storyArError = errored?.fields?.storyAr ? copy.storyArError : undefined;
   const languagesError = errored?.fields?.languages ? copy.languagesError : undefined;
   const generalError =
     errored && errored.message !== 'validation' ? copy.errors[errored.message] : undefined;
@@ -163,6 +180,67 @@ export function HostProfileForm({ profile, copy }: HostProfileFormProps) {
         ) : (
           <p id={`${bioArId}-hint`} className="text-sarat-black-600 text-sm">
             {copy.bioArHint}
+          </p>
+        )}
+      </div>
+
+      {/* Optional long-form story — "Their story" on the public profile.
+          Same LTR/RTL split as the bios; blank simply hides the section. */}
+      <div className="flex flex-col gap-2">
+        <label htmlFor={storyId} className="text-sm font-medium">
+          {copy.storyLabel}
+        </label>
+        <textarea
+          id={storyId}
+          name="storyEn"
+          rows={8}
+          maxLength={2000}
+          defaultValue={errored?.values?.storyEn ?? profile.storyEn}
+          dir="ltr"
+          className={cn(
+            'rounded-input border-sarat-black/20 text-sarat-black w-full resize-y [border-width:0.5px] bg-white px-4 py-3 text-base',
+            'placeholder:text-sarat-black-600 disabled:pointer-events-none disabled:opacity-50',
+          )}
+          aria-invalid={storyError ? true : undefined}
+          aria-describedby={storyError ? `${storyId}-error` : `${storyId}-hint`}
+        />
+        {storyError ? (
+          <p id={`${storyId}-error`} className="text-al-qatt-red text-sm">
+            {storyError}
+          </p>
+        ) : (
+          <p id={`${storyId}-hint`} className="text-sarat-black-600 text-sm">
+            {copy.storyHint}
+          </p>
+        )}
+      </div>
+
+      <div className="flex flex-col gap-2">
+        <label htmlFor={storyArId} className="text-sm font-medium">
+          {copy.storyArLabel}
+        </label>
+        <textarea
+          id={storyArId}
+          name="storyAr"
+          rows={8}
+          maxLength={2000}
+          defaultValue={errored?.values?.storyAr ?? profile.storyAr}
+          dir="rtl"
+          lang="ar"
+          className={cn(
+            'rounded-input border-sarat-black/20 text-sarat-black w-full resize-y [border-width:0.5px] bg-white px-4 py-3 text-base',
+            'placeholder:text-sarat-black-600 disabled:pointer-events-none disabled:opacity-50',
+          )}
+          aria-invalid={storyArError ? true : undefined}
+          aria-describedby={storyArError ? `${storyArId}-error` : `${storyArId}-hint`}
+        />
+        {storyArError ? (
+          <p id={`${storyArId}-error`} className="text-al-qatt-red text-sm">
+            {storyArError}
+          </p>
+        ) : (
+          <p id={`${storyArId}-hint`} className="text-sarat-black-600 text-sm">
+            {copy.storyArHint}
           </p>
         )}
       </div>

@@ -69,6 +69,8 @@ export async function updateHostProfile(
     name: formValue(formData, 'name'),
     bioEn: formValue(formData, 'bioEn'),
     bioAr: formValue(formData, 'bioAr'),
+    storyEn: formValue(formData, 'storyEn'),
+    storyAr: formValue(formData, 'storyAr'),
     languages: formData.getAll('languages').filter((v): v is string => typeof v === 'string'),
   };
 
@@ -77,7 +79,14 @@ export async function updateHostProfile(
     const fields: Partial<Record<HostProfileField, true>> = {};
     for (const issue of parsed.error.issues) {
       const key = issue.path[0];
-      if (key === 'name' || key === 'bioEn' || key === 'bioAr' || key === 'languages') {
+      if (
+        key === 'name' ||
+        key === 'bioEn' ||
+        key === 'bioAr' ||
+        key === 'storyEn' ||
+        key === 'storyAr' ||
+        key === 'languages'
+      ) {
         fields[key] = true;
       }
     }
@@ -98,6 +107,10 @@ export async function updateHostProfile(
         // Blank Arabic → keep the fallback marker; otherwise store what
         // the host wrote.
         bioAr: parsed.data.bioAr.length > 0 ? parsed.data.bioAr : AR_PLACEHOLDER,
+        // Story columns are nullable — blank means "no story yet" and the
+        // public section hides itself (no placeholder marker needed).
+        storyEn: parsed.data.storyEn.length > 0 ? parsed.data.storyEn : null,
+        storyAr: parsed.data.storyAr.length > 0 ? parsed.data.storyAr : null,
         languages: parsed.data.languages,
       })
       .where(eq(hosts.id, host.id));

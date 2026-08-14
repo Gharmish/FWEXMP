@@ -1,7 +1,7 @@
 {
   "siteMeta": {
     "name": "Gharmish",
-    "description": "Experiences hosted by the people who know Aseer best."
+    "description": "Curated experiences hosted by the people who know their place best — starting in Abha, Aseer."
   },
   "nav": {
     "discover": "Discover",
@@ -1349,7 +1349,7 @@
     "hero": {
       "eyebrow": "Host with us",
       "title": "Host the Aseer you know.",
-      "intro": "Gharmish is a partnership marketplace, not a passive listing site. We work alongside a small circle of local hosts — with photography, training, and distribution — and share the upside fairly.",
+      "intro": "You already know something worth sharing — a craft, a trail, a table, a story. Gharmish is a partnership marketplace, not a passive listing site: we work alongside a small circle of local hosts — with photography, training, and distribution — and share the upside fairly.",
       "meta": "Applying doesn't list anything yet. Our partnerships team reviews every application and follows up to talk through payouts, licensing, and the experience you'd love to host.",
       "primaryCta": "Apply to host",
       "secondaryCta": "Browse experiences"
@@ -1750,6 +1750,10 @@
       "bioHint": "40–1200 characters. Who you are, what you host, and your connection to Aseer.",
       "bioArLabel": "Bio (Arabic)",
       "bioArHint": "Optional. Write your bio in Arabic — this is what Arabic-speaking guests see. Leave blank to show the English version. 40–1200 characters.",
+      "storyLabel": "Your story (English)",
+      "storyHint": "Optional, 80–2000 characters. The longer version guests read on your profile: why you host, and your connection to this place. In your own words — leave blank to skip.",
+      "storyArLabel": "Your story (Arabic)",
+      "storyArHint": "Optional. The same story in Arabic, in your own words. Leave blank to show the English version.",
       "languagesLabel": "Languages you host in",
       "languages": {
         "ar": "Arabic",
@@ -1763,6 +1767,8 @@
       "nameError": "Enter a display name between 2 and 80 characters.",
       "bioError": "Your bio needs to be between 40 and 1200 characters.",
       "bioArError": "Your Arabic bio needs to be between 40 and 1200 characters, or left blank.",
+      "storyError": "Your story needs to be between 80 and 2000 characters, or left blank.",
+      "storyArError": "Your Arabic story needs to be between 80 and 2000 characters, or left blank.",
       "languagesError": "Pick at least one language.",
       "errors": {
         "noDb": "We couldn't save right now — try again in a moment.",
@@ -2262,8 +2268,8 @@
       "description": "Curated Aseeri experiences in Abha, hosted by vetted local partners."
     },
     "eyebrow": "Abha experiences",
-    "title": "Explore authentic Aseeri experiences.",
-    "intro": "A curated collection of heritage, mountain, food, wellness, adventure, and family experiences hosted by vetted local partners.",
+    "title": "Meet Aseer from the inside.",
+    "intro": "Heritage, mountain, food, wellness, adventure, and family experiences across Abha and Aseer — each one hosted by a local who knows it firsthand.",
     "featured": "Featured Originals",
     "all": "All experiences",
     "results": "{count, plural, =0 {No experiences} =1 {1 experience} other {# experiences}}",
@@ -2299,8 +2305,9 @@
     },
     "empty": {
       "eyebrow": "No matches",
-      "title": "Nothing fits those filters yet.",
-      "description": "Try removing a filter, clearing the search, or browsing every experience.",
+      "title": "We couldn't find that experience yet.",
+      "description": "Try another date, category, or search — or browse everything that's live.",
+      "noneEyebrow": "Opening soon",
       "noneTitle": "Nothing is live just yet.",
       "noneDescription": "We're curating the first Aseer experiences with our hosts. Check back soon."
     },
@@ -2327,8 +2334,8 @@
   },
   "home": {
     "eyebrow": "Abha · Aseer",
-    "headline": "Experiences hosted by the people who know Aseer best.",
-    "headlineTemplate": "{word} experiences hosted by the people who know Aseer best.",
+    "headline": "Experiences you wouldn't find on your own — hosted by the people who know the place best.",
+    "headlineTemplate": "{word} experiences you wouldn't find on your own.",
     "headlineWords": {
       "nature": "Nature",
       "heritage": "Heritage",
@@ -2337,24 +2344,39 @@
       "adventure": "Adventure",
       "family": "Family"
     },
-    "intro": "A curated marketplace of authentic Aseeri experiences — heritage, mountains, food, and more — co-created with local hosts.",
-    "cta": "Discover experiences",
+    "intro": "The best way to know a place is through its people. Gharmish curates a small set of experiences with local hosts — farmers, guides, roasters, artisans — who invite you into the Aseer they know.",
+    "cta": "Explore Aseer",
+    "idea": {
+      "eyebrow": "The idea",
+      "title": "The best parts of a place aren't always on the map.",
+      "body": "They're in a roaster's craft, a farm's terraces, a table set for guests, a trail someone has walked their whole life. Gharmish exists to introduce you to that side of a place — through the people who hold it."
+    },
+    "originalsEyebrow": "Curated by Gharmish",
     "originalsTitle": "Gharmish Originals",
-    "originalsSub": "Premium experiences we produce hand in hand with our hosts.",
+    "originalsSub": "Designed together with remarkable hosts around a story, a craft, or a place — experiences you can't simply book somewhere else.",
     "allTitle": "All experiences",
     "viewAll": "View all",
-    "hostsEyebrow": "Our hosts",
-    "hostsTitle": "Meet the people behind the experiences.",
-    "hostsIntro": "Vetted local partners — farmers, guides, artisans, and licensed operators — co-creating every Gharmish experience.",
-    "hostsView": "View profile",
+    "hostsEyebrow": "Meet the people",
+    "hostsTitle": "Every experience here is someone's world.",
+    "hostsIntro": "Farmers, guides, artisans, licensed operators — verified locals who open Aseer from the inside.",
+    "hostsView": "Meet {name}",
+    "chapter": {
+      "label": "Chapter one",
+      "title": "It starts in Aseer.",
+      "body1": "Gharmish began in the Aseer highlands — among juniper mountains, terraced farms, and stone villages where hospitality is a habit, not a service.",
+      "body2": "We noticed something simple: the experiences people remember most aren't the places they visited. They're the moments someone invited them into — a farmer's terraces, a roaster's craft, a table with room for guests.",
+      "body3": "That's why Gharmish exists: to help you experience a place through the people who know it best. Aseer is where the story begins — not where it ends.",
+      "cta": "Explore Aseer",
+      "secondaryCta": "Meet the hosts"
+    },
     "whyGharmish": {
-      "eyebrow": "Why Gharmish",
-      "title": "Curation is the difference.",
-      "rootedTitle": "Rooted in Aseer",
+      "eyebrow": "What we believe",
+      "title": "The best experiences aren't found. They're introduced.",
+      "rootedTitle": "From here, not imported",
       "rootedBody": "Every experience ties to the region's culture, landscape, or community. Nothing generic, nothing imported.",
-      "hostedTitle": "Hosted, not listed",
+      "hostedTitle": "Made with hosts, not uploaded",
       "hostedBody": "We co-create each experience with vetted local partners, and back them with photography, training, and hands-on support.",
-      "qualityTitle": "Quality over quantity",
+      "qualityTitle": "Fewer. Better. Worth remembering.",
       "qualityBody": "A small, deliberate catalogue. We would rather offer fewer experiences that are worth the journey."
     },
     "socialProof": {
@@ -2371,7 +2393,8 @@
     "heroImageAlt": "Morning mist over the juniper mountains of Aseer"
   },
   "experience": {
-    "originals": "Originals",
+    "originals": "Gharmish Original",
+    "withHost": "With {name}",
     "instant": "Instant",
     "perPerson": "/ person",
     "hours": "hr",
@@ -2392,11 +2415,12 @@
       "goTo": "Go to photo {n}"
     },
     "about": "About this experience",
-    "timeline": "The timeline",
+    "story": "The story behind this experience",
+    "timeline": "How it unfolds",
     "included": "What's included",
     "bring": "What to bring",
     "cancellation": "Cancellation policy",
-    "hostedBy": "Hosted by",
+    "hostedBy": "Your host",
     "groupSizeUpTo": "Up to {count} guests",
     "minAge": "Minimum age {age}",
     "minAgeAll": "All ages welcome",
@@ -3003,7 +3027,7 @@
     },
     "eyebrow": "Our hosts",
     "title": "The people behind every experience.",
-    "intro": "Vetted local partners — Saudi individuals and Aseeri tourism operators — co-creating the Gharmish catalog. Every host's identity is verified before they go live.",
+    "intro": "Farmers, guides, artisans, and licensed Aseeri operators. Every host's identity is verified before they welcome guests, and every experience is shaped together with them.",
     "empty": "No hosts have been listed yet."
   },
   "hostProfile": {
@@ -3014,7 +3038,8 @@
     "backToExperiences": "Back to experiences",
     "languages": "Languages spoken",
     "hostingSinceLabel": "Hosting since",
-    "experiencesHeading": "Experiences hosted by {name}",
+    "storyHeading": "{name}'s story",
+    "experiencesHeading": "Experiences with {name}",
     "experiencesCount": "{count, plural, =0 {No experiences yet} =1 {1 experience} other {# experiences}}",
     "noExperiences": "No experiences are live for this host yet.",
     "ratingCount": "· {count, plural, one {# review} other {# reviews}}",
@@ -3036,7 +3061,7 @@
     "showAll": "{count, plural, =1 {Show 1 more review} other {Show # more reviews}}"
   },
   "footer": {
-    "tagline": "Experiences hosted by the people who know Aseer best.",
+    "tagline": "Experiences hosted by the people who know the place best.",
     "rights": "All rights reserved.",
     "region": "Abha · Aseer, Saudi Arabia",
     "exploreLabel": "Explore",
@@ -3232,11 +3257,11 @@
     },
     "eyebrow": "Your wishlist",
     "title": "The experiences you've saved.",
-    "intro": "Bookings open with one tap when you're ready — these stay here, private to you.",
-    "introEmpty": "Nothing here yet. Tap the heart on any experience to add it to your wishlist.",
-    "emptyEyebrow": "Empty",
-    "emptyTitle": "Start saving experiences.",
-    "emptyDescription": "Tap the heart on any card while you're browsing. We'll keep them here for when you're ready to book.",
+    "intro": "The experiences you're thinking about, saved for when you're ready — booking opens with one tap, and this list stays private to you.",
+    "introEmpty": "Nothing here yet. Tap the heart on any experience to keep it for later.",
+    "emptyEyebrow": "Saved for later",
+    "emptyTitle": "Keep the ones you're curious about.",
+    "emptyDescription": "Tap the heart on any experience while you browse — we'll hold your maybes here for when you're ready.",
     "emptyCta": "Browse experiences"
   },
   "trustSafety": {

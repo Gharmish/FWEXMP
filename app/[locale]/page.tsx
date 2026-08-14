@@ -26,6 +26,8 @@ import { WishlistButton } from '@/features/wishlist/components/wishlist-button';
 import { SocialProofStrip } from '@/features/reviews/components/social-proof-strip';
 import { WhyGharmish } from '@/components/marketing/why-gharmish';
 import { HostCta } from '@/components/marketing/host-cta';
+import { TheIdea } from '@/components/marketing/the-idea';
+import { DestinationChapter } from '@/components/marketing/destination-chapter';
 import { CategoryTiles } from '@/components/marketing/category-tiles';
 import { HeroHighlands } from '@/components/marketing/hero-highlands';
 import { HeroHeadline } from '@/components/marketing/hero-headline';
@@ -189,26 +191,44 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
         </div>
       </section>
 
+      {/* The idea — one editorial breath stating the worldview before the
+          merchandising rows: the best parts of a place live with its
+          people. */}
+      <TheIdea locale={loc} />
+
       {/* Originals + all experiences — streamed: they wait on the featured
           and wishlist queries, which shouldn't hold the hero back. */}
       <Suspense fallback={<CatalogSectionsFallback />}>
         <CatalogSections locale={loc} experiences={experiences} />
       </Suspense>
 
-      {/* Why Gharmish — the three brand pillars as guest-facing promises. */}
+      {/* Hosts row — the people ahead of the pitch: meet the humans behind
+          the catalog before the brand talks about itself. Streams behind
+          Suspense; hides entirely when there are no hosts. */}
+      <Suspense fallback={null}>
+        <HostsRow locale={loc} />
+      </Suspense>
+
+      {/* Chapter one — the destination story. Editorial numbering is
+          presentation only: a future destination is a new message block
+          plus one more render of DestinationChapter, no schema change. */}
+      <DestinationChapter
+        locale={loc}
+        number="01"
+        label={t('chapter.label')}
+        title={t('chapter.title')}
+        paragraphs={[t('chapter.body1'), t('chapter.body2'), t('chapter.body3')]}
+        cta={{ label: t('chapter.cta'), href: '/experiences' }}
+        secondaryCta={{ label: t('chapter.secondaryCta'), href: '/hosts' }}
+      />
+
+      {/* What we believe — the three brand beliefs as guest-facing promises. */}
       <WhyGharmish locale={loc} />
 
       {/* Social proof — latest high-rated guest reviews (renders nothing
           until reviews exist). */}
       <Suspense fallback={null}>
         <SocialProofStrip locale={loc} />
-      </Suspense>
-
-      {/* Hosts row — surfaces /hosts/[slug] from the home page. Streams
-          behind Suspense; hides entirely when there are no hosts (or while
-          loading — it is below the fold). */}
-      <Suspense fallback={null}>
-        <HostsRow locale={loc} />
       </Suspense>
 
       {/* Host recruitment — the page closes on the partnership pitch. */}
@@ -242,10 +262,18 @@ async function CatalogSections({
       {featured.length > 0 && (
         <section className="mx-auto w-full max-w-6xl px-6 py-20">
           <FadeIn className="mb-8 flex flex-col gap-2">
+            <p
+              className={cn(
+                'text-saffron-gold-800 font-medium text-[11px]',
+                locale === 'en' && 'tracking-[0.2em] uppercase',
+              )}
+            >
+              {t('originalsEyebrow')}
+            </p>
             <h2 className="font-display text-3xl font-medium tracking-[-0.03em]">
               {t('originalsTitle')}
             </h2>
-            <p className="text-sarat-black-600 text-base">{t('originalsSub')}</p>
+            <p className="text-sarat-black-600 max-w-2xl text-base">{t('originalsSub')}</p>
           </FadeIn>
           <Stagger className="grid gap-4 sm:grid-cols-2">
             {featured.map((e) => (
@@ -358,7 +386,7 @@ async function HostsRow({ locale }: { locale: Locale }) {
                         <span className="text-lg font-medium">{name}</span>
                         <p className="text-sarat-black-600 line-clamp-3 text-sm">{bio}</p>
                         <span className="text-sarat-black inline-flex items-center gap-1 text-sm font-medium opacity-0 transition-opacity duration-200 group-hover:opacity-100 group-focus-visible:opacity-100">
-                          {t('hostsView')}
+                          {t('hostsView', { name })}
                           <ArrowRight className="size-4 shrink-0 rtl:rotate-180" aria-hidden />
                         </span>
                       </div>

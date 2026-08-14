@@ -28,7 +28,15 @@ Calm, confident, culturally rooted, premium without pretension. Apple-like restr
 
 ### Positioning statement
 
-> Experiences hosted by the people who know Aseer best.
+> Experiences hosted by the people who know the place best.
+
+(Scalable master positioning — owner brand mandate 2026-08-14. Gharmish
+is not an Aseer-only brand: Aseer is the birthplace and "chapter one",
+kept strongly present in destination-level storytelling — hero eyebrow,
+"Explore Aseer" CTAs, the Chapter One home section — while brand-level
+copy (siteMeta, footer tagline, master headline) stays place-agnostic so
+future destinations never force a rebrand. The previous Aseer-fixed line
+survives verbatim in destination copy, not as the brand definition.)
 
 ### Brand pillars
 

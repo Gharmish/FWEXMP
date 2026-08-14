@@ -31,7 +31,7 @@ export function EmptyState({ locale, variant = 'filtered' }: EmptyStateProps) {
 
   return (
     <div className="border-sarat-black/8 rounded-card flex flex-col items-start gap-4 [border-width:0.5px] p-10">
-      <p className={eyebrowClassName}>{t('eyebrow')}</p>
+      <p className={eyebrowClassName}>{catalogEmpty ? t('noneEyebrow') : t('eyebrow')}</p>
       <h2 className="font-display text-2xl font-medium tracking-[-0.025em]">
         {catalogEmpty ? t('noneTitle') : t('title')}
       </h2>

@@ -142,6 +142,8 @@ export default async function HostProfileSettingsPage({
             // Never seed the editor with the TODO(ar) marker — show an
             // empty field so the host writes from scratch.
             bioAr: isArPlaceholder(host.bioAr) ? '' : host.bioAr,
+            storyEn: host.storyEn ?? '',
+            storyAr: host.storyAr ?? '',
             languages: host.languages,
           }}
           copy={{
@@ -151,6 +153,10 @@ export default async function HostProfileSettingsPage({
             bioHint: t('details.bioHint'),
             bioArLabel: t('details.bioArLabel'),
             bioArHint: t('details.bioArHint'),
+            storyLabel: t('details.storyLabel'),
+            storyHint: t('details.storyHint'),
+            storyArLabel: t('details.storyArLabel'),
+            storyArHint: t('details.storyArHint'),
             languagesLabel: t('details.languagesLabel'),
             languageLabels: {
               ar: t('details.languages.ar'),
@@ -164,6 +170,8 @@ export default async function HostProfileSettingsPage({
             nameError: t('details.nameError'),
             bioError: t('details.bioError'),
             bioArError: t('details.bioArError'),
+            storyError: t('details.storyError'),
+            storyArError: t('details.storyArError'),
             languagesError: t('details.languagesError'),
             errors: {
               no_db: t('details.errors.noDb'),
