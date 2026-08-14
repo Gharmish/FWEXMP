@@ -8,6 +8,7 @@ import { buttonVariants } from '@/components/ui/button';
 import { FadeIn } from '@/components/ui/motion';
 import { JsonLd } from '@/components/seo/json-ld';
 import { getPlatformSettings } from '@/lib/platform-settings';
+import { SITE_URL } from '@/lib/site';
 
 /**
  * Public, indexable host-recruitment landing page. Unlike `/host/apply`
@@ -22,8 +23,25 @@ export async function generateMetadata({
 }: {
   params: Promise<{ locale: string }>;
 }): Promise<Metadata> {
-  const t = await getTranslations({ locale: (await params).locale, namespace: 'hosting' });
-  return { title: t('meta.title'), description: t('meta.description') };
+  const { locale } = await params;
+  const t = await getTranslations({ locale, namespace: 'hosting' });
+  const title = t('meta.title');
+  const description = t('meta.description');
+  return {
+    title,
+    description,
+    // Without an explicit openGraph block, Next's shallow metadata merge
+    // keeps the root layout's generic brand og:title/og:description, so a
+    // shared /hosting link read like a plain brand share. og:image still
+    // comes from the locale-level opengraph-image file convention.
+    openGraph: {
+      title,
+      description,
+      url: `${SITE_URL}/${locale}/hosting`,
+      type: 'website',
+    },
+    twitter: { card: 'summary_large_image', title, description },
+  };
 }
 
 /** FAQ keys reused from the host-facing help entries so answers never drift. */
