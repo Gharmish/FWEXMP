@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import { ArrowRight, Star } from 'lucide-react';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
+import { SITE_URL } from '@/lib/site';
 import { Link } from '@/lib/i18n';
 import type { Locale } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
@@ -34,10 +35,26 @@ export async function generateMetadata({
   const { locale } = await params;
   const t = await getTranslations({ locale, namespace: 'me.meta' });
   const title = t('title');
+  const tSite = await getTranslations({ locale, namespace: 'siteMeta' });
   return {
     title,
     // Per-guest state — never indexed.
     robots: { index: false, follow: false },
+    // Personal pages still get pasted into chats, so the preview should
+    // name the page. Generic copy only — never per-guest state. Declaring
+    // openGraph replaces the parent's resolved block wholesale, so the
+    // [locale]-level brand card must be re-attached explicitly.
+    openGraph: {
+      title,
+      description: tSite('description'),
+      images: [{ url: `${SITE_URL}/${locale}/opengraph-image`, width: 1200, height: 630 }],
+    },
+    twitter: {
+      card: 'summary_large_image',
+      title,
+      description: tSite('description'),
+      images: [`${SITE_URL}/${locale}/opengraph-image`],
+    },
   };
 }
 
