@@ -32,15 +32,23 @@ export async function generateMetadata({
     description,
     // Without an explicit openGraph block, Next's shallow metadata merge
     // keeps the root layout's generic brand og:title/og:description, so a
-    // shared /hosting link read like a plain brand share. og:image still
-    // comes from the locale-level opengraph-image file convention.
+    // shared /hosting link read like a plain brand share. Declaring the
+    // block replaces the parent's resolved openGraph WHOLESALE — including
+    // the [locale]-level opengraph-image file convention — so the brand
+    // card must be re-attached explicitly here.
     openGraph: {
       title,
       description,
       url: `${SITE_URL}/${locale}/hosting`,
       type: 'website',
+      images: [{ url: `${SITE_URL}/${locale}/opengraph-image`, width: 1200, height: 630 }],
     },
-    twitter: { card: 'summary_large_image', title, description },
+    twitter: {
+      card: 'summary_large_image',
+      title,
+      description,
+      images: [`${SITE_URL}/${locale}/opengraph-image`],
+    },
   };
 }
 
