@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { isArPlaceholder } from '@/lib/ar-placeholder';
 import { hostExperienceInputSchema } from '@/features/host-experiences/schemas';
 
 /**
@@ -39,6 +40,24 @@ export const adminExperienceSchema = hostExperienceInputSchema
       .trim()
       .min(10, 'description_ar_short')
       .max(5000, 'description_ar_long'),
+    // Optional editorial story ("The story behind this experience" on the
+    // detail page). Blank = no story: the action stores NULL and the
+    // guest-facing section hides itself. Bounds mirror the host-profile
+    // story (features/host-profile/schemas.ts); the Arabic side also
+    // refuses the TODO(ar) marker like every admin-authored ar column.
+    storyEn: z
+      .string()
+      .trim()
+      .max(2000, 'story_long')
+      .refine((v) => v.length === 0 || v.length >= 80, 'story_short')
+      .default(''),
+    storyAr: z
+      .string()
+      .trim()
+      .max(2000, 'story_ar_long')
+      .refine((v) => v.length === 0 || v.length >= 80, 'story_ar_short')
+      .refine((v) => !isArPlaceholder(v), 'story_ar_placeholder')
+      .default(''),
     startTime: z.string().regex(HHMM_RE, 'start_time_invalid'),
     bookingMode: z.enum(BOOKING_MODES),
     // Percentage in the UI (0–50); stored as basis points by the action.

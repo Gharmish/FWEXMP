@@ -59,6 +59,9 @@ export interface AdminExperienceEdit {
   titleAr: string;
   descriptionEn: string;
   descriptionAr: string;
+  /** Optional editorial story — '' in the editor when the column is NULL. */
+  storyEn: string;
+  storyAr: string;
   category: string;
   durationMinutes: number;
   maxGroupSize: number;
@@ -98,6 +101,8 @@ export async function getAdminExperienceForEdit(
     titleAr: row.titleAr,
     descriptionEn: row.descriptionEn,
     descriptionAr: row.descriptionAr,
+    storyEn: row.storyEn ?? '',
+    storyAr: row.storyAr ?? '',
     category: row.category,
     durationMinutes: row.durationMinutes,
     maxGroupSize: row.maxGroupSize,

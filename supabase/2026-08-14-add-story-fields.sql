@@ -13,8 +13,9 @@
 -- - Nullable by design: every surface renders the story section only
 --   when real content exists (no-fabrication rule). NULL = hidden.
 -- - Hosts author their own via /host/profile (80–2000 chars, blank
---   stores NULL). Experience stories have no form yet — content is
---   entered via SQL/admin until an edit surface lands.
+--   stores NULL). Experience stories are edited in the admin experience
+--   editor (/admin/experiences/[id]/edit, same bounds — added the same
+--   day, after the columns landed).
 -- - Bilingual pair columns follow the existing *_en/*_ar convention;
 --   the queries layer applies the TODO(ar) placeholder guard on read.
 

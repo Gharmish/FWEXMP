@@ -37,6 +37,10 @@ export interface AdminExperienceFormCopy {
   titleAr: string;
   descriptionEn: string;
   descriptionAr: string;
+  storyEn: string;
+  storyEnHint: string;
+  storyAr: string;
+  storyArHint: string;
   category: string;
   durationMinutes: string;
   maxGroupSize: string;
@@ -76,6 +80,8 @@ const BLANK: Omit<AdminExperienceEdit, 'id' | 'slug' | 'heroImage' | 'images'> =
   titleAr: '',
   descriptionEn: '',
   descriptionAr: '',
+  storyEn: '',
+  storyAr: '',
   category: 'nature',
   durationMinutes: 120,
   maxGroupSize: 8,
@@ -379,6 +385,39 @@ export function AdminExperienceForm({
             {...aria('descriptionAr')}
           />
           {err('descriptionAr')}
+        </div>
+        {/* Optional editorial story — renders as "The story behind this
+            experience" on the detail page; blank hides the section. */}
+        <div className="flex flex-col gap-2">
+          <label htmlFor="ex-storyEn" className={labelClass}>
+            {copy.storyEn}
+          </label>
+          <textarea
+            id="ex-storyEn"
+            name="storyEn"
+            rows={6}
+            defaultValue={v?.storyEn ?? ex.storyEn}
+            className={TEXTAREA_CLASS}
+            {...aria('storyEn')}
+          />
+          <p className={hintClass}>{copy.storyEnHint}</p>
+          {err('storyEn')}
+        </div>
+        <div className="flex flex-col gap-2">
+          <label htmlFor="ex-storyAr" className={labelClass}>
+            {copy.storyAr}
+          </label>
+          <textarea
+            id="ex-storyAr"
+            name="storyAr"
+            rows={6}
+            dir="rtl"
+            defaultValue={v?.storyAr ?? ex.storyAr}
+            className={TEXTAREA_CLASS}
+            {...aria('storyAr')}
+          />
+          <p className={hintClass}>{copy.storyArHint}</p>
+          {err('storyAr')}
         </div>
         <div className="flex flex-col gap-2 sm:max-w-xs">
           <label htmlFor="ex-category" className={labelClass}>
