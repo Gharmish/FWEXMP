@@ -7,13 +7,22 @@ import { clientEnv, hasMarketingPixels } from '@/lib/env-client';
 import { readConsent, subscribeConsent } from '@/components/layout/consent';
 
 /**
- * Snap Pixel + TikTok Pixel loader. Renders nothing (and loads nothing)
- * until BOTH are true: a pixel id is configured in the environment AND
- * the visitor chose "Accept all" in the cookie banner — the moment
- * consent lands, the store notifies and the base snippets mount without
- * a reload. Each vendor's official base snippet fires the first
- * page-view itself; client-side route changes are re-tracked from the
- * pathname effect below (neither SDK observes SPA navigation).
+ * Snap Pixel + TikTok Pixel + Google Analytics 4 loader. Renders nothing
+ * (and loads nothing) until BOTH are true: a tracker id is configured in
+ * the environment AND the visitor chose "Accept all" in the cookie
+ * banner — the moment consent lands, the store notifies and the base
+ * snippets mount without a reload. Each vendor's base snippet fires the
+ * first page-view itself; Snap/TikTok client-side route changes are
+ * re-tracked from the pathname effect below (neither SDK observes SPA
+ * navigation), while GA4's enhanced measurement observes history
+ * changes natively — keep "Page changes based on browser history
+ * events" ON in the GA4 property (it is the default) and never add a
+ * manual page_view here, or every SPA navigation double-counts.
+ *
+ * GA runs in measurement-only consent mode: analytics_storage granted
+ * (that is what "Accept all" covers per the privacy policy), all Google
+ * ads signals denied — the policy discloses site analytics, not Google
+ * ad personalisation.
  */
 
 declare global {
@@ -23,6 +32,8 @@ declare global {
       page: (...args: unknown[]) => void;
       track: (...args: unknown[]) => void;
     };
+    gtag?: (...args: unknown[]) => void;
+    dataLayer?: unknown[];
   }
 }
 
@@ -56,9 +67,30 @@ export function MarketingPixels() {
 
   const snapId = clientEnv.NEXT_PUBLIC_SNAP_PIXEL_ID;
   const tiktokId = clientEnv.NEXT_PUBLIC_TIKTOK_PIXEL_ID;
+  const gaId = clientEnv.NEXT_PUBLIC_GA_MEASUREMENT_ID;
 
   return (
     <>
+      {gaId ? (
+        <>
+          <Script
+            src={`https://www.googletagmanager.com/gtag/js?id=${encodeURIComponent(gaId)}`}
+            strategy="afterInteractive"
+          />
+          <Script id="ga4" strategy="afterInteractive">
+            {`window.dataLayer = window.dataLayer || [];
+window.gtag = function gtag(){window.dataLayer.push(arguments);};
+gtag('consent', 'default', {
+  analytics_storage: 'granted',
+  ad_storage: 'denied',
+  ad_user_data: 'denied',
+  ad_personalization: 'denied'
+});
+gtag('js', new Date());
+gtag('config', ${JSON.stringify(gaId)});`}
+          </Script>
+        </>
+      ) : null}
       {snapId ? (
         <Script id="snap-pixel" strategy="afterInteractive">
           {`(function(e,t,n){if(e.snaptr)return;var a=e.snaptr=function(){a.handleRequest?a.handleRequest.apply(a,arguments):a.queue.push(arguments)};a.queue=[];var s='script';var r=t.createElement(s);r.async=!0;r.src=n;var u=t.getElementsByTagName(s)[0];u.parentNode.insertBefore(r,u);})(window,document,'https://sc-static.net/scevent.min.js');

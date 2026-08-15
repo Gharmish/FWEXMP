@@ -3094,7 +3094,7 @@
   "cookieNotice": {
     "regionLabel": "Cookie notice",
     "body": "Gharmish uses only the cookies it needs to work — keeping you signed in and remembering your language. No advertising or tracking cookies, ever.",
-    "consentBody": "Gharmish uses essential cookies to keep you signed in and remember your language. With your consent, we also use marketing cookies from Snapchat and TikTok to measure our ads — decline them and everything still works.",
+    "consentBody": "Gharmish uses essential cookies to keep you signed in and remember your language. With your consent, we also use analytics cookies from Google Analytics to understand how the site is used, and marketing cookies from Snapchat and TikTok to measure our ads — decline them and everything still works.",
     "privacyLink": "Privacy policy",
     "cta": "Got it",
     "acceptAll": "Accept all",
@@ -3477,7 +3477,7 @@
     "sharing": {
       "heading": "Who we share it with",
       "body1": "Your host sees what they need to run the experience: your name, group size, and — once a booking is confirmed — a way to coordinate with you. Hosts never see your payment details.",
-      "body2": "We use trusted service providers to operate the platform: payment processing (HyperPay), hosting (Vercel), databases and file storage (Supabase), email delivery (Resend), WhatsApp and SMS delivery (Twilio and Meta), error monitoring (Sentry), and — only if you consent to marketing cookies — ad measurement (Snapchat and TikTok). They process data on our instructions only. We disclose data to authorities when Saudi law requires it."
+      "body2": "We use trusted service providers to operate the platform: payment processing (HyperPay), hosting (Vercel), databases and file storage (Supabase), email delivery (Resend), WhatsApp and SMS delivery (Twilio and Meta), error monitoring (Sentry), and — only if you consent in our cookie banner — site analytics (Google Analytics) and ad measurement (Snapchat and TikTok). They process data on our instructions only. We disclose data to authorities when Saudi law requires it."
     },
     "storage": {
       "heading": "Where your data lives",
@@ -3494,7 +3494,7 @@
     },
     "cookies": {
       "heading": "Cookies",
-      "body": "We use the cookies the platform needs to work: keeping you signed in and remembering your language. If you choose \"Accept all\" in our cookie banner, we also set marketing cookies from Snapchat and TikTok to measure how our ads perform; declining them changes nothing about how Gharmish works, and you can clear your browser cookies at any time to be asked again."
+      "body": "We use the cookies the platform needs to work: keeping you signed in and remembering your language. If you choose \"Accept all\" in our cookie banner, we also set analytics cookies from Google Analytics to understand how the site is used, and marketing cookies from Snapchat and TikTok to measure how our ads perform; declining them changes nothing about how Gharmish works, and you can clear your browser cookies at any time to be asked again."
     },
     "changes": {
       "heading": "Changes to this policy",

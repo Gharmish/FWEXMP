@@ -16,11 +16,12 @@ import { readConsent, subscribeConsent, writeConsent } from '@/components/layout
  *   necessary cookies (Supabase session, NEXT_LOCALE, the consent cookie
  *   itself) — nothing optional exists to refuse, so a single "Got it"
  *   acknowledges the notice. No fake "decline" choice.
- * - **Consent** (a Snap/TikTok pixel id is configured): marketing cookies
- *   are now a real option, so the banner offers "Accept all" /
- *   "Essential only". Pixels load only after "Accept all" — see
- *   `marketing-pixels.tsx`. Visitors who only ever dismissed the plain
- *   notice are asked once when pixels first appear.
+ * - **Consent** (a Snap/TikTok pixel or Google Analytics id is
+ *   configured): marketing/analytics cookies are now a real option, so
+ *   the banner offers "Accept all" / "Essential only". Trackers load
+ *   only after "Accept all" — see `marketing-pixels.tsx`. Visitors who
+ *   only ever dismissed the plain notice are asked once when trackers
+ *   first appear.
  *
  * Visibility is decided client-side via the shared consent store over
  * `document.cookie` (server snapshot: hidden): reading `cookies()` in

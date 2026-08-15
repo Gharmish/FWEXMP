@@ -11,9 +11,9 @@ interface PurchaseConversionProps {
 }
 
 /**
- * Fires the ad-platform purchase conversion (Snap `PURCHASE`, TikTok
- * `CompletePayment`) once per paid booking, so campaigns can optimise
- * toward bookings instead of clicks. Renders nothing.
+ * Fires the purchase conversion (Snap `PURCHASE`, TikTok
+ * `CompletePayment`, GA4 `purchase`) once per paid booking, so campaigns
+ * can optimise toward bookings instead of clicks. Renders nothing.
  *
  * Fires only with "Accept all" consent (without it the pixels never
  * loaded — see `marketing-pixels.tsx`). Dedupe is two-layer: the booking
@@ -39,7 +39,7 @@ export function PurchaseConversion({ reference, amountSar }: PurchaseConversionP
     let attempts = 0;
     const fire = () => {
       if (cancelled) return;
-      if (!window.snaptr && !window.ttq) {
+      if (!window.snaptr && !window.ttq && !window.gtag) {
         if (attempts++ < 20) setTimeout(fire, 250);
         return;
       }
@@ -53,6 +53,11 @@ export function PurchaseConversion({ reference, amountSar }: PurchaseConversionP
         currency: 'SAR',
         content_type: 'product',
         content_id: reference,
+      });
+      window.gtag?.('event', 'purchase', {
+        transaction_id: reference,
+        value: amountSar,
+        currency: 'SAR',
       });
       try {
         window.localStorage.setItem(storageKey, '1');
