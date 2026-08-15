@@ -22,7 +22,8 @@ function field(value: string): string {
 
 export async function GET() {
   const experiences = await getExperiences();
-  const header = 'sku_id,title,description,availability,condition,price,link,image_link,brand';
+  const header =
+    'sku_id,title,description,availability,condition,price,link,image_link,brand,product_type';
   const rows = experiences.map((e) =>
     [
       field(e.slug),
@@ -34,6 +35,7 @@ export async function GET() {
       field(`${SITE_URL}/en/experiences/${e.slug}`),
       field(e.heroImage ?? ''),
       'Gharmish',
+      field(`Experiences > ${e.category.replaceAll('_', ' ')}`),
     ].join(','),
   );
   return new Response([header, ...rows].join('\n') + '\n', {
