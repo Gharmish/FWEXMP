@@ -34,6 +34,7 @@ import { routing } from '@/lib/i18n';
 import { SITE_URL, SITE_NAME } from '@/lib/site';
 import { JsonLd } from '@/components/seo/json-ld';
 import { BookingRequestForm } from '@/features/bookings/components/booking-request-form';
+import { ExperienceViewTracking } from '@/features/experiences/components/experience-view-tracking';
 import { getKnownGuestDetails } from '@/features/account/guest-prefill';
 import { HostCard } from '@/features/hosts/components/host-card';
 import { toArabicText } from '@/features/experiences/lib/arabic-content';
@@ -798,6 +799,7 @@ export default async function ExperienceDetailPage({
                 {exp.minAge > 0 ? t('minAge', { age: minAge }) : t('minAgeAll')}
               </span>
             </div>
+            {!previewMode && <ExperienceViewTracking slug={exp.slug} priceSar={exp.priceSar} />}
             {previewMode ? (
               <p className="text-sarat-black-600 text-sm leading-relaxed">
                 {t('preview.bookingDisabled')}

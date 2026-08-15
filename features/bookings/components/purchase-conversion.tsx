@@ -1,8 +1,7 @@
 'use client';
 
 import { useEffect } from 'react';
-import { hasMarketingPixels } from '@/lib/env-client';
-import { readConsent } from '@/components/layout/consent';
+import { fireWhenReady } from '@/lib/funnel-tracking';
 
 interface PurchaseConversionProps {
   /** Booking reference (GH-XXXXXX) — doubles as the dedupe/transaction id. */
@@ -19,13 +18,11 @@ interface PurchaseConversionProps {
  * loaded — see `marketing-pixels.tsx`). Dedupe is two-layer: the booking
  * reference is sent as the platform-side transaction id, and a
  * localStorage flag stops re-fires when the guest revisits their
- * confirmation page. The short retry loop covers the pixel snippets
- * still loading when this effect runs on a fresh page load.
+ * confirmation page. `fireWhenReady` waits for every configured tracker
+ * snippet, so a fresh page load can't drop the conversion on a laggard.
  */
 export function PurchaseConversion({ reference, amountSar }: PurchaseConversionProps) {
   useEffect(() => {
-    if (!hasMarketingPixels() || readConsent() !== 'all') return;
-
     const storageKey = `gharmish_purchase_${reference}`;
     let alreadyFired = false;
     try {
@@ -35,14 +32,7 @@ export function PurchaseConversion({ reference, amountSar }: PurchaseConversionP
     }
     if (alreadyFired) return;
 
-    let cancelled = false;
-    let attempts = 0;
-    const fire = () => {
-      if (cancelled) return;
-      if (!window.snaptr && !window.ttq && !window.gtag) {
-        if (attempts++ < 20) setTimeout(fire, 250);
-        return;
-      }
+    fireWhenReady(() => {
       window.snaptr?.('track', 'PURCHASE', {
         price: amountSar,
         currency: 'SAR',
@@ -64,12 +54,7 @@ export function PurchaseConversion({ reference, amountSar }: PurchaseConversionP
       } catch {
         // Best effort — the transaction id still dedupes platform-side.
       }
-    };
-    fire();
-
-    return () => {
-      cancelled = true;
-    };
+    });
   }, [reference, amountSar]);
 
   return null;

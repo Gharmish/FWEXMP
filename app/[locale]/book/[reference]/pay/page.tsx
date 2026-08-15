@@ -9,6 +9,7 @@ import { MountFade } from '@/components/ui/motion';
 import { hasHyperpay, hasHyperpayApplePay } from '@/lib/env';
 import { formatDate, formatInteger, formatSAR, formatTime } from '@/lib/format';
 import { startInstant } from '@/features/bookings/lib/cancellation';
+import { CheckoutTracking } from '@/features/bookings/components/checkout-tracking';
 import { Price } from '@/components/ui/price';
 import { getBookingByReferenceForViewer } from '@/features/bookings/queries';
 import { getStoredBillingForBooking } from '@/features/payments/queries';
@@ -524,6 +525,7 @@ export default async function PaymentPage({ params, searchParams }: PageParams) 
               moment. React hoists <link> into <head>. */}
           {hasHyperpay() && <link rel="preconnect" href={new URL(hyperpayBaseUrl()).origin} />}
 
+          <CheckoutTracking reference={reference} amountSar={booking.totalAmountSar} />
           <PaymentDetailsForm
             reference={reference}
             locale={loc}

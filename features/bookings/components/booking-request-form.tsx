@@ -17,6 +17,7 @@ import { Input } from '@/components/ui/input';
 import { Pop, SPRING } from '@/components/ui/motion';
 import { Link, type Locale } from '@/lib/i18n';
 import { formatDate } from '@/lib/format';
+import { trackAddToCart } from '@/lib/funnel-tracking';
 import { cn } from '@/lib/utils';
 import { PhoneInput } from '@/components/ui/phone-input';
 import { Price } from '@/components/ui/price';
@@ -514,6 +515,7 @@ export function BookingRequestForm({
       setWomenOnlyBlocked(false);
       setMinAgeBlocked(false);
       setTermsBlocked(false);
+      trackAddToCart({ id: experienceSlug, priceSar, partySize: effectiveParty });
       return;
     }
     event.preventDefault();
