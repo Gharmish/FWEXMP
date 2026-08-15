@@ -105,12 +105,20 @@ export function trackAddToCart(item: FunnelItem & { partySize: number }) {
   });
 }
 
-/** Payment page reached for a booking. */
-export function trackInitiateCheckout(args: { reference: string; amountSar: number }) {
+/**
+ * Payment page reached for a booking. `slug` (when known) is the
+ * catalog-matchable content id; the booking reference stays the
+ * platform-side transaction id.
+ */
+export function trackInitiateCheckout(args: {
+  slug?: string;
+  reference: string;
+  amountSar: number;
+}) {
   fireWhenReady(() => {
     window.ttq?.track('InitiateCheckout', {
       content_type: 'product',
-      content_id: args.reference,
+      content_id: args.slug || args.reference,
       value: args.amountSar,
       currency: 'SAR',
     });

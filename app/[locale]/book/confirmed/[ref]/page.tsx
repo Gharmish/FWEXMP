@@ -615,6 +615,7 @@ export default async function BookingConfirmedPage({ params, searchParams }: Pag
         <PurchaseConversion
           reference={booking.referenceCode ?? ref}
           amountSar={booking.totalAmountSar}
+          experienceSlug={experienceSlug ?? undefined}
         />
       )}
       {/* Same stepper as the pay page, so the flow reads as one journey.

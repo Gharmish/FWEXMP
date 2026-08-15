@@ -7,6 +7,8 @@ interface PurchaseConversionProps {
   /** Booking reference (GH-XXXXXX) — doubles as the dedupe/transaction id. */
   reference: string;
   amountSar: number;
+  /** Experience slug — catalog-matchable content id (empty = unknown). */
+  experienceSlug?: string;
 }
 
 /**
@@ -21,7 +23,11 @@ interface PurchaseConversionProps {
  * confirmation page. `fireWhenReady` waits for every configured tracker
  * snippet, so a fresh page load can't drop the conversion on a laggard.
  */
-export function PurchaseConversion({ reference, amountSar }: PurchaseConversionProps) {
+export function PurchaseConversion({
+  reference,
+  amountSar,
+  experienceSlug,
+}: PurchaseConversionProps) {
   useEffect(() => {
     const storageKey = `gharmish_purchase_${reference}`;
     let alreadyFired = false;
@@ -42,12 +48,17 @@ export function PurchaseConversion({ reference, amountSar }: PurchaseConversionP
         value: amountSar,
         currency: 'SAR',
         content_type: 'product',
-        content_id: reference,
+        // The slug matches the TikTok catalog's sku_id; the reference
+        // stays the platform transaction id on Snap/GA.
+        content_id: experienceSlug || reference,
       });
       window.gtag?.('event', 'purchase', {
         transaction_id: reference,
         value: amountSar,
         currency: 'SAR',
+        ...(experienceSlug
+          ? { items: [{ item_id: experienceSlug, price: amountSar, quantity: 1 }] }
+          : {}),
       });
       try {
         window.localStorage.setItem(storageKey, '1');

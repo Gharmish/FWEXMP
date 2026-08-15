@@ -7,6 +7,8 @@ interface CheckoutTrackingProps {
   /** Booking reference (GH-XXXXXX) — doubles as the dedupe key. */
   reference: string;
   amountSar: number;
+  /** Experience slug — catalog-matchable content id (empty = unknown). */
+  experienceSlug?: string;
 }
 
 /**
@@ -15,7 +17,7 @@ interface CheckoutTrackingProps {
  * of the pay page don't inflate the funnel. Renders nothing; silent
  * without "Accept all" consent — see `lib/funnel-tracking.ts`.
  */
-export function CheckoutTracking({ reference, amountSar }: CheckoutTrackingProps) {
+export function CheckoutTracking({ reference, amountSar, experienceSlug }: CheckoutTrackingProps) {
   useEffect(() => {
     const storageKey = `gharmish_checkout_${reference}`;
     try {
@@ -24,8 +26,8 @@ export function CheckoutTracking({ reference, amountSar }: CheckoutTrackingProps
     } catch {
       // Storage blocked (private mode): fire anyway — repeats are benign.
     }
-    trackInitiateCheckout({ reference, amountSar });
-  }, [reference, amountSar]);
+    trackInitiateCheckout({ slug: experienceSlug, reference, amountSar });
+  }, [reference, amountSar, experienceSlug]);
 
   return null;
 }

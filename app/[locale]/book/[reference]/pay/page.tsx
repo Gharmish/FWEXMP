@@ -525,7 +525,11 @@ export default async function PaymentPage({ params, searchParams }: PageParams) 
               moment. React hoists <link> into <head>. */}
           {hasHyperpay() && <link rel="preconnect" href={new URL(hyperpayBaseUrl()).origin} />}
 
-          <CheckoutTracking reference={reference} amountSar={booking.totalAmountSar} />
+          <CheckoutTracking
+            reference={reference}
+            amountSar={booking.totalAmountSar}
+            experienceSlug={experienceSlug ?? undefined}
+          />
           <PaymentDetailsForm
             reference={reference}
             locale={loc}
