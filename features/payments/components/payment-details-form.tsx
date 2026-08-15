@@ -2,6 +2,7 @@
 
 import {
   useActionState,
+  useEffect,
   useId,
   useMemo,
   useRef,
@@ -11,6 +12,7 @@ import {
 } from 'react';
 import { useFormStatus } from 'react-dom';
 import { createCheckout, type CreateCheckoutState } from '@/features/payments/actions';
+import { trackAddPaymentInfo } from '@/lib/funnel-tracking';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Price } from '@/components/ui/price';
@@ -303,6 +305,24 @@ export function PaymentDetailsForm({
     state.status === 'ready' && state.data && state.data.checkoutId !== dismissedCheckoutId
       ? state.data
       : null;
+
+  // Funnel `add_payment_info`: the OPPWA widget is about to mount — the
+  // guest is now entering card / Apple Pay details. Deduped per booking
+  // within the browser session (same pattern as checkout-tracking.tsx)
+  // so edit-details round-trips and re-prepared checkouts don't inflate
+  // the step. Silent no-op without "Accept all" consent.
+  const activeCheckoutId = activeCheckout?.checkoutId ?? null;
+  useEffect(() => {
+    if (!activeCheckoutId) return;
+    const storageKey = `gharmish_payinfo_${reference}`;
+    try {
+      if (window.sessionStorage.getItem(storageKey)) return;
+      window.sessionStorage.setItem(storageKey, '1');
+    } catch {
+      // Storage blocked (private mode): fire anyway — repeats are benign.
+    }
+    trackAddPaymentInfo({ slug, reference, amountSar: totalSar });
+  }, [activeCheckoutId, reference, slug, totalSar]);
 
   if (activeCheckout) {
     return (

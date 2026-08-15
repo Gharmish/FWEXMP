@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 import { ArrowRight, ChevronDown } from 'lucide-react';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
-import { Link } from '@/lib/i18n';
+import { Link, routing } from '@/lib/i18n';
 import type { Locale } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
 import { buttonVariants } from '@/components/ui/button';
@@ -30,6 +30,14 @@ export async function generateMetadata({
   return {
     title,
     description,
+    alternates: {
+      canonical: `${SITE_URL}/${locale}/hosting`,
+      languages: {
+        ...Object.fromEntries(routing.locales.map((l) => [l, `${SITE_URL}/${l}/hosting`])),
+        // Arabic-first market: unmatched languages get the Arabic variant.
+        'x-default': `${SITE_URL}/ar/hosting`,
+      },
+    },
     // Without an explicit openGraph block, Next's shallow metadata merge
     // keeps the root layout's generic brand og:title/og:description, so a
     // shared /hosting link read like a plain brand share. Declaring the

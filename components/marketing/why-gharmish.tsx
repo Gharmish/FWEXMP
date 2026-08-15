@@ -33,7 +33,9 @@ export async function WhyGharmish({ locale }: WhyGharmishProps) {
       <div className="mx-auto w-full max-w-6xl px-6 py-20">
         <FadeIn className="mb-12 flex flex-col gap-2">
           <p className={eyebrowClassName}>{t('eyebrow')}</p>
-          <h2 className="font-display text-3xl font-medium tracking-[-0.03em]">{t('title')}</h2>
+          <h2 className="font-display text-3xl font-medium tracking-[-0.03em] sm:text-4xl">
+            {t('title')}
+          </h2>
         </FadeIn>
         <Stagger>
           <ol className="grid gap-10 sm:grid-cols-3 sm:gap-8">
@@ -53,7 +55,7 @@ export async function WhyGharmish({ locale }: WhyGharmishProps) {
                     {String(i + 1).padStart(2, '0')}
                   </span>
                   <h3 className="text-lg font-medium">{title}</h3>
-                  <p className="text-sarat-black-600 max-w-[40ch] text-base leading-relaxed">
+                  <p className="text-sarat-black-600 max-w-[40ch] text-base leading-relaxed rtl:text-lg">
                     {body}
                   </p>
                 </StaggerItem>

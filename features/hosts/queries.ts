@@ -117,6 +117,29 @@ export async function getAllHostSlugs(): Promise<readonly string[]> {
   }
 }
 
+/**
+ * Slug + last-modified pairs for the sitemap. `hosts` has no updatedAt
+ * column, so `createdAt` is the best available signal until one exists.
+ * Same degrade-to-[] posture as `getAllHostSlugs` — the sitemap route
+ * decides whether an empty result is fatal. Sample-data rows carry no
+ * timestamps, so `lastModified` is null on the no-DB path.
+ */
+export async function getAllHostSlugsWithDates(): Promise<
+  readonly { slug: string; lastModified: Date | null }[]
+> {
+  if (!hasDb()) return sample.getAllHostSlugs().map((slug) => ({ slug, lastModified: null }));
+  try {
+    const rows = await db.query.hosts.findMany({
+      columns: { slug: true, createdAt: true },
+      where: (h) => eq(h.verificationStatus, 'verified'),
+    });
+    return rows.map((r) => ({ slug: r.slug, lastModified: r.createdAt }));
+  } catch (error) {
+    reportError(error, { surface: 'hosts:getAllHostSlugsWithDates' });
+    return [];
+  }
+}
+
 async function fetchVerifiedHosts(): Promise<readonly HostProfile[]> {
   // Verified-only: home and /hosts are merchandising surfaces — a host
   // pending review (or suspended after a complaint) must never be

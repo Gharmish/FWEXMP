@@ -63,7 +63,10 @@ export function DestinationChapter({
           </FadeIn>
           <FadeIn delay={0.1} className="flex flex-col gap-5 lg:pt-24">
             {paragraphs.map((p) => (
-              <p key={p} className="text-sarat-black-600 max-w-[62ch] text-lg leading-relaxed">
+              <p
+                key={p}
+                className="text-sarat-black-600 max-w-[62ch] text-lg leading-relaxed rtl:text-xl"
+              >
                 {p}
               </p>
             ))}

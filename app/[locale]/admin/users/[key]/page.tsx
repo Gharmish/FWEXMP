@@ -190,6 +190,9 @@ export default async function AdminUserDetailPage({
                 copy={{
                   issueToggle: t('users.wallet.issueToggle'),
                   adjustToggle: t('users.wallet.adjustToggle'),
+                  reason: t('users.wallet.reason'),
+                  reasonGoodwill: t('users.wallet.reasonGoodwill'),
+                  reasonPromo: t('users.wallet.reasonPromo'),
                   amount: t('users.wallet.amount'),
                   amountHint: t('users.wallet.amountHint'),
                   note: t('users.wallet.note'),

@@ -17,6 +17,7 @@ import type { Locale } from '@/lib/i18n';
 import type { Category } from '@/lib/colors';
 import { HoverLift } from '@/components/ui/motion';
 import type { CategoryMeta } from '@/features/experiences/types';
+import { categoryUrlSlug } from '@/features/experiences/lib/category-landing';
 
 /**
  * Category tiles — the homepage's discovery row and its one moment of
@@ -26,9 +27,10 @@ import type { CategoryMeta } from '@/features/experiences/types';
  * Deep-links to the filtered catalogue.
  *
  * The row is a single-line marquee: it drifts steadily so every category
- * comes into view, and pauses the moment the guest scrolls or swipes it
- * (in either direction), resuming after they stop. Honours reduced-motion
- * by rendering a plain, static scroll strip with no auto-drift.
+ * comes into view, and stops for good the moment the guest engages it —
+ * swipe, wheel, or keyboard focus (WCAG 2.2.2: a stop is a stop, not a
+ * pause that snatches the row back). Honours reduced-motion by rendering
+ * a plain, static scroll strip with no auto-drift.
  */
 export interface CategoryTilesProps {
   locale: Locale;
@@ -60,8 +62,6 @@ const TILE_ICON: Record<Category, LucideIcon> = {
 
 /** Auto-drift speed, px per animation frame (~24px/s at 60fps). */
 const DRIFT_SPEED = 0.4;
-/** Idle delay before the marquee resumes after the guest stops scrolling. */
-const RESUME_DELAY_MS = 1800;
 
 function CategoryTile({
   category,
@@ -76,7 +76,10 @@ function CategoryTile({
   return (
     <HoverLift className="shrink-0">
       <Link
-        href={`/experiences?category=${category.key}`}
+        // The category LANDING page (crawlable, self-canonical), not the
+        // query-string filter — this link is the main internal-linking
+        // path that lets those pages rank (2026-08-15 marketing audit).
+        href={`/experiences/${categoryUrlSlug(category.key)}`}
         // The duplicated half is a visual loop only — keep it out of the tab
         // order and the a11y tree so screen readers see each category once.
         aria-hidden={duplicate || undefined}
@@ -110,8 +113,11 @@ export function CategoryTiles({ locale, categories }: CategoryTilesProps) {
     const dir = getComputedStyle(el).direction === 'rtl' ? -1 : 1;
 
     let raf = 0;
-    let paused = false;
-    let resumeTimer: ReturnType<typeof setTimeout> | undefined;
+    // Once the guest touches the row the drift stops for good — WCAG
+    // 2.2.2 needs a real stop mechanism, and an auto-resume snatches the
+    // row back from whoever is reading it (the earlier 1.8s resume also
+    // slid tiles away under keyboard focus, which never paused it at all).
+    let stopped = false;
     // Track the position as a float. Mobile browsers (notably iOS Safari)
     // round `scrollLeft` to an integer, so reading it back each frame and
     // adding a sub-pixel step would floor away the drift and never move.
@@ -122,43 +128,54 @@ export function CategoryTiles({ locale, categories }: CategoryTilesProps) {
       // Content is rendered twice; one full loop is half the scroll width.
       const half = el.scrollWidth / 2;
       if (half > 0) {
-        if (paused) {
-          // Follow the guest's manual scroll so we resume from where they left.
-          pos = el.scrollLeft;
-        } else {
-          pos += DRIFT_SPEED * dir;
-          // Wrap seamlessly at either boundary so the auto-drift never hits
-          // a dead end.
-          if (pos >= half) pos -= half;
-          else if (pos <= -half) pos += half;
-          el.scrollLeft = pos;
-        }
+        pos += DRIFT_SPEED * dir;
+        // Wrap seamlessly at either boundary so the auto-drift never hits
+        // a dead end.
+        if (pos >= half) pos -= half;
+        else if (pos <= -half) pos += half;
+        el.scrollLeft = pos;
       }
       raf = requestAnimationFrame(step);
     };
 
-    const pause = () => {
-      paused = true;
-      if (resumeTimer) clearTimeout(resumeTimer);
-      resumeTimer = setTimeout(() => {
-        paused = false;
-      }, RESUME_DELAY_MS);
+    const start = () => {
+      if (stopped || raf) return;
+      pos = el.scrollLeft;
+      raf = requestAnimationFrame(step);
+    };
+    const halt = () => {
+      cancelAnimationFrame(raf);
+      raf = 0;
+    };
+    const stop = () => {
+      stopped = true;
+      halt();
     };
 
-    // Any deliberate scroll gesture — swipe, trackpad, scrollbar drag — pauses
-    // the drift. We listen to the gestures rather than the `scroll` event so
-    // our own scrollLeft writes don't pause it every frame.
-    el.addEventListener('pointerdown', pause);
-    el.addEventListener('touchstart', pause, { passive: true });
-    el.addEventListener('wheel', pause, { passive: true });
+    // Any deliberate engagement — swipe, trackpad, scrollbar drag, or
+    // keyboard focus landing on a tile — stops the drift permanently.
+    // Gesture listeners rather than `scroll` so our own scrollLeft writes
+    // don't trip it every frame.
+    el.addEventListener('pointerdown', stop);
+    el.addEventListener('touchstart', stop, { passive: true });
+    el.addEventListener('wheel', stop, { passive: true });
+    el.addEventListener('focusin', stop);
 
-    raf = requestAnimationFrame(step);
+    // The rAF loop is main-thread work on every frame for the lifetime of
+    // the page — only run it while the row is actually on screen.
+    const observer = new IntersectionObserver(([entry]) => {
+      if (entry?.isIntersecting) start();
+      else halt();
+    });
+    observer.observe(el);
+
     return () => {
-      cancelAnimationFrame(raf);
-      if (resumeTimer) clearTimeout(resumeTimer);
-      el.removeEventListener('pointerdown', pause);
-      el.removeEventListener('touchstart', pause);
-      el.removeEventListener('wheel', pause);
+      halt();
+      observer.disconnect();
+      el.removeEventListener('pointerdown', stop);
+      el.removeEventListener('touchstart', stop);
+      el.removeEventListener('wheel', stop);
+      el.removeEventListener('focusin', stop);
     };
   }, [reduceMotion]);
 

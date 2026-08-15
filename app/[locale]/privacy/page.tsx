@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
-import type { Locale } from '@/lib/i18n';
+import { routing, type Locale } from '@/lib/i18n';
 import { InfoPage } from '@/components/layout/info-page';
 import { SITE_URL, SUPPORT_EMAIL } from '@/lib/site';
 
@@ -16,6 +16,14 @@ export async function generateMetadata({
   return {
     title,
     description,
+    alternates: {
+      canonical: `${SITE_URL}/${locale}/privacy`,
+      languages: {
+        ...Object.fromEntries(routing.locales.map((l) => [l, `${SITE_URL}/${l}/privacy`])),
+        // Arabic-first market: unmatched languages get the Arabic variant.
+        'x-default': `${SITE_URL}/ar/privacy`,
+      },
+    },
     // Privacy links get shared with guests and hosts, so the preview should
     // name the page — without an explicit openGraph block the shallow
     // metadata merge shows the root layout's bare brand og:title. Declaring

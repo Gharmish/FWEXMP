@@ -8,6 +8,7 @@ import { SITE_NAME, SITE_URL } from '@/lib/site';
 import { cn } from '@/lib/utils';
 import { Avatar } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
+import { ShareButton } from '@/components/ui/share-button';
 import { JsonLd } from '@/components/seo/json-ld';
 import { ExperienceCard } from '@/features/experiences/components/experience-card';
 import { HostReviews } from '@/features/reviews/components/host-reviews';
@@ -39,6 +40,21 @@ export async function generateStaticParams() {
   return routing.locales.flatMap((locale) => slugs.map((slug) => ({ locale, slug })));
 }
 
+/**
+ * Meta descriptions come from the host bio — DB free text with no length
+ * guarantee. Clamp to ~160 characters at a word boundary so the snippet
+ * never gets machine-truncated mid-word in search results.
+ */
+const META_DESCRIPTION_MAX = 160;
+
+function clampDescription(text: string): string {
+  const normalized = text.replace(/\s+/g, ' ').trim();
+  if (normalized.length <= META_DESCRIPTION_MAX) return normalized;
+  const cut = normalized.slice(0, META_DESCRIPTION_MAX - 1);
+  const lastSpace = cut.lastIndexOf(' ');
+  return `${lastSpace > 0 ? cut.slice(0, lastSpace) : cut}…`;
+}
+
 export async function generateMetadata({
   params,
 }: {
@@ -49,7 +65,7 @@ export async function generateMetadata({
   if (!host) return {};
   const t = await getTranslations({ locale, namespace: 'hostProfile.meta' });
   const name = locale === 'ar' ? toArabicText(host.name) : host.name;
-  const description = pickLocalized(locale, host.bioEn, host.bioAr);
+  const description = clampDescription(pickLocalized(locale, host.bioEn, host.bioAr));
   const url = `${SITE_URL}/${locale}/hosts/${slug}`;
   const title = t('title', { name, siteName: SITE_NAME });
   return {
@@ -57,9 +73,11 @@ export async function generateMetadata({
     description,
     alternates: {
       canonical: url,
-      languages: Object.fromEntries(
-        routing.locales.map((l) => [l, `${SITE_URL}/${l}/hosts/${slug}`]),
-      ),
+      languages: {
+        ...Object.fromEntries(routing.locales.map((l) => [l, `${SITE_URL}/${l}/hosts/${slug}`])),
+        // Arabic-first market: unmatched languages get the Arabic variant.
+        'x-default': `${SITE_URL}/ar/hosts/${slug}`,
+      },
     },
     openGraph: {
       // og:image is supplied by the co-located opengraph-image.tsx (dynamic,
@@ -98,6 +116,7 @@ export default async function HostProfilePage({
   ]);
   const t = await getTranslations('hostProfile');
   const th = await getTranslations('host');
+  const tHostsIndex = await getTranslations('hostsIndex');
 
   const name = loc === 'ar' ? toArabicText(host.name) : host.name;
   const bio = pickLocalized(loc, host.bioEn, host.bioAr);
@@ -157,7 +176,9 @@ export default async function HostProfilePage({
         '@type': isOrganization ? 'Organization' : 'Person',
         '@id': `${url}#host`,
         name: host.name,
-        description: host.bioEn,
+        // Locale-appropriate bio (English fallback via pickLocalized) —
+        // the Arabic page must not describe the host in English.
+        description: bio,
         url,
         knowsLanguage: [...host.languages],
         ...(host.verified ? { hasCredential: 'Verified host' } : {}),
@@ -166,7 +187,13 @@ export default async function HostProfilePage({
         '@type': 'BreadcrumbList',
         itemListElement: [
           { '@type': 'ListItem', position: 1, name: SITE_NAME, item: `${SITE_URL}/${loc}` },
-          { '@type': 'ListItem', position: 2, name: host.name, item: url },
+          {
+            '@type': 'ListItem',
+            position: 2,
+            name: tHostsIndex('meta.title'),
+            item: `${SITE_URL}/${loc}/hosts`,
+          },
+          { '@type': 'ListItem', position: 3, name: host.name, item: url },
         ],
       },
     ],
@@ -181,13 +208,21 @@ export default async function HostProfilePage({
           brief-sanctioned secondary surface for section bands (BRIEF §3). */}
       <div className="bg-mist">
         <div className="mx-auto w-full max-w-6xl px-6 py-12">
-          <Link
-            href="/experiences"
-            className="text-sarat-black-600 inline-flex min-h-11 items-center gap-2 text-sm transition-opacity duration-200 hover:opacity-60"
-          >
-            <ArrowLeft className="size-4 shrink-0 rtl:rotate-180" aria-hidden />
-            {t('backToExperiences')}
-          </Link>
+          <div className="flex items-center justify-between gap-4">
+            <Link
+              href="/experiences"
+              className="text-sarat-black-600 inline-flex min-h-11 items-center gap-2 text-sm transition-opacity duration-200 hover:opacity-60"
+            >
+              <ArrowLeft className="size-4 shrink-0 rtl:rotate-180" aria-hidden />
+              {t('backToExperiences')}
+            </Link>
+            <ShareButton
+              url={url}
+              title={name}
+              contentType="host"
+              analyticsId={slug}
+            />
+          </div>
 
           <header className="mt-8 flex flex-col gap-6">
             <p className={eyebrowClassName}>{t('eyebrow')}</p>

@@ -44,3 +44,16 @@ export function writeConsent(value: ConsentValue) {
   document.cookie = `${CONSENT_COOKIE}=${encoded}; max-age=${COOKIE_MAX_AGE_S}; path=/; samesite=lax${secure}`;
   for (const listener of listeners) listener();
 }
+
+/**
+ * Forget the stored choice so the banner asks again — consent must be a
+ * door that opens both ways (2026-08-15 marketing audit: there was no
+ * way to change your mind for 365 days). A reload follows at the call
+ * site: withdrawing marketing consent must also unload already-mounted
+ * pixel scripts, which no in-place state change can do.
+ */
+export function clearConsent() {
+  const secure = window.location.protocol === 'https:' ? '; secure' : '';
+  document.cookie = `${CONSENT_COOKIE}=; max-age=0; path=/; samesite=lax${secure}`;
+  for (const listener of listeners) listener();
+}

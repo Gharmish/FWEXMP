@@ -19,10 +19,14 @@ import { readConsent, subscribeConsent } from '@/components/layout/consent';
  * events" ON in the GA4 property (it is the default) and never add a
  * manual page_view here, or every SPA navigation double-counts.
  *
- * GA runs in measurement-only consent mode: analytics_storage granted
- * (that is what "Accept all" covers per the privacy policy), all Google
- * ads signals denied — the policy discloses site analytics, not Google
- * ad personalisation.
+ * GA runs in measurement-only consent mode. Proper Consent Mode
+ * ordering: `consent default` DENIES everything before `config` runs,
+ * then `consent update` grants analytics_storage — this whole script
+ * only ever mounts after "Accept all", so the update is uncondition-
+ * ally correct, and the deny-first default stays safe even if the
+ * loading order ever changes. All Google ads signals stay denied in
+ * both calls — the policy discloses site analytics, not Google ad
+ * personalisation.
  */
 
 declare global {
@@ -81,13 +85,14 @@ export function MarketingPixels() {
             {`window.dataLayer = window.dataLayer || [];
 window.gtag = function gtag(){window.dataLayer.push(arguments);};
 gtag('consent', 'default', {
-  analytics_storage: 'granted',
+  analytics_storage: 'denied',
   ad_storage: 'denied',
   ad_user_data: 'denied',
   ad_personalization: 'denied'
 });
 gtag('js', new Date());
-gtag('config', ${JSON.stringify(gaId)});`}
+gtag('config', ${JSON.stringify(gaId)});
+gtag('consent', 'update', { analytics_storage: 'granted' });`}
           </Script>
         </>
       ) : null}

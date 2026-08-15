@@ -3,7 +3,10 @@ import { db } from '@/lib/db';
 import { serverEnv, hasHyperpay } from '@/lib/env';
 import { bookings } from '@/db/schema';
 import { reportError } from '@/lib/log';
+import { reportTikTokPurchase } from '@/lib/analytics/server-events';
+import { grantReferralRewards } from '@/lib/marketing/referral';
 import { notifyAdmin } from '@/lib/admin-alerts';
+import { isArPlaceholder } from '@/lib/ar-placeholder';
 import { getPlatformSettingsStrict } from '@/lib/platform-settings';
 import { classifyResult, getPaymentStatus } from '@/features/payments/lib/hyperpay';
 import { recordPaymentEvent, resolvePaymentChannel } from '@/features/payments/ledger';
@@ -156,11 +159,13 @@ export async function settleBooking(reference: string): Promise<SettleOutcome> {
         status: true,
         totalAmount: true,
         walletAppliedSar: true,
+        // Server-side conversion reporting (see the paid transition below).
+        ttclid: true,
       },
       // Invoice-immutability snapshots: the issued invoice must keep the
       // item description and buyer name as they were at payment time.
       with: {
-        experience: { columns: { titleEn: true, titleAr: true } },
+        experience: { columns: { titleEn: true, titleAr: true, slug: true } },
         guest: { columns: { name: true } },
       },
     });
@@ -240,7 +245,15 @@ export async function settleBooking(reference: string): Promise<SettleOutcome> {
           settleAnomalyAt: null,
           settleAnomalyKind: null,
           invoiceItemEn: booking.experience.titleEn,
-          invoiceItemAr: booking.experience.titleAr,
+          // Never snapshot the `TODO(ar)` marker onto an immutable
+          // financial document (2026-08-02 ops audit): the admin editor
+          // could (re)introduce it on a live listing, and this snapshot
+          // is deliberately never re-read from the live row — so the
+          // marker would sit on the guest's receipt/tax invoice forever.
+          // English fallback beats scaffolding text on a ZATCA document.
+          invoiceItemAr: isArPlaceholder(booking.experience.titleAr)
+            ? booking.experience.titleEn
+            : booking.experience.titleAr,
           billedName: booking.guest.name,
           // Settlement never advances the lifecycle status. Pay-after-
           // approval: `createCheckout` refuses anything but `confirmed`
@@ -340,6 +353,23 @@ export async function settleBooking(reference: string): Promise<SettleOutcome> {
       } catch (error) {
         reportError(error, { surface: 'payment-settle:hostEmail', reference });
       }
+      // Server-side conversion, on the SAME single write that makes the
+      // booking paid — the client pixel only covers guests who reach the
+      // confirmation page, so webhook- and cron-settled payments were
+      // previously invisible to every ad platform. Shares the client's
+      // `purchase:${reference}` event_id, so TikTok dedupes the overlap.
+      // Internally env-gated and non-throwing; the concurrent-settle
+      // arbiter above guarantees exactly one caller reaches this line.
+      await reportTikTokPurchase({
+        reference,
+        valueSar: booking.totalAmount + booking.walletAppliedSar,
+        contentId: booking.experience.slug,
+        ttclid: booking.ttclid,
+      });
+      // Referral reward, on the same single paid transition. Internally
+      // guarded (reward enabled, first paid booking, not self-referred),
+      // idempotent via the wallet ledger, and non-throwing.
+      await grantReferralRewards(reference);
       return 'success';
     }
 

@@ -138,6 +138,8 @@ before assuming.
 | `booking_declined`         | 1 name · 2 experience · 3 date · 4 time · 5 ref                                                                   |
 | `booking_cancelled`        | 1 name · 2 experience · 3 date · 4 time · 5 ref · **6 refund outcome line ★ · 7 document/booking URL ★**          |
 | `booking_rescheduled`      | 1 name · 2 experience · 3 new date · 4 time · 5 ref · 6 booking URL — **no template exists yet; author + submit** |
+| `booking_payment_reminder` | 1 name · 2 experience · 3 payment deadline (date, time) · 4 payment URL — **pending Meta approval (2026-08-15)**  |
+| `booking_completed_review` | 1 name · 2 experience · 3 review URL — **pending Meta approval (2026-08-15)**                                     |
 
 **v2 bodies — English:**
 
@@ -163,6 +165,15 @@ before assuming.
 - `booking_rescheduled`: Hi {{1}}, your booking has moved — {{2}} is now on
   {{3}} at {{4}}. Your payment and reference ({{5}}) stay the same. Details:
   {{6}}
+- `booking_payment_reminder` _(2026-08-15 marketing audit; serves both the
+  at-creation "spot held" send and the ~2h pre-lapse nudge — the code fires
+  it twice under two dedupe keys)_: Hi {{1}}, your spot for {{2}} is held
+  until {{3}}. Complete payment to confirm it: {{4}} — To stop these
+  messages, reply STOP.
+- `booking_completed_review` _(2026-08-15 marketing audit; closes the
+  phone-only guest's review loop — the invite was email-only)_: Hi {{1}},
+  how was {{2}}? A short review helps future guests and your host: {{3}} —
+  To stop these messages, reply STOP.
 
 **v2 bodies — Arabic:**
 
@@ -174,6 +185,8 @@ before assuming.
 - `booking_declined`: مرحبًا {{1}}، للأسف لم يتمكن المضيف من قبول طلبك لتجربة {{2}} يوم {{3}}. لم يُخصم منك أي مبلغ. تصفّح تجارب أخرى: https://gharmish.com
 - `booking_cancelled`: مرحبًا {{1}}، تم إلغاء حجزك لتجربة {{2}} يوم {{3}} الساعة {{4}}. الرقم المرجعي: {{5}}. {{6}}. التفاصيل: {{7}}
 - `booking_rescheduled`: مرحبًا {{1}}، انتقل حجزك — تجربتك {{2}} أصبحت يوم {{3}} الساعة {{4}}. يبقى مبلغك ورقمك المرجعي ({{5}}) كما هما. التفاصيل: {{6}}
+- `booking_payment_reminder`: مرحبًا {{1}}، مقعدك في {{2}} محجوز حتى {{3}}. أكمل الدفع لتأكيده: {{4}} — لإيقاف هذه الرسائل أرسل «إيقاف».
+- `booking_completed_review`: مرحبًا {{1}}، كيف كانت {{2}}؟ تقييمك القصير يفيد الضيوف القادمين ومضيفك: {{3}} — لإيقاف هذه الرسائل أرسل «إيقاف».
 
 ### Media-header variants (photos in WhatsApp)
 

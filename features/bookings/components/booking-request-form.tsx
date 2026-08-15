@@ -103,6 +103,8 @@ interface BookingRequestCopy {
   minAgeRequired: string;
   /** Shown when the guest tries to book without accepting the terms. */
   termsRequired: string;
+  /** Marketing-consent checkbox label — optional, unchecked by default. */
+  marketingConsentLabel: string;
 }
 
 /**
@@ -284,6 +286,13 @@ export function BookingRequestForm({
     if (utm.source) formData.set('utmSource', utm.source);
     if (utm.medium) formData.set('utmMedium', utm.medium);
     if (utm.campaign) formData.set('utmCampaign', utm.campaign);
+    // Ad-platform click ids ride along the same way — an auto-tagged ad
+    // click often carries ONLY a click id (no utm_*), and offline
+    // conversion upload is impossible without persisting it.
+    if (utm.gclid) formData.set('gclid', utm.gclid);
+    if (utm.ttclid) formData.set('ttclid', utm.ttclid);
+    if (utm.fbclid) formData.set('fbclid', utm.fbclid);
+    if (utm.ref) formData.set('referralCode', utm.ref);
     formAction(formData);
   };
   const values = state.values ?? {};
@@ -871,6 +880,22 @@ export function BookingRequestForm({
                 {copy.termsRequired}
               </p>
             )}
+            {/* Marketing consent — separate from the required terms tick,
+                UNCHECKED by default, and never blocks the booking. The
+                action snapshots it per booking and stamps the durable
+                guest-level grant; without it the guest gets transactional
+                messages only. */}
+            <label className="flex cursor-pointer items-start gap-3">
+              <input
+                type="checkbox"
+                name="marketingConsent"
+                defaultChecked={values.marketingConsent === 'on'}
+                className="border-sarat-black/40 accent-sarat-black mt-0.5 size-5 shrink-0"
+              />
+              <span className="text-sarat-black-600 text-sm leading-relaxed">
+                {copy.marketingConsentLabel}
+              </span>
+            </label>
           </div>
 
           {formMessage && (
@@ -952,7 +977,29 @@ export function BookingRequestForm({
                   </span>
                 </span>
               </span>
-              <SubmitButton copy={copy} fullWidth={false} />
+              {/* First tap on the bar with an entirely untouched contact
+                  block scrolls to the fields instead of submitting into a
+                  wall of validation errors — the bar is visible from page
+                  load on mobile, well before the fields are in view. Any
+                  typed value (or a returning guest's collapsed summary)
+                  restores native submit; validation handles the rest. */}
+              <span
+                onClickCapture={(event) => {
+                  const form = formRef.current;
+                  if (!form || detailsCollapsed) return;
+                  const read = (name: string) =>
+                    (
+                      form.elements.namedItem(name) as HTMLInputElement | null
+                    )?.value?.trim() ?? '';
+                  if (read('name') || read('phone') || read('email')) return;
+                  event.preventDefault();
+                  event.stopPropagation();
+                  const el = form.elements.namedItem('name');
+                  if (el instanceof HTMLElement) revealInvalid(el);
+                }}
+              >
+                <SubmitButton copy={copy} fullWidth={false} />
+              </span>
             </div>
           </motion.div>
         </>

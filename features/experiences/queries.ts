@@ -294,3 +294,26 @@ export async function getAllSlugs(): Promise<string[]> {
     return [];
   }
 }
+
+/**
+ * Slug + last-modified pairs for the sitemap. Kept separate from
+ * `getAllSlugs` (used by generateStaticParams) so build-time callers keep
+ * their minimal shape. Same degrade-to-[] posture — the sitemap route
+ * decides whether an empty result is fatal. Sample-data rows carry no
+ * timestamps, so `lastModified` is null on the no-DB path.
+ */
+export async function getAllSlugsWithDates(): Promise<
+  readonly { slug: string; lastModified: Date | null }[]
+> {
+  if (!hasDb()) return sample.getAllSlugs().map((slug) => ({ slug, lastModified: null }));
+  try {
+    const rows = await db.query.experiences.findMany({
+      where: (e) => eq(e.status, 'live'),
+      columns: { slug: true, updatedAt: true },
+    });
+    return rows.map((r) => ({ slug: r.slug, lastModified: r.updatedAt }));
+  } catch (error) {
+    reportError(error, { surface: 'experiences:getAllSlugsWithDates' });
+    return [];
+  }
+}

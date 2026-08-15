@@ -19,11 +19,6 @@ import { bookingOptions } from '@/features/bookings/lib/policy';
 import { splitCommission } from '@/features/bookings/lib/commission';
 import { zatcaQrPayload } from '@/features/bookings/lib/zatca-qr';
 import { renderInvoicePdf, type InvoicePdfRow } from '@/features/bookings/lib/invoice-pdf';
-import {
-  bookingInvoiceUrl,
-  bookingManageUrl,
-  bookingPayUrl,
-} from '@/features/bookings/lib/link-token';
 import { getExperienceBySlug } from '@/features/experiences/queries';
 import { toArabicText } from '@/features/experiences/lib/arabic-content';
 import { renderBookingIcs } from './booking-ics';
@@ -264,8 +259,8 @@ export async function sendBookingReceiptEmail(reference: string): Promise<void> 
   const hasInvoicePdf = pdfAttachments.length > 0;
   const attachments = [...pdfAttachments];
 
-  const invoiceUrl = bookingInvoiceUrl(locale, reference);
-  const manageUrl = bookingManageUrl(locale, reference);
+  const invoiceUrl = `${SITE_URL}/${locale}/book/confirmed/${reference}/invoice`;
+  const manageUrl = `${SITE_URL}/${locale}/book/confirmed/${reference}`;
   const mapUrl = experience ? googleMapsLink(experience.lat, experience.lng) : null;
 
   // Calendar event alongside the PDF — a date-bound booking the guest
@@ -570,13 +565,13 @@ export async function sendBookingCancellationEmail(
     refund === 'wallet_credited'
       ? {
           label: t('viewWalletCredit'),
-          url: bookingManageUrl(locale, reference),
+          url: `${SITE_URL}/${locale}/book/confirmed/${reference}`,
         }
       : undefined;
   const cancelSubject = t('cancelSubject', { reference: booking.referenceCode });
   const cancelCtaUrl = showDocument
-    ? bookingInvoiceUrl(locale, reference)
-    : (walletCta?.url ?? bookingManageUrl(locale, reference));
+    ? `${SITE_URL}/${locale}/book/confirmed/${reference}/invoice`
+    : (walletCta?.url ?? `${SITE_URL}/${locale}/book/confirmed/${reference}`);
   const { html, text } = renderReceiptEmail({
     logoUrl: EMAIL_LOGO_URL,
     subject: cancelSubject,
@@ -668,7 +663,7 @@ export async function sendBookingRescheduledEmail(
     ...details.rows,
   ];
 
-  const bookingUrl = bookingManageUrl(locale, reference);
+  const bookingUrl = `${SITE_URL}/${locale}/book/confirmed/${reference}`;
   const subject = t('rescheduledSubject', { reference: booking.referenceCode });
   const { html, text } = renderReceiptEmail({
     logoUrl: EMAIL_LOGO_URL,
@@ -806,7 +801,7 @@ export async function sendBookingPrepareReminderEmail(
   // rule comes from the booking's own policy snapshot plus the platform
   // grace, never the live platform settings.
   const deadline = fullRefundDeadlineFor(booking);
-  const manageUrl = bookingManageUrl(locale, reference);
+  const manageUrl = `${SITE_URL}/${locale}/book/confirmed/${reference}`;
   const note = deadline
     ? {
         html: t('reminderManageWithDeadline', {
@@ -915,7 +910,7 @@ export async function sendBookingDepartureReminderEmail(
         '1': booking.guestName,
         '2': placeName ?? title ?? t('genericExperience'),
         '3': time,
-        '4': mapUrl ?? bookingManageUrl(locale, reference),
+        '4': mapUrl ?? `${SITE_URL}/${locale}/book/confirmed/${reference}`,
       },
     },
   });
@@ -1046,7 +1041,7 @@ export async function sendBookingApprovedEmail(reference: string): Promise<void>
 
   const needsPayment =
     hasHyperpay() && booking.paymentStatus !== 'paid' && booking.paymentDeadline !== null;
-  const payUrl = bookingPayUrl(locale, reference, booking.experienceSlug);
+  const payUrl = `${SITE_URL}/${locale}/book/${reference}/pay?slug=${encodeURIComponent(booking.experienceSlug)}`;
   if (needsPayment && booking.paymentDeadline) {
     // Date AND time — the spot is released at a wall-clock moment.
     const d = new Date(booking.paymentDeadline);
@@ -1072,7 +1067,7 @@ export async function sendBookingApprovedEmail(reference: string): Promise<void>
       ? { label: t('completePaymentCta'), url: payUrl }
       : {
           label: t('rescheduledCta'),
-          url: bookingManageUrl(locale, reference),
+          url: `${SITE_URL}/${locale}/book/confirmed/${reference}`,
         },
     closing: needsPayment ? t('approvedPayClosing') : t('approvedClosing'),
     footer: t('footer'),
@@ -1095,7 +1090,87 @@ export async function sendBookingApprovedEmail(reference: string): Promise<void>
         // Var 5 is the action link: the payment page while payment is
         // due, the booking page otherwise (the template copy reads
         // "details and next steps" either way).
-        '5': needsPayment ? payUrl : bookingManageUrl(locale, reference),
+        '5': needsPayment ? payUrl : `${SITE_URL}/${locale}/book/confirmed/${reference}`,
+      },
+    },
+  });
+}
+
+/**
+ * Payment-hold rail (2026-08-15 marketing audit). One sender, two stages:
+ *
+ *  - `created`: fired right after an INSTANT booking is inserted. The
+ *    guest is usually still on the pay page — but the abandoners are
+ *    exactly the ones who never see it again, and before this an
+ *    abandoned instant booking generated ZERO guest contact until the
+ *    cron's "your hold lapsed" post-mortem, up to a day later.
+ *  - `reminder`: fired by the hourly cron ~2 hours before the hold
+ *    lapses, while there is still time to act.
+ *
+ * Distinct types/dedupe keys per stage, so the ledger allows exactly one
+ * of each per booking and the hourly cron can re-enter safely.
+ */
+export async function sendBookingAwaitingPaymentEmail(
+  reference: string,
+  stage: 'created' | 'reminder',
+): Promise<void> {
+  if (!notificationsConfigured()) return;
+  const booking = await getBookingByReference(reference);
+  if (!booking) return;
+  if (!booking.guestEmail && !booking.guestPhone) return;
+  // Only while the hold is real: unpaid, with a live future deadline.
+  // Paid → the receipt owns the story; lapsed → the lapse email does.
+  if (booking.paymentStatus === 'paid' || !booking.paymentDeadline) return;
+  if (booking.status !== 'confirmed' && booking.status !== 'pending') return;
+  const deadline = new Date(booking.paymentDeadline);
+  if (deadline.getTime() <= Date.now()) return;
+
+  const locale = booking.guestPreferredLanguage;
+  const t = await getTranslations({ locale, namespace: 'bookingEmail' });
+  const details = await lifecycleDetails(booking, locale, t);
+  const rows = details.rows;
+  rows.push({ label: t('totalLabel'), value: formatSAR(booking.totalAmountSar, locale) });
+  // Date AND time — the spot is released at a wall-clock moment.
+  const deadlineValue = `${formatDate(deadline, locale, 'gregory', KSA_DATE)}, ${formatTime(deadline, locale, KSA_TIME)}`;
+  rows.push({ label: t('paymentDeadlineLabel'), value: deadlineValue });
+
+  const payUrl = `${SITE_URL}/${locale}/book/${reference}/pay?slug=${encodeURIComponent(booking.experienceSlug)}`;
+  const type = stage === 'created' ? 'booking_awaiting_payment' : 'booking_payment_reminder';
+  const subject = t(stage === 'created' ? 'awaitingPaymentSubject' : 'paymentReminderSubject', {
+    reference: booking.referenceCode,
+  });
+  const { html, text } = renderReceiptEmail({
+    logoUrl: EMAIL_LOGO_URL,
+    subject,
+    dir: locale === 'ar' ? 'rtl' : 'ltr',
+    greeting: t('greeting', { name: booking.guestName }),
+    intro: t(stage === 'created' ? 'awaitingPaymentIntro' : 'paymentReminderIntro'),
+    heroImage: details.hero,
+    rows,
+    cta: { label: t('completePaymentCta'), url: payUrl },
+    closing: t('awaitingPaymentClosing'),
+    footer: t('footer'),
+  });
+  await dispatchNotification({
+    type,
+    dedupeKey: `${type}:${booking.referenceCode}`,
+    bookingId: booking.id,
+    recipient: {
+      kind: 'guest',
+      email: booking.guestEmail,
+      phone: booking.guestPhone,
+      locale,
+    },
+    email: { subject, html, text },
+    // Same template serves both stages (the body reads correctly either
+    // way); skips cleanly until its SID is approved and configured.
+    whatsapp: {
+      template: 'booking_payment_reminder',
+      variables: {
+        '1': booking.guestName,
+        '2': details.title ?? t('genericExperience'),
+        '3': deadlineValue,
+        '4': payUrl,
       },
     },
   });
@@ -1158,6 +1233,15 @@ export async function sendBookingExpiredEmail(reference: string): Promise<void> 
     greeting: t('greeting', { name: booking.guestName }),
     intro: t('expiredIntro'),
     rows,
+    // The closing copy says "you can send a new request" — give it the
+    // button it promises (2026-08-02 ops audit: this email was a dead
+    // end, apology with no link, on the exact guest most worth saving).
+    cta: booking.experienceSlug
+      ? {
+          label: t('expiredCta'),
+          url: `${SITE_URL}/${locale}/experiences/${booking.experienceSlug}`,
+        }
+      : undefined,
     closing: t('expiredClosing'),
     footer: t('footer'),
   });
@@ -1193,6 +1277,14 @@ export async function sendBookingPaymentLapsedEmail(reference: string): Promise<
     greeting: t('greeting', { name: booking.guestName }),
     intro: t('paymentLapsedIntro'),
     rows,
+    // Same rationale as the expired email: the copy invites a re-book,
+    // so the button must exist (2026-08-02 ops audit).
+    cta: booking.experienceSlug
+      ? {
+          label: t('paymentLapsedCta'),
+          url: `${SITE_URL}/${locale}/experiences/${booking.experienceSlug}`,
+        }
+      : undefined,
     closing: t('paymentLapsedClosing'),
     footer: t('footer'),
   });
@@ -1203,6 +1295,49 @@ export async function sendBookingPaymentLapsedEmail(reference: string): Promise<
     bookingId: booking.id,
     recipient: { kind: 'guest', email: booking.guestEmail, locale },
     email: { subject: t('paymentLapsedSubject'), html, text },
+  });
+}
+
+/**
+ * The host was suspended while this guest held an upcoming active
+ * booking (2026-08-02 ops audit P0-1). Suspension pauses the listings
+ * and deliberately silences reminders — but that left the guest with a
+ * paid or pending plan and no signal at all until they showed up to a
+ * withdrawn experience. Plain-language hold notice: the admin queue owns
+ * the cancel/refund decision per booking, so this email promises
+ * follow-up, never an outcome.
+ */
+export async function sendBookingOnHoldEmail(reference: string): Promise<void> {
+  if (!notificationsConfigured()) return;
+  const booking = await getBookingByReference(reference);
+  if (!booking?.guestEmail) return;
+  // Only bookings still live at send time — a guest who cancelled
+  // between the suspension and this send needs no hold notice.
+  if (booking.status !== 'pending' && booking.status !== 'confirmed') return;
+
+  const locale = booking.guestPreferredLanguage;
+  const t = await getTranslations({ locale, namespace: 'bookingEmail' });
+  const { rows } = await lifecycleDetails(booking, locale, t);
+
+  const subject = t('onHoldSubject', { reference: booking.referenceCode });
+  const { html, text } = renderReceiptEmail({
+    logoUrl: EMAIL_LOGO_URL,
+    subject,
+    dir: locale === 'ar' ? 'rtl' : 'ltr',
+    greeting: t('greeting', { name: booking.guestName }),
+    intro: t('onHoldIntro'),
+    rows,
+    closing: t('onHoldClosing'),
+    footer: t('footer'),
+  });
+  // Email-only: there is no Meta-approved WhatsApp template for this
+  // edge case yet — still dispatched so the send is ledgered.
+  await dispatchNotification({
+    type: 'booking_on_hold',
+    dedupeKey: `booking_on_hold:${booking.referenceCode}`,
+    bookingId: booking.id,
+    recipient: { kind: 'guest', email: booking.guestEmail, locale },
+    email: { subject, html, text },
   });
 }
 
@@ -1576,8 +1711,14 @@ export async function sendBookingCompletedEmails(reference: string): Promise<voi
       intro: t('reviewInviteIntro', { experience: experienceName }),
       heroImage: details.hero,
       rows: details.rows,
-      // Reviews are written from the guest dashboard's past-bookings list.
-      cta: { label: t('reviewInviteCta'), url: `${SITE_URL}/${locale}/me` },
+      // Deep-link the review composer on THIS booking's page (the
+      // unguessable reference is the capability, as everywhere else) —
+      // the old `/me` landing added a find-your-booking hop that review
+      // volume paid for.
+      cta: {
+        label: t('reviewInviteCta'),
+        url: `${SITE_URL}/${locale}/book/confirmed/${reference}#review`,
+      },
       closing: t('reviewInviteClosing'),
       footer: t('footer'),
     });
@@ -1592,6 +1733,18 @@ export async function sendBookingCompletedEmails(reference: string): Promise<voi
         locale,
       },
       email: { subject, html, text },
+      // Reviews gate the home page's social proof, and most guests are
+      // phone-first — the email-only invite was the single point where
+      // phone-only guests fell out of the loop entirely. Skips cleanly
+      // until the template SID is approved and configured.
+      whatsapp: {
+        template: 'booking_completed_review',
+        variables: {
+          '1': booking.guestName,
+          '2': experienceName,
+          '3': `${SITE_URL}/${locale}/book/confirmed/${reference}#review`,
+        },
+      },
     });
   }
 
@@ -1659,7 +1812,7 @@ export async function sendBookingPaymentFailedEmail(reference: string): Promise<
     });
   }
 
-  const payUrl = bookingPayUrl(locale, reference, booking.experienceSlug);
+  const payUrl = `${SITE_URL}/${locale}/book/${reference}/pay?slug=${encodeURIComponent(booking.experienceSlug)}`;
   const subject = t('paymentFailedSubject', { reference: booking.referenceCode });
   const { html, text } = renderReceiptEmail({
     logoUrl: EMAIL_LOGO_URL,
@@ -1743,9 +1896,12 @@ export const RETRYABLE_BOOKING_SENDERS: Readonly<
   booking_confirmed: (reference) => sendBookingReceiptEmail(reference),
   booking_request_received: (reference) => sendBookingRequestReceivedEmail(reference),
   booking_approved: (reference) => sendBookingApprovedEmail(reference),
+  booking_awaiting_payment: (reference) => sendBookingAwaitingPaymentEmail(reference, 'created'),
+  booking_payment_reminder: (reference) => sendBookingAwaitingPaymentEmail(reference, 'reminder'),
   booking_declined: (reference) => sendBookingDeclinedEmail(reference),
   booking_expired: (reference) => sendBookingExpiredEmail(reference),
   booking_payment_lapsed: (reference) => sendBookingPaymentLapsedEmail(reference),
+  booking_on_hold: (reference) => sendBookingOnHoldEmail(reference),
   booking_payment_failed: (reference) => sendBookingPaymentFailedEmail(reference),
   booking_reminder_24h: (reference, locale) => sendBookingPrepareReminderEmail(reference, locale),
   booking_reminder_3h: (reference, locale) => sendBookingDepartureReminderEmail(reference, locale),

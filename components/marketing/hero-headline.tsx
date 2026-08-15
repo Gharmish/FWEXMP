@@ -8,9 +8,10 @@ import type { Category } from '@/lib/colors';
 
 /**
  * Hero headline: the word-by-word cascade of RiseInWords, with one slot
- * that slowly rotates through the enabled categories in their immutable
- * brand tones (BRIEF §3). The slot's width springs between words so the
- * rest of the sentence reflows smoothly instead of jumping.
+ * that rotates through the enabled categories in their immutable brand
+ * tones (BRIEF §3) — one full cycle, then it settles and stays still.
+ * The slot's width springs between words so the rest of the sentence
+ * reflows smoothly instead of jumping.
  *
  * LCP contract (same as RiseInWords): the static words and the first
  * rotating word SSR fully visible, offset only by transforms — opacity
@@ -64,11 +65,17 @@ export function HeroHeadline({ prefix, suffix, words }: HeroHeadlineProps) {
 
   useEffect(() => {
     if (reduce || words.length < 2) return;
+    // One full cycle, then settle back on the first word and stop:
+    // indefinite rotation has no pause mechanism (WCAG 2.2.2), and a
+    // headline that never stops moving reads as anything but restraint.
+    let steps = 0;
     const id = setInterval(() => {
       // A hidden tab freezes rAF, so exits can't run — advancing anyway
       // piles un-exited words into the DOM until the tab returns.
       if (document.hidden) return;
+      steps += 1;
       setIndex((i) => (i + 1) % words.length);
+      if (steps >= words.length) clearInterval(id);
     }, ROTATE_MS);
     return () => clearInterval(id);
   }, [reduce, words.length]);

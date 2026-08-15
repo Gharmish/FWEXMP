@@ -16,9 +16,12 @@ import { EmptyState } from '@/components/ui/empty-state';
 import { HoverLift, MountFade, RiseIn, Stagger, StaggerItem } from '@/components/ui/motion';
 import { Users } from 'lucide-react';
 
-const languagesAlternates = Object.fromEntries(
-  routing.locales.map((l) => [l, `${SITE_URL}/${l}/hosts`]),
-);
+const languagesAlternates = {
+  ...Object.fromEntries(routing.locales.map((l) => [l, `${SITE_URL}/${l}/hosts`])),
+  // Arabic-first market: searchers whose language matches neither locale
+  // are steered to the Arabic variant.
+  'x-default': `${SITE_URL}/ar/hosts`,
+};
 
 export async function generateMetadata({
   params,
@@ -37,13 +40,22 @@ export async function generateMetadata({
       canonical: `${SITE_URL}/${locale}/hosts`,
       languages: languagesAlternates,
     },
+    // Declaring openGraph replaces the parent's resolved openGraph
+    // WHOLESALE — including the [locale]-level opengraph-image file
+    // convention — so the brand card must be re-attached explicitly.
     openGraph: {
       title,
       description,
       url: `${SITE_URL}/${locale}/hosts`,
       type: 'website',
+      images: [{ url: `${SITE_URL}/${locale}/opengraph-image`, width: 1200, height: 630 }],
     },
-    twitter: { card: 'summary_large_image', title, description },
+    twitter: {
+      card: 'summary_large_image',
+      title,
+      description,
+      images: [`${SITE_URL}/${locale}/opengraph-image`],
+    },
   };
 }
 

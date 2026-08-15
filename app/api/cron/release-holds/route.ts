@@ -40,9 +40,11 @@ import {
   sendBookingPaymentLapsedEmail,
   sendBookingPrepareReminderEmail,
   sendBookingDepartureReminderEmail,
+  sendBookingAwaitingPaymentEmail,
   sendHostHoldLapsedEmail,
 } from '@/features/bookings/lib/booking-email';
 import { listRetryableDeliveries } from '@/lib/notifications/ledger';
+import { sendRebookEmail, sendWinbackEmail } from '@/features/marketing/lifecycle-email';
 import { addDays } from '@/features/bookings/lib/availability';
 import { startInstant } from '@/features/bookings/lib/cancellation';
 import { releaseWalletReservation } from '@/features/wallet/reservation';
@@ -629,6 +631,39 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       }
     }
 
+    // Pass 3a — pre-lapse payment nudge (2026-08-15 marketing audit).
+    // The highest-intent abandonment in the funnel used to be worked
+    // only AFTER expiry ("your hold lapsed", a post-mortem). This pass
+    // catches unpaid holds whose deadline is ~2.5h out and nudges while
+    // there is still time to act. Idempotent at any cadence: the
+    // notification ledger allows exactly one `booking_payment_reminder`
+    // per booking, and the sender re-checks paid/lapsed state at send
+    // time — so the hourly runs, manual triggers, and this window
+    // overlapping across runs can never double-send.
+    let nudged = 0;
+    const nudgeCandidates = await db
+      .select({ reference: bookings.idempotencyKey })
+      .from(bookings)
+      .where(
+        and(
+          inArray(bookings.status, ['pending', 'confirmed']),
+          ne(bookings.paymentStatus, 'paid'),
+          isNotNull(bookings.paymentDeadline),
+          sql`${bookings.paymentDeadline} > now()`,
+          sql`${bookings.paymentDeadline} <= now() + interval '150 minutes'`,
+        ),
+      )
+      .orderBy(asc(bookings.paymentDeadline))
+      .limit(REMINDER_LIMIT);
+    for (const row of nudgeCandidates) {
+      try {
+        await sendBookingAwaitingPaymentEmail(row.reference, 'reminder');
+        nudged += 1;
+      } catch (error) {
+        reportError(error, { surface: 'cron-payment-nudge', reference: row.reference });
+      }
+    }
+
     // Pass 3b — retry failed notification sends. Only types in the
     // retry map (re-derivable from the booking row) are re-fired; a
     // sender whose booking no longer qualifies (e.g. refunded since)
@@ -722,6 +757,59 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         await sendBookingCompletedEmails(row.reference);
       } catch (error) {
         reportError(error, { surface: 'cron-completed-email', reference: row.reference });
+      }
+    }
+
+    // Pass 4b — post-trip marketing (2026-08-15 marketing audit). D+7
+    // rebook and D+90 win-back emails off each completed booking's date.
+    // Everything restrictive lives in the SENDER (consent, unsubscribe
+    // link, suppression scope, completed-status re-check); this pass
+    // only shortlists candidates cheaply. A full-day date window +
+    // ledger dedupe per (stage, reference) means the hourly cadence
+    // re-offers each row all day but delivers at most once, and a
+    // booking that misses its day (downtime) is skipped rather than
+    // sent stale. Win-back additionally requires no later live booking —
+    // a guest who came back on their own must not get a "we miss you".
+    let marketed = 0;
+    const marketingStages: Array<{
+      date: string;
+      send: (reference: string) => Promise<void>;
+      requireNoLaterBooking: boolean;
+    }> = [
+      { date: addDays(todayRiyadh, -7), send: sendRebookEmail, requireNoLaterBooking: false },
+      { date: addDays(todayRiyadh, -90), send: sendWinbackEmail, requireNoLaterBooking: true },
+    ];
+    for (const stage of marketingStages) {
+      const candidates = await db
+        .select({ reference: bookings.idempotencyKey })
+        .from(bookings)
+        .innerJoin(guests, eq(bookings.guestId, guests.id))
+        .where(
+          and(
+            eq(bookings.status, 'completed'),
+            eq(bookings.date, stage.date),
+            isNotNull(guests.marketingConsentAt),
+            isNotNull(guests.email),
+            ...(stage.requireNoLaterBooking
+              ? [
+                  sql`not exists (
+                    select 1 from ${bookings} b2
+                    where b2.guest_id = ${bookings.guestId}
+                      and b2.date > ${bookings.date}
+                      and b2.status not in ('cancelled', 'declined', 'expired')
+                  )`,
+                ]
+              : []),
+          ),
+        )
+        .limit(REMINDER_LIMIT);
+      for (const row of candidates) {
+        try {
+          await stage.send(row.reference);
+          marketed += 1;
+        } catch (error) {
+          reportError(error, { surface: 'cron-marketing', reference: row.reference });
+        }
       }
     }
 
@@ -998,8 +1086,10 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       settled,
       anomalies,
       reminded,
+      nudged,
       retried,
       completed: completed.length,
+      marketed,
       expiredCreditSar,
       kycDocumentsPurged,
     });

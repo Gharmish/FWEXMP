@@ -1,6 +1,14 @@
 import type { Metadata } from 'next';
 import type { ReactNode } from 'react';
-import { ArrowRight, CheckCircle2, CircleAlert, Clock, MessageCircle, Star } from 'lucide-react';
+import {
+  ArrowRight,
+  CheckCircle2,
+  CircleAlert,
+  Clock,
+  MapPin,
+  MessageCircle,
+  Star,
+} from 'lucide-react';
 import { notFound } from 'next/navigation';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { cn } from '@/lib/utils';
@@ -17,13 +25,18 @@ import {
 import { BookingAccessNotice } from '@/features/bookings/components/booking-access-notice';
 import { whatsappLink } from '@/lib/whatsapp';
 import { SITE_URL } from '@/lib/site';
+import { supportWhatsappE164 } from '@/lib/env';
 import { PrintButton } from '@/components/ui/print-button';
+import { ShareButton } from '@/components/ui/share-button';
+import { RelatedExperiences } from '@/features/experiences/components/related-experiences';
+import { ensureReferralCode } from '@/lib/marketing/referral';
 import { GharmishLogo } from '@/components/layout/gharmish-logo';
 import { ReportProblemForm } from '@/features/disputes/components/report-problem-form';
 import { ReviewForm } from '@/features/reviews/components/review-form';
 import { getReviewForBooking } from '@/features/reviews/queries';
 import { hasOpenDisputeForBooking } from '@/features/disputes/queries';
 import { CancelBookingButton } from '@/features/bookings/components/cancel-booking-button';
+import { MeetingPointMap } from '@/features/experiences/components/meeting-point-map';
 import { AddToCalendar } from '@/features/bookings/components/add-to-calendar';
 import {
   calendarEventDescription,
@@ -151,7 +164,10 @@ export default async function BookingConfirmedPage({ params, searchParams }: Pag
   const experience = experienceSlug ? await getExperienceBySlug(experienceSlug) : undefined;
 
   const t = await getTranslations('bookingConfirmed');
+  const tShare = await getTranslations('share');
   const tSteps = await getTranslations('payment.steps');
+  // Meeting-point copy is shared with the experience detail page.
+  const tExp = await getTranslations('experienceDetail');
   // Instant bookings land here already `confirmed`; request bookings are
   // `pending` until the operator confirms. Drive the copy off that.
   const isConfirmed = booking?.status === 'confirmed';
@@ -160,6 +176,13 @@ export default async function BookingConfirmedPage({ params, searchParams }: Pag
     ? loc === 'ar'
       ? toArabicText(experience.placeName)
       : experience.placeName
+    : null;
+  // "{city}, {region}" line for the meeting-point block — same composition
+  // as the experience detail page, so both surfaces read identically.
+  const locationLine = experience
+    ? loc === 'ar'
+      ? `${toArabicText(experience.city)}، ${toArabicText(experience.region)}`
+      : `${experience.city}, ${experience.region}`
     : null;
 
   // Payment outcome view. The `/pay/return` route appends `?payment=<outcome>`
@@ -226,6 +249,11 @@ export default async function BookingConfirmedPage({ params, searchParams }: Pag
   const walletOwner =
     isWalletRefunded && booking ? (await getSessionGuestId()) === booking.guestId : false;
   const walletCreditSar = booking ? booking.totalAmountSar + booking.walletAppliedSar : 0;
+  // Referral share tag for the invite-friends button below — minted
+  // lazily on the guest's first visit here; null (mint failure / no
+  // booking) degrades to the plain share URL.
+  const referralCode = booking?.guestId ? await ensureReferralCode(booking.guestId) : null;
+  const referralShareSuffix = referralCode ? `?ref=${referralCode}` : '';
   const isDeclined = booking?.status === 'declined';
   const isExpired = booking?.status === 'expired';
   // "Try payment again" is only honest while the pay page would accept
@@ -378,31 +406,37 @@ export default async function BookingConfirmedPage({ params, searchParams }: Pag
       ? t('respondBy', { date: formatDeadline(new Date(booking.approvalDeadline)) })
       : null;
 
-  const detailRows: Array<{ label: string; value: ReactNode }> = [];
-  if (title) detailRows.push({ label: t('experienceLabel'), value: title });
-  if (placeName) detailRows.push({ label: t('placeLabel'), value: placeName });
+  // Ticket layout splits what used to be one flat detail list: the
+  // schedule facts (date / time / guests) render as prominent tiles, the
+  // money lines as right-aligned receipt rows below a perforation-style
+  // divider. The experience title + place become the card's own header.
+  const factTiles: Array<{ label: string; value: ReactNode }> = [];
+  const moneyRows: Array<{ label: string; value: ReactNode; emphasis?: boolean }> = [];
   if (booking) {
-    const startsAt = new Date(`${booking.date}T${booking.startTime}:00`);
-    detailRows.push({
+    // KSA-pinned instant (not a bare `new Date(date T time)`, which the
+    // runtime reads in SERVER-local time — on a UTC host that shifted
+    // every displayed start time +3h vs the emails' startInstant).
+    const startsAt = startInstant(booking.date, booking.startTime);
+    factTiles.push({
       label: t('dateLabel'),
       value: formatDate(startsAt, loc),
     });
-    detailRows.push({
+    factTiles.push({
       label: t('timeLabel'),
       value: formatTime(startsAt, loc),
     });
-    detailRows.push({
+    factTiles.push({
       label: t('partyLabel'),
       value: formatInteger(booking.partySize, loc),
     });
     // Promo: subtotal (pre-discount) + a discount line above the charged
     // total. `totalAmountSar` is always the post-discount amount.
     if (booking.discountSar > 0) {
-      detailRows.push({
+      moneyRows.push({
         label: t('subtotalLabel'),
         value: <Price amount={booking.totalAmountSar + booking.discountSar} locale={loc} />,
       });
-      detailRows.push({
+      moneyRows.push({
         label: booking.promoCode
           ? t('discountLabel', { code: booking.promoCode })
           : t('discountLabelGeneric'),
@@ -416,7 +450,7 @@ export default async function BookingConfirmedPage({ params, searchParams }: Pag
     // Gharmish Credit redeemed at checkout — its own line above the
     // charged total, mirroring the promo treatment.
     if (booking.walletAppliedSar > 0) {
-      detailRows.push({
+      moneyRows.push({
         label: t('walletAppliedLabel'),
         value: (
           <span className="text-juniper-green-800">
@@ -425,16 +459,17 @@ export default async function BookingConfirmedPage({ params, searchParams }: Pag
         ),
       });
     }
-    detailRows.push({
+    moneyRows.push({
       label: paymentView === 'paid' ? t('totalPaidLabel') : t('totalLabel'),
       value: <Price amount={booking.totalAmountSar} locale={loc} />,
+      emphasis: true,
     });
     // Prices are VAT-inclusive. The VAT line renders ONLY from the
     // per-booking snapshot stamped at settlement — a paid booking from
     // before the platform registered for VAT stays VAT-silent forever,
     // and unpaid bookings disclose nothing until the money moves.
     if (booking.vatRateBps) {
-      detailRows.push({
+      moneyRows.push({
         label: t('vatIncludedLabel', { pct: vatRatePercent(booking.vatRateBps) }),
         value: (
           <Price amount={vatPortionSar(booking.totalAmountSar, booking.vatRateBps)} locale={loc} />
@@ -445,7 +480,7 @@ export default async function BookingConfirmedPage({ params, searchParams }: Pag
     // reads as proof of payment, not just a request acknowledgement.
     if (paymentView === 'paid') {
       const brand = booking.paymentBrand ? BRAND_NAMES[booking.paymentBrand] : undefined;
-      detailRows.push({
+      moneyRows.push({
         label: t('paymentLabel'),
         value: brand ? `${t('paid')} · ${brand}` : t('paid'),
       });
@@ -500,6 +535,18 @@ export default async function BookingConfirmedPage({ params, searchParams }: Pag
       : null;
   const hostWhatsapp = hostPhone
     ? whatsappLink(hostPhone, t('whatsapp.prefill', { reference: booking?.referenceCode ?? ref }))
+    : null;
+
+  // Gharmish support over WhatsApp — every real booking, every state.
+  // Pending requests, payment trouble, and cancellations are exactly
+  // when guests reach for support, and the host line (above) only
+  // exists once the host has accepted.
+  const supportPhone = booking ? supportWhatsappE164() : null;
+  const supportWhatsapp = supportPhone
+    ? whatsappLink(
+        supportPhone,
+        t('supportWhatsapp.prefill', { reference: booking?.referenceCode ?? ref }),
+      )
     : null;
 
   // Guest cancellation & rescheduling, from the booking's own policy
@@ -614,7 +661,10 @@ export default async function BookingConfirmedPage({ params, searchParams }: Pag
       {booking && booking.paymentStatus === 'paid' && (
         <PurchaseConversion
           reference={booking.referenceCode ?? ref}
-          amountSar={booking.totalAmountSar}
+          // GROSS paid value (card capture + redeemed credit) — what the
+          // booking was worth to the platform, matching the server-side
+          // TikTok event so the two dedupe into one conversion.
+          amountSar={booking.totalAmountSar + booking.walletAppliedSar}
           experienceSlug={experienceSlug ?? undefined}
         />
       )}
@@ -683,17 +733,73 @@ export default async function BookingConfirmedPage({ params, searchParams }: Pag
           <span className="bg-saffron-gold block h-0.5 w-16 rounded-full" />
         </Draw>
 
-        {detailRows.length > 0 && (
-          <Stagger>
-            <dl className="mt-2 grid gap-3 sm:grid-cols-2">
-              {detailRows.map((row) => (
-                <StaggerItem key={row.label} className="flex flex-col gap-1">
-                  <dt className="text-sarat-black-600 text-sm">{row.label}</dt>
-                  <dd className="text-base font-medium">{row.value}</dd>
-                </StaggerItem>
+        {/* What was booked — the ticket's own header. */}
+        {title && (
+          <div className="mt-2 flex flex-col gap-1">
+            <p className="font-display text-xl font-medium tracking-[-0.025em] text-balance">
+              {title}
+            </p>
+            {placeName && (
+              <p className="text-sarat-black-600 inline-flex items-center gap-1.5 text-sm">
+                <MapPin className="size-4 shrink-0" aria-hidden />
+                {placeName}
+              </p>
+            )}
+          </div>
+        )}
+
+        {/* When and for how many — the facts a guest re-checks, sized so
+            they can be read at a glance on the day. */}
+        {factTiles.length > 0 && (
+          <>
+            <span
+              className="border-sarat-black/12 mt-1 block border-t border-dashed [border-top-width:0.5px]"
+              aria-hidden
+            />
+            <Stagger>
+              <dl className="grid grid-cols-2 gap-4 sm:grid-cols-3">
+                {factTiles.map((row) => (
+                  <StaggerItem key={row.label} className="flex flex-col gap-1">
+                    <dt className={cn(eyebrowBase, 'text-sarat-black-600')}>{row.label}</dt>
+                    <dd className="font-display text-lg font-medium tracking-[-0.01em]">
+                      {row.value}
+                    </dd>
+                  </StaggerItem>
+                ))}
+              </dl>
+            </Stagger>
+          </>
+        )}
+
+        {/* The money, as receipt lines under the ticket's perforation. */}
+        {moneyRows.length > 0 && (
+          <>
+            <span
+              className="border-sarat-black/12 mt-1 block border-t border-dashed [border-top-width:0.5px]"
+              aria-hidden
+            />
+            <dl className="flex flex-col gap-2">
+              {moneyRows.map((row) => (
+                <div key={row.label} className="flex items-baseline justify-between gap-6">
+                  <dt
+                    className={cn(
+                      'text-sm',
+                      row.emphasis ? 'text-sarat-black font-medium' : 'text-sarat-black-600',
+                    )}
+                  >
+                    {row.label}
+                  </dt>
+                  <dd
+                    className={cn(
+                      row.emphasis ? 'font-display text-lg font-medium' : 'text-sm font-medium',
+                    )}
+                  >
+                    {row.value}
+                  </dd>
+                </div>
               ))}
             </dl>
-          </Stagger>
+          </>
         )}
 
         {/* The page doubles as the e-ticket — print it / save as PDF. Only
@@ -735,9 +841,54 @@ export default async function BookingConfirmedPage({ params, searchParams }: Pag
                   labels={{ google: t('calendar.google'), ics: t('calendar.ics') }}
                 />
               )}
+              {/* Invite friends — shares the PUBLIC experience page. The
+                  booking URL carries the signed access token and must
+                  never leave this guest's hands via a share sheet. The
+                  guest's referral code rides along as `?ref=` — captured
+                  first-touch on the friend's landing and rewarded (when
+                  the platform reward is enabled) at their first paid
+                  settlement. Minted lazily; null degrades to the plain
+                  share URL. */}
+              {experienceSlug && title && (
+                <ShareButton
+                  url={`${SITE_URL}/${loc}/experiences/${experienceSlug}${referralShareSuffix}`}
+                  title={title}
+                  contentType="experience"
+                  analyticsId={experienceSlug}
+                  label={tShare('dialogTitleExperience')}
+                  variant="outline"
+                />
+              )}
             </div>
           )}
       </section>
+
+      {/* Meeting point — the answer to "where do I actually go?", right on
+          the booking page once the spot is truly held (confirmed AND
+          nothing still owed). The map embed is screen-only; the printed
+          ticket already carries the place name, and the calendar event +
+          reminder emails carry the Google Maps link. */}
+      {isConfirmed &&
+        !isAwaitingPayment &&
+        !isHoldLapsed &&
+        !isPending &&
+        !isFailed &&
+        experience &&
+        placeName &&
+        locationLine && (
+          <section className="mt-10 flex flex-col gap-3 print:hidden">
+            <h2 className="font-display flex items-center gap-2.5 text-2xl font-medium tracking-[-0.025em]">
+              <MapPin className="text-sarat-black-600 size-5 shrink-0" aria-hidden />
+              {tExp('meetingPoint.heading')}
+            </h2>
+            <MeetingPointMap
+              lat={experience.lat}
+              lng={experience.lng}
+              placeName={placeName}
+              location={locationLine}
+            />
+          </section>
+        )}
 
       {/* Emergency-cancellation credit: the money already sits in the
           guest's wallet — this panel is where they choose what happens
@@ -807,17 +958,35 @@ export default async function BookingConfirmedPage({ params, searchParams }: Pag
             <h2 className="font-display text-2xl font-medium tracking-[-0.025em]">
               {t('nextStepsHeading')}
             </h2>
-            <ol className="text-sarat-black-600 flex flex-col gap-2 text-base">
-              <li>{isConfirmed ? t('nextStepConfirmed1') : t('nextStep1')}</li>
-              <li>{isConfirmed ? t('nextStepConfirmed2') : t('nextStep2')}</li>
-              <li>{isConfirmed ? t('nextStepConfirmed3') : t('nextStep3')}</li>
+            <ol className="mt-1 flex flex-col gap-4">
+              {[
+                isConfirmed ? t('nextStepConfirmed1') : t('nextStep1'),
+                isConfirmed ? t('nextStepConfirmed2') : t('nextStep2'),
+                isConfirmed ? t('nextStepConfirmed3') : t('nextStep3'),
+              ].map((step, index) => (
+                <li key={index} className="flex items-start gap-3">
+                  {/* Decorative order marker — the ol carries the semantics. */}
+                  <span
+                    className="border-sarat-black/12 bg-mist text-sarat-black-600 flex size-6 shrink-0 items-center justify-center rounded-full text-xs font-medium [border-width:0.5px]"
+                    aria-hidden
+                  >
+                    {formatInteger(index + 1, loc)}
+                  </span>
+                  <span className="text-sarat-black-600 text-base leading-relaxed">{step}</span>
+                </li>
+              ))}
             </ol>
           </section>
         )}
 
-      {/* Review — every completed booking can be reviewed right here. */}
+      {/* Review — every completed booking can be reviewed right here.
+          `id="review"` is the review-invite deep link's anchor (email +
+          WhatsApp CTAs land the guest directly on the composer). */}
       {booking?.status === 'completed' && tMe && reviewCopy && (
-        <section className="border-sarat-black/8 rounded-card mt-10 flex flex-col gap-4 [border-width:0.5px] p-6 print:hidden">
+        <section
+          id="review"
+          className="border-sarat-black/8 rounded-card mt-10 flex flex-col gap-4 [border-width:0.5px] p-6 print:hidden"
+        >
           {bookingReview && reviewEditable ? (
             <ReviewForm
               bookingReference={ref}
@@ -902,17 +1071,18 @@ export default async function BookingConfirmedPage({ params, searchParams }: Pag
         </section>
       )}
 
-      {/* Host contact — WhatsApp deep link once the booking is accepted. */}
-      {hostWhatsapp && (
+      {/* Contact — WhatsApp deep links. The host line appears once the
+          booking is accepted; Gharmish support is there in every state. */}
+      {(hostWhatsapp || supportWhatsapp) && (
         <section className="border-sarat-black/8 rounded-card mt-10 flex flex-col gap-3 [border-width:0.5px] p-6 print:hidden">
           <h2 className="font-display text-2xl font-medium tracking-[-0.025em]">
-            {t('whatsapp.heading')}
+            {hostWhatsapp ? t('whatsapp.heading') : t('supportWhatsapp.heading')}
           </h2>
           <p className="text-sarat-black-600 max-w-2xl text-base leading-relaxed">
-            {t('whatsapp.description')}
+            {hostWhatsapp ? t('whatsapp.description') : t('supportWhatsapp.description')}
           </p>
           {/* "Will anyone show up?" — the verified receipt, one tap away. */}
-          {experience?.host.verified && (
+          {hostWhatsapp && experience?.host.verified && (
             <VerifiedBadge
               variant="line"
               hostName={loc === 'ar' ? toArabicText(experience.host.name) : experience.host.name}
@@ -921,7 +1091,7 @@ export default async function BookingConfirmedPage({ params, searchParams }: Pag
             />
           )}
           <a
-            href={hostWhatsapp}
+            href={hostWhatsapp ?? supportWhatsapp ?? undefined}
             target="_blank"
             rel="noopener noreferrer"
             className={cn(
@@ -930,8 +1100,23 @@ export default async function BookingConfirmedPage({ params, searchParams }: Pag
             )}
           >
             <MessageCircle className="size-4 shrink-0" aria-hidden />
-            {t('whatsapp.cta')}
+            {hostWhatsapp ? t('whatsapp.cta') : t('supportWhatsapp.cta')}
           </a>
+          {/* Both lines available: support rides along as a quiet inline
+              link under the host CTA. */}
+          {hostWhatsapp && supportWhatsapp && (
+            <p className="text-sarat-black-600 text-sm leading-relaxed">
+              {t('supportWhatsapp.orSupport')}{' '}
+              <a
+                href={supportWhatsapp}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-sarat-black font-medium underline underline-offset-4 transition-opacity duration-200 hover:opacity-60"
+              >
+                {t('supportWhatsapp.orSupportLink')}
+              </a>
+            </p>
+          )}
         </section>
       )}
 
@@ -1106,6 +1291,13 @@ export default async function BookingConfirmedPage({ params, searchParams }: Pag
           </>
         )}
       </div>
+
+      {/* Cross-sell on the highest-intent surface in the funnel — but never
+          while payment is still owed, where "Complete payment" must stay the
+          only story on the page. */}
+      {experienceSlug && !isAwaitingPayment && (
+        <RelatedExperiences excludeSlug={experienceSlug} locale={loc} />
+      )}
     </article>
   );
 }

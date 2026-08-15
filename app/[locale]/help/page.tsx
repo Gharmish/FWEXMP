@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import { ChevronDown } from 'lucide-react';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { SITE_URL } from '@/lib/site';
-import type { Locale } from '@/lib/i18n';
+import { routing, type Locale } from '@/lib/i18n';
 import { InfoPage } from '@/components/layout/info-page';
 import { JsonLd } from '@/components/seo/json-ld';
 import { getPlatformSettings } from '@/lib/platform-settings';
@@ -19,6 +19,14 @@ export async function generateMetadata({
   return {
     title,
     description,
+    alternates: {
+      canonical: `${SITE_URL}/${locale}/help`,
+      languages: {
+        ...Object.fromEntries(routing.locales.map((l) => [l, `${SITE_URL}/${l}/help`])),
+        // Arabic-first market: unmatched languages get the Arabic variant.
+        'x-default': `${SITE_URL}/ar/help`,
+      },
+    },
     // Help/FAQ links get shared with guests and hosts, so the preview should
     // name the page — without an explicit openGraph block the shallow
     // metadata merge shows the root layout's bare brand og:title. Declaring

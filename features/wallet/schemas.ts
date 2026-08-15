@@ -42,8 +42,10 @@ export const issueWalletCreditSchema = z
       .int('amount_invalid')
       .positive('amount_invalid')
       .max(WALLET_MAX_PER_ACTION_SAR, 'amount_over_cap'),
-    // P0 issues goodwill only; widening this enum is the whole change later.
-    reason: z.enum(['goodwill']),
+    // The DB enum has supported `promo` since P0; the zod lock was the
+    // only thing keeping marketing credit (win-back, referral rewards)
+    // unissuable (widened 2026-08-15, marketing audit).
+    reason: z.enum(['goodwill', 'promo']),
     note: noteSchema,
     expiresAt: optionalLocalDateTime,
     idempotencyKey: z.string().uuid(),

@@ -6,6 +6,12 @@ import { fireWhenReady } from '@/lib/funnel-tracking';
 interface PurchaseConversionProps {
   /** Booking reference (GH-XXXXXX) — doubles as the dedupe/transaction id. */
   reference: string;
+  /**
+   * GROSS paid value — card capture PLUS any redeemed Gharmish Credit.
+   * Ad platforms optimise on what the booking was worth, not on which
+   * rail the money rode; must match the server-side TikTok event's value
+   * (`lib/analytics/server-events.ts`) or dedupe reports diverge.
+   */
   amountSar: number;
   /** Experience slug — catalog-matchable content id (empty = unknown). */
   experienceSlug?: string;
@@ -39,19 +45,29 @@ export function PurchaseConversion({
     if (alreadyFired) return;
 
     fireWhenReady(() => {
+      // Deterministic — the server-side TikTok Events API purchase
+      // (fired at settlement) carries the SAME id, so TikTok dedupes the
+      // pixel/server pair into one conversion. Snap gets it as its
+      // client_dedup_id for the same future-proofing.
+      const eventId = `purchase:${reference}`;
       window.snaptr?.('track', 'PURCHASE', {
         price: amountSar,
         currency: 'SAR',
         transaction_id: reference,
+        client_dedup_id: eventId,
       });
-      window.ttq?.track('CompletePayment', {
-        value: amountSar,
-        currency: 'SAR',
-        content_type: 'product',
-        // The slug matches the TikTok catalog's sku_id; the reference
-        // stays the platform transaction id on Snap/GA.
-        content_id: experienceSlug || reference,
-      });
+      window.ttq?.track(
+        'CompletePayment',
+        {
+          value: amountSar,
+          currency: 'SAR',
+          content_type: 'product',
+          // The slug matches the TikTok catalog's sku_id; the reference
+          // stays the platform transaction id on Snap/GA.
+          content_id: experienceSlug || reference,
+        },
+        { event_id: eventId },
+      );
       window.gtag?.('event', 'purchase', {
         transaction_id: reference,
         value: amountSar,
@@ -66,7 +82,7 @@ export function PurchaseConversion({
         // Best effort — the transaction id still dedupes platform-side.
       }
     });
-  }, [reference, amountSar]);
+  }, [reference, amountSar, experienceSlug]);
 
   return null;
 }

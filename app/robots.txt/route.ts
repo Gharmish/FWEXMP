@@ -38,10 +38,14 @@ export function GET(): Response {
     .join('\n');
 
   // `/host` is a Disallow prefix, so it would also shadow the public
-  // `/host`ing landing page. An explicit, longer Allow rule wins for
-  // crawlers that honor most-specific-match (Google), keeping the
-  // host-recruitment page crawlable.
-  const allows = routing.locales.map((l) => `Allow: /${l}/hosting`).join('\n');
+  // `/host`ing landing page AND the public `/hosts` directory + host
+  // profiles. Explicit, longer Allow rules win for crawlers that honor
+  // most-specific-match (Google), keeping both public surfaces crawlable
+  // while `/host` (dashboard) and `/host/apply` stay blocked.
+  const publicPaths = ['hosting', 'hosts'];
+  const allows = routing.locales
+    .flatMap((l) => publicPaths.map((p) => `Allow: /${l}/${p}`))
+    .join('\n');
 
   const body = `User-agent: *
 Allow: /

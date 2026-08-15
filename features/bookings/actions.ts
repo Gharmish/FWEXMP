@@ -30,6 +30,7 @@ import {
   serializeLastBookingCookie,
 } from '@/features/account/cookie';
 import {
+  sendBookingAwaitingPaymentEmail,
   sendBookingRequestReceivedEmail,
   sendHostNewBookingEmail,
 } from '@/features/bookings/lib/booking-email';
@@ -241,7 +242,15 @@ export interface BookingRequestState {
   // the action).
   values?: Partial<
     Record<
-      'name' | 'phone' | 'preferredDate' | 'partySize' | 'email' | 'womenOnly' | 'terms' | 'minAge',
+      | 'name'
+      | 'phone'
+      | 'preferredDate'
+      | 'partySize'
+      | 'email'
+      | 'womenOnly'
+      | 'terms'
+      | 'minAge'
+      | 'marketingConsent',
       string
     >
   >;
@@ -261,6 +270,7 @@ function currentValues(formData: FormData): BookingRequestState['values'] {
     womenOnly: formValue(formData, 'womenOnly'),
     terms: formValue(formData, 'terms'),
     minAge: formValue(formData, 'minAge'),
+    marketingConsent: formValue(formData, 'marketingConsent'),
   };
 }
 
@@ -280,6 +290,10 @@ export async function requestBooking(
     utmSource: formValue(formData, 'utmSource'),
     utmMedium: formValue(formData, 'utmMedium'),
     utmCampaign: formValue(formData, 'utmCampaign'),
+    gclid: formValue(formData, 'gclid'),
+    ttclid: formValue(formData, 'ttclid'),
+    fbclid: formValue(formData, 'fbclid'),
+    marketingConsent: formValue(formData, 'marketingConsent'),
   });
 
   if (!parsed.success) {
@@ -567,6 +581,9 @@ export async function requestBooking(
           phone: input.phone,
           email: input.email,
           preferredLanguage: input.locale,
+          // Opt-in evidence for marketing messages — stamped only when the
+          // (optional, unchecked-by-default) checkbox was ticked.
+          marketingConsentAt: input.marketingConsent ? new Date() : null,
         })
         .returning({
           id: guests.id,
@@ -593,9 +610,12 @@ export async function requestBooking(
       // Anonymous rows (authUserId null) still take the phone: the row
       // was created by this same form, hosts read `guests.phone` to
       // reach the guest, and there is no account to hijack.
-      const patch: Partial<{ phone: string; email: string }> = {};
+      const patch: Partial<{ phone: string; email: string; marketingConsentAt: Date }> = {};
       if (!guest.phone && !guest.authUserId) patch.phone = input.phone;
       if (input.email && !guest.email) patch.email = input.email;
+      // A ticked box refreshes the consent stamp; an unticked one never
+      // clears it (withdrawal is an explicit flow, not a forgotten tick).
+      if (input.marketingConsent) patch.marketingConsentAt = new Date();
       if (Object.keys(patch).length > 0) {
         try {
           await db.update(guests).set(patch).where(eq(guests.id, guest.id));
@@ -603,8 +623,10 @@ export async function requestBooking(
           if (!isUniqueViolation(error) || !patch.phone) throw error;
           // Another row owns this phone — keep the row phone-less; the
           // booking itself still goes through.
-          if (patch.email) {
-            await db.update(guests).set({ email: patch.email }).where(eq(guests.id, guest.id));
+          const rest = { ...patch };
+          delete rest.phone;
+          if (Object.keys(rest).length > 0) {
+            await db.update(guests).set(rest).where(eq(guests.id, guest.id));
           }
         }
       }
@@ -638,6 +660,16 @@ export async function requestBooking(
       utmSource: input.utmSource ?? null,
       utmMedium: input.utmMedium ?? null,
       utmCampaign: input.utmCampaign ?? null,
+      // Ad-platform click ids + guest referral code, captured with the
+      // same first-touch mechanism — offline conversion upload and
+      // referral rewards both hang off these at settlement.
+      gclid: input.gclid ?? null,
+      ttclid: input.ttclid ?? null,
+      fbclid: input.fbclid ?? null,
+      referralCode: input.referralCode ?? null,
+      // Per-booking snapshot of the marketing-consent checkbox; the
+      // durable per-guest grant is stamped on the guest row above.
+      marketingConsent: input.marketingConsent,
       // Consent evidence — the checkboxes above were enforced before this
       // point, so a created booking always carries its acceptance stamps
       // and the document version accepted (2026-08-02 legal audit).
@@ -762,6 +794,15 @@ export async function requestBooking(
       await sendBookingRequestReceivedEmail(reference);
     } catch (error) {
       reportError(error, { surface: 'booking-request:guestEmail', reference });
+    }
+    // Instant mode: "your spot is held until {deadline}" with the pay
+    // link, at creation time. The sender's own guards make this a no-op
+    // for request-mode bookings (no payment deadline yet), so it can be
+    // called unconditionally; the ledger dedupes any replay.
+    try {
+      await sendBookingAwaitingPaymentEmail(reference, 'created');
+    } catch (error) {
+      reportError(error, { surface: 'booking-request:holdEmail', reference });
     }
   });
 

@@ -113,10 +113,29 @@ const serverSchema = z.object({
   // channel goes dark exactly when it matters. Optional and inert until
   // BOTH this and an approved `admin_alert` Content SID are configured.
   ADMIN_ALERT_WHATSAPP: z.string().default(''),
+  // Guest-support WhatsApp number in E.164, published as a `wa.me` deep
+  // link on post-booking surfaces (2026-08 ops audit: WhatsApp-first
+  // market, support was email-only). Optional — empty falls back to
+  // `TWILIO_WHATSAPP_FROM`, the sender guests already hold a thread
+  // with; inbound messages there reach the team via the Twilio console
+  // (see app/api/webhooks/twilio). Set this to repoint support at a
+  // dedicated number without a deploy.
+  SUPPORT_WHATSAPP: z.string().default(''),
   // Shared secret for the scheduled release-holds job. Vercel Cron sends it as
   // `Authorization: Bearer <CRON_SECRET>`. Empty → the route rejects every
   // request (the job is inert until configured).
   CRON_SECRET: z.string().default(''),
+  // TikTok Events API access token (server-to-server CompletePayment at
+  // settlement — lib/analytics/server-events.ts). Pairs with the existing
+  // NEXT_PUBLIC_TIKTOK_PIXEL_ID as the event_source_id. Optional, same
+  // inert-until-configured boundary as the other integrations: empty →
+  // no server event fires and conversions ride the client pixel alone.
+  TIKTOK_EVENTS_ACCESS_TOKEN: z.string().default(''),
+  // GA4 Measurement Protocol API secret (Admin → Data streams → Measure-
+  // ment Protocol API secrets) for server-side `refund` events. Pairs
+  // with NEXT_PUBLIC_GA_MEASUREMENT_ID. Optional — empty → refunds are
+  // simply not reported to GA4.
+  GA4_API_SECRET: z.string().default(''),
   // AES-256-GCM key (base64, 32 bytes) for at-rest encryption of host
   // identity PII (IBANs, national IDs, CR numbers) — see lib/pii-crypto.ts.
   // Empty → encryption is a pass-through no-op (same inert-until-configured
@@ -160,7 +179,10 @@ export const serverEnv = parseEnv(
     TWILIO_WHATSAPP_CONTENT_SIDS: process.env.TWILIO_WHATSAPP_CONTENT_SIDS,
     ADMIN_ALERT_EMAIL: process.env.ADMIN_ALERT_EMAIL,
     ADMIN_ALERT_WHATSAPP: process.env.ADMIN_ALERT_WHATSAPP,
+    SUPPORT_WHATSAPP: process.env.SUPPORT_WHATSAPP,
     CRON_SECRET: process.env.CRON_SECRET,
+    TIKTOK_EVENTS_ACCESS_TOKEN: process.env.TIKTOK_EVENTS_ACCESS_TOKEN,
+    GA4_API_SECRET: process.env.GA4_API_SECRET,
     PII_ENCRYPTION_KEY: process.env.PII_ENCRYPTION_KEY,
     SUPABASE_SERVICE_ROLE_KEY: process.env.SUPABASE_SERVICE_ROLE_KEY,
     COOKIE_SIGNING_SECRET: process.env.COOKIE_SIGNING_SECRET,
@@ -225,4 +247,15 @@ export function hasWhatsApp(): boolean {
   return Boolean(
     serverEnv.TWILIO_ACCOUNT_SID && serverEnv.TWILIO_AUTH_TOKEN && serverEnv.TWILIO_WHATSAPP_FROM,
   );
+}
+
+/**
+ * Guest-support WhatsApp number (E.164) for public `wa.me` links, or
+ * null when neither var is set. Distinct from `hasWhatsApp()`: that
+ * gates the platform sending out; this is about guests writing in.
+ * `SUPPORT_WHATSAPP` wins so support can move to a dedicated number
+ * without a deploy; the Twilio sender is the zero-config fallback.
+ */
+export function supportWhatsappE164(): string | null {
+  return serverEnv.SUPPORT_WHATSAPP || serverEnv.TWILIO_WHATSAPP_FROM || null;
 }

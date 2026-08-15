@@ -1,3 +1,4 @@
+import type { Metadata } from 'next';
 import { Search, Heart, Plus } from 'lucide-react';
 import { notFound } from 'next/navigation';
 import { setRequestLocale } from 'next-intl/server';
@@ -36,6 +37,11 @@ import { MotionDemos, OverlayDemos } from './motion-demos';
  * Sans Arabic face), not product copy — product strings go through
  * next-intl message catalogs.
  */
+
+/** Internal tool — belt-and-suspenders with the robots.txt disallow. */
+export const metadata: Metadata = {
+  robots: { index: false, follow: false },
+};
 
 const RAMP_STOPS: RampStop[] = [50, 100, 200, 400, 600, 800, 900];
 

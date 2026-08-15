@@ -2,11 +2,11 @@
 
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import { useSyncExternalStore } from 'react';
-import { useTranslations } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 import { Link } from '@/lib/i18n';
 import { Button } from '@/components/ui/button';
 import { SPRING } from '@/components/ui/motion';
-import { hasMarketingPixels } from '@/lib/env-client';
+import { clientEnv, hasMarketingPixels } from '@/lib/env-client';
 import { readConsent, subscribeConsent, writeConsent } from '@/components/layout/consent';
 
 /**
@@ -42,9 +42,35 @@ function getServerSnapshot(): boolean {
 
 export function CookieNotice() {
   const t = useTranslations('cookieNotice');
+  const locale = useLocale();
   const reduce = useReducedMotion();
   const visible = useSyncExternalStore(subscribeConsent, getSnapshot, getServerSnapshot);
   const consentMode = hasMarketingPixels();
+
+  // Banner honesty: name only the trackers this deployment actually
+  // configures. The legacy `consentBody` string hard-names Snapchat and
+  // TikTok — untrue when e.g. only GA4 + TikTok ids are set. GA4-only →
+  // an analytics-only body; any ad pixel(s) → the full body with the
+  // real network list interpolated. `t.has` keeps the legacy string as
+  // the fallback until the new keys land in messages/*.json.
+  const adNetworks = [
+    clientEnv.NEXT_PUBLIC_TIKTOK_PIXEL_ID
+      ? t.has('networkTikTok')
+        ? t('networkTikTok')
+        : 'TikTok'
+      : null,
+    clientEnv.NEXT_PUBLIC_SNAP_PIXEL_ID
+      ? t.has('networkSnapchat')
+        ? t('networkSnapchat')
+        : 'Snapchat'
+      : null,
+  ].filter((n): n is string => n !== null);
+  let consentBody = t('consentBody');
+  if (adNetworks.length === 0 && t.has('bodyAnalyticsOnly')) {
+    consentBody = t('bodyAnalyticsOnly');
+  } else if (adNetworks.length > 0 && t.has('bodyFull')) {
+    consentBody = t('bodyFull', { networks: adNetworks.join(locale === 'ar' ? ' و' : ' and ') });
+  }
 
   return (
     <AnimatePresence>
@@ -58,7 +84,7 @@ export function CookieNotice() {
           className="rounded-card border-sarat-black/8 fixed start-4 bottom-[calc(1rem+var(--bottom-dock,0px))] z-[60] w-[calc(100%-2rem)] max-w-sm [border-width:0.5px] bg-white p-4 shadow-[var(--shadow-overlay)] print:hidden"
         >
           <p className="text-sarat-black text-sm leading-relaxed">
-            {consentMode ? t('consentBody') : t('body')}
+            {consentMode ? consentBody : t('body')}
           </p>
           <div className="mt-3 flex flex-wrap items-center justify-end gap-2">
             <Link

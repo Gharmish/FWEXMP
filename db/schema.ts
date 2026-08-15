@@ -383,6 +383,20 @@ export const guests = pgTable('guests', {
   avatarUrl: text(),
   preferredLanguage: localeEnum().notNull().default('ar'),
   /**
+   * When the guest most recently granted marketing consent (checkbox at
+   * booking, unchecked by default). Null = never granted → the guest
+   * must not receive marketing messages, only transactional ones.
+   * Cleared (set null) on opt-out/STOP so revocation is durable.
+   */
+  marketingConsentAt: timestamp({ withTimezone: true }),
+  /**
+   * The guest's own shareable referral code (unguessable, unambiguous
+   * alphabet), minted lazily the first time their confirmation page
+   * builds a referral share link. Null until then. See
+   * lib/marketing/referral.ts.
+   */
+  referralCode: text().unique(),
+  /**
    * Last billing address the guest entered at checkout (HyperPay 3DS2
    * requires it). Saved so a returning guest doesn't retype it — the
    * payment step prefills these. All nullable: a guest who never reached
@@ -715,6 +729,31 @@ export const bookings = pgTable(
     utmSource: text(),
     utmMedium: text(),
     utmCampaign: text(),
+    /**
+     * Ad-platform click ids captured alongside the UTM triplet (same
+     * sessionStorage first-touch mechanism, same consent posture — no
+     * cookie). Auto-tagged landings often carry ONLY a click id and no
+     * utm_* params, and offline/server conversion upload to Google or
+     * TikTok is impossible without them. Null = no paid click recorded.
+     */
+    gclid: text(),
+    ttclid: text(),
+    fbclid: text(),
+    /**
+     * Referral code from the `?ref=` landing param (same sessionStorage
+     * first-touch mechanism as the UTM/click-id fields). Attribution
+     * only at insert time; the reward decision happens at settlement
+     * (first paid booking, not self-referred, reward enabled) in
+     * lib/marketing/referral.ts.
+     */
+    referralCode: text(),
+    /**
+     * Whether the guest ticked the (unchecked-by-default, separately
+     * stored) marketing-consent box on THIS booking's form. Snapshot per
+     * booking; the durable per-guest grant lives at
+     * `guests.marketingConsentAt`.
+     */
+    marketingConsent: boolean().notNull().default(false),
     /** Safe retries for AI agents (BRIEF §6). */
     idempotencyKey: text().notNull().unique(),
     /**
@@ -1555,6 +1594,15 @@ export const platformSettings = pgTable('platform_settings', {
    */
   approvalPaymentWindowHours: integer().notNull().default(24),
   /**
+   * Two-sided referral reward, whole SAR per side, issued as
+   * non-withdrawable `promo` wallet credit when a referred guest's FIRST
+   * booking settles paid (lib/marketing/referral.ts). 0 = the mechanic
+   * is DORMANT: codes are still minted and attributed on bookings, but
+   * no credit is ever issued — the amount is an owner pricing decision
+   * (2026-08-15 marketing audit), so the code ships off by default.
+   */
+  referralRewardSar: integer().notNull().default(0),
+  /**
    * Optional announcement band on the home page (per locale). Null/
    * empty = no band. Plain text — the band is for "Eid hours" /
    * "Soudah road closed" notices, not rich content.
@@ -1804,6 +1852,16 @@ export const notificationSuppressions = pgTable(
     address: text().notNull(),
     /** Why: `stop` (reply keyword), `bounce`, `complaint`, `manual`. */
     reason: text().notNull(),
+    /**
+     * What the suppression covers (2026-08-15 marketing audit — added
+     * BEFORE the first marketing send, so one campaign unsubscribe can
+     * never kill a guest's booking confirmations):
+     *  - `all`       — nothing is sent (STOP keyword, bounce, complaint).
+     *  - `marketing` — marketing sends stop; transactional still deliver.
+     */
+    scope: text({ enum: ['all', 'marketing'] })
+      .notNull()
+      .default('all'),
     createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [unique('notification_suppressions_channel_address_uq').on(t.channel, t.address)],

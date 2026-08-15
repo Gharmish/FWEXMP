@@ -74,7 +74,7 @@ async function dispatchEmail(input: DispatchInput, dedupeKey: string): Promise<v
     locale: input.recipient.locale,
   };
 
-  if (await isSuppressed('email', email)) {
+  if (await isSuppressed('email', email, { marketing: input.marketing })) {
     await claimDelivery({ ...base, suppressed: true });
     return;
   }
@@ -114,7 +114,7 @@ async function dispatchWhatsApp(input: DispatchInput, dedupeKey: string): Promis
     locale: input.recipient.locale,
   };
 
-  if (await isSuppressed('whatsapp', phone)) {
+  if (await isSuppressed('whatsapp', phone, { marketing: input.marketing })) {
     await claimDelivery({ ...base, suppressed: true });
     return;
   }

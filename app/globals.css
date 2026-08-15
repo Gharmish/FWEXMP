@@ -193,6 +193,32 @@ body {
 [dir='rtl'] .font-display {
   font-family: var(--font-arabic);
   letter-spacing: 0;
+  /* Display/heading tiers ship utility line-heights tuned for Bricolage
+   * (text-5xl and up are line-height 1) — IBM Plex Arabic's taller
+   * ascender/descender box collides between lines at those values
+   * (measured on the /ar hero: 48px/48px). Unlayered on purpose so it
+   * outranks the @layer utilities; no display heading pairs a `leading-`
+   * utility with `font-display` (checked 2026-08-15), so nothing loses
+   * an explicit choice. */
+  line-height: 1.3;
+}
+
+/* Arabic body copy belongs at 1.7–1.8 (BRIEF §4). The inherited body
+ * line-height above already provides 1.75, but paragraph-level utilities
+ * tuned for English pull it back down — `leading-relaxed` is 1.625.
+ * Unlayered so they outrank the utility layer; any other explicit
+ * `leading-` choice on a paragraph is respected. */
+[dir='rtl'] p.leading-relaxed {
+  line-height: 1.75;
+}
+
+/* Size utilities (text-lg, text-xl, …) ship their own English-tuned
+ * line-height alongside the font-size, silently undoing the inherited
+ * 1.75 above — so Arabic paragraphs that never made an explicit leading
+ * choice get it restored here. A `leading-*` utility on the element
+ * still wins via the :not() guard. */
+[dir='rtl'] p:not([class*='leading-']) {
+  line-height: 1.75;
 }
 
 /* Focus: remove the default ring, use a single visible focus-visible ring

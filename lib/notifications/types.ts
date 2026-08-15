@@ -31,10 +31,31 @@ export type WhatsAppTemplateKey =
   /** Image-header variant: same body as `booking_reminder_24h` + media var 7. */
   | 'booking_reminder_24h_media'
   | 'booking_reminder_3h'
+  /**
+   * Payment-hold rail (2026-08-15 marketing audit): the same body serves
+   * both sends — "your spot is held until {deadline}, complete payment" —
+   * fired once at instant-booking creation and once ~2h before the hold
+   * lapses. Until Meta approves the template, both degrade to email-only.
+   */
+  | 'booking_payment_reminder'
+  /**
+   * Post-experience review invitation (2026-08-15 marketing audit) — the
+   * review invite was email-only in a phone-primary market, so phone-only
+   * guests received zero post-trip contact. Email fallback until approved.
+   */
+  | 'booking_completed_review'
   | 'host_new_booking'
   | 'host_new_request'
   | 'host_guest_cancelled'
-  | 'host_payment_received';
+  | 'host_payment_received'
+  /**
+   * Operational alert to the platform's own inbox phone
+   * (`ADMIN_ALERT_WHATSAPP`) — the second alert rail beside the Resend
+   * email (2026-08-02 ops audit P0-7). One body variable: the alert
+   * subject line. Register + approve the template, then add its SID
+   * under `admin_alert` (locale-less is fine — operator-facing English).
+   */
+  | 'admin_alert';
 
 export interface NotificationRecipient {
   kind: NotificationRecipientType;
@@ -84,6 +105,14 @@ export interface DispatchInput {
   dedupeKey?: string;
   /** The booking this is about, for the per-booking ledger timeline. */
   bookingId?: string | null;
+  /**
+   * Marketing message (rebook nudge, win-back) rather than transactional.
+   * Marketing respects marketing-scope suppressions on top of the full
+   * do-not-contact list, and callers must ALSO gate on the guest's
+   * `marketingConsentAt` before dispatching — consent lives on the guest
+   * row, not the address.
+   */
+  marketing?: boolean;
   recipient: NotificationRecipient;
   email?: EmailPayload;
   whatsapp?: WhatsAppPayload;

@@ -13,6 +13,10 @@ import type { WalletActionState } from '@/features/wallet/types';
 export interface WalletAdminFormsCopy {
   issueToggle: string;
   adjustToggle: string;
+  /** Issue-reason select: label + one option label per issuable kind. */
+  reason: string;
+  reasonGoodwill: string;
+  reasonPromo: string;
   amount: string;
   amountHint: string;
   note: string;
@@ -148,8 +152,20 @@ export function WalletAdminForms({ personKey, idempotencyKeys, copy }: WalletAdm
         <form action={issue.formAction} className="flex flex-col gap-5">
           <input type="hidden" name="key" value={personKey} />
           <input type="hidden" name="idempotencyKey" value={idempotencyKeys.issue} />
-          {/* Single reason in P0; becomes a select when more kinds are issuable. */}
-          <input type="hidden" name="reason" value="goodwill" />
+          {/* Goodwill (service recovery) vs promo (marketing-funded credit:
+              win-back, referral rewards) — the ledger keeps them separable
+              for finance, so the operator must choose deliberately. */}
+          <label className="flex flex-col gap-1.5">
+            <span className="text-sarat-black-600 text-sm">{copy.reason}</span>
+            <select
+              name="reason"
+              defaultValue="goodwill"
+              className="border-sarat-black/20 rounded-input h-11 [border-width:0.5px] bg-white px-3 text-sm"
+            >
+              <option value="goodwill">{copy.reasonGoodwill}</option>
+              <option value="promo">{copy.reasonPromo}</option>
+            </select>
+          </label>
           <div className="grid gap-5 sm:grid-cols-2">
             <Field
               label={copy.amount}

@@ -49,8 +49,17 @@ describe('issueWalletCreditSchema', () => {
     expect(issueWalletCreditSchema.safeParse(issueInput({ amountSar: at })).success).toBe(true);
   });
 
-  it('rejects reasons outside the P0 set', () => {
-    expect(issueWalletCreditSchema.safeParse(issueInput({ reason: 'promo' })).success).toBe(false);
+  it('accepts the issuable reasons and rejects everything else', () => {
+    // `promo` joined the issuable set on 2026-08-15 (marketing audit) —
+    // marketing credit (win-back, referral rewards) is admin-issuable now.
+    expect(issueWalletCreditSchema.safeParse(issueInput({ reason: 'promo' })).success).toBe(true);
+    expect(issueWalletCreditSchema.safeParse(issueInput({ reason: 'goodwill' })).success).toBe(
+      true,
+    );
+    // Ledger-only kinds (refunds, expiry, clawbacks) stay non-issuable.
+    expect(issueWalletCreditSchema.safeParse(issueInput({ reason: 'refund' })).success).toBe(
+      false,
+    );
   });
 
   it('trims the note and turns an empty note into undefined', () => {

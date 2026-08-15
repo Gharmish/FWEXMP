@@ -29,7 +29,7 @@ export async function HostCta({ locale }: HostCtaProps) {
         <h2 className="font-display max-w-2xl text-3xl font-medium tracking-[-0.03em] text-balance sm:text-4xl">
           {t('title')}
         </h2>
-        <p className="max-w-xl text-lg leading-relaxed text-white/70">{t('body')}</p>
+        <p className="max-w-xl text-lg leading-relaxed text-white/70 rtl:text-xl">{t('body')}</p>
         <Link
           href="/hosting"
           className={cn(buttonVariants({ variant: 'premium', size: 'lg' }), 'mt-2')}

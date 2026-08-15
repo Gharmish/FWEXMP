@@ -61,7 +61,21 @@ vi.mock('@/lib/db', () => ({
           },
           onConflictDoUpdate: () => {
             conflictModes.push('update');
-            return { returning: async () => insertResult() };
+            return {
+              returning: async () => insertResult(),
+              // `addSuppression`'s widen-to-all arm awaits the builder
+              // itself (no `.returning()`), same as the do-nothing arm.
+              then: (
+                resolve: (rows: Array<{ id: string }>) => void,
+                reject: (error: unknown) => void,
+              ) => {
+                try {
+                  resolve(insertResult());
+                } catch (error) {
+                  reject(error);
+                }
+              },
+            };
           },
         };
       },

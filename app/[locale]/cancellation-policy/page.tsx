@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
-import type { Locale } from '@/lib/i18n';
+import { routing, type Locale } from '@/lib/i18n';
 import { SITE_URL } from '@/lib/site';
 import { InfoPage } from '@/components/layout/info-page';
 import { getCancellationTiers } from '@/lib/cancellation-policy';
@@ -20,6 +20,16 @@ export async function generateMetadata({
   return {
     title,
     description,
+    alternates: {
+      canonical: `${SITE_URL}/${locale}/cancellation-policy`,
+      languages: {
+        ...Object.fromEntries(
+          routing.locales.map((l) => [l, `${SITE_URL}/${l}/cancellation-policy`]),
+        ),
+        // Arabic-first market: unmatched languages get the Arabic variant.
+        'x-default': `${SITE_URL}/ar/cancellation-policy`,
+      },
+    },
     // Policy links get shared with guests over WhatsApp, so the preview
     // should name the page — without an explicit openGraph block the shallow
     // metadata merge shows the root layout's bare brand og:title. Declaring
@@ -119,6 +129,21 @@ export default async function CancellationPolicyPage({
     {
       heading: t('hostCancellations.heading'),
       body: <p>{t('hostCancellations.body')}</p>,
+    },
+    {
+      heading: t('weather.heading'),
+      // Copy only — the mechanics already exist: a host cancellation
+      // always refunds in full, and the admin emergency-cancel returns
+      // the payment as Gharmish Credit. This section just makes the
+      // weather rule legible to guests, especially for outdoor
+      // experiences (which carry a matching note on their detail page).
+      body: (
+        <>
+          <p>{t('weather.body1')}</p>
+          <p>{t('weather.body2')}</p>
+          <p>{t('weather.body3')}</p>
+        </>
+      ),
     },
   ];
 

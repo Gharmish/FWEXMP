@@ -1,6 +1,6 @@
 'use client';
 
-import { useActionState, useEffect, useId } from 'react';
+import { useActionState, useEffect, useId, useState } from 'react';
 import { useFormStatus } from 'react-dom';
 import { useRouter } from 'next/navigation';
 import { Check, Tag, X } from 'lucide-react';
@@ -16,6 +16,8 @@ import {
 } from '@/features/promo-codes/actions';
 
 export interface PromoCodeFieldCopy {
+  /** Collapsed-state toggle ("Have a promo code?"). */
+  toggle: string;
   label: string;
   placeholder: string;
   apply: string;
@@ -105,6 +107,11 @@ export function PromoCodeField({
   const uid = useId();
   const [applyState, applyAction] = useActionState(applyPromo, initialState);
   const [removeState, removeAction] = useActionState(removePromo, initialState);
+  // Entry view starts collapsed behind a text toggle: a permanently open,
+  // empty discount box invites code-hunting off-site mid-checkout. A failed
+  // apply keeps it open so the echoed code isn't hidden behind the toggle.
+  const [entryOpen, setEntryOpen] = useState(false);
+  const entryVisible = entryOpen || applyState.status === 'error';
 
   useEffect(() => {
     if (applyState.status !== 'applied') return;
@@ -161,6 +168,19 @@ export function PromoCodeField({
         )}
         {creditReleasedNote}
       </form>
+    );
+  }
+
+  if (!entryVisible) {
+    return (
+      <button
+        type="button"
+        onClick={() => setEntryOpen(true)}
+        className="text-sarat-black-600 hover:text-sarat-black inline-flex items-center gap-2 text-sm transition-colors duration-200"
+      >
+        <Tag className="size-4 shrink-0" aria-hidden />
+        {copy.toggle}
+      </button>
     );
   }
 

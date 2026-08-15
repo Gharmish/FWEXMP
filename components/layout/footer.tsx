@@ -7,6 +7,7 @@ import { SUPPORT_EMAIL } from '@/lib/site';
 import { getPlatformSettings } from '@/lib/platform-settings';
 import { GharmishLockup } from '@/components/layout/gharmish-lockup';
 import { PaymentMarks } from '@/components/layout/payment-marks';
+import { CookieSettingsLink } from '@/components/layout/cookie-settings-link';
 import { Stagger, StaggerItem } from '@/components/ui/motion';
 
 interface FooterLink {
@@ -42,8 +43,10 @@ export async function Footer() {
       label: t('exploreLabel'),
       links: [
         { href: '/experiences', label: t('linkExperiences') },
+        { href: '/abha', label: t('linkAbha') },
         { href: '/hosts', label: t('linkHosts') },
         { href: '/hosting', label: t('linkHostApply') },
+        { href: '/about', label: t('linkAbout') },
       ],
     },
     {
@@ -152,6 +155,9 @@ export async function Footer() {
             <a href={`mailto:${SUPPORT_EMAIL}`} dir="ltr" className={bottomLinkClassName}>
               {SUPPORT_EMAIL}
             </a>
+            {/* Consent must be revisitable — without this, the first
+                banner click was binding for 365 days (2026-08-15 audit). */}
+            <CookieSettingsLink label={t('cookieSettings')} />
           </nav>
           <PaymentMarks
             label={t('paymentsLabel')}

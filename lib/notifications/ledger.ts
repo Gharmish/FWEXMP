@@ -248,13 +248,26 @@ function canonicalAddress(channel: Channel, address: string): string {
  * outage must not black-hole receipts; the STOP path is best-effort by
  * nature and honored again on the next successful check.
  */
-export async function isSuppressed(channel: Channel, address: string): Promise<boolean> {
+export async function isSuppressed(
+  channel: Channel,
+  address: string,
+  options?: {
+    /**
+     * The send being gated is a marketing message. Marketing respects
+     * BOTH scopes; a transactional send (the default) is stopped only by
+     * an `all`-scope row — a campaign unsubscribe must never block a
+     * booking confirmation (2026-08-15 marketing audit).
+     */
+    marketing?: boolean;
+  },
+): Promise<boolean> {
   if (!hasDb()) return false;
   try {
     const row = await db.query.notificationSuppressions.findFirst({
       where: and(
         eq(notificationSuppressions.channel, channel),
         eq(notificationSuppressions.address, canonicalAddress(channel, address)),
+        ...(options?.marketing ? [] : [eq(notificationSuppressions.scope, 'all')]),
       ),
       columns: { id: true },
     });
@@ -270,15 +283,30 @@ export async function addSuppression(
   channel: Channel,
   address: string,
   reason: 'stop' | 'bounce' | 'complaint' | 'manual',
+  scope: 'all' | 'marketing' = 'all',
 ): Promise<void> {
   if (!hasDb()) return;
   try {
-    await db
-      .insert(notificationSuppressions)
-      .values({ channel, address: canonicalAddress(channel, address), reason })
-      .onConflictDoNothing({
-        target: [notificationSuppressions.channel, notificationSuppressions.address],
-      });
+    if (scope === 'all') {
+      // An `all` suppression WIDENS an existing marketing-only row —
+      // a guest who unsubscribed from campaigns and later replies STOP
+      // must end up fully silenced, not stuck at the narrower scope.
+      await db
+        .insert(notificationSuppressions)
+        .values({ channel, address: canonicalAddress(channel, address), reason, scope })
+        .onConflictDoUpdate({
+          target: [notificationSuppressions.channel, notificationSuppressions.address],
+          set: { scope: 'all' },
+        });
+    } else {
+      // A marketing unsubscribe never narrows an existing `all` row.
+      await db
+        .insert(notificationSuppressions)
+        .values({ channel, address: canonicalAddress(channel, address), reason, scope })
+        .onConflictDoNothing({
+          target: [notificationSuppressions.channel, notificationSuppressions.address],
+        });
+    }
   } catch (error) {
     reportError(error, { surface: 'notifications:addSuppression' });
   }

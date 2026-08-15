@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { SITE_URL } from '@/lib/site';
-import type { Locale } from '@/lib/i18n';
+import { routing, type Locale } from '@/lib/i18n';
 import { InfoPage } from '@/components/layout/info-page';
 
 export async function generateMetadata({
@@ -16,6 +16,14 @@ export async function generateMetadata({
   return {
     title,
     description,
+    alternates: {
+      canonical: `${SITE_URL}/${locale}/trust-and-safety`,
+      languages: {
+        ...Object.fromEntries(routing.locales.map((l) => [l, `${SITE_URL}/${l}/trust-and-safety`])),
+        // Arabic-first market: unmatched languages get the Arabic variant.
+        'x-default': `${SITE_URL}/ar/trust-and-safety`,
+      },
+    },
     // Trust-and-safety links get shared with guests and hosts, so the preview should
     // name the page — without an explicit openGraph block the shallow
     // metadata merge shows the root layout's bare brand og:title. Declaring

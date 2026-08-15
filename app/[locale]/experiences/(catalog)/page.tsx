@@ -22,9 +22,12 @@ import { trackSearch, utmFromSearchParams } from '@/features/analytics/capture';
 import { getWishlistSet } from '@/features/wishlist/queries';
 import { WishlistButton } from '@/features/wishlist/components/wishlist-button';
 
-const languagesAlternates = Object.fromEntries(
-  routing.locales.map((l) => [l, `${SITE_URL}/${l}/experiences`]),
-);
+const languagesAlternates = {
+  ...Object.fromEntries(routing.locales.map((l) => [l, `${SITE_URL}/${l}/experiences`])),
+  // Arabic-first market: searchers whose language matches neither locale
+  // are steered to the Arabic variant.
+  'x-default': `${SITE_URL}/ar/experiences`,
+};
 
 export async function generateMetadata({
   params,
@@ -43,16 +46,21 @@ export async function generateMetadata({
       canonical: `${SITE_URL}/${locale}/experiences`,
       languages: languagesAlternates,
     },
+    // Declaring openGraph replaces the parent's resolved openGraph
+    // WHOLESALE — including the [locale]-level opengraph-image file
+    // convention — so the brand card must be re-attached explicitly.
     openGraph: {
       title,
       description,
       url: `${SITE_URL}/${locale}/experiences`,
       type: 'website',
+      images: [{ url: `${SITE_URL}/${locale}/opengraph-image`, width: 1200, height: 630 }],
     },
     twitter: {
       card: 'summary_large_image',
       title,
       description,
+      images: [`${SITE_URL}/${locale}/opengraph-image`],
     },
   };
 }

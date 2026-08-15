@@ -247,6 +247,7 @@ export default async function PaymentPage({ params, searchParams }: PageParams) 
   };
 
   const promoCopy = {
+    toggle: t('promo.toggle'),
     label: t('promo.label'),
     placeholder: t('promo.placeholder'),
     apply: t('promo.apply'),

@@ -8,6 +8,7 @@ import {
   Clock,
   MapPin,
   ShieldCheck,
+  Star,
   Sunrise,
   Users,
   Venus,
@@ -57,13 +58,45 @@ import { getPlatformSettings } from '@/lib/platform-settings';
 import { getCompletedBookingsCountForExperience } from '@/features/bookings/queries';
 import { getHostResponseStats } from '@/features/hosts/queries';
 import { Badge } from '@/components/ui/badge';
+import { ShareButton } from '@/components/ui/share-button';
 import { ReviewsSection } from '@/features/reviews/components/reviews-section';
 import { getReviewAggregateForExperience } from '@/features/reviews/queries';
+import { RelatedExperiences } from '@/features/experiences/components/related-experiences';
+import { CategoryLanding } from '@/features/experiences/components/category-landing';
+import { categoryFromUrlSlug } from '@/features/experiences/lib/category-landing';
+import { WishlistButton } from '@/features/wishlist/components/wishlist-button';
+import { getWishlistSet } from '@/features/wishlist/queries';
+import { PaymentMarks } from '@/components/layout/payment-marks';
 import { Draw, FadeIn, MountFade, Stagger, StaggerItem } from '@/components/ui/motion';
+import type { Category } from '@/features/experiences/types';
+
+/**
+ * Categories whose experiences run outdoors, where a weather call is a
+ * live possibility — these get the weather note under the cancellation
+ * policy. Category is a proxy (no per-experience flag): wellness or
+ * heritage sessions can happen outside too, but the platform-wide
+ * weather section on /cancellation-policy covers everyone regardless.
+ */
+const OUTDOOR_CATEGORIES: ReadonlySet<Category> = new Set<Category>(['nature', 'adventure']);
 
 export async function generateStaticParams() {
   const slugs = await getAllSlugs();
   return routing.locales.flatMap((locale) => slugs.map((slug) => ({ locale, slug })));
+}
+
+/**
+ * Host-authored descriptions are DB free text with no length guarantee.
+ * Clamp to ~160 characters at a word boundary so the SERP snippet never
+ * gets machine-truncated mid-word. (Same rule as hosts/[slug].)
+ */
+const META_DESCRIPTION_MAX = 160;
+
+function clampDescription(text: string): string {
+  const normalized = text.replace(/\s+/g, ' ').trim();
+  if (normalized.length <= META_DESCRIPTION_MAX) return normalized;
+  const cut = normalized.slice(0, META_DESCRIPTION_MAX - 1);
+  const lastSpace = cut.lastIndexOf(' ');
+  return `${lastSpace > 0 ? cut.slice(0, lastSpace) : cut}…`;
 }
 
 export async function generateMetadata({
@@ -72,10 +105,41 @@ export async function generateMetadata({
   params: Promise<{ locale: string; slug: string }>;
 }): Promise<Metadata> {
   const { locale, slug } = await params;
+  // Category landings share this URL level (see category-landing.ts) —
+  // their metadata is editorial, self-canonical, and locale-alternated.
+  const landingCategory = categoryFromUrlSlug(slug);
+  if (landingCategory) {
+    const t = await getTranslations({ locale, namespace: 'categoryLanding' });
+    const landingPath = (l: string) => `${SITE_URL}/${l}/experiences/${slug}`;
+    return {
+      title: t(`${landingCategory}.title`),
+      description: t(`${landingCategory}.intro`),
+      alternates: {
+        canonical: landingPath(locale),
+        languages: {
+          ...Object.fromEntries(routing.locales.map((l) => [l, landingPath(l)])),
+          'x-default': landingPath('ar'),
+        },
+      },
+      openGraph: {
+        title: t(`${landingCategory}.title`),
+        description: t(`${landingCategory}.intro`),
+        url: landingPath(locale),
+        type: 'website',
+        images: [{ url: `${SITE_URL}/${locale}/opengraph-image`, width: 1200, height: 630 }],
+      },
+      twitter: {
+        card: 'summary_large_image',
+        title: t(`${landingCategory}.title`),
+        description: t(`${landingCategory}.intro`),
+        images: [`${SITE_URL}/${locale}/opengraph-image`],
+      },
+    };
+  }
   const exp = await getExperienceBySlug(slug);
   if (!exp) return {};
   const title = locale === 'ar' ? exp.titleAr : exp.titleEn;
-  const description = locale === 'ar' ? exp.descriptionAr : exp.descriptionEn;
+  const description = clampDescription(locale === 'ar' ? exp.descriptionAr : exp.descriptionEn);
   const url = `${SITE_URL}/${locale}/experiences/${slug}`;
   return {
     title,
@@ -108,6 +172,14 @@ export default async function ExperienceDetailPage({
   const { locale, slug } = await params;
   setRequestLocale(locale);
   const loc = locale as Locale;
+  // Category landing dispatch — `/experiences/nature` etc. share this URL
+  // level with listing slugs (one dynamic segment name per level); a
+  // category match renders the editorial landing, anything else falls
+  // through to the detail flow and its 404 semantics.
+  const landingCategory = categoryFromUrlSlug(slug);
+  if (landingCategory) {
+    return <CategoryLanding category={landingCategory} locale={loc} />;
+  }
   const sp = await searchParams;
   const showAllReviews = (Array.isArray(sp.reviews) ? sp.reviews[0] : sp.reviews) === 'all';
 
@@ -167,11 +239,12 @@ export default async function ExperienceDetailPage({
   //
   // Translations are not DB work and hold no connection, so they ride
   // along with the first wave for free.
-  const [t, te, tb, tTiers] = await Promise.all([
+  const [t, te, tb, tTiers, tFooter] = await Promise.all([
     getTranslations('experienceDetail'),
     getTranslations('experience'),
     getTranslations('bookingRequest'),
     getTranslations('cancellationTiers'),
+    getTranslations('footer'),
   ]);
   // Wave 1 — the four reads the page cannot render without. Each of these
   // is one connection at a time (getReviewAggregate/getScheduleDataBySlug
@@ -265,7 +338,9 @@ export default async function ExperienceDetailPage({
     remaining: d.remaining,
     // ICU-format the count server-side; passing the raw template to the
     // client and formatting there breaks next-intl's placeholder handling.
-    spotsLabel: tb('spotsLeft', { count: d.remaining }),
+    // Scarcity only reads as scarcity when it's true: a raw "14 spots left"
+    // is an abundance signal, so the count only shows at <= 4 remaining.
+    spotsLabel: d.remaining <= 4 ? tb('spotsLeft', { count: d.remaining }) : tb('available'),
     // `schedule` is necessarily non-null when the list has entries, but the
     // narrowing doesn't cross the callback boundary — re-check instead of `!`.
     cancellationNote: schedule ? cancellationNoteFor(d.date, schedule.startTime) : undefined,
@@ -295,24 +370,30 @@ export default async function ExperienceDetailPage({
       : exp.whatToBring;
   const maxGroupSize = formatInteger(exp.maxGroupSize, loc);
   const minAge = formatInteger(exp.minAge, loc);
+  // Instant book and request-to-book share one form, but the copy must not
+  // leak between modes: an instant listing never says "request", a request
+  // listing never promises immediate confirmation.
+  const isInstant = exp.bookingMode === 'instant';
   const bookingCopy = {
-    title: tb('title'),
+    title: isInstant ? tb('titleInstant') : tb('title'),
     editDetails: tb('editDetails'),
     name: tb('name'),
     phone: tb('phone'),
     email: tb('email'),
     emailHint: tb('emailHint'),
     emailInvalid: tb('emailInvalid'),
-    preferredDate: tb('preferredDate'),
+    preferredDate: isInstant ? tb('preferredDateInstant') : tb('preferredDate'),
     partySize: tb('partySize'),
     phoneHint: tb('phoneHint'),
     countryLabel: tb('countryLabel'),
     phonePlaceholder: tb('phonePlaceholder'),
     phoneInvalid: tb('phoneInvalid'),
-    preferredDateHint: tb('preferredDateHint'),
+    preferredDateHint: isInstant
+      ? tb('preferredDateHintInstant')
+      : tb('preferredDateHint', { hours: settings.approvalWindowHours }),
     partySizeHint: tb('partySizeHint', { max: exp.maxGroupSize }),
-    submit: exp.bookingMode === 'instant' ? tb('submitInstant') : tb('submit'),
-    pending: tb('pending'),
+    submit: isInstant ? tb('submitInstant') : tb('submit'),
+    pending: isInstant ? tb('pendingInstant') : tb('pending'),
     validation: tb('validation'),
     server: tb('server'),
     notFound: tb('notFound'),
@@ -348,6 +429,7 @@ export default async function ExperienceDetailPage({
     minAgeLabel: tb('minAgeLabel', { age: exp.minAge }),
     minAgeRequired: tb('minAgeRequired'),
     termsRequired: tb('termsRequired'),
+    marketingConsentLabel: tb('marketingConsentLabel'),
   };
   // Clickwrap consent line with inline links to each binding document —
   // required at the booking step, not only at checkout (2026-08-02 legal
@@ -375,10 +457,9 @@ export default async function ExperienceDetailPage({
   // expectations match the platform setting, not stale copy. The
   // cancellation chip reflects the platform-wide refund rule (the one
   // the cancel action actually enforces).
-  const modeNote =
-    exp.bookingMode === 'instant'
-      ? tb('modeInstant')
-      : tb('modeRequest', { hours: settings.approvalWindowHours });
+  const modeNote = isInstant
+    ? tb('modeInstant')
+    : tb('modeRequest', { hours: settings.approvalWindowHours });
   const BOOKED_COUNT_MIN = 10; // owner-approved social-proof floor
   const bookedCountChip =
     completedCount >= BOOKED_COUNT_MIN
@@ -457,12 +538,21 @@ export default async function ExperienceDetailPage({
         description,
         category: categoryLabel,
         url,
+        // `image` is REQUIRED for Product rich results (2026-08-02 ops
+        // audit) — without it Google never shows price/stars in the
+        // SERP. Hero when it's an absolute URL; otherwise the rendered
+        // OG card, which always exists for a live listing.
+        image: [exp.heroImage?.startsWith('http') ? exp.heroImage : `${url}/card.png`],
         brand: { '@type': 'Organization', name: SITE_NAME },
         offers: {
           '@type': 'Offer',
           price: exp.priceSar,
           priceCurrency: 'SAR',
-          availability: 'https://schema.org/InStock',
+          // Honest stock signal (2026-08-02 ops audit): hardcoded
+          // InStock told crawlers a fully stop-sold/booked-out listing
+          // was buyable — a structured-data-mismatch penalty risk.
+          availability:
+            availableDates.length > 0 ? 'https://schema.org/InStock' : 'https://schema.org/SoldOut',
           url,
         },
         ...(ratingAggregate.count > 0 && ratingAggregate.average !== null
@@ -486,7 +576,15 @@ export default async function ExperienceDetailPage({
             name: SITE_NAME,
             item: `${SITE_URL}/${loc}`,
           },
-          { '@type': 'ListItem', position: 2, name: title, item: url },
+          // The middle level earns the SERP breadcrumb trail ("Gharmish ›
+          // Experiences › …") and links equity back to the catalog hub.
+          {
+            '@type': 'ListItem',
+            position: 2,
+            name: t('breadcrumbCatalog'),
+            item: `${SITE_URL}/${loc}/experiences`,
+          },
+          { '@type': 'ListItem', position: 3, name: title, item: url },
         ],
       },
     ],
@@ -504,13 +602,36 @@ export default async function ExperienceDetailPage({
           {t('preview.banner')}
         </p>
       )}
-      <Link
-        href="/experiences"
-        className="text-sarat-black-600 inline-flex min-h-11 items-center gap-2 text-sm transition-opacity duration-200 hover:opacity-60"
-      >
-        <ArrowLeft className="size-4 shrink-0 rtl:rotate-180" aria-hidden />
-        {t('back')}
-      </Link>
+      <div className="flex items-center justify-between gap-4">
+        <Link
+          href="/experiences"
+          className="text-sarat-black-600 inline-flex min-h-11 items-center gap-2 text-sm transition-opacity duration-200 hover:opacity-60"
+        >
+          <ArrowLeft className="size-4 shrink-0 rtl:rotate-180" aria-hidden />
+          {t('back')}
+        </Link>
+        {/* Draft previews are only readable by their owner — a shared
+            link would 404 for everyone else, so no share affordance. */}
+        {!previewMode && (
+          <div className="flex items-center gap-2">
+            {/* Save-for-later at the exact moment of hesitation — the
+                catalog and home already offer it; losing it on click-through
+                was a gap. Static placement (no absolute corner) because this
+                bar isn't an image card. */}
+            <WishlistButton
+              slug={exp.slug}
+              isSaved={(await getWishlistSet()).has(exp.slug)}
+              surface="light"
+            />
+            <ShareButton
+              url={`${SITE_URL}/${loc}/experiences/${exp.slug}`}
+              title={loc === 'ar' ? exp.titleAr : exp.titleEn}
+              contentType="experience"
+              analyticsId={exp.slug}
+            />
+          </div>
+        )}
+      </div>
 
       {/* Hero + gallery. The hero stays the LCP 16:9 frame; the lightbox
           shows every photo (hero + gallery) in full via object-contain,
@@ -541,6 +662,22 @@ export default async function ExperienceDetailPage({
             {placeName} · {location}
           </span>
         </p>
+        {/* Rating above the fold: the catalog card shows stars, so losing
+            them on click-through inverted the social-proof gradient. Anchor
+            links straight to the reviews section. Hidden at zero reviews —
+            no fake proof. */}
+        {ratingAggregate.count > 0 && ratingAggregate.average !== null && (
+          <a
+            href="#reviews"
+            className="flex items-center gap-1.5 self-start text-sm font-medium underline-offset-4 transition-opacity duration-200 hover:opacity-60"
+          >
+            <Star className="text-saffron-gold size-4 shrink-0 fill-current" aria-hidden />
+            {t('ratingSummary', {
+              rating: ratingAggregate.average.toFixed(1),
+              count: ratingAggregate.count,
+            })}
+          </a>
+        )}
         {/* Women-only experiences flag the restriction up front — before the
             guest invests in the booking flow (the booking form also requires
             an eligibility acknowledgment). Category tint per BRIEF §3. */}
@@ -728,6 +865,17 @@ export default async function ExperienceDetailPage({
                     rescheduleWindow: policyWindow(policyView.rescheduleCutoffHours, tTiers),
                   })}
             </p>
+            {OUTDOOR_CATEGORIES.has(exp.category) && (
+              <p className="text-sarat-black-600 text-base">
+                {t.rich('weatherNote', {
+                  policy: (chunks) => (
+                    <Link href="/cancellation-policy" className={consentLinkClassName}>
+                      {chunks}
+                    </Link>
+                  ),
+                })}
+              </p>
+            )}
           </section>
 
           <ReviewsSection
@@ -749,14 +897,30 @@ export default async function ExperienceDetailPage({
             eager
             className="rounded-card border-sarat-black/8 flex flex-col gap-5 [border-width:0.5px] p-6"
           >
-            <h2 className="font-display text-2xl font-medium tracking-[-0.025em]">{tb('title')}</h2>
+            <h2 className="font-display text-2xl font-medium tracking-[-0.025em]">
+              {bookingCopy.title}
+            </h2>
             <p className="text-2xl font-medium">
               <Price amount={exp.priceSar} locale={loc} />
               <span className="text-sarat-black-600 text-base font-normal"> {te('perPerson')}</span>
             </p>
+            {/* Same above-the-fold rating as the header — the panel is where
+                the commit decision happens, so proof belongs beside price. */}
+            {ratingAggregate.count > 0 && ratingAggregate.average !== null && (
+              <a
+                href="#reviews"
+                className="-mt-3 flex items-center gap-1.5 self-start text-sm font-medium underline-offset-4 transition-opacity duration-200 hover:opacity-60"
+              >
+                <Star className="text-saffron-gold size-4 shrink-0 fill-current" aria-hidden />
+                {t('ratingSummary', {
+                  rating: ratingAggregate.average.toFixed(1),
+                  count: ratingAggregate.count,
+                })}
+              </a>
+            )}
             {/* Trust chips — booking type, refund rule, social proof. */}
             <div className="flex flex-wrap gap-2">
-              {exp.bookingMode === 'instant' ? (
+              {isInstant ? (
                 <Badge className="bg-saffron-gold/20 text-sarat-black">
                   <Zap aria-hidden />
                   {t('instantBadge')}
@@ -825,9 +989,34 @@ export default async function ExperienceDetailPage({
                 copy={bookingCopy}
               />
             )}
+            {/* Accepted-payment marks at the decision point — previously
+                only on the pay page and footer, i.e. after the commitment. */}
+            {!previewMode && (
+              <PaymentMarks
+                label={tFooter('paymentsLabel')}
+                names={{
+                  mada: tFooter('brandMada'),
+                  visa: tFooter('brandVisa'),
+                  mastercard: tFooter('brandMastercard'),
+                  applePay: tFooter('brandApplePay'),
+                }}
+              />
+            )}
           </MountFade>
         </aside>
       </div>
+
+      {/* Cross-sell where journeys otherwise dead-end: below the fold for
+          browsing guests, and the only forward path when every date is sold
+          out. Never shown on owner previews (draft catalogs are private). */}
+      {!previewMode && (
+        <RelatedExperiences
+          excludeSlug={exp.slug}
+          city={exp.city}
+          category={exp.category}
+          locale={loc}
+        />
+      )}
     </article>
   );
 }

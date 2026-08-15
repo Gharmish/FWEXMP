@@ -7,6 +7,7 @@ import { serverEnv, hasHyperpay } from '@/lib/env';
 import { bookings, disputes } from '@/db/schema';
 import { redirect } from '@/lib/i18n';
 import { reportError } from '@/lib/log';
+import { reportGa4Refund } from '@/lib/analytics/server-events';
 import { notifyAdmin } from '@/lib/admin-alerts';
 import { getCurrentUser } from '@/features/auth/queries';
 import { isAdminUser } from '@/features/admin/auth';
@@ -55,6 +56,7 @@ export interface AdminBookingActionResult {
     | 'wrong_state'
     | 'over_capacity'
     | 'too_early'
+    | 'too_late'
     | 'unpaid'
     | 'dispute_open'
     | 'validation'
@@ -344,6 +346,16 @@ export async function refundBooking(
     } catch (error) {
       reportError(error, { surface: 'admin:refundEmail', bookingId });
     }
+
+    // Reverse the reported purchase revenue on GA4 — without this the ad
+    // platforms count refunded bookings as revenue forever and ROAS reads
+    // permanently high. Env-gated and non-throwing (best-effort like the
+    // ledger/email sends above); keyed by the same transaction_id the
+    // client purchase event carried.
+    await reportGa4Refund({
+      transactionId: booking.idempotencyKey,
+      valueSar: owedSar + split.creditRefundSar,
+    });
   } catch (error) {
     reportError(error, { surface: 'admin:refundBooking', bookingId });
     return { success: false, message: 'server' };

@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
 import { Suspense } from 'react';
-import { ArrowRight } from 'lucide-react';
+import { ArrowRight, Search } from 'lucide-react';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { cn } from '@/lib/utils';
 import { Avatar } from '@/components/ui/avatar';
@@ -17,8 +17,10 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { FadeIn, MountFade, RiseInWords, Stagger, StaggerItem } from '@/components/ui/motion';
 import { CATEGORIES } from '@/features/experiences/lib/sample-data';
 import { getPlatformSettings } from '@/lib/platform-settings';
-import { getExperiences, getFeaturedExperiences } from '@/features/experiences/queries';
+import { getExperiences } from '@/features/experiences/queries';
+import type { ExperienceSummary } from '@/features/experiences/types';
 import { getAllHosts } from '@/features/hosts/queries';
+import { reportError } from '@/lib/log';
 import { toArabicText } from '@/features/experiences/lib/arabic-content';
 import { pickLocalized } from '@/lib/ar-placeholder';
 import { getWishlistSet } from '@/features/wishlist/queries';
@@ -26,13 +28,17 @@ import { WishlistButton } from '@/features/wishlist/components/wishlist-button';
 import { SocialProofStrip } from '@/features/reviews/components/social-proof-strip';
 import { WhyGharmish } from '@/components/marketing/why-gharmish';
 import { HostCta } from '@/components/marketing/host-cta';
-import { TheIdea } from '@/components/marketing/the-idea';
 import { DestinationChapter } from '@/components/marketing/destination-chapter';
 import { CategoryTiles } from '@/components/marketing/category-tiles';
 import { HeroHighlands } from '@/components/marketing/hero-highlands';
 import { HeroHeadline } from '@/components/marketing/hero-headline';
 
-const languagesAlternates = Object.fromEntries(routing.locales.map((l) => [l, `${SITE_URL}/${l}`]));
+const languagesAlternates = {
+  ...Object.fromEntries(routing.locales.map((l) => [l, `${SITE_URL}/${l}`])),
+  // Arabic-first market: searchers whose language matches neither locale
+  // are steered to the Arabic variant.
+  'x-default': `${SITE_URL}/ar`,
+};
 
 export async function generateMetadata({
   params,
@@ -41,14 +47,18 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const { locale } = await params;
   const t = await getTranslations({ locale, namespace: 'siteMeta' });
+  // `absolute`: the layout template is `%s · Gharmish` and the home title
+  // already leads with the brand — templating would double the name.
+  const title = t('homeTitle');
   return {
+    title: { absolute: title },
     description: t('description'),
     alternates: {
       canonical: `${SITE_URL}/${locale}`,
       languages: languagesAlternates,
     },
     openGraph: {
-      title: t('name'),
+      title,
       description: t('description'),
       url: `${SITE_URL}/${locale}`,
       siteName: t('name'),
@@ -57,7 +67,7 @@ export async function generateMetadata({
     },
     twitter: {
       card: 'summary_large_image',
-      title: t('name'),
+      title,
       description: t('description'),
     },
   };
@@ -74,11 +84,11 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
     loc === 'en' && 'tracking-[0.2em] uppercase',
   );
 
-  // Only what the above-the-fold hero needs blocks first byte; featured,
-  // wishlist, and hosts stream in behind Suspense below (with a
-  // force-dynamic layout and no root loading.tsx, everything awaited here
-  // is white-screen time on every visit).
-  const [experiences, settings] = await Promise.all([getExperiences(), getPlatformSettings()]);
+  // Only what the above-the-fold hero needs blocks first byte — just the
+  // platform settings. The catalog, wishlist, and hosts stream in behind
+  // Suspense below (with a force-dynamic layout and no root loading.tsx,
+  // everything awaited here is white-screen time on every visit).
+  const settings = await getPlatformSettings();
   const categories = CATEGORIES.filter((c) => settings.enabledCategories.includes(c.key));
   // Rotating headline words — only enabled categories, in taxonomy order.
   // (women_only is excluded: it doesn't compose grammatically in either
@@ -166,7 +176,8 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
               )}
             </h1>
             <MountFade eager delay={0.2}>
-              <p className="text-sarat-black-600 max-w-xl text-lg">{t('intro')}</p>
+              {/* rtl:text-xl — Arabic body-large reads one step up (BRIEF §3). */}
+              <p className="text-sarat-black-600 max-w-xl text-lg rtl:text-xl">{t('intro')}</p>
             </MountFade>
             <MountFade eager delay={0.28}>
               <div>
@@ -182,30 +193,37 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
         </div>
       </section>
 
-      {/* Category tiles — discovery row and the page's one moment of colour
-          play; each tile deep-links to the filtered catalog. The ridgeline
-          above is the divider, so no border hairline here. */}
-      <section>
-        <div className="mx-auto w-full max-w-6xl px-6 py-10">
+      {/* Discovery row — a slim search entry (the fast path for guests who
+          already know what they want) above the category tiles, each
+          deep-linking into the filtered catalog. The highlands scene above
+          is the divider, so no border hairline here. */}
+      <section aria-label={t('discoverAria')}>
+        <div className="mx-auto flex w-full max-w-6xl flex-col gap-6 px-6 py-10">
+          <Link
+            href="/experiences"
+            className="rounded-button border-sarat-black/12 hover:border-sarat-black/30 text-sarat-black-600 flex min-h-12 w-full max-w-xl items-center gap-3 [border-width:0.5px] px-5 py-3 transition-colors duration-200"
+          >
+            <Search className="size-5 shrink-0" strokeWidth={1.5} aria-hidden />
+            <span className="text-base">{t('searchPrompt')}</span>
+          </Link>
           <CategoryTiles locale={loc} categories={categories} />
         </div>
       </section>
 
-      {/* The idea — one editorial breath stating the worldview before the
-          merchandising rows: the best parts of a place live with its
-          people. */}
-      <TheIdea locale={loc} />
-
-      {/* Originals + all experiences — streamed: they wait on the featured
-          and wishlist queries, which shouldn't hold the hero back. */}
+      {/* Originals + all experiences — streamed behind Suspense so the
+          catalog queries never hold the hero back. (The former "idea"
+          band was folded into Chapter One below: its worldview line
+          already lives in chapter.body2, and product belongs this high.) */}
       <Suspense fallback={<CatalogSectionsFallback />}>
-        <CatalogSections locale={loc} experiences={experiences} />
+        <CatalogSections locale={loc} />
       </Suspense>
 
       {/* Hosts row — the people ahead of the pitch: meet the humans behind
           the catalog before the brand talks about itself. Streams behind
-          Suspense; hides entirely when there are no hosts. */}
-      <Suspense fallback={null}>
+          Suspense with a section-shaped skeleton (hosts exist in every
+          real deployment; a fast scroller must not see the band pop in
+          from nothing). Still hides entirely when there are no hosts. */}
+      <Suspense fallback={<HostsRowFallback />}>
         <HostsRow locale={loc} />
       </Suspense>
 
@@ -226,8 +244,9 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
       <WhyGharmish locale={loc} />
 
       {/* Social proof — latest high-rated guest reviews (renders nothing
-          until reviews exist). */}
-      <Suspense fallback={null}>
+          until reviews exist; the skeleton mirrors the three-card strip
+          so the resolved band lands without a jump). */}
+      <Suspense fallback={<SocialProofFallback />}>
         <SocialProofStrip locale={loc} />
       </Suspense>
 
@@ -236,24 +255,45 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
     </div>
   );
 }
+/** Two rows of the lg 3-col grid — "View all" carries the rest. */
+const HOME_CATALOG_LIMIT = 6;
+
+/**
+ * The homepage never shows more than two grid rows of non-featured
+ * catalog: at scale the full dump would become a second, worse
+ * /experiences and push the brand story sections several screens down.
+ */
+async function homeCatalog(): Promise<readonly ExperienceSummary[]> {
+  // Degrading load for the home page ONLY (same contract as
+  // getAllHosts): the marketing landing must render its hero and story
+  // sections through a transient DB failure — the catalog sections
+  // simply hide. Catalog surfaces keep the throwing query so failures
+  // stay visible there.
+  try {
+    return await getExperiences();
+  } catch (error) {
+    reportError(error, { surface: 'home:catalogSections' });
+    return [];
+  }
+}
+
 /** Streams the Originals + "All experiences" sections behind Suspense. */
-async function CatalogSections({
-  locale,
-  experiences,
-}: {
-  locale: Locale;
-  experiences: Awaited<ReturnType<typeof getExperiences>>;
-}) {
-  const [t, featured, savedSlugs] = await Promise.all([
+async function CatalogSections({ locale }: { locale: Locale }) {
+  const [t, experiences, savedSlugs] = await Promise.all([
     getTranslations('home'),
-    getFeaturedExperiences(),
+    homeCatalog(),
     getWishlistSet(),
   ]);
+  // Featured derives from the same degraded load — calling
+  // getFeaturedExperiences() here would re-throw on the failure path.
+  const featured = experiences.filter((e) => e.featured);
   // "All experiences" excludes what the Originals row above already
   // shows — the same card twice in one viewport reads as a bug, not
   // merchandising.
   const featuredSlugs = new Set(featured.map((e) => e.slug));
-  const restOfCatalog = experiences.filter((e) => !featuredSlugs.has(e.slug));
+  const restOfCatalog = experiences
+    .filter((e) => !featuredSlugs.has(e.slug))
+    .slice(0, HOME_CATALOG_LIMIT);
 
   return (
     <>
@@ -270,7 +310,7 @@ async function CatalogSections({
             >
               {t('originalsEyebrow')}
             </p>
-            <h2 className="font-display text-3xl font-medium tracking-[-0.03em]">
+            <h2 className="font-display text-3xl font-medium tracking-[-0.03em] sm:text-4xl">
               {t('originalsTitle')}
             </h2>
             <p className="text-sarat-black-600 max-w-2xl text-base">{t('originalsSub')}</p>
@@ -299,7 +339,7 @@ async function CatalogSections({
       {restOfCatalog.length > 0 && (
         <section className="mx-auto w-full max-w-6xl px-6 pb-24">
           <FadeIn className="mb-8 flex items-baseline justify-between gap-4">
-            <h2 className="font-display text-3xl font-medium tracking-[-0.03em]">
+            <h2 className="font-display text-3xl font-medium tracking-[-0.03em] sm:text-4xl">
               {t('allTitle')}
             </h2>
             <Link
@@ -350,6 +390,61 @@ function CatalogSectionsFallback() {
   );
 }
 
+/** Section-shaped placeholder for the hosts row — no pop-in on stream. */
+function HostsRowFallback() {
+  return (
+    <section className="border-sarat-black/8 [border-top-width:0.5px]" aria-busy="true">
+      <div className="mx-auto w-full max-w-6xl px-6 py-20">
+        <div className="mb-8 flex flex-col gap-2">
+          <Skeleton className="h-8 w-72 max-w-full" />
+          <Skeleton className="h-4 w-96 max-w-full" />
+        </div>
+        <div className="grid gap-4 sm:grid-cols-2">
+          {Array.from({ length: 2 }).map((_, i) => (
+            <div
+              key={i}
+              className="rounded-card border-sarat-black/8 flex items-start gap-4 [border-width:0.5px] p-6"
+            >
+              <Skeleton className="size-12 shrink-0 rounded-full" />
+              <div className="flex flex-1 flex-col gap-2">
+                <Skeleton className="h-5 w-40 max-w-full" />
+                <Skeleton className="h-4 w-full" />
+                <Skeleton className="h-4 w-2/3" />
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+/** Three-card placeholder mirroring the social-proof strip. */
+function SocialProofFallback() {
+  return (
+    <section className="bg-mist" aria-busy="true">
+      <div className="mx-auto flex w-full max-w-6xl flex-col gap-8 px-6 py-20">
+        <div className="flex flex-col gap-3">
+          <Skeleton className="h-8 w-80 max-w-full" />
+        </div>
+        <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+          {Array.from({ length: 3 }).map((_, i) => (
+            <div
+              key={i}
+              className="border-sarat-black/8 rounded-card flex flex-col gap-3 [border-width:0.5px] bg-white p-6"
+            >
+              <Skeleton className="h-4 w-24" />
+              <Skeleton className="h-4 w-full" />
+              <Skeleton className="h-4 w-5/6" />
+              <Skeleton className="h-4 w-32" />
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
 /** Streams the verified-hosts row; renders nothing when there are none. */
 async function HostsRow({ locale }: { locale: Locale }) {
   const [t, hosts] = await Promise.all([getTranslations('home'), getAllHosts()]);
@@ -364,7 +459,7 @@ async function HostsRow({ locale }: { locale: Locale }) {
       <div className="mx-auto w-full max-w-6xl px-6 py-20">
         <FadeIn className="mb-8 flex flex-col gap-2">
           <p className={eyebrowClassName}>{t('hostsEyebrow')}</p>
-          <h2 className="font-display text-3xl font-medium tracking-[-0.03em]">
+          <h2 className="font-display text-3xl font-medium tracking-[-0.03em] sm:text-4xl">
             {t('hostsTitle')}
           </h2>
           <p className="text-sarat-black-600 max-w-xl text-base">{t('hostsIntro')}</p>

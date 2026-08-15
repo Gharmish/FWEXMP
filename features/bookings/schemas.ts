@@ -4,6 +4,13 @@ import { normalizeToE164 } from '@/lib/phone';
 /** Optional attribution label: trimmed, clamped, undefined over invalid. */
 const utmLabel = z.string().trim().min(1).max(100).optional().catch(undefined);
 
+/**
+ * Optional ad-click identifier (gclid/ttclid/fbclid). Same best-effort
+ * posture as `utmLabel`, but with a longer cap — Google's gclid alone
+ * routinely exceeds 100 characters.
+ */
+const clickId = z.string().trim().min(1).max(255).optional().catch(undefined);
+
 export const bookingRequestSchema = z.object({
   experienceSlug: z.string().min(1),
   locale: z.enum(['en', 'ar']),
@@ -36,7 +43,11 @@ export const bookingRequestSchema = z.object({
       return e164;
     }),
   preferredDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
-  partySize: z.coerce.number().int().min(1).max(20),
+  // Ceiling matches the host-side maxGroupSize cap (host-experiences
+  // schema, 50) — the action still enforces each experience's own
+  // `maxGroupSize` below it. The 'too_large' message is the field code
+  // both the client mapper and the server echo already understand.
+  partySize: z.coerce.number().int().min(1).max(50, 'too_large'),
   /**
    * Required contact email. Every lifecycle notification (approval +
    * pay link, cancellation, reminder, receipt) is email-only, so the
@@ -66,6 +77,25 @@ export const bookingRequestSchema = z.object({
   utmSource: utmLabel,
   utmMedium: utmLabel,
   utmCampaign: utmLabel,
+  /**
+   * Ad-platform click ids (forwarded from sessionStorage exactly like the
+   * UTM triplet) — feed offline-conversion uploads, never load-bearing.
+   */
+  gclid: clickId,
+  ttclid: clickId,
+  fbclid: clickId,
+  /** `?ref=` guest referral code (see lib/marketing/referral.ts) — same posture. */
+  referralCode: clickId,
+  /**
+   * Marketing-consent checkbox ('on' when ticked). Optional and
+   * unchecked by default — unlike `terms`, absence never blocks the
+   * booking; it only means no marketing messages.
+   */
+  marketingConsent: z
+    .string()
+    .optional()
+    .transform((value) => value === 'on')
+    .catch(false),
 });
 
 export type BookingRequestInput = z.infer<typeof bookingRequestSchema>;

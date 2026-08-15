@@ -50,6 +50,12 @@ export interface PlatformSettings {
    * 0 = not configured (the dashboard hides the estimate).
    */
   gatewayFeeBps: number;
+  /**
+   * Two-sided referral reward per side, whole SAR, issued as `promo`
+   * wallet credit at first-paid-booking settlement. 0 = referral
+   * DORMANT (codes mint + attribute, no credit issues).
+   */
+  referralRewardSar: number;
 }
 
 /** Code-level defaults — the truth when no settings row exists yet. */
@@ -65,6 +71,7 @@ export const DEFAULT_SETTINGS: PlatformSettings = {
   vatRateBps: 1500,
   vatRegistrationNumber: null,
   gatewayFeeBps: 0,
+  referralRewardSar: 0,
 };
 
 /**
@@ -88,6 +95,7 @@ export async function getPlatformSettings(): Promise<PlatformSettings> {
           vatRateBps: platformSettings.vatRateBps,
           vatRegistrationNumber: platformSettings.vatRegistrationNumber,
           gatewayFeeBps: platformSettings.gatewayFeeBps,
+          referralRewardSar: platformSettings.referralRewardSar,
         })
         .from(platformSettings)
         .where(eq(platformSettings.id, 'platform'))
@@ -109,6 +117,7 @@ export async function getPlatformSettings(): Promise<PlatformSettings> {
       vatRateBps: row.vatRateBps,
       vatRegistrationNumber: row.vatRegistrationNumber,
       gatewayFeeBps: row.gatewayFeeBps,
+      referralRewardSar: row.referralRewardSar,
     };
   } catch (error) {
     reportError(error, { surface: 'platform-settings:get' });
@@ -140,6 +149,7 @@ export async function getPlatformSettingsStrict(): Promise<PlatformSettings> {
         vatRateBps: platformSettings.vatRateBps,
         vatRegistrationNumber: platformSettings.vatRegistrationNumber,
         gatewayFeeBps: platformSettings.gatewayFeeBps,
+        referralRewardSar: platformSettings.referralRewardSar,
       })
       .from(platformSettings)
       .where(eq(platformSettings.id, 'platform'))

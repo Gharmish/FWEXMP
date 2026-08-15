@@ -1,7 +1,8 @@
 {
   "siteMeta": {
     "name": "Gharmish",
-    "description": "Curated experiences hosted by the people who know their place best — starting in Abha, Aseer."
+    "homeTitle": "Gharmish — Experiences in Abha & Aseer",
+    "description": "Curated experiences hosted by the people who know the place best — starting in Abha, Aseer."
   },
   "nav": {
     "discover": "Discover",
@@ -25,7 +26,7 @@
     "phoneLabel": "Mobile number",
     "phonePlaceholder": "5X XXX XXXX",
     "countryLabel": "Country code",
-    "phoneHint": "Pick your country, then enter your number without the leading zero. We'll send a 6-digit code on WhatsApp.",
+    "phoneHint": "Pick your country, then enter your mobile number. We'll send a 6-digit code on WhatsApp.",
     "emailLabel": "Email",
     "emailPlaceholder": "you@example.com",
     "emailHint": "We'll email you a 6-digit verification code.",
@@ -659,7 +660,7 @@
     },
     "bookingMode": {
       "request": "Request to book",
-      "instant": "Instant confirmation"
+      "instant": "Instant book"
     },
     "experienceEdit": {
       "heading": "Edit experience",
@@ -673,7 +674,7 @@
       "featured": "Feature as an Original",
       "featuredHint": "Originals appear in the premium tier with the Sarat Black treatment.",
       "bookingMode": "Booking mode",
-      "bookingModeHint": "Instant auto-confirms against the calendar; request waits for manual confirmation.",
+      "bookingModeHint": "Instant book auto-confirms against the calendar; Request to book waits for the host's approval.",
       "commission": "Platform commission (%)",
       "commissionHint": "Gharmish's share of each booking. The host payout is the remainder.",
       "startTime": "Daily start time",
@@ -1217,6 +1218,9 @@
           "reversal": "Reversal"
         },
         "issueToggle": "Issue credit",
+        "reason": "Reason",
+        "reasonGoodwill": "Goodwill (service recovery)",
+        "reasonPromo": "Promo (marketing credit)",
         "adjustToggle": "Adjust / revoke",
         "amount": "Amount (SAR)",
         "amountHint": "Whole riyals, up to SAR 500 per action.",
@@ -2350,11 +2354,8 @@
     },
     "intro": "The best way to know a place is through its people. Gharmish curates a small set of experiences with local hosts — farmers, guides, roasters, artisans — who invite you into the Aseer they know.",
     "cta": "Explore Aseer",
-    "idea": {
-      "eyebrow": "The idea",
-      "title": "The best parts of a place aren't always on the map.",
-      "body": "They're in a roaster's craft, a farm's terraces, a table set for guests, a trail someone has walked their whole life. Gharmish exists to introduce you to that side of a place — through the people who hold it."
-    },
+    "discoverAria": "Discover experiences",
+    "searchPrompt": "What would you like to try?",
     "originalsEyebrow": "Curated by Gharmish",
     "originalsTitle": "Gharmish Originals",
     "originalsSub": "Designed together with remarkable hosts around a story, a craft, or a place — experiences you can't simply book somewhere else.",
@@ -2370,7 +2371,7 @@
       "body1": "Gharmish began in the Aseer highlands — among juniper mountains, terraced farms, and stone villages where hospitality is a habit, not a service.",
       "body2": "We noticed something simple: the experiences people remember most aren't the places they visited. They're the moments someone invited them into — a farmer's terraces, a roaster's craft, a table with room for guests.",
       "body3": "That's why Gharmish exists: to help you experience a place through the people who know it best. Aseer is where the story begins — not where it ends.",
-      "cta": "Explore Aseer",
+      "cta": "See the experiences",
       "secondaryCta": "Meet the hosts"
     },
     "whyGharmish": {
@@ -2393,13 +2394,12 @@
       "title": "Know Aseer like nobody else?",
       "body": "We partner with a small circle of local hosts — with photography, training, and guests who value the real thing.",
       "cta": "Apply to host"
-    },
-    "heroImageAlt": "Morning mist over the juniper mountains of Aseer"
+    }
   },
   "experience": {
     "originals": "Gharmish Original",
     "withHost": "With {name}",
-    "instant": "Instant",
+    "instant": "Instant book",
     "perPerson": "/ person",
     "hours": "hr",
     "requestMode": "Request to book",
@@ -2437,11 +2437,12 @@
       "age": "Min age",
       "ageAll": "All ages"
     },
-    "requestToBook": "Request to book",
     "translationPending": "Translation pending.",
     "instantBadge": "Instant book — confirmed right away",
     "womenOnlyBadge": "Women only",
-    "requestBadge": "Request to book",
+    "ratingSummary": "{rating} · {count, plural, =1 {1 review} other {# reviews}}",
+    "breadcrumbCatalog": "Experiences",
+    "requestBadge": "Request to book — host confirms first",
     "bookedCount": "{count}+ booked",
     "meetingPoint": {
       "heading": "Meeting point",
@@ -2451,6 +2452,7 @@
     "startsAt": "Starts at {time}",
     "cancellationTierLine": "Free cancellation with a full refund until {freeWindow} before the start, then a {partialPct}% refund until {partialWindow} before. You can also move your booking to another open date once, up to {rescheduleWindow} before — all from your booking page.",
     "cancellationTierLineNoPartial": "Free cancellation with a full refund until {freeWindow} before the start; closer than that, the payment is non-refundable. You can also move your booking to another open date once, up to {rescheduleWindow} before — all from your booking page.",
+    "weatherNote": "This experience takes place outdoors. Mist and mountain weather are part of the day in Aseer — but if conditions ever make it unsafe to run, your host cancels and you're refunded in full, however close to the start. <policy>Read the full weather policy</policy>",
     "preview": {
       "banner": "Preview — this is how your listing looks to guests. Only you (and the review team) can see this page until it's live.",
       "bookingDisabled": "Booking opens once your listing is live."
@@ -2476,19 +2478,23 @@
   },
   "bookingRequest": {
     "title": "Request this experience",
+    "titleInstant": "Book this experience",
     "name": "Full name",
     "phone": "Mobile number",
     "preferredDate": "Preferred date",
+    "preferredDateInstant": "Date",
     "partySize": "Guests",
-    "phoneHint": "Enter your number without the leading zero — your host can reach you on WhatsApp once the booking is confirmed.",
+    "phoneHint": "Your host can reach you on WhatsApp once the booking is confirmed.",
     "countryLabel": "Country code",
     "phonePlaceholder": "5X XXX XXXX",
     "phoneInvalid": "Enter a valid mobile number for the selected country.",
-    "preferredDateHint": "Your host confirms the exact start time within 24 hours.",
+    "preferredDateHint": "Your host confirms the exact start time within {hours} hours.",
+    "preferredDateHintInstant": "Pick an open date to continue.",
     "partySizeHint": "Up to {max} guests for this experience.",
     "submit": "Request to book",
     "submitInstant": "Book now",
     "pending": "Sending request",
+    "pendingInstant": "Preparing your checkout",
     "validation": "Check the highlighted fields and try again.",
     "server": "We could not save the request. Try again in a moment.",
     "notFound": "This experience is no longer available.",
@@ -2509,13 +2515,15 @@
     "partySizeTooLarge": "That's more guests than this experience can host.",
     "datePlaceholder": "Select a date",
     "spotsLeft": "{count, plural, =1 {1 spot} other {# spots}} left on this date",
+    "available": "Available on this date",
+    "marketingConsentLabel": "Send me new experiences and offers on WhatsApp or email (optional).",
     "cancellationFreeUntil": "Free cancellation until {deadline} — cancel before then for a full refund.",
     "cancellationPartialUntil": "This date is close, so free cancellation has passed — cancelling before {deadline} refunds {percent}%.",
     "cancellationNoRefund": "This date starts soon, so the payment won't be refundable if you cancel.",
     "total": "Total",
     "decrease": "Fewer guests",
     "increase": "More guests",
-    "noDates": "No open dates in the next 8 weeks. Check back soon, or message the host.",
+    "noDates": "No open dates in the next 8 weeks — new dates are added regularly, so check back soon.",
     "prevMonth": "Previous month",
     "nextMonth": "Next month",
     "modeInstant": "Instant book — pay now and your spot is confirmed right away.",
@@ -2536,14 +2544,14 @@
   },
   "bookingConfirmed": {
     "meta": {
-      "title": "Booking request received"
+      "title": "Your booking"
     },
     "eyebrow": "Request received",
     "eyebrowConfirmed": "Booking confirmed",
     "title": "Thank you — your request is in.",
     "titleConfirmed": "You're booked. See you there.",
     "descriptionStored": "We've sent your request to the host. You won't be charged unless they accept — we'll let you know the moment they respond.",
-    "descriptionConfirmed": "Your spot is confirmed. We'll send the meeting point and what to bring before the day.",
+    "descriptionConfirmed": "Your spot is confirmed. The meeting point is on this page, and we'll send everything you need before the day.",
     "descriptionPreview": "This is a preview environment — the request was not stored, but the booking flow works end-to-end. In production this page would show your booking details.",
     "restricted": {
       "eyebrow": "Private booking",
@@ -2644,6 +2652,14 @@
       "description": "Message your host directly on WhatsApp — meeting point, parking, what to wear, anything.",
       "cta": "Message on WhatsApp",
       "prefill": "Hi! I have a Gharmish booking (ref {reference}) and a quick question."
+    },
+    "supportWhatsapp": {
+      "heading": "Need a hand?",
+      "description": "Message Gharmish support on WhatsApp — payment, changes, or anything about your booking.",
+      "cta": "WhatsApp Gharmish support",
+      "orSupport": "Something Gharmish should handle instead?",
+      "orSupportLink": "WhatsApp our support team",
+      "prefill": "Hi! I need help with my Gharmish booking (ref {reference})."
     },
     "printTicket": "Print or save as PDF",
     "viewInvoice": "View invoice",
@@ -2793,6 +2809,7 @@
     "totalIncludesTaxes": "Includes applicable taxes.",
     "noFeesNote": "No fees added at checkout.",
     "promo": {
+      "toggle": "Have a promo code?",
       "label": "Have a promo code?",
       "placeholder": "Enter code",
       "apply": "Apply",
@@ -2926,6 +2943,11 @@
     "viewCreditNote": "View your credit note",
     "viewReceipt": "View your receipt",
     "completePaymentCta": "Complete payment",
+    "awaitingPaymentSubject": "Your spot is held — complete payment · {reference}",
+    "awaitingPaymentIntro": "Your booking is in and the spot is yours — it's held for you until the deadline below. Complete payment to confirm it.",
+    "awaitingPaymentClosing": "Already paid? Then ignore this message — your receipt is on its way.",
+    "paymentReminderSubject": "About 2 hours left to complete payment · {reference}",
+    "paymentReminderIntro": "Your spot is still held, but not for much longer — payment closes at the deadline below, and the spot is released to other guests after that.",
     "genericExperience": "your experience",
     "hostGuestLabel": "Guest",
     "hostBookingsCta": "Open your bookings",
@@ -3083,6 +3105,9 @@
     "legalLabel": "Legal",
     "linkTerms": "Terms of service",
     "linkPrivacy": "Privacy policy",
+    "linkAbha": "Things to do in Abha",
+    "linkAbout": "About Gharmish",
+    "cookieSettings": "Cookie settings",
     "crLine": "CR 7051409212",
     "crVatLine": "CR 7051409212 · VAT {vat}",
     "paymentsLabel": "Accepted payment methods",
@@ -3091,10 +3116,90 @@
     "brandMastercard": "Mastercard",
     "brandApplePay": "Apple Pay"
   },
+  "marketingEmail": {
+    "greeting": "Hi {name},",
+    "rebookSubject": "Where to next in {city}?",
+    "rebookIntro": "How was {experience}? If Aseer got under your skin, here are a few more experiences near {city} — hosted, as always, by the people who know the place best.",
+    "rebookClosing": "Small groups fill quickly — booking a few days ahead keeps the good dates open.",
+    "winbackSubject": "Aseer looks different this time of year",
+    "winbackIntro": "It's been a while since {experience} — and the mountains have changed since. New dates and new experiences are open now, a few taps away.",
+    "winbackClosing": "We'd love to host you again.",
+    "browseCta": "See what's open",
+    "recommendationsHeading": "Worth a look:",
+    "unsubscribe": "Unsubscribe from these emails — booking messages still arrive as usual.",
+    "footer": "Gharmish — experiences hosted by the people who know Aseer best."
+  },
+  "about": {
+    "metaTitle": "About Gharmish",
+    "metaDescription": "Gharmish is a marketplace for experiences hosted by the people who know the place best — starting in Abha, Aseer. Here's why we built it, and how to reach us.",
+    "eyebrow": "About us",
+    "title": "The best way to know a place is through its people.",
+    "story1": "Anyone can point you at a viewpoint. What's hard to find is the person who knows which morning the mist rolls through the juniper, which house still paints Al-Qatt the old way, and which table you should actually be sitting at. Gharmish exists to make that introduction.",
+    "story2": "We work with a small circle of local hosts — guides, artists, cooks, and families — and put their experiences a few taps away. Every host is verified by our team, every booking is protected by clear cancellation terms, and every experience is one we'd take our own families to. Fewer. Better. Worth remembering.",
+    "story3": "The story begins in Abha, in the highlands of Aseer — the greenest corner of Saudi Arabia and home to the people who know it best. It starts there; it won't end there.",
+    "contactHeading": "Talk to us",
+    "contactBody": "We're run from Abha, not a call centre. For anything — a booking, a partnership, press, or an idea for an experience — write to us and a human answers.",
+    "contactWhatsapp": "Message us on WhatsApp",
+    "exploreCta": "Explore the experiences"
+  },
+  "cityAbha": {
+    "metaTitle": "Things to do in Abha — experiences hosted by locals",
+    "metaDescription": "Book experiences in Abha and the Aseer highlands — nature walks, heritage villages, Aseeri food and coffee, adventure on the Soudah cliffs — each hosted by a local who knows the place best.",
+    "breadcrumb": "Abha",
+    "eyebrow": "Abha, Aseer",
+    "title": "Things to do in Abha",
+    "intro1": "Abha sits above the clouds — a highland city on the edge of the Sarawat, where juniper forests meet stone villages and summer means mist, not heat. It's the capital of Aseer, the greenest region in Saudi Arabia, and the best of it doesn't announce itself: it gets shown to you.",
+    "intro2": "That's what Gharmish is for. Every experience here is hosted by a local — a guide who grew up on these trails, an artist keeping Al-Qatt Al-Aseeri alive, a family that has poured coffee the same way for generations. Small groups, real places, booked in a few taps.",
+    "gridLabel": "Experiences in Abha",
+    "allCta": "Browse all experiences",
+    "hostCta": "Host with Gharmish in Abha"
+  },
+  "categoryLanding": {
+    "eyebrow": "Experiences by category",
+    "backToAll": "All experiences",
+    "allCta": "Browse all experiences in Abha & Aseer",
+    "empty": "No live experiences in this category right now — new ones are added as hosts join. Browse the full catalog in the meantime.",
+    "breadcrumbCatalog": "Experiences",
+    "nature": {
+      "title": "Nature experiences in Abha & Aseer",
+      "intro": "Aseer is the greenest corner of Saudi Arabia — juniper forests on Jabal Sawda, terraced valleys, and mornings when the mist rolls up the escarpment and through the trees. These experiences put you inside that landscape with someone who has walked it for years: dawn forest walks, valley trails, and quiet places no map label does justice to."
+    },
+    "heritage": {
+      "title": "Heritage experiences in Abha & Aseer",
+      "intro": "Stone towers, painted doorways, and the UNESCO-listed geometry of Al-Qatt Al-Aseeri — Aseer's heritage isn't behind glass, it's still lived in. Visit the village of Rijal Almaa, learn the wall-painting craft from a local artist, and hear the stories of the flower men from people who grew up with them."
+    },
+    "food": {
+      "title": "Food & coffee experiences in Abha & Aseer",
+      "intro": "The Aseeri coffee ritual is its own language — the roast, the pour, the order guests are served in all mean something. Around it comes mountain honey, saleeg, and bread from ovens that have never cooled. These experiences seat you at a local table, hosted by the people who cook this food for their own families."
+    },
+    "wellness": {
+      "title": "Wellness experiences in Abha & Aseer",
+      "intro": "Cool mountain air, running water, and altitude that slows everything down — Aseer is built for taking a breath. Guided breathwork and sound sessions by the water at Wadi Mahala, quiet walks, and unhurried mornings, all led by hosts who know exactly where the calm is."
+    },
+    "adventure": {
+      "title": "Adventure experiences in Abha & Aseer",
+      "intro": "The Soudah escarpment drops nearly a kilometre off the edge of the Sarawat — and you can climb along it. Via ferrata routes, cable descents, and mountain days with certified local guides and full safety equipment. No experience needed for most of it; a head for views is."
+    },
+    "family": {
+      "title": "Family experiences in Abha & Aseer",
+      "intro": "Experiences the whole family actually does together — painting an Al-Qatt panel every one of you takes home, village mornings, and easy outdoor days sized for younger legs. Hosted by locals who are used to hosting families, with clear age guidance on every listing."
+    },
+    "women_only": {
+      "title": "Women-only experiences in Abha & Aseer",
+      "intro": "Hiking, yoga, sketching, and mountain mornings in a women-only setting — led by women hosts, for women guests, with the whole experience kept that way from meeting point to finish. Every listing marks it clearly before you book."
+    }
+  },
+  "relatedExperiences": {
+    "title": "More experiences nearby"
+  },
   "cookieNotice": {
     "regionLabel": "Cookie notice",
     "body": "Gharmish uses only the cookies it needs to work — keeping you signed in and remembering your language. No advertising or tracking cookies, ever.",
     "consentBody": "Gharmish uses essential cookies to keep you signed in and remember your language. With your consent, we also use analytics cookies from Google Analytics to understand how the site is used, and marketing cookies from Snapchat and TikTok to measure our ads — decline them and everything still works.",
+    "bodyAnalyticsOnly": "Gharmish uses essential cookies to keep you signed in and remember your language. With your consent, we also use analytics cookies from Google Analytics to understand how the site is used — decline them and everything still works.",
+    "bodyFull": "Gharmish uses essential cookies to keep you signed in and remember your language. With your consent, we also use analytics cookies from Google Analytics to understand how the site is used, and marketing cookies from {networks} to measure our ads — decline them and everything still works.",
+    "networkTikTok": "TikTok",
+    "networkSnapchat": "Snapchat",
     "privacyLink": "Privacy policy",
     "cta": "Got it",
     "acceptAll": "Accept all",
@@ -3342,6 +3447,12 @@
     "hostCancellations": {
       "heading": "If a host cancels",
       "body": "If a host has to cancel — weather on the mountain is real — you're refunded in full, no matter how close to the start it happens."
+    },
+    "weather": {
+      "heading": "Weather, especially outdoors",
+      "body1": "Aseer's weather is part of its character — mist rolling over the ridge, a cool drizzle, clouds passing below your feet. Experiences run in ordinary mountain weather, and a grey forecast on its own isn't grounds for a free cancellation: if you choose not to come, the cancellation policy on your booking applies as usual, including your one free date move.",
+      "body2": "Safety is a different matter. If conditions would make an experience unsafe or impossible to run — thunderstorms, heavy rain or flooding in the wadis, dense fog on mountain roads, or an official weather warning for the area — the host cancels, and the call is made as early as the forecast allows. You'll hear from us the moment it's made.",
+      "body3": "A weather cancellation is never your loss: you're refunded 100% of what you paid, whatever policy the experience carries and however close to the start it happens, and every open date stays yours to rebook. Outdoor experiences — nature and adventure especially — carry a reminder of this on their page."
     }
   },
   "helpFaq": {
@@ -3524,6 +3635,18 @@
     "toastTone_success": "Success:",
     "toastTone_error": "Error:",
     "toastTone_info": "Notice:"
+  },
+  "share": {
+    "button": "Share",
+    "dialogTitleExperience": "Share this experience",
+    "dialogTitleHost": "Share this host",
+    "message": "{title} — on Gharmish",
+    "whatsapp": "WhatsApp",
+    "x": "X",
+    "telegram": "Telegram",
+    "email": "Email",
+    "copyLabel": "Copy link",
+    "copied": "Link copied"
   },
   "disputeEmail": {
     "subject": "Your report has been handled",
