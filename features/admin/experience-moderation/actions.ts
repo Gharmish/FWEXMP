@@ -43,7 +43,9 @@ export interface AdminModerationResult {
     | 'server'
     | 'wrong_state'
     | 'needs_hero'
-    | 'needs_arabic';
+    | 'needs_arabic'
+    | 'needs_arabic_moments'
+    | 'needs_arabic_lists';
   fieldError?: string;
 }
 
@@ -88,12 +90,38 @@ export async function approveExperience(
     // flags both; this makes the flag a hard stop instead of a hint.
     const row = await db.query.experiences.findFirst({
       where: (e) => eq(e.id, experienceId),
-      columns: { heroImage: true, titleAr: true, descriptionAr: true },
+      columns: {
+        heroImage: true,
+        titleAr: true,
+        descriptionAr: true,
+        inclusions: true,
+        inclusionsAr: true,
+        whatToBring: true,
+        whatToBringAr: true,
+      },
+      with: { moments: { columns: { titleAr: true, descriptionAr: true } } },
     });
     if (!row) return { success: false, message: 'not_found' };
     if (!row.heroImage) return { success: false, message: 'needs_hero' };
     if (row.titleAr.startsWith('TODO(ar') || row.descriptionAr.startsWith('TODO(ar')) {
       return { success: false, message: 'needs_arabic' };
+    }
+    // Host-added moments are stamped with the same placeholder — without
+    // this check the Arabic detail page ships an English-only timeline.
+    if (
+      row.moments.some(
+        (m) => m.titleAr.startsWith('TODO(ar') || m.descriptionAr.startsWith('TODO(ar'),
+      )
+    ) {
+      return { success: false, message: 'needs_arabic_moments' };
+    }
+    // Empty Arabic lists fall back to the seed dictionary, which only
+    // covers seeded strings — host-typed items would render in English.
+    if (
+      (row.inclusions.length > 0 && row.inclusionsAr.length === 0) ||
+      (row.whatToBring.length > 0 && row.whatToBringAr.length === 0)
+    ) {
+      return { success: false, message: 'needs_arabic_lists' };
     }
 
     // Conditional update: only flips if it's still pending_review.

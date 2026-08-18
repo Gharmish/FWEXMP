@@ -1014,7 +1014,9 @@
         "wrongState": "This experience isn't pending review anymore — refresh to see the latest status.",
         "reviewerNoteShort": "Add at least 10 characters of context so the host knows how to respond.",
         "needsHero": "This listing has no hero photo — it can't go live without one.",
-        "needsArabic": "The Arabic title or description is still a TODO placeholder — fill it in before approving (Arabic-first audience)."
+        "needsArabic": "The Arabic title or description is still a TODO placeholder — fill it in before approving (Arabic-first audience).",
+        "needsArabicMoments": "One or more timeline moments still carry a TODO Arabic placeholder — complete them in the timeline editor before approving.",
+        "needsArabicLists": "The Arabic \"What's included\" or \"What to bring\" list is empty while the English one isn't — add it in the Arabic copy editor above before approving."
       }
     },
     "disputes": {

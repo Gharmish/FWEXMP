@@ -21,6 +21,8 @@ type ErrorKey =
   | 'wrong_state'
   | 'needs_hero'
   | 'needs_arabic'
+  | 'needs_arabic_moments'
+  | 'needs_arabic_lists'
   | 'reviewer_note_short';
 
 interface Copy {

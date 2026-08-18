@@ -388,6 +388,8 @@ export default async function AdminExperienceModerationDetailPage({
               wrong_state: t('experienceActions.errors.wrongState'),
               needs_hero: t('experienceActions.errors.needsHero'),
               needs_arabic: t('experienceActions.errors.needsArabic'),
+              needs_arabic_moments: t('experienceActions.errors.needsArabicMoments'),
+              needs_arabic_lists: t('experienceActions.errors.needsArabicLists'),
               reviewer_note_short: t('experienceActions.errors.reviewerNoteShort'),
             },
           }}
