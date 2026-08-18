@@ -6,6 +6,9 @@ import { routing, type Locale } from '@/lib/i18n';
 import { InfoPage } from '@/components/layout/info-page';
 import { JsonLd } from '@/components/seo/json-ld';
 import { getPlatformSettings } from '@/lib/platform-settings';
+import { getCancellationTiers } from '@/lib/cancellation-policy';
+import { GRACE_MIN_LEAD_HOURS, POST_BOOKING_GRACE_HOURS } from '@/features/bookings/lib/policy';
+import { tierDescriptions } from '@/features/bookings/lib/policy-copy';
 
 export async function generateMetadata({
   params,
@@ -60,7 +63,7 @@ const HOST_FAQ_KEYS = ['payout', 'hostCancel', 'requestWindow', 'editListing'] a
 const FAQ_KEYS = [...GUEST_FAQ_KEYS, ...HOST_FAQ_KEYS];
 
 type FaqKey = (typeof FAQ_KEYS)[number];
-type FaqTranslate = (key: string, values?: Record<string, number>) => string;
+type FaqTranslate = (key: string, values?: Record<string, string | number>) => string;
 
 /** Native-disclosure FAQ group — zero client JS, fully keyboard accessible. */
 function FaqList({
@@ -70,7 +73,7 @@ function FaqList({
 }: {
   keys: readonly FaqKey[];
   t: FaqTranslate;
-  values: Record<string, number>;
+  values: Record<string, string | number>;
 }) {
   return (
     <div className="border-sarat-black/8 flex flex-col [border-top-width:0.5px]">
@@ -96,13 +99,24 @@ export default async function HelpPage({ params }: { params: Promise<{ locale: s
   const { locale } = await params;
   setRequestLocale(locale);
   const loc = locale as Locale;
-  const [t, tRelated, settings] = await Promise.all([
+  const [t, tRelated, tTiers, settings, tiers] = await Promise.all([
     getTranslations('helpFaq'),
     getTranslations('infoRelated'),
+    getTranslations('cancellationTiers'),
     getPlatformSettings(),
+    getCancellationTiers(),
   ]);
+  // The cancel answer interpolates the DB-backed tier descriptions and the
+  // code-level grace constants — the same values the cancel action enforces,
+  // so the FAQ (and its JSON-LD twin) can never drift from the real rules.
+  const tierDesc = tierDescriptions(tiers, tTiers);
   const values = {
     approvalHours: settings.approvalWindowHours,
+    flexDesc: tierDesc.flexible,
+    modDesc: tierDesc.moderate,
+    strictDesc: tierDesc.strict,
+    graceHours: POST_BOOKING_GRACE_HOURS,
+    graceLead: GRACE_MIN_LEAD_HOURS,
   };
 
   // Same strings as the visible FAQ, so search results can never drift

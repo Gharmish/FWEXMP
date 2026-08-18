@@ -3476,7 +3476,7 @@
       },
       "cancel": {
         "q": "Can I cancel a booking?",
-        "a": "Yes — any time before the experience starts, from your booking page. Refunds follow the experience's cancellation policy (Flexible, Moderate or Strict) shown when you booked: a full refund up to that policy's deadline, and on Moderate and Strict a 50% refund for a while after. You can also move your booking to another open date once, free of charge."
+        "a": "Yes — any time before the experience starts, from your booking page. Refunds follow the cancellation policy shown when you booked. {flexDesc}. {modDesc}. {strictDesc}. Cancelling within {graceHours} hours of booking always refunds in full while the start is at least {graceLead} hours away, and you can move your booking to another open date once, free of charge."
       },
       "contactHost": {
         "q": "How do I reach my host?",
@@ -3534,7 +3534,7 @@
     },
     "cancellations": {
       "heading": "Cancellations and refunds",
-      "body": "Each experience carries one of three cancellation policies (Flexible, Moderate or Strict), shown on its page and fixed on your booking at the moment you book: a full refund up to the policy's deadline, a 50% refund for a further window on Moderate and Strict, and no refund past that. Cancelling within 24 hours of booking always refunds in full while the start is at least 48 hours away; one free date change is included within the policy's window.",
+      "body": "Each experience carries one of three cancellation policies, shown on its page and fixed on your booking at the moment you book. {flexDesc}. {modDesc}. {strictDesc}. On any policy, cancelling within {graceHours} hours of booking refunds in full while the start is at least {graceLead} hours away; one free date change is included within the policy's window.",
       "link": "Read the full cancellation policy"
     },
     "credit": {

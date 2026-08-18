@@ -4,6 +4,9 @@ import { Link, routing } from '@/lib/i18n';
 import type { Locale } from '@/lib/i18n';
 import { InfoPage } from '@/components/layout/info-page';
 import { getPlatformSettings } from '@/lib/platform-settings';
+import { getCancellationTiers } from '@/lib/cancellation-policy';
+import { GRACE_MIN_LEAD_HOURS, POST_BOOKING_GRACE_HOURS } from '@/features/bookings/lib/policy';
+import { tierDescriptions } from '@/features/bookings/lib/policy-copy';
 import { SITE_URL, SUPPORT_EMAIL } from '@/lib/site';
 
 export async function generateMetadata({
@@ -56,11 +59,14 @@ export default async function TermsPage({ params }: { params: Promise<{ locale: 
   const loc = locale as Locale;
   // The windows quoted in the copy are the live platform settings — the
   // same values the booking actions enforce, never hardcoded numbers.
-  const [t, tRelated, settings] = await Promise.all([
+  const [t, tRelated, tTiers, settings, tiers] = await Promise.all([
     getTranslations('termsPage'),
     getTranslations('infoRelated'),
+    getTranslations('cancellationTiers'),
     getPlatformSettings(),
+    getCancellationTiers(),
   ]);
+  const tierDesc = tierDescriptions(tiers, tTiers);
 
   const sections = [
     {
@@ -100,8 +106,18 @@ export default async function TermsPage({ params }: { params: Promise<{ locale: 
       body: (
         <>
           {/* Tier snapshots on each booking are the enforced rule; the copy
-              describes them and takes no platform-window parameter. */}
-          <p>{t('cancellations.body')}</p>
+              interpolates the same DB-backed tier descriptions and code-level
+              grace constants the cancel action enforces — never hand-written
+              numbers, so EN and AR always state the same rules. */}
+          <p>
+            {t('cancellations.body', {
+              flexDesc: tierDesc.flexible,
+              modDesc: tierDesc.moderate,
+              strictDesc: tierDesc.strict,
+              graceHours: POST_BOOKING_GRACE_HOURS,
+              graceLead: GRACE_MIN_LEAD_HOURS,
+            })}
+          </p>
           <p>
             <Link href="/cancellation-policy" className={inlineLinkClassName}>
               {t('cancellations.link')}
