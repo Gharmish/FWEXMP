@@ -49,10 +49,10 @@ export interface PhotoUploadProps {
 
 const initialState: UploadHeroState = { success: false };
 
-function Submit({ copy, disabled }: { copy: PhotoUploadCopy; disabled: boolean }) {
+function Submit({ copy }: { copy: PhotoUploadCopy }) {
   const { pending } = useFormStatus();
   return (
-    <Button type="submit" variant="primary" size="md" pending={pending} disabled={disabled}>
+    <Button type="submit" variant="primary" size="md" pending={pending}>
       {pending ? copy.submitting : copy.submit}
     </Button>
   );
@@ -176,7 +176,9 @@ export function PhotoUpload({
           <p className="text-sarat-black/40 text-xs">{copy.hint}</p>
         </div>
 
-        <Submit copy={copy} disabled={!ready} />
+        {/* Only after a photo is staged — a permanently-disabled gray bar
+            before that read as broken, not as "choose a file first". */}
+        {ready && <Submit copy={copy} />}
 
         {error && (
           <p role="alert" className="text-al-qatt-red-800 text-sm">

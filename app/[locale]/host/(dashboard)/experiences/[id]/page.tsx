@@ -13,7 +13,7 @@ import { splitCommission } from '@/features/bookings/lib/commission';
 import { getCurrentUser } from '@/features/auth/queries';
 import { getCancellationTiers } from '@/lib/cancellation-policy';
 import { getEnabledCities } from '@/lib/cities';
-import { tierDescriptions } from '@/features/bookings/lib/policy-copy';
+import { tierDescriptions, tierNames } from '@/features/bookings/lib/policy-copy';
 import { getHostDashboard } from '@/features/host-dashboard/queries';
 import { getMyExperienceById, getMyExperienceMoments } from '@/features/host-experiences/queries';
 import {
@@ -439,7 +439,11 @@ export default async function EditExperiencePage({
               mode="edit"
               locale={loc}
               experience={experience}
-              copy={buildExperienceFormCopy(tForm, tierDescriptions(policyTiers, tTiers))}
+              copy={buildExperienceFormCopy(
+                tForm,
+                tierDescriptions(policyTiers, tTiers),
+                tierNames(tTiers),
+              )}
               cityOptions={cityOptions}
             />
           </div>

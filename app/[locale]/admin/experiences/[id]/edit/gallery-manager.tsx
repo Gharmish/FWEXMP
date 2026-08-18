@@ -41,18 +41,10 @@ export interface GalleryManagerCopy {
 
 const initialState: GalleryState = { success: false };
 
-function UploadSubmit({
-  label,
-  pendingLabel,
-  disabled,
-}: {
-  label: string;
-  pendingLabel: string;
-  disabled: boolean;
-}) {
+function UploadSubmit({ label, pendingLabel }: { label: string; pendingLabel: string }) {
   const { pending } = useFormStatus();
   return (
-    <Button type="submit" variant="primary" size="md" pending={pending} disabled={disabled}>
+    <Button type="submit" variant="primary" size="md" pending={pending}>
       {pending ? pendingLabel : label}
     </Button>
   );
@@ -209,11 +201,9 @@ export function GalleryManager({
         />
         {fileName && <span className="text-sarat-black-600 truncate text-sm">{fileName}</span>}
         <p className="text-sarat-black/40 text-xs">{copy.hint}</p>
-        <UploadSubmit
-          label={copy.add}
-          pendingLabel={copy.adding}
-          disabled={clientError !== null || !ready}
-        />
+        {/* Only after a framed photo is staged — a permanently-disabled
+            gray bar before that read as broken, not "choose a file first". */}
+        {ready && clientError === null && <UploadSubmit label={copy.add} pendingLabel={copy.adding} />}
         {error && (
           <p role="alert" className="text-al-qatt-red-800 text-sm">
             {error}

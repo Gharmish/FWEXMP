@@ -93,12 +93,15 @@ function Fields({
       <div className="grid gap-4 sm:grid-cols-2">
         <label className="flex flex-col gap-1 text-sm font-medium">
           {copy.timeOfDay}
-          <Input name="timeOfDay" defaultValue={moment?.timeOfDay ?? ''} />
+          <Input name="timeOfDay" dir="auto" defaultValue={moment?.timeOfDay ?? ''} />
         </label>
         <label className="flex flex-col gap-1 text-sm font-medium">
           {copy.titleEn}
+          {/* English-authored content (the host flow says "write in
+              English") — dir keeps it from bidi-mangling on the AR page. */}
           <Input
             name="titleEn"
+            dir="ltr"
             defaultValue={moment?.titleEn ?? ''}
             aria-invalid={invalid('titleEn')}
           />
@@ -108,6 +111,7 @@ function Fields({
         {copy.descriptionEn}
         <textarea
           name="descriptionEn"
+          dir="ltr"
           rows={2}
           defaultValue={moment?.descriptionEn ?? ''}
           className={TEXTAREA_CLASS}

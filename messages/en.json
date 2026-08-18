@@ -2197,6 +2197,8 @@
           "durationLong": "Duration must be under 24 hours.",
           "priceNegative": "Price can't be negative.",
           "priceTooHigh": "Price is unusually high — check the value.",
+          "placeShort": "Place name is too short — at least 2 characters.",
+          "placeLong": "Place name is too long — 120 characters max.",
           "policyShort": "Cancellation policy is too short — write at least 20 characters.",
           "policyLong": "Cancellation policy is too long — keep it under 1000 characters.",
           "required": "Check this field.",

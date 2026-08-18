@@ -22,6 +22,8 @@ export function buildExperienceFormCopy(
    * picker must state the same numbers the engine will snapshot.
    */
   cancellationTiers: Record<CancellationTier, string>,
+  /** Short localized tier names (`tierNames(tTiers)`) for the options. */
+  cancellationTierNames: Record<CancellationTier, string>,
 ): ExperienceFormCopy {
   return {
     sectionBasics: t('sectionBasics'),
@@ -71,6 +73,7 @@ export function buildExperienceFormCopy(
     whatToBringHint: t('whatToBringHint'),
     cancellationLabel: t('cancellationLabel'),
     cancellationTiers,
+    cancellationTierNames,
     cancellationHint: t('cancellationHint'),
     weekdaysLabel: t('weekdaysLabel'),
     weekdaysHint: t('weekdaysHint'),
@@ -112,6 +115,8 @@ export function buildExperienceFormCopy(
         durationLong: t('errors.fields.durationLong'),
         priceNegative: t('errors.fields.priceNegative'),
         priceTooHigh: t('errors.fields.priceTooHigh'),
+        placeShort: t('errors.fields.placeShort'),
+        placeLong: t('errors.fields.placeLong'),
         policyShort: t('errors.fields.policyShort'),
         policyLong: t('errors.fields.policyLong'),
         timeInvalid: t('errors.fields.timeInvalid'),

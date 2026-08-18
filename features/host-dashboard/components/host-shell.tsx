@@ -46,7 +46,7 @@ export function HostShell({ children, userLabel, pendingRequests, actions }: Hos
       <Link
         href="/host"
         onClick={() => setOpen(false)}
-        className="text-sarat-black inline-flex items-center px-3"
+        className="text-sarat-black inline-flex min-h-11 items-center px-3"
         aria-label="Gharmish"
       >
         <GharmishLogo className="h-5 w-auto" />
@@ -114,7 +114,7 @@ export function HostShell({ children, userLabel, pendingRequests, actions }: Hos
           </button>
           <Link
             href="/host"
-            className="text-sarat-black me-auto inline-flex items-center lg:hidden"
+            className="text-sarat-black me-auto inline-flex min-h-11 items-center lg:hidden"
             aria-label="Gharmish"
           >
             <GharmishLogo className="h-5 w-auto" />

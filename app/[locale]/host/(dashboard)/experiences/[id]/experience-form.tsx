@@ -1,9 +1,10 @@
 'use client';
 
-import { useActionState, useId, useState } from 'react';
+import { useActionState, useEffect, useId, useRef, useState } from 'react';
 import { useFormStatus } from 'react-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { toArabicText } from '@/features/experiences/lib/arabic-content';
 import { LocationPicker } from '@/features/host-experiences/components/location-picker';
 import { RiyalSymbol } from '@/components/ui/riyal-symbol';
 import { cn } from '@/lib/utils';
@@ -40,6 +41,8 @@ type FieldErrorCode =
   | 'duration_long'
   | 'price_negative'
   | 'price_too_high'
+  | 'place_short'
+  | 'place_long'
   | 'policy_short'
   | 'policy_long'
   | 'time_invalid'
@@ -57,6 +60,8 @@ const FIELD_ERROR_KEY: Record<FieldErrorCode, keyof ExperienceFormCopy['errors']
   duration_long: 'durationLong',
   price_negative: 'priceNegative',
   price_too_high: 'priceTooHigh',
+  place_short: 'placeShort',
+  place_long: 'placeLong',
   policy_short: 'policyShort',
   policy_long: 'policyLong',
   time_invalid: 'timeInvalid',
@@ -124,8 +129,10 @@ export interface ExperienceFormCopy {
   whatToBringPlaceholder: string;
   whatToBringHint: string;
   cancellationLabel: string;
-  /** Plain-language label per policy preset, keyed by tier value. */
+  /** Full one-sentence terms per policy preset, keyed by tier value. */
   cancellationTiers: Record<'flexible' | 'moderate' | 'strict', string>;
+  /** Short tier names for the select options ("Flexible" / "مرنة"). */
+  cancellationTierNames: Record<'flexible' | 'moderate' | 'strict', string>;
   cancellationHint: string;
   weekdaysLabel: string;
   weekdaysHint: string;
@@ -153,6 +160,8 @@ export interface ExperienceFormCopy {
       durationLong: string;
       priceNegative: string;
       priceTooHigh: string;
+      placeShort: string;
+      placeLong: string;
       policyShort: string;
       policyLong: string;
       timeInvalid: string;
@@ -252,6 +261,28 @@ export function ExperienceForm({
     v?.region ||
       (experience?.region ?? cityChoices.find((o) => o.nameEn === cityDefault)?.region ?? 'Aseer'),
   );
+  const [tier, setTier] = useState<'flexible' | 'moderate' | 'strict'>(
+    (v?.cancellationTier as 'flexible' | 'moderate' | 'strict' | undefined) ??
+      experience?.cancellationTier ??
+      'moderate',
+  );
+
+  // Server-validated failures land while the host is still parked at the
+  // submit button, far below the errored field on the longest form in the
+  // product — move them to the first problem (the role="alert" lines
+  // announce it for screen readers either way).
+  const formRef = useRef<HTMLFormElement>(null);
+  const formErrorRef = useRef<HTMLParagraphElement>(null);
+  useEffect(() => {
+    if (state.success || !state.message) return;
+    const invalid = formRef.current?.querySelector<HTMLElement>('[aria-invalid="true"]');
+    if (invalid) {
+      invalid.scrollIntoView({ block: 'center', behavior: 'smooth' });
+      invalid.focus({ preventScroll: true });
+    } else {
+      formErrorRef.current?.focus();
+    }
+  }, [state]);
 
   const errorPrefix = useId();
   const eid = (k: string) => `${errorPrefix}-${k}-error`;
@@ -269,7 +300,7 @@ export function ExperienceForm({
   const submitPendingLabel = mode === 'create' ? copy.submitCreatePending : copy.submitEditPending;
 
   return (
-    <form action={formAction} noValidate className="flex flex-col gap-10">
+    <form ref={formRef} action={formAction} noValidate className="flex flex-col gap-10">
       <input type="hidden" name="locale" value={locale} />
       {experience && <input type="hidden" name="experienceId" value={experience.id} />}
 
@@ -284,6 +315,9 @@ export function ExperienceForm({
           <Input
             id="ex-titleEn"
             name="titleEn"
+            // English-authored content — without this the AR form renders
+            // typed English with RTL bidi (punctuation jumps to line start).
+            dir="ltr"
             required
             minLength={8}
             maxLength={120}
@@ -302,6 +336,7 @@ export function ExperienceForm({
           <textarea
             id="ex-descriptionEn"
             name="descriptionEn"
+            dir="ltr"
             rows={6}
             required
             minLength={60}
@@ -476,6 +511,9 @@ export function ExperienceForm({
           <Input
             id="ex-placeName"
             name="placeName"
+            // `auto` not `ltr`: canonically English, but a pasted Arabic
+            // place string should still read correctly while typed.
+            dir="auto"
             required
             minLength={2}
             maxLength={120}
@@ -513,11 +551,16 @@ export function ExperienceForm({
           <label htmlFor="ex-region" className="text-sm font-medium">
             {copy.regionLabel}
           </label>
+          {/* Derived from the picked city (registry canonical, English).
+              The visible field localizes the display for Arabic hosts; the
+              hidden input keeps the canonical value the DB and the
+              seed-content dictionary key on. */}
+          <input type="hidden" name="region" value={region} />
           <Input
             id="ex-region"
-            name="region"
-            value={region}
-            onChange={(e) => setRegion(e.target.value)}
+            readOnly
+            className="bg-mist"
+            value={locale === 'ar' ? toArabicText(region) : region}
           />
         </div>
 
@@ -557,6 +600,7 @@ export function ExperienceForm({
           <textarea
             id="ex-inclusionsRaw"
             name="inclusionsRaw"
+            dir="auto"
             rows={4}
             defaultValue={inclusionsDefault}
             placeholder={copy.inclusionsPlaceholder}
@@ -578,6 +622,7 @@ export function ExperienceForm({
           <textarea
             id="ex-whatToBringRaw"
             name="whatToBringRaw"
+            dir="auto"
             rows={4}
             defaultValue={whatToBringDefault}
             placeholder={copy.whatToBringPlaceholder}
@@ -591,17 +636,23 @@ export function ExperienceForm({
             {copy.cancellationLabel}
           </label>
           {/* Preset tiers only — the selected tier is what guests see on
-              the listing and what each booking snapshots and enforces. */}
+              the listing and what each booking snapshots and enforces.
+              Options carry the short names; the full terms of the CURRENT
+              selection render below, where they can't be clipped by the
+              closed select (the one-line descriptions overflow it at
+              every viewport width). */}
           <select
             id="ex-cancellationTier"
             name="cancellationTier"
-            defaultValue={v?.cancellationTier ?? experience?.cancellationTier ?? 'moderate'}
+            value={tier}
+            onChange={(e) => setTier(e.target.value as 'flexible' | 'moderate' | 'strict')}
             className={SELECT_CLASS}
           >
-            <option value="flexible">{copy.cancellationTiers.flexible}</option>
-            <option value="moderate">{copy.cancellationTiers.moderate}</option>
-            <option value="strict">{copy.cancellationTiers.strict}</option>
+            <option value="flexible">{copy.cancellationTierNames.flexible}</option>
+            <option value="moderate">{copy.cancellationTierNames.moderate}</option>
+            <option value="strict">{copy.cancellationTierNames.strict}</option>
           </select>
+          <p className="text-sarat-black text-sm leading-relaxed">{copy.cancellationTiers[tier]}</p>
           <p className="text-sarat-black-600 text-sm">{copy.cancellationHint}</p>
         </div>
       </fieldset>
@@ -644,7 +695,12 @@ export function ExperienceForm({
       </fieldset>
 
       {formError && (
-        <p role="alert" tabIndex={-1} className="text-al-qatt-red-800 text-sm focus:outline-none">
+        <p
+          ref={formErrorRef}
+          role="alert"
+          tabIndex={-1}
+          className="text-al-qatt-red-800 text-sm focus:outline-none"
+        >
           {formError}
         </p>
       )}

@@ -57,6 +57,15 @@ export function tierDescription(snapshot: PolicySnapshot, t: TierTranslator): st
     : t('descNoPartial', { name, freeWindow });
 }
 
+/** All three localized names keyed by tier — for short select options. */
+export function tierNames(t: TierTranslator): Record<CancellationTier, string> {
+  return {
+    flexible: tierName('flexible', t),
+    moderate: tierName('moderate', t),
+    strict: tierName('strict', t),
+  };
+}
+
 /** All three descriptions keyed by tier — the shape the pickers consume. */
 export function tierDescriptions(
   tiers: Record<CancellationTier, PolicySnapshot>,

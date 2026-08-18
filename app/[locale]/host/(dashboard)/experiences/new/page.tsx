@@ -7,7 +7,7 @@ import { getCurrentUser } from '@/features/auth/queries';
 import { getCancellationTiers } from '@/lib/cancellation-policy';
 import { getEnabledCities } from '@/lib/cities';
 import { getHostDashboard } from '@/features/host-dashboard/queries';
-import { tierDescriptions } from '@/features/bookings/lib/policy-copy';
+import { tierDescriptions, tierNames } from '@/features/bookings/lib/policy-copy';
 import { ExperienceForm } from '@/app/[locale]/host/(dashboard)/experiences/[id]/experience-form';
 import { buildExperienceFormCopy } from '@/app/[locale]/host/(dashboard)/experiences/[id]/build-form-copy';
 
@@ -80,7 +80,11 @@ export default async function NewExperiencePage({
           <ExperienceForm
             mode="create"
             locale={loc}
-            copy={buildExperienceFormCopy(tForm, tierDescriptions(policyTiers, tTiers))}
+            copy={buildExperienceFormCopy(
+              tForm,
+              tierDescriptions(policyTiers, tTiers),
+              tierNames(tTiers),
+            )}
             cityOptions={cityOptions}
           />
         </div>

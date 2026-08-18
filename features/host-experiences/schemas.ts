@@ -60,7 +60,7 @@ export const hostExperienceInputSchema = z.object({
   maxGroupSize: z.coerce.number().int().min(1, 'group_invalid').max(50, 'group_invalid'),
   minAge: z.coerce.number().int().min(0, 'age_invalid').max(99, 'age_invalid'),
   priceSar: z.coerce.number().int().min(0, 'price_negative').max(50000, 'price_too_high'),
-  placeName: z.string().trim().min(2).max(120),
+  placeName: z.string().trim().min(2, 'place_short').max(120, 'place_long'),
   city: z.string().trim().min(2).max(80).default('Abha'),
   region: z.string().trim().min(2).max(80).default('Aseer'),
   inclusionsRaw: z.string().transform(linesFromTextarea),
