@@ -7,11 +7,11 @@ import { z } from 'zod';
  * depend on row state (e.g. "must have ≥3 inclusions to publish") —
  * the schema only enforces shape.
  *
- * Arabic fields are intentionally omitted from the input shape per
- * BRIEF §4 ("the AI does not author Arabic"). The action writes
- * `TODO(ar): pending translation` placeholders to the notNull
- * `titleAr` / `descriptionAr` columns; the partnership team or the
- * host fills them in directly via SQL or a future i18n editor.
+ * Arabic fields are host-optional (2026-08-18: hosts author both
+ * languages in one form). An empty Arabic field parses to `undefined`
+ * and the action falls back to the `TODO(ar)` placeholder, keeping the
+ * partnerships-team translation pass as the backstop — the moderation
+ * approval gate still blocks placeholder Arabic from going live.
  *
  * `inclusions` / `whatToBring` arrive as multi-line textareas; the
  * schema splits on newlines and trims so the host can type naturally.
@@ -48,9 +48,31 @@ const weekdaysFromForm = (raw: string[]): number[] =>
     ),
   ).sort((a, b) => a - b);
 
+/**
+ * Optional Arabic text: empty submits parse to `undefined` (placeholder
+ * fallback in the action); non-empty values get the same bounds as the
+ * admin editor so the two surfaces can never disagree, and a pasted
+ * `TODO(ar)` marker is rejected rather than stored as real copy.
+ */
+const optionalArText = (min: number, max: number, code: string) =>
+  z
+    .string()
+    .trim()
+    .transform((v) => (v === '' ? undefined : v))
+    .pipe(
+      z
+        .string()
+        .min(min, code)
+        .max(max, code)
+        .refine((v) => !v.startsWith('TODO(ar'), code)
+        .optional(),
+    );
+
 export const hostExperienceInputSchema = z.object({
   titleEn: z.string().trim().min(8, 'title_short').max(120, 'title_long'),
+  titleAr: optionalArText(2, 160, 'title_ar_invalid'),
   descriptionEn: z.string().trim().min(60, 'description_short').max(4000, 'description_long'),
+  descriptionAr: optionalArText(10, 5000, 'description_ar_invalid'),
   category: z.enum(EXPERIENCE_CATEGORIES),
   durationMinutes: z.coerce
     .number()
@@ -64,7 +86,9 @@ export const hostExperienceInputSchema = z.object({
   city: z.string().trim().min(2).max(80).default('Abha'),
   region: z.string().trim().min(2).max(80).default('Aseer'),
   inclusionsRaw: z.string().transform(linesFromTextarea),
+  inclusionsArRaw: z.string().transform(linesFromTextarea),
   whatToBringRaw: z.string().transform(linesFromTextarea),
+  whatToBringArRaw: z.string().transform(linesFromTextarea),
   cancellationTier: z.enum(['flexible', 'moderate', 'strict']),
   availabilityWeekdays: z.array(z.string()).transform(weekdaysFromForm),
   /**

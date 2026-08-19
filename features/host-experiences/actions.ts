@@ -26,10 +26,13 @@ import { getPlatformSettings } from '@/lib/platform-settings';
  * returns `not_found` (never `forbidden`), so attackers can't probe
  * for existing ids by reading error messages.
  *
- * Arabic copy: per BRIEF §4 the AI never writes Arabic. Title and
- * description are submitted in English; the action writes a
- * `TODO(ar):` placeholder to the notNull `titleAr` / `descriptionAr`
- * columns. Hosts (or the partnership team) can fill those in later.
+ * Arabic copy: hosts author it alongside English (2026-08-18). Fields
+ * left blank fall back to the `TODO(ar):` placeholder on the notNull
+ * `titleAr` / `descriptionAr` columns, keeping the partnerships-team
+ * translation pass as the backstop; the moderation approval gate still
+ * blocks placeholder Arabic from going live. The form always echoes
+ * the stored Arabic back into the inputs, so a save round-trips
+ * existing translations rather than wiping them.
  */
 
 export interface HostExperienceState {
@@ -47,7 +50,9 @@ export interface HostExperienceState {
   fields?: Partial<
     Record<
       | 'titleEn'
+      | 'titleAr'
       | 'descriptionEn'
+      | 'descriptionAr'
       | 'durationMinutes'
       | 'maxGroupSize'
       | 'minAge'
@@ -72,7 +77,9 @@ export interface HostExperienceState {
   values?: Partial<
     Record<
       | 'titleEn'
+      | 'titleAr'
       | 'descriptionEn'
+      | 'descriptionAr'
       | 'category'
       | 'durationMinutes'
       | 'maxGroupSize'
@@ -82,7 +89,9 @@ export interface HostExperienceState {
       | 'city'
       | 'region'
       | 'inclusionsRaw'
+      | 'inclusionsArRaw'
       | 'whatToBringRaw'
+      | 'whatToBringArRaw'
       | 'cancellationTier'
       | 'startTime'
       | 'bookingCutoffHours'
@@ -106,7 +115,9 @@ function formValues(formData: FormData, key: string): string[] {
 function collectValues(formData: FormData): NonNullable<HostExperienceState['values']> {
   return {
     titleEn: formValue(formData, 'titleEn'),
+    titleAr: formValue(formData, 'titleAr'),
     descriptionEn: formValue(formData, 'descriptionEn'),
+    descriptionAr: formValue(formData, 'descriptionAr'),
     category: formValue(formData, 'category'),
     durationMinutes: formValue(formData, 'durationMinutes'),
     maxGroupSize: formValue(formData, 'maxGroupSize'),
@@ -116,7 +127,9 @@ function collectValues(formData: FormData): NonNullable<HostExperienceState['val
     city: formValue(formData, 'city'),
     region: formValue(formData, 'region'),
     inclusionsRaw: formValue(formData, 'inclusionsRaw'),
+    inclusionsArRaw: formValue(formData, 'inclusionsArRaw'),
     whatToBringRaw: formValue(formData, 'whatToBringRaw'),
+    whatToBringArRaw: formValue(formData, 'whatToBringArRaw'),
     cancellationTier: formValue(formData, 'cancellationTier'),
     startTime: formValue(formData, 'startTime'),
     bookingCutoffHours: formValue(formData, 'bookingCutoffHours'),
@@ -129,7 +142,9 @@ function collectValues(formData: FormData): NonNullable<HostExperienceState['val
 function parseForm(formData: FormData) {
   return hostExperienceInputSchema.safeParse({
     titleEn: formValue(formData, 'titleEn'),
+    titleAr: formValue(formData, 'titleAr'),
     descriptionEn: formValue(formData, 'descriptionEn'),
+    descriptionAr: formValue(formData, 'descriptionAr'),
     category: formValue(formData, 'category'),
     durationMinutes: formValue(formData, 'durationMinutes'),
     maxGroupSize: formValue(formData, 'maxGroupSize'),
@@ -139,7 +154,9 @@ function parseForm(formData: FormData) {
     city: formValue(formData, 'city') || 'Abha',
     region: formValue(formData, 'region') || 'Aseer',
     inclusionsRaw: formValue(formData, 'inclusionsRaw'),
+    inclusionsArRaw: formValue(formData, 'inclusionsArRaw'),
     whatToBringRaw: formValue(formData, 'whatToBringRaw'),
+    whatToBringArRaw: formValue(formData, 'whatToBringArRaw'),
     cancellationTier: formValue(formData, 'cancellationTier'),
     availabilityWeekdays: formValues(formData, 'availabilityWeekdays'),
     startTime: formValue(formData, 'startTime'),
@@ -184,16 +201,20 @@ async function requireOwnership(
 }
 
 /**
- * Columns every host write sets. Arabic is deliberately ABSENT: it is
- * placeholder-stamped once at creation and preserved on every update —
- * earlier versions re-stamped `TODO(ar)` on each edit, wiping the
- * partnership team's translations (and, with the approval gate now
- * blocking `TODO(ar)`, trapping every edited listing out of review).
+ * Columns every host write sets. Arabic is included since 2026-08-18
+ * (hosts author both languages): a blank field falls back to the
+ * `TODO(ar)` placeholder / empty list. The form always echoes stored
+ * Arabic (placeholder-stripped) back into the inputs, so saves
+ * round-trip existing translations instead of wiping them — clearing a
+ * field is therefore a deliberate act, and the approval gate still
+ * keeps placeholder Arabic from going live.
  */
 function payloadForWrite(input: HostExperienceInput) {
   return {
     titleEn: input.titleEn,
+    titleAr: input.titleAr ?? AR_PLACEHOLDER,
     descriptionEn: input.descriptionEn,
+    descriptionAr: input.descriptionAr ?? AR_PLACEHOLDER,
     category: input.category,
     durationMinutes: input.durationMinutes,
     maxGroupSize: input.maxGroupSize,
@@ -203,7 +224,9 @@ function payloadForWrite(input: HostExperienceInput) {
     city: input.city,
     region: input.region,
     inclusions: input.inclusionsRaw,
+    inclusionsAr: input.inclusionsArRaw,
     whatToBring: input.whatToBringRaw,
+    whatToBringAr: input.whatToBringArRaw,
     cancellationTier: input.cancellationTier,
     availabilityWeekdays: input.availabilityWeekdays,
     startTime: input.startTime,
@@ -244,8 +267,6 @@ export async function createDraftExperience(
         .insert(experiences)
         .values({
           ...writePayload,
-          titleAr: AR_PLACEHOLDER,
-          descriptionAr: AR_PLACEHOLDER,
           slug,
           hostId: guard.hostId,
           status: 'draft',
@@ -600,7 +621,9 @@ export async function duplicateHostExperience(
               region: source.region,
               placeName: source.placeName,
               inclusions: [...source.inclusions],
+              inclusionsAr: [...source.inclusionsAr],
               whatToBring: [...source.whatToBring],
+              whatToBringAr: [...source.whatToBringAr],
               cancellationPolicy: source.cancellationPolicy,
               cancellationTier: source.cancellationTier,
               availabilityWeekdays: [...source.availabilityWeekdays],

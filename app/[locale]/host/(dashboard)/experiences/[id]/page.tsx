@@ -141,10 +141,9 @@ export default async function EditExperiencePage({
     timeOfDay: t('moments.timeOfDay'),
     titleEn: t('moments.titleEn'),
     descriptionEn: t('moments.descriptionEn'),
-    // Arabic fields are hidden in the host editor; copy still required.
-    titleAr: '',
-    descriptionAr: '',
-    arHint: '',
+    titleAr: t('moments.titleAr'),
+    descriptionAr: t('moments.descriptionAr'),
+    arHint: t('moments.arHint'),
     lockedLive: t('moments.lockedLive'),
     save: t('moments.save'),
     saving: t('moments.saving'),
@@ -409,7 +408,6 @@ export default async function EditExperiencePage({
                       isLast={index === momentRows.length - 1}
                       copy={momentsCopy}
                       actions={hostMomentActions}
-                      hideArabic
                     />
                   ))}
                 </ul>
@@ -418,7 +416,6 @@ export default async function EditExperiencePage({
                 experienceId={experience.id}
                 copy={momentsCopy}
                 actions={hostMomentActions}
-                hideArabic
               />
             </div>
           )}

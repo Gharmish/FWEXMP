@@ -37,7 +37,9 @@ export interface HostExperienceRow {
   city: string;
   region: string;
   inclusions: string[];
+  inclusionsAr: string[];
   whatToBring: string[];
+  whatToBringAr: string[];
   cancellationPolicy: string;
   cancellationTier: 'flexible' | 'moderate' | 'strict';
   availabilityWeekdays: number[];
@@ -73,7 +75,9 @@ function rowToView(row: typeof experiences.$inferSelect): HostExperienceRow {
     city: row.city,
     region: row.region,
     inclusions: [...row.inclusions],
+    inclusionsAr: [...row.inclusionsAr],
     whatToBring: [...row.whatToBring],
+    whatToBringAr: [...row.whatToBringAr],
     cancellationPolicy: row.cancellationPolicy,
     cancellationTier: row.cancellationTier,
     availabilityWeekdays: [...row.availabilityWeekdays],

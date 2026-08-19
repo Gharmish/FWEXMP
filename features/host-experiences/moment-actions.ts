@@ -27,14 +27,26 @@ import type { MomentActionState } from '@/features/admin/experiences/moment-acti
  *      details (the main form) demotes it to review first. We refuse
  *      with `locked_live` instead of silently demoting from here.
  *
- * Hosts write English; Arabic stays the TODO placeholder for the
- * translation pass (same convention as the experience form).
+ * Hosts author Arabic alongside English (2026-08-18). A blank Arabic
+ * field falls back to the TODO placeholder for the partnerships-team
+ * translation pass (same convention as the experience form); the
+ * editor prefills stored Arabic, so saves round-trip translations.
  */
+
+/** Empty (or pasted-placeholder) Arabic parses to `undefined`. */
+const optionalMomentAr = (max: number) =>
+  z
+    .string()
+    .trim()
+    .max(max)
+    .transform((v) => (v === '' || v.startsWith('TODO(ar') ? undefined : v));
 
 const hostMomentSchema = z.object({
   timeOfDay: z.string().trim().max(40).optional(),
   titleEn: z.string().trim().min(2, 'title_short').max(120, 'title_long'),
+  titleAr: optionalMomentAr(160),
   descriptionEn: z.string().trim().min(2, 'description_short').max(2000, 'description_long'),
+  descriptionAr: optionalMomentAr(2000),
 });
 
 function val(formData: FormData, key: string): string {
@@ -108,7 +120,9 @@ function parseFields(
   const parsed = hostMomentSchema.safeParse({
     timeOfDay: val(formData, 'timeOfDay') || undefined,
     titleEn: val(formData, 'titleEn'),
+    titleAr: val(formData, 'titleAr'),
     descriptionEn: val(formData, 'descriptionEn'),
+    descriptionAr: val(formData, 'descriptionAr'),
   });
   if (!parsed.success) {
     const fields: Record<string, string> = {};
@@ -144,9 +158,9 @@ export async function addMomentAsHost(
       orderIndex: next,
       timeOfDay: input.timeOfDay ?? null,
       titleEn: input.titleEn,
-      titleAr: AR_PLACEHOLDER,
+      titleAr: input.titleAr ?? AR_PLACEHOLDER,
       descriptionEn: input.descriptionEn,
-      descriptionAr: AR_PLACEHOLDER,
+      descriptionAr: input.descriptionAr ?? AR_PLACEHOLDER,
     });
   } catch (error) {
     reportError(error, { surface: 'host-moments:add', experienceId });
@@ -174,14 +188,17 @@ export async function updateMomentAsHost(
     const guard = await requireEditableExperience(experienceId);
     if ('error' in guard) return guard.error;
 
-    // English only — the Arabic columns keep whatever the translation
-    // pass (or admin) wrote; a host edit must not clobber it.
+    // The editor prefills the stored Arabic (placeholder-stripped), so
+    // saves round-trip existing translations; a blank field reverts to
+    // the placeholder for the translation pass to fill.
     await db
       .update(moments)
       .set({
         timeOfDay: input.timeOfDay ?? null,
         titleEn: input.titleEn,
+        titleAr: input.titleAr ?? AR_PLACEHOLDER,
         descriptionEn: input.descriptionEn,
+        descriptionAr: input.descriptionAr ?? AR_PLACEHOLDER,
       })
       .where(eq(moments.id, momentId));
   } catch (error) {

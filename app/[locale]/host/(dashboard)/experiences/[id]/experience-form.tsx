@@ -4,6 +4,7 @@ import { useActionState, useEffect, useId, useRef, useState } from 'react';
 import { useFormStatus } from 'react-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { isArPlaceholder } from '@/lib/ar-placeholder';
 import { toArabicText } from '@/features/experiences/lib/arabic-content';
 import { LocationPicker } from '@/features/host-experiences/components/location-picker';
 import { RiyalSymbol } from '@/components/ui/riyal-symbol';
@@ -35,8 +36,10 @@ import type { HostExperienceRow } from '@/features/host-experiences/queries';
 type FieldErrorCode =
   | 'title_short'
   | 'title_long'
+  | 'title_ar_invalid'
   | 'description_short'
   | 'description_long'
+  | 'description_ar_invalid'
   | 'duration_short'
   | 'duration_long'
   | 'price_negative'
@@ -54,8 +57,10 @@ type FieldErrorCode =
 const FIELD_ERROR_KEY: Record<FieldErrorCode, keyof ExperienceFormCopy['errors']['fields']> = {
   title_short: 'titleShort',
   title_long: 'titleLong',
+  title_ar_invalid: 'titleArInvalid',
   description_short: 'descriptionShort',
   description_long: 'descriptionLong',
+  description_ar_invalid: 'descriptionArInvalid',
   duration_short: 'durationShort',
   duration_long: 'durationLong',
   price_negative: 'priceNegative',
@@ -92,8 +97,12 @@ export interface ExperienceFormCopy {
   sectionAvailability: string;
   titleLabel: string;
   titleHint: string;
+  titleArLabel: string;
   descriptionLabel: string;
   descriptionHint: string;
+  descriptionArLabel: string;
+  /** Under the Arabic description — blank fields fall back to the team. */
+  arOptionalHint: string;
   categoryLabel: string;
   durationLabel: string;
   priceLabel: string;
@@ -125,9 +134,13 @@ export interface ExperienceFormCopy {
   inclusionsLabel: string;
   inclusionsPlaceholder: string;
   inclusionsHint: string;
+  inclusionsArLabel: string;
+  inclusionsArPlaceholder: string;
   whatToBringLabel: string;
   whatToBringPlaceholder: string;
   whatToBringHint: string;
+  whatToBringArLabel: string;
+  whatToBringArPlaceholder: string;
   cancellationLabel: string;
   /** Full one-sentence terms per policy preset, keyed by tier value. */
   cancellationTiers: Record<'flexible' | 'moderate' | 'strict', string>;
@@ -154,8 +167,10 @@ export interface ExperienceFormCopy {
     fields: {
       titleShort: string;
       titleLong: string;
+      titleArInvalid: string;
       descriptionShort: string;
       descriptionLong: string;
+      descriptionArInvalid: string;
       durationShort: string;
       durationLong: string;
       priceNegative: string;
@@ -191,6 +206,11 @@ export interface ExperienceFormProps {
 }
 
 const initialState: HostExperienceState = { success: false };
+
+/** Stored Arabic for prefill — the `TODO(ar)` placeholder reads as empty. */
+function arText(value?: string): string {
+  return value && !isArPlaceholder(value) ? value : '';
+}
 
 const TEXTAREA_CLASS = cn(
   'rounded-input border-sarat-black/20 bg-white text-sarat-black w-full resize-y [border-width:0.5px] px-4 py-3 text-base',
@@ -288,7 +308,9 @@ export function ExperienceForm({
   const eid = (k: string) => `${errorPrefix}-${k}-error`;
 
   const inclusionsDefault = v?.inclusionsRaw ?? experience?.inclusions.join('\n') ?? '';
+  const inclusionsArDefault = v?.inclusionsArRaw ?? experience?.inclusionsAr.join('\n') ?? '';
   const whatToBringDefault = v?.whatToBringRaw ?? experience?.whatToBring.join('\n') ?? '';
+  const whatToBringArDefault = v?.whatToBringArRaw ?? experience?.whatToBringAr.join('\n') ?? '';
   const weekdaysDefault = new Set(
     v?.availabilityWeekdays ?? (experience?.availabilityWeekdays ?? []).map(String),
   );
@@ -299,6 +321,14 @@ export function ExperienceForm({
   const submitLabel = mode === 'create' ? copy.submitCreate : copy.submitEdit;
   const submitPendingLabel = mode === 'create' ? copy.submitCreatePending : copy.submitEditPending;
 
+  // Visible section eyebrows — the long form was one unbroken column
+  // (legends were sr-only), which made it hard to scan. The sr-only
+  // legend stays for screen readers; this is its visual twin.
+  const sectionClassName = cn(
+    'text-sarat-black-600 font-medium text-[11px]',
+    locale === 'en' && 'tracking-[0.2em] uppercase',
+  );
+
   return (
     <form ref={formRef} action={formAction} noValidate className="flex flex-col gap-10">
       <input type="hidden" name="locale" value={locale} />
@@ -307,50 +337,98 @@ export function ExperienceForm({
       {/* ----- Basics ----- */}
       <fieldset className="flex flex-col gap-6">
         <legend className="sr-only">{copy.sectionBasics}</legend>
+        <p aria-hidden className={sectionClassName}>
+          {copy.sectionBasics}
+        </p>
 
-        <div className="flex flex-col gap-2">
-          <label htmlFor="ex-titleEn" className="text-sm font-medium">
-            {copy.titleLabel}
-          </label>
-          <Input
-            id="ex-titleEn"
-            name="titleEn"
-            // English-authored content — without this the AR form renders
-            // typed English with RTL bidi (punctuation jumps to line start).
-            dir="ltr"
-            required
-            minLength={8}
-            maxLength={120}
-            defaultValue={v?.titleEn ?? experience?.titleEn}
-            aria-invalid={fields.titleEn ? 'true' : undefined}
-            aria-describedby={fields.titleEn ? eid('titleEn') : undefined}
-          />
-          <p className="text-sarat-black-600 text-sm">{copy.titleHint}</p>
-          <FieldError id={eid('titleEn')} message={fieldErrorMessage(fields.titleEn, copy)} />
+        {/* English and Arabic side by side — the host authors both; a
+            blank Arabic field falls back to the partnerships team. */}
+        <div className="grid gap-6 sm:grid-cols-2">
+          <div className="flex flex-col gap-2">
+            <label htmlFor="ex-titleEn" className="text-sm font-medium">
+              {copy.titleLabel}
+            </label>
+            <Input
+              id="ex-titleEn"
+              name="titleEn"
+              // English-authored content — without this the AR form renders
+              // typed English with RTL bidi (punctuation jumps to line start).
+              dir="ltr"
+              required
+              minLength={8}
+              maxLength={120}
+              defaultValue={v?.titleEn ?? experience?.titleEn}
+              aria-invalid={fields.titleEn ? 'true' : undefined}
+              aria-describedby={fields.titleEn ? eid('titleEn') : undefined}
+            />
+            <p className="text-sarat-black-600 text-sm">{copy.titleHint}</p>
+            <FieldError id={eid('titleEn')} message={fieldErrorMessage(fields.titleEn, copy)} />
+          </div>
+
+          <div className="flex flex-col gap-2">
+            <label htmlFor="ex-titleAr" className="text-sm font-medium">
+              {copy.titleArLabel}
+            </label>
+            <Input
+              id="ex-titleAr"
+              name="titleAr"
+              dir="rtl"
+              maxLength={160}
+              defaultValue={v?.titleAr ?? arText(experience?.titleAr)}
+              aria-invalid={fields.titleAr ? 'true' : undefined}
+              aria-describedby={fields.titleAr ? eid('titleAr') : undefined}
+            />
+            <p className="text-sarat-black-600 text-sm">{copy.arOptionalHint}</p>
+            <FieldError id={eid('titleAr')} message={fieldErrorMessage(fields.titleAr, copy)} />
+          </div>
         </div>
 
-        <div className="flex flex-col gap-2">
-          <label htmlFor="ex-descriptionEn" className="text-sm font-medium">
-            {copy.descriptionLabel}
-          </label>
-          <textarea
-            id="ex-descriptionEn"
-            name="descriptionEn"
-            dir="ltr"
-            rows={6}
-            required
-            minLength={60}
-            maxLength={4000}
-            defaultValue={v?.descriptionEn ?? experience?.descriptionEn}
-            className={TEXTAREA_CLASS}
-            aria-invalid={fields.descriptionEn ? 'true' : undefined}
-            aria-describedby={fields.descriptionEn ? eid('descriptionEn') : undefined}
-          />
-          <p className="text-sarat-black-600 text-sm">{copy.descriptionHint}</p>
-          <FieldError
-            id={eid('descriptionEn')}
-            message={fieldErrorMessage(fields.descriptionEn, copy)}
-          />
+        <div className="grid gap-6 sm:grid-cols-2">
+          <div className="flex flex-col gap-2">
+            <label htmlFor="ex-descriptionEn" className="text-sm font-medium">
+              {copy.descriptionLabel}
+            </label>
+            <textarea
+              id="ex-descriptionEn"
+              name="descriptionEn"
+              dir="ltr"
+              rows={8}
+              required
+              minLength={60}
+              maxLength={4000}
+              defaultValue={v?.descriptionEn ?? experience?.descriptionEn}
+              className={TEXTAREA_CLASS}
+              aria-invalid={fields.descriptionEn ? 'true' : undefined}
+              aria-describedby={fields.descriptionEn ? eid('descriptionEn') : undefined}
+            />
+            <p className="text-sarat-black-600 text-sm">{copy.descriptionHint}</p>
+            <FieldError
+              id={eid('descriptionEn')}
+              message={fieldErrorMessage(fields.descriptionEn, copy)}
+            />
+          </div>
+
+          <div className="flex flex-col gap-2">
+            <label htmlFor="ex-descriptionAr" className="text-sm font-medium">
+              {copy.descriptionArLabel}
+            </label>
+            <textarea
+              id="ex-descriptionAr"
+              name="descriptionAr"
+              dir="rtl"
+              rows={8}
+              maxLength={5000}
+              defaultValue={v?.descriptionAr ?? arText(experience?.descriptionAr)}
+              className={TEXTAREA_CLASS}
+              aria-invalid={fields.descriptionAr ? 'true' : undefined}
+              aria-describedby={fields.descriptionAr ? eid('descriptionAr') : undefined}
+            />
+            <p className="text-sarat-black-600 text-sm">{copy.arOptionalHint}</p>
+            <FieldError
+              id={eid('descriptionAr')}
+              message={fieldErrorMessage(fields.descriptionAr, copy)}
+            />
+          </div>
         </div>
 
         <div className="flex flex-col gap-2">
@@ -375,6 +453,9 @@ export function ExperienceForm({
       {/* ----- Numbers ----- */}
       <fieldset className="border-sarat-black/8 grid gap-6 [border-top-width:0.5px] pt-10 sm:grid-cols-2">
         <legend className="sr-only">{copy.sectionPracticalities}</legend>
+        <p aria-hidden className={cn(sectionClassName, 'sm:col-span-2')}>
+          {copy.sectionPracticalities}
+        </p>
 
         <div className="flex flex-col gap-2">
           <label htmlFor="ex-durationMinutes" className="text-sm font-medium">
@@ -503,6 +584,9 @@ export function ExperienceForm({
       {/* ----- Place ----- */}
       <fieldset className="border-sarat-black/8 grid gap-6 [border-top-width:0.5px] pt-10 sm:grid-cols-2">
         <legend className="sr-only">{copy.sectionPlace}</legend>
+        <p aria-hidden className={cn(sectionClassName, 'sm:col-span-2')}>
+          {copy.sectionPlace}
+        </p>
 
         <div className="flex flex-col gap-2 sm:col-span-2">
           <label htmlFor="ex-placeName" className="text-sm font-medium">
@@ -592,43 +676,82 @@ export function ExperienceForm({
       {/* ----- Inclusions / what-to-bring ----- */}
       <fieldset className="border-sarat-black/8 flex flex-col gap-6 [border-top-width:0.5px] pt-10">
         <legend className="sr-only">{copy.sectionDetail}</legend>
+        <p aria-hidden className={sectionClassName}>
+          {copy.sectionDetail}
+        </p>
 
-        <div className="flex flex-col gap-2">
-          <label htmlFor="ex-inclusionsRaw" className="text-sm font-medium">
-            {copy.inclusionsLabel}
-          </label>
-          <textarea
-            id="ex-inclusionsRaw"
-            name="inclusionsRaw"
-            dir="auto"
-            rows={4}
-            defaultValue={inclusionsDefault}
-            placeholder={copy.inclusionsPlaceholder}
-            className={TEXTAREA_CLASS}
-            aria-invalid={fields.inclusionsRaw ? 'true' : undefined}
-            aria-describedby={fields.inclusionsRaw ? eid('inclusionsRaw') : undefined}
-          />
-          <p className="text-sarat-black-600 text-sm">{copy.inclusionsHint}</p>
-          <FieldError
-            id={eid('inclusionsRaw')}
-            message={fieldErrorMessage(fields.inclusionsRaw, copy)}
-          />
+        <div className="grid gap-6 sm:grid-cols-2">
+          <div className="flex flex-col gap-2">
+            <label htmlFor="ex-inclusionsRaw" className="text-sm font-medium">
+              {copy.inclusionsLabel}
+            </label>
+            <textarea
+              id="ex-inclusionsRaw"
+              name="inclusionsRaw"
+              dir="auto"
+              rows={4}
+              defaultValue={inclusionsDefault}
+              placeholder={copy.inclusionsPlaceholder}
+              className={TEXTAREA_CLASS}
+              aria-invalid={fields.inclusionsRaw ? 'true' : undefined}
+              aria-describedby={fields.inclusionsRaw ? eid('inclusionsRaw') : undefined}
+            />
+            <p className="text-sarat-black-600 text-sm">{copy.inclusionsHint}</p>
+            <FieldError
+              id={eid('inclusionsRaw')}
+              message={fieldErrorMessage(fields.inclusionsRaw, copy)}
+            />
+          </div>
+
+          <div className="flex flex-col gap-2">
+            <label htmlFor="ex-inclusionsArRaw" className="text-sm font-medium">
+              {copy.inclusionsArLabel}
+            </label>
+            <textarea
+              id="ex-inclusionsArRaw"
+              name="inclusionsArRaw"
+              dir="rtl"
+              rows={4}
+              defaultValue={inclusionsArDefault}
+              placeholder={copy.inclusionsArPlaceholder}
+              className={TEXTAREA_CLASS}
+            />
+            <p className="text-sarat-black-600 text-sm">{copy.arOptionalHint}</p>
+          </div>
         </div>
 
-        <div className="flex flex-col gap-2">
-          <label htmlFor="ex-whatToBringRaw" className="text-sm font-medium">
-            {copy.whatToBringLabel}
-          </label>
-          <textarea
-            id="ex-whatToBringRaw"
-            name="whatToBringRaw"
-            dir="auto"
-            rows={4}
-            defaultValue={whatToBringDefault}
-            placeholder={copy.whatToBringPlaceholder}
-            className={TEXTAREA_CLASS}
-          />
-          <p className="text-sarat-black-600 text-sm">{copy.whatToBringHint}</p>
+        <div className="grid gap-6 sm:grid-cols-2">
+          <div className="flex flex-col gap-2">
+            <label htmlFor="ex-whatToBringRaw" className="text-sm font-medium">
+              {copy.whatToBringLabel}
+            </label>
+            <textarea
+              id="ex-whatToBringRaw"
+              name="whatToBringRaw"
+              dir="auto"
+              rows={4}
+              defaultValue={whatToBringDefault}
+              placeholder={copy.whatToBringPlaceholder}
+              className={TEXTAREA_CLASS}
+            />
+            <p className="text-sarat-black-600 text-sm">{copy.whatToBringHint}</p>
+          </div>
+
+          <div className="flex flex-col gap-2">
+            <label htmlFor="ex-whatToBringArRaw" className="text-sm font-medium">
+              {copy.whatToBringArLabel}
+            </label>
+            <textarea
+              id="ex-whatToBringArRaw"
+              name="whatToBringArRaw"
+              dir="rtl"
+              rows={4}
+              defaultValue={whatToBringArDefault}
+              placeholder={copy.whatToBringArPlaceholder}
+              className={TEXTAREA_CLASS}
+            />
+            <p className="text-sarat-black-600 text-sm">{copy.arOptionalHint}</p>
+          </div>
         </div>
 
         <div className="flex flex-col gap-2">
@@ -660,6 +783,9 @@ export function ExperienceForm({
       {/* ----- Availability ----- */}
       <fieldset className="border-sarat-black/8 flex flex-col gap-3 [border-top-width:0.5px] pt-10">
         <legend className="sr-only">{copy.sectionAvailability}</legend>
+        <p aria-hidden className={cn(sectionClassName, 'mb-3')}>
+          {copy.sectionAvailability}
+        </p>
         <p className="text-sm font-medium">{copy.weekdaysLabel}</p>
         <div className="flex flex-wrap gap-2">
           {copy.weekdays.map((day, idx) => {
