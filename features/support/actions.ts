@@ -1,16 +1,17 @@
 'use server';
 
-import { eq } from 'drizzle-orm';
+import { and, eq, ne } from 'drizzle-orm';
 import { revalidatePath } from 'next/cache';
 import { db } from '@/lib/db';
-import { conversationMessages, conversations } from '@/db/schema';
+import { conversationMessages, conversations, supportTicketEvents, supportTickets } from '@/db/schema';
 import { reportError } from '@/lib/log';
 import { adminGuard } from '@/features/admin/guard';
 import { SERVICE_WINDOW_MS } from '@/lib/conversations/inbound';
 import { claimDelivery, markDeliveryFailed, markDeliverySent } from '@/lib/notifications/ledger';
 import { sendWhatsAppText, whatsappAddress } from '@/lib/notifications/whatsapp';
 import { hasWhatsApp } from '@/lib/env';
-import { replySchema, stateSchema } from '@/features/support/schemas';
+import { replySchema, resolveTicketSchema, stateSchema } from '@/features/support/schemas';
+import { getCurrentUser } from '@/features/auth/queries';
 
 /**
  * Support-inbox writes (WHATSAPP_SUPPORT_PLAN.md phase 1): a human
@@ -132,7 +133,8 @@ export async function setConversationState(
   try {
     const updated = await db
       .update(conversations)
-      .set({ state: parsed.data.state, updatedAt: new Date() })
+      // Handing back to the agent also clears a stale lock.
+      .set({ state: parsed.data.state, agentLockUntil: null, updatedAt: new Date() })
       .where(eq(conversations.id, parsed.data.conversationId))
       .returning({ id: conversations.id });
     if (updated.length === 0) return { success: false, message: 'not_found' };
@@ -141,6 +143,50 @@ export async function setConversationState(
     return { success: true };
   } catch (error) {
     reportError(error, { surface: 'support:setState' });
+    return { success: false, message: 'server' };
+  }
+}
+
+export async function resolveTicket(
+  _previous: SupportActionState,
+  formData: FormData,
+): Promise<SupportActionState> {
+  const guard = await adminGuard();
+  if (guard?.reason === 'no_db') return { success: false, message: 'no_db' };
+  if (guard) return { success: false, message: 'forbidden' };
+  const parsed = resolveTicketSchema.safeParse({
+    ticketId: formValue(formData, 'ticketId'),
+    resolutionNote: formValue(formData, 'resolutionNote') || undefined,
+  });
+  if (!parsed.success) return { success: false, message: 'validation' };
+  try {
+    const admin = await getCurrentUser();
+    const now = new Date();
+    const updated = await db
+      .update(supportTickets)
+      .set({
+        status: 'resolved',
+        resolvedAt: now,
+        resolvedByUserId: admin?.id ?? null,
+        resolutionNote: parsed.data.resolutionNote ?? null,
+        updatedAt: now,
+      })
+      .where(and(eq(supportTickets.id, parsed.data.ticketId), ne(supportTickets.status, 'resolved')))
+      .returning({ id: supportTickets.id, conversationId: supportTickets.conversationId });
+    if (updated.length === 0) return { success: false, message: 'not_found' };
+    await db.insert(supportTicketEvents).values({
+      ticketId: updated[0].id,
+      kind: 'resolved',
+      actor: 'admin',
+      note: parsed.data.resolutionNote ?? null,
+    });
+    if (updated[0].conversationId) {
+      revalidatePath(`/[locale]/admin/support/${updated[0].conversationId}`, 'page');
+    }
+    revalidatePath('/[locale]/admin/support', 'page');
+    return { success: true };
+  } catch (error) {
+    reportError(error, { surface: 'support:resolveTicket' });
     return { success: false, message: 'server' };
   }
 }

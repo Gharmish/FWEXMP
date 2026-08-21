@@ -37,3 +37,26 @@ export interface ConversationThread {
   conversation: AdminConversationRow;
   messages: readonly ConversationMessageRow[];
 }
+
+export type TicketPriority = 'urgent' | 'high' | 'normal';
+export type TicketStatus = 'open' | 'waiting_guest' | 'waiting_admin' | 'resolved';
+
+export interface AdminTicketRow {
+  id: string;
+  reference: string;
+  category: string;
+  priority: TicketPriority;
+  status: TicketStatus;
+  summary: string;
+  openedBy: string;
+  conversationId: string | null;
+  bookingId: string | null;
+  bookingReference: string | null;
+  guestName: string | null;
+  slaDueAt: string;
+  overdue: boolean;
+  escalatedAt: string | null;
+  resolvedAt: string | null;
+  resolutionNote: string | null;
+  createdAt: string;
+}

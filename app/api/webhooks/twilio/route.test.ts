@@ -55,6 +55,11 @@ vi.mock('next/server', async (importOriginal) => {
   return { ...actual, after: (fn: () => Promise<void>) => void fn() };
 });
 
+const runAgentTurn = vi.fn(async () => ({ outcome: 'replied' }));
+vi.mock('@/lib/support-agent/agent', () => ({
+  runAgentTurn: (...args: unknown[]) => runAgentTurn(...(args as [])),
+}));
+
 import { POST } from './route';
 
 const WEBHOOK_URL = 'https://gharmish.com/api/webhooks/twilio';
@@ -216,7 +221,19 @@ describe('POST /api/webhooks/twilio — support line', () => {
     guestName: 'Sara',
     shouldAck: true,
     isNew: true,
+    state: 'human' as const,
   };
+
+  it('routes a bot-owned conversation to the agent instead of the ack', async () => {
+    recordInboundMessage.mockResolvedValueOnce({ ...recorded, state: 'bot' });
+    const params = { From: 'whatsapp:+966541104000', Body: 'Where do we meet?' };
+
+    await POST(request(params, sign(params)));
+
+    await vi.waitFor(() => expect(runAgentTurn).toHaveBeenCalled());
+    expect(acknowledgeInbound).not.toHaveBeenCalled();
+    expect(pageAdminAboutInbound).not.toHaveBeenCalled();
+  });
 
   it('stores an ordinary message, then acks the guest and pages the admin', async () => {
     recordInboundMessage.mockResolvedValueOnce(recorded);

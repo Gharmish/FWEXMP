@@ -121,6 +121,12 @@ const serverSchema = z.object({
   // (see app/api/webhooks/twilio). Set this to repoint support at a
   // dedicated number without a deploy.
   SUPPORT_WHATSAPP: z.string().default(''),
+  // Claude API key for the WhatsApp support agent (WHATSAPP_SUPPORT_PLAN.md
+  // phase 2). Optional: while empty, new conversations route to the human
+  // inbox exactly as in phase 1 — setting the key is the agent's go-live.
+  ANTHROPIC_API_KEY: z.string().default(''),
+  // Model override for the support agent; default is the quality tier.
+  SUPPORT_AGENT_MODEL: z.string().default('claude-opus-4-8'),
   // Shared secret for the scheduled release-holds job. Vercel Cron sends it as
   // `Authorization: Bearer <CRON_SECRET>`. Empty → the route rejects every
   // request (the job is inert until configured).
@@ -180,6 +186,8 @@ export const serverEnv = parseEnv(
     ADMIN_ALERT_EMAIL: process.env.ADMIN_ALERT_EMAIL,
     ADMIN_ALERT_WHATSAPP: process.env.ADMIN_ALERT_WHATSAPP,
     SUPPORT_WHATSAPP: process.env.SUPPORT_WHATSAPP,
+    ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY,
+    SUPPORT_AGENT_MODEL: process.env.SUPPORT_AGENT_MODEL,
     CRON_SECRET: process.env.CRON_SECRET,
     TIKTOK_EVENTS_ACCESS_TOKEN: process.env.TIKTOK_EVENTS_ACCESS_TOKEN,
     GA4_API_SECRET: process.env.GA4_API_SECRET,
@@ -247,6 +255,11 @@ export function hasWhatsApp(): boolean {
   return Boolean(
     serverEnv.TWILIO_ACCOUNT_SID && serverEnv.TWILIO_AUTH_TOKEN && serverEnv.TWILIO_WHATSAPP_FROM,
   );
+}
+
+/** The Claude-powered support agent answers new WhatsApp conversations. */
+export function hasSupportAgent(): boolean {
+  return hasWhatsApp() && Boolean(serverEnv.ANTHROPIC_API_KEY);
 }
 
 /**

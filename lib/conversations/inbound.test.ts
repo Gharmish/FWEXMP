@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 
 vi.mock('server-only', () => ({}));
 vi.mock('@/lib/db', () => ({ db: {} }));
-vi.mock('@/lib/env', () => ({ serverEnv: { DATABASE_URL: '' } }));
+vi.mock('@/lib/env', () => ({ serverEnv: { DATABASE_URL: '' }, hasSupportAgent: () => false }));
 vi.mock('@/lib/log', () => ({ reportError: vi.fn() }));
 vi.mock('@/lib/admin-alerts', () => ({ notifyAdmin: vi.fn() }));
 vi.mock('@/lib/notifications/ledger', () => ({

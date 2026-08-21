@@ -10,8 +10,10 @@ import { formatDate } from '@/lib/format';
 import {
   CONVERSATIONS_LIST_LIMIT,
   listConversationsForAdmin,
+  listOpenTicketsForAdmin,
 } from '@/features/support/queries';
 import type { AdminConversationRow } from '@/features/support/types';
+import { TicketCard, type TicketCardCopy } from '@/app/[locale]/admin/support/ticket-card';
 
 const DATE_TIME: Intl.DateTimeFormatOptions = {
   day: 'numeric',
@@ -39,7 +41,31 @@ export default async function AdminSupportPage({
   setRequestLocale(locale);
   const loc = locale as Locale;
 
-  const [t, rows] = await Promise.all([getTranslations('admin'), listConversationsForAdmin()]);
+  const [t, rows, tickets] = await Promise.all([
+    getTranslations('admin'),
+    listConversationsForAdmin(),
+    listOpenTicketsForAdmin(),
+  ]);
+  const ticketCopy: TicketCardCopy = {
+    due: (date) => t('support.ticket.due', { date }),
+    overdue: t('support.ticket.overdue'),
+    escalated: t('support.ticket.escalated'),
+    openedBy: (who) => t('support.ticket.openedBy', { who }),
+    openThread: t('support.ticket.openThread'),
+    booking: (reference) => t('support.ticket.booking', { reference }),
+    priority: {
+      urgent: t('support.ticket.priority.urgent'),
+      high: t('support.ticket.priority.high'),
+      normal: t('support.ticket.priority.normal'),
+    },
+    status: {
+      open: t('support.ticket.status.open'),
+      waiting_guest: t('support.ticket.status.waiting_guest'),
+      waiting_admin: t('support.ticket.status.waiting_admin'),
+      resolved: t('support.ticket.status.resolved'),
+    },
+    category: (key) => t.has(`support.ticket.category.${key}`) ? t(`support.ticket.category.${key}`) : key,
+  };
   const awaiting = (rows ?? []).filter((r) => r.awaitingReply);
   const others = (rows ?? []).filter((r) => !r.awaitingReply);
 
@@ -120,7 +146,7 @@ export default async function AdminSupportPage({
           </h2>
           <p className="text-sarat-black-600 max-w-xl text-base">{t('noDb.description')}</p>
         </div>
-      ) : rows.length === 0 ? (
+      ) : rows.length === 0 && (!tickets || tickets.length === 0) ? (
         <EmptyState
           icon={MessageCircle}
           eyebrow={t('support.empty.eyebrow')}
@@ -129,6 +155,25 @@ export default async function AdminSupportPage({
         />
       ) : (
         <>
+          <section className="flex flex-col gap-4">
+            <h2 className="font-display text-2xl font-medium tracking-[-0.025em]">
+              {t('support.ticketsHeading')}
+              {tickets && tickets.length > 0 && (
+                <span className="text-sarat-black-600 ms-2 text-base tabular-nums">
+                  {tickets.length}
+                </span>
+              )}
+            </h2>
+            {!tickets || tickets.length === 0 ? (
+              <p className="text-sarat-black-600 text-base">{t('support.ticketsEmpty')}</p>
+            ) : (
+              <ul className="flex flex-col gap-4">
+                {tickets.map((ticket) => (
+                  <TicketCard key={ticket.id} ticket={ticket} locale={loc} copy={ticketCopy} />
+                ))}
+              </ul>
+            )}
+          </section>
           <section className="flex flex-col gap-4">
             <h2 className="font-display text-2xl font-medium tracking-[-0.025em]">
               {t('support.awaitingHeading')}

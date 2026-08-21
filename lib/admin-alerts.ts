@@ -9,6 +9,8 @@ import {
 } from '@/lib/notifications/whatsapp';
 import { SITE_URL } from '@/lib/site';
 import { reportError } from '@/lib/log';
+import { db } from '@/lib/db';
+import { adminAlerts } from '@/db/schema';
 
 /**
  * Operational alerts to the team inbox (`ADMIN_ALERT_EMAIL`). These are
@@ -33,7 +35,9 @@ export type AdminAlertKind =
   | 'vat_stamp_missing'
   | 'vat_threshold'
   | 'negative_take'
-  | 'guest_whatsapp_inbound';
+  | 'guest_whatsapp_inbound'
+  | 'support_ticket_opened'
+  | 'support_ticket_sla_breached';
 
 const SUBJECTS: Record<AdminAlertKind, string> = {
   host_application_submitted: 'New host application',
@@ -48,6 +52,8 @@ const SUBJECTS: Record<AdminAlertKind, string> = {
   vat_threshold: 'VAT registration threshold approaching',
   negative_take: 'Bookings settled at a negative platform take',
   guest_whatsapp_inbound: 'New WhatsApp message from a guest',
+  support_ticket_opened: 'Support ticket opened',
+  support_ticket_sla_breached: 'Support ticket past its SLA',
 };
 
 function escapeHtml(value: string): string {
@@ -67,6 +73,18 @@ export async function notifyAdmin(
   kind: AdminAlertKind,
   detail: Record<string, string | number | null | undefined>,
 ): Promise<void> {
+  // Persist first (2026-08-21): the rails below are fire-and-forget, so
+  // this row is the only record that an alert ever happened — what the
+  // admin acknowledges later and what SLA sweeps check. Best-effort.
+  try {
+    if (serverEnv.DATABASE_URL) {
+      const ticketId = typeof detail.ticketId === 'string' ? detail.ticketId : null;
+      await db.insert(adminAlerts).values({ kind, subject: SUBJECTS[kind], detail, ticketId });
+    }
+  } catch (error) {
+    reportError(error, { surface: 'admin-alerts:persist', kind });
+  }
+
   // Two independent rails, each best-effort (2026-08-02 ops audit P0-7).
   // Email alone meant every operational alert rode Resend — the vendor
   // whose outage is itself one of the alerts. Each rail is inert until
@@ -82,7 +100,11 @@ export async function notifyAdmin(
       const adminUrl =
         kind === 'guest_whatsapp_inbound' && typeof detail.from === 'string'
           ? `${SITE_URL}/en/admin/guests?q=${encodeURIComponent(detail.from)}`
-          : 'bookingId' in detail || 'reference' in detail
+          : kind.startsWith('support_ticket') && typeof detail.conversationId === 'string'
+            ? `${SITE_URL}/en/admin/support/${detail.conversationId}`
+            : kind.startsWith('support_ticket')
+              ? `${SITE_URL}/en/admin/support`
+              : 'bookingId' in detail || 'reference' in detail
             ? `${SITE_URL}/en/admin/bookings`
             : `${SITE_URL}/en/admin`;
       const subject = `[Gharmish admin] ${SUBJECTS[kind]}`;

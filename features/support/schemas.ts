@@ -7,5 +7,10 @@ export const replySchema = z.object({
 
 export const stateSchema = z.object({
   conversationId: z.string().uuid(),
-  state: z.enum(['human', 'closed']),
+  state: z.enum(['bot', 'human', 'closed']),
+});
+
+export const resolveTicketSchema = z.object({
+  ticketId: z.string().uuid(),
+  resolutionNote: z.string().trim().max(2000).optional(),
 });

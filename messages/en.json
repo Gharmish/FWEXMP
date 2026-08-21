@@ -1393,6 +1393,46 @@
           "send_failed": "WhatsApp didn't accept the message. It's saved in the thread — try again in a moment.",
           "server": "Something went wrong. Please try again."
         }
+      },
+      "ticketsHeading": "Tickets",
+      "ticketsEmpty": "No open tickets.",
+      "ticket": {
+        "due": "Due {date}",
+        "overdue": "Overdue",
+        "escalated": "Re-paged",
+        "openedBy": "Opened by {who}",
+        "openThread": "Open conversation",
+        "booking": "Booking {reference}",
+        "priority": {
+          "urgent": "Urgent",
+          "high": "High",
+          "normal": "Normal"
+        },
+        "status": {
+          "open": "Open",
+          "waiting_guest": "Waiting on guest",
+          "waiting_admin": "Waiting on you",
+          "resolved": "Resolved"
+        },
+        "category": {
+          "refund_exception": "Refund exception",
+          "payment_issue": "Payment issue",
+          "safety_incident": "Safety incident",
+          "host_no_show": "Host no-show",
+          "guest_complaint": "Guest complaint",
+          "host_request": "Host request",
+          "account": "Account",
+          "other": "Other"
+        },
+        "resolveLabel": "Resolution note (internal)",
+        "resolvePlaceholder": "What was done…",
+        "resolve": "Mark resolved",
+        "resolving": "Resolving…",
+        "resolvedNote": "Resolved"
+      },
+      "stateActions": {
+        "toBot": "Hand back to assistant",
+        "toBotPending": "Handing back…"
       }
     }
   },

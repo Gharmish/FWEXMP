@@ -45,6 +45,8 @@ import {
 } from '@/features/bookings/lib/booking-email';
 import { listRetryableDeliveries } from '@/lib/notifications/ledger';
 import { sweepUnacknowledgedInbound } from '@/lib/conversations/inbound';
+import { sweepPendingAgentTurns } from '@/lib/support-agent/agent';
+import { sweepTicketSla } from '@/features/support/tickets';
 import { sendRebookEmail, sendWinbackEmail } from '@/features/marketing/lifecycle-email';
 import { addDays } from '@/features/bookings/lib/availability';
 import { startInstant } from '@/features/bookings/lib/cancellation';
@@ -701,6 +703,10 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     // the guest is sitting on silence. Same throttle rules as the live
     // path, so on a healthy day this is a no-op.
     const supportSwept = await sweepUnacknowledgedInbound();
+    // Phase 2: same net for bot-owned threads, plus one re-page per
+    // ticket that blew through its SLA.
+    const agentSwept = await sweepPendingAgentTurns();
+    const slaBreaches = await sweepTicketSla();
 
     // Pass 4 — auto-complete. A confirmed, collected booking whose date
     // has passed becomes `completed` the next day (owner decision:
@@ -1096,6 +1102,8 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       nudged,
       retried,
       supportSwept,
+      agentSwept,
+      slaBreaches,
       completed: completed.length,
       marketed,
       expiredCreditSar,

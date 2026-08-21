@@ -1913,6 +1913,8 @@ export const conversations = pgTable(
      * five lines doesn't get five identical replies.
      */
     lastAckAt: timestamp({ withTimezone: true }),
+    /** Per-conversation agent lock: one turn at a time; lapses on its own. */
+    agentLockUntil: timestamp({ withTimezone: true }),
     createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
   },
@@ -1957,6 +1959,103 @@ export const conversationMessages = pgTable(
       .on(t.providerMessageId)
       .where(sql`provider_message_id IS NOT NULL`),
   ],
+);
+
+export const ticketCategoryEnum = pgEnum('support_ticket_category', [
+  'refund_exception',
+  'payment_issue',
+  'safety_incident',
+  'host_no_show',
+  'guest_complaint',
+  'host_request',
+  'account',
+  'other',
+]);
+export const ticketPriorityEnum = pgEnum('support_ticket_priority', ['urgent', 'high', 'normal']);
+export const ticketStatusEnum = pgEnum('support_ticket_status', [
+  'open',
+  'waiting_guest',
+  'waiting_admin',
+  'resolved',
+]);
+
+/**
+ * Escalations the support agent (or a rule) hands to a person
+ * (WHATSAPP_SUPPORT_PLAN.md phase 2). One queue for everything a human
+ * must decide: refund exceptions, safety incidents, host no-shows,
+ * payment trouble. `reference` (`TK-XXXXXX`) is what the guest is told.
+ * `slaDueAt` is set from priority at creation (urgent 15m / high 2h /
+ * normal 24h); the cron re-pages once when it passes (`escalatedAt`).
+ */
+export const supportTickets = pgTable(
+  'support_tickets',
+  {
+    id: uuid().defaultRandom().primaryKey(),
+    reference: text().notNull().unique(),
+    conversationId: uuid().references(() => conversations.id, { onDelete: 'set null' }),
+    bookingId: uuid().references(() => bookings.id, { onDelete: 'set null' }),
+    guestId: uuid().references(() => guests.id, { onDelete: 'set null' }),
+    category: ticketCategoryEnum().notNull().default('other'),
+    priority: ticketPriorityEnum().notNull().default('normal'),
+    status: ticketStatusEnum().notNull().default('open'),
+    /** Agent-written one-paragraph summary for the operator (English). */
+    summary: text().notNull(),
+    /** Who opened it: `agent` / `admin` / `system` / `guest` (web form). */
+    openedBy: text().notNull().default('agent'),
+    assigneeUserId: uuid(),
+    slaDueAt: timestamp({ withTimezone: true }).notNull(),
+    /** When the SLA-breach re-page went out; null while on time. */
+    escalatedAt: timestamp({ withTimezone: true }),
+    resolvedAt: timestamp({ withTimezone: true }),
+    resolvedByUserId: uuid(),
+    resolutionNote: text(),
+    createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index('support_tickets_status_sla_idx').on(t.status, t.slaDueAt),
+    index('support_tickets_conversation_idx')
+      .on(t.conversationId)
+      .where(sql`conversation_id IS NOT NULL`),
+  ],
+);
+
+/** Append-only ticket history (opened / escalated / sla_breached / replied / resolved / reopened). */
+export const supportTicketEvents = pgTable(
+  'support_ticket_events',
+  {
+    id: uuid().defaultRandom().primaryKey(),
+    ticketId: uuid()
+      .notNull()
+      .references(() => supportTickets.id, { onDelete: 'cascade' }),
+    kind: text().notNull(),
+    /** `agent` / `admin` / `system`. */
+    actor: text().notNull(),
+    note: text(),
+    createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index('support_ticket_events_ticket_idx').on(t.ticketId, t.createdAt)],
+);
+
+/**
+ * Persisted copy of every `notifyAdmin()` alert (2026-08-02 ops audit
+ * P0-7 follow-up). The rails (email + WhatsApp) stay fire-and-forget;
+ * this row is what survives a missed phone buzz — an inbox the admin
+ * can acknowledge, and the place SLA sweeps check what was already
+ * paged.
+ */
+export const adminAlerts = pgTable(
+  'admin_alerts',
+  {
+    id: uuid().defaultRandom().primaryKey(),
+    kind: text().notNull(),
+    subject: text().notNull(),
+    detail: jsonb().notNull().default({}),
+    ticketId: uuid().references(() => supportTickets.id, { onDelete: 'set null' }),
+    acknowledgedAt: timestamp({ withTimezone: true }),
+    createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index('admin_alerts_created_idx').on(t.createdAt)],
 );
 
 /**
@@ -2192,6 +2291,10 @@ export type Conversation = typeof conversations.$inferSelect;
 export type NewConversation = typeof conversations.$inferInsert;
 export type ConversationMessage = typeof conversationMessages.$inferSelect;
 export type NewConversationMessage = typeof conversationMessages.$inferInsert;
+export type SupportTicket = typeof supportTickets.$inferSelect;
+export type NewSupportTicket = typeof supportTickets.$inferInsert;
+export type SupportTicketEvent = typeof supportTicketEvents.$inferSelect;
+export type AdminAlert = typeof adminAlerts.$inferSelect;
 export type UserRole = typeof userRoles.$inferSelect;
 export type NewUserRole = typeof userRoles.$inferInsert;
 export type AdminTotpFactor = typeof adminTotpFactors.$inferSelect;

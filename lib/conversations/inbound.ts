@@ -2,7 +2,7 @@ import 'server-only';
 
 import { desc, eq, isNotNull, or } from 'drizzle-orm';
 import { db } from '@/lib/db';
-import { serverEnv } from '@/lib/env';
+import { hasSupportAgent, serverEnv } from '@/lib/env';
 import { bookings, conversationMessages, conversations, guests } from '@/db/schema';
 import type { Locale } from '@/lib/i18n';
 import { reportError } from '@/lib/log';
@@ -46,6 +46,8 @@ export interface RecordedInbound {
   shouldAck: boolean;
   /** False when Twilio redelivered a SID we already stored. */
   isNew: boolean;
+  /** Who owns the next reply: the agent (`bot`) or a person (`human`/`closed`). */
+  state: 'bot' | 'human' | 'closed';
 }
 
 /** Canonical `+digits` form shared by the conversations table and guest lookups. */
@@ -106,23 +108,28 @@ export async function recordInboundMessage(input: InboundMessage): Promise<Recor
   try {
     const existing = await db.query.conversations.findFirst({
       where: eq(conversations.address, address),
-      columns: { id: true, guestId: true, locale: true, lastAckAt: true },
+      columns: { id: true, guestId: true, locale: true, lastAckAt: true, state: true },
     });
 
     let conversationId: string;
     let locale: Locale;
     let guestName: string | null = null;
     let lastAckAt: Date | null;
+    let state: 'bot' | 'human' | 'closed';
 
     if (existing) {
       conversationId = existing.id;
       locale = existing.locale;
       lastAckAt = existing.lastAckAt;
+      // A closed thread re-opens on the guest's next message — to the
+      // agent when it's on, otherwise to the inbox.
+      state = existing.state === 'closed' ? (hasSupportAgent() ? 'bot' : 'human') : existing.state;
       await db
         .update(conversations)
         .set({
           lastInboundAt: now,
           updatedAt: now,
+          state,
           ...(input.profileName ? { profileName: input.profileName } : {}),
         })
         .where(eq(conversations.id, conversationId));
@@ -138,12 +145,15 @@ export async function recordInboundMessage(input: InboundMessage): Promise<Recor
       locale = guest?.preferredLanguage ?? inferLocale(body);
       guestName = guest?.name ?? null;
       lastAckAt = null;
+      // Phase 2: new conversations go to the agent when it's configured.
+      state = hasSupportAgent() ? 'bot' : 'human';
       const [created] = await db
         .insert(conversations)
         .values({
           address,
           guestId: guest?.id ?? null,
           locale,
+          state,
           profileName: input.profileName ?? null,
           lastInboundAt: now,
         })
@@ -181,6 +191,7 @@ export async function recordInboundMessage(input: InboundMessage): Promise<Recor
       locale,
       guestName,
       isNew,
+      state,
       shouldAck: isNew && (!lastAckAt || now.getTime() - lastAckAt.getTime() > ACK_QUIET_PERIOD_MS),
     };
   } catch (error) {
@@ -200,49 +211,91 @@ export const ACK_COPY: Record<Locale, string> = {
   en: "Welcome to Gharmish. We've received your message and one of our team will reply shortly.\n\nIf it's urgent during an experience, please contact your host directly via the link in your booking confirmation.",
 };
 
-/**
- * Send the automatic acknowledgement and record it as an outbound
- * message + ledger row. Deliberately NOT gated on the suppression list:
- * this is a direct reply inside the session the guest just opened, not
- * a business-initiated notification, and silence is the failure mode
- * we're fixing. Best-effort.
- */
-export async function acknowledgeInbound(recorded: RecordedInbound, address: string): Promise<void> {
-  const to = whatsappAddress(address);
-  if (!to) return;
-  const text = ACK_COPY[recorded.locale];
-  const claim = await claimDelivery({
-    dedupeKey: `support_ack:${recorded.messageId}`,
-    channel: 'whatsapp',
-    type: 'support_ack',
-    recipientType: 'guest',
-    recipient: address,
-    locale: recorded.locale,
-  });
-  if (!claim.claimed) return;
+export interface OutboundReply {
+  conversationId: string;
+  address: string;
+  body: string;
+  author: 'agent' | 'admin' | 'system';
+  /** Ledger `type` slug: support_ack / support_agent / support_reply. */
+  type: string;
+  locale: Locale;
+  /** Idempotency key for the ledger row. */
+  dedupeKey: string;
+  toolCalls?: unknown;
+}
 
-  const result = await sendWhatsAppText({ to, body: text });
-  const now = new Date();
+/**
+ * Send one outbound message on a conversation and record it (message
+ * row + delivery ledger + conversation timestamps). Deliberately NOT
+ * gated on the suppression list: these are replies inside a session the
+ * guest opened, not business-initiated notifications. Callers own the
+ * 24h-window rule. Never throws; returns the send result.
+ */
+export async function sendConversationReply(
+  input: OutboundReply,
+): Promise<{ ok: true; messageId: string | null } | { ok: false; error: string }> {
+  const to = whatsappAddress(input.address);
+  if (!to) return { ok: false, error: 'bad address' };
+  const claim = await claimDelivery({
+    dedupeKey: input.dedupeKey,
+    channel: 'whatsapp',
+    type: input.type,
+    recipientType: 'guest',
+    recipient: input.address,
+    locale: input.locale,
+  });
+  if (!claim.claimed) return { ok: false, error: 'duplicate' };
+
+  const result = await sendWhatsAppText({ to, body: input.body });
   if (result.ok) await markDeliverySent(claim.id, result.sid || null);
   else await markDeliveryFailed(claim.id, result.error);
 
-  if (!hasDb()) return;
-  try {
-    await db.insert(conversationMessages).values({
-      conversationId: recorded.conversationId,
-      direction: 'out',
-      author: 'system',
-      body: text,
-      providerMessageId: result.ok && result.sid ? result.sid : null,
-      deliveryId: claim.id,
-    });
-    await db
-      .update(conversations)
-      .set({ lastAckAt: now, lastOutboundAt: now, updatedAt: now })
-      .where(eq(conversations.id, recorded.conversationId));
-  } catch (error) {
-    reportError(error, { surface: 'conversations:ack-persist' });
+  let messageId: string | null = null;
+  if (hasDb()) {
+    try {
+      const now = new Date();
+      const [row] = await db
+        .insert(conversationMessages)
+        .values({
+          conversationId: input.conversationId,
+          direction: 'out',
+          author: input.author,
+          body: input.body,
+          providerMessageId: result.ok && result.sid ? result.sid : null,
+          deliveryId: claim.id,
+          toolCalls: input.toolCalls ?? null,
+        })
+        .returning({ id: conversationMessages.id });
+      messageId = row?.id ?? null;
+      await db
+        .update(conversations)
+        .set({
+          lastOutboundAt: now,
+          updatedAt: now,
+          ...(input.type === 'support_ack' ? { lastAckAt: now } : {}),
+        })
+        .where(eq(conversations.id, input.conversationId));
+    } catch (error) {
+      reportError(error, { surface: 'conversations:persist-outbound' });
+    }
   }
+  return result.ok ? { ok: true, messageId } : { ok: false, error: result.error };
+}
+
+/**
+ * The automatic "we got your message" reply for conversations a person
+ * owns (phase 0). Throttled by the caller via `shouldAck`.
+ */
+export async function acknowledgeInbound(recorded: RecordedInbound, address: string): Promise<void> {
+  await sendConversationReply({
+    conversationId: recorded.conversationId,
+    address,
+    body: ACK_COPY[recorded.locale],
+    author: 'system',
+    type: 'support_ack',
+    locale: recorded.locale,
+    dedupeKey: `support_ack:${recorded.messageId}`,
+  });
 }
 
 /** Page the admin rails about a new guest message. Best-effort (notifyAdmin never throws). */
@@ -314,6 +367,7 @@ export async function sweepUnacknowledgedInbound(
         guestName: guest?.name ?? null,
         shouldAck: true,
         isNew: true,
+        state: 'human',
       };
       await acknowledgeInbound(recorded, row.address);
       await pageAdminAboutInbound(recorded, row.address, last.body);

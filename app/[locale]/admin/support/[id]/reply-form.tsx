@@ -20,6 +20,8 @@ interface Copy {
   reopen: string;
   closePending: string;
   reopenPending: string;
+  toBot: string;
+  toBotPending: string;
   errors: Record<ErrorKey, string>;
 }
 
@@ -29,14 +31,24 @@ export interface ReplyFormProps {
   state: 'bot' | 'human' | 'closed';
   /** Reply textarea direction follows the guest's language, not the admin UI. */
   guestDir: 'rtl' | 'ltr';
+  /** The Claude agent is configured — offer "hand back to assistant". */
+  agentAvailable: boolean;
   copy: Copy;
 }
 
 const initial: SupportActionState = { success: false };
 
-export function ReplyForm({ conversationId, windowOpen, state, guestDir, copy }: ReplyFormProps) {
+export function ReplyForm({
+  conversationId,
+  windowOpen,
+  state,
+  guestDir,
+  agentAvailable,
+  copy,
+}: ReplyFormProps) {
   const [replyState, replyAction, replyPending] = useActionState(replyToConversation, initial);
   const [stateState, stateAction, statePending] = useActionState(setConversationState, initial);
+  const [botState, botAction, botPending] = useActionState(setConversationState, initial);
 
   const replyError =
     !replyState.success && replyState.message ? copy.errors[replyState.message] : undefined;
@@ -80,6 +92,23 @@ export function ReplyForm({ conversationId, windowOpen, state, guestDir, copy }:
         <p className="text-sarat-black-600 border-sarat-black/8 rounded-input bg-mist max-w-2xl [border-width:0.5px] p-4 text-sm leading-relaxed">
           {copy.windowClosedNote}
         </p>
+      )}
+
+      {agentAvailable && state === 'human' && (
+        <form action={botAction} className="flex flex-col gap-2">
+          <input type="hidden" name="conversationId" value={conversationId} />
+          <input type="hidden" name="state" value="bot" />
+          {!botState.success && botState.message && (
+            <p role="alert" className="text-al-qatt-red-800 text-sm">
+              {copy.errors[botState.message]}
+            </p>
+          )}
+          <div>
+            <Button type="submit" variant="secondary" size="sm" disabled={botPending}>
+              {botPending ? copy.toBotPending : copy.toBot}
+            </Button>
+          </div>
+        </form>
       )}
 
       <form action={stateAction} className="flex flex-col gap-2">

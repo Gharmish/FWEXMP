@@ -15,6 +15,7 @@ import {
   pageAdminAboutInbound,
   recordInboundMessage,
 } from '@/lib/conversations/inbound';
+import { runAgentTurn } from '@/lib/support-agent/agent';
 
 /**
  * Twilio webhook — two kinds of POSTs land here:
@@ -147,6 +148,12 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
           // Reply + page after the response: Twilio's webhook timeout is
           // 15s and the ack is a second provider round-trip.
           after(async () => {
+            if (recorded.state === 'bot') {
+              // Phase 2: the agent answers; it falls back to the ack +
+              // a ticket + human handoff on any failure, never silence.
+              await runAgentTurn(recorded, address);
+              return;
+            }
             if (recorded.shouldAck) await acknowledgeInbound(recorded, address);
             await pageAdminAboutInbound(recorded, address, rawBody);
           });

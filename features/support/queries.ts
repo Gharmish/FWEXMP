@@ -1,16 +1,26 @@
 import 'server-only';
 
-import { desc, eq, sql } from 'drizzle-orm';
+import { desc, eq, ne, sql } from 'drizzle-orm';
 import { db } from '@/lib/db';
-import { conversationMessages, conversations, guests, notificationDeliveries } from '@/db/schema';
+import {
+  bookings,
+  conversationMessages,
+  conversations,
+  guests,
+  notificationDeliveries,
+  supportTickets,
+} from '@/db/schema';
 import { reportError } from '@/lib/log';
 import { adminGuard } from '@/features/admin/guard';
 import { authKey, guestKey } from '@/features/admin/users/lib/keys';
 import { SERVICE_WINDOW_MS } from '@/lib/conversations/inbound';
 import type {
   AdminConversationRow,
+  AdminTicketRow,
   ConversationMessageRow,
   ConversationThread,
+  TicketPriority,
+  TicketStatus,
 } from '@/features/support/types';
 
 /**
@@ -150,5 +160,99 @@ export async function getConversationThread(id: string): Promise<ConversationThr
   } catch (error) {
     reportError(error, { surface: 'support:getThread', id });
     return null;
+  }
+}
+
+const ticketSelect = {
+  id: supportTickets.id,
+  reference: supportTickets.reference,
+  category: supportTickets.category,
+  priority: supportTickets.priority,
+  status: supportTickets.status,
+  summary: supportTickets.summary,
+  openedBy: supportTickets.openedBy,
+  conversationId: supportTickets.conversationId,
+  bookingId: supportTickets.bookingId,
+  bookingReference: bookings.referenceCode,
+  guestName: guests.name,
+  slaDueAt: supportTickets.slaDueAt,
+  escalatedAt: supportTickets.escalatedAt,
+  resolvedAt: supportTickets.resolvedAt,
+  resolutionNote: supportTickets.resolutionNote,
+  createdAt: supportTickets.createdAt,
+};
+
+function toTicketRow(t: {
+  id: string;
+  reference: string;
+  category: string;
+  priority: TicketPriority;
+  status: TicketStatus;
+  summary: string;
+  openedBy: string;
+  conversationId: string | null;
+  bookingId: string | null;
+  bookingReference: string | null;
+  guestName: string | null;
+  slaDueAt: Date;
+  escalatedAt: Date | null;
+  resolvedAt: Date | null;
+  resolutionNote: string | null;
+  createdAt: Date;
+}): AdminTicketRow {
+  return {
+    ...t,
+    slaDueAt: t.slaDueAt.toISOString(),
+    overdue: t.status !== 'resolved' && t.slaDueAt.getTime() < Date.now(),
+    escalatedAt: t.escalatedAt?.toISOString() ?? null,
+    resolvedAt: t.resolvedAt?.toISOString() ?? null,
+    createdAt: t.createdAt.toISOString(),
+  };
+}
+
+const PRIORITY_ORDER = sql`case ${supportTickets.priority} when 'urgent' then 0 when 'high' then 1 else 2 end`;
+
+export const TICKETS_LIST_LIMIT = 200;
+
+/** Unresolved tickets, most urgent and oldest-due first. Null = no DB. */
+export async function listOpenTicketsForAdmin(): Promise<readonly AdminTicketRow[] | null> {
+  const guard = await adminGuard();
+  if (guard?.reason === 'no_db') return null;
+  if (guard) return [];
+  try {
+    const rows = await db
+      .select(ticketSelect)
+      .from(supportTickets)
+      .leftJoin(bookings, eq(bookings.id, supportTickets.bookingId))
+      .leftJoin(guests, eq(guests.id, supportTickets.guestId))
+      .where(ne(supportTickets.status, 'resolved'))
+      .orderBy(PRIORITY_ORDER, supportTickets.slaDueAt)
+      .limit(TICKETS_LIST_LIMIT);
+    return rows.map(toTicketRow);
+  } catch (error) {
+    reportError(error, { surface: 'support:listTickets' });
+    return [];
+  }
+}
+
+/** Tickets on one conversation, newest first (open ones render as cards on the thread). */
+export async function listTicketsForConversation(
+  conversationId: string,
+): Promise<readonly AdminTicketRow[]> {
+  const guard = await adminGuard();
+  if (guard) return [];
+  try {
+    const rows = await db
+      .select(ticketSelect)
+      .from(supportTickets)
+      .leftJoin(bookings, eq(bookings.id, supportTickets.bookingId))
+      .leftJoin(guests, eq(guests.id, supportTickets.guestId))
+      .where(eq(supportTickets.conversationId, conversationId))
+      .orderBy(desc(supportTickets.createdAt))
+      .limit(20);
+    return rows.map(toTicketRow);
+  } catch (error) {
+    reportError(error, { surface: 'support:ticketsForConversation', conversationId });
+    return [];
   }
 }

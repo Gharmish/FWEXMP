@@ -1393,6 +1393,46 @@
           "send_failed": "لم يقبل واتساب الرسالة. حُفظت في المحادثة — حاول مرة أخرى بعد قليل.",
           "server": "حدث خطأ ما. حاول مرة أخرى."
         }
+      },
+      "ticketsHeading": "التذاكر",
+      "ticketsEmpty": "لا تذاكر مفتوحة.",
+      "ticket": {
+        "due": "الموعد {date}",
+        "overdue": "متأخرة",
+        "escalated": "أُعيد التنبيه",
+        "openedBy": "فتحها {who}",
+        "openThread": "فتح المحادثة",
+        "booking": "الحجز {reference}",
+        "priority": {
+          "urgent": "عاجلة",
+          "high": "مرتفعة",
+          "normal": "عادية"
+        },
+        "status": {
+          "open": "مفتوحة",
+          "waiting_guest": "بانتظار الضيف",
+          "waiting_admin": "بانتظارك",
+          "resolved": "محلولة"
+        },
+        "category": {
+          "refund_exception": "استثناء استرداد",
+          "payment_issue": "مشكلة دفع",
+          "safety_incident": "حادثة سلامة",
+          "host_no_show": "غياب المضيف",
+          "guest_complaint": "شكوى ضيف",
+          "host_request": "طلب مضيف",
+          "account": "الحساب",
+          "other": "أخرى"
+        },
+        "resolveLabel": "ملاحظة الحل (داخلية)",
+        "resolvePlaceholder": "ما الذي تم…",
+        "resolve": "وضع علامة محلولة",
+        "resolving": "جارٍ الحل…",
+        "resolvedNote": "محلولة"
+      },
+      "stateActions": {
+        "toBot": "إعادة إلى المساعد",
+        "toBotPending": "جارٍ الإعادة…"
       }
     }
   },
