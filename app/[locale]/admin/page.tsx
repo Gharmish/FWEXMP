@@ -751,17 +751,32 @@ export default async function AdminIndexPage({
                   label={t('dashboard.metrics.site.visitors')}
                   value={<AnimatedNumber value={siteTraffic.visitors.current} />}
                   locale={loc}
-                  growth={growth(siteTraffic.visitors.current, siteTraffic.visitors.previous)}
+                  growth={
+                    siteTraffic.hasComparison
+                      ? growth(siteTraffic.visitors.current, siteTraffic.visitors.previous)
+                      : undefined
+                  }
                   newLabel={newLabel}
                 />
                 <MetricStat
                   label={t('dashboard.metrics.site.pageviews')}
                   value={<AnimatedNumber value={siteTraffic.pageviews.current} />}
                   locale={loc}
-                  growth={growth(siteTraffic.pageviews.current, siteTraffic.pageviews.previous)}
+                  growth={
+                    siteTraffic.hasComparison
+                      ? growth(siteTraffic.pageviews.current, siteTraffic.pageviews.previous)
+                      : undefined
+                  }
                   newLabel={newLabel}
                 />
               </div>
+              {siteTraffic.clampedFrom && (
+                <p className="bg-mist rounded-card text-sarat-black-600 px-4 py-2 text-xs">
+                  {t('dashboard.metrics.site.clamped', {
+                    from: formatDate(toDate(siteTraffic.clampedFrom), loc),
+                  })}
+                </p>
+              )}
               <div className="grid gap-6 lg:grid-cols-3">
                 <div className="flex flex-col gap-3">
                   <h4 className="text-sarat-black-600 text-xs font-medium">

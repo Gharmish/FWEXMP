@@ -35,6 +35,18 @@ export interface TrafficDimensionRow {
 export interface SiteTraffic {
   visitors: Delta;
   pageviews: Delta;
+  /**
+   * False when the comparison window falls (even partly) outside what the
+   * plan retains — the UI then hides the growth badges instead of
+   * comparing against a silently empty period.
+   */
+  hasComparison: boolean;
+  /**
+   * Set when the selected range was clamped to the retention window
+   * (`YYYY-MM-DD` of the earliest day actually queried). Vercel Hobby
+   * keeps 31 days; a 90-day preset is answered for the last 31.
+   */
+  clampedFrom: string | null;
   topCountries: readonly TrafficDimensionRow[];
   topReferrers: readonly TrafficDimensionRow[];
   topPaths: readonly TrafficDimensionRow[];
@@ -105,28 +117,50 @@ function rows(res: AggregateResponse, key: string): TrafficDimensionRow[] {
 }
 
 /**
+ * Days of history the plan serves. Hobby = 31 (the API answers HTTP 400
+ * "only grants access to the latest 31 days" beyond it, verified
+ * 2026-08-21). One day of slack for the UTC/Riyadh skew.
+ */
+const RETENTION_DAYS = 30;
+
+function todayUtc(): string {
+  return new Date().toISOString().slice(0, 10);
+}
+function addDaysIso(day: string, n: number): string {
+  const d = new Date(`${day}T00:00:00.000Z`);
+  d.setUTCDate(d.getUTCDate() + n);
+  return d.toISOString().slice(0, 10);
+}
+
+/**
  * Fetch the card's data for the dashboard's selected range plus the
  * comparison window. Five small requests, parallel, one deadline: a slow
  * or failing Vercel API must degrade this card alone, never the page.
  */
 export async function getSiteTraffic(range: DateRange): Promise<SiteTraffic | null> {
   if (!vercelAnalyticsConfigured()) return null;
+  const earliest = addDaysIso(todayUtc(), -RETENTION_DAYS);
+  const clamped = range.from < earliest;
+  const cur_: DateRange = clamped ? { ...range, from: earliest } : range;
   const prev = comparison(range);
+  const hasComparison = !clamped && prev.from >= earliest;
   try {
     const [cur, before, countries, referrers, paths] = await withDeadline(
       'vercel:analytics',
       6_000,
       Promise.all([
-        count(range),
-        count(prev),
-        aggregate(range, 'country', 5),
-        aggregate(range, 'referrerHostname', 6),
-        aggregate(range, 'requestPath', 6),
+        count(cur_),
+        hasComparison ? count(prev) : Promise.resolve<CountResponse>({}),
+        aggregate(cur_, 'country', 5),
+        aggregate(cur_, 'referrerHostname', 6),
+        aggregate(cur_, 'requestPath', 6),
       ]),
     );
     return {
       visitors: { current: cur.data?.visitors ?? 0, previous: before.data?.visitors ?? 0 },
       pageviews: { current: cur.data?.pageviews ?? 0, previous: before.data?.pageviews ?? 0 },
+      hasComparison,
+      clampedFrom: clamped ? earliest : null,
       topCountries: rows(countries, 'country'),
       topReferrers: rows(referrers, 'referrerHostname'),
       topPaths: rows(paths, 'requestPath'),
