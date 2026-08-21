@@ -3,11 +3,9 @@
 import { eq, isNull, isNotNull, and } from 'drizzle-orm';
 import { revalidatePath } from 'next/cache';
 import { db } from '@/lib/db';
-import { serverEnv } from '@/lib/env';
 import { guests } from '@/db/schema';
 import { reportError } from '@/lib/log';
-import { getCurrentUser } from '@/features/auth/queries';
-import { isAdminUser } from '@/features/admin/auth';
+import { adminFailureMessage, adminGateRefused, requireAdminActor } from '@/features/admin/guard';
 
 /**
  * Admin guest moderation: suspend / restore. A suspended guest keeps
@@ -28,9 +26,10 @@ function formValue(formData: FormData, key: string): string {
 }
 
 async function requireAdmin(): Promise<{ ok: true } | { error: GuestModerationState }> {
-  const admin = await getCurrentUser();
-  if (!admin || !isAdminUser(admin)) return { error: { success: false, message: 'forbidden' } };
-  if (!serverEnv.DATABASE_URL) return { error: { success: false, message: 'no_db' } };
+  const actor = await requireAdminActor();
+  if (adminGateRefused(actor)) {
+    return { error: { success: false, message: adminFailureMessage(actor) } };
+  }
   return { ok: true };
 }
 

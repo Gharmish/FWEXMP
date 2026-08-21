@@ -1,8 +1,6 @@
 import { NextResponse } from 'next/server';
-import { serverEnv } from '@/lib/env';
 import { toCsv } from '@/lib/csv';
-import { getCurrentUser } from '@/features/auth/queries';
-import { isAdminUser } from '@/features/admin/auth';
+import { adminGuard } from '@/features/admin/guard';
 import { listBookingsForExport } from '@/features/admin/bookings/queries';
 
 /**
@@ -11,14 +9,18 @@ import { listBookingsForExport } from '@/features/admin/bookings/queries';
  * get 404 (same enumeration posture as the admin layout). The list
  * query is additionally self-gated, so a slip here still exports
  * nothing.
+ *
+ * The gate is `adminGuard()`, which includes the second factor. A route
+ * handler never renders the admin layout, so the TOTP screen cannot
+ * gate it — before 2026-08-21 a first-factor-only session could pull
+ * the whole booking ledger down over a plain GET.
  */
 export async function GET(): Promise<NextResponse> {
-  const user = await getCurrentUser();
-  if (!isAdminUser(user)) {
-    return NextResponse.json({ error: 'not_found' }, { status: 404 });
-  }
-  if (!serverEnv.DATABASE_URL) {
-    return NextResponse.json({ error: 'no_db' }, { status: 503 });
+  const block = await adminGuard();
+  if (block) {
+    return block.reason === 'no_db'
+      ? NextResponse.json({ error: 'no_db' }, { status: 503 })
+      : NextResponse.json({ error: 'not_found' }, { status: 404 });
   }
 
   // Unbounded export with the full accounting columns — reconcilable

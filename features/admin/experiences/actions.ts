@@ -4,12 +4,10 @@ import { eq } from 'drizzle-orm';
 import { revalidatePath } from 'next/cache';
 import { revalidateExperienceCaches } from '@/lib/cache-tags';
 import { db } from '@/lib/db';
-import { serverEnv } from '@/lib/env';
 import { experiences, experienceModerationEvents } from '@/db/schema';
 import { redirect } from '@/lib/i18n';
 import { reportError } from '@/lib/log';
-import { getCurrentUser } from '@/features/auth/queries';
-import { isAdminUser } from '@/features/admin/auth';
+import { adminFailureMessage, adminGateRefused, requireAdminActor } from '@/features/admin/guard';
 import {
   adminCreateExperienceSchema,
   adminExperienceSchema,
@@ -92,10 +90,11 @@ function collectValues(formData: FormData): NonNullable<AdminExperienceEditState
 async function requireAdmin(): Promise<
   { adminUserId: string } | { error: AdminExperienceEditState }
 > {
-  const admin = await getCurrentUser();
-  if (!admin || !isAdminUser(admin)) return { error: { success: false, message: 'forbidden' } };
-  if (!serverEnv.DATABASE_URL) return { error: { success: false, message: 'no_db' } };
-  return { adminUserId: admin.id };
+  const actor = await requireAdminActor();
+  if (adminGateRefused(actor)) {
+    return { error: { success: false, message: adminFailureMessage(actor) } };
+  }
+  return { adminUserId: actor.adminUserId };
 }
 
 export async function adminUpdateExperience(

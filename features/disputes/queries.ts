@@ -3,8 +3,7 @@ import { db } from '@/lib/db';
 import { serverEnv } from '@/lib/env';
 import { bookings, disputes, experiences, guests } from '@/db/schema';
 import { reportError } from '@/lib/log';
-import { getCurrentUser } from '@/features/auth/queries';
-import { isAdminUser } from '@/features/admin/auth';
+import { adminGuard } from '@/features/admin/guard';
 import { authKey, guestKey } from '@/features/admin/users/lib/keys';
 import { isDisputeRefundable } from '@/features/disputes/lib/refundable';
 
@@ -47,9 +46,10 @@ export const DISPUTES_LIST_LIMIT = 500;
 
 /** Null = no database configured (page shows the noDb notice, not "all clear"). */
 export async function listDisputesForAdmin(): Promise<readonly AdminDisputeRow[] | null> {
-  const user = await getCurrentUser();
-  if (!isAdminUser(user)) return [];
-  if (!serverEnv.DATABASE_URL) return null;
+  const block = await adminGuard();
+  // `no_db` is the one refusal the page must distinguish: it renders a
+  // "needs a database" notice rather than an empty, reassuring list.
+  if (block) return block.reason === 'no_db' ? null : [];
   try {
     const rows = await db
       .select({

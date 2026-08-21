@@ -2,11 +2,9 @@
 
 import { revalidatePath } from 'next/cache';
 import { db } from '@/lib/db';
-import { serverEnv } from '@/lib/env';
 import { userProfileEvents } from '@/db/schema';
 import { reportError } from '@/lib/log';
-import { getCurrentUser } from '@/features/auth/queries';
-import { isAdminUser } from '@/features/admin/auth';
+import { adminFailureMessage, adminGateRefused, requireAdminActor } from '@/features/admin/guard';
 import { resolveEditTargets } from '@/features/admin/users/queries';
 import { creditWallet, debitWallet } from '@/features/wallet/ledger';
 import { adjustWalletBalanceSchema, issueWalletCreditSchema } from '@/features/wallet/schemas';
@@ -46,10 +44,11 @@ function formValue(formData: FormData, key: string): string {
 }
 
 async function requireAdmin(): Promise<{ adminUserId: string } | { error: WalletActionState }> {
-  const admin = await getCurrentUser();
-  if (!admin || !isAdminUser(admin)) return { error: { success: false, message: 'forbidden' } };
-  if (!serverEnv.DATABASE_URL) return { error: { success: false, message: 'no_db' } };
-  return { adminUserId: admin.id };
+  const actor = await requireAdminActor();
+  if (adminGateRefused(actor)) {
+    return { error: { success: false, message: adminFailureMessage(actor) } };
+  }
+  return { adminUserId: actor.adminUserId };
 }
 
 /** Postgres unique-violation SQLSTATE. */

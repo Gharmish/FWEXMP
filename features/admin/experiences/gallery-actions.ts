@@ -4,12 +4,11 @@ import { eq } from 'drizzle-orm';
 import { revalidatePath } from 'next/cache';
 import { revalidateExperienceCaches } from '@/lib/cache-tags';
 import { db } from '@/lib/db';
-import { serverEnv, hasSupabaseAuth } from '@/lib/env';
+import { hasSupabaseAuth } from '@/lib/env';
 import { experiences } from '@/db/schema';
 import { reportError } from '@/lib/log';
 import { getSupabaseUserStorage } from '@/lib/supabase/server';
-import { getCurrentUser } from '@/features/auth/queries';
-import { isAdminUser } from '@/features/admin/auth';
+import { adminFailureMessage, adminGateRefused, requireAdminActor } from '@/features/admin/guard';
 import {
   galleryObjectKey,
   objectKeyFromPublicUrl,
@@ -47,9 +46,10 @@ function formValue(formData: FormData, key: string): string {
 }
 
 async function requireAdmin(): Promise<{ ok: true } | { error: GalleryState }> {
-  const admin = await getCurrentUser();
-  if (!admin || !isAdminUser(admin)) return { error: { success: false, message: 'forbidden' } };
-  if (!serverEnv.DATABASE_URL) return { error: { success: false, message: 'no_db' } };
+  const actor = await requireAdminActor();
+  if (adminGateRefused(actor)) {
+    return { error: { success: false, message: adminFailureMessage(actor) } };
+  }
   return { ok: true };
 }
 

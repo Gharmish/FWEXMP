@@ -22,7 +22,7 @@ import {
 import { getRatingsBySlug } from '@/features/reviews/queries';
 import type { ReviewAggregate } from '@/features/reviews/types';
 import { getCurrentUser } from '@/features/auth/queries';
-import { isAdminUser } from '@/features/admin/auth';
+import { adminGuard } from '@/features/admin/guard';
 import { isArPlaceholder } from '@/lib/ar-placeholder';
 
 /**
@@ -255,7 +255,10 @@ export async function getExperienceBySlugForOwnerPreview(
       getRatingsBySlug(),
     ]);
     if (!row) return undefined;
-    if (!isAdminUser(user) && row.host.userId !== user.id) return undefined;
+    // The admin bypass requires a completed second factor, like every
+    // other admin surface (2026-08-21 security audit); the host's own
+    // preview of their own draft is unaffected.
+    if (row.host.userId !== user.id && (await adminGuard())) return undefined;
     return toDetail(row, ratings);
   } catch (error) {
     reportError(error, { surface: 'experiences:ownerPreview', slug });

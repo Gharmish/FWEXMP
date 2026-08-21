@@ -4,11 +4,9 @@ import { and, asc, eq, inArray, isNull } from 'drizzle-orm';
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 import { db } from '@/lib/db';
-import { serverEnv } from '@/lib/env';
 import { bookings, experiences, payoutClawbacks, payouts } from '@/db/schema';
 import { reportError } from '@/lib/log';
-import { getCurrentUser } from '@/features/auth/queries';
-import { isAdminUser } from '@/features/admin/auth';
+import { adminFailureMessage, adminGateRefused, requireAdminActor } from '@/features/admin/guard';
 import { splitCommission } from '@/features/bookings/lib/commission';
 import { paymentCollected } from '@/features/bookings/lib/payout-sql';
 import { planClawbackDeduction } from '@/features/bookings/lib/clawback';
@@ -57,9 +55,8 @@ export async function markHostPaid(
   _previous: MarkPaidState,
   formData: FormData,
 ): Promise<MarkPaidState> {
-  const admin = await getCurrentUser();
-  if (!admin || !isAdminUser(admin)) return { success: false, message: 'forbidden' };
-  if (!serverEnv.DATABASE_URL) return { success: false, message: 'no_db' };
+  const actor = await requireAdminActor();
+  if (adminGateRefused(actor)) return { success: false, message: adminFailureMessage(actor) };
 
   const parsed = markPaidSchema.safeParse({
     hostId: formData.get('hostId'),
@@ -143,7 +140,7 @@ export async function markHostPaid(
           amountSar: plan.netSar,
           bookingCount: owed.length,
           payoutIban: host.payoutIban,
-          markedByUserId: admin.id,
+          markedByUserId: actor.adminUserId,
         })
         .returning({ id: payouts.id });
 
@@ -164,7 +161,12 @@ export async function markHostPaid(
           .where(inArray(payoutClawbacks.id, plan.settleIds));
       }
 
-      return { paidCount: owed.length, payoutId: batch.id, netSar: plan.netSar, ibanLast4: host.payoutIban ? host.payoutIban.slice(-4) : null } as const;
+      return {
+        paidCount: owed.length,
+        payoutId: batch.id,
+        netSar: plan.netSar,
+        ibanLast4: host.payoutIban ? host.payoutIban.slice(-4) : null,
+      } as const;
     });
 
     if (typeof outcome === 'string') return { success: false, message: outcome };

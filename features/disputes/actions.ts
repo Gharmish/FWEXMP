@@ -8,8 +8,7 @@ import { bookings, disputes, supportTicketEvents, supportTickets } from '@/db/sc
 import { reportError } from '@/lib/log';
 import { notifyAdmin } from '@/lib/admin-alerts';
 import { openTicket } from '@/features/support/tickets';
-import { getCurrentUser } from '@/features/auth/queries';
-import { isAdminUser } from '@/features/admin/auth';
+import { adminFailureMessage, adminGateRefused, requireAdminActor } from '@/features/admin/guard';
 import { bookingViewerCanAccess } from '@/features/bookings/lib/access';
 import { executeRefund } from '@/features/bookings/lib/refund';
 import { createDisputeSchema, resolveDisputeSchema } from '@/features/disputes/schemas';
@@ -189,9 +188,8 @@ export async function resolveDispute(
   _previous: ResolveDisputeState,
   formData: FormData,
 ): Promise<ResolveDisputeState> {
-  const admin = await getCurrentUser();
-  if (!admin || !isAdminUser(admin)) return { success: false, message: 'forbidden' };
-  if (!serverEnv.DATABASE_URL) return { success: false, message: 'no_db' };
+  const actor = await requireAdminActor();
+  if (adminGateRefused(actor)) return { success: false, message: adminFailureMessage(actor) };
 
   const parsed = resolveDisputeSchema.safeParse({
     disputeId: formValue(formData, 'disputeId'),
@@ -251,7 +249,7 @@ export async function resolveDispute(
         status: 'resolved',
         adminNotes: adminNotes ?? null,
         resolutionRefundSar: refund ? refund.amountSar : null,
-        resolvedByUserId: admin.id,
+        resolvedByUserId: actor.adminUserId,
         resolvedAt: new Date(),
       })
       .where(and(eq(disputes.id, disputeId), eq(disputes.status, 'open')))
@@ -275,7 +273,7 @@ export async function resolveDispute(
         refund.bookingId,
         refund.paymentReference,
         refund.amountSar,
-        admin.id,
+        actor.adminUserId,
       );
     }
   } catch (error) {
@@ -296,7 +294,7 @@ export async function resolveDispute(
         .set({
           status: 'resolved',
           resolvedAt: now,
-          resolvedByUserId: admin.id,
+          resolvedByUserId: actor.adminUserId,
           resolutionNote: adminNotes ?? null,
           updatedAt: now,
         })

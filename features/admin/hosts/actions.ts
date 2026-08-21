@@ -4,12 +4,10 @@ import { and, eq } from 'drizzle-orm';
 import { revalidatePath } from 'next/cache';
 import { revalidateExperienceCaches } from '@/lib/cache-tags';
 import { db } from '@/lib/db';
-import { serverEnv } from '@/lib/env';
 import { experiences, hosts, hostStatusEvents } from '@/db/schema';
 import { redirect } from '@/lib/i18n';
 import { reportError } from '@/lib/log';
-import { getCurrentUser } from '@/features/auth/queries';
-import { isAdminUser } from '@/features/admin/auth';
+import { adminFailureMessage, adminGateRefused, requireAdminActor } from '@/features/admin/guard';
 import { suspendHostSchema, unsuspendHostSchema } from '@/features/admin/hosts/schemas';
 import {
   sendHostReinstatedEmail,
@@ -46,15 +44,11 @@ function formValue(formData: FormData, key: string): string {
 }
 
 async function requireAdmin(): Promise<{ adminUserId: string } | { error: AdminHostResult }> {
-  const admin = await getCurrentUser();
-  // Null check first so TS narrows `admin` before the role check reads `.id`.
-  if (!admin || !isAdminUser(admin)) {
-    return { error: { success: false, message: 'forbidden' } };
+  const actor = await requireAdminActor();
+  if (adminGateRefused(actor)) {
+    return { error: { success: false, message: adminFailureMessage(actor) } };
   }
-  if (!serverEnv.DATABASE_URL) {
-    return { error: { success: false, message: 'no_db' } };
-  }
-  return { adminUserId: admin.id };
+  return { adminUserId: actor.adminUserId };
 }
 
 export async function suspendHost(

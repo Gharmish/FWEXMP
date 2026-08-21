@@ -6,11 +6,9 @@ import { revalidateExperienceCaches } from '@/lib/cache-tags';
 import { z } from 'zod';
 import { db } from '@/lib/db';
 import { AR_PLACEHOLDER } from '@/lib/ar-placeholder';
-import { serverEnv } from '@/lib/env';
 import { moments } from '@/db/schema';
 import { reportError } from '@/lib/log';
-import { getCurrentUser } from '@/features/auth/queries';
-import { isAdminUser } from '@/features/admin/auth';
+import { adminFailureMessage, adminGateRefused, requireAdminActor } from '@/features/admin/guard';
 
 /**
  * Admin CRUD for an experience's timeline (`moments`). Moments are an
@@ -43,10 +41,11 @@ function val(formData: FormData, key: string): string {
 }
 
 async function requireAdmin(): Promise<{ adminUserId: string } | { error: MomentActionState }> {
-  const admin = await getCurrentUser();
-  if (!admin || !isAdminUser(admin)) return { error: { success: false, message: 'forbidden' } };
-  if (!serverEnv.DATABASE_URL) return { error: { success: false, message: 'no_db' } };
-  return { adminUserId: admin.id };
+  const actor = await requireAdminActor();
+  if (adminGateRefused(actor)) {
+    return { error: { success: false, message: adminFailureMessage(actor) } };
+  }
+  return { adminUserId: actor.adminUserId };
 }
 
 function revalidate(experienceId: string): void {

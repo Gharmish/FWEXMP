@@ -7,7 +7,7 @@ import { serverEnv } from '@/lib/env';
 import { bookings, experiences } from '@/db/schema';
 import { reportError } from '@/lib/log';
 import { getCurrentUser } from '@/features/auth/queries';
-import { isAdminUser } from '@/features/admin/auth';
+import { adminGateRefused, requireAdminActor } from '@/features/admin/guard';
 import { getCurrentHostIdForWrite } from '@/features/host-experiences/queries';
 
 const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
@@ -65,7 +65,11 @@ export async function setDayAvailability(formData: FormData): Promise<void> {
     });
     if (!owned) return;
 
-    if (!isAdminUser(user)) {
+    // Admins may edit any experience's calendar, but only with the
+    // second factor completed — the same bar as every other admin write
+    // (2026-08-21 security audit). An admin who hasn't verified simply
+    // falls through to the host-ownership check like anyone else.
+    if (adminGateRefused(await requireAdminActor())) {
       const hostId = await getCurrentHostIdForWrite();
       if (!hostId || hostId !== owned.hostId) return; // not owner, not admin
     }

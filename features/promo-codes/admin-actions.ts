@@ -3,11 +3,9 @@
 import { revalidatePath } from 'next/cache';
 import { eq } from 'drizzle-orm';
 import { db } from '@/lib/db';
-import { serverEnv } from '@/lib/env';
 import { promoCodes } from '@/db/schema';
 import { reportError } from '@/lib/log';
-import { getCurrentUser } from '@/features/auth/queries';
-import { isAdminUser } from '@/features/admin/auth';
+import { adminFailureMessage, adminGateRefused, requireAdminActor } from '@/features/admin/guard';
 import { createPromoCodeSchema, setPromoActiveSchema } from '@/features/promo-codes/schemas';
 
 /**
@@ -26,10 +24,11 @@ export type PromoAdminActionState =
     };
 
 async function requireAdmin(): Promise<{ adminUserId: string } | { error: PromoAdminActionState }> {
-  const admin = await getCurrentUser();
-  if (!admin || !isAdminUser(admin)) return { error: { success: false, message: 'forbidden' } };
-  if (!serverEnv.DATABASE_URL) return { error: { success: false, message: 'no_db' } };
-  return { adminUserId: admin.id };
+  const actor = await requireAdminActor();
+  if (adminGateRefused(actor)) {
+    return { error: { success: false, message: adminFailureMessage(actor) } };
+  }
+  return { adminUserId: actor.adminUserId };
 }
 
 function fieldErrors(issues: { path: PropertyKey[]; message: string }[]): Record<string, string> {

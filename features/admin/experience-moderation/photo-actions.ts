@@ -9,8 +9,7 @@ import { experiences, experienceModerationEvents } from '@/db/schema';
 import { redirect } from '@/lib/i18n';
 import { reportError } from '@/lib/log';
 import { getSupabaseUserStorage } from '@/lib/supabase/server';
-import { getCurrentUser } from '@/features/auth/queries';
-import { isAdminUser } from '@/features/admin/auth';
+import { adminFailureMessage, adminGateRefused, requireAdminActor } from '@/features/admin/guard';
 import { heroObjectKey, validatePhoto } from '@/features/host-experiences/lib/photo';
 import type { UploadHeroState } from '@/features/host-experiences/photo-actions';
 
@@ -45,8 +44,8 @@ export async function uploadModerationHero(
   if (!serverEnv.DATABASE_URL) return { success: false, message: 'no_db' };
   if (!hasSupabaseAuth()) return { success: false, message: 'no_supabase' };
 
-  const admin = await getCurrentUser();
-  if (!admin || !isAdminUser(admin)) return { success: false, message: 'forbidden' };
+  const actor = await requireAdminActor();
+  if (adminGateRefused(actor)) return { success: false, message: adminFailureMessage(actor) };
 
   const locale = formValue(formData, 'locale') === 'ar' ? 'ar' : 'en';
   const experienceId = formValue(formData, 'experienceId');
@@ -106,7 +105,7 @@ export async function uploadModerationHero(
       event: 'photo_updated',
       fromStatus: experience.status,
       toStatus: experience.status,
-      reviewerUserId: admin.id,
+      reviewerUserId: actor.adminUserId,
     });
   } catch (error) {
     reportError(error, { surface: 'admin:uploadModerationHero', experienceId });

@@ -22,8 +22,23 @@ vi.mock('next/cache', () => ({
 }));
 
 let currentUser: { id: string } | null = null;
+/**
+ * Whether this admin session completed TOTP. The admin gate reads
+ * `isStub` and `mfa` off the session as well as the role, so the fake
+ * has to carry them (2026-08-21 security audit — the second factor now
+ * gates admin WRITES, not just rendering).
+ */
+let mfaVerified = true;
 vi.mock('@/features/auth/queries', () => ({
-  getCurrentUser: async () => currentUser,
+  getCurrentUser: async () =>
+    currentUser && {
+      ...currentUser,
+      phone: '+966500000000',
+      email: undefined,
+      isStub: false,
+      isAdmin: true,
+      mfa: { enrolled: true, verified: mfaVerified },
+    },
 }));
 
 let isAdmin = false;
@@ -95,6 +110,7 @@ beforeEach(() => {
   envState.DATABASE_URL = 'postgres://test';
   currentUser = { id: 'admin-1' };
   isAdmin = true;
+  mfaVerified = true;
   editTargets = { guestId: GUEST_ID, hostId: null, authUserId: null };
   balance = 0;
   insertError = undefined;
@@ -104,6 +120,16 @@ beforeEach(() => {
 describe('issueWalletCredit', () => {
   it('rejects non-admins', async () => {
     isAdmin = false;
+    const state = await issueWalletCredit({ success: false }, issueForm());
+    expect(state).toEqual({ success: false, message: 'forbidden' });
+    expect(inserted).toHaveLength(0);
+  });
+
+  it('rejects an admin who has not completed the second factor', async () => {
+    // Issuing credit is money creation. The TOTP screen the admin layout
+    // renders gates the PAGE; this action is a POST that never renders it,
+    // so the gate has to hold here (2026-08-21 security audit).
+    mfaVerified = false;
     const state = await issueWalletCredit({ success: false }, issueForm());
     expect(state).toEqual({ success: false, message: 'forbidden' });
     expect(inserted).toHaveLength(0);

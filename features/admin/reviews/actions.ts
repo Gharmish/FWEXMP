@@ -5,11 +5,9 @@ import { revalidatePath } from 'next/cache';
 import { revalidateReviewCaches } from '@/lib/cache-tags';
 import { z } from 'zod';
 import { db } from '@/lib/db';
-import { serverEnv } from '@/lib/env';
 import { reviews } from '@/db/schema';
 import { reportError } from '@/lib/log';
-import { getCurrentUser } from '@/features/auth/queries';
-import { isAdminUser } from '@/features/admin/auth';
+import { adminFailureMessage, adminGateRefused, requireAdminActor } from '@/features/admin/guard';
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -28,9 +26,8 @@ export async function setReviewHidden(
   _previous: ModerateReviewState,
   formData: FormData,
 ): Promise<ModerateReviewState> {
-  const admin = await getCurrentUser();
-  if (!admin || !isAdminUser(admin)) return { success: false, message: 'forbidden' };
-  if (!serverEnv.DATABASE_URL) return { success: false, message: 'no_db' };
+  const actor = await requireAdminActor();
+  if (adminGateRefused(actor)) return { success: false, message: adminFailureMessage(actor) };
 
   const hide = formData.get('hide') === 'true';
   const parsed = z.string().regex(UUID_RE).safeParse(formData.get('reviewId'));

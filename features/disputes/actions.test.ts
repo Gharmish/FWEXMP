@@ -30,12 +30,32 @@ vi.mock('@/lib/admin-alerts', () => ({
 // The web report also opens a support ticket (phase 3) — covered by the
 // ticket service's own tests; here it must not disturb the dispute flow.
 vi.mock('@/features/support/tickets', () => ({
-  openTicket: async () => ({ id: 'ticket-1', reference: 'TK-1', priority: 'normal', slaDueAt: new Date() }),
+  openTicket: async () => ({
+    id: 'ticket-1',
+    reference: 'TK-1',
+    priority: 'normal',
+    slaDueAt: new Date(),
+  }),
 }));
 
 let currentUser: { id: string } | null = null;
+/**
+ * Whether this admin session completed TOTP. The admin gate reads
+ * `isStub` and `mfa` off the session as well as the role, so the fake
+ * has to carry them (2026-08-21 security audit — the second factor now
+ * gates admin WRITES, not just rendering).
+ */
+let mfaVerified = true;
 vi.mock('@/features/auth/queries', () => ({
-  getCurrentUser: async () => currentUser,
+  getCurrentUser: async () =>
+    currentUser && {
+      ...currentUser,
+      phone: '+966500000000',
+      email: undefined,
+      isStub: false,
+      isAdmin: true,
+      mfa: { enrolled: true, verified: mfaVerified },
+    },
 }));
 
 let isAdmin = false;
@@ -230,6 +250,17 @@ describe('resolveDispute', () => {
   beforeEach(() => {
     currentUser = { id: 'admin-1' };
     isAdmin = true;
+    mfaVerified = true;
+  });
+
+  it('refuses an admin who has not completed the second factor', async () => {
+    // Resolving a dispute can move money out through `executeRefund`, so
+    // it sits behind the same second factor as the admin pages — which
+    // this action never renders (2026-08-21 security audit).
+    mfaVerified = false;
+    const state = await resolveDispute({ success: false }, resolveForm());
+    expect(state).toEqual({ success: false, message: 'forbidden' });
+    expect(executeRefund).not.toHaveBeenCalled();
   });
 
   it('rejects a non-admin caller', async () => {

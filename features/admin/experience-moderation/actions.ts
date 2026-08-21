@@ -4,12 +4,10 @@ import { and, eq } from 'drizzle-orm';
 import { revalidatePath } from 'next/cache';
 import { revalidateExperienceCaches } from '@/lib/cache-tags';
 import { db } from '@/lib/db';
-import { serverEnv } from '@/lib/env';
 import { experiences, experienceModerationEvents } from '@/db/schema';
 import { redirect } from '@/lib/i18n';
 import { reportError } from '@/lib/log';
-import { getCurrentUser } from '@/features/auth/queries';
-import { isAdminUser } from '@/features/admin/auth';
+import { adminFailureMessage, adminGateRefused, requireAdminActor } from '@/features/admin/guard';
 import {
   approveExperienceSchema,
   rejectExperienceSchema,
@@ -26,7 +24,8 @@ import { sendExperienceModerationEmail } from '@/features/admin/experience-moder
  *   - Request changes: pending_review → changes_requested + audit
  *     event with required note. The host can edit and resubmit.
  *
- * All three require `isAdminUser` AND a configured `DATABASE_URL`.
+ * All three go through `requireAdminActor()` — admin role, completed
+ * second factor, and a configured `DATABASE_URL`.
  * Each action only fires on the expected `pending_review` precondition
  * — a race where two reviewers act simultaneously is resolved by the
  * `pending_review` check in the UPDATE WHERE clause: the second write
@@ -55,15 +54,11 @@ function formValue(formData: FormData, key: string): string {
 }
 
 async function requireAdmin(): Promise<{ adminUserId: string } | { error: AdminModerationResult }> {
-  const admin = await getCurrentUser();
-  // Null check first so TS narrows `admin` before the role check reads `.id`.
-  if (!admin || !isAdminUser(admin)) {
-    return { error: { success: false, message: 'forbidden' } };
+  const actor = await requireAdminActor();
+  if (adminGateRefused(actor)) {
+    return { error: { success: false, message: adminFailureMessage(actor) } };
   }
-  if (!serverEnv.DATABASE_URL) {
-    return { error: { success: false, message: 'no_db' } };
-  }
-  return { adminUserId: admin.id };
+  return { adminUserId: actor.adminUserId };
 }
 
 // ---------- approve ----------

@@ -2,11 +2,9 @@
 
 import { revalidatePath } from 'next/cache';
 import { db } from '@/lib/db';
-import { serverEnv } from '@/lib/env';
 import { cancellationPolicies, platformSettings } from '@/db/schema';
 import { reportError } from '@/lib/log';
-import { getCurrentUser } from '@/features/auth/queries';
-import { isAdminUser } from '@/features/admin/auth';
+import { adminFailureMessage, adminGateRefused, requireAdminActor } from '@/features/admin/guard';
 import {
   commissionPctToBps,
   updateCancellationPoliciesSchema,
@@ -59,10 +57,11 @@ function submittedValues(formData: FormData): Record<string, string> {
 }
 
 async function requireAdmin(): Promise<{ adminUserId: string } | { error: UpdateSettingsState }> {
-  const admin = await getCurrentUser();
-  if (!admin || !isAdminUser(admin)) return { error: { success: false, message: 'forbidden' } };
-  if (!serverEnv.DATABASE_URL) return { error: { success: false, message: 'no_db' } };
-  return { adminUserId: admin.id };
+  const actor = await requireAdminActor();
+  if (adminGateRefused(actor)) {
+    return { error: { success: false, message: adminFailureMessage(actor) } };
+  }
+  return { adminUserId: actor.adminUserId };
 }
 
 export async function updateSettings(
