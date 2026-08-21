@@ -18,6 +18,7 @@ vi.mock('./knowledge', () => ({ buildKnowledge: async () => 'KB' }));
 const runTool = vi.fn();
 vi.mock('./tools', () => ({
   TOOLS: [],
+  toolsFor: () => [],
   runTool: (...args: unknown[]) => runTool(...(args as [])),
 }));
 
@@ -27,6 +28,7 @@ const ctx = {
   conversationId: 'c1',
   address: '+966541104000',
   guestId: 'g1',
+  hostId: null,
   locale: 'en' as const,
   now: new Date('2026-08-21T10:00:00Z'),
   lastInbound: 'my bookings?',

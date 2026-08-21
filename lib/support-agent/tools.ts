@@ -1,9 +1,10 @@
 import 'server-only';
 
 import type Anthropic from '@anthropic-ai/sdk';
-import { eq } from 'drizzle-orm';
 import { db } from '@/lib/db';
-import { conversations, experiences, hosts } from '@/db/schema';
+import { and, eq, gte, inArray } from 'drizzle-orm';
+import { bookings, conversations, experiences, guests, hosts } from '@/db/schema';
+import { executeBookingTransition } from '@/features/bookings/lib/transition-executor';
 import { reportError } from '@/lib/log';
 import { whatsappLink } from '@/lib/whatsapp';
 import {
@@ -36,6 +37,8 @@ export interface ToolContext {
   conversationId: string;
   address: string;
   guestId: string | null;
+  /** Set when the sender's number is an active host's notification phone. */
+  hostId: string | null;
   locale: 'en' | 'ar';
   now: Date;
   /** The guest message that triggered this turn — the only place a confirmation can come from. */
@@ -60,6 +63,13 @@ const TICKET_CATEGORIES: TicketCategory[] = [
   'other',
 ];
 const TICKET_PRIORITIES: TicketPriority[] = ['urgent', 'high', 'normal'];
+
+const HOST_TOOL_NAMES = new Set(['list_host_bookings', 'decide_booking_request']);
+
+/** The tool set for this sender: host tools only appear for hosts. */
+export function toolsFor(ctx: Pick<ToolContext, 'hostId'>): Anthropic.Tool[] {
+  return ctx.hostId ? TOOLS : TOOLS.filter((t) => !HOST_TOOL_NAMES.has(t.name));
+}
 
 export const TOOLS: Anthropic.Tool[] = [
   {
@@ -123,6 +133,27 @@ export const TOOLS: Anthropic.Tool[] = [
         confirmation_quote: { type: 'string', description: "The guest's own confirming words, verbatim from their latest message." },
       },
       required: ['reference_code', 'new_date', 'confirmation_quote'],
+      additionalProperties: false,
+    },
+  },
+  {
+    name: 'list_host_bookings',
+    description:
+      "HOSTS ONLY (available when the sender is a Gharmish host): their pending booking requests and upcoming confirmed bookings for the next 14 days, with guest first name, party size, date/time, and for requests the decision deadline.",
+    input_schema: { type: 'object', properties: {}, additionalProperties: false },
+  },
+  {
+    name: 'decide_booking_request',
+    description:
+      "HOSTS ONLY: approve or decline one of the host's PENDING booking requests. Same TWO-STEP RULE as the guest actions: first show the request (list_host_bookings), state plainly 'approve GH-… for <date>, <n> guests' (or decline) and ask the host to confirm; only when their NEXT message confirms, call this with their words in confirmation_quote. Approving lets the guest pay; declining releases the spots and tells the guest.",
+    input_schema: {
+      type: 'object',
+      properties: {
+        reference_code: { type: 'string' },
+        decision: { type: 'string', enum: ['approve', 'decline'] },
+        confirmation_quote: { type: 'string', description: "The host's own confirming words, verbatim from their latest message." },
+      },
+      required: ['reference_code', 'decision', 'confirmation_quote'],
       additionalProperties: false,
     },
   },
@@ -360,6 +391,80 @@ export async function runTool(
                 actor: 'agent',
                 authorize,
               });
+        return { result: JSON.stringify(outcome) };
+      }
+      case 'list_host_bookings': {
+        if (!ctx.hostId) return { result: JSON.stringify({ error: 'not_a_host' }) };
+        const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Riyadh' }).format(ctx.now);
+        const rows = await db
+          .select({
+            referenceCode: bookings.referenceCode,
+            status: bookings.status,
+            paymentStatus: bookings.paymentStatus,
+            date: bookings.date,
+            startTime: bookings.startTime,
+            partySize: bookings.partySize,
+            approvalDeadline: bookings.approvalDeadline,
+            titleEn: experiences.titleEn,
+            titleAr: experiences.titleAr,
+            guestName: guests.name,
+          })
+          .from(bookings)
+          .innerJoin(experiences, eq(experiences.id, bookings.experienceId))
+          .innerJoin(guests, eq(guests.id, bookings.guestId))
+          .where(
+            and(
+              eq(experiences.hostId, ctx.hostId),
+              inArray(bookings.status, ['pending', 'confirmed']),
+              gte(bookings.date, today),
+            ),
+          )
+          .orderBy(bookings.date, bookings.startTime)
+          .limit(20);
+        return {
+          result: JSON.stringify({
+            today,
+            bookings: rows.map((r) => ({
+              reference_code: r.referenceCode,
+              kind: r.status === 'pending' ? 'request_awaiting_your_decision' : 'confirmed',
+              experience: ctx.locale === 'ar' ? r.titleAr : r.titleEn,
+              date: r.date,
+              start_time: r.startTime,
+              party_size: r.partySize,
+              guest_first_name: r.guestName.split(' ')[0],
+              payment_status: r.paymentStatus,
+              decide_by: r.approvalDeadline?.toISOString() ?? null,
+            })),
+          }),
+        };
+      }
+      case 'decide_booking_request': {
+        if (!ctx.hostId) return { result: JSON.stringify({ error: 'not_a_host' }) };
+        const code = (str(input, 'reference_code') ?? '').trim().toUpperCase();
+        const decision = str(input, 'decision');
+        if (decision !== 'approve' && decision !== 'decline') {
+          return { result: JSON.stringify({ error: 'bad_decision' }) };
+        }
+        if (!confirmationPresent((str(input, 'confirmation_quote') ?? '').trim(), ctx.lastInbound)) {
+          return {
+            result: JSON.stringify({
+              error: 'not_confirmed',
+              note: "The confirmation must be in the host's latest message. Ask and call again after they reply.",
+            }),
+          };
+        }
+        const [row] = await db
+          .select({ id: bookings.id })
+          .from(bookings)
+          .innerJoin(experiences, eq(experiences.id, bookings.experienceId))
+          .where(and(eq(bookings.referenceCode, code), eq(experiences.hostId, ctx.hostId)))
+          .limit(1);
+        if (!row) return { result: JSON.stringify({ error: 'not_found' }) };
+        const outcome = await executeBookingTransition(
+          row.id,
+          decision === 'approve' ? 'confirmed' : 'declined',
+          { kind: 'host', hostId: ctx.hostId },
+        );
         return { result: JSON.stringify(outcome) };
       }
       case 'open_ticket':

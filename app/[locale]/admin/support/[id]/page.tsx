@@ -145,6 +145,11 @@ export default async function AdminSupportThreadPage({
               {m.mediaContentType ? ` · ${m.mediaContentType}` : ''}
             </a>
           )}
+          {m.toolNames.length > 0 && (
+            <p className="font-mono text-[11px] text-white/60" dir="ltr">
+              {m.toolNames.join(' · ')}
+            </p>
+          )}
           <p
             className={cn(
               'text-[11px] tabular-nums',

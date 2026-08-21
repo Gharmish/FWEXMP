@@ -49,6 +49,7 @@ import {
   sweepUnacknowledgedInbound,
 } from '@/lib/conversations/inbound';
 import { sweepPendingAgentTurns } from '@/lib/support-agent/agent';
+import { maybeSendDailyReport } from '@/lib/support-agent/report';
 import { sweepTicketSla } from '@/features/support/tickets';
 import { sendRebookEmail, sendWinbackEmail } from '@/features/marketing/lifecycle-email';
 import { addDays } from '@/features/bookings/lib/availability';
@@ -712,6 +713,8 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     const slaBreaches = await sweepTicketSla();
     // Phase 3: privacy-page retention — conversations idle for 12 months go.
     const conversationsPurged = await purgeExpiredConversations();
+    // Phase 4: one email per day at 06:00 Riyadh with the line's numbers.
+    const dailyReportSent = await maybeSendDailyReport();
 
     // Pass 4 — auto-complete. A confirmed, collected booking whose date
     // has passed becomes `completed` the next day (owner decision:
@@ -1110,6 +1113,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       agentSwept,
       slaBreaches,
       conversationsPurged,
+      dailyReportSent,
       completed: completed.length,
       marketed,
       expiredCreditSar,

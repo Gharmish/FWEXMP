@@ -139,6 +139,7 @@ export async function getConversationThread(id: string): Promise<ConversationThr
         mediaUrl: conversationMessages.mediaUrl,
         mediaContentType: conversationMessages.mediaContentType,
         deliveryStatus: notificationDeliveries.status,
+        toolCalls: conversationMessages.toolCalls,
         createdAt: conversationMessages.createdAt,
       })
       .from(conversationMessages)
@@ -154,6 +155,11 @@ export async function getConversationThread(id: string): Promise<ConversationThr
       mediaUrl: m.mediaUrl,
       mediaContentType: m.mediaContentType,
       deliveryStatus: m.deliveryStatus ?? null,
+      toolNames: Array.isArray(m.toolCalls)
+        ? (m.toolCalls as Array<{ name?: unknown }>)
+            .map((c) => (typeof c?.name === 'string' ? c.name : ''))
+            .filter(Boolean)
+        : [],
       createdAt: m.createdAt.toISOString(),
     }));
     return { conversation: toRow(head), messages: mapped };

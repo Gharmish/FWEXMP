@@ -30,6 +30,8 @@ export interface ConversationMessageRow {
   mediaUrl: string | null;
   mediaContentType: string | null;
   deliveryStatus: string | null;
+  /** Tool names the agent called before this reply (audit trail). */
+  toolNames: string[];
   createdAt: string;
 }
 

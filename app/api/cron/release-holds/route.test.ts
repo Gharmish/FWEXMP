@@ -32,6 +32,7 @@ vi.mock('@/lib/conversations/inbound', () => ({
   purgeExpiredConversations: async () => 0,
 }));
 vi.mock('@/lib/support-agent/agent', () => ({ sweepPendingAgentTurns: async () => 0 }));
+vi.mock('@/lib/support-agent/report', () => ({ maybeSendDailyReport: async () => false }));
 vi.mock('@/features/support/tickets', () => ({ sweepTicketSla: async () => 0 }));
 
 const settleBooking = vi.fn(async () => 'success' as string);

@@ -3,7 +3,7 @@ import 'server-only';
 import { desc, eq, inArray, isNotNull, lt, or } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import { hasSupportAgent, serverEnv } from '@/lib/env';
-import { bookings, conversationMessages, conversations, guests } from '@/db/schema';
+import { bookings, conversationMessages, conversations, guests, hosts } from '@/db/schema';
 import type { Locale } from '@/lib/i18n';
 import { reportError } from '@/lib/log';
 import { notifyAdmin } from '@/lib/admin-alerts';
@@ -91,6 +91,15 @@ async function identifyGuest(
   return viaBooking[0] ?? null;
 }
 
+/** Active (non-suspended) host whose notification phone is this number. */
+async function identifyHost(phone: string): Promise<string | null> {
+  const host = await db.query.hosts.findFirst({
+    where: eq(hosts.contactPhone, phone),
+    columns: { id: true, verificationStatus: true },
+  });
+  return host && host.verificationStatus !== 'suspended' ? host.id : null;
+}
+
 /**
  * Persist one inbound message. Upserts the conversation by address,
  * resolves the guest on first contact, and stores the message
@@ -141,7 +150,7 @@ export async function recordInboundMessage(input: InboundMessage): Promise<Recor
         guestName = guest?.name ?? null;
       }
     } else {
-      const guest = await identifyGuest(address);
+      const [guest, hostId] = await Promise.all([identifyGuest(address), identifyHost(address)]);
       locale = guest?.preferredLanguage ?? inferLocale(body);
       guestName = guest?.name ?? null;
       lastAckAt = null;
@@ -152,6 +161,7 @@ export async function recordInboundMessage(input: InboundMessage): Promise<Recor
         .values({
           address,
           guestId: guest?.id ?? null,
+          hostId,
           locale,
           state,
           profileName: input.profileName ?? null,

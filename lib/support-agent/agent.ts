@@ -15,7 +15,7 @@ import {
 import { openTicket } from '@/features/support/tickets';
 import { buildKnowledge } from './knowledge';
 import { AGENT_RULES } from './prompt';
-import { runTool, TOOLS, type ToolContext } from './tools';
+import { runTool, toolsFor, type ToolContext } from './tools';
 
 /**
  * One agent turn for a conversation the bot owns (WHATSAPP_SUPPORT_PLAN.md
@@ -56,6 +56,7 @@ export interface AgentTurnResult {
 export interface ThreadMessage {
   direction: 'in' | 'out';
   body: string;
+  mediaContentType?: string | null;
 }
 
 /** Thread → alternating user/assistant turns (consecutive same-role messages merge). */
@@ -63,7 +64,14 @@ export function toMessageParams(history: ThreadMessage[]): Anthropic.MessagePara
   const params: Anthropic.MessageParam[] = [];
   for (const m of history) {
     const role = m.direction === 'in' ? 'user' : 'assistant';
-    const text = m.body.trim() || (m.direction === 'in' ? '(attachment)' : '(no text)');
+    const media = m.mediaContentType
+      ? m.mediaContentType.startsWith('audio/')
+        ? '[voice note attached — you cannot listen to it]'
+        : m.mediaContentType.startsWith('image/')
+          ? '[image attached — you cannot view it]'
+          : `[attachment: ${m.mediaContentType}]`
+      : '';
+    const text = [m.body.trim(), media].filter(Boolean).join(' ') || (m.direction === 'in' ? '(attachment)' : '(no text)');
     const last = params[params.length - 1];
     if (last && last.role === role && typeof last.content === 'string') {
       last.content = `${last.content}\n\n${text}`;
@@ -101,6 +109,7 @@ export async function runAgentLoop(input: AgentRunInput, api: Anthropic = anthro
     `- Guest's stored name: ${input.guestName ?? 'unknown'}`,
     `- Guest's stored language: ${input.ctx.locale === 'ar' ? 'Arabic' : 'English'}`,
     `- Known guest: ${input.ctx.guestId ? 'yes — list_my_bookings will return their bookings' : 'no — this number has no booking on file'}`,
+    `- Gharmish host: ${input.ctx.hostId ? 'YES — this number belongs to a host; host tools are available and they may be writing about their own experiences' : 'no'}`,
     `- Current time (Riyadh): ${input.ctx.now.toLocaleString('en-GB', { timeZone: 'Asia/Riyadh', hour12: false })}`,
   ].join('\n');
 
@@ -125,7 +134,7 @@ export async function runAgentLoop(input: AgentRunInput, api: Anthropic = anthro
         { type: 'text', text: `${AGENT_RULES}\n\n# Knowledge base\n\n${knowledge}`, cache_control: { type: 'ephemeral', ttl: '1h' } },
         { type: 'text', text: volatile },
       ],
-      tools: TOOLS,
+      tools: toolsFor(input.ctx),
       messages,
     });
     stopReason = response.stop_reason;
@@ -163,7 +172,11 @@ export async function runAgentLoop(input: AgentRunInput, api: Anthropic = anthro
 
 async function loadThread(conversationId: string): Promise<ThreadMessage[]> {
   const rows = await db
-    .select({ direction: conversationMessages.direction, body: conversationMessages.body })
+    .select({
+      direction: conversationMessages.direction,
+      body: conversationMessages.body,
+      mediaContentType: conversationMessages.mediaContentType,
+    })
     .from(conversationMessages)
     .where(eq(conversationMessages.conversationId, conversationId))
     .orderBy(desc(conversationMessages.createdAt))
@@ -226,16 +239,16 @@ export async function runAgentTurn(recorded: RecordedInbound, address: string): 
         or(isNull(conversations.agentLockUntil), lt(conversations.agentLockUntil, now)),
       ),
     )
-    .returning({ guestId: conversations.guestId, locale: conversations.locale });
+    .returning({ guestId: conversations.guestId, hostId: conversations.hostId, locale: conversations.locale });
   if (locked.length === 0) return { outcome: 'skipped' };
-  const { guestId, locale } = locked[0];
+  const { guestId, hostId, locale } = locked[0];
 
   try {
     const history = await loadThread(conversationId);
     const output = await runAgentLoop({
       history,
       guestName: recorded.guestName,
-      ctx: { conversationId, address, guestId, locale, now, lastInbound: history.at(-1)?.direction === 'in' ? (history.at(-1)?.body ?? "") : '' },
+      ctx: { conversationId, address, guestId, hostId, locale, now, lastInbound: history.at(-1)?.direction === 'in' ? (history.at(-1)?.body ?? "") : '' },
     });
 
     if (output.stopReason === 'refusal') return await failSafe(recorded, address, 'refusal');
