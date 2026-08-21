@@ -7,6 +7,7 @@ import {
   doublePrecision,
   index,
   integer,
+  jsonb,
   pgEnum,
   pgTable,
   primaryKey,
@@ -1867,6 +1868,97 @@ export const notificationSuppressions = pgTable(
   (t) => [unique('notification_suppressions_channel_address_uq').on(t.channel, t.address)],
 );
 
+export const conversationChannelEnum = pgEnum('conversation_channel', ['whatsapp']);
+export const conversationStateEnum = pgEnum('conversation_state', ['bot', 'human', 'closed']);
+export const conversationDirectionEnum = pgEnum('conversation_direction', ['in', 'out']);
+export const conversationAuthorEnum = pgEnum('conversation_author', [
+  'guest',
+  'agent',
+  'admin',
+  'system',
+]);
+
+/**
+ * One inbound-capable thread per (channel, address) — the WhatsApp
+ * support line (2026-08-21, WHATSAPP_SUPPORT_PLAN.md phase 0). Before
+ * this table every non-STOP/START inbound message was dropped on the
+ * floor by the Twilio webhook while the confirmed-booking page deep-
+ * linked guests to that very number. `state` says who owns the next
+ * reply: `human` (phase 0 — a person answers from the admin panel),
+ * `bot` (the Claude agent, phase 2), `closed`. `lastInboundAt` is the
+ * anchor for Meta's 24h customer-service window: free-form replies are
+ * only allowed while `now - lastInboundAt < 24h`; after that only an
+ * approved Content template may go out.
+ */
+export const conversations = pgTable(
+  'conversations',
+  {
+    id: uuid().defaultRandom().primaryKey(),
+    channel: conversationChannelEnum().notNull().default('whatsapp'),
+    /** Canonical E.164 address (`+9665…`), the sender's identity. */
+    address: text().notNull(),
+    /** Resolved by phone match at first contact; null for unknown senders. */
+    guestId: uuid().references(() => guests.id, { onDelete: 'set null' }),
+    hostId: uuid().references(() => hosts.id, { onDelete: 'set null' }),
+    /** Reply language — the guest's stored preference, else inferred from the text. */
+    locale: localeEnum().notNull().default('ar'),
+    state: conversationStateEnum().notNull().default('human'),
+    /** WhatsApp profile name Twilio passes as `ProfileName` — display only. */
+    profileName: text(),
+    lastInboundAt: timestamp({ withTimezone: true }),
+    lastOutboundAt: timestamp({ withTimezone: true }),
+    /**
+     * When the automatic "we got your message" acknowledgement last went
+     * out — throttles the ack to once per quiet period so a guest typing
+     * five lines doesn't get five identical replies.
+     */
+    lastAckAt: timestamp({ withTimezone: true }),
+    createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    unique('conversations_channel_address_uq').on(t.channel, t.address),
+    index('conversations_state_inbound_idx').on(t.state, t.lastInboundAt),
+    index('conversations_guest_idx')
+      .on(t.guestId)
+      .where(sql`guest_id IS NOT NULL`),
+  ],
+);
+
+/**
+ * Every message on a conversation, both directions. Outbound rows link
+ * to the delivery ledger (`deliveryId`) so provider status (sent →
+ * delivered → read) stays in one place; `toolCalls` is reserved for the
+ * agent's audit trail (what it looked up / did before replying).
+ */
+export const conversationMessages = pgTable(
+  'conversation_messages',
+  {
+    id: uuid().defaultRandom().primaryKey(),
+    conversationId: uuid()
+      .notNull()
+      .references(() => conversations.id, { onDelete: 'cascade' }),
+    direction: conversationDirectionEnum().notNull(),
+    author: conversationAuthorEnum().notNull(),
+    body: text().notNull().default(''),
+    /** First media attachment URL as Twilio reported it (voice note, photo). */
+    mediaUrl: text(),
+    mediaContentType: text(),
+    /** Twilio Message SID (inbound `MessageSid`, outbound send result). */
+    providerMessageId: text(),
+    deliveryId: uuid().references(() => notificationDeliveries.id, { onDelete: 'set null' }),
+    toolCalls: jsonb(),
+    createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index('conversation_messages_conversation_idx').on(t.conversationId, t.createdAt),
+    // Twilio may redeliver an inbound webhook; the SID makes the insert idempotent.
+    uniqueIndex('conversation_messages_provider_uq')
+      .on(t.providerMessageId)
+      .where(sql`provider_message_id IS NOT NULL`),
+  ],
+);
+
 /**
  * Who may administer the platform (2026-08-02 security audit).
  *
@@ -2096,6 +2188,10 @@ export type NotificationDelivery = typeof notificationDeliveries.$inferSelect;
 export type NewNotificationDelivery = typeof notificationDeliveries.$inferInsert;
 export type NotificationSuppression = typeof notificationSuppressions.$inferSelect;
 export type NewNotificationSuppression = typeof notificationSuppressions.$inferInsert;
+export type Conversation = typeof conversations.$inferSelect;
+export type NewConversation = typeof conversations.$inferInsert;
+export type ConversationMessage = typeof conversationMessages.$inferSelect;
+export type NewConversationMessage = typeof conversationMessages.$inferInsert;
 export type UserRole = typeof userRoles.$inferSelect;
 export type NewUserRole = typeof userRoles.$inferInsert;
 export type AdminTotpFactor = typeof adminTotpFactors.$inferSelect;

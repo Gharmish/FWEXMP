@@ -1,5 +1,5 @@
 import { createHmac, timingSafeEqual } from 'node:crypto';
-import { NextResponse, type NextRequest } from 'next/server';
+import { after, NextResponse, type NextRequest } from 'next/server';
 import { serverEnv, hasWhatsApp } from '@/lib/env';
 import { SITE_URL } from '@/lib/site';
 import { reportError } from '@/lib/log';
@@ -9,6 +9,12 @@ import {
   removeSuppression,
   type WebhookStatus,
 } from '@/lib/notifications/ledger';
+import {
+  acknowledgeInbound,
+  canonicalPhone,
+  pageAdminAboutInbound,
+  recordInboundMessage,
+} from '@/lib/conversations/inbound';
 
 /**
  * Twilio webhook — two kinds of POSTs land here:
@@ -18,10 +24,13 @@ import {
  *     `read`, or `failed`/`undelivered`. They upgrade the matching
  *     delivery-ledger row by Message SID.
  *  2. **Inbound messages** (configure this URL as the WhatsApp sender's
- *     incoming-message webhook): only opt-out/opt-in keywords are acted
- *     on — STOP suppresses the phone across all WhatsApp sends, START
- *     lifts it. Anything else is acknowledged and ignored (replies go
- *     to the humans via the Twilio console / future inbox).
+ *     incoming-message webhook): opt-out/opt-in keywords come first —
+ *     STOP suppresses the phone across all WhatsApp sends, START lifts
+ *     it. Anything else is the support line (WHATSAPP_SUPPORT_PLAN.md
+ *     phase 0): the message is stored on the sender's conversation,
+ *     then — after Twilio has its 200 — the guest gets a one-per-quiet-
+ *     period acknowledgement in their language and the admin rails are
+ *     paged. Before 2026-08-21 these messages were silently dropped.
  *
  * Auth: Twilio signs every request with `X-Twilio-Signature` =
  * HMAC-SHA1(auth token) over the exact webhook URL + the alphabetically
@@ -117,14 +126,34 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       return new NextResponse(null, { status: 204 });
     }
 
-    // Inbound message — opt-out/opt-in keywords only.
+    // Inbound message — opt-out/opt-in keywords first, then the support line.
     const from = params.From?.replace(/^whatsapp:/, '');
-    const body = params.Body?.trim().toLowerCase() ?? '';
+    const rawBody = params.Body?.trim() ?? '';
+    const body = rawBody.toLowerCase();
     if (from) {
       if (STOP_KEYWORDS.has(body)) await addSuppression('whatsapp', from, 'stop');
       else if (START_KEYWORDS.has(body)) await removeSuppression('whatsapp', from);
+      else if (rawBody || params.MediaUrl0) {
+        const recorded = await recordInboundMessage({
+          from,
+          body: rawBody,
+          providerMessageId: params.MessageSid || null,
+          profileName: params.ProfileName || null,
+          mediaUrl: params.MediaUrl0 || null,
+          mediaContentType: params.MediaContentType0 || null,
+        });
+        const address = canonicalPhone(from);
+        if (recorded?.isNew && address) {
+          // Reply + page after the response: Twilio's webhook timeout is
+          // 15s and the ack is a second provider round-trip.
+          after(async () => {
+            if (recorded.shouldAck) await acknowledgeInbound(recorded, address);
+            await pageAdminAboutInbound(recorded, address, rawBody);
+          });
+        }
+      }
     }
-    // Empty TwiML: acknowledge without auto-replying.
+    // Empty TwiML: the reply (if any) goes out via the REST API, not inline.
     return new NextResponse('<?xml version="1.0" encoding="UTF-8"?><Response/>', {
       status: 200,
       headers: { 'Content-Type': 'text/xml' },

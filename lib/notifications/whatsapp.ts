@@ -14,9 +14,11 @@ import type { WhatsAppTemplateKey } from './types';
  * the dispatcher ledgers as `failed`.
  *
  * Business messages outside Meta's 24h customer-service window MUST use
- * a pre-approved Content template — that's every message we send (crons
- * and lifecycle events fire at arbitrary times), so free-form body sends
- * are deliberately not implemented.
+ * a pre-approved Content template — that's every lifecycle message we
+ * send (crons and events fire at arbitrary times). Free-form `Body`
+ * sends exist ONLY for replies inside an open window
+ * ({@link sendWhatsAppText}); callers are responsible for the window
+ * check (lib/conversations enforces it against `lastInboundAt`).
  */
 
 /** Parsed `TWILIO_WHATSAPP_CONTENT_SIDS` env JSON, memoized per process. */
@@ -83,13 +85,36 @@ export async function sendWhatsAppTemplate(input: {
   contentSid: string;
   variables: Record<string, string>;
 }): Promise<WhatsAppSendResult> {
+  return postMessage(input.to, {
+    ContentSid: input.contentSid,
+    ContentVariables: JSON.stringify(input.variables),
+  });
+}
+
+/**
+ * Send one free-form text message. Meta only accepts these inside the
+ * 24h customer-service window opened by the recipient's last inbound
+ * message — outside it Twilio returns 63016 and the send fails. Used by
+ * the support line (acknowledgements, human/agent replies); never by
+ * lifecycle notifications. Bodies are capped at WhatsApp's 4096 chars.
+ */
+export async function sendWhatsAppText(input: {
+  to: string;
+  body: string;
+}): Promise<WhatsAppSendResult> {
+  return postMessage(input.to, { Body: input.body.slice(0, 4096) });
+}
+
+async function postMessage(
+  to: string,
+  fields: Record<string, string>,
+): Promise<WhatsAppSendResult> {
   const sid = serverEnv.TWILIO_ACCOUNT_SID;
   const from = serverEnv.TWILIO_WHATSAPP_FROM;
   const body = new URLSearchParams({
-    To: input.to,
+    To: to,
     From: from.startsWith('whatsapp:') ? from : `whatsapp:${from}`,
-    ContentSid: input.contentSid,
-    ContentVariables: JSON.stringify(input.variables),
+    ...fields,
     StatusCallback: `${SITE_URL}/api/webhooks/twilio`,
   });
 
