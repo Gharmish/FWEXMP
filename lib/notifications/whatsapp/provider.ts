@@ -4,7 +4,7 @@ import { serverEnv } from '@/lib/env';
 import { SITE_URL } from '@/lib/site';
 import { reportError } from '@/lib/log';
 import type { Locale } from '@/lib/i18n';
-import type { WhatsAppTemplateKey } from './types';
+import type { WhatsAppTemplateKey } from '../types';
 
 /**
  * Twilio WhatsApp adapter — Content-template sends via Twilio's REST API
@@ -54,7 +54,7 @@ function contentSidMap(): Record<string, string> | null {
  * Looks up `<template>.<locale>` first, then a locale-less `<template>`
  * key for templates that are approved in one shared form.
  */
-export function whatsappContentSid(template: WhatsAppTemplateKey, locale: Locale): string | null {
+export function whatsappContentSid(template: WhatsAppTemplateKey | (string & {}), locale: Locale): string | null {
   const map = contentSidMap();
   if (!map) return null;
   return map[`${template}.${locale}`] ?? map[template] ?? null;

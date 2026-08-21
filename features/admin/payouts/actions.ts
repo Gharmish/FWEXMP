@@ -164,7 +164,7 @@ export async function markHostPaid(
           .where(inArray(payoutClawbacks.id, plan.settleIds));
       }
 
-      return { paidCount: owed.length, payoutId: batch.id, netSar: plan.netSar } as const;
+      return { paidCount: owed.length, payoutId: batch.id, netSar: plan.netSar, ibanLast4: host.payoutIban ? host.payoutIban.slice(-4) : null } as const;
     });
 
     if (typeof outcome === 'string') return { success: false, message: outcome };
@@ -177,6 +177,7 @@ export async function markHostPaid(
         payoutId: outcome.payoutId,
         amountSar: outcome.netSar,
         bookingCount: outcome.paidCount,
+        ibanLast4: outcome.ibanLast4,
       });
     } catch (error) {
       reportError(error, { surface: 'admin:markHostPaid:email', hostId });

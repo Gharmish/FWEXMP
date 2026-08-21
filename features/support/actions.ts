@@ -3,17 +3,12 @@
 import { and, eq, ne } from 'drizzle-orm';
 import { revalidatePath } from 'next/cache';
 import { db } from '@/lib/db';
-import { conversationMessages, conversations, supportTicketEvents, supportTickets } from '@/db/schema';
+import { conversations, supportTicketEvents, supportTickets } from '@/db/schema';
 import { reportError } from '@/lib/log';
 import { adminGuard } from '@/features/admin/guard';
-import { SERVICE_WINDOW_MS } from '@/lib/conversations/inbound';
-import { claimDelivery, markDeliveryFailed, markDeliverySent } from '@/lib/notifications/ledger';
-import {
-  sendWhatsAppTemplate,
-  sendWhatsAppText,
-  whatsappAddress,
-  whatsappContentSid,
-} from '@/lib/notifications/whatsapp';
+import { whatsappContentSid } from '@/lib/notifications/whatsapp/provider';
+import { renderWhatsApp, SUPPORT_SESSION_COPY } from '@/lib/notifications/whatsapp';
+import { sendConversationReply, sendSupportTemplate, SERVICE_WINDOW_MS } from '@/lib/conversations/inbound';
 import { openTicket } from '@/features/support/tickets';
 import { hasWhatsApp } from '@/lib/env';
 import { nudgeSchema, replySchema, resolveTicketSchema, stateSchema } from '@/features/support/schemas';
@@ -76,43 +71,19 @@ export async function replyToConversation(
     if (!inbound || Date.now() - inbound >= SERVICE_WINDOW_MS) {
       return { success: false, message: 'window_closed', values: { body } };
     }
-    const to = whatsappAddress(conversation.address);
-    if (!to) return { success: false, message: 'not_found' };
-
-    // Persist first so the thread shows the attempt even if Twilio fails.
-    const [message] = await db
-      .insert(conversationMessages)
-      .values({
-        conversationId: conversation.id,
-        direction: 'out',
-        author: 'admin',
-        body: parsed.data.body,
-      })
-      .returning({ id: conversationMessages.id });
-
-    const claim = await claimDelivery({
-      dedupeKey: `support_reply:${message.id}`,
-      channel: 'whatsapp',
+    // Shared outbound primitive: ledgered, transcript row, timestamps.
+    const result = await sendConversationReply({
+      conversationId: conversation.id,
+      address: conversation.address,
+      body: parsed.data.body,
+      author: 'admin',
       type: 'support_reply',
-      recipientType: 'guest',
-      recipient: conversation.address,
       locale: conversation.locale,
+      dedupeKey: `support_reply:${conversation.id}:${Date.now()}`,
     });
-    const result = await sendWhatsAppText({ to, body: parsed.data.body });
-    if (result.ok) await markDeliverySent(claim.claimed ? claim.id : null, result.sid || null);
-    else await markDeliveryFailed(claim.claimed ? claim.id : null, result.error);
-
-    const now = new Date();
-    await db
-      .update(conversationMessages)
-      .set({
-        providerMessageId: result.ok && result.sid ? result.sid : null,
-        deliveryId: claim.claimed ? claim.id : null,
-      })
-      .where(eq(conversationMessages.id, message.id));
     await db
       .update(conversations)
-      .set({ lastOutboundAt: now, updatedAt: now, state: 'human' })
+      .set({ state: 'human', updatedAt: new Date() })
       .where(eq(conversations.id, conversation.id));
 
     revalidatePath(`/[locale]/admin/support/${conversation.id}`, 'page');
@@ -179,7 +150,11 @@ export async function resolveTicket(
         updatedAt: now,
       })
       .where(and(eq(supportTickets.id, parsed.data.ticketId), ne(supportTickets.status, 'resolved')))
-      .returning({ id: supportTickets.id, conversationId: supportTickets.conversationId });
+      .returning({
+        id: supportTickets.id,
+        reference: supportTickets.reference,
+        conversationId: supportTickets.conversationId,
+      });
     if (updated.length === 0) return { success: false, message: 'not_found' };
     await db.insert(supportTicketEvents).values({
       ticketId: updated[0].id,
@@ -188,6 +163,41 @@ export async function resolveTicket(
       note: parsed.data.resolutionNote ?? null,
     });
     if (updated[0].conversationId) {
+      // Tell the guest (plan §14): free-form while their window is open,
+      // the approved `support_ticket_resolved` template after it closes.
+      try {
+        const conversation = await db.query.conversations.findFirst({
+          where: eq(conversations.id, updated[0].conversationId),
+          columns: { id: true, address: true, locale: true, lastInboundAt: true },
+        });
+        if (conversation && hasWhatsApp()) {
+          const inbound = conversation.lastInboundAt?.getTime() ?? 0;
+          if (inbound && Date.now() - inbound < SERVICE_WINDOW_MS) {
+            await sendConversationReply({
+              conversationId: conversation.id,
+              address: conversation.address,
+              body: SUPPORT_SESSION_COPY.ticketResolved[conversation.locale](updated[0].reference),
+              author: 'system',
+              type: 'support_ticket_resolved',
+              locale: conversation.locale,
+              dedupeKey: `support_ticket_resolved:${updated[0].id}`,
+            });
+          } else {
+            await sendSupportTemplate({
+              conversationId: conversation.id,
+              address: conversation.address,
+              locale: conversation.locale,
+              type: 'support_ticket_resolved',
+              templateId: 'support_ticket_resolved',
+              vars: { ticketReference: updated[0].reference },
+              dedupeKey: `support_ticket_resolved:${updated[0].id}`,
+              transcript: `[template support_ticket_resolved · ${updated[0].reference}]`,
+            });
+          }
+        }
+      } catch (error) {
+        reportError(error, { surface: 'support:resolveTicket:notify' });
+      }
       revalidatePath(`/[locale]/admin/support/${updated[0].conversationId}`, 'page');
     }
     revalidatePath('/[locale]/admin/support', 'page');
@@ -222,10 +232,15 @@ export async function nudgeConversation(
       columns: { id: true, address: true, locale: true, guestId: true },
     });
     if (!conversation) return { success: false, message: 'not_found' };
-    const contentSid = whatsappContentSid('support_ticket_update', conversation.locale);
-    if (!contentSid) return { success: false, message: 'no_template' };
-    const to = whatsappAddress(conversation.address);
-    if (!to) return { success: false, message: 'not_found' };
+    const rendered = renderWhatsApp('support_ticket_update', conversation.locale, {
+      ticketReference: 'TK-XXXXXX',
+    });
+    const hasTemplate =
+      rendered.ok &&
+      (whatsappContentSid(rendered.message.template, conversation.locale) ||
+        (rendered.message.fallback &&
+          whatsappContentSid(rendered.message.fallback.template, conversation.locale)));
+    if (!hasTemplate) return { success: false, message: 'no_template' };
 
     let ticket = await db.query.supportTickets.findFirst({
       where: and(
@@ -248,31 +263,24 @@ export async function nudgeConversation(
       ticket = { id: opened.id, reference: opened.reference };
     }
 
-    const claim = await claimDelivery({
-      dedupeKey: `support_nudge:${ticket.id}:${Date.now()}`,
-      channel: 'whatsapp',
-      type: 'support_ticket_update',
-      recipientType: 'guest',
-      recipient: conversation.address,
-      locale: conversation.locale,
-    });
-    const result = await sendWhatsAppTemplate({ to, contentSid, variables: { '1': ticket.reference } });
-    if (result.ok) await markDeliverySent(claim.claimed ? claim.id : null, result.sid || null);
-    else await markDeliveryFailed(claim.claimed ? claim.id : null, result.error);
-
-    const now = new Date();
-    await db.insert(conversationMessages).values({
+    // Through the dispatcher: ledgered, status-tracked, legacy fallback
+    // until the v3 template is approved. One row per nudge on purpose.
+    const sent = await sendSupportTemplate({
       conversationId: conversation.id,
-      direction: 'out',
-      author: 'admin',
-      body: `[template support_ticket_update · ${ticket.reference}]`,
-      providerMessageId: result.ok && result.sid ? result.sid : null,
-      deliveryId: claim.claimed ? claim.id : null,
+      address: conversation.address,
+      locale: conversation.locale,
+      type: 'support_ticket_update',
+      templateId: 'support_ticket_update',
+      vars: { ticketReference: ticket.reference },
+      dedupeKey: `support_nudge:${ticket.id}:${Date.now()}`,
+      transcript: `[template support_ticket_update · ${ticket.reference}]`,
     });
+    const now = new Date();
     await db
       .update(conversations)
       .set({ lastOutboundAt: now, updatedAt: now, state: 'human' })
       .where(eq(conversations.id, conversation.id));
+    const result = sent;
     revalidatePath(`/[locale]/admin/support/${conversation.id}`, 'page');
     if (!result.ok) return { success: false, message: 'send_failed' };
     return { success: true };

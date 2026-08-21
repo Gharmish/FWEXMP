@@ -278,3 +278,50 @@ status = 'failed' ORDER BY created_at DESC;`
   deliberately not implemented.
 - Marketing campaigns are a separate later phase (consent capture first) —
   nothing here sends marketing.
+
+---
+
+## v3 — the WhatsApp CX redesign (2026-08-21)
+
+WhatsApp copy now has ONE source of truth: `lib/notifications/whatsapp/`.
+
+- `templates/{guest,host,internal}.ts` — every business template (id, event,
+  audience, category, AR + EN bodies with `{named}` placeholders, variable
+  specs with Meta samples, URL button, legacy fallback).
+- `format.ts` — `waDate` (weekday + day + month, year only when it differs),
+  `waTime` ("9:00 صباحًا" / "9:00 AM"), `waMoney` ("260 ر.س." / "SAR 260"),
+  `waGuests` (ضيف واحد / ضيفان / 4 ضيوف / 12 ضيفًا), countdowns, `firstName`.
+- `links.ts` — deep-link PATHS for buttons (`<locale>/host/bookings/<ref>`,
+  guest booking page with its access token, pay page, review anchor…).
+- `render.ts` — named → positional variables, validation (missing / blank /
+  `undefined` / `NaN` / `Invalid Date` refuse the send and ledger the reason),
+  preview text, Twilio Content payload.
+- `index.ts` — `whatsappPayload(id, locale, vars)` → the dispatcher payload.
+
+**Provider keys.** Registry templates resolve through the env map as
+`v3/<id>.<locale>` (namespaced so they can never collide with a legacy key).
+Until a v3 SID is in the map the dispatcher sends the template's `legacy`
+fallback with its own positional mapping — delivery never regresses while
+Meta reviews.
+
+**Buttons.** All v3 templates are `twilio/call-to-action` with ONE URL button
+`https://gharmish.com/{{n}}` (the last variable is the path). Raw URLs never
+appear inside Arabic prose. `guest_reminder_soon` uses a Google-Maps base.
+
+**Operations** (`pnpm whatsapp:templates <cmd>`): `status` (registry vs
+account vs env map), `create`, `submit`, `sids` (prints the env-map JSON with
+approved v3 SIDs merged in — paste into `TWILIO_WHATSAPP_CONTENT_SIDS`).
+Friendly names on the account: `gharmish_<id>_v3_<locale>`.
+
+**Preview.** `/admin/dev/whatsapp-preview` (admin + TOTP only) renders every
+template in both languages with its samples.
+
+**Rules baked into tests** (`templates.test.ts`): no variable at body start/
+end, none adjacent, ≥ 2x+1 plain words per x variables, ≤ 450 chars, ≤ 1 URL
+button, titles ≤ 20 chars, ≤ 5 emoji, no raw URL in bodies, brand spelled
+غارميش. Edit a template → the test tells you before Meta does.
+
+**Not in code:** the phone OTP body (Supabase Auth → Twilio Verify auto
+templates, "{{1}} is your verification code" + Copy-code button). Custom OTP
+wording requires a Verify custom template approved by Twilio — a console/
+support task, not a deploy.

@@ -6,7 +6,8 @@ import { db } from '@/lib/db';
 import { hasEmail } from '@/lib/env';
 import type { Locale } from '@/lib/i18n';
 import { formatInteger } from '@/lib/format';
-import { dispatchNotification } from '@/lib/notifications/dispatch';
+import { dispatchNotification, notificationsConfigured } from '@/lib/notifications/dispatch';
+import { whatsappPayload } from '@/lib/notifications/whatsapp';
 import { hostNotificationContact } from '@/lib/notifications/host-contact';
 import { SITE_URL } from '@/lib/site';
 import { bookings } from '@/db/schema';
@@ -64,7 +65,7 @@ export async function sendHostRepliedEmail(reviewId: string): Promise<void> {
  * the window don't re-notify).
  */
 export async function sendHostNewReviewEmail(bookingReference: string): Promise<void> {
-  if (!hasEmail()) return;
+  if (!notificationsConfigured()) return;
 
   const booking = await db.query.bookings.findFirst({
     where: eq(bookings.idempotencyKey, bookingReference),
@@ -76,7 +77,7 @@ export async function sendHostNewReviewEmail(bookingReference: string): Promise<
   });
   if (!booking?.review) return;
   const host = await hostNotificationContact(booking.experience.hostId);
-  if (!host?.email) return;
+  if (!host || (!host.email && !host.phone)) return;
 
   const t = await getTranslations({ locale: host.locale, namespace: 'reviewEmail' });
   const title = host.locale === 'ar' ? booking.experience.titleAr : booking.experience.titleEn;
@@ -108,7 +109,11 @@ export async function sendHostNewReviewEmail(bookingReference: string): Promise<
     type: 'host_new_review',
     dedupeKey: `host_new_review:${booking.idempotencyKey}`,
     bookingId: booking.id,
-    recipient: { kind: 'host', email: host.email, locale: host.locale },
-    email: { subject, html, text },
+    recipient: { kind: 'host', email: host.email, phone: host.phone, locale: host.locale },
+    email: host.email ? { subject, html, text } : undefined,
+    whatsapp: whatsappPayload('host_new_review', host.locale, {
+      experienceName: title,
+      reviewsPath: `${host.locale}/host/reviews`,
+    }),
   });
 }

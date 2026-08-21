@@ -2,11 +2,8 @@ import 'server-only';
 
 import { hasEmail, serverEnv } from '@/lib/env';
 import { sendEmail } from '@/lib/email';
-import {
-  sendWhatsAppTemplate,
-  whatsappAddress,
-  whatsappContentSid,
-} from '@/lib/notifications/whatsapp';
+import { dispatchNotification } from '@/lib/notifications/dispatch';
+import { whatsappPayload } from '@/lib/notifications/whatsapp';
 import { SITE_URL } from '@/lib/site';
 import { reportError } from '@/lib/log';
 import { db } from '@/lib/db';
@@ -76,10 +73,15 @@ export async function notifyAdmin(
   // Persist first (2026-08-21): the rails below are fire-and-forget, so
   // this row is the only record that an alert ever happened — what the
   // admin acknowledges later and what SLA sweeps check. Best-effort.
+  let alertId: string | null = null;
   try {
     if (serverEnv.DATABASE_URL) {
       const ticketId = typeof detail.ticketId === 'string' ? detail.ticketId : null;
-      await db.insert(adminAlerts).values({ kind, subject: SUBJECTS[kind], detail, ticketId });
+      const [row] = await db
+        .insert(adminAlerts)
+        .values({ kind, subject: SUBJECTS[kind], detail, ticketId })
+        .returning({ id: adminAlerts.id });
+      alertId = row?.id ?? null;
     }
   } catch (error) {
     reportError(error, { surface: 'admin-alerts:persist', kind });
@@ -129,14 +131,32 @@ export async function notifyAdmin(
   }
 
   try {
-    // WhatsApp rail: requires the recipient phone AND a Meta-approved
-    // `admin_alert` Content template (one body variable — the subject).
-    // Deliberately terse: the email above carries the detail rows; this
-    // is the "go look" tap on the shoulder that survives a Resend outage.
-    const to = whatsappAddress(serverEnv.ADMIN_ALERT_WHATSAPP);
-    const contentSid = whatsappContentSid('admin_alert', 'en');
-    if (to && contentSid) {
-      await sendWhatsAppTemplate({ to, contentSid, variables: { '1': SUBJECTS[kind] } });
+    // WhatsApp rail (`ADMIN_ALERT_WHATSAPP`): the registry's `admin_alert`
+    // template through the dispatcher, so it is ledgered, deduped per
+    // persisted alert row, and status-tracked like every other send.
+    // The summary line is built from safe keys only — never detail rows
+    // that could carry PII or secrets.
+    const phone = serverEnv.ADMIN_ALERT_WHATSAPP;
+    if (phone) {
+      const summary = [detail.ticket, detail.reference, detail.priority, detail.category, detail.job]
+        .filter((v): v is string | number => v != null && v !== '')
+        .map(String)
+        .join(' · ');
+      await dispatchNotification({
+        type: 'admin_alert',
+        dedupeKey: alertId ? `admin_alert:${alertId}` : undefined,
+        recipient: { kind: 'admin', phone, locale: 'en' },
+        whatsapp: whatsappPayload('admin_alert', 'en', {
+          subject: SUBJECTS[kind],
+          summary: summary || kind,
+          adminPath:
+            typeof detail.conversationId === 'string'
+              ? `en/admin/support/${detail.conversationId}`
+              : kind.startsWith('support_ticket')
+                ? 'en/admin/support'
+                : 'en/admin',
+        }),
+      });
     }
   } catch (error) {
     reportError(error, { surface: 'admin-alerts:whatsapp', kind });

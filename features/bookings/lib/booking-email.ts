@@ -23,6 +23,22 @@ import { getExperienceBySlug } from '@/features/experiences/queries';
 import { toArabicText } from '@/features/experiences/lib/arabic-content';
 import { renderBookingIcs } from './booking-ics';
 import { renderReceiptEmail, type ReceiptRow } from './booking-email-render';
+import {
+  REFUND_LINES,
+  firstName,
+  guestBookingPath,
+  guestInvoicePath,
+  guestPayPath,
+  guestReviewPath,
+  hostBookingPath,
+  waDate,
+  waDateTime,
+  waGuests,
+  waMoney,
+  waTime,
+  waTimeRemaining,
+  whatsappPayload,
+} from '@/lib/notifications/whatsapp';
 
 /**
  * Bidi-isolate a strongly-LTR TOKEN (`GH-XXXXXX` reference) bound for
@@ -44,17 +60,6 @@ function bidiIsolate(value: string): string {
 /** Brand wordmark for email headers — PNG (clients don't render SVG). */
 const EMAIL_LOGO_URL = `${SITE_URL}/images/gharmish-email-logo.png`;
 
-/**
- * The experience's branded OG card (1200×630 PNG, localized, RTL-aware)
- * — the WhatsApp media header. PNG because WhatsApp rejects the WebP
- * the hero photos are stored as; the card is generated server-side for
- * every live listing, so it exists whenever the slug does.
- */
-function ogCardUrl(slug: string, locale: Locale): string {
-  // The `.png`-suffixed alias of /opengraph-image — Twilio validates
-  // media URLs by extension (see app/[locale]/experiences/[slug]/card.png).
-  return `${SITE_URL}/${locale}/experiences/${slug}/card.png`;
-}
 
 /** Email hero block from an experience's photo, when it has one. */
 function emailHero(
@@ -326,27 +331,25 @@ export async function sendBookingReceiptEmail(reference: string): Promise<void> 
       locale,
     },
     email: { subject, html, text, attachments },
-    whatsapp: {
-      // Image-header variant (the experience's branded card) with the
-      // plain template as automatic fallback until its SID is approved
-      // — and forever for bookings whose listing is gone.
-      template: booking.experienceSlug ? 'booking_confirmed_media' : 'booking_confirmed',
-      fallbackTemplate: 'booking_confirmed',
-      variables: {
-        '1': booking.guestName,
-        '2': title ?? t('genericExperience'),
-        '3': formatDate(startsAt, locale, 'gregory', KSA_DATE),
-        '4': formatTime(startsAt, locale, KSA_TIME),
-        '5': bidiIsolate(booking.referenceCode),
-        // Vars 6–7 are ignored by the live v1 template and light up with
-        // the v2 body (invoice link + amount) once Meta approves it —
-        // they close the phone-only guest's path to their tax document.
-        '6': invoiceUrl,
-        '7': formatSAR(booking.totalAmountSar, locale),
-        // Var 8 is the media header URL (used only by the _media template).
-        ...(booking.experienceSlug ? { '8': ogCardUrl(booking.experienceSlug, locale) } : {}),
+    // v3 template (button → booking page); falls back to the approved v2
+    // body until Meta approves the new one (lib/notifications/whatsapp).
+    whatsapp: whatsappPayload(
+      'guest_booking_confirmed',
+      locale,
+      {
+        experienceName: title ?? t('genericExperience'),
+        date: waDate(startsAt, locale),
+        time: waTime(startsAt, locale),
+        guests: waGuests(booking.partySize, locale),
+        bookingPath: guestBookingPath(locale, reference),
+        // legacy slots
+        guestName: booking.guestName,
+        reference: bidiIsolate(booking.referenceCode),
+        invoiceUrl,
+        amount: waMoney(booking.totalAmountSar, locale),
       },
-    },
+      { reference: booking.referenceCode },
+    ),
   });
 }
 
@@ -572,6 +575,18 @@ export async function sendBookingCancellationEmail(
   const cancelCtaUrl = showDocument
     ? `${SITE_URL}/${locale}/book/confirmed/${reference}/invoice`
     : (walletCta?.url ?? `${SITE_URL}/${locale}/book/confirmed/${reference}`);
+  // One system-owned sentence for the WhatsApp refund line (plan §22).
+  const refundAmountText = waMoney(options?.refundAmountSar ?? booking.totalAmountSar, locale);
+  const refundLine =
+    refund === 'refunded'
+      ? REFUND_LINES.refunded[locale](refundAmountText)
+      : refund === 'refund_pending'
+        ? REFUND_LINES.refund_pending[locale](refundAmountText)
+        : refund === 'wallet_credited'
+          ? REFUND_LINES.wallet[locale](refundAmountText)
+          : refund === 'forfeited'
+            ? REFUND_LINES.forfeited[locale]()
+            : REFUND_LINES.none[locale]();
   const { html, text } = renderReceiptEmail({
     logoUrl: EMAIL_LOGO_URL,
     subject: cancelSubject,
@@ -589,19 +604,6 @@ export async function sendBookingCancellationEmail(
     footer: t('footer'),
   });
 
-  // Short refund-outcome line for the WhatsApp body (var 6 of the v2
-  // template) — the email's five intros compressed to one clause each,
-  // so a phone-only guest still learns what happened to their money.
-  const waOutcome =
-    refund === 'refunded'
-      ? t('waCancelRefunded')
-      : refund === 'refund_pending'
-        ? t('waCancelRefundPending')
-        : refund === 'wallet_credited'
-          ? t('waCancelWalletCredited')
-          : refund === 'forfeited'
-            ? t('waCancelForfeited')
-            : t('waCancelUnpaid');
 
   await dispatchNotification({
     type: 'booking_cancelled',
@@ -622,20 +624,24 @@ export async function sendBookingCancellationEmail(
       locale,
     },
     email: { subject: cancelSubject, html, text },
-    whatsapp: {
-      template: 'booking_cancelled',
-      variables: {
-        '1': booking.guestName,
-        '2': title ?? t('genericExperience'),
-        '3': formatDate(startsAt, locale, 'gregory', KSA_DATE),
-        '4': formatTime(startsAt, locale, KSA_TIME),
-        '5': bidiIsolate(booking.referenceCode),
-        // Vars 6–7 are inert on the live v1 template; the v2 body adds
-        // the refund outcome and a link to the document/booking page.
-        '6': waOutcome,
-        '7': cancelCtaUrl,
+    whatsapp: whatsappPayload(
+      'guest_booking_cancelled',
+      locale,
+      {
+        experienceName: title ?? t('genericExperience'),
+        date: waDate(startsAt, locale),
+        refundStatus: refundLine,
+        bookingPath: showDocument
+          ? guestInvoicePath(locale, reference)
+          : guestBookingPath(locale, reference),
+        // legacy slots
+        guestName: booking.guestName,
+        time: waTime(startsAt, locale),
+        reference: bidiIsolate(booking.referenceCode),
+        ctaUrl: cancelCtaUrl,
       },
-    },
+      { reference: booking.referenceCode, refund },
+    ),
   });
 }
 
@@ -690,15 +696,20 @@ export async function sendBookingRescheduledEmail(
       locale,
     },
     email: { subject, html, text },
-    whatsapp: {
-      template: 'booking_rescheduled',
-      variables: {
-        ...guestLifecycleVariables(booking, details, locale, t('genericExperience')),
-        // Var 6 (booking page) for the template body — this key has no
-        // approved template yet, so the whole payload waits on its SID.
-        '6': bookingUrl,
+    whatsapp: whatsappPayload(
+      'guest_booking_rescheduled',
+      locale,
+      {
+        experienceName: details.title ?? t('genericExperience'),
+        date: waDate(details.startsAt, locale),
+        time: waTime(details.startsAt, locale),
+        bookingPath: guestBookingPath(locale, reference),
+        guestName: booking.guestName,
+        reference: bidiIsolate(booking.referenceCode),
+        bookingUrl,
       },
-    },
+      { reference: booking.referenceCode },
+    ),
   });
 }
 
@@ -719,6 +730,8 @@ interface ReminderData {
   startsAt: Date;
   /** Google Maps link for the meeting point, or null when the listing is gone. */
   mapUrl: string | null;
+  /** `lat,lng` for the WhatsApp directions button; null when the listing is gone. */
+  mapsQuery: string | null;
   /** Localized "what to bring", falling back to the English list. */
   bringList: readonly string[];
 }
@@ -749,6 +762,7 @@ async function reminderData(reference: string, locale: Locale): Promise<Reminder
       : experience.placeName
     : null;
   const mapUrl = experience ? googleMapsLink(experience.lat, experience.lng) : null;
+  const mapsQuery = experience ? `${experience.lat},${experience.lng}` : null;
   const bringList =
     locale === 'ar' && experience?.whatToBringAr.length
       ? experience.whatToBringAr
@@ -763,6 +777,7 @@ async function reminderData(reference: string, locale: Locale): Promise<Reminder
     placeName,
     startsAt: startInstant(booking.date, booking.startTime),
     mapUrl,
+    mapsQuery,
     bringList,
   };
 }
@@ -838,23 +853,55 @@ export async function sendBookingPrepareReminderEmail(
     bookingId: booking.id,
     recipient: { kind: 'guest', email: guestEmail, phone: guestPhone, locale },
     email: { subject: t('prepareSubject', { time }), html, text },
-    whatsapp: {
-      template: booking.experienceSlug ? 'booking_reminder_24h_media' : 'booking_reminder_24h',
-      fallbackTemplate: 'booking_reminder_24h',
-      variables: {
-        '1': booking.guestName,
-        '2': title ?? t('genericExperience'),
-        '3': formatDate(startsAt, locale, 'gregory', KSA_DATE),
-        '4': time,
-        // Never a reference code posing as a meeting point — fall back
-        // to the booking page where the real details live.
-        '5': placeName ?? title ?? t('genericExperience'),
-        '6': mapUrl ?? manageUrl,
-        // Var 7 is the media header URL (used only by the _media template).
-        ...(booking.experienceSlug ? { '7': ogCardUrl(booking.experienceSlug, locale) } : {}),
+    whatsapp: whatsappPayload(
+      'guest_reminder_tomorrow',
+      locale,
+      {
+        firstName: firstName(booking.guestName),
+        experienceName: title ?? t('genericExperience'),
+        date: waDate(startsAt, locale),
+        time: waTime(startsAt, locale),
+        // Never a reference code posing as a meeting point.
+        meetingPoint: placeName ?? title ?? t('genericExperience'),
+        bookingPath: guestBookingPath(locale, reference),
+        guestName: booking.guestName,
+        mapUrl,
+        bookingUrl: manageUrl,
       },
-    },
+      { reference: booking.referenceCode },
+    ),
   });
+
+  // Host side of the same hour (WhatsApp CX redesign, H05): who is
+  // coming tomorrow. Best-effort; deduped per booking+date like the
+  // guest reminder so a reschedule re-arms it.
+  if (booking.experienceSlug) {
+    try {
+      const host = await hostEmailContext(booking.experienceSlug);
+      if (host?.phone) {
+        await dispatchNotification({
+          type: 'host_reminder_tomorrow',
+          dedupeKey: `host_reminder_tomorrow:${booking.referenceCode}:${booking.date}`,
+          bookingId: booking.id,
+          recipient: { kind: 'host', phone: host.phone, locale: host.locale },
+          whatsapp: whatsappPayload(
+            'host_reminder_tomorrow',
+            host.locale,
+            {
+              experienceName: host.title,
+              date: waDate(startsAt, host.locale),
+              time: waTime(startsAt, host.locale),
+              guests: waGuests(booking.partySize, host.locale),
+              bookingPath: hostBookingPath(host.locale, booking.referenceCode),
+            },
+            { reference: booking.referenceCode },
+          ),
+        });
+      }
+    } catch (error) {
+      reportError(error, { surface: 'bookings:hostReminderTomorrow', reference });
+    }
+  }
 }
 
 /**
@@ -871,7 +918,7 @@ export async function sendBookingDepartureReminderEmail(
 
   const data = await reminderData(reference, locale);
   if (!data) return;
-  const { booking, guestEmail, guestPhone, title, placeName, startsAt, mapUrl } = data;
+  const { booking, guestEmail, guestPhone, title, placeName, startsAt, mapUrl, mapsQuery } = data;
 
   const t = await getTranslations({ locale, namespace: 'bookingEmail' });
   const time = formatTime(startsAt, locale, KSA_TIME);
@@ -904,15 +951,23 @@ export async function sendBookingDepartureReminderEmail(
     bookingId: booking.id,
     recipient: { kind: 'guest', email: guestEmail, phone: guestPhone, locale },
     email: { subject: t('departureSubject', { time }), html, text },
-    whatsapp: {
-      template: 'booking_reminder_3h',
-      variables: {
-        '1': booking.guestName,
-        '2': placeName ?? title ?? t('genericExperience'),
-        '3': time,
-        '4': mapUrl ?? `${SITE_URL}/${locale}/book/confirmed/${reference}`,
+    whatsapp: whatsappPayload(
+      'guest_reminder_soon',
+      locale,
+      {
+        timeRemaining: waTimeRemaining(
+          Math.max(0, (startsAt.getTime() - Date.now()) / 60_000),
+          locale,
+        ),
+        experienceName: title ?? t('genericExperience'),
+        time: waTime(startsAt, locale),
+        meetingPoint: placeName ?? title ?? t('genericExperience'),
+        mapsQuery,
+        guestName: booking.guestName,
+        mapUrl: mapUrl ?? `${SITE_URL}/${locale}/book/confirmed/${reference}`,
       },
-    },
+      { reference: booking.referenceCode },
+    ),
   });
 }
 
@@ -949,22 +1004,6 @@ async function lifecycleDetails(
   return { rows, title, startsAt, hero: emailHero(experience, title) };
 }
 
-/** Shared shorthand for the guest-side WhatsApp variable block. */
-function guestLifecycleVariables(
-  booking: NonNullable<Awaited<ReturnType<typeof getBookingByReference>>>,
-  details: LifecycleDetails,
-  locale: Locale,
-  /** Localized "your experience" — never a reference code masquerading as a title. */
-  fallbackTitle: string,
-): Record<string, string> {
-  return {
-    '1': booking.guestName,
-    '2': details.title ?? fallbackTitle,
-    '3': formatDate(details.startsAt, locale, 'gregory', KSA_DATE),
-    '4': formatTime(details.startsAt, locale, KSA_TIME),
-    '5': bidiIsolate(booking.referenceCode),
-  };
-}
 
 /**
  * Acknowledge a guest's booking request (request-to-book only): "the host
@@ -1014,10 +1053,19 @@ export async function sendBookingRequestReceivedEmail(reference: string): Promis
       locale,
     },
     email: { subject: t('requestReceivedSubject'), html, text },
-    whatsapp: {
-      template: 'booking_request_received',
-      variables: guestLifecycleVariables(booking, details, locale, t('genericExperience')),
-    },
+    whatsapp: whatsappPayload(
+      'guest_request_received',
+      locale,
+      {
+        experienceName: details.title ?? t('genericExperience'),
+        date: waDate(details.startsAt, locale),
+        time: waTime(details.startsAt, locale),
+        bookingPath: guestBookingPath(locale, reference),
+        guestName: booking.guestName,
+        reference: bidiIsolate(booking.referenceCode),
+      },
+      { reference: booking.referenceCode },
+    ),
   });
 }
 
@@ -1083,16 +1131,25 @@ export async function sendBookingApprovedEmail(reference: string): Promise<void>
       locale,
     },
     email: { subject: approvedSubject, html, text },
-    whatsapp: {
-      template: 'booking_approved',
-      variables: {
-        ...guestLifecycleVariables(booking, details, locale, t('genericExperience')),
-        // Var 5 is the action link: the payment page while payment is
-        // due, the booking page otherwise (the template copy reads
-        // "details and next steps" either way).
-        '5': needsPayment ? payUrl : `${SITE_URL}/${locale}/book/confirmed/${reference}`,
+    whatsapp: whatsappPayload(
+      'guest_booking_approved',
+      locale,
+      {
+        experienceName: details.title ?? t('genericExperience'),
+        date: waDate(details.startsAt, locale),
+        time: waTime(details.startsAt, locale),
+        payDeadline:
+          needsPayment && booking.paymentDeadline
+            ? waDateTime(new Date(booking.paymentDeadline), locale)
+            : waDate(details.startsAt, locale),
+        payPath: needsPayment
+          ? guestPayPath(locale, reference, booking.experienceSlug)
+          : guestBookingPath(locale, reference),
+        guestName: booking.guestName,
+        payUrl: needsPayment ? payUrl : `${SITE_URL}/${locale}/book/confirmed/${reference}`,
       },
-    },
+      { reference: booking.referenceCode },
+    ),
   });
 }
 
@@ -1162,17 +1219,16 @@ export async function sendBookingAwaitingPaymentEmail(
       locale,
     },
     email: { subject, html, text },
-    // Same template serves both stages (the body reads correctly either
-    // way); skips cleanly until its SID is approved and configured.
-    whatsapp: {
-      template: 'booking_payment_reminder',
-      variables: {
-        '1': booking.guestName,
-        '2': details.title ?? t('genericExperience'),
-        '3': deadlineValue,
-        '4': payUrl,
+    whatsapp: whatsappPayload(
+      stage === 'created' ? 'guest_payment_pending' : 'guest_payment_reminder',
+      locale,
+      {
+        experienceName: details.title ?? t('genericExperience'),
+        holdDeadline: waDateTime(deadline, locale),
+        payPath: guestPayPath(locale, reference, booking.experienceSlug),
       },
-    },
+      { reference: booking.referenceCode, stage },
+    ),
   });
 }
 
@@ -1209,10 +1265,19 @@ export async function sendBookingDeclinedEmail(reference: string): Promise<void>
       locale,
     },
     email: { subject: t('declinedSubject'), html, text },
-    whatsapp: {
-      template: 'booking_declined',
-      variables: guestLifecycleVariables(booking, details, locale, t('genericExperience')),
-    },
+    whatsapp: whatsappPayload(
+      'guest_booking_declined',
+      locale,
+      {
+        experienceName: details.title ?? t('genericExperience'),
+        date: waDate(details.startsAt, locale),
+        discoverPath: `${locale}/experiences`,
+        guestName: booking.guestName,
+        time: waTime(details.startsAt, locale),
+        reference: bidiIsolate(booking.referenceCode),
+      },
+      { reference: booking.referenceCode },
+    ),
   });
 }
 
@@ -1310,14 +1375,15 @@ export async function sendBookingPaymentLapsedEmail(reference: string): Promise<
 export async function sendBookingOnHoldEmail(reference: string): Promise<void> {
   if (!notificationsConfigured()) return;
   const booking = await getBookingByReference(reference);
-  if (!booking?.guestEmail) return;
+  if (!booking || (!booking.guestEmail && !booking.guestPhone)) return;
   // Only bookings still live at send time — a guest who cancelled
   // between the suspension and this send needs no hold notice.
   if (booking.status !== 'pending' && booking.status !== 'confirmed') return;
 
   const locale = booking.guestPreferredLanguage;
   const t = await getTranslations({ locale, namespace: 'bookingEmail' });
-  const { rows } = await lifecycleDetails(booking, locale, t);
+  const details = await lifecycleDetails(booking, locale, t);
+  const { rows } = details;
 
   const subject = t('onHoldSubject', { reference: booking.referenceCode });
   const { html, text } = renderReceiptEmail({
@@ -1330,14 +1396,22 @@ export async function sendBookingOnHoldEmail(reference: string): Promise<void> {
     closing: t('onHoldClosing'),
     footer: t('footer'),
   });
-  // Email-only: there is no Meta-approved WhatsApp template for this
-  // edge case yet — still dispatched so the send is ledgered.
   await dispatchNotification({
     type: 'booking_on_hold',
     dedupeKey: `booking_on_hold:${booking.referenceCode}`,
     bookingId: booking.id,
-    recipient: { kind: 'guest', email: booking.guestEmail, locale },
-    email: { subject, html, text },
+    recipient: { kind: 'guest', email: booking.guestEmail, phone: booking.guestPhone, locale },
+    email: booking.guestEmail ? { subject, html, text } : undefined,
+    whatsapp: whatsappPayload(
+      'guest_booking_on_hold',
+      locale,
+      {
+        experienceName: details.title ?? t('genericExperience'),
+        date: waDate(details.startsAt, locale),
+        bookingPath: guestBookingPath(locale, reference),
+      },
+      { reference: booking.referenceCode },
+    ),
   });
 }
 
@@ -1467,19 +1541,24 @@ export async function sendHostNewBookingEmail(reference: string): Promise<void> 
     bookingId: booking.id,
     recipient: { kind: 'host', email: host.email, phone: host.phone, locale: host.locale },
     email: { subject, html, text },
-    whatsapp: {
-      template: type,
-      variables: {
-        '1': host.title,
-        '2': formatDate(startsAt, host.locale),
-        '3': formatTime(startsAt, host.locale),
-        '4': formatInteger(booking.partySize, host.locale),
-        '5': formatSAR(payoutSar, host.locale),
-        // Var 6 (dashboard link) is inert on the live v1 template; the
-        // v2 body replaces the bare-domain literal with this variable.
-        '6': hostBookingsUrl(host.locale),
+    whatsapp: whatsappPayload(
+      isRequest ? 'host_booking_request' : 'host_booking_new',
+      host.locale,
+      {
+        experienceName: host.title,
+        date: waDate(startsAt, host.locale),
+        time: waTime(startsAt, host.locale),
+        guests: waGuests(booking.partySize, host.locale),
+        payout: waMoney(payoutSar, host.locale),
+        deadline: booking.approvalDeadline
+          ? waDateTime(new Date(booking.approvalDeadline), host.locale)
+          : waDate(startsAt, host.locale),
+        bookingPath: hostBookingPath(host.locale, booking.referenceCode),
+        guestsNumber: formatInteger(booking.partySize, host.locale),
+        dashboardUrl: hostBookingsUrl(host.locale),
       },
-    },
+      { reference: booking.referenceCode },
+    ),
   });
 }
 
@@ -1515,16 +1594,18 @@ export async function sendHostGuestCancelledEmail(reference: string): Promise<vo
     bookingId: booking.id,
     recipient: { kind: 'host', email: host.email, phone: host.phone, locale: host.locale },
     email: { subject, html, text },
-    whatsapp: {
-      template: 'host_guest_cancelled',
-      variables: {
-        '1': host.title,
-        '2': formatDate(startsAt, host.locale),
-        '3': formatTime(startsAt, host.locale),
-        // Var 4 (dashboard link) — inert until the v2 body references it.
-        '4': hostBookingsUrl(host.locale),
+    whatsapp: whatsappPayload(
+      'host_booking_cancelled',
+      host.locale,
+      {
+        experienceName: host.title,
+        date: waDate(startsAt, host.locale),
+        bookingPath: hostBookingPath(host.locale, booking.referenceCode),
+        time: waTime(startsAt, host.locale),
+        dashboardUrl: hostBookingsUrl(host.locale),
       },
-    },
+      { reference: booking.referenceCode },
+    ),
   });
 }
 
@@ -1569,16 +1650,18 @@ export async function sendHostBookingRescheduledEmail(
     bookingId: booking.id,
     recipient: { kind: 'host', email: host.email, phone: host.phone, locale: host.locale },
     email: { subject, html, text },
-    whatsapp: {
-      template: 'host_booking_rescheduled',
-      variables: {
-        '1': host.title,
-        '2': formatDate(startsAt, host.locale),
-        '3': formatTime(startsAt, host.locale),
-        // Var 4 (dashboard link) for the not-yet-authored template body.
-        '4': hostBookingsUrl(host.locale),
+    whatsapp: whatsappPayload(
+      'host_booking_rescheduled',
+      host.locale,
+      {
+        experienceName: host.title,
+        date: waDate(startsAt, host.locale),
+        time: waTime(startsAt, host.locale),
+        bookingPath: hostBookingPath(host.locale, booking.referenceCode),
+        dashboardUrl: hostBookingsUrl(host.locale),
       },
-    },
+      { reference: booking.referenceCode },
+    ),
   });
 }
 
@@ -1663,17 +1746,20 @@ export async function sendHostPaymentReceivedEmail(reference: string): Promise<v
     bookingId: booking.id,
     recipient: { kind: 'host', email: host.email, phone: host.phone, locale: host.locale },
     email: { subject, html, text },
-    whatsapp: {
-      template: 'host_payment_received',
-      variables: {
-        '1': host.title,
-        '2': formatDate(startsAt, host.locale),
-        '3': formatTime(startsAt, host.locale),
-        '4': formatSAR(payoutSar, host.locale),
-        // Var 5 (dashboard link) — inert until the v2 body references it.
-        '5': hostBookingsUrl(host.locale),
+    whatsapp: whatsappPayload(
+      'host_booking_confirmed',
+      host.locale,
+      {
+        experienceName: host.title,
+        date: waDate(startsAt, host.locale),
+        time: waTime(startsAt, host.locale),
+        guests: waGuests(booking.partySize, host.locale),
+        payout: waMoney(payoutSar, host.locale),
+        bookingPath: hostBookingPath(host.locale, booking.referenceCode),
+        dashboardUrl: hostBookingsUrl(host.locale),
       },
-    },
+      { reference: booking.referenceCode },
+    ),
   });
 }
 
@@ -1737,14 +1823,12 @@ export async function sendBookingCompletedEmails(reference: string): Promise<voi
       // phone-first — the email-only invite was the single point where
       // phone-only guests fell out of the loop entirely. Skips cleanly
       // until the template SID is approved and configured.
-      whatsapp: {
-        template: 'booking_completed_review',
-        variables: {
-          '1': booking.guestName,
-          '2': experienceName,
-          '3': `${SITE_URL}/${locale}/book/confirmed/${reference}#review`,
-        },
-      },
+      whatsapp: whatsappPayload(
+        'guest_review_invite',
+        locale,
+        { experienceName, reviewPath: guestReviewPath(locale, reference) },
+        { reference: booking.referenceCode },
+      ),
     });
   }
 
@@ -1779,8 +1863,18 @@ export async function sendBookingCompletedEmails(reference: string): Promise<voi
         type: 'host_booking_completed',
         dedupeKey: `host_booking_completed:${booking.referenceCode}`,
         bookingId: booking.id,
-        recipient: { kind: 'host', email: host.email, locale: host.locale },
+        recipient: { kind: 'host', email: host.email, phone: host.phone, locale: host.locale },
         email: { subject, html, text },
+        whatsapp: whatsappPayload(
+          'host_booking_completed',
+          host.locale,
+          {
+            experienceName: host.title,
+            payout: waMoney(payoutSar, host.locale),
+            earningsPath: `${host.locale}/host/earnings`,
+          },
+          { reference: booking.referenceCode },
+        ),
       });
     }
   }
@@ -1838,6 +1932,15 @@ export async function sendBookingPaymentFailedEmail(reference: string): Promise<
       locale,
     },
     email: { subject, html, text },
+    whatsapp: whatsappPayload(
+      'guest_payment_failed',
+      locale,
+      {
+        experienceName: details.title ?? t('genericExperience'),
+        payPath: guestPayPath(locale, reference, booking.experienceSlug),
+      },
+      { reference: booking.referenceCode },
+    ),
   });
 }
 
@@ -1871,8 +1974,18 @@ export async function sendHostBookingCancelledEmail(reference: string): Promise<
     type: 'host_booking_cancelled',
     dedupeKey: `host_booking_cancelled:${booking.referenceCode}`,
     bookingId: booking.id,
-    recipient: { kind: 'host', email: host.email, locale: host.locale },
+    recipient: { kind: 'host', email: host.email, phone: host.phone, locale: host.locale },
     email: { subject, html, text },
+    whatsapp: whatsappPayload(
+      'host_booking_cancelled',
+      host.locale,
+      {
+        experienceName: host.title,
+        date: waDate(startInstant(booking.date, booking.startTime), host.locale),
+        bookingPath: hostBookingPath(host.locale, booking.referenceCode),
+      },
+      { reference: booking.referenceCode },
+    ),
   });
 }
 

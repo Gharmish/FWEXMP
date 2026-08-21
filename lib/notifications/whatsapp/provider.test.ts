@@ -32,7 +32,7 @@ vi.mock('@/lib/log', () => ({
 async function load(contentSids: string) {
   env.TWILIO_WHATSAPP_CONTENT_SIDS = contentSids;
   vi.resetModules();
-  return await import('./whatsapp');
+  return await import('./provider');
 }
 
 beforeEach(() => {

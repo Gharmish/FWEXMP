@@ -3,7 +3,8 @@ import 'server-only';
 import { getTranslations } from 'next-intl/server';
 import { hasEmail } from '@/lib/env';
 import type { Locale } from '@/lib/i18n';
-import { dispatchNotification } from '@/lib/notifications/dispatch';
+import { dispatchNotification, notificationsConfigured } from '@/lib/notifications/dispatch';
+import { firstName, whatsappPayload } from '@/lib/notifications/whatsapp';
 import { SITE_URL } from '@/lib/site';
 import { renderReceiptEmail } from '@/features/bookings/lib/booking-email-render';
 
@@ -12,6 +13,8 @@ const EMAIL_LOGO_URL = `${SITE_URL}/images/gharmish-email-logo.png`;
 
 export interface ApplicationDecisionRecipient {
   contactEmail: string | null;
+  /** E.164; the WhatsApp welcome goes here (approval only). */
+  contactPhone?: string | null;
   displayName: string;
   languages: readonly string[];
 }
@@ -30,7 +33,7 @@ function localeFor(languages: readonly string[]): Locale {
 export async function sendApplicationApprovedEmail(
   recipient: ApplicationDecisionRecipient,
 ): Promise<void> {
-  if (!hasEmail() || !recipient.contactEmail) return;
+  if (!notificationsConfigured() || (!recipient.contactEmail && !recipient.contactPhone)) return;
 
   const locale = localeFor(recipient.languages);
   const t = await getTranslations({ locale, namespace: 'hostApplicationEmail' });
@@ -49,8 +52,17 @@ export async function sendApplicationApprovedEmail(
   // resubmit cycle, and each decision deserves its notice. Still ledgered.
   await dispatchNotification({
     type: 'application_approved',
-    recipient: { kind: 'applicant', email: recipient.contactEmail, locale },
-    email: { subject: t('approvedSubject'), html, text },
+    recipient: {
+      kind: 'applicant',
+      email: recipient.contactEmail,
+      phone: recipient.contactPhone ?? null,
+      locale,
+    },
+    email: recipient.contactEmail ? { subject: t('approvedSubject'), html, text } : undefined,
+    whatsapp: whatsappPayload('host_application_approved', locale, {
+      firstName: firstName(recipient.displayName),
+      newExperiencePath: `${locale}/host/experiences/new`,
+    }),
   });
 }
 

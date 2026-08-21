@@ -3,8 +3,8 @@ import 'server-only';
 import { eq } from 'drizzle-orm';
 import { getTranslations } from 'next-intl/server';
 import { db } from '@/lib/db';
-import { hasEmail } from '@/lib/env';
-import { dispatchNotification } from '@/lib/notifications/dispatch';
+import { dispatchNotification, notificationsConfigured } from '@/lib/notifications/dispatch';
+import { whatsappPayload } from '@/lib/notifications/whatsapp';
 import { hostNotificationContact } from '@/lib/notifications/host-contact';
 import { SITE_URL } from '@/lib/site';
 import { renderReceiptEmail } from '@/features/bookings/lib/booking-email-render';
@@ -27,7 +27,7 @@ export async function sendExperienceModerationEmail(
   experienceId: string,
   decision: ModerationDecision,
 ): Promise<void> {
-  if (!hasEmail()) return;
+  if (!notificationsConfigured()) return;
 
   const experience = await db.query.experiences.findFirst({
     where: (e) => eq(e.id, experienceId),
@@ -35,7 +35,7 @@ export async function sendExperienceModerationEmail(
   });
   if (!experience) return;
   const host = await hostNotificationContact(experience.hostId);
-  if (!host?.email) return;
+  if (!host || (!host.email && !host.phone)) return;
 
   const t = await getTranslations({ locale: host.locale, namespace: 'moderationEmail' });
   const title = host.locale === 'ar' ? experience.titleAr : experience.titleEn;
@@ -74,9 +74,24 @@ export async function sendExperienceModerationEmail(
     closing: decision === 'approved' ? t('approvedClosing') : t('decisionClosing'),
     footer: t('footer'),
   });
+  // WhatsApp only for approvals and change requests; a rejection stays
+  // email + in-product, where the reviewer's note lives.
+  const whatsapp =
+    decision === 'approved'
+      ? whatsappPayload('host_experience_approved', host.locale, {
+          experienceName: title,
+          experiencePath: `${host.locale}/experiences/${experience.slug}`,
+        })
+      : decision === 'changes_requested'
+        ? whatsappPayload('host_experience_changes', host.locale, {
+            experienceName: title,
+            editPath: `${host.locale}/host/experiences/${experience.id}`,
+          })
+        : undefined;
   await dispatchNotification({
     type: `experience_${decision}`,
-    recipient: { kind: 'host', email: host.email, locale: host.locale },
-    email: { subject, html, text },
+    recipient: { kind: 'host', email: host.email, phone: host.phone, locale: host.locale },
+    email: host.email ? { subject, html, text } : undefined,
+    whatsapp,
   });
 }

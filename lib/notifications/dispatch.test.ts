@@ -55,7 +55,7 @@ let whatsappResult: { ok: true; sid: string } | { ok: false; error: string } = {
   sid: 'SM-1',
 };
 const sendWhatsAppTemplate = vi.fn(async () => whatsappResult);
-vi.mock('./whatsapp', () => ({
+vi.mock('./whatsapp/provider', () => ({
   whatsappContentSid: (template: string) => sidByTemplate[template] ?? contentSid,
   whatsappAddress: (phone: string | null | undefined) => {
     if (!phone) return null;

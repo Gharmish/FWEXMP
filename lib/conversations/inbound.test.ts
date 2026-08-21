@@ -10,7 +10,7 @@ vi.mock('@/lib/notifications/ledger', () => ({
   markDeliveryFailed: vi.fn(),
   markDeliverySent: vi.fn(),
 }));
-vi.mock('@/lib/notifications/whatsapp', () => ({
+vi.mock('@/lib/notifications/whatsapp/provider', () => ({
   sendWhatsAppText: vi.fn(),
   whatsappAddress: vi.fn(),
 }));

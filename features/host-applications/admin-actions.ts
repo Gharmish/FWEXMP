@@ -172,6 +172,7 @@ export async function approveApplication(
       const application = claimed[0];
       recipient = {
         contactEmail: application.contactEmail,
+        contactPhone: application.contactPhone,
         displayName: application.displayName,
         languages: application.languages,
       };

@@ -11,7 +11,7 @@ import {
   markDeliveryFailed,
   markDeliverySent,
 } from './ledger';
-import { sendWhatsAppTemplate, whatsappAddress, whatsappContentSid } from './whatsapp';
+import { sendWhatsAppTemplate, whatsappAddress, whatsappContentSid } from './whatsapp/provider';
 import type { DispatchInput } from './types';
 
 export type { DispatchInput, NotificationRecipient, WhatsAppTemplateKey } from './types';
@@ -97,11 +97,19 @@ async function dispatchWhatsApp(input: DispatchInput, dedupeKey: string): Promis
   if (!input.whatsapp || !hasWhatsApp()) return;
   const to = whatsappAddress(input.recipient.phone);
   if (!to) return;
-  const contentSid =
-    whatsappContentSid(input.whatsapp.template, input.recipient.locale) ??
-    (input.whatsapp.fallbackTemplate
-      ? whatsappContentSid(input.whatsapp.fallbackTemplate, input.recipient.locale)
-      : null);
+  // Resolution order: the template itself → the richer/older variant
+  // (`fallbackTemplate`, same variables) → the legacy template with its
+  // own positional variables (`fallback`, v3 redesign before approval).
+  const locale = input.recipient.locale;
+  let contentSid = whatsappContentSid(input.whatsapp.template, locale);
+  let variables = input.whatsapp.variables;
+  if (!contentSid && input.whatsapp.fallbackTemplate) {
+    contentSid = whatsappContentSid(input.whatsapp.fallbackTemplate, locale);
+  }
+  if (!contentSid && input.whatsapp.fallback) {
+    contentSid = whatsappContentSid(input.whatsapp.fallback.template, locale);
+    if (contentSid) variables = input.whatsapp.fallback.variables;
+  }
 
   const phone = to.replace('whatsapp:', '');
   const base = {
@@ -122,6 +130,13 @@ async function dispatchWhatsApp(input: DispatchInput, dedupeKey: string): Promis
   const claim = await claimDelivery(base);
   if (!claim.claimed) return;
 
+  // Renderer refused the message (missing/unusable required variable).
+  // Ledgered with the reason; never send "📅 undefined" to a guest.
+  if (input.whatsapp.invalid) {
+    await markDeliveryFailed(claim.id, `invalid variables: ${input.whatsapp.invalid}`);
+    return;
+  }
+
   // Template not approved (or not mapped) yet. Ledgered as `failed` —
   // not silently skipped — so a phone-only guest missing a message is
   // visible in the ops query, and the retry sweep re-drives the send
@@ -133,17 +148,13 @@ async function dispatchWhatsApp(input: DispatchInput, dedupeKey: string): Promis
 
   // WhatsApp rejects a template rendered with a blank variable (an
   // opaque Twilio 400); fail the row with a diagnosable reason instead.
-  const blank = Object.entries(input.whatsapp.variables).find(([, v]) => !v.trim());
+  const blank = Object.entries(variables).find(([, v]) => !v.trim());
   if (blank) {
     await markDeliveryFailed(claim.id, `blank template variable {{${blank[0]}}}`);
     return;
   }
 
-  const result = await sendWhatsAppTemplate({
-    to,
-    contentSid,
-    variables: input.whatsapp.variables,
-  });
+  const result = await sendWhatsAppTemplate({ to, contentSid, variables });
   if (result.ok) await markDeliverySent(claim.id, result.sid || null);
   else await markDeliveryFailed(claim.id, result.error);
 }

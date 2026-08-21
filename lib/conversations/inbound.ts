@@ -15,7 +15,9 @@ import type { Locale } from '@/lib/i18n';
 import { reportError } from '@/lib/log';
 import { notifyAdmin } from '@/lib/admin-alerts';
 import { claimDelivery, markDeliveryFailed, markDeliverySent } from '@/lib/notifications/ledger';
-import { sendWhatsAppText, whatsappAddress } from '@/lib/notifications/whatsapp';
+import { dispatchNotification } from '@/lib/notifications/dispatch';
+import { SUPPORT_SESSION_COPY, whatsappPayload } from '@/lib/notifications/whatsapp';
+import { sendWhatsAppText, whatsappAddress } from '@/lib/notifications/whatsapp/provider';
 
 /**
  * WhatsApp support line — inbound handling (phase 0 of
@@ -254,16 +256,60 @@ export async function recordInboundMessage(input: InboundMessage): Promise<Recor
   }
 }
 
+/** Acknowledgement copy lives in the WhatsApp registry (one source of truth). */
+export const ACK_COPY: Record<Locale, string> = SUPPORT_SESSION_COPY.ack;
+
+export interface SupportTemplateSend {
+  conversationId: string;
+  address: string;
+  locale: Locale;
+  /** Ledger type slug. */
+  type: string;
+  /** Registry template id. */
+  templateId: string;
+  vars: Record<string, string | number | null | undefined>;
+  dedupeKey: string;
+  /** Transcript placeholder shown in the admin thread. */
+  transcript: string;
+}
+
 /**
- * Acknowledgement copy. Brand voice (calm, host-introducing-a-friend);
- * points an on-the-day emergency at the host link the guest already
- * holds, because a person may be asleep. Kept in code like the email
- * templates — the webhook has no next-intl request context.
+ * Out-of-window support send: an approved template through the
+ * dispatcher (ledger, legacy fallback, status callbacks), plus the
+ * transcript row so the admin thread shows what went out.
  */
-export const ACK_COPY: Record<Locale, string> = {
-  ar: 'أهلًا بك في غارميش. وصلتنا رسالتك، وسيرد عليك أحد فريقنا في أقرب وقت.\n\nإذا كان الأمر طارئًا أثناء التجربة، تواصل مع المضيف مباشرة عبر الرابط في رسالة تأكيد الحجز.',
-  en: "Welcome to Gharmish. We've received your message and one of our team will reply shortly.\n\nIf it's urgent during an experience, please contact your host directly via the link in your booking confirmation.",
-};
+export async function sendSupportTemplate(
+  input: SupportTemplateSend,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const payload = whatsappPayload(input.templateId, input.locale, input.vars, {
+    conversationId: input.conversationId,
+  });
+  if (payload.invalid) return { ok: false, error: payload.invalid };
+  await dispatchNotification({
+    type: input.type,
+    dedupeKey: input.dedupeKey,
+    recipient: { kind: 'guest', phone: input.address, locale: input.locale },
+    whatsapp: payload,
+  });
+  if (hasDb()) {
+    try {
+      const now = new Date();
+      await db.insert(conversationMessages).values({
+        conversationId: input.conversationId,
+        direction: 'out',
+        author: 'admin',
+        body: input.transcript,
+      });
+      await db
+        .update(conversations)
+        .set({ lastOutboundAt: now, updatedAt: now })
+        .where(eq(conversations.id, input.conversationId));
+    } catch (error) {
+      reportError(error, { surface: 'conversations:persist-template' });
+    }
+  }
+  return { ok: true };
+}
 
 export interface OutboundReply {
   conversationId: string;

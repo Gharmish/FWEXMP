@@ -8,7 +8,7 @@ import type { EmailAttachment } from '@/lib/email';
  */
 
 /** Who a notification goes to — recorded on the delivery ledger row. */
-export type NotificationRecipientType = 'guest' | 'host' | 'applicant';
+export type NotificationRecipientType = 'guest' | 'host' | 'applicant' | 'admin';
 
 /**
  * WhatsApp template keys. Each key maps to a Meta-approved Content
@@ -80,7 +80,12 @@ export interface EmailPayload {
 }
 
 export interface WhatsAppPayload {
-  template: WhatsAppTemplateKey;
+  /**
+   * SID-map key: a registry id from `lib/notifications/whatsapp/registry`
+   * (preferred — built via `whatsappPayload()`) or a legacy
+   * `WhatsAppTemplateKey`.
+   */
+  template: WhatsAppTemplateKey | (string & {});
   /**
    * Used when `template` has no approved Content SID yet — lets a caller
    * prefer a richer variant (e.g. the image-header `*_media` template)
@@ -89,6 +94,18 @@ export interface WhatsAppPayload {
    * trailing variables are ignored.
    */
   fallbackTemplate?: WhatsAppTemplateKey;
+  /**
+   * Legacy approved template + its own positional variables, used when
+   * `template` has no SID yet (the v3 redesign ships before Meta
+   * approval; delivery must not regress). Set by `whatsappPayload()`.
+   */
+  fallback?: { template: string; variables: Record<string, string> };
+  /**
+   * Set by `whatsappPayload()` when required variables were missing or
+   * unusable: the dispatcher ledgers a `failed` row with this reason
+   * instead of sending a broken message.
+   */
+  invalid?: string;
   /**
    * Numbered Content-template variables (`{"1": "...", "2": "..."}`).
    * Every value must be non-empty — WhatsApp rejects templates rendered
