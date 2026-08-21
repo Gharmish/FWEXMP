@@ -66,17 +66,31 @@ async function call<T>(path: string, params: Record<string, string>): Promise<T>
   return (await res.json()) as T;
 }
 
-/** `until` is inclusive on Vercel's side; send the day after the last day so the whole last day counts. */
-function bounds(r: DateRange): { since: string; until: string } {
-  return { since: r.from, until: `${r.to}T23:59:59.999Z` };
+/**
+ * Inclusive day bounds, per endpoint — the two endpoints parse `until`
+ * DIFFERENTLY (verified against the live API 2026-08-21, read the echoed
+ * `query.until` if this ever regresses):
+ *   - count:     date-only `until` → next midnight (whole day included);
+ *                a `T23:59:59.999Z` timestamp is truncated to 00:00 and
+ *                the window comes back EMPTY.
+ *   - aggregate: date-only `until` → only the first HOUR of that day;
+ *                `T23:59:59.999Z` → next midnight, as wanted.
+ * Days are UTC here while the dashboard range is Riyadh-local (UTC+3);
+ * the 3h skew is accepted for a traffic card.
+ */
+function countBounds(r: DateRange): { since: string; until: string } {
+  return { since: r.from, until: r.to };
+}
+function aggregateBounds(r: DateRange): { since: string; until: string } {
+  return { since: `${r.from}T00:00:00.000Z`, until: `${r.to}T23:59:59.999Z` };
 }
 
 function count(r: DateRange): Promise<CountResponse> {
-  return call<CountResponse>('count', bounds(r));
+  return call<CountResponse>('count', countBounds(r));
 }
 
 function aggregate(r: DateRange, by: string, limit: number): Promise<AggregateResponse> {
-  return call<AggregateResponse>('aggregate', { ...bounds(r), by, limit: String(limit) });
+  return call<AggregateResponse>('aggregate', { ...aggregateBounds(r), by, limit: String(limit) });
 }
 
 function rows(res: AggregateResponse, key: string): TrafficDimensionRow[] {
