@@ -326,6 +326,19 @@
             "account": "Account",
             "other": "Other"
           }
+        },
+        "site": {
+          "title": "Site traffic (Vercel)",
+          "hint": "Unique visitors across the whole site — cookieless, so it can sit outside the consent banner.",
+          "openVercel": "Open in Vercel ↗",
+          "visitors": "Unique visitors",
+          "pageviews": "Page views",
+          "countries": "Top countries",
+          "referrers": "Top referrers",
+          "pages": "Top pages",
+          "legend": "Each row: visitors · page views. Vercel figures lag live traffic by a few minutes and are cached here for 10 minutes.",
+          "unavailable": "Vercel Analytics did not answer just now — the first-party numbers below are unaffected. Try again in a minute.",
+          "notConnected": "Not connected yet. Add a Vercel API token as VERCEL_ANALYTICS_TOKEN in the project environment and redeploy; collection is already running."
         }
       }
     },

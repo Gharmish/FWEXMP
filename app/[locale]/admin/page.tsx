@@ -37,6 +37,11 @@ import { DateRangePicker } from '@/features/admin/dashboard/components/date-rang
 import { QuickActions } from '@/features/admin/dashboard/components/quick-actions';
 import { FunnelStrip } from '@/features/admin/dashboard/components/funnel-strip';
 import { FeedbackCard } from '@/features/admin/dashboard/components/feedback-card';
+import {
+  getSiteTraffic,
+  vercelAnalyticsConfigured,
+  VERCEL_ANALYTICS_URL,
+} from '@/features/admin/dashboard/vercel-analytics';
 
 export async function generateMetadata({
   params,
@@ -65,9 +70,6 @@ function greetingKey(): 'morning' | 'afternoon' | 'evening' {
   if (hour < 18) return 'afternoon';
   return 'evening';
 }
-
-/** Vercel Web Analytics (unique visitors, countries, referrers, per-route) — site-level view the first-party events don't attempt. */
-const VERCEL_ANALYTICS_URL = 'https://vercel.com/gharmish-3685s-projects/gharmish/analytics';
 
 const CATEGORY_COLOR: Record<string, string> = {
   nature: 'bg-juniper-green',
@@ -113,6 +115,9 @@ export default async function AdminIndexPage({
       return null;
     },
   );
+  // External HTTP, not the DB pool — safe to run alongside the DB waves;
+  // degrades to null (card shows "not connected" / "unavailable").
+  const siteTrafficPromise = getSiteTraffic(range);
   const activity = await withDeadline('admin:activity', 8_000, listActivity()).catch(
     (error: unknown) => {
       reportError(error, { surface: 'admin:pageData', source: 'activity' });
@@ -265,6 +270,31 @@ export default async function AdminIndexPage({
   }
 
   const m = metrics;
+  const siteTraffic = await siteTrafficPromise;
+  const trafficDim = (
+    rows: readonly { label: string; visitors: number; pageviews: number }[],
+    colorClass: string,
+    labelFor: (label: string) => string = (l) => l,
+  ): BreakdownRow[] =>
+    rows.map((r) => ({
+      id: r.label,
+      label: labelFor(r.label),
+      magnitude: r.visitors,
+      display: (
+        <span className="inline-flex items-baseline gap-1.5">
+          {formatInteger(r.visitors, loc)} · {formatInteger(r.pageviews, loc)}
+        </span>
+      ),
+      colorClass,
+    }));
+  const countryName = (code: string): string => {
+    if (!/^[A-Z]{2}$/.test(code)) return code;
+    try {
+      return new Intl.DisplayNames([loc], { type: 'region' }).of(code) ?? code;
+    } catch {
+      return code;
+    }
+  };
 
   // Hero KPI row.
   const hero: { label: string; value: ReactNode; trend: ReturnType<typeof tr> }[] = [
@@ -696,6 +726,80 @@ export default async function AdminIndexPage({
             growth={growth(m.wishlistSaves.current, m.wishlistSaves.previous)}
             newLabel={newLabel}
           />
+        </div>
+        <div className={cn(card, 'flex flex-col gap-5')}>
+          <div className="flex flex-wrap items-baseline justify-between gap-3">
+            <div className="flex flex-col gap-1">
+              <h3 className="text-sarat-black text-sm font-medium">
+                {t('dashboard.metrics.site.title')}
+              </h3>
+              <p className="text-sarat-black-600 text-xs">{t('dashboard.metrics.site.hint')}</p>
+            </div>
+            <a
+              href={VERCEL_ANALYTICS_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-sarat-black-600 hover:text-sarat-black shrink-0 text-xs underline-offset-2 hover:underline"
+            >
+              {t('dashboard.metrics.site.openVercel')}
+            </a>
+          </div>
+          {siteTraffic ? (
+            <>
+              <div className="grid grid-cols-2 gap-6 sm:max-w-md">
+                <MetricStat
+                  label={t('dashboard.metrics.site.visitors')}
+                  value={<AnimatedNumber value={siteTraffic.visitors.current} />}
+                  locale={loc}
+                  growth={growth(siteTraffic.visitors.current, siteTraffic.visitors.previous)}
+                  newLabel={newLabel}
+                />
+                <MetricStat
+                  label={t('dashboard.metrics.site.pageviews')}
+                  value={<AnimatedNumber value={siteTraffic.pageviews.current} />}
+                  locale={loc}
+                  growth={growth(siteTraffic.pageviews.current, siteTraffic.pageviews.previous)}
+                  newLabel={newLabel}
+                />
+              </div>
+              <div className="grid gap-6 lg:grid-cols-3">
+                <div className="flex flex-col gap-3">
+                  <h4 className="text-sarat-black-600 text-xs font-medium">
+                    {t('dashboard.metrics.site.countries')}
+                  </h4>
+                  <BreakdownBars
+                    rows={trafficDim(siteTraffic.topCountries, 'bg-sarat-black/70', countryName)}
+                    emptyLabel={emptyRange}
+                  />
+                </div>
+                <div className="flex flex-col gap-3">
+                  <h4 className="text-sarat-black-600 text-xs font-medium">
+                    {t('dashboard.metrics.site.referrers')}
+                  </h4>
+                  <BreakdownBars
+                    rows={trafficDim(siteTraffic.topReferrers, 'bg-sarawat-blue')}
+                    emptyLabel={emptyRange}
+                  />
+                </div>
+                <div className="flex flex-col gap-3">
+                  <h4 className="text-sarat-black-600 text-xs font-medium">
+                    {t('dashboard.metrics.site.pages')}
+                  </h4>
+                  <BreakdownBars
+                    rows={trafficDim(siteTraffic.topPaths, 'bg-saffron-gold')}
+                    emptyLabel={emptyRange}
+                  />
+                </div>
+              </div>
+              <p className="text-sarat-black-600 text-xs">{t('dashboard.metrics.site.legend')}</p>
+            </>
+          ) : (
+            <p className="bg-mist rounded-card text-sarat-black-600 px-4 py-3 text-sm">
+              {vercelAnalyticsConfigured()
+                ? t('dashboard.metrics.site.unavailable')
+                : t('dashboard.metrics.site.notConnected')}
+            </p>
+          )}
         </div>
         <div className="grid gap-4 lg:grid-cols-2">
           <div className={cn(card, 'flex flex-col gap-4')}>

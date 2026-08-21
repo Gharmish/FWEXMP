@@ -131,6 +131,11 @@ const serverSchema = z.object({
   // `Authorization: Bearer <CRON_SECRET>`. Empty → the route rejects every
   // request (the job is inert until configured).
   CRON_SECRET: z.string().default(''),
+  // Vercel REST API token used ONLY to read Web Analytics
+  // (`/v1/query/web-analytics/*`) for the admin dashboard's site-traffic
+  // card. Create a token scoped to the gharmish team. Optional: empty →
+  // the card shows its "not connected" state and nothing else changes.
+  VERCEL_ANALYTICS_TOKEN: z.string().default(''),
   // TikTok Events API access token (server-to-server CompletePayment at
   // settlement — lib/analytics/server-events.ts). Pairs with the existing
   // NEXT_PUBLIC_TIKTOK_PIXEL_ID as the event_source_id. Optional, same
@@ -189,6 +194,7 @@ export const serverEnv = parseEnv(
     ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY,
     SUPPORT_AGENT_MODEL: process.env.SUPPORT_AGENT_MODEL,
     CRON_SECRET: process.env.CRON_SECRET,
+    VERCEL_ANALYTICS_TOKEN: process.env.VERCEL_ANALYTICS_TOKEN,
     TIKTOK_EVENTS_ACCESS_TOKEN: process.env.TIKTOK_EVENTS_ACCESS_TOKEN,
     GA4_API_SECRET: process.env.GA4_API_SECRET,
     PII_ENCRYPTION_KEY: process.env.PII_ENCRYPTION_KEY,
