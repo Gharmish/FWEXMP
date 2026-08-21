@@ -76,7 +76,8 @@
       "analyticsTitle": "Platform analytics",
       "reviewsTitle": "Reviews",
       "guestsTitle": "Guests",
-      "guestDetailTitle": "Guest profile"
+      "guestDetailTitle": "Guest profile",
+      "supportTitle": "Support inbox"
     },
     "eyebrow": "Admin",
     "title": "Gharmish admin.",
@@ -365,6 +366,10 @@
       "promoCodes": {
         "title": "Promo codes",
         "description": "Create checkout discount codes and track how they’re redeemed."
+      },
+      "support": {
+        "title": "Support inbox",
+        "description": "WhatsApp conversations with guests — reply from here."
       }
     },
     "settings": {
@@ -1320,6 +1325,74 @@
         "formServer": "Something went wrong. Please try again.",
         "formForbidden": "You don’t have permission to do that.",
         "formValidation": "Please fix the highlighted fields."
+      }
+    },
+    "support": {
+      "eyebrow": "Support inbox",
+      "title": "Guest conversations.",
+      "intro": "Every WhatsApp message to the Gharmish number lands here. Guests get an automatic acknowledgement; a person replies from this page. Free-form replies are only possible within 24 hours of the guest's last message.",
+      "awaitingHeading": "Waiting on you",
+      "otherHeading": "Everything else",
+      "awaitingEmpty": "Nothing waiting on you.",
+      "unknownSender": "Unknown sender",
+      "lastInbound": "Last message {date}",
+      "noMessages": "No messages yet",
+      "windowOpen": "Reply window open",
+      "windowClosed": "Reply window closed",
+      "awaiting": "Awaiting reply",
+      "state": {
+        "bot": "Automated",
+        "human": "With the team",
+        "closed": "Closed"
+      },
+      "empty": {
+        "eyebrow": "All quiet",
+        "title": "No conversations yet.",
+        "description": "When a guest messages the WhatsApp number, the thread appears here."
+      },
+      "truncated": "Showing the latest {count} conversations.",
+      "thread": {
+        "backToInbox": "Back to inbox",
+        "author": {
+          "guest": "Guest",
+          "agent": "Gharmish assistant",
+          "admin": "Gharmish team",
+          "system": "Automatic"
+        },
+        "media": "Attachment",
+        "delivery": {
+          "queued": "Queued",
+          "sent": "Sent",
+          "delivered": "Delivered",
+          "read": "Read",
+          "failed": "Failed",
+          "suppressed": "Suppressed"
+        },
+        "replyLabel": "Reply",
+        "replyPlaceholder": "Write to the guest in their language…",
+        "send": "Send on WhatsApp",
+        "sending": "Sending…",
+        "windowClosedNote": "More than 24 hours have passed since the guest's last message, so WhatsApp no longer accepts a free-form reply. The guest can re-open the window by messaging again; template-based re-engagement is coming in a later phase.",
+        "close": "Close conversation",
+        "reopen": "Reopen",
+        "closePending": "Closing…",
+        "reopenPending": "Reopening…",
+        "guestLink": "Open guest profile",
+        "replyLanguage": "Guest language: {language}",
+        "language": {
+          "en": "English",
+          "ar": "Arabic"
+        },
+        "errors": {
+          "forbidden": "You don't have permission to do that.",
+          "no_db": "The database isn't configured in this environment.",
+          "not_found": "We couldn't find that conversation.",
+          "window_closed": "The 24-hour reply window has closed — wait for the guest to write again.",
+          "not_configured": "WhatsApp isn't configured in this environment.",
+          "validation": "Write a message first (up to 4,096 characters).",
+          "send_failed": "WhatsApp didn't accept the message. It's saved in the thread — try again in a moment.",
+          "server": "Something went wrong. Please try again."
+        }
       }
     }
   },

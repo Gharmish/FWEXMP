@@ -258,3 +258,70 @@ export async function pageAdminAboutInbound(
     message: body.slice(0, 280) || '(media only)',
   });
 }
+
+/**
+ * Cron safety net for the webhook's `after()` leg. An inbound message
+ * older than `minAgeMs` whose conversation has no ack inside the quiet
+ * period and no reply since the message arrived means the background
+ * leg died (function froze, provider timeout). Re-run the ack + page
+ * for each such conversation — the same throttle rules as the live
+ * path, so a healthy webhook run leaves nothing for this sweep to do.
+ * Returns the number of conversations acted on.
+ */
+export async function sweepUnacknowledgedInbound(
+  minAgeMs = 2 * 60 * 1000,
+  limit = 25,
+): Promise<number> {
+  if (!hasDb()) return 0;
+  const now = Date.now();
+  let handled = 0;
+  try {
+    const rows = await db
+      .select({
+        id: conversations.id,
+        address: conversations.address,
+        locale: conversations.locale,
+        guestId: conversations.guestId,
+        lastInboundAt: conversations.lastInboundAt,
+        lastOutboundAt: conversations.lastOutboundAt,
+        lastAckAt: conversations.lastAckAt,
+      })
+      .from(conversations)
+      .where(eq(conversations.state, 'human'))
+      .orderBy(desc(conversations.lastInboundAt))
+      .limit(limit * 4);
+    for (const row of rows) {
+      const inbound = row.lastInboundAt?.getTime() ?? 0;
+      if (!inbound || now - inbound < minAgeMs) continue;
+      if ((row.lastOutboundAt?.getTime() ?? 0) >= inbound) continue;
+      if (row.lastAckAt && now - row.lastAckAt.getTime() <= ACK_QUIET_PERIOD_MS) continue;
+      const last = await db.query.conversationMessages.findFirst({
+        where: eq(conversationMessages.conversationId, row.id),
+        orderBy: desc(conversationMessages.createdAt),
+        columns: { id: true, body: true, direction: true },
+      });
+      if (!last || last.direction !== 'in') continue;
+      const guest = row.guestId
+        ? await db.query.guests.findFirst({
+            where: eq(guests.id, row.guestId),
+            columns: { name: true },
+          })
+        : null;
+      const recorded: RecordedInbound = {
+        conversationId: row.id,
+        messageId: last.id,
+        locale: row.locale,
+        guestName: guest?.name ?? null,
+        shouldAck: true,
+        isNew: true,
+      };
+      await acknowledgeInbound(recorded, row.address);
+      await pageAdminAboutInbound(recorded, row.address, last.body);
+      handled += 1;
+      if (handled >= limit) break;
+    }
+  } catch (error) {
+    reportError(error, { surface: 'conversations:sweep' });
+  }
+  return handled;
+}

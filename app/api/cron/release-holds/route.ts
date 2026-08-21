@@ -44,6 +44,7 @@ import {
   sendHostHoldLapsedEmail,
 } from '@/features/bookings/lib/booking-email';
 import { listRetryableDeliveries } from '@/lib/notifications/ledger';
+import { sweepUnacknowledgedInbound } from '@/lib/conversations/inbound';
 import { sendRebookEmail, sendWinbackEmail } from '@/features/marketing/lifecycle-email';
 import { addDays } from '@/features/bookings/lib/availability';
 import { startInstant } from '@/features/bookings/lib/cancellation';
@@ -695,6 +696,12 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       }
     }
 
+    // Pass 3c — WhatsApp support-line safety net (2026-08-21). The
+    // inbound webhook acks + pages inside `after()`; if that leg died,
+    // the guest is sitting on silence. Same throttle rules as the live
+    // path, so on a healthy day this is a no-op.
+    const supportSwept = await sweepUnacknowledgedInbound();
+
     // Pass 4 — auto-complete. A confirmed, collected booking whose date
     // has passed becomes `completed` the next day (owner decision:
     // date + 1 day). Completion gates payouts AND reviews — relying on
@@ -1088,6 +1095,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       reminded,
       nudged,
       retried,
+      supportSwept,
       completed: completed.length,
       marketed,
       expiredCreditSar,

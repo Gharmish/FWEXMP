@@ -11,6 +11,7 @@ import {
   Grid3x3,
   Landmark,
   LayoutDashboard,
+  MessageCircle,
   Settings,
   Star,
   TriangleAlert,
@@ -71,6 +72,7 @@ const GROUPS: readonly NavGroup[] = [
       { href: '/admin/vat', Icon: Landmark, sectionKey: 'vat' },
       { href: '/admin/reviews', Icon: Star, sectionKey: 'reviews' },
       { href: '/admin/disputes', Icon: TriangleAlert, sectionKey: 'disputes' },
+      { href: '/admin/support', Icon: MessageCircle, sectionKey: 'support' },
     ],
   },
   {

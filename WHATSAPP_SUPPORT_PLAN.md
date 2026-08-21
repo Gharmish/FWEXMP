@@ -2,7 +2,7 @@
 
 > 2026-08-21. Audit of what the app has today, and the recommended way to run 24/7 guest service on WhatsApp with AI-first handling and admin escalation-as-tickets.
 >
-> **Status:** Phase 0 BUILT 2026-08-21 (uncommitted): `conversations` + `conversation_messages` live in the DB, webhook persists + acks + pages admin, `sendWhatsAppText` added. Owner decisions: the agent **may execute** policy-compliant cancellations (Phase 3). Remaining decisions in §7 still open.
+> **Status:** Phase 0 LIVE 2026-08-21 (`b2aac1a`): `conversations` + `conversation_messages` in the DB, webhook persists + acks + pages admin, `sendWhatsAppText` added. Phase 1 BUILT same day: `/admin/support` inbox + thread + manual reply (free-form inside the 24h window only), close/reopen, cron Pass 3c safety net for missed acks. Owner decisions: the agent **may execute** policy-compliant cancellations (Phase 3). Remaining decisions in §7 still open.
 
 ---
 
