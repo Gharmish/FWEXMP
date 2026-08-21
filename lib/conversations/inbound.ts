@@ -1,9 +1,16 @@
 import 'server-only';
 
-import { desc, eq, inArray, isNotNull, lt, or } from 'drizzle-orm';
+import { and, desc, eq, inArray, isNotNull, lt, or, sql } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import { hasSupportAgent, serverEnv } from '@/lib/env';
-import { bookings, conversationMessages, conversations, guests, hosts } from '@/db/schema';
+import {
+  bookings,
+  conversationMessages,
+  conversations,
+  guests,
+  hostApplications,
+  hosts,
+} from '@/db/schema';
 import type { Locale } from '@/lib/i18n';
 import { reportError } from '@/lib/log';
 import { notifyAdmin } from '@/lib/admin-alerts';
@@ -91,13 +98,39 @@ async function identifyGuest(
   return viaBooking[0] ?? null;
 }
 
-/** Active (non-suspended) host whose notification phone is this number. */
+/**
+ * Active (non-suspended) host behind this number. Three ways a host's
+ * phone is known, checked in order: `hosts.contact_phone` (set at
+ * approval for newer hosts), the host's sign-in account (`hosts.user_id`
+ * ↔ `guests.auth_user_id` ↔ `guests.phone` — the owner's own host row
+ * only has this), and the approved application's contact phone.
+ */
 async function identifyHost(phone: string): Promise<string | null> {
-  const host = await db.query.hosts.findFirst({
+  const direct = await db.query.hosts.findFirst({
     where: eq(hosts.contactPhone, phone),
     columns: { id: true, verificationStatus: true },
   });
-  return host && host.verificationStatus !== 'suspended' ? host.id : null;
+  if (direct) return direct.verificationStatus !== 'suspended' ? direct.id : null;
+  const viaAccount = await db
+    .select({ id: hosts.id, verificationStatus: hosts.verificationStatus })
+    .from(hosts)
+    // auth_user_id is text, hosts.user_id is uuid — cast or Postgres refuses the join.
+    .innerJoin(guests, sql`${guests.authUserId} = ${hosts.userId}::text`)
+    .where(eq(guests.phone, phone))
+    .limit(1);
+  if (viaAccount[0]) {
+    return viaAccount[0].verificationStatus !== 'suspended' ? viaAccount[0].id : null;
+  }
+  const viaApplication = await db
+    .select({ id: hosts.id, verificationStatus: hosts.verificationStatus })
+    .from(hostApplications)
+    .innerJoin(hosts, eq(hosts.userId, hostApplications.userId))
+    .where(and(eq(hostApplications.contactPhone, phone), eq(hostApplications.status, 'approved')))
+    .limit(1);
+  if (viaApplication[0]) {
+    return viaApplication[0].verificationStatus !== 'suspended' ? viaApplication[0].id : null;
+  }
+  return null;
 }
 
 /**
@@ -117,7 +150,7 @@ export async function recordInboundMessage(input: InboundMessage): Promise<Recor
   try {
     const existing = await db.query.conversations.findFirst({
       where: eq(conversations.address, address),
-      columns: { id: true, guestId: true, locale: true, lastAckAt: true, state: true },
+      columns: { id: true, guestId: true, hostId: true, locale: true, lastAckAt: true, state: true },
     });
 
     let conversationId: string;
@@ -133,15 +166,26 @@ export async function recordInboundMessage(input: InboundMessage): Promise<Recor
       // A closed thread re-opens on the guest's next message — to the
       // agent when it's on, otherwise to the inbox.
       state = existing.state === 'closed' ? (hasSupportAgent() ? 'bot' : 'human') : existing.state;
+      // Late identification: a thread opened before the guest booked (or
+      // before host routing existed) picks up its identity on the next
+      // message instead of staying anonymous forever.
+      const lateGuest = existing.guestId ? null : await identifyGuest(address);
+      const lateHost = existing.hostId ? null : await identifyHost(address);
       await db
         .update(conversations)
         .set({
           lastInboundAt: now,
           updatedAt: now,
           state,
+          ...(lateGuest ? { guestId: lateGuest.id, locale: lateGuest.preferredLanguage } : {}),
+          ...(lateHost ? { hostId: lateHost } : {}),
           ...(input.profileName ? { profileName: input.profileName } : {}),
         })
         .where(eq(conversations.id, conversationId));
+      if (lateGuest) {
+        guestName = lateGuest.name;
+        locale = lateGuest.preferredLanguage;
+      }
       if (existing.guestId) {
         const guest = await db.query.guests.findFirst({
           where: eq(guests.id, existing.guestId),
