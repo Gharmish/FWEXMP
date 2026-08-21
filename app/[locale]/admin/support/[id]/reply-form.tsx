@@ -3,6 +3,7 @@
 import { useActionState } from 'react';
 import { Button } from '@/components/ui/button';
 import {
+  nudgeConversation,
   replyToConversation,
   setConversationState,
   type SupportActionState,
@@ -22,6 +23,9 @@ interface Copy {
   reopenPending: string;
   toBot: string;
   toBotPending: string;
+  nudge: string;
+  nudgePending: string;
+  nudgeHint: string;
   errors: Record<ErrorKey, string>;
 }
 
@@ -49,6 +53,7 @@ export function ReplyForm({
   const [replyState, replyAction, replyPending] = useActionState(replyToConversation, initial);
   const [stateState, stateAction, statePending] = useActionState(setConversationState, initial);
   const [botState, botAction, botPending] = useActionState(setConversationState, initial);
+  const [nudgeState, nudgeAction, nudgePending] = useActionState(nudgeConversation, initial);
 
   const replyError =
     !replyState.success && replyState.message ? copy.errors[replyState.message] : undefined;
@@ -89,9 +94,27 @@ export function ReplyForm({
           </div>
         </form>
       ) : (
-        <p className="text-sarat-black-600 border-sarat-black/8 rounded-input bg-mist max-w-2xl [border-width:0.5px] p-4 text-sm leading-relaxed">
-          {copy.windowClosedNote}
-        </p>
+        <div className="flex max-w-2xl flex-col gap-3">
+          <p className="text-sarat-black-600 border-sarat-black/8 rounded-input bg-mist [border-width:0.5px] p-4 text-sm leading-relaxed">
+            {copy.windowClosedNote}
+          </p>
+          {state !== 'closed' && (
+            <form action={nudgeAction} className="flex flex-col gap-2">
+              <input type="hidden" name="conversationId" value={conversationId} />
+              <p className="text-sarat-black-600 text-sm leading-relaxed">{copy.nudgeHint}</p>
+              {!nudgeState.success && nudgeState.message && (
+                <p role="alert" className="text-al-qatt-red-800 text-sm">
+                  {copy.errors[nudgeState.message]}
+                </p>
+              )}
+              <div>
+                <Button type="submit" variant="primary" size="sm" disabled={nudgePending}>
+                  {nudgePending ? copy.nudgePending : copy.nudge}
+                </Button>
+              </div>
+            </form>
+          )}
+        </div>
       )}
 
       {agentAvailable && state === 'human' && (

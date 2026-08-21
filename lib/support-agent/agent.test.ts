@@ -29,6 +29,7 @@ const ctx = {
   guestId: 'g1',
   locale: 'en' as const,
   now: new Date('2026-08-21T10:00:00Z'),
+  lastInbound: 'my bookings?',
 };
 
 function fakeClient(responses: Array<Partial<Anthropic.Message>>): {

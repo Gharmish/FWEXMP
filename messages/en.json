@@ -1391,8 +1391,12 @@
           "not_configured": "WhatsApp isn't configured in this environment.",
           "validation": "Write a message first (up to 4,096 characters).",
           "send_failed": "WhatsApp didn't accept the message. It's saved in the thread — try again in a moment.",
-          "server": "Something went wrong. Please try again."
-        }
+          "server": "Something went wrong. Please try again.",
+          "no_template": "The re-engagement template isn't approved yet in this environment."
+        },
+        "nudge": "Send follow-up template",
+        "nudgePending": "Sending…",
+        "nudgeHint": "Sends the approved WhatsApp template naming the open ticket. When the guest replies, the 24-hour window reopens and you can write freely."
       },
       "ticketsHeading": "Tickets",
       "ticketsEmpty": "No open tickets.",
@@ -3712,7 +3716,7 @@
     },
     "use": {
       "heading": "How we use it",
-      "body": "To run your bookings and payments, send confirmations, reminders, payment links, and status updates by email or WhatsApp, answer support requests, prevent fraud and abuse, and meet our legal obligations. We don't sell your personal data."
+      "body": "To run your bookings and payments, send confirmations, reminders, payment links, and status updates by email or WhatsApp, answer support requests, prevent fraud and abuse, and meet our legal obligations. We don't sell your personal data. When you message our WhatsApp support line, your messages are stored so our team can help you; first replies may come from an automated assistant, and anything it can't resolve is passed to a person."
     },
     "sharing": {
       "heading": "Who we share it with",
@@ -3725,7 +3729,7 @@
     },
     "retention": {
       "heading": "How long we keep it",
-      "body": "We keep booking and payment records for as long as needed to run your account and to meet Saudi tax and commercial record-keeping requirements. Data with no remaining purpose is deleted or anonymised."
+      "body": "We keep booking and payment records for as long as needed to run your account and to meet Saudi tax and commercial record-keeping requirements. Data with no remaining purpose is deleted or anonymised. WhatsApp support conversations are deleted 12 months after the last message."
     },
     "rights": {
       "heading": "Your rights",

@@ -29,6 +29,7 @@ vi.mock('@/lib/env', () => ({ serverEnv: env, hasSupportAgent: () => false }));
 // modules; here they must simply not interfere with the booking passes.
 vi.mock('@/lib/conversations/inbound', () => ({
   sweepUnacknowledgedInbound: async () => 0,
+  purgeExpiredConversations: async () => 0,
 }));
 vi.mock('@/lib/support-agent/agent', () => ({ sweepPendingAgentTurns: async () => 0 }));
 vi.mock('@/features/support/tickets', () => ({ sweepTicketSla: async () => 0 }));

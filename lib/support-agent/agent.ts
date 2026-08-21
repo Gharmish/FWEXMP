@@ -235,7 +235,7 @@ export async function runAgentTurn(recorded: RecordedInbound, address: string): 
     const output = await runAgentLoop({
       history,
       guestName: recorded.guestName,
-      ctx: { conversationId, address, guestId, locale, now },
+      ctx: { conversationId, address, guestId, locale, now, lastInbound: history.at(-1)?.direction === 'in' ? (history.at(-1)?.body ?? "") : '' },
     });
 
     if (output.stopReason === 'refusal') return await failSafe(recorded, address, 'refusal');

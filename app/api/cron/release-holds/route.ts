@@ -44,7 +44,10 @@ import {
   sendHostHoldLapsedEmail,
 } from '@/features/bookings/lib/booking-email';
 import { listRetryableDeliveries } from '@/lib/notifications/ledger';
-import { sweepUnacknowledgedInbound } from '@/lib/conversations/inbound';
+import {
+  purgeExpiredConversations,
+  sweepUnacknowledgedInbound,
+} from '@/lib/conversations/inbound';
 import { sweepPendingAgentTurns } from '@/lib/support-agent/agent';
 import { sweepTicketSla } from '@/features/support/tickets';
 import { sendRebookEmail, sendWinbackEmail } from '@/features/marketing/lifecycle-email';
@@ -707,6 +710,8 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     // ticket that blew through its SLA.
     const agentSwept = await sweepPendingAgentTurns();
     const slaBreaches = await sweepTicketSla();
+    // Phase 3: privacy-page retention — conversations idle for 12 months go.
+    const conversationsPurged = await purgeExpiredConversations();
 
     // Pass 4 — auto-complete. A confirmed, collected booking whose date
     // has passed becomes `completed` the next day (owner decision:
@@ -1104,6 +1109,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       supportSwept,
       agentSwept,
       slaBreaches,
+      conversationsPurged,
       completed: completed.length,
       marketed,
       expiredCreditSar,

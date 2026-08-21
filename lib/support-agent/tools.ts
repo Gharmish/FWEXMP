@@ -13,6 +13,15 @@ import {
 } from '@/features/bookings/queries';
 import { bookingOptions } from '@/features/bookings/lib/policy';
 import { bookingManageUrl } from '@/features/bookings/lib/link-token';
+import { cancelBookingCore } from '@/features/bookings/lib/cancel-core';
+import { rescheduleBookingCore } from '@/features/bookings/lib/reschedule-core';
+import { getScheduleDataBySlug } from '@/features/availability/queries';
+import {
+  addDays,
+  bookableDates,
+  nowMinutesInRiyadh,
+  todayInRiyadh,
+} from '@/features/bookings/lib/availability';
 import { openTicket, type TicketCategory, type TicketPriority } from '@/features/support/tickets';
 
 /**
@@ -29,6 +38,8 @@ export interface ToolContext {
   guestId: string | null;
   locale: 'en' | 'ar';
   now: Date;
+  /** The guest message that triggered this turn — the only place a confirmation can come from. */
+  lastInbound: string;
 }
 
 export interface ToolOutcome {
@@ -67,6 +78,51 @@ export const TOOLS: Anthropic.Tool[] = [
         reference_code: { type: 'string', description: 'Booking reference code, e.g. GH-7K3M9X' },
       },
       required: ['reference_code'],
+      additionalProperties: false,
+    },
+  },
+  {
+    name: 'available_dates',
+    description:
+      "Open dates in the next 30 days the guest's booking could move to (already filtered for the host's schedule, blackouts, cutoff and remaining capacity for their party size). Use before offering a reschedule.",
+    input_schema: {
+      type: 'object',
+      properties: {
+        reference_code: { type: 'string', description: 'Booking reference code, e.g. GH-7K3M9X' },
+      },
+      required: ['reference_code'],
+      additionalProperties: false,
+    },
+  },
+  {
+    name: 'cancel_booking',
+    description:
+      "Cancel one of the guest's bookings under its policy — exactly what booking_detail's `cancel` block says (refund_if_cancelled_now / refund_amount_sar). TWO-STEP RULE: first call booking_detail and tell the guest the exact consequence (which booking, date, and the refund amount or that nothing is refunded), then ask them to confirm. Only when their NEXT message clearly confirms, call this tool and pass their confirming words in confirmation_quote. The tool refuses if the quote is not in the guest's latest message.",
+    input_schema: {
+      type: 'object',
+      properties: {
+        reference_code: { type: 'string' },
+        confirmation_quote: {
+          type: 'string',
+          description: "The guest's own confirming words, copied verbatim from their latest message (e.g. 'نعم ألغِ الحجز' or 'yes cancel it').",
+        },
+      },
+      required: ['reference_code', 'confirmation_quote'],
+      additionalProperties: false,
+    },
+  },
+  {
+    name: 'reschedule_booking',
+    description:
+      "Move one of the guest's bookings to another open date (from available_dates). Same TWO-STEP RULE as cancel_booking: state the old date, the new date and that this uses their one free move, ask, and only call this when the guest's NEXT message confirms, passing their words in confirmation_quote.",
+    input_schema: {
+      type: 'object',
+      properties: {
+        reference_code: { type: 'string' },
+        new_date: { type: 'string', description: 'YYYY-MM-DD, one of the dates from available_dates.' },
+        confirmation_quote: { type: 'string', description: "The guest's own confirming words, verbatim from their latest message." },
+      },
+      required: ['reference_code', 'new_date', 'confirmation_quote'],
       additionalProperties: false,
     },
   },
@@ -112,6 +168,27 @@ function str(input: unknown, key: string): string | undefined {
   if (!input || typeof input !== 'object') return undefined;
   const value = (input as Record<string, unknown>)[key];
   return typeof value === 'string' ? value : undefined;
+}
+
+/**
+ * The guest's confirming words must appear in the message that triggered
+ * this turn (whitespace/case-insensitive, Arabic diacritics stripped),
+ * and that message must be short enough to be an answer rather than a
+ * new request. The model cannot confirm on the guest's behalf.
+ */
+export function confirmationPresent(quote: string, lastInbound: string): boolean {
+  const norm = (v: string) =>
+    v
+      .normalize('NFKC')
+      .replace(/[\u064B-\u0652\u0640]/g, '')
+      .replace(/[^\p{L}\p{N}\s]/gu, '')
+      .replace(/\s+/g, ' ')
+      .trim()
+      .toLowerCase();
+  const q = norm(quote);
+  const m = norm(lastInbound);
+  if (!q || q.length < 2 || !m) return false;
+  return m.includes(q) && m.length <= 200;
 }
 
 function asCategory(value: string | undefined): TicketCategory {
@@ -233,9 +310,57 @@ export async function runTool(
             host_whatsapp_url: hostPhone ? whatsappLink(hostPhone) : null,
             cancel,
             reschedule,
-            note: 'Cancellation and reschedule are done by the guest on their booking page (booking_page_url). Quote refund_amount_sar exactly; never promise more.',
+            note: 'You may cancel or reschedule for the guest with cancel_booking / reschedule_booking after they confirm (two-step rule), or send booking_page_url so they do it themselves. Quote refund_amount_sar exactly; never promise more.',
           }),
         };
+      }
+      case 'available_dates': {
+        const booking = await findOwnBooking(ctx, str(input, 'reference_code') ?? '');
+        if (!booking) return { result: JSON.stringify({ error: 'not_found' }) };
+        const from = todayInRiyadh();
+        const schedule = await getScheduleDataBySlug(booking.experienceSlug, from, addDays(from, 30));
+        if (!schedule) return { result: JSON.stringify({ error: 'unavailable' }) };
+        const dates = bookableDates({
+          fromStr: from,
+          days: 31,
+          availabilityWeekdays: schedule.availabilityWeekdays,
+          blackoutDates: schedule.blackoutDates,
+          stopSellDates: schedule.stopSellDates,
+          maxGroupSize: schedule.maxGroupSize,
+          bookedByDate: schedule.bookedByDate,
+          startTime: schedule.startTime,
+          nowMinutes: nowMinutesInRiyadh(),
+          cutoffMinutes: schedule.bookingCutoffHours * 60,
+        })
+          .filter((d) => d.date !== booking.date && d.remaining >= booking.partySize)
+          .slice(0, 12)
+          .map((d) => d.date);
+        return { result: JSON.stringify({ current_date: booking.date, party_size: booking.partySize, open_dates: dates }) };
+      }
+      case 'cancel_booking':
+      case 'reschedule_booking': {
+        const booking = await findOwnBooking(ctx, str(input, 'reference_code') ?? '');
+        if (!booking) return { result: JSON.stringify({ error: 'not_found' }) };
+        const quote = (str(input, 'confirmation_quote') ?? '').trim();
+        if (!confirmationPresent(quote, ctx.lastInbound)) {
+          return {
+            result: JSON.stringify({
+              error: 'not_confirmed',
+              note: 'The confirmation must be in the guest\'s latest message. State the exact consequence and ask them to confirm; call again after they reply.',
+            }),
+          };
+        }
+        const authorize = async (guestId: string) => guestId === ctx.guestId;
+        const outcome =
+          name === 'cancel_booking'
+            ? await cancelBookingCore({ reference: booking.reference, actor: 'agent', authorize })
+            : await rescheduleBookingCore({
+                reference: booking.reference,
+                newDate: str(input, 'new_date') ?? '',
+                actor: 'agent',
+                authorize,
+              });
+        return { result: JSON.stringify(outcome) };
       }
       case 'open_ticket':
       case 'escalate_to_human': {

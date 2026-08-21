@@ -8,9 +8,15 @@ import { reportError } from '@/lib/log';
 import { adminGuard } from '@/features/admin/guard';
 import { SERVICE_WINDOW_MS } from '@/lib/conversations/inbound';
 import { claimDelivery, markDeliveryFailed, markDeliverySent } from '@/lib/notifications/ledger';
-import { sendWhatsAppText, whatsappAddress } from '@/lib/notifications/whatsapp';
+import {
+  sendWhatsAppTemplate,
+  sendWhatsAppText,
+  whatsappAddress,
+  whatsappContentSid,
+} from '@/lib/notifications/whatsapp';
+import { openTicket } from '@/features/support/tickets';
 import { hasWhatsApp } from '@/lib/env';
-import { replySchema, resolveTicketSchema, stateSchema } from '@/features/support/schemas';
+import { nudgeSchema, replySchema, resolveTicketSchema, stateSchema } from '@/features/support/schemas';
 import { getCurrentUser } from '@/features/auth/queries';
 
 /**
@@ -31,6 +37,7 @@ export type SupportActionState =
         | 'no_db'
         | 'not_found'
         | 'window_closed'
+        | 'no_template'
         | 'not_configured'
         | 'validation'
         | 'send_failed'
@@ -187,6 +194,90 @@ export async function resolveTicket(
     return { success: true };
   } catch (error) {
     reportError(error, { surface: 'support:resolveTicket' });
+    return { success: false, message: 'server' };
+  }
+}
+
+/**
+ * Out-of-window re-engagement (phase 3): WhatsApp refuses free-form
+ * text more than 24h after the guest's last message, so the admin sends
+ * the Meta-approved `support_ticket_update` template instead. It names
+ * the conversation's latest open ticket (one is opened if none exists,
+ * so the guest always gets a reference); the guest's reply re-opens the
+ * window and the admin can then write freely.
+ */
+export async function nudgeConversation(
+  _previous: SupportActionState,
+  formData: FormData,
+): Promise<SupportActionState> {
+  const guard = await adminGuard();
+  if (guard?.reason === 'no_db') return { success: false, message: 'no_db' };
+  if (guard) return { success: false, message: 'forbidden' };
+  const parsed = nudgeSchema.safeParse({ conversationId: formValue(formData, 'conversationId') });
+  if (!parsed.success) return { success: false, message: 'validation' };
+  if (!hasWhatsApp()) return { success: false, message: 'not_configured' };
+  try {
+    const conversation = await db.query.conversations.findFirst({
+      where: eq(conversations.id, parsed.data.conversationId),
+      columns: { id: true, address: true, locale: true, guestId: true },
+    });
+    if (!conversation) return { success: false, message: 'not_found' };
+    const contentSid = whatsappContentSid('support_ticket_update', conversation.locale);
+    if (!contentSid) return { success: false, message: 'no_template' };
+    const to = whatsappAddress(conversation.address);
+    if (!to) return { success: false, message: 'not_found' };
+
+    let ticket = await db.query.supportTickets.findFirst({
+      where: and(
+        eq(supportTickets.conversationId, conversation.id),
+        ne(supportTickets.status, 'resolved'),
+      ),
+      orderBy: (t, { desc }) => [desc(t.createdAt)],
+      columns: { id: true, reference: true },
+    });
+    if (!ticket) {
+      const opened = await openTicket({
+        category: 'other',
+        priority: 'normal',
+        summary: 'Admin follow-up sent outside the WhatsApp reply window.',
+        conversationId: conversation.id,
+        guestId: conversation.guestId,
+        openedBy: 'admin',
+        detail: { from: conversation.address },
+      });
+      ticket = { id: opened.id, reference: opened.reference };
+    }
+
+    const claim = await claimDelivery({
+      dedupeKey: `support_nudge:${ticket.id}:${Date.now()}`,
+      channel: 'whatsapp',
+      type: 'support_ticket_update',
+      recipientType: 'guest',
+      recipient: conversation.address,
+      locale: conversation.locale,
+    });
+    const result = await sendWhatsAppTemplate({ to, contentSid, variables: { '1': ticket.reference } });
+    if (result.ok) await markDeliverySent(claim.claimed ? claim.id : null, result.sid || null);
+    else await markDeliveryFailed(claim.claimed ? claim.id : null, result.error);
+
+    const now = new Date();
+    await db.insert(conversationMessages).values({
+      conversationId: conversation.id,
+      direction: 'out',
+      author: 'admin',
+      body: `[template support_ticket_update · ${ticket.reference}]`,
+      providerMessageId: result.ok && result.sid ? result.sid : null,
+      deliveryId: claim.claimed ? claim.id : null,
+    });
+    await db
+      .update(conversations)
+      .set({ lastOutboundAt: now, updatedAt: now, state: 'human' })
+      .where(eq(conversations.id, conversation.id));
+    revalidatePath(`/[locale]/admin/support/${conversation.id}`, 'page');
+    if (!result.ok) return { success: false, message: 'send_failed' };
+    return { success: true };
+  } catch (error) {
+    reportError(error, { surface: 'support:nudge' });
     return { success: false, message: 'server' };
   }
 }

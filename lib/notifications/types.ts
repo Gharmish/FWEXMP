@@ -55,7 +55,13 @@ export type WhatsAppTemplateKey =
    * subject line. Register + approve the template, then add its SID
    * under `admin_alert` (locale-less is fine — operator-facing English).
    */
-  | 'admin_alert';
+  | 'admin_alert'
+  /**
+   * Support line re-engagement (phase 3): sent by an admin when the
+   * guest's 24h service window has closed — one variable, the ticket
+   * reference. The guest's reply re-opens the window for free-form text.
+   */
+  | 'support_ticket_update';
 
 export interface NotificationRecipient {
   kind: NotificationRecipientType;

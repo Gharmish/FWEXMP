@@ -1,6 +1,6 @@
 import 'server-only';
 
-import { desc, eq, isNotNull, or } from 'drizzle-orm';
+import { desc, eq, inArray, isNotNull, lt, or } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import { hasSupportAgent, serverEnv } from '@/lib/env';
 import { bookings, conversationMessages, conversations, guests } from '@/db/schema';
@@ -378,4 +378,33 @@ export async function sweepUnacknowledgedInbound(
     reportError(error, { surface: 'conversations:sweep' });
   }
   return handled;
+}
+
+/** Conversation retention promised on the privacy page: 12 months after the last message. */
+export const CONVERSATION_RETENTION_DAYS = 365;
+
+/**
+ * Cron: delete conversations (and, by cascade, their messages) whose
+ * last activity is older than the retention period. Tickets keep their
+ * summaries — `conversation_id` nulls out on delete. Returns rows removed.
+ */
+export async function purgeExpiredConversations(limit = 200): Promise<number> {
+  if (!hasDb()) return 0;
+  try {
+    const cutoff = new Date(Date.now() - CONVERSATION_RETENTION_DAYS * 24 * 60 * 60 * 1000);
+    const stale = await db
+      .select({ id: conversations.id })
+      .from(conversations)
+      .where(lt(conversations.updatedAt, cutoff))
+      .limit(limit);
+    if (stale.length === 0) return 0;
+    const deleted = await db
+      .delete(conversations)
+      .where(inArray(conversations.id, stale.map((s) => s.id)))
+      .returning({ id: conversations.id });
+    return deleted.length;
+  } catch (error) {
+    reportError(error, { surface: 'conversations:purge' });
+    return 0;
+  }
 }

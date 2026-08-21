@@ -27,6 +27,11 @@ const notifyAdmin = vi.fn();
 vi.mock('@/lib/admin-alerts', () => ({
   notifyAdmin: (...args: unknown[]) => notifyAdmin(...args),
 }));
+// The web report also opens a support ticket (phase 3) — covered by the
+// ticket service's own tests; here it must not disturb the dispute flow.
+vi.mock('@/features/support/tickets', () => ({
+  openTicket: async () => ({ id: 'ticket-1', reference: 'TK-1', priority: 'normal', slaDueAt: new Date() }),
+}));
 
 let currentUser: { id: string } | null = null;
 vi.mock('@/features/auth/queries', () => ({
@@ -86,9 +91,15 @@ vi.mock('@/lib/db', () => ({
     }),
     insert: () => ({
       values: (v: Record<string, unknown>) => {
-        if (insertError) return Promise.reject(insertError);
-        insertedDisputes.push(v);
-        return Promise.resolve(undefined);
+        // The action chains `.returning()` for the new row's id (phase 3
+        // ticket link); plain awaits still resolve — and a rejection must
+        // surface through `.returning()` too, so the collision mapping
+        // stays testable.
+        const outcome = insertError
+          ? Promise.reject(insertError)
+          : (insertedDisputes.push(v), Promise.resolve([{ id: 'dispute-new' }]));
+        outcome.catch(() => undefined);
+        return Object.assign(outcome, { returning: () => outcome });
       },
     }),
     update: () => ({

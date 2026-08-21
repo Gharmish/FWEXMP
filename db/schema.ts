@@ -1271,6 +1271,13 @@ export const disputes = pgTable(
     /** Supabase auth id of the admin who resolved. */
     resolvedByUserId: uuid(),
     resolvedAt: timestamp({ withTimezone: true }),
+    /**
+     * The support ticket this report also lives as (2026-08-21 phase 3):
+     * web "report a problem" and WhatsApp complaints share one queue.
+     * Nullable for rows filed before tickets existed. No FK — tickets
+     * are declared later in this file; resolution keeps both in step.
+     */
+    ticketId: uuid(),
     createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [

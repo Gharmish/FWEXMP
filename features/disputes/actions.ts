@@ -1,12 +1,13 @@
 'use server';
 
-import { and, eq, gte, sql } from 'drizzle-orm';
+import { and, eq, gte, ne, sql } from 'drizzle-orm';
 import { revalidatePath } from 'next/cache';
 import { db } from '@/lib/db';
 import { serverEnv } from '@/lib/env';
-import { bookings, disputes } from '@/db/schema';
+import { bookings, disputes, supportTicketEvents, supportTickets } from '@/db/schema';
 import { reportError } from '@/lib/log';
 import { notifyAdmin } from '@/lib/admin-alerts';
+import { openTicket } from '@/features/support/tickets';
 import { getCurrentUser } from '@/features/auth/queries';
 import { isAdminUser } from '@/features/admin/auth';
 import { bookingViewerCanAccess } from '@/features/bookings/lib/access';
@@ -74,6 +75,9 @@ export async function createDispute(
   if (!serverEnv.DATABASE_URL) return { success: false, message: 'no_db' };
 
   let referenceCode: string;
+  let bookingId: string;
+  let guestId: string;
+  let createdDisputeId: string;
   try {
     const booking = await db.query.bookings.findFirst({
       where: eq(bookings.idempotencyKey, reference),
@@ -85,6 +89,8 @@ export async function createDispute(
       return { success: false, message: 'not_found' };
     }
     referenceCode = booking.referenceCode;
+    bookingId = booking.id;
+    guestId = booking.guestId;
 
     const open = await db.query.disputes.findFirst({
       where: and(eq(disputes.bookingId, booking.id), eq(disputes.status, 'open')),
@@ -105,11 +111,15 @@ export async function createDispute(
       return { success: false, message: 'throttled' };
     }
 
-    await db.insert(disputes).values({
-      bookingId: booking.id,
-      guestId: booking.guestId,
-      message,
-    });
+    const [created] = await db
+      .insert(disputes)
+      .values({
+        bookingId: booking.id,
+        guestId: booking.guestId,
+        message,
+      })
+      .returning({ id: disputes.id });
+    createdDisputeId = created.id;
   } catch (error) {
     // The partial unique index closes the pre-check's race window: the
     // loser of two concurrent submits lands here, not on a second row.
@@ -123,6 +133,22 @@ export async function createDispute(
   // The GH- code, not the UUID capability: it's what /admin/bookings
   // and every guest-facing surface call the booking.
   await notifyAdmin('dispute_opened', { reference: referenceCode });
+  // Same report, one queue (2026-08-21 phase 3): the ticket carries the
+  // SLA and shows up in /admin/support next to WhatsApp escalations.
+  try {
+    const ticket = await openTicket({
+      category: 'guest_complaint',
+      priority: 'normal',
+      summary: `Web report on ${referenceCode}: ${message.slice(0, 400)}`,
+      bookingId: bookingId,
+      guestId: guestId,
+      openedBy: 'guest',
+      detail: { reference: referenceCode },
+    });
+    await db.update(disputes).set({ ticketId: ticket.id }).where(eq(disputes.id, createdDisputeId));
+  } catch (error) {
+    reportError(error, { surface: 'disputes:ticket', reference });
+  }
 
   // Acknowledge the guest and put the host on notice — each
   // best-effort, never blocking the submitted report, and each in its
@@ -255,6 +281,38 @@ export async function resolveDispute(
   } catch (error) {
     reportError(error, { surface: 'disputes:resolve', disputeId });
     return { success: false, message: 'server' };
+  }
+
+  // Keep the linked support ticket in step (phase 3). Best-effort.
+  try {
+    const linked = await db.query.disputes.findFirst({
+      where: eq(disputes.id, disputeId),
+      columns: { ticketId: true },
+    });
+    if (linked?.ticketId) {
+      const now = new Date();
+      const closed = await db
+        .update(supportTickets)
+        .set({
+          status: 'resolved',
+          resolvedAt: now,
+          resolvedByUserId: admin.id,
+          resolutionNote: adminNotes ?? null,
+          updatedAt: now,
+        })
+        .where(and(eq(supportTickets.id, linked.ticketId), ne(supportTickets.status, 'resolved')))
+        .returning({ id: supportTickets.id });
+      if (closed.length > 0) {
+        await db.insert(supportTicketEvents).values({
+          ticketId: linked.ticketId,
+          kind: 'resolved',
+          actor: 'admin',
+          note: 'Resolved via /admin/disputes',
+        });
+      }
+    }
+  } catch (error) {
+    reportError(error, { surface: 'disputes:resolveTicket', disputeId });
   }
 
   // The guest resolution notice — best-effort, never blocks the resolve.

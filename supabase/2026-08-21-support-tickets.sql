@@ -68,3 +68,6 @@ alter table admin_alerts enable row level security;
 
 -- Agent concurrency lock (one turn per conversation at a time).
 alter table conversations add column if not exists agent_lock_until timestamptz;
+
+-- Phase 3: web "report a problem" also lives as a ticket.
+alter table disputes add column if not exists ticket_id uuid;

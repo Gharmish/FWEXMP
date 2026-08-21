@@ -14,3 +14,5 @@ export const resolveTicketSchema = z.object({
   ticketId: z.string().uuid(),
   resolutionNote: z.string().trim().max(2000).optional(),
 });
+
+export const nudgeSchema = z.object({ conversationId: z.string().uuid() });
