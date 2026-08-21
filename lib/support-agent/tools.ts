@@ -26,6 +26,7 @@ import {
   todayInRiyadh,
 } from '@/features/bookings/lib/availability';
 import { openTicket, type TicketCategory, type TicketPriority } from '@/features/support/tickets';
+import { attemptIdentityChallenge } from './identity';
 
 /**
  * Tools the support agent may call. Identity is never a parameter: every
@@ -45,6 +46,14 @@ export interface ToolContext {
   now: Date;
   /** The guest message that triggered this turn — the only place a confirmation can come from. */
   lastInbound: string;
+  /**
+   * This sender proved the email on their booking (see ./identity).
+   * False ⇒ the write tools are not offered and are refused if called:
+   * the number alone is an unverified field typed into a booking form.
+   */
+  identityVerified: boolean;
+  /** The guest has an email to challenge against; false ⇒ no challenge is possible. */
+  guestHasEmail: boolean;
 }
 
 export interface ToolOutcome {
@@ -68,9 +77,42 @@ const TICKET_PRIORITIES: TicketPriority[] = ['urgent', 'high', 'normal'];
 
 const HOST_TOOL_NAMES = new Set(['list_host_bookings', 'decide_booking_request']);
 
-/** The tool set for this sender: host tools only appear for hosts. */
-export function toolsFor(ctx: Pick<ToolContext, 'hostId'>): Anthropic.Tool[] {
-  return ctx.hostId ? TOOLS : TOOLS.filter((t) => !HOST_TOOL_NAMES.has(t.name));
+/**
+ * Tools that change a booking or nominate where its refund is wired.
+ *
+ * Each one requires `bookingViewerCanAccess` on the web — a signed-in
+ * owner or the browser's signed cookie — and accepts neither the phone
+ * number nor the link token. They are gated here to match (2026-08-21
+ * security audit H3); see ./identity for why the challenge is the email
+ * and not a code sent to the phone.
+ */
+const WRITE_TOOL_NAMES = new Set([
+  'cancel_booking',
+  'reschedule_booking',
+  'submit_refund_bank_details',
+]);
+
+/**
+ * The tool set for this sender.
+ *
+ * Host tools only appear for hosts. The write tools only appear once the
+ * sender has passed the identity challenge, and `verify_identity` only
+ * appears while it is both needed and possible — so the model is never
+ * offered an action it would have to be talked out of, and never asks
+ * for an email it cannot check. `runTool` re-checks anyway: a tool list
+ * is guidance to the model, not an authorization boundary.
+ */
+export function toolsFor(
+  ctx: Pick<ToolContext, 'hostId' | 'guestId' | 'identityVerified' | 'guestHasEmail'>,
+): Anthropic.Tool[] {
+  return TOOLS.filter((tool) => {
+    if (HOST_TOOL_NAMES.has(tool.name)) return Boolean(ctx.hostId);
+    if (WRITE_TOOL_NAMES.has(tool.name)) return ctx.identityVerified;
+    if (tool.name === 'verify_identity') {
+      return Boolean(ctx.guestId) && !ctx.identityVerified && ctx.guestHasEmail;
+    }
+    return true;
+  });
 }
 
 export const TOOLS: Anthropic.Tool[] = [
@@ -204,6 +246,22 @@ export const TOOLS: Anthropic.Tool[] = [
     },
   },
   {
+    name: 'verify_identity',
+    description:
+      "Check the email address on the guest's booking, so you may then cancel, reschedule or take refund bank details. Ask ONCE, in one short message: 'to make that change I need to check the email on your booking — what is it?'. Pass exactly what they reply. You do NOT know the address and must never guess it, offer it, spell part of it, or confirm whether a guess is close — the answer here is the only thing that tells you. On `mismatch` say it does not match and ask them to try the address they booked with; after two failures open_ticket instead. This tool is not about doubting the guest: their WhatsApp number was typed into a booking form and never verified, so it is not on its own proof that the booking is theirs.",
+    input_schema: {
+      type: 'object',
+      properties: {
+        email: {
+          type: 'string',
+          description: 'The email address the guest just gave you, copied verbatim.',
+        },
+      },
+      required: ['email'],
+      additionalProperties: false,
+    },
+  },
+  {
     name: 'open_ticket',
     description:
       'Open a ticket for the Gharmish team while you keep helping the guest. Use for anything that needs a human decision or action you cannot perform: refund exceptions, payment problems, complaints about a host, host no-shows, account changes. Returns the ticket reference to give the guest.',
@@ -269,6 +327,59 @@ export function confirmationPresent(quote: string, lastInbound: string): boolean
   const m = norm(lastInbound);
   if (!q || q.length < 2 || !m) return false;
   return m.includes(q) && m.length <= 200;
+}
+
+/**
+ * Tool-result shapes for each challenge outcome. Deliberately uniform in
+ * what they withhold: none of them contains, hints at, or confirms any
+ * part of the stored address — the model must not be able to narrow it
+ * by trying, and must not be able to leak it by being asked nicely.
+ */
+const IDENTITY_RESULTS: Record<string, Record<string, unknown>> = {
+  verified: {
+    verified: true,
+    note: 'Confirmed. You may now cancel, reschedule or take refund bank details for this guest, still under the two-step rule. Do not thank them for verifying at length — one clause, then carry on with what they asked for.',
+  },
+  mismatch: {
+    verified: false,
+    error: 'email_mismatch',
+    note: 'That is not the address on the booking. Say so plainly, without saying what the address is or how close they were, and ask them to try the one they booked with. After a second failure, stop asking and open_ticket (category account) so a person can help them.',
+  },
+  no_email_on_file: {
+    verified: false,
+    error: 'no_email_on_file',
+    note: 'This booking has no email address, so there is nothing to check it against and you cannot verify this guest. Do not ask them for an email. Tell them this change needs a person and open_ticket (category account) with what they wanted done.',
+  },
+  throttled: {
+    verified: false,
+    error: 'too_many_attempts',
+    note: 'Too many failed attempts on this number. Stop asking and open_ticket (category account) so a person can take it from here.',
+  },
+  unavailable: {
+    verified: false,
+    error: 'unavailable',
+    note: 'The check could not run. Tell the guest you cannot make that change right now and open_ticket (category account).',
+  },
+};
+
+/**
+ * The refusal a write tool returns when the sender has not passed the
+ * challenge. `runTool` checks this even though `toolsFor` already
+ * withholds the tool: the tool list shapes what the model reaches for,
+ * it does not enforce anything, and this is the boundary that does.
+ */
+function writeToolDenied(ctx: ToolContext): Record<string, unknown> | null {
+  if (ctx.identityVerified) return null;
+  if (!ctx.guestId || !ctx.guestHasEmail) {
+    return {
+      error: 'identity_not_verifiable',
+      note: 'This change needs proof the booking belongs to this person, and there is no email on file to check against. Do not attempt it. Tell the guest a colleague will take care of it and open_ticket (category account).',
+    };
+  }
+  return {
+    error: 'identity_not_verified',
+    note: 'Ask for the email on the booking first and pass it to verify_identity. Only after it returns verified may you call this tool again.',
+  };
 }
 
 function asCategory(value: string | undefined): TicketCategory {
@@ -461,8 +572,19 @@ export async function runTool(
           }),
         };
       }
+      case 'verify_identity': {
+        const outcome = await attemptIdentityChallenge({
+          conversationId: ctx.conversationId,
+          guestId: ctx.guestId,
+          address: ctx.address,
+          submittedEmail: str(input, 'email') ?? '',
+        });
+        return { result: JSON.stringify(IDENTITY_RESULTS[outcome]) };
+      }
       case 'cancel_booking':
       case 'reschedule_booking': {
+        const denied = writeToolDenied(ctx);
+        if (denied) return { result: JSON.stringify(denied) };
         const booking = await findOwnBooking(ctx, str(input, 'reference_code') ?? '');
         if (!booking) return { result: JSON.stringify({ error: 'not_found' }) };
         const quote = (str(input, 'confirmation_quote') ?? '').trim();
@@ -513,6 +635,8 @@ export async function runTool(
         return { result: JSON.stringify(outcome) };
       }
       case 'submit_refund_bank_details': {
+        const denied = writeToolDenied(ctx);
+        if (denied) return { result: JSON.stringify(denied) };
         const booking = await findOwnBooking(ctx, str(input, 'reference_code') ?? '');
         if (!booking) return { result: JSON.stringify({ error: 'not_found' }) };
         const parsedBank = refundBankDetailsSchema.safeParse(bankInput(input) ?? {});

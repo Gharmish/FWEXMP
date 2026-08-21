@@ -1957,6 +1957,23 @@ export const conversations = pgTable(
     lastAckAt: timestamp({ withTimezone: true }),
     /** Per-conversation agent lock: one turn at a time; lapses on its own. */
     agentLockUntil: timestamp({ withTimezone: true }),
+    /**
+     * Support-agent identity challenge (2026-08-21 security audit H3).
+     *
+     * The sender is resolved to a guest by phone alone, and that phone
+     * came from an unverified booking-form field — so a wrong number
+     * reads as the guest. Reads are unchanged (the notification rail
+     * already sends this number the whole booking), but before the agent
+     * will CANCEL, RESCHEDULE or set REFUND BANK DETAILS the sender must
+     * state the email on the booking: the one factor the phone does not
+     * receive. Null here = unverified.
+     *
+     * `identityVerifiedGuestId` binds the proof to the guest it was made
+     * for, so a conversation later re-identified to someone else does
+     * not inherit it.
+     */
+    identityVerifiedAt: timestamp({ withTimezone: true }),
+    identityVerifiedGuestId: uuid().references(() => guests.id, { onDelete: 'set null' }),
     createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
   },

@@ -7,13 +7,10 @@ import { hasSupportAgent, serverEnv } from '@/lib/env';
 import { conversationMessages, conversations } from '@/db/schema';
 import { reportError } from '@/lib/log';
 import { notifyAdmin } from '@/lib/admin-alerts';
-import {
-  ACK_COPY,
-  sendConversationReply,
-  type RecordedInbound,
-} from '@/lib/conversations/inbound';
+import { ACK_COPY, sendConversationReply, type RecordedInbound } from '@/lib/conversations/inbound';
 import { openTicket } from '@/features/support/tickets';
 import { buildKnowledge } from './knowledge';
+import { readIdentityState } from './identity';
 import { AGENT_RULES } from './prompt';
 import { runTool, toolsFor, type ToolContext } from './tools';
 
@@ -71,7 +68,9 @@ export function toMessageParams(history: ThreadMessage[]): Anthropic.MessagePara
           ? '[image attached — you cannot view it]'
           : `[attachment: ${m.mediaContentType}]`
       : '';
-    const text = [m.body.trim(), media].filter(Boolean).join(' ') || (m.direction === 'in' ? '(attachment)' : '(no text)');
+    const text =
+      [m.body.trim(), media].filter(Boolean).join(' ') ||
+      (m.direction === 'in' ? '(attachment)' : '(no text)');
     const last = params[params.length - 1];
     if (last && last.role === role && typeof last.content === 'string') {
       last.content = `${last.content}\n\n${text}`;
@@ -102,13 +101,23 @@ export interface AgentRunOutput {
  * with a fake client. Returns the final text (possibly empty) and what
  * happened along the way; throws on API errors.
  */
-export async function runAgentLoop(input: AgentRunInput, api: Anthropic = anthropic()): Promise<AgentRunOutput> {
+export async function runAgentLoop(
+  input: AgentRunInput,
+  api: Anthropic = anthropic(),
+): Promise<AgentRunOutput> {
   const knowledge = await buildKnowledge();
   const volatile = [
     `# This conversation`,
     `- Guest's stored name: ${input.guestName ?? 'unknown'}`,
     `- Guest's stored language: ${input.ctx.locale === 'ar' ? 'Arabic' : 'English'}`,
     `- Known guest: ${input.ctx.guestId ? 'yes — list_my_bookings will return their bookings' : 'no — this number has no booking on file'}`,
+    `- Identity checked: ${
+      input.ctx.identityVerified
+        ? 'YES — this sender confirmed the email on the booking; cancel, reschedule and refund bank details are available'
+        : input.ctx.guestId && input.ctx.guestHasEmail
+          ? 'NO — before any cancel, reschedule or refund bank details, ask for the email on the booking and pass it to verify_identity'
+          : 'NO, and it cannot be checked (no email on the booking) — a change to a booking needs a person; open_ticket'
+    }`,
     `- Gharmish host: ${input.ctx.hostId ? 'YES — this number belongs to a host; host tools are available and they may be writing about their own experiences' : 'no'}`,
     `- Current time (Riyadh): ${input.ctx.now.toLocaleString('en-GB', { timeZone: 'Asia/Riyadh', hour12: false })}`,
   ].join('\n');
@@ -131,7 +140,11 @@ export async function runAgentLoop(input: AgentRunInput, api: Anthropic = anthro
       thinking: { type: 'adaptive' },
       output_config: { effort: 'medium' },
       system: [
-        { type: 'text', text: `${AGENT_RULES}\n\n# Knowledge base\n\n${knowledge}`, cache_control: { type: 'ephemeral', ttl: '1h' } },
+        {
+          type: 'text',
+          text: `${AGENT_RULES}\n\n# Knowledge base\n\n${knowledge}`,
+          cache_control: { type: 'ephemeral', ttl: '1h' },
+        },
         { type: 'text', text: volatile },
       ],
       tools: toolsFor(input.ctx),
@@ -148,7 +161,9 @@ export async function runAgentLoop(input: AgentRunInput, api: Anthropic = anthro
       .map((b) => b.text)
       .join('\n')
       .trim();
-    const toolUses = response.content.filter((b): b is Anthropic.ToolUseBlock => b.type === 'tool_use');
+    const toolUses = response.content.filter(
+      (b): b is Anthropic.ToolUseBlock => b.type === 'tool_use',
+    );
 
     if (toolUses.length === 0 || response.stop_reason === 'end_turn') {
       finalText = text;
@@ -189,7 +204,11 @@ async function loadThread(conversationId: string): Promise<ThreadMessage[]> {
  * ticket, and the conversation goes to a person. The guest is never
  * left waiting on a bot that crashed.
  */
-async function failSafe(recorded: RecordedInbound, address: string, reason: string): Promise<AgentTurnResult> {
+async function failSafe(
+  recorded: RecordedInbound,
+  address: string,
+  reason: string,
+): Promise<AgentTurnResult> {
   let ticketReference: string | undefined;
   try {
     const ticket = await openTicket({
@@ -204,7 +223,10 @@ async function failSafe(recorded: RecordedInbound, address: string, reason: stri
     ticketReference = ticket.reference;
   } catch (error) {
     reportError(error, { surface: 'support-agent:failSafe-ticket' });
-    await notifyAdmin('guest_whatsapp_inbound', { from: address, message: `(agent failed: ${reason})` });
+    await notifyAdmin('guest_whatsapp_inbound', {
+      from: address,
+      message: `(agent failed: ${reason})`,
+    });
   }
   await db
     .update(conversations)
@@ -223,7 +245,10 @@ async function failSafe(recorded: RecordedInbound, address: string, reason: stri
 }
 
 /** Entry point from the webhook (inside `after()`) and the cron sweep. */
-export async function runAgentTurn(recorded: RecordedInbound, address: string): Promise<AgentTurnResult> {
+export async function runAgentTurn(
+  recorded: RecordedInbound,
+  address: string,
+): Promise<AgentTurnResult> {
   if (!hasSupportAgent() || !serverEnv.DATABASE_URL) return { outcome: 'skipped' };
   const conversationId = recorded.conversationId;
   const now = new Date();
@@ -239,20 +264,43 @@ export async function runAgentTurn(recorded: RecordedInbound, address: string): 
         or(isNull(conversations.agentLockUntil), lt(conversations.agentLockUntil, now)),
       ),
     )
-    .returning({ guestId: conversations.guestId, hostId: conversations.hostId, locale: conversations.locale });
+    .returning({
+      guestId: conversations.guestId,
+      hostId: conversations.hostId,
+      locale: conversations.locale,
+    });
   if (locked.length === 0) return { outcome: 'skipped' };
   const { guestId, hostId, locale } = locked[0];
 
   try {
     const history = await loadThread(conversationId);
+    // Read per turn, never cached across turns: the challenge can be
+    // passed mid-conversation, and a conversation can be re-identified to
+    // a different guest between messages.
+    const identity = await readIdentityState(conversationId, guestId);
     const output = await runAgentLoop({
       history,
       guestName: recorded.guestName,
-      ctx: { conversationId, address, guestId, hostId, locale, now, lastInbound: history.at(-1)?.direction === 'in' ? (history.at(-1)?.body ?? "") : '' },
+      ctx: {
+        conversationId,
+        address,
+        guestId,
+        hostId,
+        locale,
+        now,
+        lastInbound: history.at(-1)?.direction === 'in' ? (history.at(-1)?.body ?? '') : '',
+        identityVerified: identity.verified,
+        guestHasEmail: identity.hasEmail,
+      },
     });
 
     if (output.stopReason === 'refusal') return await failSafe(recorded, address, 'refusal');
-    if (!output.reply) return await failSafe(recorded, address, `empty reply (${output.stopReason ?? 'no stop reason'})`);
+    if (!output.reply)
+      return await failSafe(
+        recorded,
+        address,
+        `empty reply (${output.stopReason ?? 'no stop reason'})`,
+      );
 
     const sent = await sendConversationReply({
       conversationId,
@@ -288,7 +336,10 @@ export async function runAgentTurn(recorded: RecordedInbound, address: string): 
  * than `minAgeMs` with no reply after it means the webhook's `after()`
  * leg died or a burst arrived while the lock was held. Re-run the turn.
  */
-export async function sweepPendingAgentTurns(minAgeMs = 2 * 60 * 1000, limit = 10): Promise<number> {
+export async function sweepPendingAgentTurns(
+  minAgeMs = 2 * 60 * 1000,
+  limit = 10,
+): Promise<number> {
   if (!hasSupportAgent() || !serverEnv.DATABASE_URL) return 0;
   let handled = 0;
   try {

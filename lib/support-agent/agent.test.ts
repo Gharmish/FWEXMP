@@ -32,6 +32,10 @@ const ctx = {
   locale: 'en' as const,
   now: new Date('2026-08-21T10:00:00Z'),
   lastInbound: 'my bookings?',
+  // Verified by default so these tests exercise the loop, not the gate;
+  // the gate has its own tests in tools.test.ts.
+  identityVerified: true,
+  guestHasEmail: true,
 };
 
 function fakeClient(responses: Array<Partial<Anthropic.Message>>): {
@@ -46,7 +50,14 @@ function fakeClient(responses: Array<Partial<Anthropic.Message>>): {
         calls.push(params);
         const next = queue.shift();
         if (!next) throw new Error('no more responses');
-        return { id: 'm', type: 'message', role: 'assistant', content: [], stop_reason: 'end_turn', ...next };
+        return {
+          id: 'm',
+          type: 'message',
+          role: 'assistant',
+          content: [],
+          stop_reason: 'end_turn',
+          ...next,
+        };
       },
     },
   } as unknown as Anthropic;
@@ -80,9 +91,20 @@ describe('runAgentLoop', () => {
     const { api, calls } = fakeClient([
       {
         stop_reason: 'tool_use',
-        content: [{ type: 'tool_use', id: 't1', name: 'list_my_bookings', input: {}, caller: { type: 'direct' } }],
+        content: [
+          {
+            type: 'tool_use',
+            id: 't1',
+            name: 'list_my_bookings',
+            input: {},
+            caller: { type: 'direct' },
+          },
+        ],
       },
-      { stop_reason: 'end_turn', content: [{ type: 'text', text: 'You have no bookings yet.', citations: null }] },
+      {
+        stop_reason: 'end_turn',
+        content: [{ type: 'text', text: 'You have no bookings yet.', citations: null }],
+      },
     ]);
 
     const out = await runAgentLoop(
@@ -115,9 +137,20 @@ describe('runAgentLoop', () => {
     const { api } = fakeClient([
       {
         stop_reason: 'tool_use',
-        content: [{ type: 'tool_use', id: 't1', name: 'escalate_to_human', input: { category: 'other', priority: 'high', summary: 's' }, caller: { type: 'direct' } }],
+        content: [
+          {
+            type: 'tool_use',
+            id: 't1',
+            name: 'escalate_to_human',
+            input: { category: 'other', priority: 'high', summary: 's' },
+            caller: { type: 'direct' },
+          },
+        ],
       },
-      { stop_reason: 'end_turn', content: [{ type: 'text', text: 'A person will follow up (TK-1).', citations: null }] },
+      {
+        stop_reason: 'end_turn',
+        content: [{ type: 'text', text: 'A person will follow up (TK-1).', citations: null }],
+      },
     ]);
 
     const out = await runAgentLoop(
@@ -144,7 +177,10 @@ describe('runAgentLoop', () => {
 
   it('returns nothing to send when the thread has no user turn', async () => {
     const { api, calls } = fakeClient([]);
-    const out = await runAgentLoop({ history: [{ direction: 'out', body: 'x' }], ctx, guestName: null }, api);
+    const out = await runAgentLoop(
+      { history: [{ direction: 'out', body: 'x' }], ctx, guestName: null },
+      api,
+    );
     expect(out.reply).toBe('');
     expect(calls).toHaveLength(0);
   });

@@ -20,6 +20,10 @@ vi.mock('@/features/bookings/lib/refund-bank-core', () => ({
 vi.mock('@/features/bookings/lib/reschedule-core', () => ({ rescheduleBookingCore: vi.fn() }));
 vi.mock('@/features/availability/queries', () => ({ getScheduleDataBySlug: vi.fn() }));
 vi.mock('@/features/support/tickets', () => ({ openTicket: vi.fn() }));
+const attemptIdentityChallenge = vi.fn();
+vi.mock('./identity', () => ({
+  attemptIdentityChallenge: (...args: unknown[]) => attemptIdentityChallenge(...args),
+}));
 
 import { confirmationPresent, runTool, TOOLS, type ToolContext } from './tools';
 import { getBookingsForGuest } from '@/features/bookings/queries';
@@ -67,6 +71,8 @@ describe('refund bank details via the agent', () => {
     address: 'whatsapp:+966500000000',
     guestId: 'g-1',
     hostId: null,
+    identityVerified: true,
+    guestHasEmail: true,
     locale: 'en',
     now: new Date('2026-08-21T09:00:00Z'),
     lastInbound: 'yes cancel it',
@@ -177,5 +183,118 @@ describe('refund bank details via the agent', () => {
       'beneficiary_name',
       'iban',
     ]);
+  });
+});
+
+/**
+ * The gate that matters, tested where it actually holds.
+ *
+ * `toolsFor` withholds these tools from an unverified sender, but a tool
+ * list only shapes what the model reaches for — it enforces nothing. A
+ * model that ignores its instructions, or one steered by a guest who
+ * insists, will still emit the tool call. This is the check that stops
+ * it, so it is the one worth pinning.
+ */
+describe('write tools refuse an unverified sender', () => {
+  const unverified: ToolContext = {
+    conversationId: 'c-1',
+    address: '+966500000000',
+    guestId: 'g-1',
+    hostId: null,
+    identityVerified: false,
+    guestHasEmail: true,
+    locale: 'en',
+    now: new Date('2026-08-21T10:00:00Z'),
+    lastInbound: 'yes cancel it',
+  };
+
+  beforeEach(() => {
+    cancelBookingCore.mockReset();
+    saveRefundBankDetails.mockReset();
+    vi.mocked(getBookingsForGuest).mockReset();
+  });
+
+  for (const [name, input] of [
+    ['cancel_booking', { reference_code: 'GH-7K3M9X', confirmation_quote: 'yes cancel it' }],
+    [
+      'reschedule_booking',
+      { reference_code: 'GH-7K3M9X', new_date: '2026-09-01', confirmation_quote: 'yes cancel it' },
+    ],
+    [
+      'submit_refund_bank_details',
+      {
+        reference_code: 'GH-7K3M9X',
+        bank_name: 'Al Rajhi',
+        beneficiary_name: 'Sara',
+        iban: 'SA0380000000608010167519',
+      },
+    ],
+  ] as const) {
+    it(`${name} refuses, and never reaches the booking lookup`, async () => {
+      const outcome = await runTool(name, input, unverified);
+      expect(JSON.parse(outcome.result).error).toBe('identity_not_verified');
+      // Refused BEFORE any work: no lookup, no core call, nothing to leak.
+      expect(getBookingsForGuest).not.toHaveBeenCalled();
+      expect(cancelBookingCore).not.toHaveBeenCalled();
+      expect(saveRefundBankDetails).not.toHaveBeenCalled();
+    });
+  }
+
+  it('tells the agent to fetch a person when there is no address to check', async () => {
+    const outcome = await runTool(
+      'cancel_booking',
+      { reference_code: 'GH-7K3M9X', confirmation_quote: 'yes cancel it' },
+      { ...unverified, guestHasEmail: false },
+    );
+    expect(JSON.parse(outcome.result).error).toBe('identity_not_verifiable');
+    expect(cancelBookingCore).not.toHaveBeenCalled();
+  });
+});
+
+describe('verify_identity results', () => {
+  const ctx: ToolContext = {
+    conversationId: 'c-1',
+    address: '+966500000000',
+    guestId: 'g-1',
+    hostId: null,
+    identityVerified: false,
+    guestHasEmail: true,
+    locale: 'en',
+    now: new Date('2026-08-21T10:00:00Z'),
+    lastInbound: 'sara@example.com',
+  };
+
+  beforeEach(() => attemptIdentityChallenge.mockReset());
+
+  it('reports a pass', async () => {
+    attemptIdentityChallenge.mockResolvedValue('verified');
+    const result = JSON.parse(
+      (await runTool('verify_identity', { email: 'sara@example.com' }, ctx)).result,
+    );
+    expect(result.verified).toBe(true);
+  });
+
+  it('never echoes the submitted address back, on any outcome', async () => {
+    // The model sees these strings. If a result carried the address —
+    // the guess or the stored one — an attacker could narrow it by
+    // trying, or simply ask the agent to read it back.
+    for (const outcome of ['mismatch', 'no_email_on_file', 'throttled', 'unavailable']) {
+      attemptIdentityChallenge.mockResolvedValue(outcome);
+      const raw = (await runTool('verify_identity', { email: 'guess@attacker.com' }, ctx)).result;
+      expect(raw).not.toContain('guess@attacker.com');
+      expect(raw).not.toContain('attacker');
+      expect(JSON.parse(raw).verified).toBe(false);
+    }
+  });
+
+  it('passes the conversation-bound identity, never anything from the model', async () => {
+    attemptIdentityChallenge.mockResolvedValue('mismatch');
+    await runTool('verify_identity', { email: 'x@y.com' }, ctx);
+    expect(attemptIdentityChallenge).toHaveBeenCalledWith({
+      conversationId: 'c-1',
+      guestId: 'g-1',
+      address: '+966500000000',
+      submittedEmail: 'x@y.com',
+    });
   });
 });
