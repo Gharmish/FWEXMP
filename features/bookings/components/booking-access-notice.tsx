@@ -19,12 +19,21 @@ import { Pop } from '@/components/ui/motion';
  * stored", which is false and alarming for a paid booking.
  *
  * Deliberately says nothing about the booking itself: no reference, no
- * status, no guest details. The recovery route is sign-in with the phone
- * number used at booking time — `/me` runs the identity chokepoint
- * (`resolveGuestForUser`), which claims the anonymous guest row on a
- * VERIFIED phone only, after which the booking is listed and this page
- * opens normally. That is why the CTA targets `/me` rather than bouncing
- * straight back here: the claim has to happen first.
+ * status, no guest details. The recovery route is sign-in with the
+ * EMAIL used at booking time — `/me` runs the identity chokepoint
+ * (`resolveGuestForUser`), which links the anonymous guest row once the
+ * session proves that address, after which the booking is listed and
+ * this page opens normally. That is why the CTA targets `/me` rather
+ * than bouncing straight back here: the link has to happen first.
+ *
+ * It used to say "sign in with the phone number you used" — and that
+ * worked, which was the problem (2026-08-21 security audit, H4). The
+ * phone on an anonymous booking is typed into a form and never
+ * verified, so "complete an OTP on that number" was a recovery route
+ * for the wrong holder of a mistyped or recycled number just as much as
+ * for the guest. The email is the factor a wrong number does not carry.
+ * A guest who booked without one recovers through `/help`, which is why
+ * that CTA sits beside the sign-in button rather than below the fold.
  */
 interface BookingAccessNoticeProps {
   locale: Locale;

@@ -2775,8 +2775,8 @@
     "restricted": {
       "eyebrow": "Private booking",
       "title": "Sign in to see this booking",
-      "description": "Your booking is safe — we just can't show it on this browser. For privacy, booking details are only shown to the guest who made the booking. Sign in with the phone number you used when booking and it will be waiting in your activity.",
-      "deviceHint": "Booked on another phone or computer? Opening this link on that device works too.",
+      "description": "Your booking is safe — we just can't show it on this browser. For privacy, booking details are only shown to the guest who made the booking. Sign in with the email address you gave when booking and it will be waiting in your activity.",
+      "deviceHint": "Booked on another phone or computer? Opening this link on that device works too. If you booked without an email address, get in touch and we'll help.",
       "signIn": "Sign in to view",
       "myBookings": "Go to your activity",
       "help": "Get help"
