@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { isValidSaudiIban, normalizeIban } from '@/features/host-applications/lib/iban';
 import { normalizeToE164 } from '@/lib/phone';
 
 /** Optional attribution label: trimmed, clamped, undefined over invalid. */
@@ -105,9 +106,40 @@ export type BookingRequestInput = z.infer<typeof bookingRequestSchema>;
  * (the idempotency-key UUID); the action separately verifies the caller
  * may act on it (owner session or last-booking cookie).
  */
+/**
+ * Payee details for a MANUAL (bank-transfer) refund — owner decision
+ * 2026-08-21: every refund is wired by hand, so the guest tells us where
+ * the money goes. Saudi IBAN only (SA + 22, mod-97), same rule as host
+ * payout IBANs. Names are free text (bank apps print them in either
+ * script); trimmed and length-bounded.
+ */
+export const refundBankDetailsSchema = z.object({
+  bankName: z.string().trim().min(2, 'bank_name_invalid').max(80, 'bank_name_invalid'),
+  beneficiaryName: z
+    .string()
+    .trim()
+    .min(2, 'beneficiary_name_invalid')
+    .max(80, 'beneficiary_name_invalid'),
+  iban: z.string().transform(normalizeIban).refine(isValidSaudiIban, 'iban_invalid'),
+});
+
+export type RefundBankDetailsInput = z.infer<typeof refundBankDetailsSchema>;
+
+export const submitRefundBankDetailsSchema = refundBankDetailsSchema.extend({
+  reference: z.string().uuid(),
+  locale: z.enum(['en', 'ar']),
+});
+
+/**
+ * Cancellation: the bank fields are OPTIONAL here — a cancellation that
+ * refunds nothing (unpaid, forfeited) never shows them. When a refund IS
+ * owed the page renders them `required`, and `cancelBookingCore` refuses
+ * a guest cancellation that arrives without them.
+ */
 export const cancelBookingSchema = z.object({
   reference: z.string().uuid(),
   locale: z.enum(['en', 'ar']),
+  bankDetails: refundBankDetailsSchema.optional(),
 });
 
 export type CancelBookingInput = z.infer<typeof cancelBookingSchema>;

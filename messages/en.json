@@ -418,7 +418,10 @@
       "policyRescheduleLabel": "Reschedule until (hours before start)",
       "policyPctSuffix": "%",
       "policyPartialOrderError": "The partial-refund window must end closer to the start than the full-refund window.",
-      "policiesSave": "Save cancellation policies"
+      "policiesSave": "Save cancellation policies",
+      "refundRailLabel": "Refunds",
+      "refundRailHint": "On: every refund is queued for you to wire by bank transfer — guests enter their bank name, account holder and IBAN, and nothing is sent through the payment gateway. Off: refunds go through the HyperPay refund API first, with the manual queue as the fallback.",
+      "refundRailToggleLabel": "Refund by manual bank transfer"
     },
     "catalog": {
       "eyebrow": "Catalogue",
@@ -939,7 +942,9 @@
       "deadlinePassed": "Approval window passed",
       "refundDueFilter": "Showing bookings with refunds owed",
       "suspendedHostFilter": "Showing upcoming bookings whose host is suspended",
-      "truncated": "Showing the latest {count} bookings — the counts above and the search cover only this window."
+      "truncated": "Showing the latest {count} bookings — the counts above and the search cover only this window.",
+      "refundBankReady": "Bank details ready",
+      "refundBankMissing": "Awaiting bank details"
     },
     "bookingDetail": {
       "back": "All bookings",
@@ -975,7 +980,15 @@
       "settleAnomalyBody": "An earlier payment on this booking could not be matched ({kind}). The guest cannot start a new payment until this is cleared. Check the checkout at HyperPay first — settle or refund the stray capture — then clear the block.",
       "settleAnomalyClear": "Clear block",
       "settleAnomalyClearPending": "Clearing…",
-      "settleAnomalyClearConfirm": "Only clear this after checking HyperPay. Clearing lets the guest pay again — if a capture is still outstanding, they could be charged twice."
+      "settleAnomalyClearConfirm": "Only clear this after checking HyperPay. Clearing lets the guest pay again — if a capture is still outstanding, they could be charged twice.",
+      "refundBankHeading": "Refund bank transfer",
+      "refundBankIntro": "Wire {amount} to the account below, then record the refund with the action above.",
+      "refundBankMissing": "The guest hasn't entered their bank details yet. Their booking page asks for bank name, account holder and IBAN — nudge them on WhatsApp if it's been a while.",
+      "refundBankName": "Bank",
+      "refundBankBeneficiary": "Account holder",
+      "refundBankIban": "IBAN",
+      "refundBankSubmittedAt": "Entered by guest",
+      "refundBankCopy": "Copy IBAN"
     },
     "emergencyCancel": {
       "heading": "Emergency cancellation",
@@ -2734,12 +2747,12 @@
       "pending": "Cancelling…",
       "confirm": "Cancel this booking? This can't be undone.",
       "confirmForfeited": "Cancel this booking? The refund window has passed, so the payment won't be refunded. This can't be undone.",
-      "confirmPartial": "Cancel this booking? Per the cancellation policy, {amount} will be refunded to your card. This can't be undone.",
+      "confirmPartial": "Cancel this booking? Per the cancellation policy, {amount} will be refunded to the bank account you entered. This can't be undone.",
       "doneUnpaid": "Your booking is cancelled. Nothing was charged.",
       "doneRefunded": "Your booking is cancelled and the refund has been issued to your card. Depending on your bank, it can take a few business days to appear.",
-      "doneRefundPending": "Your booking is cancelled. Your refund is on its way — our team processes it manually and you'll see it on your card within a few business days.",
+      "doneRefundPending": "Your booking is cancelled. Our team will transfer your refund to the bank account you entered — usually within a few business days.",
       "donePartialRefunded": "Your booking is cancelled and {amount} has been refunded to your card per the cancellation policy. Depending on your bank, it can take a few business days to appear.",
-      "donePartialRefundPending": "Your booking is cancelled. Your {amount} refund is on its way — our team processes it manually and you'll see it on your card within a few business days.",
+      "donePartialRefundPending": "Your booking is cancelled. Our team will transfer your {amount} refund to the bank account you entered — usually within a few business days.",
       "doneForfeited": "Your booking is cancelled. Because the refund window had already passed, the payment was not refunded.",
       "errors": {
         "forbidden": "You don't have permission to cancel this booking.",
@@ -2748,7 +2761,8 @@
         "wrongState": "This booking changed in the meantime. Refresh to see its current state.",
         "alreadyStarted": "This experience has already started, so it can no longer be cancelled.",
         "validation": "Something about this request was invalid. Refresh and try again.",
-        "server": "Something went wrong on our side. Try again."
+        "server": "Something went wrong on our side. Try again.",
+        "bankDetailsRequired": "Please enter the bank account for your refund before cancelling."
       }
     },
     "reschedule": {
@@ -2853,6 +2867,33 @@
         "insufficientBalance": "Part of this credit has already been spent, so it can no longer be moved back to your card.",
         "alreadyRequested": "This refund has already been requested — it's on its way.",
         "server": "Something went wrong. Please try again."
+      }
+    },
+    "refundBank": {
+      "heading": "Where should we send your refund?",
+      "description": "{amount} is owed back to you. Our team transfers refunds by bank transfer — enter the account it should go to, and we'll send it within a few business days.",
+      "onFile": "Your bank details are on file — {amount} will be transferred to this account within a few business days. You can correct them below until the transfer is made.",
+      "cancelHeading": "Bank account for your refund",
+      "bankNameLabel": "Bank name",
+      "beneficiaryNameLabel": "Account holder name",
+      "beneficiaryNameHint": "Exactly as it appears on the bank account.",
+      "ibanLabel": "IBAN",
+      "ibanHint": "Saudi IBAN — starts with SA, 24 characters.",
+      "submit": "Save bank details",
+      "update": "Update bank details",
+      "pending": "Saving…",
+      "done": "Thanks — your bank details are saved. We'll transfer the refund within a few business days.",
+      "errors": {
+        "bankName": "Enter the bank's name.",
+        "beneficiaryName": "Enter the account holder's name.",
+        "iban": "That doesn't look like a valid Saudi IBAN. It starts with SA and has 24 characters."
+      },
+      "formErrors": {
+        "notFound": "We couldn't find that booking.",
+        "wrongState": "This refund has already been processed, so the details can't be changed any more.",
+        "noDb": "We couldn't save right now — try again in a moment.",
+        "validation": "Check the highlighted fields.",
+        "server": "Something went wrong on our side. Try again."
       }
     }
   },

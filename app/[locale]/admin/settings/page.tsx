@@ -105,6 +105,9 @@ export default async function AdminSettingsPage({
     commissionSuffix: t('settings.commissionSuffix'),
     gatewayFeeLabel: t('settings.gatewayFeeLabel'),
     gatewayFeeHint: t('settings.gatewayFeeHint'),
+    refundRailLabel: t('settings.refundRailLabel'),
+    refundRailHint: t('settings.refundRailHint'),
+    refundRailToggleLabel: t('settings.refundRailToggleLabel'),
     approvalLabel: t('settings.approvalLabel'),
     approvalHint: t('settings.approvalHint'),
     approvalPaymentLabel: t('settings.approvalPaymentLabel'),
@@ -153,6 +156,7 @@ export default async function AdminSettingsPage({
         locale={loc}
         defaultCommissionPct={settings.defaultCommissionBps / 100}
         defaultGatewayFeePct={settings.gatewayFeeBps / 100}
+        defaultRefundsViaBankTransfer={settings.refundsViaBankTransfer}
         defaultApprovalWindowHours={settings.approvalWindowHours}
         defaultApprovalPaymentWindowHours={settings.approvalPaymentWindowHours}
         defaultAnnouncementEn={settings.announcementEn ?? ''}

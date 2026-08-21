@@ -15,6 +15,8 @@ import {
 import { bookingOptions } from '@/features/bookings/lib/policy';
 import { bookingManageUrl } from '@/features/bookings/lib/link-token';
 import { cancelBookingCore } from '@/features/bookings/lib/cancel-core';
+import { saveRefundBankDetails } from '@/features/bookings/lib/refund-bank-core';
+import { refundBankDetailsSchema, type RefundBankDetailsInput } from '@/features/bookings/schemas';
 import { rescheduleBookingCore } from '@/features/bookings/lib/reschedule-core';
 import { getScheduleDataBySlug } from '@/features/availability/queries';
 import {
@@ -107,17 +109,52 @@ export const TOOLS: Anthropic.Tool[] = [
   {
     name: 'cancel_booking',
     description:
-      "Cancel one of the guest's bookings under its policy — exactly what booking_detail's `cancel` block says (refund_if_cancelled_now / refund_amount_sar). TWO-STEP RULE: first call booking_detail and tell the guest the exact consequence (which booking, date, and the refund amount or that nothing is refunded), then ask them to confirm. Only when their NEXT message clearly confirms, call this tool and pass their confirming words in confirmation_quote. The tool refuses if the quote is not in the guest's latest message.",
+      "Cancel one of the guest's bookings under its policy — exactly what booking_detail's `cancel` block says (refund_if_cancelled_now / refund_amount_sar). TWO-STEP RULE: first call booking_detail and tell the guest the exact consequence (which booking, date, and the refund amount or that nothing is refunded), then ask them to confirm. Only when their NEXT message clearly confirms, call this tool and pass their confirming words in confirmation_quote. The tool refuses if the quote is not in the guest's latest message. REFUNDS ARE BANK TRANSFERS: when refund_if_cancelled_now is full or partial, you must ALSO collect the guest's bank name, account holder name and Saudi IBAN (SA + 22 characters) BEFORE calling this tool, and pass them in bank_name / beneficiary_name / iban — the tool refuses with bank_details_required otherwise. Ask for all three in one message, then ask for the cancel confirmation.",
     input_schema: {
       type: 'object',
       properties: {
         reference_code: { type: 'string' },
         confirmation_quote: {
           type: 'string',
-          description: "The guest's own confirming words, copied verbatim from their latest message (e.g. 'نعم ألغِ الحجز' or 'yes cancel it').",
+          description:
+            "The guest's own confirming words, copied verbatim from their latest message (e.g. 'نعم ألغِ الحجز' or 'yes cancel it').",
+        },
+        bank_name: {
+          type: 'string',
+          description:
+            'Bank the refund is wired to (e.g. Al Rajhi, SNB, Alinma). Required when a refund is owed.',
+        },
+        beneficiary_name: {
+          type: 'string',
+          description:
+            'Account holder name exactly as on the bank account. Required when a refund is owed.',
+        },
+        iban: {
+          type: 'string',
+          description:
+            'Saudi IBAN, SA + 22 characters; spaces allowed. Required when a refund is owed.',
         },
       },
       required: ['reference_code', 'confirmation_quote'],
+      additionalProperties: false,
+    },
+  },
+  {
+    name: 'submit_refund_bank_details',
+    description:
+      'Save (or correct) the bank account for a refund Gharmish still owes this guest — use when booking_detail shows refund_due_sar > 0 and refund_bank_details_on_file is false (a host or the team cancelled, or the guest skipped the form), or when the guest says their IBAN was wrong. Collect bank name, account holder name and Saudi IBAN, read them back to the guest, and call this once they confirm. Refunds are wired manually by the team within a few business days.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        reference_code: { type: 'string' },
+        bank_name: { type: 'string' },
+        beneficiary_name: {
+          type: 'string',
+          description: 'Account holder name exactly as on the bank account.',
+        },
+        iban: { type: 'string', description: 'Saudi IBAN, SA + 22 characters; spaces allowed.' },
+      },
+      required: ['reference_code', 'bank_name', 'beneficiary_name', 'iban'],
       additionalProperties: false,
     },
   },
@@ -129,8 +166,14 @@ export const TOOLS: Anthropic.Tool[] = [
       type: 'object',
       properties: {
         reference_code: { type: 'string' },
-        new_date: { type: 'string', description: 'YYYY-MM-DD, one of the dates from available_dates.' },
-        confirmation_quote: { type: 'string', description: "The guest's own confirming words, verbatim from their latest message." },
+        new_date: {
+          type: 'string',
+          description: 'YYYY-MM-DD, one of the dates from available_dates.',
+        },
+        confirmation_quote: {
+          type: 'string',
+          description: "The guest's own confirming words, verbatim from their latest message.",
+        },
       },
       required: ['reference_code', 'new_date', 'confirmation_quote'],
       additionalProperties: false,
@@ -139,7 +182,7 @@ export const TOOLS: Anthropic.Tool[] = [
   {
     name: 'list_host_bookings',
     description:
-      "HOSTS ONLY (available when the sender is a Gharmish host): their pending booking requests and upcoming confirmed bookings for the next 14 days, with guest first name, party size, date/time, and for requests the decision deadline.",
+      'HOSTS ONLY (available when the sender is a Gharmish host): their pending booking requests and upcoming confirmed bookings for the next 14 days, with guest first name, party size, date/time, and for requests the decision deadline.',
     input_schema: { type: 'object', properties: {}, additionalProperties: false },
   },
   {
@@ -151,7 +194,10 @@ export const TOOLS: Anthropic.Tool[] = [
       properties: {
         reference_code: { type: 'string' },
         decision: { type: 'string', enum: ['approve', 'decline'] },
-        confirmation_quote: { type: 'string', description: "The host's own confirming words, verbatim from their latest message." },
+        confirmation_quote: {
+          type: 'string',
+          description: "The host's own confirming words, verbatim from their latest message.",
+        },
       },
       required: ['reference_code', 'decision', 'confirmation_quote'],
       additionalProperties: false,
@@ -186,7 +232,10 @@ export const TOOLS: Anthropic.Tool[] = [
       properties: {
         category: { type: 'string', enum: TICKET_CATEGORIES },
         priority: { type: 'string', enum: TICKET_PRIORITIES },
-        summary: { type: 'string', description: 'Why a human is needed, in English. 1–3 sentences.' },
+        summary: {
+          type: 'string',
+          description: 'Why a human is needed, in English. 1–3 sentences.',
+        },
         reference_code: { type: 'string', description: 'Related booking reference code, if any.' },
       },
       required: ['category', 'priority', 'summary'],
@@ -243,6 +292,34 @@ function summarize(b: GuestBookingSummary, locale: 'en' | 'ar') {
   };
 }
 
+/** The optional bank block from a tool input; undefined when none of the three was given. */
+function bankInput(
+  input: unknown,
+): Record<'bankName' | 'beneficiaryName' | 'iban', string> | undefined {
+  const bankName = str(input, 'bank_name') ?? '';
+  const beneficiaryName = str(input, 'beneficiary_name') ?? '';
+  const iban = str(input, 'iban') ?? '';
+  if (!bankName && !beneficiaryName && !iban) return undefined;
+  return { bankName, beneficiaryName, iban };
+}
+
+/** Tool-result shape for a rejected bank block — names the field so the agent can ask precisely. */
+function bankInvalid(parsed: {
+  success: false;
+  error: { issues: { path: PropertyKey[]; message: string }[] };
+}) {
+  const fields: Record<string, string> = {};
+  for (const issue of parsed.error.issues) {
+    const key = issue.path[0];
+    if (typeof key === 'string') fields[key] = issue.message;
+  }
+  return {
+    error: 'bank_details_invalid',
+    fields,
+    note: 'Ask the guest again for the flagged field. iban_invalid = not a valid Saudi IBAN (must start with SA and have 24 characters, checksum must pass) — ask them to copy it from their bank app.',
+  };
+}
+
 async function findOwnBooking(
   ctx: ToolContext,
   referenceCode: string,
@@ -271,7 +348,9 @@ export async function runTool(
         }
         const rows = await getBookingsForGuest(ctx.guestId);
         return {
-          result: JSON.stringify({ bookings: rows.slice(0, 10).map((b) => summarize(b, ctx.locale)) }),
+          result: JSON.stringify({
+            bookings: rows.slice(0, 10).map((b) => summarize(b, ctx.locale)),
+          }),
         };
       }
       case 'booking_detail': {
@@ -341,7 +420,11 @@ export async function runTool(
             host_whatsapp_url: hostPhone ? whatsappLink(hostPhone) : null,
             cancel,
             reschedule,
-            note: 'You may cancel or reschedule for the guest with cancel_booking / reschedule_booking after they confirm (two-step rule), or send booking_page_url so they do it themselves. Quote refund_amount_sar exactly; never promise more.',
+            // Manual bank-transfer refunds: what the team still owes and
+            // whether the agent needs to collect a payee for it.
+            refund_due_sar: booking.refundDueSar,
+            refund_bank_details_on_file: booking.refundBank !== null,
+            note: 'You may cancel or reschedule for the guest with cancel_booking / reschedule_booking after they confirm (two-step rule), or send booking_page_url so they do it themselves. Quote refund_amount_sar exactly; never promise more. Refunds are wired by bank transfer by the team: if a cancellation would refund money, collect bank name, account holder name and Saudi IBAN before cancel_booking; if refund_due_sar > 0 and refund_bank_details_on_file is false, collect them and call submit_refund_bank_details.',
           }),
         };
       }
@@ -349,7 +432,11 @@ export async function runTool(
         const booking = await findOwnBooking(ctx, str(input, 'reference_code') ?? '');
         if (!booking) return { result: JSON.stringify({ error: 'not_found' }) };
         const from = todayInRiyadh();
-        const schedule = await getScheduleDataBySlug(booking.experienceSlug, from, addDays(from, 30));
+        const schedule = await getScheduleDataBySlug(
+          booking.experienceSlug,
+          from,
+          addDays(from, 30),
+        );
         if (!schedule) return { result: JSON.stringify({ error: 'unavailable' }) };
         const dates = bookableDates({
           fromStr: from,
@@ -366,7 +453,13 @@ export async function runTool(
           .filter((d) => d.date !== booking.date && d.remaining >= booking.partySize)
           .slice(0, 12)
           .map((d) => d.date);
-        return { result: JSON.stringify({ current_date: booking.date, party_size: booking.partySize, open_dates: dates }) };
+        return {
+          result: JSON.stringify({
+            current_date: booking.date,
+            party_size: booking.partySize,
+            open_dates: dates,
+          }),
+        };
       }
       case 'cancel_booking':
       case 'reschedule_booking': {
@@ -377,21 +470,68 @@ export async function runTool(
           return {
             result: JSON.stringify({
               error: 'not_confirmed',
-              note: 'The confirmation must be in the guest\'s latest message. State the exact consequence and ask them to confirm; call again after they reply.',
+              note: "The confirmation must be in the guest's latest message. State the exact consequence and ask them to confirm; call again after they reply.",
             }),
           };
         }
         const authorize = async (guestId: string) => guestId === ctx.guestId;
+        // Bank block: present only when the model collected it. Validated
+        // here so the guest gets a precise "that IBAN isn't valid" instead
+        // of a generic failure; the core still refuses a refundable cancel
+        // that arrives without it (bank_details_required).
+        let bankDetails: RefundBankDetailsInput | undefined;
+        if (name === 'cancel_booking') {
+          const raw = bankInput(input);
+          if (raw) {
+            const parsedBank = refundBankDetailsSchema.safeParse(raw);
+            if (!parsedBank.success) return { result: JSON.stringify(bankInvalid(parsedBank)) };
+            bankDetails = parsedBank.data;
+          }
+        }
         const outcome =
           name === 'cancel_booking'
-            ? await cancelBookingCore({ reference: booking.reference, actor: 'agent', authorize })
+            ? await cancelBookingCore({
+                reference: booking.reference,
+                actor: 'agent',
+                authorize,
+                bankDetails,
+              })
             : await rescheduleBookingCore({
                 reference: booking.reference,
                 newDate: str(input, 'new_date') ?? '',
                 actor: 'agent',
                 authorize,
               });
+        if (!outcome.success && outcome.message === 'bank_details_required') {
+          return {
+            result: JSON.stringify({
+              ...outcome,
+              note: 'This cancellation refunds money and refunds are wired by bank transfer. Ask the guest for their bank name, the account holder name and their Saudi IBAN (SA + 22 characters), read them back, then call cancel_booking again with bank_name / beneficiary_name / iban and a fresh confirmation_quote from their next message.',
+            }),
+          };
+        }
         return { result: JSON.stringify(outcome) };
+      }
+      case 'submit_refund_bank_details': {
+        const booking = await findOwnBooking(ctx, str(input, 'reference_code') ?? '');
+        if (!booking) return { result: JSON.stringify({ error: 'not_found' }) };
+        const parsedBank = refundBankDetailsSchema.safeParse(bankInput(input) ?? {});
+        if (!parsedBank.success) return { result: JSON.stringify(bankInvalid(parsedBank)) };
+        const saved = await saveRefundBankDetails(booking.id, parsedBank.data);
+        return {
+          result: JSON.stringify(
+            saved
+              ? {
+                  success: true,
+                  refund_due_sar: booking.refundDueSar,
+                  note: 'Saved. Tell the guest the team will transfer the refund to this account within a few business days.',
+                }
+              : {
+                  error: 'nothing_owed',
+                  note: 'No refund is currently owed on this booking (or it was already transferred), so bank details cannot be saved. If the guest believes money is owed, open_ticket with category refund_exception.',
+                },
+          ),
+        };
       }
       case 'list_host_bookings': {
         if (!ctx.hostId) return { result: JSON.stringify({ error: 'not_a_host' }) };
@@ -445,7 +585,9 @@ export async function runTool(
         if (decision !== 'approve' && decision !== 'decline') {
           return { result: JSON.stringify({ error: 'bad_decision' }) };
         }
-        if (!confirmationPresent((str(input, 'confirmation_quote') ?? '').trim(), ctx.lastInbound)) {
+        if (
+          !confirmationPresent((str(input, 'confirmation_quote') ?? '').trim(), ctx.lastInbound)
+        ) {
           return {
             result: JSON.stringify({
               error: 'not_confirmed',
@@ -503,6 +645,11 @@ export async function runTool(
     }
   } catch (error) {
     reportError(error, { surface: 'support-agent:tool', tool: name });
-    return { result: JSON.stringify({ error: 'tool_failed', note: 'Tell the guest you could not check right now and open a ticket.' }) };
+    return {
+      result: JSON.stringify({
+        error: 'tool_failed',
+        note: 'Tell the guest you could not check right now and open a ticket.',
+      }),
+    };
   }
 }

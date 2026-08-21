@@ -39,14 +39,37 @@ export async function cancelBookingAsGuest(
   _previous: CancelBookingState,
   formData: FormData,
 ): Promise<CancelBookingState> {
+  // The bank block is present only when the page rendered it (a refund
+  // is owed); an all-empty block parses as "not provided" so unpaid /
+  // forfeited cancellations never trip the IBAN rule.
+  const bankName = formValue(formData, 'bankName');
+  const beneficiaryName = formValue(formData, 'beneficiaryName');
+  const iban = formValue(formData, 'iban');
+  const hasBankBlock = Boolean(bankName || beneficiaryName || iban);
   const parsed = cancelBookingSchema.safeParse({
     reference: formValue(formData, 'reference'),
     locale: formValue(formData, 'locale'),
+    bankDetails: hasBankBlock ? { bankName, beneficiaryName, iban } : undefined,
   });
-  if (!parsed.success) return { success: false, message: 'validation' };
+  if (!parsed.success) {
+    const fields: Record<string, string> = {};
+    for (const issue of parsed.error.issues) {
+      // Bank-field issues surface per field (`bankDetails.iban` → `iban`).
+      if (issue.path[0] === 'bankDetails' && typeof issue.path[1] === 'string') {
+        fields[issue.path[1]] = issue.message;
+      }
+    }
+    return {
+      success: false,
+      message: 'validation',
+      ...(Object.keys(fields).length > 0
+        ? { fields, values: { bankName, beneficiaryName, iban } }
+        : {}),
+    };
+  }
   // The form's locale is validated but no longer drives the notification
   // language — senders read the guest's stored preference.
-  const { reference } = parsed.data;
+  const { reference, bankDetails } = parsed.data;
 
   if (!serverEnv.DATABASE_URL) return { success: false, message: 'no_db' };
 
@@ -54,8 +77,13 @@ export async function cancelBookingAsGuest(
     reference,
     actor: 'guest',
     authorize: (guestId) => bookingViewerCanAccess(reference, guestId),
+    bankDetails,
   });
-  if (!outcome.success) return outcome;
+  if (!outcome.success) {
+    return outcome.message === 'bank_details_required' || outcome.message === 'validation'
+      ? { ...outcome, values: { bankName, beneficiaryName, iban } }
+      : outcome;
+  }
 
   revalidatePath('/[locale]/book/confirmed/[ref]', 'page');
   revalidatePath('/[locale]/me', 'page');

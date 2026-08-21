@@ -64,6 +64,7 @@ export async function buildKnowledge(): Promise<string> {
     `- Post-booking grace: cancelling within ${POST_BOOKING_GRACE_HOURS} hours of booking refunds in full when the start is at least ${GRACE_MIN_LEAD_HOURS} hours away.`,
     '- Reschedule: one free move to another open date, before the tier cutoff.',
     '- Payments: mada, Visa, Mastercard, Apple Pay. Prices are in SAR and VAT-inclusive.',
+    '- Refunds: paid by bank transfer to the account the guest provides (bank name, account holder name, Saudi IBAN), wired by the Gharmish team within a few business days of the cancellation. Not returned to the card.',
     '- Gharmish does not provide insurance; hosts carry liability for their experiences.',
     '- Emergency numbers in Saudi Arabia: 911 (unified), 997 (ambulance), 998 (civil defence).',
   ];

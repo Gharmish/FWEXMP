@@ -56,6 +56,12 @@ export interface PlatformSettings {
    * DORMANT (codes mint + attribute, no credit issues).
    */
   referralRewardSar: number;
+  /**
+   * Every refund is wired manually by bank transfer (guest submits bank
+   * name / IBAN / beneficiary; admin pays from the manual queue). OFF =
+   * gateway-first refunds via the HyperPay refund API.
+   */
+  refundsViaBankTransfer: boolean;
 }
 
 /** Code-level defaults — the truth when no settings row exists yet. */
@@ -72,6 +78,8 @@ export const DEFAULT_SETTINGS: PlatformSettings = {
   vatRegistrationNumber: null,
   gatewayFeeBps: 0,
   referralRewardSar: 0,
+  // Owner decision 2026-08-21: refunds are manual bank transfers.
+  refundsViaBankTransfer: true,
 };
 
 /**
@@ -96,6 +104,7 @@ export async function getPlatformSettings(): Promise<PlatformSettings> {
           vatRegistrationNumber: platformSettings.vatRegistrationNumber,
           gatewayFeeBps: platformSettings.gatewayFeeBps,
           referralRewardSar: platformSettings.referralRewardSar,
+          refundsViaBankTransfer: platformSettings.refundsViaBankTransfer,
         })
         .from(platformSettings)
         .where(eq(platformSettings.id, 'platform'))
@@ -118,6 +127,7 @@ export async function getPlatformSettings(): Promise<PlatformSettings> {
       vatRegistrationNumber: row.vatRegistrationNumber,
       gatewayFeeBps: row.gatewayFeeBps,
       referralRewardSar: row.referralRewardSar,
+      refundsViaBankTransfer: row.refundsViaBankTransfer,
     };
   } catch (error) {
     reportError(error, { surface: 'platform-settings:get' });
@@ -150,6 +160,7 @@ export async function getPlatformSettingsStrict(): Promise<PlatformSettings> {
         vatRegistrationNumber: platformSettings.vatRegistrationNumber,
         gatewayFeeBps: platformSettings.gatewayFeeBps,
         referralRewardSar: platformSettings.referralRewardSar,
+        refundsViaBankTransfer: platformSettings.refundsViaBankTransfer,
       })
       .from(platformSettings)
       .where(eq(platformSettings.id, 'platform'))

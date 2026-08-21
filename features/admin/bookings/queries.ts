@@ -1,5 +1,6 @@
 import { desc, eq } from 'drizzle-orm';
 import { db } from '@/lib/db';
+import { decryptPii } from '@/lib/pii-crypto';
 import { reportError } from '@/lib/log';
 import { splitCommission } from '@/features/bookings/lib/commission';
 import type { AdminBookingRow } from '@/features/admin/bookings/types';
@@ -61,6 +62,7 @@ export async function listBookingsForAdmin(): Promise<readonly AdminBookingRow[]
         startTime: row.startTime,
         partySize: row.partySize,
         totalAmountSar: row.totalAmount,
+        refundBankReady: Boolean(row.refundBankName && row.refundBeneficiaryName && row.refundIban),
         commissionSar,
         payoutSar,
         commissionBps: row.commissionBps,
@@ -207,6 +209,16 @@ export async function getAdminBookingById(id: string): Promise<AdminBookingRow |
       approvalDeadline: row.approvalDeadline?.toISOString() ?? null,
       date: row.date,
       startTime: row.startTime,
+      refundBankReady: Boolean(row.refundBankName && row.refundBeneficiaryName && row.refundIban),
+      refundBank:
+        row.refundBankName && row.refundBeneficiaryName && row.refundIban
+          ? {
+              bankName: row.refundBankName,
+              beneficiaryName: row.refundBeneficiaryName,
+              iban: decryptPii(row.refundIban),
+              submittedAt: row.refundBankDetailsAt?.toISOString() ?? null,
+            }
+          : null,
       partySize: row.partySize,
       totalAmountSar: row.totalAmount,
       commissionSar,

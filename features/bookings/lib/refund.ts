@@ -6,6 +6,7 @@ import { hasHyperpay } from '@/lib/env';
 import { bookings } from '@/db/schema';
 import { reportError } from '@/lib/log';
 import { notifyAdmin } from '@/lib/admin-alerts';
+import { getPlatformSettings } from '@/lib/platform-settings';
 import { recordPaymentEvent, resolvePaymentChannel } from '@/features/payments/ledger';
 import { isSuccessfulResult, refundPayment } from '@/features/payments/lib/hyperpay';
 import { splitRefund } from '@/features/bookings/lib/refund-split';
@@ -197,7 +198,14 @@ export async function executeRefund(
     return 'refunded';
   }
 
-  if (hasHyperpay() && paymentReference) {
+  // Manual bank-transfer mode (owner decision 2026-08-21): the card leg
+  // never touches the gateway — it lands straight in the manual queue
+  // below, and the admin wires it to the IBAN the guest submitted. The
+  // settings read degrades to code defaults (= bank transfer) on error,
+  // so a settings outage can only ever queue, never refund twice.
+  const { refundsViaBankTransfer } = await getPlatformSettings();
+
+  if (!refundsViaBankTransfer && hasHyperpay() && paymentReference) {
     try {
       // A refund must hit the same gateway entity that captured the
       // debit — an Apple Pay payment can only be reversed on the Apple

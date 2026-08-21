@@ -7,6 +7,8 @@ import { reportError } from '@/lib/log';
 import { bookingOptions } from '@/features/bookings/lib/policy';
 import { executeRefund } from '@/features/bookings/lib/refund';
 import { releaseWalletReservationTx } from '@/features/wallet/reservation';
+import { encryptPii } from '@/lib/pii-crypto';
+import type { RefundBankDetailsInput } from '@/features/bookings/schemas';
 import {
   sendBookingCancellationEmail,
   sendHostGuestCancelledEmail,
@@ -41,7 +43,13 @@ export type CancelBookingState =
         | 'wrong_state'
         | 'already_started'
         | 'validation'
+        /** A refund is owed and the guest didn't say where to wire it. */
+        | 'bank_details_required'
         | 'server';
+      /** Per-field bank-detail errors (`iban` → `iban_invalid`, …). */
+      fields?: Partial<Record<keyof RefundBankDetailsInput, string>>;
+      /** Echoed bank inputs so a failed submit doesn't blank the form. */
+      values?: Partial<Record<keyof RefundBankDetailsInput, string>>;
     };
 
 export interface CancelBookingCoreInput {
@@ -50,9 +58,19 @@ export interface CancelBookingCoreInput {
   actor: 'guest' | 'agent';
   /** Given the booking's owning guest id, may this caller cancel it? */
   authorize: (guestId: string) => Promise<boolean>;
+  /**
+   * Where a manual refund should be wired (owner decision 2026-08-21:
+   * all refunds are bank transfers). REQUIRED whenever a refund is owed,
+   * from the booking page AND the WhatsApp agent — the core refuses with
+   * `bank_details_required` so neither door can create a queue entry
+   * with nowhere to send the money.
+   */
+  bankDetails?: RefundBankDetailsInput;
 }
 
-export async function cancelBookingCore(input: CancelBookingCoreInput): Promise<CancelBookingState> {
+export async function cancelBookingCore(
+  input: CancelBookingCoreInput,
+): Promise<CancelBookingState> {
   const { reference } = input;
   let refundOutcome: CancelBookingState & { success: true };
   try {
@@ -103,6 +121,15 @@ export async function cancelBookingCore(input: CancelBookingCoreInput): Promise<
       return { success: false, message: cancel.reason };
     }
 
+    const refundOwed =
+      booking.paymentStatus === 'paid' && (cancel.refund === 'full' || cancel.refund === 'partial');
+    // The admin wires every refund by hand, so a paid booking that
+    // refunds must hand over the payee details BEFORE it flips —
+    // otherwise the queue entry is created with nowhere to send the money.
+    if (refundOwed && !input.bankDetails) {
+      return { success: false, message: 'bank_details_required' };
+    }
+
     // The platform-retained share of a PAID cancellation (the whole
     // base on a forfeit, the withheld remainder on a partial) — stamped
     // as `forfeitedSar` so retained cancellation revenue is a journaled
@@ -133,6 +160,16 @@ export async function cancelBookingCore(input: CancelBookingCoreInput): Promise<
           cancelledAt: new Date(),
           cancellationKind: 'guest',
           ...(retainedSar > 0 ? { forfeitedSar: retainedSar } : {}),
+          // Payee details ride the same transaction as the flip, so a
+          // queued refund is never visible to the admin without them.
+          ...(refundOwed && input.bankDetails
+            ? {
+                refundBankName: input.bankDetails.bankName,
+                refundIban: encryptPii(input.bankDetails.iban),
+                refundBeneficiaryName: input.bankDetails.beneficiaryName,
+                refundBankDetailsAt: new Date(),
+              }
+            : {}),
         })
         .where(
           and(

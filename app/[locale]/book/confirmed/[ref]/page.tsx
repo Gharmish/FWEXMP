@@ -44,13 +44,11 @@ import {
   googleMapsLink,
 } from '@/features/bookings/lib/calendar-links';
 import { startInstant } from '@/features/bookings/lib/cancellation';
-import {
-  BOOKING_LINK_TOKEN_PARAM,
-  bookingManageUrl,
-} from '@/features/bookings/lib/link-token';
+import { BOOKING_LINK_TOKEN_PARAM, bookingManageUrl } from '@/features/bookings/lib/link-token';
 import { VerifiedBadge } from '@/features/hosts/components/verified-badge';
 import { RescheduleBooking } from '@/features/bookings/components/reschedule-booking';
 import { RefundToCardButton } from '@/features/wallet/components/refund-to-card-button';
+import { RefundBankDetailsForm } from '@/features/bookings/components/refund-bank-details-form';
 import { getSessionGuestId } from '@/features/wallet/queries';
 import { bookingOptions } from '@/features/bookings/lib/policy';
 import {
@@ -249,6 +247,26 @@ export default async function BookingConfirmedPage({ params, searchParams }: Pag
   const walletOwner =
     isWalletRefunded && booking ? (await getSessionGuestId()) === booking.guestId : false;
   const walletCreditSar = booking ? booking.totalAmountSar + booking.walletAppliedSar : 0;
+  // Manual bank-transfer refunds (owner decision 2026-08-21): the payee
+  // block's copy is shared by the cancel form (collected up front) and
+  // the post-cancellation form on a booking whose refund is queued.
+  const bankFieldsCopy = {
+    bankNameLabel: t('refundBank.bankNameLabel'),
+    beneficiaryNameLabel: t('refundBank.beneficiaryNameLabel'),
+    beneficiaryNameHint: t('refundBank.beneficiaryNameHint'),
+    ibanLabel: t('refundBank.ibanLabel'),
+    ibanHint: t('refundBank.ibanHint'),
+    errors: {
+      bank_name_invalid: t('refundBank.errors.bankName'),
+      beneficiary_name_invalid: t('refundBank.errors.beneficiaryName'),
+      iban_invalid: t('refundBank.errors.iban'),
+    },
+  };
+  // A queued manual refund — the guest can file or correct the payee
+  // details until the admin records the transfer. Keyed on the queue, not
+  // the status: a dispute resolution queues a refund on a `completed`
+  // booking, a failed refund-to-card on a `refunded` one.
+  const refundQueued = Boolean(booking && booking.refundDueSar !== null);
   // Referral share tag for the invite-friends button below — minted
   // lazily on the guest's first visit here; null (mint failure / no
   // booking) degrades to the plain share URL.
@@ -753,7 +771,7 @@ export default async function BookingConfirmedPage({ params, searchParams }: Pag
         {factTiles.length > 0 && (
           <>
             <span
-              className="border-sarat-black/12 mt-1 block border-t border-dashed [border-top-width:0.5px]"
+              className="border-sarat-black/12 mt-1 block border-t [border-top-width:0.5px] border-dashed"
               aria-hidden
             />
             <Stagger>
@@ -775,7 +793,7 @@ export default async function BookingConfirmedPage({ params, searchParams }: Pag
         {moneyRows.length > 0 && (
           <>
             <span
-              className="border-sarat-black/12 mt-1 block border-t border-dashed [border-top-width:0.5px]"
+              className="border-sarat-black/12 mt-1 block border-t [border-top-width:0.5px] border-dashed"
               aria-hidden
             />
             <dl className="flex flex-col gap-2">
@@ -895,6 +913,50 @@ export default async function BookingConfirmedPage({ params, searchParams }: Pag
           next. "Back to my card" only renders while the card-charged
           share is still reversible (it disappears once requested, when
           refundMethod flips to gateway). */}
+      {/* Manual bank-transfer refund: the money is queued for the admin to
+          wire, and this is where the guest tells us (or corrects) where.
+          Rendered for every refund path that didn't pass through the
+          guest's own cancel form — host/admin/support cancellations. */}
+      {refundQueued && booking && (
+        <section className="border-sarat-black/8 rounded-card mt-10 flex flex-col gap-4 [border-width:0.5px] p-6 print:hidden">
+          <h2 className="font-display text-2xl font-medium tracking-[-0.025em]">
+            {t('refundBank.heading')}
+          </h2>
+          <p className="text-sarat-black-600 max-w-2xl text-base leading-relaxed">
+            {booking.refundBank
+              ? t('refundBank.onFile', { amount: formatSAR(booking.refundDueSar ?? 0, loc) })
+              : t('refundBank.description', { amount: formatSAR(booking.refundDueSar ?? 0, loc) })}
+          </p>
+          <RefundBankDetailsForm
+            reference={ref}
+            locale={loc}
+            existing={
+              booking.refundBank
+                ? {
+                    bankName: booking.refundBank.bankName,
+                    beneficiaryName: booking.refundBank.beneficiaryName,
+                    iban: booking.refundBank.iban,
+                  }
+                : null
+            }
+            copy={{
+              ...bankFieldsCopy,
+              submit: t('refundBank.submit'),
+              update: t('refundBank.update'),
+              pending: t('refundBank.pending'),
+              done: t('refundBank.done'),
+              formErrors: {
+                not_found: t('refundBank.formErrors.notFound'),
+                wrong_state: t('refundBank.formErrors.wrongState'),
+                no_db: t('refundBank.formErrors.noDb'),
+                validation: t('refundBank.formErrors.validation'),
+                server: t('refundBank.formErrors.server'),
+              },
+            }}
+          />
+        </section>
+      )}
+
       {isWalletRefunded && booking && (
         <section className="border-sarat-black/8 rounded-card mt-10 flex flex-col gap-4 [border-width:0.5px] p-6 print:hidden">
           <h2 className="font-display text-2xl font-medium tracking-[-0.025em]">
@@ -967,7 +1029,7 @@ export default async function BookingConfirmedPage({ params, searchParams }: Pag
                 <li key={index} className="flex items-start gap-3">
                   {/* Decorative order marker — the ol carries the semantics. */}
                   <span
-                    className="border-sarat-black/12 bg-mist text-sarat-black-600 flex size-6 shrink-0 items-center justify-center rounded-full text-xs font-medium [border-width:0.5px]"
+                    className="border-sarat-black/12 bg-mist text-sarat-black-600 flex size-6 shrink-0 items-center justify-center rounded-full [border-width:0.5px] text-xs font-medium"
                     aria-hidden
                   >
                     {formatInteger(index + 1, loc)}
@@ -1237,9 +1299,17 @@ export default async function BookingConfirmedPage({ params, searchParams }: Pag
                 wrong_state: t('cancel.errors.wrongState'),
                 already_started: t('cancel.errors.alreadyStarted'),
                 validation: t('cancel.errors.validation'),
+                bank_details_required: t('cancel.errors.bankDetailsRequired'),
                 server: t('cancel.errors.server'),
               },
             }}
+            // A refund is owed → collect the payee up front, in the same
+            // form, so the manual queue entry is born with somewhere to go.
+            bankFields={
+              cancelView.refund === 'full' || cancelView.refund === 'partial'
+                ? { heading: t('refundBank.cancelHeading'), copy: bankFieldsCopy }
+                : undefined
+            }
           />
         </section>
       )}

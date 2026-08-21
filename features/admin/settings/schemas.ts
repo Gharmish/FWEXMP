@@ -50,6 +50,10 @@ export const updateSettingsSchema = z
     // estimate only; 0 hides the dashboard fee tile. Defaulted so older
     // payloads (and tests) without the field keep parsing.
     gatewayFeePct: z.coerce.number().min(0, 'fee_range').max(10, 'fee_range').default(0),
+    // Refund rail: ON = manual bank transfers (guest submits IBAN, admin
+    // wires), OFF = HyperPay refund API first. Defaulted ON so older
+    // payloads (and tests) keep parsing with the live behaviour.
+    refundsViaBankTransfer: z.boolean().default(true),
     locale: localeSchema,
   })
   .superRefine((data, ctx) => {
@@ -97,8 +101,15 @@ const tierParamsSchema = z
       .max(2160, 'window_range'),
   })
   .superRefine((v, ctx) => {
-    if (v.partialRefundPct > 0 && (v.partialRefundHours < 1 || v.partialRefundHours >= v.freeCancelHours)) {
-      ctx.addIssue({ code: 'custom', path: ['partialRefundHours'], message: 'partial_window_order' });
+    if (
+      v.partialRefundPct > 0 &&
+      (v.partialRefundHours < 1 || v.partialRefundHours >= v.freeCancelHours)
+    ) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['partialRefundHours'],
+        message: 'partial_window_order',
+      });
     }
   });
 

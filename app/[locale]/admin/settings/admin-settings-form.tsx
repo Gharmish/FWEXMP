@@ -18,6 +18,9 @@ export interface AdminSettingsFormCopy {
   commissionSuffix: string;
   gatewayFeeLabel: string;
   gatewayFeeHint: string;
+  refundRailLabel: string;
+  refundRailHint: string;
+  refundRailToggleLabel: string;
   approvalLabel: string;
   approvalHint: string;
   approvalPaymentLabel: string;
@@ -53,6 +56,7 @@ export interface AdminSettingsFormProps {
   locale: Locale;
   defaultCommissionPct: number;
   defaultGatewayFeePct: number;
+  defaultRefundsViaBankTransfer: boolean;
   defaultApprovalWindowHours: number;
   defaultApprovalPaymentWindowHours: number;
   defaultAnnouncementEn: string;
@@ -79,6 +83,7 @@ export function AdminSettingsForm({
   locale,
   defaultCommissionPct,
   defaultGatewayFeePct,
+  defaultRefundsViaBankTransfer,
   defaultApprovalWindowHours,
   defaultApprovalPaymentWindowHours,
   defaultAnnouncementEn,
@@ -92,6 +97,7 @@ export function AdminSettingsForm({
   const [state, formAction] = useActionState(updateSettings, initialState);
   const [enabled, setEnabled] = useState<ReadonlySet<Category>>(new Set(defaultEnabled));
   const [vatOn, setVatOn] = useState(defaultVatEnabled);
+  const [bankRefundsOn, setBankRefundsOn] = useState(defaultRefundsViaBankTransfer);
 
   const fields = state.success ? {} : (state.fields ?? {});
   const errorPrefix = useId();
@@ -287,6 +293,33 @@ export function AdminSettingsForm({
         </label>
         {fieldError('announcementEn')}
         {fieldError('announcementAr')}
+      </fieldset>
+
+      {/* Refund rail — manual bank transfer vs gateway API */}
+      <fieldset className="flex flex-col gap-3">
+        <legend className={labelClass}>{copy.refundRailLabel}</legend>
+        <p className={hintClass}>{copy.refundRailHint}</p>
+        <label className="flex min-h-11 w-fit cursor-pointer items-center gap-3">
+          <input
+            type="checkbox"
+            name="refundsViaBankTransfer"
+            checked={bankRefundsOn}
+            onChange={(e) => setBankRefundsOn(e.target.checked)}
+            className="peer sr-only"
+          />
+          <span
+            aria-hidden
+            className={cn(
+              'relative h-6 w-11 shrink-0 rounded-full transition-colors duration-200',
+              'after:absolute after:start-0.5 after:top-0.5 after:size-5 after:rounded-full after:bg-white after:transition-transform after:duration-200',
+              'peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2',
+              bankRefundsOn
+                ? 'bg-juniper-green after:translate-x-5 rtl:after:-translate-x-5'
+                : 'bg-sarat-black/15',
+            )}
+          />
+          <span className="text-sm font-medium">{copy.refundRailToggleLabel}</span>
+        </label>
       </fieldset>
 
       {/* Tax (VAT) */}

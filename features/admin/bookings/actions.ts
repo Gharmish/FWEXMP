@@ -9,6 +9,7 @@ import { redirect } from '@/lib/i18n';
 import { reportError } from '@/lib/log';
 import { reportGa4Refund } from '@/lib/analytics/server-events';
 import { notifyAdmin } from '@/lib/admin-alerts';
+import { getPlatformSettingsStrict } from '@/lib/platform-settings';
 import { getCurrentUser } from '@/features/auth/queries';
 import { isAdminUser } from '@/features/admin/auth';
 import {
@@ -186,6 +187,13 @@ export async function refundBooking(
     // outer catch → `server`: never move money on an unknown ledger.
     const gatewayOutcomeUnknown = await refundOutcomeUnknown(booking.id);
 
+    // Manual bank-transfer mode (owner decision 2026-08-21): the admin
+    // has ALREADY wired the money to the guest's submitted IBAN and this
+    // action only records it — the gateway arm below must not fire a
+    // second reversal on the card. Strict read: an unknown setting must
+    // refuse (→ `server`) rather than guess a rail.
+    const { refundsViaBankTransfer } = await getPlatformSettingsStrict();
+
     // CLAIM FIRST, move money second. The conditional UPDATE is the
     // per-booking arbiter: two admins (or two tabs) racing on the same
     // queue entry both used to pass the eligibility read and both fire
@@ -258,6 +266,7 @@ export async function refundBooking(
     // already reversed in the HyperPay console) is logged but doesn't
     // roll back the record — see the header comment.
     if (
+      !refundsViaBankTransfer &&
       hasHyperpay() &&
       booking.paymentStatus === 'paid' &&
       booking.paymentReference &&

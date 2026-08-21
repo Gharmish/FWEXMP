@@ -2,7 +2,7 @@
 
 > 2026-08-21. Audit of what the app has today, and the recommended way to run 24/7 guest service on WhatsApp with AI-first handling and admin escalation-as-tickets.
 >
-> **Status:** Phase 0 LIVE 2026-08-21 (`b2aac1a`): `conversations` + `conversation_messages` in the DB, webhook persists + acks + pages admin, `sendWhatsAppText` added. Phase 1 LIVE (`7e02ff4`): `/admin/support` inbox + thread + manual reply (free-form inside the 24h window only), close/reopen, cron Pass 3c safety net for missed acks. **Phase 2 BUILT 2026-08-21:** Claude agent (`lib/support-agent/`, Opus 4.8, read-only tools `list_my_bookings` / `booking_detail` / `open_ticket` / `escalate_to_human`), `support_tickets` + events + persisted `admin_alerts` (all live in DB), ticket queue + resolve in `/admin/support`, SLA re-page sweep. **Go-live switch = `ANTHROPIC_API_KEY` in Vercel** — until set, new conversations keep routing to the human inbox. **Phase 3 BUILT 2026-08-21:** agent executes policy cancellations/reschedules via shared cores (`features/bookings/lib/{cancel,reschedule}-core.ts`) behind a two-step in-chat confirmation guard (`confirmationPresent`); `available_dates` tool; web disputes open a `guest_complaint` ticket (`disputes.ticket_id`, resolved together); out-of-window admin follow-up via the `support_ticket_update` template (EN `HX5345…`, AR `HX5b88…`, submitted to Meta 2026-08-21 — add both keys to `TWILIO_WHATSAPP_CONTENT_SIDS` in Vercel once approved; already in `.env.local`); 12-month conversation retention purge + privacy-page copy. **AGENT LIVE in prod 2026-08-21** (`claude-opus-5`; the Twilio Messaging-Service inbound webhook was the missing piece — fixed). **Phase 4 BUILT 2026-08-21:** hosts on the same number (`hosts.contact_phone` match → host tools `list_host_bookings` / `decide_booking_request` via `executeBookingTransition`, two-step confirmation), voice notes/images surfaced to the agent as attachment markers (no transcription — no audio-capable provider in the stack; agent asks the person to type), daily 06:00 Riyadh report email (`lib/support-agent/report.ts`), tool-call audit line under agent replies in the thread view. Owner decisions: the agent **may execute** policy-compliant cancellations (Phase 3). Remaining decisions in §7 still open.
+> **Status:** Phase 0 LIVE 2026-08-21 (`b2aac1a`): `conversations` + `conversation_messages` in the DB, webhook persists + acks + pages admin, `sendWhatsAppText` added. Phase 1 LIVE (`7e02ff4`): `/admin/support` inbox + thread + manual reply (free-form inside the 24h window only), close/reopen, cron Pass 3c safety net for missed acks. **Phase 2 BUILT 2026-08-21:** Claude agent (`lib/support-agent/`, Opus 4.8, read-only tools `list_my_bookings` / `booking_detail` / `open_ticket` / `escalate_to_human`), `support_tickets` + events + persisted `admin_alerts` (all live in DB), ticket queue + resolve in `/admin/support`, SLA re-page sweep. **Go-live switch = `ANTHROPIC_API_KEY` in Vercel** — until set, new conversations keep routing to the human inbox. **Phase 3 BUILT 2026-08-21:** agent executes policy cancellations/reschedules via shared cores (`features/bookings/lib/{cancel,reschedule}-core.ts`) behind a two-step in-chat confirmation guard (`confirmationPresent`); `available_dates` tool; web disputes open a `guest_complaint` ticket (`disputes.ticket_id`, resolved together); out-of-window admin follow-up via the `support_ticket_update` template (EN `HX5345…`, AR `HX5b88…`, submitted to Meta 2026-08-21 — add both keys to `TWILIO_WHATSAPP_CONTENT_SIDS` in Vercel once approved; already in `.env.local`); 12-month conversation retention purge + privacy-page copy. **AGENT LIVE in prod 2026-08-21** (`claude-opus-5`; the Twilio Messaging-Service inbound webhook was the missing piece — fixed). **Phase 4 BUILT 2026-08-21:** hosts on the same number (`hosts.contact_phone` match → host tools `list_host_bookings` / `decide_booking_request` via `executeBookingTransition`, two-step confirmation), voice notes/images surfaced to the agent as attachment markers (no transcription — no audio-capable provider in the stack; agent asks the person to type), daily 06:00 Riyadh report email (`lib/support-agent/report.ts`), tool-call audit line under agent replies in the thread view. Owner decisions: the agent **may execute** policy-compliant cancellations (Phase 3). **2026-08-21 manual refunds:** refunds are bank transfers wired by the admin — the agent collects bank name / account holder / Saudi IBAN before any refundable `cancel_booking` (core refuses with `bank_details_required` otherwise) and can file or correct them for an already-queued refund with `submit_refund_bank_details` (shared core `features/bookings/lib/refund-bank-core.ts`). Remaining decisions in §7 still open.
 
 ---
 
@@ -15,19 +15,21 @@ Build it **in-house on the Twilio WhatsApp sender you already own**, with **Clau
 ## 2. What exists today (audit)
 
 ### Works and is reusable
-| Asset | Where | Reuse |
-|---|---|---|
-| Live WhatsApp sender `+966 55 900 2592`, 30 Meta-approved templates | `lib/notifications/whatsapp.ts`, Vercel env | Same number becomes the support line — one number for guests, no second WABA |
-| Inbound webhook, HMAC-validated | `app/api/webhooks/twilio/route.ts:37-53` | Extend, don't replace |
-| Dispatcher + delivery ledger + STOP/START suppressions | `lib/notifications/dispatch.ts`, `db/schema.ts:1778-1884` | All agent replies go through it (audit trail, opt-out honoured) |
-| Pure refund/reschedule engine `bookingOptions()` | `features/bookings/lib/policy.ts:172` | Read-only "what do I get back if I cancel now?" tool, zero side effects, already bilingual via `policy-copy.ts` |
-| Disputes table + `/admin/disputes` | `db/schema.ts:1245`, `features/disputes/*` | Becomes one ticket category |
-| `notifyAdmin()` email + WhatsApp rails | `lib/admin-alerts.ts:66` | Escalation paging (but see gap 4) |
-| Bilingual FAQ + policy + terms copy | `messages/{en,ar}.json` `helpFaq`, `cancellationTiers`, `termsPage` | Agent knowledge base — generated from the same strings the site shows, so answers never drift from the site |
-| Guest identity = phone, stored locale | `guests.phone`, `guests.preferredLanguage`, `bookings.contactPhone` | Sender phone is the authentication; locale picks reply language |
-| Admin shell, roles, TOTP | `features/admin/*` | Ticket inbox slots in as a nav item |
+
+| Asset                                                               | Where                                                               | Reuse                                                                                                           |
+| ------------------------------------------------------------------- | ------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------- |
+| Live WhatsApp sender `+966 55 900 2592`, 30 Meta-approved templates | `lib/notifications/whatsapp.ts`, Vercel env                         | Same number becomes the support line — one number for guests, no second WABA                                    |
+| Inbound webhook, HMAC-validated                                     | `app/api/webhooks/twilio/route.ts:37-53`                            | Extend, don't replace                                                                                           |
+| Dispatcher + delivery ledger + STOP/START suppressions              | `lib/notifications/dispatch.ts`, `db/schema.ts:1778-1884`           | All agent replies go through it (audit trail, opt-out honoured)                                                 |
+| Pure refund/reschedule engine `bookingOptions()`                    | `features/bookings/lib/policy.ts:172`                               | Read-only "what do I get back if I cancel now?" tool, zero side effects, already bilingual via `policy-copy.ts` |
+| Disputes table + `/admin/disputes`                                  | `db/schema.ts:1245`, `features/disputes/*`                          | Becomes one ticket category                                                                                     |
+| `notifyAdmin()` email + WhatsApp rails                              | `lib/admin-alerts.ts:66`                                            | Escalation paging (but see gap 4)                                                                               |
+| Bilingual FAQ + policy + terms copy                                 | `messages/{en,ar}.json` `helpFaq`, `cancellationTiers`, `termsPage` | Agent knowledge base — generated from the same strings the site shows, so answers never drift from the site     |
+| Guest identity = phone, stored locale                               | `guests.phone`, `guests.preferredLanguage`, `bookings.contactPhone` | Sender phone is the authentication; locale picks reply language                                                 |
+| Admin shell, roles, TOTP                                            | `features/admin/*`                                                  | Ticket inbox slots in as a nav item                                                                             |
 
 ### Gaps (why guests can't get help today)
+
 1. **The support link already points at a dead end.** The confirmed-booking page deep-links guests to `SUPPORT_WHATSAPP || TWILIO_WHATSAPP_FROM` (`lib/env.ts:253-260`, `book/confirmed/[ref]/page.tsx:1076-1105`). `SUPPORT_WHATSAPP` is unset, so guests message the Twilio number — whose webhook **discards every message that isn't STOP/START** (`route.ts:120-131`) and replies with empty TwiML. No auto-reply, nothing stored, nobody notified. **This is a live P0**: a guest with a problem on the day of the experience gets silence.
 2. **No free-form send.** Only `sendWhatsAppTemplate` exists; `whatsapp.ts:16-20` deliberately declined to implement `Body:` sends. A reply to a guest inside Meta's 24h service window is free-form and free of charge — we can't do it.
 3. **No conversation storage.** No table for inbound messages, threads, or tickets. The Help page promises "a real person in Abha will reply" — there is no inbox for that person.
@@ -41,13 +43,13 @@ Build it **in-house on the Twilio WhatsApp sender you already own**, with **Clau
 
 ## 3. Options considered
 
-| Option | Monthly cost (approx.) | Verdict |
-|---|---|---|
-| **In-house: Twilio + Claude + `/admin/support`** (recommended) | Claude ≈ SAR 40–150 at 500–1,500 conversations; WhatsApp service conversations are free on Meta's side (user-initiated, 24h window), Twilio ≈ $0.005/msg; Vercel/Supabase already paid | Full data access, exact refund quotes, real actions, Arabic-first, brand voice. 2–3 weeks |
-| Twilio AI Assistants / Studio flows | Low | Menu-bot feel, can't reason over your DB, weak Arabic, still needs your webhooks for actions |
-| Twilio Flex | ≈ $150/agent/mo | Contact-centre product for teams of agents; you are one person |
-| WATI / respond.io / Zoko | SAR 200–1,200/mo | Shared inbox + canned replies; no booking context; another WABA to manage; AI add-ons are generic |
-| Intercom / Zendesk / Freshdesk + WhatsApp | SAR 400–2,000+/mo | Heavy, English-first, integration work ≈ the in-house build anyway |
+| Option                                                         | Monthly cost (approx.)                                                                                                                                                                 | Verdict                                                                                           |
+| -------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
+| **In-house: Twilio + Claude + `/admin/support`** (recommended) | Claude ≈ SAR 40–150 at 500–1,500 conversations; WhatsApp service conversations are free on Meta's side (user-initiated, 24h window), Twilio ≈ $0.005/msg; Vercel/Supabase already paid | Full data access, exact refund quotes, real actions, Arabic-first, brand voice. 2–3 weeks         |
+| Twilio AI Assistants / Studio flows                            | Low                                                                                                                                                                                    | Menu-bot feel, can't reason over your DB, weak Arabic, still needs your webhooks for actions      |
+| Twilio Flex                                                    | ≈ $150/agent/mo                                                                                                                                                                        | Contact-centre product for teams of agents; you are one person                                    |
+| WATI / respond.io / Zoko                                       | SAR 200–1,200/mo                                                                                                                                                                       | Shared inbox + canned replies; no booking context; another WABA to manage; AI add-ons are generic |
+| Intercom / Zendesk / Freshdesk + WhatsApp                      | SAR 400–2,000+/mo                                                                                                                                                                      | Heavy, English-first, integration work ≈ the in-house build anyway                                |
 
 The decisive factor is not price — it's that **the valuable answers live in your DB and policy engine**. Any external tool leaves the agent blind.
 
@@ -86,21 +88,24 @@ Guest WhatsApp ──▶ Twilio ──▶ POST /api/webhooks/twilio
 - **`admin_alerts`** — persist what `notifyAdmin` sends today: `kind`, `detail`, `ticket_id`, `acknowledged_at`. Fixes gap 4 for every existing alert kind too.
 
 ### 4.2 Inbound path (extend `route.ts`)
+
 - Keep signature check and STOP/START exactly as-is (legal opt-out stays first).
 - Otherwise: upsert conversation by phone, insert message (text + `MediaUrl0` if present), return `200 <Response/>` immediately, and run the agent inside Next's `after()` so Twilio never times out. Safety net: a cron pass that picks up inbound messages with no outbound reply after 2 minutes (covers a crashed `after()`), reusing the hourly `release-holds` sweep pattern.
 - Voice notes: store the media URL; reply "I can read text — could you type it?" in v1. (Transcription is a cheap v2.)
 - Conversation in `state = 'human'`: persist and notify admin, **do not run the agent** (human owns the thread until they hand back).
 
 ### 4.3 Free-form outbound (`sendWhatsAppText`)
+
 - Add a `Body:` sender next to `sendWhatsAppTemplate`, **only callable when `now - last_inbound_at < 24h`**; otherwise the caller must pick a template. This keeps the original design constraint honest rather than deleting it.
 - Route through `dispatchNotification` so every agent/admin reply lands in `notification_deliveries` and respects suppressions. Dedupe key = `conversation_message.id`.
 - One new Meta template for the out-of-window case: `support_ticket_update` — "There's an update on your Gharmish request {{1}}. Reply here to continue." (EN/AR). Needed when the admin answers a ticket the next day.
 
 ### 4.4 The agent
+
 - **Model**: `claude-opus-4-8`, adaptive thinking, `effort: "medium"` (short customer-service turns don't need more). At your volume cost is trivial — a 6-turn conversation ≈ 20k input / 2k output tokens ≈ **$0.15 (SAR 0.55)**; 1,000 conversations/month ≈ SAR 550 worst case, and prompt caching on the frozen system prompt + tool list cuts input cost ~90% (realistically SAR 100–150). If you ever want cheaper, `claude-sonnet-4-6` halves it — your call, not a default.
 - **System prompt** (cached prefix, stable): brand voice from BRIEF §2 (calm, host-introducing-a-friend, never markety), Arabic-first with reply language = guest's stored locale unless they write in the other language; hard rules (below); the FAQ, cancellation tiers, terms summary **rendered from `messages/*.json` at build time** so the bot says exactly what the site says.
 - **Tools** (all server-side, all logged into `conversation_messages.tool_calls`):
-  - `find_bookings_for_phone()` — new query: `bookings.contactPhone OR guests.phone` matches the sender, normalised with the digit-stripping logic from `admin/bookings/lib/filter.ts`. Returns only *this sender's* bookings. This is the identity check: the phone **is** the credential.
+  - `find_bookings_for_phone()` — new query: `bookings.contactPhone OR guests.phone` matches the sender, normalised with the digit-stripping logic from `admin/bookings/lib/filter.ts`. Returns only _this sender's_ bookings. This is the identity check: the phone **is** the credential.
   - `booking_detail(reference)` — status, date, meeting point, host first name + host WhatsApp link, amount paid, payment deadline (uses `getBookingByReference` + the same fields the confirmed page shows).
   - `refund_preview(reference)` — `bookingOptions()` → refund kind/amount/`fullRefundUntil`. Pure.
   - `cancel_booking(reference, confirm: true)` — **only after the guest explicitly confirms in the chat**, and only when `bookingOptions` says it's allowed. Calls the same core the guest action calls, with a new actor `'agent'`. Anything outside policy → ticket, never an override.
@@ -110,7 +115,7 @@ Guest WhatsApp ──▶ Twilio ──▶ POST /api/webhooks/twilio
   - `hand_to_human()` — flips conversation to `state='human'`, opens a ticket, tells the guest a person will follow up and the SLA.
 - **Hard rules in the prompt + enforced in code** (belt and braces):
   - Never discuss bookings not returned by `find_bookings_for_phone`. Never reveal other guests, host phone numbers beyond the link already shown on the confirmed page, or internal notes.
-  - Money: the agent can *quote* and *execute policy refunds only*. Goodwill credit, partial exceptions, chargeback talk → ticket. (Wallet credit issuance stays admin-only as today.)
+  - Money: the agent can _quote_ and _execute policy refunds only_. Goodwill credit, partial exceptions, chargeback talk → ticket. (Wallet credit issuance stays admin-only as today.)
   - Any of: injury/accident/missing person/weather emergency/harassment → `priority='urgent'` ticket + immediate `notifyAdmin` WhatsApp + give the guest 911/997 and the host's number in the same reply. Ties into OPS_AUDIT P0 #6 (no incident capture today).
   - Host no-show, host asks for cash, safety complaint about a host → ticket, high.
   - Guest asks for a human, writes angrily twice, or the agent loops twice without progress → hand to human.
@@ -119,6 +124,7 @@ Guest WhatsApp ──▶ Twilio ──▶ POST /api/webhooks/twilio
 - **Structured turn output**: `{ reply_text, language, actions_taken[], escalate?: {...} }` via `output_config.format` so code — not prose parsing — decides whether a ticket is opened.
 
 ### 4.5 Escalation → tickets → admin
+
 - **Triggers** (agent-initiated or rule-based in code): listed above, plus **payment stuck** (`settle_anomaly` alerts already exist — link them), **refund_due**, **dispute_opened**. The existing 11 `notifyAdmin` kinds become ticket sources, so the queue is the one place everything lands.
 - **SLA**: urgent 15 min, high 2 h, normal 24 h (matches the 24h host SLA already in the brief). Cron marks overdue tickets and re-pages.
 - **`/admin/support`** (new nav item under Operations): three-pane inbox — ticket list (filter by status/priority/assignee), the full WhatsApp thread, booking side-panel (reusing the `AdminDisputeRow` denormalisation + admin booking actions: refund, emergency cancel, issue wallet credit). Admin types a reply → goes out on the same sender (free-form inside 24h, otherwise the `support_ticket_update` template). "Hand back to bot" and "Resolve" buttons. Mobile-usable — you'll answer from your phone.
@@ -126,9 +132,11 @@ Guest WhatsApp ──▶ Twilio ──▶ POST /api/webhooks/twilio
 - **Disputes**: "Report a problem" on the confirmed page keeps working; it now also creates a `guest_complaint` ticket, so web and WhatsApp complaints share one queue.
 
 ### 4.6 Hosts (phase 2, same number)
+
 Phone matching `hosts.contact_phone` routes to a host persona with host tools (today's bookings, approve/decline pending request with confirmation, "guest is late" → notify guest). Same ticket queue, category `host_request`.
 
 ### 4.7 Proactive touch-points (cheap, high-impact)
+
 - Append "Reply here any time — we answer 24/7" to the confirmation and 24h-reminder template bodies (new Meta approval, additive only — never renumber variables, per the v2 rule).
 - Day-of check-in (3h reminder already exists): "Everything OK? Reply if you need anything." — turns the reminder into an open session.
 - Post-experience: the review invite already goes out; replies ("it was great" / "the host was late") get handled by the same agent, with complaints → ticket.
@@ -136,6 +144,7 @@ Phone matching `hosts.contact_phone` routes to a host persona with host tools (t
 ---
 
 ## 5. Compliance & safety notes
+
 - **PDPL**: message bodies are personal data. Encrypt `body` with the existing `PII_ENCRYPTION_KEY` path used for guest PII; retention 12 months then purge (cron), stated in the privacy page. Add one line to `privacyPage` that WhatsApp conversations are stored and may be handled by automated systems with human escalation.
 - **Meta policy**: replies inside the 24h window are fine; outside it only templates (enforced in code). STOP still wins over everything. No marketing in this channel.
 - **Identity**: sender phone is the proof — same standard as the OTP login. For destructive actions (cancel) the agent additionally asks the guest to confirm the booking reference and the action in plain words before calling the tool.
@@ -145,19 +154,20 @@ Phone matching `hosts.contact_phone` routes to a host persona with host tools (t
 
 ## 6. Build plan
 
-| Phase | Scope | Effort |
-|---|---|---|
-| **0 — stop the bleeding (same day)** | Webhook auto-reply to any non-keyword inbound: "Thanks — a Gharmish person will reply shortly (ticket TK-…)" + persist message + `notifyAdmin`. Set `SUPPORT_WHATSAPP` explicitly. | ½ day |
-| **1 — conversation layer** | Tables, `sendWhatsAppText` with window check, inbound persistence, `after()` processing + cron safety net, `/admin/support` read-only thread view with manual reply | 3–4 days |
-| **2 — agent v1 (read-only)** | Claude loop with lookup/FAQ/refund-preview/resend tools, structured output, hand-to-human, ticket creation, SLA + paging, persisted `admin_alerts` | 4–5 days |
-| **3 — agent actions** | Cancel/reschedule with confirmation via the new `'agent'` actor; disputes fold into tickets; template body updates submitted to Meta | 3 days |
-| **4 — hosts + polish** | Host persona, voice-note transcription, daily report, privacy copy | 3 days |
+| Phase                                | Scope                                                                                                                                                                              | Effort   |
+| ------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- |
+| **0 — stop the bleeding (same day)** | Webhook auto-reply to any non-keyword inbound: "Thanks — a Gharmish person will reply shortly (ticket TK-…)" + persist message + `notifyAdmin`. Set `SUPPORT_WHATSAPP` explicitly. | ½ day    |
+| **1 — conversation layer**           | Tables, `sendWhatsAppText` with window check, inbound persistence, `after()` processing + cron safety net, `/admin/support` read-only thread view with manual reply                | 3–4 days |
+| **2 — agent v1 (read-only)**         | Claude loop with lookup/FAQ/refund-preview/resend tools, structured output, hand-to-human, ticket creation, SLA + paging, persisted `admin_alerts`                                 | 4–5 days |
+| **3 — agent actions**                | Cancel/reschedule with confirmation via the new `'agent'` actor; disputes fold into tickets; template body updates submitted to Meta                                               | 3 days   |
+| **4 — hosts + polish**               | Host persona, voice-note transcription, daily report, privacy copy                                                                                                                 | 3 days   |
 
 New dependency: `@anthropic-ai/sdk` (one). Env: `ANTHROPIC_API_KEY`, `SUPPORT_WHATSAPP`. No other new services.
 
 ---
 
 ## 7. Open decisions for the owner
+
 1. Model tier: Opus 4.8 (recommended, ≈ SAR 100–150/mo cached) vs Sonnet 4.6 (≈ half).
 2. May the agent **execute** policy-compliant cancellations/reschedules, or only quote and hand off? (Recommended: execute, with in-chat confirmation — it's the most common request and fully deterministic.)
 3. SLA numbers and who is paged at night (today only `ADMIN_ALERT_WHATSAPP`).

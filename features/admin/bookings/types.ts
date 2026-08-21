@@ -14,8 +14,20 @@ export interface AdminBookingRow {
   referenceCode: string;
   status: AdminBookingStatus;
   paymentStatus: (typeof bookings.$inferSelect)['paymentStatus'];
-  /** Whole-SAR refund owed back after a failed automatic refund; null = none. */
+  /** Whole-SAR refund owed back via the manual (bank-transfer) queue; null = none. */
   refundDueSar: number | null;
+  /** True when the guest has filed bank name + holder + IBAN for the manual refund. */
+  refundBankReady?: boolean;
+  /**
+   * Payee for the manual bank-transfer refund, IBAN decrypted for the
+   * admin detail page only (the list carries just `refundBankReady`).
+   */
+  refundBank?: {
+    bankName: string;
+    beneficiaryName: string;
+    iban: string;
+    submittedAt: string | null;
+  } | null;
   /**
    * Set = an unmatched capture is outstanding, so `createCheckout`
    * refuses a new payment. An admin must reconcile at HyperPay and clear

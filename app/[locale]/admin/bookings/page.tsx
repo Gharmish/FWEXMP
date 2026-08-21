@@ -295,9 +295,24 @@ export default async function AdminBookingsPage({
                             label={t(`bookingStatus.${row.status}`)}
                           />
                           {row.refundDueSar !== null && (
-                            <Badge className="bg-error-surface text-error">
-                              {t('bookingsList.refundDue')}
-                            </Badge>
+                            <>
+                              <Badge className="bg-error-surface text-error">
+                                {t('bookingsList.refundDue')}
+                              </Badge>
+                              {/* Manual bank transfers: can the admin actually
+                                  wire this one yet? */}
+                              <Badge
+                                className={
+                                  row.refundBankReady
+                                    ? 'bg-juniper-green/10 text-juniper-green-800'
+                                    : 'bg-pending-surface text-pending'
+                                }
+                              >
+                                {row.refundBankReady
+                                  ? t('bookingsList.refundBankReady')
+                                  : t('bookingsList.refundBankMissing')}
+                              </Badge>
+                            </>
                           )}
                           {row.status === 'pending' && row.approvalDeadline && (
                             <Badge className="bg-pending-surface text-pending">

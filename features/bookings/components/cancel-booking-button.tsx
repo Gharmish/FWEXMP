@@ -1,9 +1,14 @@
 'use client';
 
-import { useActionState } from 'react';
+import { useActionState, useRef } from 'react';
+import { Button } from '@/components/ui/button';
 import type { Locale } from '@/lib/i18n';
 import { ConfirmSubmit } from '@/components/ui/confirm-dialog';
 import { cancelBookingAsGuest, type CancelBookingState } from '@/features/bookings/cancel-actions';
+import {
+  RefundBankFields,
+  type RefundBankFieldsCopy,
+} from '@/features/bookings/components/refund-bank-fields';
 
 interface Copy {
   label: string;
@@ -30,6 +35,7 @@ interface Copy {
     | 'wrong_state'
     | 'already_started'
     | 'validation'
+    | 'bank_details_required'
     | 'server',
     string
   >;
@@ -39,11 +45,18 @@ export interface CancelBookingButtonProps {
   reference: string;
   locale: Locale;
   copy: Copy;
+  /**
+   * Present when cancelling now owes the guest a refund: the admin wires
+   * every refund by bank transfer, so the payee details are collected
+   * in the same form, before the confirm dialog.
+   */
+  bankFields?: { heading: string; copy: RefundBankFieldsCopy };
 }
 
 const initialState: CancelBookingState = { success: false };
 
-function Submit({ copy }: { copy: Copy }) {
+function Submit({ copy, validate }: { copy: Copy; validate?: () => boolean }) {
+  const className = 'border-al-qatt-red/40 text-al-qatt-red-800';
   return (
     <ConfirmSubmit
       title={copy.label}
@@ -53,15 +66,42 @@ function Submit({ copy }: { copy: Copy }) {
       destructive
       variant="secondary"
       size="md"
-      className="border-al-qatt-red/40 text-al-qatt-red-800"
+      className={className}
+      // With bank fields in the form, run native validation BEFORE the
+      // confirm dialog opens — otherwise the guest confirms, the dialog
+      // closes, and `requestSubmit()` silently stops on an empty IBAN.
+      trigger={
+        validate
+          ? (open, pending) => (
+              <Button
+                type="button"
+                variant="secondary"
+                size="md"
+                pending={pending}
+                className={className}
+                onClick={() => {
+                  if (validate()) open();
+                }}
+              >
+                {pending ? copy.pending : copy.label}
+              </Button>
+            )
+          : undefined
+      }
     >
       {copy.label}
     </ConfirmSubmit>
   );
 }
 
-export function CancelBookingButton({ reference, locale, copy }: CancelBookingButtonProps) {
+export function CancelBookingButton({
+  reference,
+  locale,
+  copy,
+  bankFields,
+}: CancelBookingButtonProps) {
   const [state, action] = useActionState(cancelBookingAsGuest, initialState);
+  const formRef = useRef<HTMLFormElement>(null);
 
   if (state.success) {
     const doneKey =
@@ -75,15 +115,35 @@ export function CancelBookingButton({ reference, locale, copy }: CancelBookingBu
     );
   }
 
-  const error = state.message
-    ? (copy.errors[state.message as keyof Copy['errors']] ?? copy.errors.server)
-    : undefined;
+  // Field-level bank errors render next to their inputs — the generic
+  // validation line would only repeat them.
+  const hasFieldErrors =
+    !state.success && Boolean(state.fields && Object.keys(state.fields).length);
+  const error =
+    state.message && !(state.message === 'validation' && hasFieldErrors)
+      ? (copy.errors[state.message as keyof Copy['errors']] ?? copy.errors.server)
+      : undefined;
 
   return (
-    <form action={action} className="flex flex-col items-start gap-2">
+    <form ref={formRef} action={action} className="flex flex-col items-start gap-2">
       <input type="hidden" name="reference" value={reference} />
       <input type="hidden" name="locale" value={locale} />
-      <Submit copy={copy} />
+      {bankFields && (
+        <fieldset className="mb-2 flex w-full max-w-2xl flex-col gap-3">
+          <legend className="text-sarat-black mb-3 text-base font-medium">
+            {bankFields.heading}
+          </legend>
+          <RefundBankFields
+            copy={bankFields.copy}
+            values={state.success ? undefined : state.values}
+            fields={state.success ? undefined : state.fields}
+          />
+        </fieldset>
+      )}
+      <Submit
+        copy={copy}
+        validate={bankFields ? () => formRef.current?.reportValidity() ?? true : undefined}
+      />
       {error && (
         <p role="alert" className="text-al-qatt-red-800 text-sm">
           {error}

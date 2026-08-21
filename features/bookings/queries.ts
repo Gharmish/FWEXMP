@@ -1,6 +1,7 @@
 import { cache } from 'react';
 import { and, desc, eq, sql } from 'drizzle-orm';
 import { db } from '@/lib/db';
+import { decryptPii } from '@/lib/pii-crypto';
 import { boundedQuery } from '@/lib/deadline';
 import { serverEnv } from '@/lib/env';
 import { bookings, experiences } from '@/db/schema';
@@ -92,6 +93,18 @@ export interface BookingDetail {
   refundedAmountSar: number | null;
   /** How the refund travelled (`wallet` = credited to Gharmish Credit). Null = never refunded. */
   refundMethod: Booking['refundMethod'];
+  /** Whole SAR still owed to the guest via the manual (bank-transfer) queue. Null = nothing queued. */
+  refundDueSar: number | null;
+  /**
+   * Payee details the guest gave for a manual bank-transfer refund
+   * (IBAN decrypted for the page). Null until submitted.
+   */
+  refundBank: {
+    bankName: string;
+    beneficiaryName: string;
+    iban: string;
+    submittedAt: string;
+  } | null;
   /** Who called the booking off (`emergency` = admin force-majeure flow). Null = not cancelled. */
   cancellationKind: Booking['cancellationKind'];
   /**
@@ -105,6 +118,23 @@ export interface BookingDetail {
   /** Pre-move date if the booking was rescheduled later; anchors refunds. */
   rescheduledFromDate: string | null;
   createdAt: string;
+}
+
+/** The manual-refund payee block, decrypted; null until all three are on file. */
+function refundBankOf(row: {
+  refundBankName: string | null;
+  refundBeneficiaryName: string | null;
+  refundIban: string | null;
+  refundBankDetailsAt: Date | null;
+}): BookingDetail['refundBank'] {
+  const iban = decryptPii(row.refundIban);
+  if (!row.refundBankName || !row.refundBeneficiaryName || !iban) return null;
+  return {
+    bankName: row.refundBankName,
+    beneficiaryName: row.refundBeneficiaryName,
+    iban,
+    submittedAt: (row.refundBankDetailsAt ?? new Date(0)).toISOString(),
+  };
 }
 
 /** The snapshot columns, shaped for `bookingOptions()`. */
@@ -173,6 +203,8 @@ export async function getBookingByReference(reference: string): Promise<BookingD
     refundedAt: row.refundedAt?.toISOString() ?? null,
     refundedAmountSar: row.refundedAmountSar,
     refundMethod: row.refundMethod,
+    refundDueSar: row.refundDueSar,
+    refundBank: refundBankOf(row),
     cancellationKind: row.cancellationKind,
     policy: policyOf(row),
     rescheduleCount: row.rescheduleCount,
@@ -327,6 +359,8 @@ export async function getBookingsForGuest(guestId: string): Promise<GuestBooking
     refundedAt: row.refundedAt?.toISOString() ?? null,
     refundedAmountSar: row.refundedAmountSar,
     refundMethod: row.refundMethod,
+    refundDueSar: row.refundDueSar,
+    refundBank: refundBankOf(row),
     cancellationKind: row.cancellationKind,
     policy: policyOf(row),
     rescheduleCount: row.rescheduleCount,

@@ -84,15 +84,15 @@ Status chips and banners always pair a `*-surface` background with the matching 
 
 ### Category-to-color map (immutable)
 
-| Category                 | Color                                | Arabic         |
-| ------------------------ | ------------------------------------ | -------------- |
-| Nature                   | Juniper Green                        | الطبيعة        |
-| Heritage                 | Al-Qatt Red                          | التراث         |
-| Food & coffee            | Saffron Gold                         | الطعام والقهوة |
-| Wellness                 | Wadi Mint                            | العافية        |
-| Adventure                | Soudah Sunset                        | المغامرة       |
-| Family                   | Sarawat Blue                         | العائلة        |
-| Women only               | Tihama Coral                         | للنساء فقط     |
+| Category                 | Color                                | Arabic               |
+| ------------------------ | ------------------------------------ | -------------------- |
+| Nature                   | Juniper Green                        | الطبيعة              |
+| Heritage                 | Al-Qatt Red                          | التراث               |
+| Food & coffee            | Saffron Gold                         | الطعام والقهوة       |
+| Wellness                 | Wadi Mint                            | العافية              |
+| Adventure                | Soudah Sunset                        | المغامرة             |
+| Family                   | Sarawat Blue                         | العائلة              |
+| Women only               | Tihama Coral                         | للنساء فقط           |
 | Originals (premium tier) | Sarat Black bg + Saffron Gold accent | تجارب غارميش الأصلية |
 
 ### Typography
@@ -554,9 +554,14 @@ End user. Has:
   policy pages, both locales) renders from the same rows. Always read
   the booking's own snapshot: a later tier edit must never restate an
   existing booking.
-  Refunds go through the HyperPay refund API first; if the gateway
-  refuses, the booking is stamped `refund_due_sar` and the admin
-  reverses manually, then records it via the admin refund action.
+  **Refunds are manual bank transfers** (owner decision 2026-08-21,
+  `platform_settings.refunds_via_bank_transfer`, default ON): every
+  refund owed is stamped `refund_due_sar`, the guest supplies bank
+  name / IBAN / beneficiary (collected in the cancel form, or on the
+  booking page afterwards; IBAN encrypted at rest), and the admin wires
+  it from `/admin/bookings/[id]` then records it via the admin refund
+  action. Turning the setting OFF restores gateway-first refunds via the
+  HyperPay refund API with the manual queue as the fallback.
 - **VAT** (updated 2026-07-07 — supersedes the always-disclose rule):
   Gharmish is below the ZATCA mandatory registration threshold
   (375,000 SAR taxable turnover / 12 months) and is NOT VAT-registered,

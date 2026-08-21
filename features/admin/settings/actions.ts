@@ -82,6 +82,7 @@ export async function updateSettings(
     vatRatePct: formData.get('vatRatePct'),
     vatRegistrationNumber: formData.get('vatRegistrationNumber') ?? undefined,
     gatewayFeePct: formData.get('gatewayFeePct') ?? 0,
+    refundsViaBankTransfer: formData.get('refundsViaBankTransfer') === 'on',
     enabledCategories: formData
       .getAll('enabledCategories')
       .filter((v): v is string => typeof v === 'string'),
@@ -121,6 +122,7 @@ export async function updateSettings(
         vatRateBps,
         vatRegistrationNumber,
         gatewayFeeBps,
+        refundsViaBankTransfer: input.refundsViaBankTransfer,
         updatedByAdminId: guard.adminUserId,
         updatedAt: now,
       })
@@ -137,6 +139,7 @@ export async function updateSettings(
           vatRateBps,
           vatRegistrationNumber,
           gatewayFeeBps,
+          refundsViaBankTransfer: input.refundsViaBankTransfer,
           updatedByAdminId: guard.adminUserId,
           updatedAt: now,
         },

@@ -812,6 +812,19 @@ export const bookings = pgTable(
      */
     refundDueSar: integer(),
     /**
+     * Guest bank details for a MANUAL (bank-transfer) refund — collected
+     * from the guest at cancellation (or afterwards on the booking page)
+     * so the admin has a ready payee when settling the manual queue
+     * (owner decision 2026-08-21: every refund is wired by hand for now,
+     * see `platform_settings.refundsViaBankTransfer`). The IBAN is
+     * at-rest encrypted like host payout IBANs (lib/pii-crypto.ts).
+     * Null until the guest submits; `refundBankDetailsAt` = when.
+     */
+    refundBankName: text(),
+    refundIban: text(),
+    refundBeneficiaryName: text(),
+    refundBankDetailsAt: timestamp({ withTimezone: true }),
+    /**
      * Whole-SAR amount actually RETURNED to the guest (card + wallet
      * credit combined), stamped by every refund path. Null = never
      * refunded. Partial policy refunds (`partialRefundBps`) make this
@@ -1631,6 +1644,15 @@ export const platformSettings = pgTable('platform_settings', {
   vatRateBps: integer().notNull().default(1500),
   /** ZATCA VAT registration number (15 digits) — required to enable VAT. */
   vatRegistrationNumber: text(),
+  /**
+   * Refund rail switch. ON (default, owner decision 2026-08-21): no
+   * refund path calls the HyperPay refund API — every refund owed is
+   * queued as `bookings.refundDueSar` and the admin wires it by bank
+   * transfer to the guest's submitted IBAN, then records it with the
+   * admin refund action. OFF restores gateway-first refunds with the
+   * manual queue as the fallback only.
+   */
+  refundsViaBankTransfer: boolean().notNull().default(true),
   /**
    * Estimated blended acquiring cost (HyperPay MDR across Mada/Visa/MC)
    * in basis points of the charged amount. REPORTING ESTIMATE ONLY —

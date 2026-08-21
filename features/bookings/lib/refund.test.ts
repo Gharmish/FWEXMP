@@ -24,6 +24,15 @@ vi.mock('@/lib/env', () => ({
   hasHyperpay: () => hyperpayOn,
 }));
 
+/**
+ * Refund rail setting. The gateway-path tests below run with bank
+ * transfers OFF; the live default is ON (owner decision 2026-08-21).
+ */
+let bankTransfersOn = false;
+vi.mock('@/lib/platform-settings', () => ({
+  getPlatformSettings: async () => ({ refundsViaBankTransfer: bankTransfersOn }),
+}));
+
 const refundPayment =
   vi.fn<(paymentId: string, amountSar: number) => Promise<{ resultCode: string }>>();
 vi.mock('@/features/payments/lib/hyperpay', () => ({
@@ -87,6 +96,7 @@ beforeEach(() => {
   setCalls.length = 0;
   ledgerEvents.length = 0;
   hyperpayOn = true;
+  bankTransfersOn = false;
   updateShouldThrow = false;
   ledgerShouldThrow = false;
   claimLost = false;
@@ -176,6 +186,18 @@ describe('executeRefund', () => {
     expect(outcome).toBe('refund_pending');
     expect(refundPayment).not.toHaveBeenCalled();
     expect(setCalls[0]).toEqual({ refundDueSar: 250 });
+  });
+
+  it('queues the card leg for manual bank transfer when the setting is on', async () => {
+    bankTransfersOn = true;
+
+    const outcome = await executeRefund('b-bank', 'pay-ref-bank', 300);
+
+    expect(outcome).toBe('refund_pending');
+    expect(refundPayment).not.toHaveBeenCalled();
+    expect(ledgerEvents).toHaveLength(0);
+    expect(setCalls.at(-1)).toEqual({ refundDueSar: 300 });
+    expect(notifyAdmin).toHaveBeenCalledWith('refund_due', { bookingId: 'b-bank', amountSar: 300 });
   });
 
   it('skips the gateway when HyperPay is not configured', async () => {
