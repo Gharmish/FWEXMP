@@ -20,6 +20,11 @@
 --
 -- Applied to gharmish-experiences via Supabase MCP apply_migration.
 
+-- RLS on, no policies: deny-by-default, matching every other table in
+-- this schema. Without it PostgREST serves this table to the publishable
+-- anon key (2026-08-21 security audit M1 — it shipped world-readable AND
+-- world-writable). The SECURITY DEFINER writer below is owned by
+-- `postgres`, which is exempt from RLS, so logging is unaffected.
 create table if not exists backend_watchdog_log (
   id           bigint generated always as identity primary key,
   killed_at    timestamptz not null default now(),
@@ -30,6 +35,9 @@ create table if not exists backend_watchdog_log (
   xact_age     interval,
   query        text
 );
+
+alter table backend_watchdog_log enable row level security;
+revoke all on table backend_watchdog_log from anon, authenticated;
 
 comment on table backend_watchdog_log is
   'Backends terminated by terminate_stuck_app_backends() (pg_cron, every minute). Read-only audit trail.';
@@ -67,7 +75,13 @@ begin
 end;
 $$;
 
-revoke all on function terminate_stuck_app_backends() from public;
+-- Name the ROLES, not just PUBLIC: Supabase's default privileges grant
+-- EXECUTE to `anon` and `authenticated` explicitly, so revoking from
+-- PUBLIC alone left this callable by any anonymous visitor over
+-- /rest/v1/rpc (2026-08-21 security audit M2). `create or replace`
+-- re-issues those defaults, so both revokes must live beside every
+-- definition in this file.
+revoke execute on function terminate_stuck_app_backends() from public, anon, authenticated;
 
 -- Keep the log small: 30 days is plenty for trend-spotting.
 create or replace function prune_backend_watchdog_log()
@@ -78,6 +92,8 @@ set search_path = public, pg_catalog
 as $$
   delete from backend_watchdog_log where killed_at < now() - interval '30 days';
 $$;
+
+revoke execute on function prune_backend_watchdog_log() from public, anon, authenticated;
 
 do $$
 begin
