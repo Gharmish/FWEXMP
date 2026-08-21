@@ -53,8 +53,8 @@ export function FunnelStrip({ steps, locale, stepRateLabel }: FunnelStripProps) 
                 style={{ width: `${width}%` }}
               />
             </div>
-            <span className="text-sarat-black-600 text-xs tabular-nums">
-              {rate === null ? (step.hint ?? ' ') : stepRateLabel(rate)}
+            <span className="text-sarat-black-600 min-h-4 text-xs tabular-nums">
+              {rate === null ? step.hint : stepRateLabel(rate)}
             </span>
           </li>
         );

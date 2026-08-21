@@ -68,7 +68,8 @@ export function FeedbackCard({
                 </span>
               </span>
             </div>
-            <p className="text-sarat-black line-clamp-2 text-sm leading-relaxed">
+            {/* Guest text keeps its own script direction inside either admin locale. */}
+            <p dir="auto" className="text-sarat-black line-clamp-2 text-sm leading-relaxed">
               {r.text ?? <span className="text-sarat-black-600 italic">{starsOnlyLabel}</span>}
             </p>
             <p className="text-sarat-black-600 truncate text-xs">

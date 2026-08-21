@@ -226,7 +226,7 @@
           "unservedSearches": "Unserved searches",
           "unservedEmpty": "Every search in this range found matches.",
           "pageViews": "Site page views",
-          "pageViewsHint": "Home, catalogue, hosting, host profiles — bots and admins excluded",
+          "pageViewsHint": "Home, catalogue, hosting and host pages",
           "mobileShare": "Mobile share",
           "queryOriginals": "Originals only",
           "queryKeys": {
@@ -291,7 +291,7 @@
         },
         "traffic": {
           "bySource": "Traffic by source",
-          "bySourceHint": "UTM source when the link was tagged, otherwise the referring site. Untagged app links read as direct.",
+          "bySourceHint": "Tagged links show their UTM source; otherwise the referring site. Untagged = direct.",
           "direct": "Direct / untagged",
           "byPage": "Pages served",
           "paths": {
@@ -302,8 +302,7 @@
             "hosting": "Hosting landing",
             "hostProfile": "Host profiles",
             "abha": "Abha city page"
-          },
-          "vercelLink": "Unique visitors & countries (Vercel) ↗"
+          }
         },
         "feedback": {
           "lowRatings": "3★ or lower",
@@ -328,17 +327,17 @@
           }
         },
         "site": {
-          "title": "Site traffic (Vercel)",
-          "hint": "Unique visitors across the whole site — cookieless, so it can sit outside the consent banner.",
-          "openVercel": "Open in Vercel ↗",
+          "title": "Site traffic",
+          "hint": "Unique visitors across the whole site, via Vercel.",
+          "openVercel": "Open in Vercel",
           "visitors": "Unique visitors",
           "pageviews": "Page views",
           "countries": "Top countries",
           "referrers": "Top referrers",
           "pages": "Top pages",
-          "legend": "Each row: visitors · page views. Vercel figures lag live traffic by a few minutes and are cached here for 10 minutes.",
-          "unavailable": "Vercel Analytics did not answer just now — the first-party numbers below are unaffected. Try again in a minute.",
-          "notConnected": "Not connected yet. Add a Vercel API token as VERCEL_ANALYTICS_TOKEN in the project environment and redeploy; collection is already running.",
+          "legend": "Rows show visitors · page views. Updates every 10 minutes.",
+          "unavailable": "Vercel did not answer just now. The first-party figures below are unaffected.",
+          "notConnected": "Not connected. Add VERCEL_ANALYTICS_TOKEN to the project environment and redeploy.",
           "clamped": "Vercel keeps 31 days of history on the current plan — showing from {from}. No comparison period available."
         }
       }

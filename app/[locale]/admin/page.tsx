@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
 import type { ReactNode } from 'react';
-import { Megaphone, Sparkles } from 'lucide-react';
+import { ArrowUpRight, Megaphone, Sparkles } from 'lucide-react';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { Link } from '@/lib/i18n';
 import type { Locale } from '@/lib/i18n';
@@ -674,7 +674,7 @@ export default async function AdminIndexPage({
 
       {/* C — Demand & growth */}
       <Section title={t('dashboard.metrics.sections.demand')} heading={sectionHeading}>
-        <div className={cn(card, 'grid grid-cols-2 gap-6 lg:grid-cols-3')}>
+        <div className={cn(card, 'grid grid-cols-2 gap-6 lg:grid-cols-4')}>
           <MetricStat
             label={t('dashboard.metrics.demand.pageViews')}
             value={formatInteger(m.pageViews.current, loc)}
@@ -739,9 +739,10 @@ export default async function AdminIndexPage({
               href={VERCEL_ANALYTICS_URL}
               target="_blank"
               rel="noopener noreferrer"
-              className="text-sarat-black-600 hover:text-sarat-black shrink-0 text-xs underline-offset-2 hover:underline"
+              className="text-sarat-black-600 hover:text-sarat-black inline-flex shrink-0 items-center gap-1 text-xs underline-offset-2 hover:underline"
             >
               {t('dashboard.metrics.site.openVercel')}
+              <ArrowUpRight className="size-3 rtl:-scale-x-100" aria-hidden />
             </a>
           </div>
           {siteTraffic ? (
@@ -818,22 +819,14 @@ export default async function AdminIndexPage({
         </div>
         <div className="grid gap-4 lg:grid-cols-2">
           <div className={cn(card, 'flex flex-col gap-4')}>
-            <div className="flex items-baseline justify-between gap-3">
+            <div className="flex flex-col gap-1">
               <h3 className="text-sarat-black text-sm font-medium">
                 {t('dashboard.metrics.traffic.bySource')}
               </h3>
-              <a
-                href={VERCEL_ANALYTICS_URL}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-sarat-black-600 hover:text-sarat-black shrink-0 text-xs underline-offset-2 hover:underline"
-              >
-                {t('dashboard.metrics.traffic.vercelLink')}
-              </a>
+              <p className="text-sarat-black-600 text-xs">
+                {t('dashboard.metrics.traffic.bySourceHint')}
+              </p>
             </div>
-            <p className="text-sarat-black-600 -mt-2 text-xs">
-              {t('dashboard.metrics.traffic.bySourceHint')}
-            </p>
             <BreakdownBars rows={trafficRows} emptyLabel={emptyRange} />
           </div>
           <div className={cn(card, 'flex flex-col gap-4')}>
