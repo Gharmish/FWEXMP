@@ -20,15 +20,19 @@ import * as schema from '@/db/schema';
  *     forever, but the pooler silently recycles idle server backends.
  *     Reusing one the pooler already dropped surfaces as
  *     `CONNECTION_CLOSED` / `invalid frontend message type 101`. Closing
- *     our side first (20s) avoids stale-connection reuse. This is
- *     invisible on Vercel — serverless invocations are too short-lived
- *     to go idle — but it breaks a long-lived dev server hard.
+ *     our side first avoids stale-connection reuse. Dev uses 20s; on
+ *     Vercel it is 5s because sockets that survive an instance freeze
+ *     come back dead (2026-08-21 prod incident — see `createClient`).
  *   - `max_lifetime` — recycle connections well before any upstream cap.
  *   - `connect_timeout` — fail fast instead of hanging a render.
  *
  * The client is cached on `globalThis` so Next.js dev HMR reuses one
  * pool instead of leaking a fresh pool (and its connections) on every
  * module re-evaluation.
+ *
+ * The pool can be swapped at runtime via {@link resetDb} when a query
+ * hangs past its deadline (lib/deadline.ts); the `db` proxy below always
+ * resolves to the current instance, so callers never hold a stale pool.
  */
 type Database = PostgresJsDatabase<typeof schema>;
 
@@ -43,34 +47,90 @@ const globalForDb = globalThis as unknown as {
 
 let instance: Database | undefined;
 
+/**
+ * Monotonic pool generation. Bumped by {@link resetDb}; callers snapshot
+ * it before a query so a reset triggered by a stale failure (one that
+ * ran on an already-replaced pool) is a no-op instead of a cascade of
+ * resets when several in-flight queries hit the same dead socket.
+ */
+let generation = 0;
+
+export function getDbGeneration(): number {
+  return generation;
+}
+
+function createClient(): ReturnType<typeof postgres> {
+  if (!serverEnv.DATABASE_URL) {
+    throw new Error(
+      'DATABASE_URL is not set. Copy .env.example to .env and add your Supabase connection string before using the database.',
+    );
+  }
+  const onVercel = Boolean(process.env.VERCEL);
+  return postgres(serverEnv.DATABASE_URL, {
+    prepare: false,
+    // On Vercel, idle sockets that survive an instance freeze come back
+    // half-dead (seen in prod as `write ETIMEDOUT`, Supavisor "Timeout
+    // while waiting for message in state SCRAM final", and 8s deadlines
+    // on sub-millisecond queries). A short idle window means a thawed
+    // instance almost always reconnects instead of reusing a corpse —
+    // a same-region reconnect costs tens of ms; a dead socket costs the
+    // whole deadline. Dev keeps 20s (HMR comfort, no freezes).
+    idle_timeout: onVercel ? 5 : 20,
+    max_lifetime: 60 * 30,
+    // Must sit BELOW the per-query deadline in lib/deadline.ts so a
+    // stalled handshake surfaces as a retryable CONNECT_TIMEOUT rather
+    // than a silent hang that burns the deadline first.
+    connect_timeout: onVercel ? 5 : 15,
+    // postgres.js defaults to 10 connections per client — per lambda
+    // instance on Vercel, so a traffic spike's fan-out (hundreds of
+    // warm instances) could exhaust Supavisor's client-connection cap.
+    // 5 still covers the widest in-request Promise.all (the admin
+    // dashboard's 8 aggregates mostly pipeline) and Fluid's modest
+    // in-function concurrency; dev keeps the default for HMR comfort.
+    max: onVercel ? 5 : 10,
+  });
+}
+
+let currentClient: ReturnType<typeof postgres> | undefined;
+
+function install(client: ReturnType<typeof postgres>): Database {
+  if (process.env.NODE_ENV !== 'production') {
+    globalForDb.__gharmishPgClient = client;
+  }
+  currentClient = client;
+  instance = drizzle(client, { schema, casing: 'snake_case' });
+  return instance;
+}
+
 export function getDb(): Database {
   if (!instance) {
-    if (!serverEnv.DATABASE_URL) {
-      throw new Error(
-        'DATABASE_URL is not set. Copy .env.example to .env and add your Supabase connection string before using the database.',
-      );
-    }
-    const client =
-      globalForDb.__gharmishPgClient ??
-      postgres(serverEnv.DATABASE_URL, {
-        prepare: false,
-        idle_timeout: 20,
-        max_lifetime: 60 * 30,
-        connect_timeout: 15,
-        // postgres.js defaults to 10 connections per client — per lambda
-        // instance on Vercel, so a traffic spike's fan-out (hundreds of
-        // warm instances) could exhaust Supavisor's client-connection cap.
-        // 5 still covers the widest in-request Promise.all (the admin
-        // dashboard's 8 aggregates mostly pipeline) and Fluid's modest
-        // in-function concurrency; dev keeps the default for HMR comfort.
-        max: process.env.VERCEL ? 5 : 10,
-      });
-    if (process.env.NODE_ENV !== 'production') {
-      globalForDb.__gharmishPgClient = client;
-    }
-    instance = drizzle(client, { schema, casing: 'snake_case' });
+    return install(globalForDb.__gharmishPgClient ?? createClient());
   }
   return instance;
+}
+
+/**
+ * Replace the shared pool after a query hung past its deadline.
+ *
+ * A hung statement never settles, so its pool slot is never released:
+ * with `max: 5`, five silent hangs leave an instance with a pool that
+ * can only hang (seen in prod as bursts of every detail-page query
+ * timing out for one user). Swapping in a fresh client gives the retry
+ * — and every later query on this instance — healthy sockets. The old
+ * client is drained in the background: in-flight statements get
+ * `drainSeconds` to finish normally, then whatever is still stuck (the
+ * hung ones) is destroyed.
+ *
+ * No-op unless `seenGeneration` is still current, so N concurrent
+ * deadline failures on the same dead pool cause one reset, not N.
+ */
+export function resetDb(seenGeneration: number, drainSeconds = 10): boolean {
+  if (seenGeneration !== generation || !instance) return false;
+  generation += 1;
+  const retiring = currentClient;
+  install(createClient());
+  retiring?.end({ timeout: drainSeconds }).catch(() => undefined);
+  return true;
 }
 
 /** Ergonomic accessor — proxies to the lazily-created client. */

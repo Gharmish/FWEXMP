@@ -210,8 +210,13 @@ export async function listRetryableDeliveries(
   if (!hasDb()) return [];
   if (retryableTypes.length === 0) return [];
   try {
+    // One row per (booking, type, locale) — GROUP BY rather than
+    // SELECT DISTINCT because Postgres rejects `DISTINCT … ORDER BY
+    // created_at` when created_at isn't in the select list (42P10).
+    // That exact shape shipped on 2026-08-01 and failed every hourly
+    // run until 2026-08-21 — the retry sweep silently never ran.
     const rows = await db
-      .selectDistinct({
+      .select({
         bookingId: notificationDeliveries.bookingId,
         type: notificationDeliveries.type,
         locale: notificationDeliveries.locale,
@@ -226,9 +231,14 @@ export async function listRetryableDeliveries(
           sql`${notificationDeliveries.createdAt} > now() - interval '48 hours'`,
         ),
       )
+      .groupBy(
+        notificationDeliveries.bookingId,
+        notificationDeliveries.type,
+        notificationDeliveries.locale,
+      )
       // Oldest first — a bounded sweep must drain the backlog in order,
       // not return an arbitrary slice of it.
-      .orderBy(asc(notificationDeliveries.createdAt))
+      .orderBy(asc(sql`min(${notificationDeliveries.createdAt})`))
       .limit(limit);
     return rows.filter((row): row is RetryableDelivery => row.bookingId !== null);
   } catch (error) {

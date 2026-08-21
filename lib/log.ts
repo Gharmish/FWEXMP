@@ -30,9 +30,26 @@ export interface ReportErrorContext {
 function consoleSafe(value: unknown): unknown {
   if (process.env.NODE_ENV !== 'production') return value;
   if (value instanceof Error) {
-    return redactString(value.stack ?? `${value.name}: ${value.message}`);
+    return redactString(`${value.stack ?? `${value.name}: ${value.message}`}${causeChain(value)}`);
   }
   return redactValue(value);
+}
+
+/**
+ * Drizzle wraps every driver failure as `Failed query: <sql>` and keeps
+ * the real reason (SQLSTATE, socket error) in `cause`, which the console
+ * rail never printed — an invalid-SQL bug in the hourly cron went
+ * undiagnosed for six days because the logs only showed the statement.
+ */
+function causeChain(error: Error): string {
+  let out = '';
+  let cursor: unknown = error.cause;
+  for (let depth = 0; cursor instanceof Error && depth < 4; depth += 1) {
+    const code = (cursor as { code?: unknown }).code;
+    out += `\n  [cause] ${cursor.name}${typeof code === 'string' ? ` (${code})` : ''}: ${cursor.message}`;
+    cursor = cursor.cause;
+  }
+  return out;
 }
 
 export function reportError(error: unknown, context?: ReportErrorContext): void {

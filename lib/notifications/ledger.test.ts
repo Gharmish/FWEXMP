@@ -80,15 +80,17 @@ vi.mock('@/lib/db', () => ({
         };
       },
     }),
-    selectDistinct: () => ({
+    select: () => ({
       from: () => ({
-        // The query now orders before limiting (oldest backlog first).
+        // GROUP BY (booking, type, locale), oldest backlog first, then limit.
         where: () => ({
-          orderBy: () => ({
-            limit: async () => {
-              if (dbFails) throw new Error('db down');
-              return retryableRows;
-            },
+          groupBy: () => ({
+            orderBy: () => ({
+              limit: async () => {
+                if (dbFails) throw new Error('db down');
+                return retryableRows;
+              },
+            }),
           }),
         }),
       }),
