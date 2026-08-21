@@ -18,7 +18,7 @@ import {
   parseSearchParams,
   type FilterableExperience,
 } from '@/features/experiences/lib/search';
-import { trackSearch, utmFromSearchParams } from '@/features/analytics/capture';
+import { trackPageView, trackSearch, utmFromSearchParams } from '@/features/analytics/capture';
 import { getWishlistSet } from '@/features/wishlist/queries';
 import { WishlistButton } from '@/features/wishlist/components/wishlist-button';
 
@@ -120,9 +120,15 @@ export default async function ExperiencesIndexPage({
       criteria.dayPreset && `day=${criteria.dayPreset}`,
       criteria.groupSize !== null && `group=${criteria.groupSize}`,
     ].filter(Boolean);
-    trackSearch({
+    await trackSearch({
       query: parts.join('&'),
       resultCount: results.length,
+      locale: loc,
+      utm: utmFromSearchParams(rawSearchParams),
+    });
+  } else {
+    await trackPageView({
+      path: '/experiences',
       locale: loc,
       utm: utmFromSearchParams(rawSearchParams),
     });

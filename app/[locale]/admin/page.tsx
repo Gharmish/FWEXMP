@@ -35,6 +35,8 @@ import { ActivityTimeline } from '@/features/admin/dashboard/components/activity
 import { Leaderboard } from '@/features/admin/dashboard/components/leaderboard';
 import { DateRangePicker } from '@/features/admin/dashboard/components/date-range-picker';
 import { QuickActions } from '@/features/admin/dashboard/components/quick-actions';
+import { FunnelStrip } from '@/features/admin/dashboard/components/funnel-strip';
+import { FeedbackCard } from '@/features/admin/dashboard/components/feedback-card';
 
 export async function generateMetadata({
   params,
@@ -63,6 +65,9 @@ function greetingKey(): 'morning' | 'afternoon' | 'evening' {
   if (hour < 18) return 'afternoon';
   return 'evening';
 }
+
+/** Vercel Web Analytics (unique visitors, countries, referrers, per-route) — site-level view the first-party events don't attempt. */
+const VERCEL_ANALYTICS_URL = 'https://vercel.com/gharmish-3685s-projects/gharmish/analytics';
 
 const CATEGORY_COLOR: Record<string, string> = {
   nature: 'bg-juniper-green',
@@ -392,9 +397,88 @@ export default async function AdminIndexPage({
     colorClass: r.source === 'organic' ? 'bg-sarat-black/70' : 'bg-sarawat-blue',
   }));
 
+  // `q=diving&city=jeddah` → "diving · jeddah": the stored string is the
+  // normalized criteria, which reads as code; the owner wants the words.
+  const humanQuery = (query: string): string =>
+    query
+      .split('&')
+      .map((part) => {
+        const [key, value = ''] = part.split('=');
+        if (!value) return part;
+        if (key === 'q' || key === 'city') return value;
+        if (key === 'originals') return t('dashboard.metrics.demand.queryOriginals');
+        const kind = t(`dashboard.metrics.demand.queryKeys.${key}` as Parameters<typeof t>[0]);
+        return `${kind}: ${value.replaceAll(',', ', ')}`;
+      })
+      .join(' · ');
+  const trafficRows: BreakdownRow[] = m.trafficBySource.map((r) => ({
+    id: r.source,
+    label: r.source === 'direct' ? t('dashboard.metrics.traffic.direct') : r.source,
+    magnitude: r.views,
+    display: formatInteger(r.views, loc),
+    colorClass: r.source === 'direct' ? 'bg-sarat-black/70' : 'bg-sarawat-blue',
+  }));
+
+  const pathLabel = (path: string): string => {
+    switch (path) {
+      case '/':
+        return t('dashboard.metrics.traffic.paths.home');
+      case '/experiences':
+        return t('dashboard.metrics.traffic.paths.catalog');
+      case '/experiences?search':
+        return t('dashboard.metrics.traffic.paths.search');
+      case 'listing':
+        return t('dashboard.metrics.traffic.paths.listing');
+      case '/hosting':
+        return t('dashboard.metrics.traffic.paths.hosting');
+      case '/hosts/[slug]':
+        return t('dashboard.metrics.traffic.paths.hostProfile');
+      case '/abha':
+        return t('dashboard.metrics.traffic.paths.abha');
+      default:
+        return path;
+    }
+  };
+  const pathRows: BreakdownRow[] = m.viewsByPath.map((r) => ({
+    id: r.path,
+    label: pathLabel(r.path),
+    magnitude: r.views,
+    display: formatInteger(r.views, loc),
+    colorClass: r.path === 'listing' ? 'bg-saffron-gold' : 'bg-sarat-black/70',
+  }));
+
+  const contactRows: BreakdownRow[] = m.contactReasons.map((r) => ({
+    id: r.category,
+    label: t(`dashboard.metrics.feedback.categories.${r.category}` as Parameters<typeof t>[0]),
+    magnitude: r.count,
+    display: formatInteger(r.count, loc),
+    colorClass:
+      r.category === 'safety_incident' || r.category === 'host_no_show'
+        ? 'bg-al-qatt-red'
+        : 'bg-soudah-sunset',
+  }));
+
+  const funnelSteps = [
+    {
+      id: 'visits',
+      label: t('dashboard.metrics.funnel.visits'),
+      count: m.pageViews.current + m.experienceViews.current,
+      hint: t('dashboard.metrics.funnel.visitsHint'),
+    },
+    {
+      id: 'views',
+      label: t('dashboard.metrics.funnel.listingViews'),
+      count: m.experienceViews.current,
+    },
+    { id: 'requests', label: t('dashboard.metrics.funnel.requests'), count: m.funnel.requests },
+    { id: 'paid', label: t('dashboard.metrics.funnel.paid'), count: m.bookings.current },
+    { id: 'completed', label: t('dashboard.metrics.funnel.completed'), count: m.funnel.completed },
+    { id: 'reviewed', label: t('dashboard.metrics.funnel.reviewed'), count: m.reviewCount.current },
+  ];
+
   const zeroQueryRows: BreakdownRow[] = m.zeroResultQueries.map((q) => ({
     id: q.query,
-    label: q.query,
+    label: humanQuery(q.query),
     magnitude: q.count,
     display: formatInteger(q.count, loc),
     colorClass: 'bg-saffron-gold',
@@ -416,7 +500,7 @@ export default async function AdminIndexPage({
       {header}
 
       {/* Hero KPIs */}
-      <Stagger className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      <Stagger className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
         {hero.map((k) => (
           <StaggerItem key={k.label} className="h-full">
             <HoverLift className="h-full">
@@ -453,6 +537,17 @@ export default async function AdminIndexPage({
           <WorkQueue items={queue} locale={loc} emptyLabel={t('dashboard.queueEmpty')} />
         </section>
       </FadeIn>
+
+      {/* Guest journey funnel — visits to reviews on one line */}
+      <Section title={t('dashboard.metrics.sections.funnel')} heading={sectionHeading}>
+        <div className={card}>
+          <FunnelStrip
+            steps={funnelSteps}
+            locale={loc}
+            stepRateLabel={(pct) => t('dashboard.metrics.funnel.stepRate', { pct })}
+          />
+        </div>
+      </Section>
 
       {/* A — Revenue & payments */}
       <Section title={t('dashboard.metrics.sections.revenue')} heading={sectionHeading}>
@@ -551,6 +646,19 @@ export default async function AdminIndexPage({
       <Section title={t('dashboard.metrics.sections.demand')} heading={sectionHeading}>
         <div className={cn(card, 'grid grid-cols-2 gap-6 lg:grid-cols-3')}>
           <MetricStat
+            label={t('dashboard.metrics.demand.pageViews')}
+            value={formatInteger(m.pageViews.current, loc)}
+            locale={loc}
+            growth={growth(m.pageViews.current, m.pageViews.previous)}
+            newLabel={newLabel}
+            hint={t('dashboard.metrics.demand.pageViewsHint')}
+          />
+          <MetricStat
+            label={t('dashboard.metrics.demand.mobileShare')}
+            value={`${m.mobileSharePct.current}%`}
+            locale={loc}
+          />
+          <MetricStat
             label={t('dashboard.metrics.demand.views')}
             value={formatInteger(m.experienceViews.current, loc)}
             locale={loc}
@@ -590,6 +698,31 @@ export default async function AdminIndexPage({
           />
         </div>
         <div className="grid gap-4 lg:grid-cols-2">
+          <div className={cn(card, 'flex flex-col gap-4')}>
+            <div className="flex items-baseline justify-between gap-3">
+              <h3 className="text-sarat-black text-sm font-medium">
+                {t('dashboard.metrics.traffic.bySource')}
+              </h3>
+              <a
+                href={VERCEL_ANALYTICS_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-sarat-black-600 hover:text-sarat-black shrink-0 text-xs underline-offset-2 hover:underline"
+              >
+                {t('dashboard.metrics.traffic.vercelLink')}
+              </a>
+            </div>
+            <p className="text-sarat-black-600 -mt-2 text-xs">
+              {t('dashboard.metrics.traffic.bySourceHint')}
+            </p>
+            <BreakdownBars rows={trafficRows} emptyLabel={emptyRange} />
+          </div>
+          <div className={cn(card, 'flex flex-col gap-4')}>
+            <h3 className="text-sarat-black text-sm font-medium">
+              {t('dashboard.metrics.traffic.byPage')}
+            </h3>
+            <BreakdownBars rows={pathRows} emptyLabel={emptyRange} />
+          </div>
           <div className={cn(card, 'flex flex-col gap-4')}>
             <h3 className="text-sarat-black text-sm font-medium">
               {t('dashboard.metrics.demand.bySource')}
@@ -719,6 +852,48 @@ export default async function AdminIndexPage({
               label={t('dashboard.metrics.catalog.hiddenReviews')}
               value={formatInteger(m.hiddenReviews, loc)}
               locale={loc}
+            />
+            <MetricStat
+              label={t('dashboard.metrics.feedback.lowRatings')}
+              value={formatInteger(m.lowRatingReviews.current, loc)}
+              locale={loc}
+            />
+            <MetricStat
+              label={t('dashboard.metrics.feedback.awaitingReply')}
+              value={formatInteger(m.reviewsAwaitingReply, loc)}
+              locale={loc}
+            />
+          </div>
+        </div>
+        <div className="grid gap-4 lg:grid-cols-2">
+          <div className={cn(card, 'flex flex-col gap-4')}>
+            <div className="flex items-baseline justify-between gap-3">
+              <h3 className="text-sarat-black text-sm font-medium">
+                {t('dashboard.metrics.feedback.latest')}
+              </h3>
+              <Link
+                href="/admin/reviews"
+                className="text-sarat-black-600 hover:text-sarat-black text-xs underline-offset-2 hover:underline"
+              >
+                {t('dashboard.metrics.feedback.viewAll')}
+              </Link>
+            </div>
+            <FeedbackCard
+              reviews={m.recentReviews}
+              locale={loc}
+              emptyLabel={t('dashboard.metrics.feedback.empty')}
+              repliedLabel={t('dashboard.metrics.feedback.replied')}
+              awaitingReplyLabel={t('dashboard.metrics.feedback.noReply')}
+              starsOnlyLabel={t('dashboard.metrics.feedback.starsOnly')}
+            />
+          </div>
+          <div className={cn(card, 'flex flex-col gap-4')}>
+            <h3 className="text-sarat-black text-sm font-medium">
+              {t('dashboard.metrics.feedback.contactReasons')}
+            </h3>
+            <BreakdownBars
+              rows={contactRows}
+              emptyLabel={t('dashboard.metrics.feedback.contactEmpty')}
             />
           </div>
         </div>

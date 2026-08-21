@@ -10,6 +10,7 @@ import { getExperiencesFiltered } from '@/features/experiences/queries';
 import { ExperienceCard } from '@/features/experiences/components/experience-card';
 import { WishlistButton } from '@/features/wishlist/components/wishlist-button';
 import { getWishlistSet } from '@/features/wishlist/queries';
+import { trackPageView, utmFromSearchParams } from '@/features/analytics/capture';
 
 /**
  * City landing — the crawlable URL for "things to do in Abha" head terms
@@ -55,9 +56,16 @@ export async function generateMetadata({
   };
 }
 
-export default async function AbhaPage({ params }: { params: Promise<{ locale: string }> }) {
+export default async function AbhaPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ locale: string }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
   const { locale } = await params;
   setRequestLocale(locale);
+  await trackPageView({ path: '/abha', locale, utm: utmFromSearchParams(await searchParams) });
   const loc = locale as Locale;
   const [t, experiences, saved] = await Promise.all([
     getTranslations({ locale, namespace: 'cityAbha' }),
@@ -83,7 +91,12 @@ export default async function AbhaPage({ params }: { params: Promise<{ locale: s
         '@type': 'BreadcrumbList',
         itemListElement: [
           { '@type': 'ListItem', position: 1, name: SITE_NAME, item: `${SITE_URL}/${loc}` },
-          { '@type': 'ListItem', position: 2, name: t('breadcrumb'), item: `${SITE_URL}/${loc}/abha` },
+          {
+            '@type': 'ListItem',
+            position: 2,
+            name: t('breadcrumb'),
+            item: `${SITE_URL}/${loc}/abha`,
+          },
         ],
       },
     ],

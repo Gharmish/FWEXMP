@@ -1546,6 +1546,8 @@ export const analyticsEventTypeEnum = pgEnum('analytics_event_type', [
   'experience_view',
   /** The catalog was served with filters/search applied; `resultCount` says how much supply matched. */
   'search',
+  /** A public non-listing page was served (home, catalog browse, /hosting, host profile, /abha). */
+  'page_view',
 ]);
 
 /**
@@ -1573,6 +1575,17 @@ export const analyticsEvents = pgTable(
     searchQuery: text(),
     /** `search` events: experiences matched. 0 = demand we couldn't serve. */
     resultCount: integer(),
+    /** Route template the page was served on, e.g. `/`, `/hosting`, `/hosts/[slug]` (2026-08-21). */
+    path: text(),
+    /**
+     * Hostname of the external `Referer` when the request arrived from
+     * another site (google.com, instagram.com, l.instagram.com, …). Null
+     * for direct/typed traffic AND for same-site navigations. Hostname
+     * only — never the full URL — so nothing identifying is stored.
+     */
+    referrerHost: text(),
+    /** Coarse device class from the user agent: `mobile` | `desktop`. */
+    device: text(),
     createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [

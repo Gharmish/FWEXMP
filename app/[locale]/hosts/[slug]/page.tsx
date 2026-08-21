@@ -22,6 +22,7 @@ import {
   getHostResponseStats,
 } from '@/features/hosts/queries';
 import { getWishlistSet } from '@/features/wishlist/queries';
+import { trackPageView, utmFromSearchParams } from '@/features/analytics/capture';
 import { WishlistButton } from '@/features/wishlist/components/wishlist-button';
 
 /**
@@ -93,8 +94,10 @@ export async function generateMetadata({
 
 export default async function HostProfilePage({
   params,
+  searchParams,
 }: {
   params: Promise<{ locale: string; slug: string }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const { locale, slug } = await params;
   setRequestLocale(locale);
@@ -108,6 +111,11 @@ export default async function HostProfilePage({
     }
     notFound();
   }
+  await trackPageView({
+    path: '/hosts/[slug]',
+    locale,
+    utm: utmFromSearchParams(await searchParams),
+  });
 
   const [experiences, savedSlugs, responseStats] = await Promise.all([
     getExperiencesByHostSlug(slug),
@@ -216,12 +224,7 @@ export default async function HostProfilePage({
               <ArrowLeft className="size-4 shrink-0 rtl:rotate-180" aria-hidden />
               {t('backToExperiences')}
             </Link>
-            <ShareButton
-              url={url}
-              title={name}
-              contentType="host"
-              analyticsId={slug}
-            />
+            <ShareButton url={url} title={name} contentType="host" analyticsId={slug} />
           </div>
 
           <header className="mt-8 flex flex-col gap-6">

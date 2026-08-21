@@ -184,7 +184,8 @@
           "demand": "Demand & growth",
           "supply": "Supply & hosts",
           "catalog": "Catalogue & quality",
-          "health": "Marketplace health"
+          "health": "Marketplace health",
+          "funnel": "Guest journey"
         },
         "revenue": {
           "hostPayouts": "Host payouts",
@@ -223,7 +224,18 @@
           "bySource": "Bookings by source",
           "organic": "Organic / direct",
           "unservedSearches": "Unserved searches",
-          "unservedEmpty": "Every search in this range found matches."
+          "unservedEmpty": "Every search in this range found matches.",
+          "pageViews": "Site page views",
+          "pageViewsHint": "Home, catalogue, hosting, host profiles — bots and admins excluded",
+          "mobileShare": "Mobile share",
+          "queryOriginals": "Originals only",
+          "queryKeys": {
+            "category": "Category",
+            "price": "Price",
+            "duration": "Duration",
+            "day": "Day",
+            "group": "Group"
+          }
         },
         "supply": {
           "newHosts": "New hosts",
@@ -266,6 +278,54 @@
           "zeroBookingCount": "{count} total",
           "zeroBookingEmpty": "Every live experience was booked in this range.",
           "daysLive": "{days}d live"
+        },
+        "funnel": {
+          "visits": "Pages served",
+          "visitsHint": "Since 21 Aug 2026",
+          "listingViews": "Listing views",
+          "requests": "Booking requests",
+          "paid": "Paid bookings",
+          "completed": "Completed",
+          "reviewed": "Reviewed",
+          "stepRate": "{pct}% of previous step"
+        },
+        "traffic": {
+          "bySource": "Traffic by source",
+          "bySourceHint": "UTM source when the link was tagged, otherwise the referring site. Untagged app links read as direct.",
+          "direct": "Direct / untagged",
+          "byPage": "Pages served",
+          "paths": {
+            "home": "Home",
+            "catalog": "Catalogue (browse)",
+            "search": "Catalogue (search / filter)",
+            "listing": "Experience pages",
+            "hosting": "Hosting landing",
+            "hostProfile": "Host profiles",
+            "abha": "Abha city page"
+          },
+          "vercelLink": "Unique visitors & countries (Vercel) ↗"
+        },
+        "feedback": {
+          "lowRatings": "3★ or lower",
+          "awaitingReply": "Awaiting host reply",
+          "latest": "What guests are saying",
+          "viewAll": "All reviews",
+          "empty": "No reviews yet — they appear once guests complete and rate an experience.",
+          "replied": "Host replied",
+          "noReply": "No host reply",
+          "starsOnly": "Stars only, no comment.",
+          "contactReasons": "Why guests contact support",
+          "contactEmpty": "No support tickets opened in this range.",
+          "categories": {
+            "refund_exception": "Refund exception",
+            "payment_issue": "Payment issue",
+            "safety_incident": "Safety incident",
+            "host_no_show": "Host no-show",
+            "guest_complaint": "Guest complaint",
+            "host_request": "Host request",
+            "account": "Account",
+            "other": "Other"
+          }
         }
       }
     },

@@ -204,7 +204,11 @@ export default async function ExperienceDetailPage({
   // Funnel signal (view side of view->request conversion). Not fired for
   // owner previews - those are hosts checking their own draft, not demand.
   if (!previewMode) {
-    trackExperienceView({ experienceSlug: exp.slug, locale: loc, utm: utmFromSearchParams(sp) });
+    await trackExperienceView({
+      experienceSlug: exp.slug,
+      locale: loc,
+      utm: utmFromSearchParams(sp),
+    });
   }
 
   // Everything below depends only on the slug/host/locale — one parallel

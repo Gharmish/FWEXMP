@@ -9,6 +9,7 @@ import { FadeIn } from '@/components/ui/motion';
 import { JsonLd } from '@/components/seo/json-ld';
 import { getPlatformSettings } from '@/lib/platform-settings';
 import { SITE_URL } from '@/lib/site';
+import { trackPageView, utmFromSearchParams } from '@/features/analytics/capture';
 
 /**
  * Public, indexable host-recruitment landing page. Unlike `/host/apply`
@@ -63,9 +64,16 @@ export async function generateMetadata({
 /** FAQ keys reused from the host-facing help entries so answers never drift. */
 const FAQ_KEYS = ['becomeHost', 'requestWindow', 'payout', 'hostCancel', 'editListing'] as const;
 
-export default async function HostingPage({ params }: { params: Promise<{ locale: string }> }) {
+export default async function HostingPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ locale: string }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
   const { locale } = await params;
   setRequestLocale(locale);
+  await trackPageView({ path: '/hosting', locale, utm: utmFromSearchParams(await searchParams) });
   const loc = locale as Locale;
 
   const [t, tFaq, settings] = await Promise.all([

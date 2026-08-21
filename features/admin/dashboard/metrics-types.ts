@@ -70,6 +70,41 @@ export interface SourceSlice {
   gmvSar: number;
 }
 
+export interface TrafficSourceSlice {
+  /**
+   * `utm_source` when the landing URL was tagged, else the external
+   * referrer hostname, else `direct`. Counts every captured event
+   * (page views + listing views + searches) — i.e. served requests,
+   * not unique visitors.
+   */
+  source: string;
+  views: number;
+}
+
+export interface PathSlice {
+  /** Route template (`/`, `/hosting`, `/hosts/[slug]`, `/experiences`) or `listing` for detail pages. */
+  path: string;
+  views: number;
+}
+
+export interface RecentReview {
+  id: string;
+  rating: number;
+  /** Guest text in whichever language it was written; null = stars only. */
+  text: string | null;
+  experienceLabel: string;
+  experienceHref: string;
+  hostLabel: string;
+  hasHostReply: boolean;
+  createdAt: Date;
+}
+
+export interface ContactReasonSlice {
+  /** support_tickets.category */
+  category: string;
+  count: number;
+}
+
 export interface QuerySlice {
   /** Normalized catalog criteria string, e.g. `q=diving&city=jeddah`. */
   query: string;
@@ -142,6 +177,18 @@ export interface DashboardMetrics {
   returningGuestRate: Delta;
   newGuestArShare: number; // % of new guests in window with preferredLanguage=ar
   wishlistSaves: Delta;
+  /**
+   * Non-listing public pages served (home, catalog browse, /hosting, /abha,
+   * host profiles) — `page_view` events, 2026-08-21+ only. Bot/preview
+   * user agents and signed-in admins are excluded at capture time.
+   */
+  pageViews: Delta;
+  /** Percent (0–100) of captured events from mobile user agents. */
+  mobileSharePct: Delta;
+  /** Where traffic came from: UTM source, else referrer host, else direct. */
+  trafficBySource: readonly TrafficSourceSlice[];
+  /** Which public pages were served, by route template. */
+  viewsByPath: readonly PathSlice[];
   /** Experience detail pages served (analytics_events, 2026-07-08+ only). */
   experienceViews: Delta;
   /** Percent: booking requests ÷ experience views — the top-funnel conversion. */
@@ -177,6 +224,14 @@ export interface DashboardMetrics {
   /** Percent: reviews created ÷ completed bookings, both in window. */
   reviewedRate: Delta;
   hiddenReviews: number;
+  /** Visible reviews rated 1–3 stars created in the window. */
+  lowRatingReviews: Delta;
+  /** Point-in-time: visible reviews with no host reply yet. */
+  reviewsAwaitingReply: number;
+  /** Latest visible reviews (any date) — what guests actually said. */
+  recentReviews: readonly RecentReview[];
+  /** Support tickets opened in the window, by category. */
+  contactReasons: readonly ContactReasonSlice[];
 
   // F — Marketplace health
   /**

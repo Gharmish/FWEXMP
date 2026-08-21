@@ -12,6 +12,7 @@ import {
   payouts,
   reviews,
   savedExperiences,
+  supportTickets,
 } from '@/db/schema';
 import { paymentCollected, platformTakeExpr } from '@/features/bookings/lib/payout-sql';
 import { getPlatformSettings } from '@/lib/platform-settings';
@@ -24,16 +25,20 @@ import {
 } from '@/features/admin/dashboard/lib/date-range';
 import type {
   CategorySlice,
+  ContactReasonSlice,
   DashboardMetrics,
   DeclineLeaderRow,
   Delta,
   FailureSlice,
   LeaderRow,
+  PathSlice,
   PaymentSlice,
   QuerySlice,
   RatingSlice,
+  RecentReview,
   SeriesPoint,
   SourceSlice,
+  TrafficSourceSlice,
   ZeroBookingListing,
 } from '@/features/admin/dashboard/metrics-types';
 import { adminGuard } from '@/features/admin/guard';
@@ -65,6 +70,10 @@ const REVENUE = sql`${bookings.status} in ('confirmed','completed')`;
  * `paymentCollected()`, so a `confirmed`-but-unpaid hold no longer
  * inflates the numbers. Count/behavior metrics keep plain `REVENUE` —
  * an unpaid hold is still a real booking event.
+ *
+ * Now a thin alias of the shared `collectedRevenue()` (2026-08-04 ops
+ * audit) so this page, the `/admin` landing tile, and every breakdown
+ * below read one definition instead of three transcriptions.
  */
 const MONEY = sql`(${REVENUE} and ${paymentCollected()})`;
 
@@ -374,7 +383,16 @@ async function runDashboardMetrics(range: DateRange): Promise<DashboardMetrics> 
         (select count(*) from ${analyticsEvents} where ${analyticsEvents.type} = 'experience_view' and ${win(analyticsEvents.createdAt, cur)})::int as views_cur,
         (select count(*) from ${analyticsEvents} where ${analyticsEvents.type} = 'experience_view' and ${win(analyticsEvents.createdAt, prev)})::int as views_prev,
         (select count(*) from ${analyticsEvents} where ${analyticsEvents.type} = 'search' and ${analyticsEvents.resultCount} = 0 and ${win(analyticsEvents.createdAt, cur)})::int as zsearch_cur,
-        (select count(*) from ${analyticsEvents} where ${analyticsEvents.type} = 'search' and ${analyticsEvents.resultCount} = 0 and ${win(analyticsEvents.createdAt, prev)})::int as zsearch_prev
+        (select count(*) from ${analyticsEvents} where ${analyticsEvents.type} = 'search' and ${analyticsEvents.resultCount} = 0 and ${win(analyticsEvents.createdAt, prev)})::int as zsearch_prev,
+        (select count(*) from ${analyticsEvents} where ${analyticsEvents.type} = 'page_view' and ${win(analyticsEvents.createdAt, cur)})::int as pviews_cur,
+        (select count(*) from ${analyticsEvents} where ${analyticsEvents.type} = 'page_view' and ${win(analyticsEvents.createdAt, prev)})::int as pviews_prev,
+        (select count(*) from ${analyticsEvents} where ${analyticsEvents.device} is not null and ${win(analyticsEvents.createdAt, cur)})::int as dev_all_cur,
+        (select count(*) from ${analyticsEvents} where ${analyticsEvents.device} = 'mobile' and ${win(analyticsEvents.createdAt, cur)})::int as dev_mob_cur,
+        (select count(*) from ${analyticsEvents} where ${analyticsEvents.device} is not null and ${win(analyticsEvents.createdAt, prev)})::int as dev_all_prev,
+        (select count(*) from ${analyticsEvents} where ${analyticsEvents.device} = 'mobile' and ${win(analyticsEvents.createdAt, prev)})::int as dev_mob_prev,
+        (select count(*) from ${reviews} where ${reviews.hiddenAt} is null and ${reviews.rating} <= 3 and ${win(reviews.createdAt, cur)})::int as rev_low_cur,
+        (select count(*) from ${reviews} where ${reviews.hiddenAt} is null and ${reviews.rating} <= 3 and ${win(reviews.createdAt, prev)})::int as rev_low_prev,
+        (select count(*) from ${reviews} where ${reviews.hiddenAt} is null and ${reviews.hostReply} is null)::int as rev_unanswered
       `),
 
       // (3) Time series over the selected window, bucketed in Riyadh time.
@@ -382,14 +400,19 @@ async function runDashboardMetrics(range: DateRange): Promise<DashboardMetrics> 
         .select({
           bucket: sql<string>`to_char(date_trunc(${granularity}, ${bookings.createdAt} at time zone 'Asia/Riyadh'), 'YYYY-MM-DD')`,
           bookings: sql<number>`count(*) filter (where ${REVENUE})::int`,
-          gmvSar: sql<number>`coalesce(sum(${bookings.totalAmount}) filter (where ${REVENUE}), 0)::int`,
+          // GMV on MONEY, the booking count on REVENUE: the chart's
+          // money line must total the headline KPI (2026-08-04 ops
+          // audit — it summed unpaid holds too), while the count keeps
+          // showing real booking events.
+          gmvSar: sql<number>`coalesce(sum(${bookings.totalAmount}) filter (where ${MONEY}), 0)::int`,
         })
         .from(bookings)
         .where(and(gte(bookings.createdAt, cur.start), lt(bookings.createdAt, cur.endExclusive)))
         .groupBy(sql`1`)
         .orderBy(sql`1`),
 
-      // (4) GMV by category.
+      // (4) GMV by category. Gated on MONEY like every breakdown below,
+      // so the slices total the headline GMV (2026-08-04 ops audit).
       db
         .select({
           category: experiences.category,
@@ -399,11 +422,7 @@ async function runDashboardMetrics(range: DateRange): Promise<DashboardMetrics> 
         .from(bookings)
         .innerJoin(experiences, eq(experiences.id, bookings.experienceId))
         .where(
-          and(
-            sql`${bookings.status} in ('confirmed','completed')`,
-            gte(bookings.createdAt, cur.start),
-            lt(bookings.createdAt, cur.endExclusive),
-          ),
+          and(MONEY, gte(bookings.createdAt, cur.start), lt(bookings.createdAt, cur.endExclusive)),
         )
         .groupBy(experiences.category),
     ]),
@@ -420,11 +439,7 @@ async function runDashboardMetrics(range: DateRange): Promise<DashboardMetrics> 
         })
         .from(bookings)
         .where(
-          and(
-            sql`${bookings.status} in ('confirmed','completed')`,
-            gte(bookings.createdAt, cur.start),
-            lt(bookings.createdAt, cur.endExclusive),
-          ),
+          and(MONEY, gte(bookings.createdAt, cur.start), lt(bookings.createdAt, cur.endExclusive)),
         )
         .groupBy(sql`1`),
 
@@ -440,11 +455,7 @@ async function runDashboardMetrics(range: DateRange): Promise<DashboardMetrics> 
         .from(bookings)
         .innerJoin(experiences, eq(experiences.id, bookings.experienceId))
         .where(
-          and(
-            sql`${bookings.status} in ('confirmed','completed')`,
-            gte(bookings.createdAt, cur.start),
-            lt(bookings.createdAt, cur.endExclusive),
-          ),
+          and(MONEY, gte(bookings.createdAt, cur.start), lt(bookings.createdAt, cur.endExclusive)),
         )
         .groupBy(experiences.id, experiences.titleEn, experiences.slug)
         .orderBy(sql`coalesce(sum(${bookings.totalAmount}), 0) desc`)
@@ -462,11 +473,7 @@ async function runDashboardMetrics(range: DateRange): Promise<DashboardMetrics> 
         .innerJoin(experiences, eq(experiences.id, bookings.experienceId))
         .innerJoin(hosts, eq(hosts.id, experiences.hostId))
         .where(
-          and(
-            sql`${bookings.status} in ('confirmed','completed')`,
-            gte(bookings.createdAt, cur.start),
-            lt(bookings.createdAt, cur.endExclusive),
-          ),
+          and(MONEY, gte(bookings.createdAt, cur.start), lt(bookings.createdAt, cur.endExclusive)),
         )
         .groupBy(hosts.id, hosts.name)
         .orderBy(sql`coalesce(sum(${bookings.totalAmount}), 0) desc`)
@@ -566,47 +573,118 @@ async function runDashboardMetrics(range: DateRange): Promise<DashboardMetrics> 
     ]),
   );
 
-  const [zeroQueryRows, sourceRows] = await wave('4', () =>
-    Promise.all([
-      // (12) Most-repeated zero-result searches — demand we couldn't serve,
-      // i.e. the supply-recruitment shortlist.
-      db
-        .select({
-          query: sql<string>`coalesce(nullif(${analyticsEvents.searchQuery}, ''), 'unknown')`,
-          count: sql<number>`count(*)::int`,
-        })
-        .from(analyticsEvents)
-        .where(
-          and(
-            sql`${analyticsEvents.type} = 'search'`,
-            sql`${analyticsEvents.resultCount} = 0`,
-            gte(analyticsEvents.createdAt, cur.start),
-            lt(analyticsEvents.createdAt, cur.endExclusive),
-          ),
-        )
-        .groupBy(sql`1`)
-        .orderBy(sql`count(*) desc`)
-        .limit(6),
+  const [zeroQueryRows, sourceRows, trafficRows, pathRows, recentReviewRows, contactRows] =
+    await wave('4', () =>
+      Promise.all([
+        // (12) Most-repeated zero-result searches — demand we couldn't serve,
+        // i.e. the supply-recruitment shortlist.
+        db
+          .select({
+            query: sql<string>`coalesce(nullif(${analyticsEvents.searchQuery}, ''), 'unknown')`,
+            count: sql<number>`count(*)::int`,
+          })
+          .from(analyticsEvents)
+          .where(
+            and(
+              sql`${analyticsEvents.type} = 'search'`,
+              sql`${analyticsEvents.resultCount} = 0`,
+              gte(analyticsEvents.createdAt, cur.start),
+              lt(analyticsEvents.createdAt, cur.endExclusive),
+            ),
+          )
+          .groupBy(sql`1`)
+          .orderBy(sql`count(*) desc`)
+          .limit(6),
 
-      // (13) Revenue bookings by first-touch acquisition source.
-      db
-        .select({
-          source: sql<string>`coalesce(nullif(${bookings.utmSource}, ''), 'organic')`,
-          bookings: sql<number>`count(*)::int`,
-          gmvSar: sql<number>`coalesce(sum(${bookings.totalAmount}), 0)::int`,
-        })
-        .from(bookings)
-        .where(
-          and(
-            sql`${bookings.status} in ('confirmed','completed')`,
-            gte(bookings.createdAt, cur.start),
-            lt(bookings.createdAt, cur.endExclusive),
-          ),
-        )
-        .groupBy(sql`1`)
-        .orderBy(sql`coalesce(sum(${bookings.totalAmount}), 0) desc`),
-    ]),
-  );
+        // (13) Revenue bookings by first-touch acquisition source.
+        db
+          .select({
+            source: sql<string>`coalesce(nullif(${bookings.utmSource}, ''), 'organic')`,
+            bookings: sql<number>`count(*)::int`,
+            gmvSar: sql<number>`coalesce(sum(${bookings.totalAmount}), 0)::int`,
+          })
+          .from(bookings)
+          .where(
+            and(
+              MONEY,
+              gte(bookings.createdAt, cur.start),
+              lt(bookings.createdAt, cur.endExclusive),
+            ),
+          )
+          .groupBy(sql`1`)
+          .orderBy(sql`coalesce(sum(${bookings.totalAmount}), 0) desc`),
+
+        // (14) Traffic by source over every captured event: tagged UTM wins,
+        // then the external referrer host, else direct (2026-08-21 audit —
+        // the bookings-by-source chart alone read 100% organic because no
+        // paid link was ever tagged).
+        db
+          .select({
+            source: sql<string>`coalesce(nullif(${analyticsEvents.utmSource}, ''), nullif(${analyticsEvents.referrerHost}, ''), 'direct')`,
+            views: sql<number>`count(*)::int`,
+          })
+          .from(analyticsEvents)
+          .where(
+            and(
+              gte(analyticsEvents.createdAt, cur.start),
+              lt(analyticsEvents.createdAt, cur.endExclusive),
+            ),
+          )
+          .groupBy(sql`1`)
+          .orderBy(sql`count(*) desc`)
+          .limit(8),
+
+        // (15) Served pages by route template; listing detail pages roll up as one row.
+        db
+          .select({
+            path: sql<string>`case when ${analyticsEvents.type} = 'experience_view' then 'listing' when ${analyticsEvents.type} = 'search' then '/experiences?search' else coalesce(${analyticsEvents.path}, 'unknown') end`,
+            views: sql<number>`count(*)::int`,
+          })
+          .from(analyticsEvents)
+          .where(
+            and(
+              gte(analyticsEvents.createdAt, cur.start),
+              lt(analyticsEvents.createdAt, cur.endExclusive),
+            ),
+          )
+          .groupBy(sql`1`)
+          .orderBy(sql`count(*) desc`)
+          .limit(8),
+
+        // (16) Latest visible reviews, any date — the words behind the stars.
+        db
+          .select({
+            id: reviews.id,
+            rating: reviews.rating,
+            textEn: reviews.textEn,
+            textAr: reviews.textAr,
+            hostReply: reviews.hostReply,
+            createdAt: reviews.createdAt,
+            experienceLabel: experiences.titleEn,
+            slug: experiences.slug,
+            hostLabel: hosts.name,
+          })
+          .from(reviews)
+          .innerJoin(experiences, eq(experiences.id, reviews.experienceId))
+          .innerJoin(hosts, eq(hosts.id, experiences.hostId))
+          .where(sql`${reviews.hiddenAt} is null`)
+          .orderBy(sql`${reviews.createdAt} desc`)
+          .limit(5),
+
+        // (17) Why guests contact us: support tickets opened in the window by category.
+        db
+          .select({ category: supportTickets.category, count: sql<number>`count(*)::int` })
+          .from(supportTickets)
+          .where(
+            and(
+              gte(supportTickets.createdAt, cur.start),
+              lt(supportTickets.createdAt, cur.endExclusive),
+            ),
+          )
+          .groupBy(supportTickets.category)
+          .orderBy(sql`count(*) desc`),
+      ]),
+    );
 
   const s = scanRow[0];
   const o = otherRows[0];
@@ -671,6 +749,25 @@ async function runDashboardMetrics(range: DateRange): Promise<DashboardMetrics> 
     bookings: r.bookings,
     gmvSar: r.gmvSar,
   }));
+  const trafficBySource: TrafficSourceSlice[] = trafficRows.map((r) => ({
+    source: r.source,
+    views: r.views,
+  }));
+  const viewsByPath: PathSlice[] = pathRows.map((r) => ({ path: r.path, views: r.views }));
+  const recentReviews: RecentReview[] = recentReviewRows.map((r) => ({
+    id: r.id,
+    rating: r.rating,
+    text: r.textAr?.trim() || r.textEn?.trim() || null,
+    experienceLabel: r.experienceLabel,
+    experienceHref: `/experiences/${r.slug}`,
+    hostLabel: r.hostLabel,
+    hasHostReply: r.hostReply !== null && r.hostReply.trim() !== '',
+    createdAt: r.createdAt,
+  }));
+  const contactReasons: ContactReasonSlice[] = contactRows.map((r) => ({
+    category: r.category,
+    count: r.count,
+  }));
 
   const now = Date.now();
   const zeroBookingListings: ZeroBookingListing[] = zeroRows.map((r) => ({
@@ -728,6 +825,13 @@ async function runDashboardMetrics(range: DateRange): Promise<DashboardMetrics> 
     ),
     newGuestArShare: pct(n('ar_cur'), n('new_guests_cur')),
     wishlistSaves: delta(n('saves_cur'), n('saves_prev')),
+    pageViews: delta(n('pviews_cur'), n('pviews_prev')),
+    mobileSharePct: delta(
+      pct(n('dev_mob_cur'), n('dev_all_cur')),
+      pct(n('dev_mob_prev'), n('dev_all_prev')),
+    ),
+    trafficBySource,
+    viewsByPath,
     experienceViews: delta(n('views_cur'), n('views_prev')),
     viewToRequestPct: delta(pct(s.reqCur, n('views_cur')), pct(s.reqPrev, n('views_prev'))),
     zeroResultSearches: delta(n('zsearch_cur'), n('zsearch_prev')),
@@ -761,6 +865,10 @@ async function runDashboardMetrics(range: DateRange): Promise<DashboardMetrics> 
       pct(n('rev_cnt_prev'), s.completedPrev),
     ),
     hiddenReviews: n('rev_hidden'),
+    lowRatingReviews: delta(n('rev_low_cur'), n('rev_low_prev')),
+    reviewsAwaitingReply: n('rev_unanswered'),
+    recentReviews,
+    contactReasons,
 
     utilizationPct: delta(
       pct(s.seatsBookedCur, n('offered_cur')),

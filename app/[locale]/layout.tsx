@@ -33,6 +33,7 @@ import { Footer } from '@/components/layout/footer';
 import { ScrollToTop } from '@/components/layout/scroll-to-top';
 import { CookieNotice } from '@/components/layout/cookie-notice';
 import { MarketingPixels } from '@/components/layout/marketing-pixels';
+import { Analytics } from '@vercel/analytics/next';
 import { UtmCapture } from '@/features/analytics/utm-capture';
 import { MotionProvider } from '@/components/ui/motion';
 import { ToastProvider } from '@/components/ui/toast';
@@ -129,6 +130,11 @@ export default async function LocaleLayout({
                 <Footer />
                 <CookieNotice />
                 <MarketingPixels />
+                {/* Vercel Web Analytics: cookieless, no cross-site identifier, so
+                    it sits outside the consent gate like the first-party
+                    analytics_events capture. Site-level visitors/referrers/
+                    countries live in the Vercel dashboard (linked from /admin). */}
+                <Analytics />
                 <UtmCapture />
                 {/* useSearchParams consumer — Suspense keeps prerender happy. */}
                 <Suspense fallback={null}>

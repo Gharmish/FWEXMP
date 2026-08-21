@@ -32,6 +32,7 @@ import { DestinationChapter } from '@/components/marketing/destination-chapter';
 import { CategoryTiles } from '@/components/marketing/category-tiles';
 import { HeroHighlands } from '@/components/marketing/hero-highlands';
 import { HeroHeadline } from '@/components/marketing/hero-headline';
+import { trackPageView, utmFromSearchParams } from '@/features/analytics/capture';
 
 const languagesAlternates = {
   ...Object.fromEntries(routing.locales.map((l) => [l, `${SITE_URL}/${l}`])),
@@ -73,9 +74,18 @@ export async function generateMetadata({
   };
 }
 
-export default async function HomePage({ params }: { params: Promise<{ locale: string }> }) {
+export default async function HomePage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ locale: string }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
   const { locale } = await params;
   setRequestLocale(locale);
+  // Site-visit signal (2026-08-21 dashboard audit): the home page is where
+  // tagged ad/social links land, so the UTM triplet is read here too.
+  await trackPageView({ path: '/', locale, utm: utmFromSearchParams(await searchParams) });
   const t = await getTranslations('home');
   const tSite = await getTranslations('siteMeta');
   const loc = locale as Locale;
@@ -106,9 +116,9 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
   ).filter((w) => settings.enabledCategories.includes(w.key));
   // The template's {word} placeholder splits it into the static halves
   // around the rotating slot (t.raw: interpolating would need a value).
-  const [headlinePrefix = '', headlineSuffix = ''] = (
-    t.raw('headlineTemplate') as string
-  ).split('{word}');
+  const [headlinePrefix = '', headlineSuffix = ''] = (t.raw('headlineTemplate') as string).split(
+    '{word}',
+  );
   // Admin-set announcement band (Eid hours, road closures, …). Per
   // locale; an empty value in the active locale hides the band.
   const announcement = loc === 'ar' ? settings.announcementAr : settings.announcementEn;
@@ -304,7 +314,7 @@ async function CatalogSections({ locale }: { locale: Locale }) {
           <FadeIn className="mb-8 flex flex-col gap-2">
             <p
               className={cn(
-                'text-saffron-gold-800 font-medium text-[11px]',
+                'text-saffron-gold-800 text-[11px] font-medium',
                 locale === 'en' && 'tracking-[0.2em] uppercase',
               )}
             >
