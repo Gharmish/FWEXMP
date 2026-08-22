@@ -3,7 +3,7 @@ import { db } from '@/lib/db';
 import { serverEnv } from '@/lib/env';
 import { bookings, experiences, payoutClawbacks, payouts } from '@/db/schema';
 import { reportError } from '@/lib/log';
-import { getCurrentUser } from '@/features/auth/queries';
+import { getCurrentHostId } from '@/features/host-dashboard/queries';
 import { paymentCollected, payoutExpr, vatPortionExpr } from '@/features/bookings/lib/payout-sql';
 import { decryptPii } from '@/lib/pii-crypto';
 
@@ -128,18 +128,25 @@ export interface HostEarningsRange {
   to?: string;
 }
 
+/** Which bookings the ledger lists: earned (completed) or projected (confirmed, ahead). */
+export type HostLedgerScope = 'completed' | 'upcoming';
+
+/** Ledger rows per page (2026-08-22 audit P2-11 — the 200-row cap was silent). */
+export const HISTORY_PAGE_SIZE = 25;
+
 export interface HostEarnings extends HostEarningsTotals {
   payoutIban: string | null;
-  /** Completed bookings newest-first — the host's payout ledger. */
+  /** One page of the ledger, newest-first, in the active scope. */
   history: readonly HostEarningsHistoryRow[];
+  /** Ledger rows in the active scope + range (all pages). */
+  historyTotal: number;
+  historyPage: number;
+  historyScope: HostLedgerScope;
   /** Completed earnings per experience, biggest payout first. */
   breakdown: readonly HostEarningsBreakdownRow[];
   /** Completed earnings per month, newest first (12-month window). */
   monthly: readonly HostEarningsMonthlyRow[];
 }
-
-/** Ledger ceiling — same launch-scale guard as the booking lists. */
-const HISTORY_LIMIT = 200;
 
 /** The one aggregate row behind both earnings surfaces. */
 function selectEarningsTotals(hostId: string) {
@@ -176,15 +183,10 @@ function selectEarningsTotals(hostId: string) {
  * full `getHostEarnings` hydrates for /host/earnings.
  */
 export async function getHostEarningsTotals(): Promise<HostEarningsTotals | null> {
-  const user = await getCurrentUser();
-  if (!user || !serverEnv.DATABASE_URL) return null;
+  const hostId = await getCurrentHostId();
+  if (!hostId || !serverEnv.DATABASE_URL) return null;
   try {
-    const host = await db.query.hosts.findFirst({
-      where: (h) => eq(h.userId, user.id),
-      columns: { id: true },
-    });
-    if (!host) return null;
-    const [totals] = await selectEarningsTotals(host.id);
+    const [totals] = await selectEarningsTotals(hostId);
     return {
       owedSar: totals?.owedSar ?? 0,
       owedCount: totals?.owedCount ?? 0,
@@ -201,12 +203,17 @@ export async function getHostEarningsTotals(): Promise<HostEarningsTotals | null
   }
 }
 
-export async function getHostEarnings(range?: HostEarningsRange): Promise<HostEarnings | null> {
-  const user = await getCurrentUser();
-  if (!user || !serverEnv.DATABASE_URL) return null;
+export async function getHostEarnings(
+  range?: HostEarningsRange,
+  ledger: { scope?: HostLedgerScope; page?: number } = {},
+): Promise<HostEarnings | null> {
+  const hostId = await getCurrentHostId();
+  if (!hostId || !serverEnv.DATABASE_URL) return null;
+  const historyScope: HostLedgerScope = ledger.scope === 'upcoming' ? 'upcoming' : 'completed';
+  const historyPage = Math.max(0, Math.trunc(ledger.page ?? 0));
   try {
     const host = await db.query.hosts.findFirst({
-      where: (h) => eq(h.userId, user.id),
+      where: (h) => eq(h.id, hostId),
       columns: { id: true, payoutIban: true },
     });
     if (!host) return null;
@@ -223,10 +230,21 @@ export async function getHostEarnings(range?: HostEarningsRange): Promise<HostEa
     if (range?.to) completedConds.push(lte(bookings.date, range.to));
     const completedWhere = and(...completedConds);
 
+    // The ledger follows the scope switch: earned rows, or the confirmed
+    // bookings still ahead (so "on the calendar" can be reconciled).
+    const ledgerConds: SQL[] = [
+      eq(experiences.hostId, host.id),
+      eq(bookings.status, historyScope === 'upcoming' ? 'confirmed' : 'completed'),
+    ];
+    if (historyScope === 'upcoming') ledgerConds.push(paymentCollected());
+    if (range?.from) ledgerConds.push(gte(bookings.date, range.from));
+    if (range?.to) ledgerConds.push(lte(bookings.date, range.to));
+    const ledgerWhere = and(...ledgerConds);
+
     const payoutSum = sql<number>`coalesce(sum(${payout}), 0)::int`;
     const rowCount = sql<number>`count(*)::int`;
 
-    const [[totals], historyRows, breakdown, monthly] = await Promise.all([
+    const [[totals], historyRows, [historyCount], breakdown, monthly] = await Promise.all([
       selectEarningsTotals(host.id),
       db
         .select({
@@ -243,9 +261,15 @@ export async function getHostEarnings(range?: HostEarningsRange): Promise<HostEa
         })
         .from(bookings)
         .innerJoin(experiences, eq(experiences.id, bookings.experienceId))
-        .where(completedWhere)
-        .orderBy(desc(bookings.date))
-        .limit(HISTORY_LIMIT),
+        .where(ledgerWhere)
+        .orderBy(historyScope === 'upcoming' ? bookings.date : desc(bookings.date))
+        .limit(HISTORY_PAGE_SIZE)
+        .offset(historyPage * HISTORY_PAGE_SIZE),
+      db
+        .select({ count: rowCount })
+        .from(bookings)
+        .innerJoin(experiences, eq(experiences.id, bookings.experienceId))
+        .where(ledgerWhere),
       db
         .select({
           experienceId: experiences.id,
@@ -288,6 +312,9 @@ export async function getHostEarnings(range?: HostEarningsRange): Promise<HostEa
         commissionSar: row.totalSar - row.vatSar - row.payoutSar,
         paidOutAt: row.paidOutAt ? row.paidOutAt.toISOString() : null,
       })),
+      historyTotal: historyCount?.count ?? 0,
+      historyPage,
+      historyScope,
       breakdown,
       monthly,
     };
@@ -300,13 +327,8 @@ export async function getHostEarnings(range?: HostEarningsRange): Promise<HostEa
 
 /** The signed-in host's id, or null (not signed in / not a host / no DB). */
 async function currentHostId(): Promise<string | null> {
-  const user = await getCurrentUser();
-  if (!user || !serverEnv.DATABASE_URL) return null;
-  const host = await db.query.hosts.findFirst({
-    where: (h) => eq(h.userId, user.id),
-    columns: { id: true },
-  });
-  return host?.id ?? null;
+  if (!serverEnv.DATABASE_URL) return null;
+  return getCurrentHostId();
 }
 
 /**

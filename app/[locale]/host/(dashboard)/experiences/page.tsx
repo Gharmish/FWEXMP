@@ -6,8 +6,12 @@ import type { Locale } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
 import { buttonVariants } from '@/components/ui/button';
 import { EmptyState } from '@/components/ui/empty-state';
-import { listMyExperiences } from '@/features/host-experiences/queries';
-import { ExperienceListRow } from '@/features/host-experiences/components/experience-list-row';
+import { getMyListingStats, listMyExperiences } from '@/features/host-experiences/queries';
+import type { HostExperienceRow } from '@/features/host-experiences/queries';
+import {
+  HOST_LISTING_STATUS_ORDER,
+  HostListingRow,
+} from '@/features/host-experiences/components/host-listing-row';
 
 export async function generateMetadata({
   params,
@@ -25,7 +29,9 @@ export async function generateMetadata({
 /**
  * The host's listings index — the rail's "Experiences" destination. The
  * layout has already gated auth + host status; `listMyExperiences()`
- * re-scopes to the signed-in host defensively.
+ * re-scopes to the signed-in host defensively. Rows sort by what needs
+ * the host (changes requested → in review → live → paused → draft), and
+ * archived listings sit under a fold (2026-08-22 audit P2-5).
  */
 export default async function HostExperiencesIndexPage({
   params,
@@ -40,16 +46,63 @@ export default async function HostExperiencesIndexPage({
   const sp = await searchParams;
   const justDeleted = (Array.isArray(sp.deleted) ? sp.deleted[0] : sp.deleted) === '1';
 
-  const [t, tIndex, experiences] = await Promise.all([
+  const [t, tIndex, experiences, stats] = await Promise.all([
     getTranslations('hostDashboard'),
     getTranslations('hostExperiences.index'),
     listMyExperiences(),
+    getMyListingStats(),
   ]);
+
+  const rank = (status: HostExperienceRow['status']) => HOST_LISTING_STATUS_ORDER.indexOf(status);
+  const sorted = [...experiences].sort((a, b) => rank(a.status) - rank(b.status));
+  const active = sorted.filter((e) => e.status !== 'archived');
+  const archived = sorted.filter((e) => e.status === 'archived');
 
   const eyebrowClassName = cn(
     'text-sarat-black-600 font-medium text-[11px]',
     loc === 'en' && 'tracking-[0.2em] uppercase',
   );
+
+  const nextStepFor = (status: HostExperienceRow['status']) => {
+    switch (status) {
+      case 'changes_requested':
+        return tIndex('nextStep.changesRequested');
+      case 'pending_review':
+        return tIndex('nextStep.pendingReview');
+      case 'draft':
+        return tIndex('nextStep.draft');
+      case 'paused':
+        return tIndex('nextStep.paused');
+      default:
+        return undefined;
+    }
+  };
+
+  const renderRow = (experience: HostExperienceRow) => {
+    const s = stats.get(experience.id);
+    return (
+      <HostListingRow
+        key={experience.id}
+        experience={experience}
+        stats={s}
+        locale={loc}
+        copy={{
+          status: t(`experiences.status.${experience.status}`),
+          perPerson: t('experiences.perPerson'),
+          daysPerWeek:
+            experience.availabilityWeekdays.length === 0
+              ? '—'
+              : t('experiences.daysPerWeek', {
+                  count: experience.availabilityWeekdays.length,
+                }),
+          bookings30d: tIndex('bookings30d', { count: s?.bookings30d ?? 0 }),
+          noRating: tIndex('noRating'),
+          nextStep: nextStepFor(experience.status),
+          noPhoto: tIndex('noPhoto'),
+        }}
+      />
+    );
+  };
 
   return (
     <div className="flex w-full flex-col gap-10">
@@ -100,28 +153,23 @@ export default async function HostExperiencesIndexPage({
           }
         />
       ) : (
-        <ul className="border-sarat-black/8 divide-sarat-black/8 rounded-card flex flex-col divide-y [border-width:0.5px]">
-          {experiences.map((experience) => (
-            <ExperienceListRow
-              key={experience.id}
-              experience={experience}
-              locale={loc}
-              copy={{
-                status: t(`experiences.status.${experience.status}`),
-                perPerson: t('experiences.perPerson'),
-                daysPerWeek:
-                  experience.availabilityWeekdays.length === 0
-                    ? '—'
-                    : t('experiences.daysPerWeek', {
-                        count: experience.availabilityWeekdays.length,
-                      }),
-                commissionShare: t('experiences.commissionShare', {
-                  pct: experience.commissionBps / 100,
-                }),
-              }}
-            />
-          ))}
-        </ul>
+        <>
+          {active.length > 0 && (
+            <ul className="border-sarat-black/8 divide-sarat-black/8 rounded-card flex flex-col divide-y [border-width:0.5px]">
+              {active.map(renderRow)}
+            </ul>
+          )}
+          {archived.length > 0 && (
+            <details className="group flex flex-col gap-4">
+              <summary className="text-sarat-black-600 hover:text-sarat-black inline-flex min-h-11 cursor-pointer list-none items-center gap-2 text-sm font-medium">
+                {tIndex('archivedFold', { count: archived.length })}
+              </summary>
+              <ul className="border-sarat-black/8 divide-sarat-black/8 rounded-card mt-4 flex flex-col divide-y [border-width:0.5px]">
+                {archived.map(renderRow)}
+              </ul>
+            </details>
+          )}
+        </>
       )}
     </div>
   );

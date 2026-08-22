@@ -264,6 +264,31 @@ describe('executeBookingTransition — cancel & decline side effects', () => {
     expect(executeRefund).toHaveBeenCalledWith('b-1', 'pay-1', 480, undefined);
   });
 
+  it("stamps a host cancellation as `host` with the host's reason, and frames the guest email as the host", async () => {
+    booking = { ...booking!, status: 'confirmed' };
+
+    await executeBookingTransition('b-1', 'cancelled', { ...OWNER_HOST, reason: 'weather' });
+
+    expect(setCalls[0]).toMatchObject({
+      status: 'cancelled',
+      cancellationKind: 'host',
+      cancellationReason: 'weather',
+    });
+    expect(sendBookingCancellationEmail).toHaveBeenCalledWith('ref-1', 'none', {
+      cancelledBy: 'host',
+      refundAmountSar: expect.any(Number),
+    });
+  });
+
+  it('stamps an admin cancellation as `operator` (never `host`)', async () => {
+    booking = { ...booking!, status: 'confirmed' };
+
+    await executeBookingTransition('b-1', 'cancelled', ADMIN);
+
+    expect(setCalls[0]).toMatchObject({ status: 'cancelled', cancellationKind: 'operator' });
+    expect(setCalls[0]).not.toHaveProperty('cancellationReason');
+  });
+
   it('cancels an unpaid booking without touching the refund executor', async () => {
     booking = { ...booking!, status: 'confirmed' };
 

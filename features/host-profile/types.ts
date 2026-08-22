@@ -42,3 +42,16 @@ export type HostPhotoActionState =
   | { status: 'idle' }
   | { status: 'success'; photoUrl: string | null }
   | { status: 'error'; message: HostPhotoErrorKey };
+
+export type HostContactField = 'contactPhone' | 'contactEmail';
+
+/** `useActionState` shape for the contact-details form. */
+export type HostContactFormState =
+  | { status: 'idle' }
+  | { status: 'success' }
+  | {
+      status: 'error';
+      message: HostProfileErrorKey;
+      fields?: Partial<Record<HostContactField, true>>;
+      values?: { contactPhone: string; contactEmail: string };
+    };

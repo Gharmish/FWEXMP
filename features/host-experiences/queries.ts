@@ -1,9 +1,9 @@
-import { and, desc, eq } from 'drizzle-orm';
+import { and, desc, eq, gte, isNull, sql } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import { serverEnv } from '@/lib/env';
-import { experiences } from '@/db/schema';
+import { bookings, experiences, reviews } from '@/db/schema';
 import { reportError } from '@/lib/log';
-import { getCurrentUser } from '@/features/auth/queries';
+import { getCurrentHostRef } from '@/features/host-dashboard/queries';
 
 /**
  * Host-scoped reads over `experiences`. Every helper resolves the
@@ -94,20 +94,13 @@ function rowToView(row: typeof experiences.$inferSelect): HostExperienceRow {
   };
 }
 
+/**
+ * Host id for reads — delegates to the request-memoised resolver in
+ * features/host-dashboard/queries (one hosts lookup per request).
+ */
 async function resolveHostIdForCurrentUser(): Promise<string | null> {
-  if (!serverEnv.DATABASE_URL) return null;
-  const user = await getCurrentUser();
-  if (!user) return null;
-  try {
-    const row = await db.query.hosts.findFirst({
-      where: (h) => eq(h.userId, user.id),
-      columns: { id: true },
-    });
-    return row?.id ?? null;
-  } catch (error) {
-    reportError(error, { surface: 'host-experiences:resolveHost', userId: user.id });
-    return null;
-  }
+  const ref = await getCurrentHostRef();
+  return ref?.id ?? null;
 }
 
 /** All experiences owned by the current host, newest first. */
@@ -159,19 +152,9 @@ export async function getMyExperienceById(id: string): Promise<HostExperienceRow
  */
 export async function getCurrentHostIdForWrite(): Promise<string | null> {
   if (!serverEnv.DATABASE_URL) return null;
-  const user = await getCurrentUser();
-  if (!user) return null;
-  try {
-    const row = await db.query.hosts.findFirst({
-      where: (h) => eq(h.userId, user.id),
-      columns: { id: true, verificationStatus: true },
-    });
-    if (!row || row.verificationStatus === 'suspended') return null;
-    return row.id;
-  } catch (error) {
-    reportError(error, { surface: 'host-experiences:resolveHostForWrite', userId: user.id });
-    return null;
-  }
+  const ref = await getCurrentHostRef();
+  if (!ref || ref.verificationStatus === 'suspended') return null;
+  return ref.id;
 }
 
 /**
@@ -206,5 +189,69 @@ export async function getMyExperienceMoments(
   } catch (error) {
     reportError(error, { surface: 'host-experiences:getMoments', experienceId });
     return [];
+  }
+}
+
+/** Per-listing signal for the host's listings index (2026-08-22 audit P2-5). */
+export interface HostListingStats {
+  /** Confirmed/completed bookings with a date in the trailing 30 days. */
+  bookings30d: number;
+  ratingAverage: number | null;
+  ratingCount: number;
+}
+
+/**
+ * Bookings-in-the-last-30-days and rating per listing, keyed by
+ * experience id — two grouped queries, not one per row.
+ */
+export async function getMyListingStats(): Promise<ReadonlyMap<string, HostListingStats>> {
+  const hostId = await resolveHostIdForCurrentUser();
+  const stats = new Map<string, HostListingStats>();
+  if (!hostId) return stats;
+  const since = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+  try {
+    const [bookingRows, ratingRows] = await Promise.all([
+      db
+        .select({ experienceId: bookings.experienceId, n: sql<number>`count(*)::int` })
+        .from(bookings)
+        .innerJoin(experiences, eq(bookings.experienceId, experiences.id))
+        .where(
+          and(
+            eq(experiences.hostId, hostId),
+            sql`${bookings.status} in ('confirmed', 'completed')`,
+            gte(bookings.date, since),
+          ),
+        )
+        .groupBy(bookings.experienceId),
+      db
+        .select({
+          experienceId: reviews.experienceId,
+          avg: sql<string | null>`avg(${reviews.rating})`,
+          n: sql<number>`count(*)::int`,
+        })
+        .from(reviews)
+        .innerJoin(experiences, eq(reviews.experienceId, experiences.id))
+        .where(and(eq(experiences.hostId, hostId), isNull(reviews.hiddenAt)))
+        .groupBy(reviews.experienceId),
+    ]);
+    for (const row of bookingRows) {
+      stats.set(row.experienceId, { bookings30d: row.n, ratingAverage: null, ratingCount: 0 });
+    }
+    for (const row of ratingRows) {
+      const current = stats.get(row.experienceId) ?? {
+        bookings30d: 0,
+        ratingAverage: null,
+        ratingCount: 0,
+      };
+      stats.set(row.experienceId, {
+        ...current,
+        ratingAverage: row.avg === null ? null : Number(row.avg),
+        ratingCount: row.n,
+      });
+    }
+    return stats;
+  } catch (error) {
+    reportError(error, { surface: 'host-experiences:listingStats' });
+    return stats;
   }
 }

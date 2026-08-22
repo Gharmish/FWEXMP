@@ -3,6 +3,8 @@ import { getLocale, getTranslations } from 'next-intl/server';
 import { redirect } from '@/lib/i18n';
 import type { Locale } from '@/lib/i18n';
 import { getCurrentUser } from '@/features/auth/queries';
+import { supportWhatsappE164 } from '@/lib/env';
+import { whatsappLink } from '@/lib/whatsapp';
 import { getHostDashboard } from '@/features/host-dashboard/queries';
 import { countPendingRequestsForHost } from '@/features/host-bookings/queries';
 import { HostShell } from '@/features/host-dashboard/components/host-shell';
@@ -39,10 +41,19 @@ export default async function HostDashboardLayout({ children }: { children: Reac
     redirect({ href: '/host/apply', locale });
   }
 
-  const [t, pendingRequests] = await Promise.all([
+  const [t, tHost, pendingRequests] = await Promise.all([
     getTranslations('nav'),
+    getTranslations('hostDashboard.nav'),
     countPendingRequestsForHost(),
   ]);
+
+  // Help goes to the WhatsApp support line (agent-staffed) with the host
+  // pre-identified — the dashboard had no support entry at all before
+  // (2026-08-22 audit P2-9).
+  const supportNumber = supportWhatsappE164();
+  const supportHref = supportNumber
+    ? whatsappLink(supportNumber, tHost('helpMessage', { name: dashboard.host.name }))
+    : null;
 
   return (
     <>
@@ -50,6 +61,8 @@ export default async function HostDashboardLayout({ children }: { children: Reac
       <HostShell
         userLabel={dashboard.host.name}
         pendingRequests={pendingRequests}
+        canCreate={dashboard.host.verificationStatus !== 'suspended'}
+        supportHref={supportHref}
         actions={
           <>
             <SignOutButton locale={locale} label={t('signOut')} />

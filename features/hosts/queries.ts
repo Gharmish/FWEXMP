@@ -68,6 +68,18 @@ const RESPONSE_STATS_MIN_REQUESTS = 3;
  * requests (or on no-DB/error — the trust chip simply doesn't render).
  */
 export async function getHostResponseStats(slug: string): Promise<HostResponseStats | null> {
+  return responseStatsWhere(eq(hosts.slug, slug), { slug });
+}
+
+/** Same stats keyed by host id — the host's own dashboard (2026-08-22 audit P2-4). */
+export async function getHostResponseStatsById(hostId: string): Promise<HostResponseStats | null> {
+  return responseStatsWhere(eq(hosts.id, hostId), { hostId });
+}
+
+async function responseStatsWhere(
+  hostMatch: ReturnType<typeof eq>,
+  context: Record<string, string>,
+): Promise<HostResponseStats | null> {
   if (!hasDb()) return null;
   try {
     const [row] = await boundedQuery('hosts:responseStats', () =>
@@ -84,7 +96,7 @@ export async function getHostResponseStats(slug: string): Promise<HostResponseSt
         .innerJoin(hosts, eq(experiences.hostId, hosts.id))
         // approvalDeadline marks request-mode bookings; instant bookings
         // never enter the approval funnel and must not skew the stats.
-        .where(and(eq(hosts.slug, slug), isNotNull(bookings.approvalDeadline))),
+        .where(and(hostMatch, isNotNull(bookings.approvalDeadline))),
     );
 
     const answered = row?.answered ?? 0;
@@ -96,7 +108,7 @@ export async function getHostResponseStats(slug: string): Promise<HostResponseSt
       avgResponseHours: Math.max(1, Math.ceil(avg)),
     };
   } catch (error) {
-    reportError(error, { surface: 'hosts:responseStats', slug });
+    reportError(error, { surface: 'hosts:responseStats', ...context });
     return null;
   }
 }

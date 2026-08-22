@@ -2,6 +2,17 @@ import type { bookings } from '@/db/schema';
 
 export type HostBookingStatus = (typeof bookings.$inferSelect)['status'];
 export type HostBookingPaymentStatus = (typeof bookings.$inferSelect)['paymentStatus'];
+export type HostCancellationKind = NonNullable<(typeof bookings.$inferSelect)['cancellationKind']>;
+
+/**
+ * Why a pending request can no longer be accepted by the host — computed
+ * server-side from the same clock the transition executor asserts, so
+ * the card can say so BEFORE the click instead of a `too_late` error
+ * after it. `started` = the session has begun (admin can't approve
+ * either); `cutoff` = inside the listing's lead-time window (admin still
+ * can). Null = acceptable.
+ */
+export type HostApprovalClosed = 'started' | 'cutoff' | null;
 
 /**
  * One booking row as the owning host sees it. Money is the host's side
@@ -13,7 +24,6 @@ export type HostBookingPaymentStatus = (typeof bookings.$inferSelect)['paymentSt
  */
 export interface HostBookingRow {
   id: string;
-  reference: string;
   /** Short human reference (`GH-7K3M9X`) — matches what the guest sees. */
   referenceCode: string;
   status: HostBookingStatus;
@@ -36,7 +46,63 @@ export interface HostBookingRow {
   experienceTitleEn: string;
   experienceTitleAr: string;
 
+  /** The listing's group cap on the booking's date. */
+  maxGroupSize: number;
+  /** Seats held by OTHER active bookings on the same listing + date. */
+  seatsTakenByOthers: number;
+  approvalClosed: HostApprovalClosed;
+
   guestName: string;
   /** Null until the booking is confirmed/completed (and for email-only guests). */
   guestPhone: string | null;
+  /** The guest's message to the host from the request step, if any. */
+  guestNote: string | null;
+  /** Who cancelled, when the row is cancelled/refunded. */
+  cancellationKind: HostCancellationKind | null;
+}
+
+/** The booking detail page: the row plus its lifecycle timeline. */
+export interface HostBookingDetail extends HostBookingRow {
+  policyTier: (typeof bookings.$inferSelect)['policyTier'];
+  paymentBrand: string | null;
+  approvedAt: string | null;
+  declinedAt: string | null;
+  paidAt: string | null;
+  cancelledAt: string | null;
+  refundedAt: string | null;
+  reminderSentAt: string | null;
+  finalReminderSentAt: string | null;
+  hostPaidAt: string | null;
+  cancellationReason: string | null;
+  refundedAmountSar: number | null;
+  rescheduledFromDate: string | null;
+  rescheduleCount: number;
+  termsAcceptedAt: string | null;
+  womenOnlyAttestedAt: string | null;
+  minAgeAttestedAt: string | null;
+}
+
+/** One confirmed session on the host's calendar over the next few days. */
+export interface HostComingUpRow {
+  id: string;
+  referenceCode: string;
+  date: string;
+  startTime: string;
+  partySize: number;
+  paymentStatus: HostBookingPaymentStatus;
+  paymentDeadline: string | null;
+  guestName: string;
+  experienceId: string;
+  experienceTitleEn: string;
+  experienceTitleAr: string;
+  maxGroupSize: number;
+  seatsTakenByOthers: number;
+}
+
+/** Per-day rollup for the bookings calendar view. */
+export interface HostCalendarDay {
+  date: string;
+  bookings: number;
+  guests: number;
+  pending: number;
 }

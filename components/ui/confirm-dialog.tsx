@@ -38,6 +38,15 @@ interface ConfirmSubmitProps {
    * open callback and the form's pending state, replaces the default Button.
    */
   trigger?: (open: () => void, pending: boolean) => ReactNode;
+  /**
+   * Extra content between the description and the buttons — e.g. a
+   * reason picker. Rendered inside the dialog portal (NOT inside the
+   * form), so mirror any value it collects into hidden inputs in the
+   * form via React state.
+   */
+  body?: ReactNode;
+  /** Disable the confirm action until `body` has what it needs. */
+  confirmDisabled?: boolean;
 }
 
 export function ConfirmSubmit({
@@ -52,6 +61,8 @@ export function ConfirmSubmit({
   size = 'md',
   className,
   trigger,
+  body,
+  confirmDisabled = false,
 }: ConfirmSubmitProps) {
   const t = useTranslations('common');
   const reduce = useReducedMotion();
@@ -116,6 +127,7 @@ export function ConfirmSubmit({
                     {description}
                   </AlertDialog.Description>
                 ) : null}
+                {body ? <div className="mt-4">{body}</div> : null}
                 <div className="mt-6 flex justify-end gap-3">
                   <AlertDialog.Close render={<Button variant="secondary" size="sm" />}>
                     {cancelLabel ?? t('cancel')}
@@ -124,6 +136,7 @@ export function ConfirmSubmit({
                     variant={destructive ? 'secondary' : 'primary'}
                     size="sm"
                     className={cn(destructive && 'border-al-qatt-red/40 text-al-qatt-red-800')}
+                    disabled={confirmDisabled}
                     onClick={confirm}
                   >
                     {confirmLabel}

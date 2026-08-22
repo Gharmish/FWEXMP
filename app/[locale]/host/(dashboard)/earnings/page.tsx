@@ -9,9 +9,14 @@ import { buttonVariants } from '@/components/ui/button';
 import { EmptyState } from '@/components/ui/empty-state';
 import { Price } from '@/components/ui/price';
 import { formatDate } from '@/lib/format';
-import { getCurrentUser } from '@/features/auth/queries';
+import { pickLocalized } from '@/lib/ar-placeholder';
 import { getHostDashboard } from '@/features/host-dashboard/queries';
-import { getHostEarnings, getHostPayoutBatches } from '@/features/host-earnings/queries';
+import {
+  getHostEarnings,
+  getHostPayoutBatches,
+  HISTORY_PAGE_SIZE,
+  type HostLedgerScope,
+} from '@/features/host-earnings/queries';
 import { PayoutMethodForm } from '@/features/host-earnings/components/payout-method-form';
 import { maskIban } from '@/features/host-earnings/lib/iban';
 
@@ -46,16 +51,12 @@ export default async function HostEarningsPage({
   searchParams,
 }: {
   params: Promise<{ locale: string }>;
-  searchParams: Promise<{ from?: string; to?: string }>;
+  searchParams: Promise<{ from?: string; to?: string; scope?: string; page?: string }>;
 }) {
   const { locale } = await params;
   setRequestLocale(locale);
   const loc = locale as Locale;
 
-  const user = await getCurrentUser();
-  if (!user) {
-    redirect({ href: '/sign-in?next=/host/earnings', locale: loc });
-  }
   const dashboard = await getHostDashboard();
   if (!dashboard) {
     redirect({ href: '/host/apply', locale: loc });
@@ -65,12 +66,29 @@ export default async function HostEarningsPage({
   const from = sp.from && DATE_RE.test(sp.from) ? sp.from : undefined;
   const to = sp.to && DATE_RE.test(sp.to) ? sp.to : undefined;
   const rangeActive = Boolean(from || to);
+  const scope: HostLedgerScope = sp.scope === 'upcoming' ? 'upcoming' : 'completed';
+  const ledgerPage = Math.max(1, Number.parseInt(sp.page ?? '1', 10) || 1);
 
   const [t, earnings, payoutBatches] = await Promise.all([
     getTranslations('hostEarnings'),
-    getHostEarnings({ from, to }),
+    getHostEarnings({ from, to }, { scope, page: ledgerPage - 1 }),
     getHostPayoutBatches(),
   ]);
+  const ledgerPages = earnings
+    ? Math.max(1, Math.ceil(earnings.historyTotal / HISTORY_PAGE_SIZE))
+    : 1;
+  // Every ledger link re-carries the range; the range form drops scope/page.
+  const ledgerHref = (overrides: { scope?: HostLedgerScope; page?: number }) => {
+    const search = new URLSearchParams();
+    if (from) search.set('from', from);
+    if (to) search.set('to', to);
+    const nextScope = overrides.scope ?? scope;
+    if (nextScope !== 'completed') search.set('scope', nextScope);
+    const nextPage = overrides.page ?? 1;
+    if (nextPage > 1) search.set('page', String(nextPage));
+    const qs = search.toString();
+    return `/host/earnings${qs ? `?${qs}#ledger` : '#ledger'}`;
+  };
 
   const today = todayInRiyadh();
   const presets = [
@@ -113,40 +131,35 @@ export default async function HostEarningsPage({
         />
       ) : (
         <>
-          {/* Totals strip */}
-          <dl className="border-sarat-black/8 rounded-card grid grid-cols-1 gap-5 [border-width:0.5px] p-6 sm:grid-cols-3">
-            <div className="flex flex-col gap-1">
-              <dt className={eyebrowClassName}>{t('stats.owed')}</dt>
-              <dd className="font-display text-3xl font-medium tracking-[-0.025em] tabular-nums">
-                <Price amount={earnings.owedSar} locale={loc} />
-              </dd>
-              <p className="text-sarat-black-600 text-sm">
-                {t('stats.owedCount', { count: earnings.owedCount })}
-              </p>
-            </div>
-            <div className="flex flex-col gap-1">
-              <dt className={eyebrowClassName}>{t('stats.paid')}</dt>
-              <dd className="font-display text-3xl font-medium tracking-[-0.025em] tabular-nums">
-                <Price amount={earnings.paidSar} locale={loc} />
-              </dd>
-              <p className="text-sarat-black-600 text-sm">
-                {t('stats.paidCount', { count: earnings.paidCount })}
-              </p>
-            </div>
-            <div className="flex flex-col gap-1">
-              <dt className={eyebrowClassName}>{t('stats.upcoming')}</dt>
-              <dd className="font-display text-3xl font-medium tracking-[-0.025em] tabular-nums">
-                <Price amount={earnings.upcomingSar} locale={loc} />
-              </dd>
-              <p className="text-sarat-black-600 text-sm">
-                {t('stats.upcomingCount', { count: earnings.upcomingCount })}
-              </p>
-            </div>
-          </dl>
+          {/* Totals strip — always all-time (a status snapshot), and in
+              the same order as the Today page: now → next → history. */}
+          <section className="border-sarat-black/8 rounded-card flex flex-col gap-4 [border-width:0.5px] p-6">
+            <p className={eyebrowClassName}>{t('stats.allTime')}</p>
+            <dl className="grid grid-cols-1 gap-5 sm:grid-cols-3">
+              {(
+                [
+                  ['owed', earnings.owedSar, earnings.owedCount],
+                  ['upcoming', earnings.upcomingSar, earnings.upcomingCount],
+                  ['paid', earnings.paidSar, earnings.paidCount],
+                ] as const
+              ).map(([key, amount, count]) => (
+                <div key={key} className="flex flex-col gap-1">
+                  <dt className="text-sarat-black-600 text-xs font-medium">{t(`stats.${key}`)}</dt>
+                  <dd className="font-display text-3xl font-medium tracking-[-0.025em] tabular-nums">
+                    <Price amount={amount} locale={loc} />
+                  </dd>
+                  <p className="text-sarat-black-600 text-sm">
+                    {t(`stats.${key}Count`, { count })}
+                  </p>
+                </div>
+              ))}
+            </dl>
+          </section>
 
           {/* Range filter — narrows the ledger + rollups; the totals
               above stay all-time (they're a status snapshot). */}
           <section className="flex flex-col gap-3">
+            <p className="text-sarat-black-600 text-sm">{t('filter.scopeNote')}</p>
             <div className="flex flex-wrap items-center gap-2">
               {presets.map((preset) => (
                 <Link
@@ -217,7 +230,7 @@ export default async function HostEarningsPage({
                     >
                       <div className="flex min-w-0 flex-col gap-0.5">
                         <span className="truncate text-base font-medium">
-                          {loc === 'ar' ? row.experienceTitleAr : row.experienceTitleEn}
+                          {pickLocalized(loc, row.experienceTitleEn, row.experienceTitleAr)}
                         </span>
                         <span className="text-sarat-black-600 text-sm">
                           {t('breakdown.bookings', { count: row.count })}
@@ -335,12 +348,20 @@ export default async function HostEarningsPage({
           )}
 
           {/* Payout ledger */}
-          <section className="flex flex-col gap-4">
+          <section id="ledger" className="flex flex-col gap-4">
             <div className="flex flex-wrap items-baseline justify-between gap-3">
               <h2 className="font-display text-2xl font-medium tracking-[-0.025em]">
                 {t('history.title')}
+                {earnings.historyTotal > 0 && (
+                  <span className="text-sarat-black-600 ms-2 text-base tabular-nums">
+                    <span className="sr-only">
+                      {t('history.countLabel', { count: earnings.historyTotal })}
+                    </span>
+                    <span aria-hidden>{earnings.historyTotal}</span>
+                  </span>
+                )}
               </h2>
-              {earnings.history.length > 0 && (
+              {earnings.history.length > 0 && scope === 'completed' && (
                 /* Plain <a>: an API route download, not an app navigation. */
                 <a
                   href={exportHref}
@@ -351,8 +372,27 @@ export default async function HostEarningsPage({
                 </a>
               )}
             </div>
+            <nav aria-label={t('history.scopeLabel')} className="flex flex-wrap gap-2">
+              {(['completed', 'upcoming'] as const).map((s) => (
+                <Link
+                  key={s}
+                  href={ledgerHref({ scope: s })}
+                  aria-current={scope === s ? 'page' : undefined}
+                  className={cn(
+                    'rounded-button inline-flex min-h-11 items-center px-4 text-sm font-medium transition-colors duration-200',
+                    scope === s
+                      ? 'bg-sarat-black text-white'
+                      : 'border-sarat-black/20 text-sarat-black hover:border-sarat-black/40 [border-width:0.5px]',
+                  )}
+                >
+                  {t(`history.scope.${s}`)}
+                </Link>
+              ))}
+            </nav>
             {earnings.history.length === 0 ? (
-              <p className="text-sarat-black-600 text-base">{t('history.empty')}</p>
+              <p className="text-sarat-black-600 text-base">
+                {scope === 'upcoming' ? t('history.emptyUpcoming') : t('history.empty')}
+              </p>
             ) : (
               <ul className="border-sarat-black/8 rounded-card divide-sarat-black/8 flex flex-col divide-y [border-width:0.5px]">
                 {earnings.history.map((row) => (
@@ -363,9 +403,13 @@ export default async function HostEarningsPage({
                     <div className="flex min-w-0 flex-col gap-1">
                       <div className="flex flex-wrap items-center gap-3">
                         <span className="truncate text-base font-medium">
-                          {loc === 'ar' ? row.experienceTitleAr : row.experienceTitleEn}
+                          {pickLocalized(loc, row.experienceTitleEn, row.experienceTitleAr)}
                         </span>
-                        {row.paidOutAt ? (
+                        {scope === 'upcoming' ? (
+                          <Badge className="bg-habala-mist/40 text-sarat-black">
+                            {t('history.projectedBadge')}
+                          </Badge>
+                        ) : row.paidOutAt ? (
                           <Badge className="bg-success-surface text-success">
                             {t('history.paidBadge')}
                           </Badge>
@@ -423,6 +467,36 @@ export default async function HostEarningsPage({
                   </li>
                 ))}
               </ul>
+            )}
+            {ledgerPages > 1 && (
+              <nav
+                aria-label={t('history.title')}
+                className="flex items-center justify-between gap-4"
+              >
+                {ledgerPage > 1 ? (
+                  <Link
+                    href={ledgerHref({ page: ledgerPage - 1 })}
+                    className={cn(buttonVariants({ variant: 'secondary', size: 'sm' }))}
+                  >
+                    {t('pagination.prev')}
+                  </Link>
+                ) : (
+                  <span />
+                )}
+                <span className="text-sarat-black-600 text-sm tabular-nums">
+                  {t('pagination.pageOf', { page: ledgerPage, pages: ledgerPages })}
+                </span>
+                {ledgerPage < ledgerPages ? (
+                  <Link
+                    href={ledgerHref({ page: ledgerPage + 1 })}
+                    className={cn(buttonVariants({ variant: 'secondary', size: 'sm' }))}
+                  >
+                    {t('pagination.next')}
+                  </Link>
+                ) : (
+                  <span />
+                )}
+              </nav>
             )}
           </section>
         </>

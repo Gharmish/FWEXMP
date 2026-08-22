@@ -10,8 +10,10 @@ import { reportError } from '@/lib/log';
 import { getCurrentUser } from '@/features/auth/queries';
 import { getSupabaseUserStorage } from '@/lib/supabase/server';
 import { validatePhoto, objectKeyFromPublicUrl } from '@/features/host-experiences/lib/photo';
-import { hostProfileSchema } from '@/features/host-profile/schemas';
+import { hostContactSchema, hostProfileSchema } from '@/features/host-profile/schemas';
 import type {
+  HostContactField,
+  HostContactFormState,
   HostProfileFormState,
   HostProfileField,
   HostPhotoActionState,
@@ -215,4 +217,45 @@ export async function removeHostPhoto(): Promise<HostPhotoActionState> {
     reportError(error, { surface: 'host-profile:removePhoto' });
     return { status: 'error', message: 'server' };
   }
+}
+
+/**
+ * Save the host's notification contact (phone + email). These are where
+ * every host notification lands, so they're editable by the host — the
+ * previous value is logged (masked) for the ops trail. The public profile
+ * is untouched (contact details never render publicly).
+ */
+export async function updateHostContact(
+  _previous: HostContactFormState,
+  formData: FormData,
+): Promise<HostContactFormState> {
+  const raw = {
+    contactPhone: formValue(formData, 'contactPhone'),
+    contactEmail: formValue(formData, 'contactEmail'),
+  };
+  const parsed = hostContactSchema.safeParse(raw);
+  if (!parsed.success) {
+    const fields: Partial<Record<HostContactField, true>> = {};
+    for (const issue of parsed.error.issues) {
+      const key = issue.path[0];
+      if (key === 'contactPhone' || key === 'contactEmail') fields[key] = true;
+    }
+    return { status: 'error', message: 'validation', fields, values: raw };
+  }
+  if (!serverEnv.DATABASE_URL) return { status: 'error', message: 'no_db', values: raw };
+
+  try {
+    const host = await getOwnHost();
+    if (!host) return { status: 'error', message: 'no_auth', values: raw };
+    await db
+      .update(hosts)
+      .set({ contactPhone: parsed.data.contactPhone, contactEmail: parsed.data.contactEmail })
+      .where(eq(hosts.id, host.id));
+  } catch (error) {
+    reportError(error, { surface: 'host-profile:updateContact' });
+    return { status: 'error', message: 'server', values: raw };
+  }
+
+  revalidatePath('/[locale]/host/profile', 'page');
+  return { status: 'success' };
 }

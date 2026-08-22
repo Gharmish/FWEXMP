@@ -283,7 +283,7 @@ export async function replyToReview(
 
     const updated = await db
       .update(reviews)
-      .set({ hostReply: reply })
+      .set({ hostReply: reply, hostRepliedAt: new Date() })
       .where(and(eq(reviews.id, reviewId), isNull(reviews.hostReply)))
       .returning({ id: reviews.id });
     if (updated.length === 0) return { success: false, message: 'already_replied' };
@@ -301,6 +301,73 @@ export async function replyToReview(
     await sendHostRepliedEmail(reviewId);
   } catch (error) {
     reportError(error, { surface: 'reviews:replyToReview:email', reviewId });
+  }
+
+  return { success: true };
+}
+
+/**
+ * Edit a posted reply inside its 24h window (2026-08-22 audit P2-8) —
+ * the host-side mirror of the guest's `updateReview`. Same ownership
+ * rules as `replyToReview`; the window runs from `hostRepliedAt` and is
+ * re-checked in the WHERE so a request straddling the deadline can't
+ * slip through. Legacy replies (no timestamp) stay locked.
+ */
+export interface HostReplyEditState {
+  success: boolean;
+  message?: 'forbidden' | 'no_db' | 'not_found' | 'expired' | 'validation' | 'server';
+}
+
+export async function updateHostReply(
+  _previous: HostReplyEditState,
+  formData: FormData,
+): Promise<HostReplyEditState> {
+  const parsed = hostReplySchema.safeParse({
+    reviewId: formValue(formData, 'reviewId'),
+    reply: formValue(formData, 'reply'),
+    locale: formValue(formData, 'locale'),
+  });
+  if (!parsed.success) return { success: false, message: 'validation' };
+  const { reviewId, reply } = parsed.data;
+
+  const user = await getCurrentUser();
+  if (!user) return { success: false, message: 'forbidden' };
+  if (!serverEnv.DATABASE_URL) return { success: false, message: 'no_db' };
+
+  try {
+    const hostId = await getCurrentHostIdForWrite();
+    if (!hostId) return { success: false, message: 'forbidden' };
+
+    const review = await db.query.reviews.findFirst({
+      where: (r) => eq(r.id, reviewId),
+      columns: { id: true, hostReply: true, hostRepliedAt: true, hiddenAt: true },
+      with: { experience: { columns: { hostId: true } } },
+    });
+    if (!review || review.experience.hostId !== hostId || review.hiddenAt || !review.hostReply) {
+      return { success: false, message: 'not_found' };
+    }
+    if (!review.hostRepliedAt || review.hostRepliedAt.getTime() + EDIT_WINDOW_MS <= Date.now()) {
+      return { success: false, message: 'expired' };
+    }
+
+    const updated = await db
+      .update(reviews)
+      .set({ hostReply: reply })
+      .where(
+        and(
+          eq(reviews.id, reviewId),
+          gt(reviews.hostRepliedAt, new Date(Date.now() - EDIT_WINDOW_MS)),
+        ),
+      )
+      .returning({ id: reviews.id });
+    if (updated.length === 0) return { success: false, message: 'expired' };
+
+    revalidateReviewCaches();
+    revalidatePath('/[locale]/host/reviews', 'page');
+    revalidatePath('/[locale]/experiences/[slug]', 'page');
+  } catch (error) {
+    reportError(error, { surface: 'reviews:updateHostReply', reviewId });
+    return { success: false, message: 'server' };
   }
 
   return { success: true };

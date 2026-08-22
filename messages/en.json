@@ -1894,7 +1894,7 @@
       "menuLabel": "Host navigation",
       "openMenu": "Open menu",
       "roleLabel": "Host",
-      "overview": "Overview",
+      "overview": "Today",
       "bookings": "Bookings",
       "experiences": "Experiences",
       "earnings": "Earnings",
@@ -1902,7 +1902,12 @@
       "profile": "Profile",
       "backToSite": "Back to Gharmish",
       "newExperience": "New experience",
-      "pendingBadge": "{count, plural, one {# pending request} other {# pending requests}}"
+      "pendingBadge": "{count, plural, one {# pending request} other {# pending requests}}",
+      "today": "Today",
+      "more": "More",
+      "help": "Help on WhatsApp",
+      "helpMessage": "Hi, this is {name} (host). I need help with my dashboard.",
+      "tabsLabel": "Host sections"
     },
     "profileCard": {
       "title": "Your profile",
@@ -1925,6 +1930,50 @@
       "empty": "No reviews yet.",
       "viewAll": "All reviews",
       "summary": "{average} · {n, plural, one {# review} other {# reviews}}"
+    },
+    "todayEyebrow": "Today · {date}",
+    "checklist": {
+      "title": "Set up your hosting",
+      "progress": "{done} of {total} done",
+      "verified": "Get verified by Gharmish",
+      "verifiedPendingHint": "Our team is reviewing your documents. You can draft listings meanwhile; publishing opens once you're verified.",
+      "listing": "Draft your first experience",
+      "hero": "Add a hero photo",
+      "heroHint": "A listing can't go to review without one — or book our photographer.",
+      "iban": "Add your payout IBAN",
+      "live": "Get a listing live",
+      "livePendingHint": "Submitted — we usually review within two working days.",
+      "liveHint": "Submit a draft for review when it's ready."
+    },
+    "attention": {
+      "title": "Needs your attention",
+      "moreRequests": "{count, plural, one {# more request} other {# more requests}} waiting",
+      "changesRequested": "Changes requested on \"{title}\"",
+      "unrepliedReviews": "{count, plural, one {# review} other {# reviews}} waiting for your reply",
+      "ibanMissing": "SAR {amount} is owed to you, but there's no payout IBAN on file",
+      "payBy": "Pay by {date}"
+    },
+    "comingUp": {
+      "title": "Coming up this week",
+      "viewAll": "All bookings",
+      "today": "Today",
+      "tomorrow": "Tomorrow",
+      "empty": "Nothing on the calendar in the next seven days.",
+      "emptyNoListing": "Bookings appear here once a listing is live."
+    },
+    "numbers": {
+      "title": "Your numbers",
+      "viewReviews": "Reviews",
+      "rating": "Rating",
+      "ratingCount": "{count, plural, =0 {No reviews yet} one {# review} other {# reviews}}",
+      "responseRate": "Response rate",
+      "responseTime": "Typically replies within {hours, plural, one {# hour} other {# hours}}",
+      "responseNotYet": "Shows after a few requests",
+      "cancellations": "Cancellations by you",
+      "cancellationRate": "{pct, number}% of bookings, last 12 months",
+      "cancellationsHint": "Last 12 months",
+      "listings": "Live listings",
+      "listingsHint": "{total, plural, one {of # listing} other {of # listings}}"
     }
   },
   "hostProfileSettings": {
@@ -1990,6 +2039,21 @@
         "validation": "Check the highlighted fields and try again.",
         "server": "We couldn't save your changes. Try again in a moment."
       }
+    },
+    "contact": {
+      "title": "Contact & notifications",
+      "intro": "New requests, reminders and payout notices go here. Never shown to guests.",
+      "phoneLabel": "WhatsApp number",
+      "phoneHint": "Booking requests and reminders arrive on WhatsApp at this number.",
+      "phonePlaceholder": "5X XXX XXXX",
+      "countryLabel": "Country code",
+      "emailLabel": "Email",
+      "emailHint": "Payout statements and the written record of every booking.",
+      "submit": "Save contact details",
+      "submitting": "Saving…",
+      "saved": "Contact details saved.",
+      "phoneError": "Enter a valid mobile number.",
+      "emailError": "Enter a valid email address."
     }
   },
   "hostBookings": {
@@ -1998,7 +2062,7 @@
     },
     "eyebrow": "Bookings",
     "title": "Your bookings.",
-    "intro": "Requests wait for your decision, upcoming bookings show who's coming, and past ones keep the record. Payments and payouts are confirmed on our side.",
+    "intro": "Requests wait for your decision, upcoming bookings show who's coming, and past ones keep the record. Tap a booking for its full story.",
     "backToDashboard": "Back to dashboard",
     "suspendedBanner": "Your host account is suspended, so booking actions are disabled. You can still see everything here.",
     "paidBadge": "Paid",
@@ -2044,7 +2108,7 @@
       "cancelled": {
         "label": "Cancel booking",
         "pending": "Cancelling…",
-        "confirm": "Cancel this confirmed booking? The guest will see it as cancelled. This can't be undone."
+        "confirm": "Cancel this confirmed booking? The guest is refunded in full and notified, and the cancellation is recorded on your account. This can't be undone."
       },
       "declined": {
         "label": "Decline",
@@ -2063,7 +2127,8 @@
       "tooLate": "This request can't be approved any more — the start time is too close or has already passed.",
       "unpaid": "This booking hasn't been paid — it can't be completed.",
       "validation": "Something about this request was invalid. Refresh and try again.",
-      "server": "Something went wrong on our side. Try again."
+      "server": "Something went wrong on our side. Try again.",
+      "reasonRequired": "Pick a reason for cancelling first."
     },
     "whatsapp": "WhatsApp",
     "respondBy": "Respond by {date}",
@@ -2086,7 +2151,102 @@
       "left": "{hours}h {minutes}m left",
       "minutesLeft": "{minutes}m left",
       "expired": "Response window passed"
-    }
+    },
+    "backToBookings": "All bookings",
+    "countLabel": "{count, plural, one {# booking} other {# bookings}}",
+    "copyReference": "Copy reference {reference}",
+    "cancelledByYou": "Cancelled by you",
+    "contactAfterAccept": "Contact details appear once you accept",
+    "guestNote": "Note from the guest",
+    "seats": {
+      "request": "{taken} of {max} seats taken · {left, plural, =0 {none left} one {# left} other {# left}}",
+      "booked": "{taken} of {max} seats on this date"
+    },
+    "approvalClosed": {
+      "started": "This session has already started — it can't be accepted any more.",
+      "cutoff": "Inside your booking cutoff — too close to the start to accept.",
+      "seats": "Only {left, plural, =0 {no seats} one {# seat} other {# seats}} left on this date; this request needs {needed}."
+    },
+    "cancelReason": {
+      "label": "Why are you cancelling?",
+      "placeholder": "Choose a reason",
+      "options": {
+        "weather": "Weather or safety",
+        "emergency": "Personal emergency",
+        "guest_unreachable": "Couldn't reach the guest",
+        "other": "Something else"
+      },
+      "textLabel": "Anything we should know? (optional)",
+      "textPlaceholder": "A line for our team — the guest won't see this."
+    },
+    "outcome": {
+      "approvedWithWindow": "Accepted {reference}. The guest has until {date} to pay — the seat is held until then and released automatically if they don't.",
+      "approvedPaid": "Accepted {reference}. The guest has been notified and their seat is confirmed.",
+      "declined": "Declined {reference}. The guest has been notified; nothing was charged.",
+      "cancelled": "Cancelled {reference}. The guest has been notified and refunded where applicable.",
+      "completed": "Marked {reference} completed. Its payout now counts as owed to you.",
+      "expired": "That request had already lapsed — {reference} was expired instead, and the guest was told.",
+      "dismiss": "Dismiss"
+    },
+    "views": {
+      "label": "Booking views",
+      "open": "Open",
+      "past": "Past",
+      "calendar": "Calendar",
+      "pastLink": "{count, plural, one {# past booking} other {# past bookings}} →"
+    },
+    "calendar": {
+      "previousMonth": "Previous month",
+      "nextMonth": "Next month",
+      "gridLabel": "Bookings by day",
+      "cell": "{bookings}·{guests}",
+      "dayLabel": "{date}: {bookings, plural, one {# booking} other {# bookings}}, {guests, plural, one {# guest} other {# guests}}",
+      "clearDay": "Show whole month",
+      "emptyDay": "Nothing on this day."
+    },
+    "detail": {
+      "metaTitle": "Booking {reference}",
+      "eyebrow": "Booking",
+      "timeline": {
+        "title": "What happened",
+        "requested": "Requested by the guest",
+        "approved": "Accepted by you",
+        "declined": "Declined by you",
+        "paid": "Guest paid",
+        "reminder": "Day-before reminder sent to the guest",
+        "finalReminder": "Day-of reminder sent to the guest",
+        "cancelledByYou": "Cancelled by you",
+        "cancelledByGuest": "Cancelled by the guest",
+        "cancelledBySystem": "Released — the payment window lapsed",
+        "cancelledByOps": "Cancelled by the Gharmish team",
+        "refunded": "Guest refunded",
+        "hostPaid": "Payout transferred to you"
+      },
+      "facts": {
+        "title": "Details",
+        "policy": "Cancellation policy",
+        "guestPaid": "Guest paid",
+        "payout": "Your payout",
+        "paymentBrand": "Paid with",
+        "rescheduled": "Rescheduled",
+        "rescheduledFrom": "{count, plural, one {Once} other {# times}} — originally {date}",
+        "rescheduledTimes": "{count, plural, one {Once} other {# times}}",
+        "refunded": "Refunded to the guest",
+        "cancellationReason": "Cancellation reason",
+        "attestations": "Guest confirmed"
+      },
+      "policy": {
+        "flexible": "Flexible",
+        "moderate": "Moderate",
+        "strict": "Strict"
+      },
+      "attestations": {
+        "terms": "Terms accepted",
+        "womenOnly": "Women-only attestation",
+        "minAge": "Minimum-age attestation"
+      }
+    },
+    "completeHint": "Happens automatically the day after — press only to count the payout now."
   },
   "hostEarnings": {
     "meta": {
@@ -2107,7 +2267,8 @@
       "paid": "Paid out",
       "paidCount": "{count, plural, one {# booking settled} other {# bookings settled}}",
       "upcoming": "On the calendar",
-      "upcomingCount": "{count, plural, one {# confirmed booking} other {# confirmed bookings}}"
+      "upcomingCount": "{count, plural, one {# confirmed booking} other {# confirmed bookings}}",
+      "allTime": "All time"
     },
     "payoutMethod": {
       "title": "Payout method",
@@ -2135,7 +2296,15 @@
       "export": "Download CSV",
       "gross": "Guest paid <amount></amount>",
       "vat": "VAT (to ZATCA) <amount></amount>",
-      "commission": "Gharmish commission {pct, number}% · <amount></amount>"
+      "commission": "Gharmish commission {pct, number}% · <amount></amount>",
+      "countLabel": "{count, plural, one {# booking} other {# bookings}}",
+      "scopeLabel": "Ledger scope",
+      "scope": {
+        "completed": "Earned",
+        "upcoming": "On the calendar"
+      },
+      "emptyUpcoming": "No confirmed bookings ahead in this range.",
+      "projectedBadge": "Projected"
     },
     "statements": {
       "title": "Payout statements",
@@ -2178,7 +2347,8 @@
       },
       "from": "From",
       "to": "To",
-      "apply": "Apply"
+      "apply": "Apply",
+      "scopeNote": "The date range narrows the ledger and the breakdowns below; the totals above are always all-time."
     },
     "breakdown": {
       "title": "By experience",
@@ -2188,6 +2358,11 @@
     "monthly": {
       "title": "By month",
       "empty": "No completed bookings in this range."
+    },
+    "pagination": {
+      "pageOf": "Page {page} of {pages}",
+      "prev": "Previous",
+      "next": "Next"
     }
   },
   "hostReviews": {
@@ -2217,8 +2392,20 @@
         "notFound": "We couldn't find that review.",
         "alreadyReplied": "This review already has a reply.",
         "validation": "Write a reply between 2 and 1000 characters.",
-        "server": "Something went wrong on our side. Try again."
-      }
+        "server": "Something went wrong on our side. Try again.",
+        "expired": "Replies can only be edited for 24 hours after posting."
+      },
+      "edit": "Edit reply",
+      "editLabel": "Edit your reply (within 24 hours of posting)",
+      "editSubmit": "Save reply",
+      "editSuccess": "Reply updated.",
+      "cancelEdit": "Keep as is"
+    },
+    "awaitingReply": "{count, plural, one {# review is} other {# reviews are}} waiting for your reply — they're listed first.",
+    "pagination": {
+      "pageOf": "Page {page} of {pages}",
+      "prev": "Previous",
+      "next": "Next"
     }
   },
   "hostExperiences": {
@@ -2497,7 +2684,17 @@
       "eyebrow": "Listings",
       "title": "Your experiences",
       "intro": "Everything you host, in one place — drafts, listings in review, and what's live in the catalog.",
-      "deletedNotice": "Draft deleted."
+      "deletedNotice": "Draft deleted.",
+      "bookings30d": "{count, plural, =0 {No bookings in 30 days} one {# booking in 30 days} other {# bookings in 30 days}}",
+      "noRating": "No rating yet",
+      "noPhoto": "No hero photo yet",
+      "archivedFold": "{count, plural, one {# archived listing} other {# archived listings}}",
+      "nextStep": {
+        "changesRequested": "The reviewer sent this back — open it to see what to change.",
+        "pendingReview": "In review — we usually reply within two working days.",
+        "draft": "Draft — finish it and submit for review.",
+        "paused": "Paused — not bookable until you republish."
+      }
     },
     "gallery": {
       "heading": "Gallery",
@@ -2816,7 +3013,11 @@
     "tooManyHint": "Finish or cancel one of these to free a spot — then you can book this or any other experience.",
     "tooManyStatusPayment": "Awaiting payment",
     "tooManyStatusApproval": "Waiting for host approval",
-    "tooManyStatusConfirmed": "Confirmed"
+    "tooManyStatusConfirmed": "Confirmed",
+    "noteLabel": "Anything the host should know? (optional)",
+    "noteHint": "Dietary needs, children's ages, a pickup point, the language you'd prefer — the host sees this with your request.",
+    "notePlaceholder": "e.g. Two of us are vegetarian, and we'd love to start a little later.",
+    "noteTooLong": "Keep your note under 500 characters."
   },
   "bookingConfirmed": {
     "meta": {
@@ -3234,6 +3435,9 @@
     "cancelByHostIntroRefunded": "Your host couldn't run this booking, so we've cancelled it and refunded your payment in full. Refunds usually arrive within a few business days, depending on your bank.",
     "cancelByHostIntroRefundPending": "Your host couldn't run this booking, so we've cancelled it. Your full refund is on its way — our team processes it by hand, so it can take a few business days.",
     "cancelByHostIntroUnpaid": "Your host couldn't run this booking, so we've cancelled it. Nothing was charged.",
+    "cancelByOpsIntroRefunded": "The Gharmish team has cancelled this booking and refunded your payment in full. Refunds usually arrive within a few business days, depending on your bank.",
+    "cancelByOpsIntroRefundPending": "The Gharmish team has cancelled this booking. Your full refund is on its way — our team processes it by hand, so it can take a few business days.",
+    "cancelByOpsIntroUnpaid": "The Gharmish team has cancelled this booking. Nothing was charged.",
     "cancelIntroWalletCredited": "Due to an emergency, this experience couldn't go ahead — we're sorry. Your full payment has been added to your Gharmish Credit: spend it on any experience at checkout, or open your booking page to move it back to your card.",
     "walletCreditLabel": "Added to your Gharmish Credit",
     "viewWalletCredit": "View your refund options",

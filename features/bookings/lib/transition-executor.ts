@@ -54,7 +54,12 @@ import {
 
 export type TransitionActor =
   | { kind: 'admin'; actorUserId: string }
-  | { kind: 'host'; hostId: string };
+  | {
+      kind: 'host';
+      hostId: string;
+      /** Host-stated reason when cancelling (stored on the booking). */
+      reason?: string;
+    };
 
 export type TransitionResult =
   /** The booking moved to `to`; side effects (refund, email) ran. */
@@ -144,7 +149,19 @@ export async function executeBookingTransition(
       stamp = { status: to, declinedAt: new Date() };
     }
     if (to === 'cancelled') {
-      stamp = { status: to, cancelledAt: new Date(), cancellationKind: 'operator' };
+      // Who called it off is part of the record (2026-08-22 host-dashboard
+      // audit P1-4): a host cancelling their own booking is `host`, an
+      // admin override stays `operator`. The host's stated reason rides
+      // along so ops can see the pattern without a support thread.
+      stamp =
+        actor.kind === 'host'
+          ? {
+              status: to,
+              cancelledAt: new Date(),
+              cancellationKind: 'host',
+              cancellationReason: actor.reason ?? null,
+            }
+          : { status: to, cancelledAt: new Date(), cancellationKind: 'operator' };
     }
     if (isApproval) {
       const needsPayment = hasHyperpay() && booking.paymentStatus === 'unpaid';
@@ -244,7 +261,7 @@ export async function executeBookingTransition(
       await sendBookingDeclinedEmail(outcome.reference);
     } else if (outcome.decided === 'cancelled') {
       await sendBookingCancellationEmail(outcome.reference, refund, {
-        cancelledBy: 'operator',
+        cancelledBy: actor.kind === 'host' ? 'host' : 'operator',
         // The FULL paid base — card charge plus any redeemed credit —
         // which is what `executeRefund` was asked to return above
         // (2026-07-28 eighth audit). Omitted, the template defaulted to

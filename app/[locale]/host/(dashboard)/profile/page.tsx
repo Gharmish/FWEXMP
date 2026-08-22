@@ -9,10 +9,10 @@ import { SITE_URL } from '@/lib/site';
 import { Avatar } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Card } from '@/components/ui/card';
-import { getCurrentUser } from '@/features/auth/queries';
 import { getHostDashboard } from '@/features/host-dashboard/queries';
 import { HostProfileForm } from '@/features/host-profile/components/host-profile-form';
 import { HostPhotoUpload } from '@/features/host-profile/components/host-photo-upload';
+import { HostContactForm } from '@/features/host-profile/components/host-contact-form';
 
 export async function generateMetadata({
   params,
@@ -44,10 +44,6 @@ export default async function HostProfileSettingsPage({
   setRequestLocale(locale);
   const loc = locale as Locale;
 
-  const user = await getCurrentUser();
-  if (!user) {
-    redirect({ href: '/sign-in?next=/host/profile', locale: loc });
-  }
   const dashboard = await getHostDashboard();
   if (!dashboard) {
     redirect({ href: '/host/apply', locale: loc });
@@ -173,6 +169,41 @@ export default async function HostProfileSettingsPage({
             storyError: t('details.storyError'),
             storyArError: t('details.storyArError'),
             languagesError: t('details.languagesError'),
+            errors: {
+              no_db: t('details.errors.noDb'),
+              no_auth: t('details.errors.noAuth'),
+              validation: t('details.errors.validation'),
+              server: t('details.errors.server'),
+            },
+          }}
+        />
+      </Card>
+
+      {/* Contact & notifications — where every request, reminder and
+          payout notice lands. Never shown publicly. */}
+      <Card className="flex flex-col gap-6 p-6 sm:p-8">
+        <div className="flex flex-col gap-2">
+          <h2 className={sectionTitle}>{t('contact.title')}</h2>
+          <p className="text-sarat-black-600 text-sm leading-relaxed">{t('contact.intro')}</p>
+        </div>
+        <HostContactForm
+          locale={loc}
+          contact={{
+            contactPhone: host.contactPhone ?? '',
+            contactEmail: host.contactEmail ?? '',
+          }}
+          copy={{
+            phoneLabel: t('contact.phoneLabel'),
+            phoneHint: t('contact.phoneHint'),
+            phonePlaceholder: t('contact.phonePlaceholder'),
+            countryLabel: t('contact.countryLabel'),
+            emailLabel: t('contact.emailLabel'),
+            emailHint: t('contact.emailHint'),
+            submit: t('contact.submit'),
+            submitting: t('contact.submitting'),
+            saved: t('contact.saved'),
+            phoneError: t('contact.phoneError'),
+            emailError: t('contact.emailError'),
             errors: {
               no_db: t('details.errors.noDb'),
               no_auth: t('details.errors.noAuth'),

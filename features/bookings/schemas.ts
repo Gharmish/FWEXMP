@@ -97,6 +97,18 @@ export const bookingRequestSchema = z.object({
     .optional()
     .transform((value) => value === 'on')
     .catch(false),
+  /**
+   * Optional note to the host (2026-08-22 host-dashboard audit P1-3):
+   * dietary needs, kids' ages, pickup point, language. Trimmed, ≤500
+   * chars; blank stores null. Never load-bearing — an oversized note is
+   * a validation error, not a dropped booking.
+   */
+  guestNote: z
+    .string()
+    .trim()
+    .max(500, 'too_long')
+    .optional()
+    .transform((value) => (value ? value : undefined)),
 });
 
 export type BookingRequestInput = z.infer<typeof bookingRequestSchema>;

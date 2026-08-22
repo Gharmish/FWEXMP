@@ -1,8 +1,9 @@
 import { cache } from 'react';
-import { eq } from 'drizzle-orm';
+import { and, eq, sql } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import { serverEnv } from '@/lib/env';
 import type { Host } from '@/db/schema';
+import { bookings, experiences } from '@/db/schema';
 import { reportError } from '@/lib/log';
 import { getCurrentUser } from '@/features/auth/queries';
 import type { HostProfile } from '@/features/hosts/types';
@@ -22,6 +23,11 @@ export interface HostDashboardData {
   host: HostProfile & {
     id: string;
     verificationStatus: 'pending' | 'verified' | 'suspended';
+    /** Whether a payout IBAN is on file — the setup checklist's money step. */
+    payoutIbanSet: boolean;
+    /** Notification contact — editable on /host/profile, never public. */
+    contactPhone: string | null;
+    contactEmail: string | null;
   };
 }
 
@@ -39,6 +45,9 @@ function toProfile(row: Host): HostDashboardData['host'] {
     verificationStatus: row.verificationStatus,
     photoUrl: row.photoUrl,
     joinedAt: row.createdAt.toISOString(),
+    payoutIbanSet: Boolean(row.payoutIban),
+    contactPhone: row.contactPhone,
+    contactEmail: row.contactEmail,
   };
 }
 
@@ -95,3 +104,121 @@ export const getHostDashboard = cache(
     }
   },
 );
+
+/** The signed-in host's id + status, or null (signed out / not a host / no DB). */
+export interface CurrentHostRef {
+  id: string;
+  verificationStatus: HostDashboardData['host']['verificationStatus'];
+}
+
+/**
+ * Request-memoised host resolver for every host-scoped query (2026-08-22
+ * dashboard audit P1-5). Before this, each of the six overview queries
+ * re-ran `getCurrentUser()` → `hosts.findFirst` before its real work —
+ * ~7 redundant lookups per render, each making its consumer a two-deep
+ * chain against a DB in eu-central-1. Backed by the already-cached
+ * `getHostDashboard`, so the whole request pays for ONE hosts read.
+ *
+ * Contract for callers: `null` means "no host to scope to" — the same
+ * answer the old per-query resolvers gave on a DB error, so list helpers
+ * keep their empty-result semantics; the layout's own `getHostDashboard`
+ * call has already surfaced a real outage to the error boundary.
+ */
+export const getCurrentHostRef = cache(
+  async function getCurrentHostRef(): Promise<CurrentHostRef | null> {
+    try {
+      const dashboard = await getHostDashboard();
+      if (!dashboard) return null;
+      return { id: dashboard.host.id, verificationStatus: dashboard.host.verificationStatus };
+    } catch (error) {
+      reportError(error, { surface: 'host-dashboard:currentHostRef' });
+      return null;
+    }
+  },
+);
+
+/** Host id for READS — status-blind, so a suspended host still sees their own data. */
+export async function getCurrentHostId(): Promise<string | null> {
+  const ref = await getCurrentHostRef();
+  return ref?.id ?? null;
+}
+
+/** Listing + cancellation facts behind the Today page's checklist and "Your numbers". */
+export interface HostTodayFacts {
+  listings: {
+    total: number;
+    live: number;
+    draft: number;
+    pendingReview: number;
+    changesRequested: number;
+    paused: number;
+    /** Listings with a hero photo — the photography step of the checklist. */
+    withHero: number;
+  };
+  /** Listings the reviewer sent back, for the attention card. */
+  changesRequested: readonly { id: string; titleEn: string; titleAr: string }[];
+  /** Host-initiated cancellations in the trailing 12 months. */
+  cancellations12m: number;
+  /** Bookings that reached confirmed-or-later in the same window — the rate's denominator. */
+  bookings12m: number;
+}
+
+/**
+ * One round trip each for the two aggregates the Today page needs
+ * beyond bookings/earnings/reviews: the listing status mix (setup
+ * checklist + attention card) and the host's own cancellation rate
+ * (2026-08-22 audit P1-1/P2-4). Null when there's no host to scope to.
+ */
+export async function getHostTodayFacts(): Promise<HostTodayFacts | null> {
+  const ref = await getCurrentHostRef();
+  if (!ref || !serverEnv.DATABASE_URL) return null;
+  // ISO string + explicit cast: a bare Date param inside a FILTER clause
+  // isn't typed by the driver and fails to serialize.
+  const since = new Date(Date.now() - 365 * 24 * 60 * 60 * 1000).toISOString();
+  try {
+    const [[listings], changesRequested, [cancellations]] = await Promise.all([
+      db
+        .select({
+          total: sql<number>`count(*)::int`,
+          live: sql<number>`count(*) filter (where ${experiences.status} = 'live')::int`,
+          draft: sql<number>`count(*) filter (where ${experiences.status} = 'draft')::int`,
+          pendingReview: sql<number>`count(*) filter (where ${experiences.status} = 'pending_review')::int`,
+          changesRequested: sql<number>`count(*) filter (where ${experiences.status} = 'changes_requested')::int`,
+          paused: sql<number>`count(*) filter (where ${experiences.status} = 'paused')::int`,
+          withHero: sql<number>`count(*) filter (where ${experiences.heroImage} is not null)::int`,
+        })
+        .from(experiences)
+        .where(eq(experiences.hostId, ref.id)),
+      db
+        .select({ id: experiences.id, titleEn: experiences.titleEn, titleAr: experiences.titleAr })
+        .from(experiences)
+        .where(and(eq(experiences.hostId, ref.id), eq(experiences.status, 'changes_requested')))
+        .limit(3),
+      db
+        .select({
+          cancellations12m: sql<number>`count(*) filter (where ${bookings.cancellationKind} = 'host' and ${bookings.cancelledAt} >= ${since}::timestamptz)::int`,
+          bookings12m: sql<number>`count(*) filter (where ${bookings.approvedAt} >= ${since}::timestamptz or (${bookings.status} in ('confirmed', 'completed') and ${bookings.createdAt} >= ${since}::timestamptz))::int`,
+        })
+        .from(bookings)
+        .innerJoin(experiences, eq(bookings.experienceId, experiences.id))
+        .where(eq(experiences.hostId, ref.id)),
+    ]);
+    return {
+      listings: {
+        total: listings?.total ?? 0,
+        live: listings?.live ?? 0,
+        draft: listings?.draft ?? 0,
+        pendingReview: listings?.pendingReview ?? 0,
+        changesRequested: listings?.changesRequested ?? 0,
+        paused: listings?.paused ?? 0,
+        withHero: listings?.withHero ?? 0,
+      },
+      changesRequested,
+      cancellations12m: cancellations?.cancellations12m ?? 0,
+      bookings12m: cancellations?.bookings12m ?? 0,
+    };
+  } catch (error) {
+    reportError(error, { surface: 'host-dashboard:todayFacts', hostId: ref.id });
+    return null;
+  }
+}

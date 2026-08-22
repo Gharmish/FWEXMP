@@ -233,7 +233,15 @@ export interface BookingRequestState {
   // fields in the FIELD_NAMES sense (checkbox state, not text inputs).
   fields?: Partial<
     Record<
-      'name' | 'phone' | 'preferredDate' | 'partySize' | 'email' | 'womenOnly' | 'terms' | 'minAge',
+      | 'name'
+      | 'phone'
+      | 'preferredDate'
+      | 'partySize'
+      | 'email'
+      | 'womenOnly'
+      | 'terms'
+      | 'minAge'
+      | 'guestNote',
       string
     >
   >;
@@ -250,13 +258,14 @@ export interface BookingRequestState {
       | 'womenOnly'
       | 'terms'
       | 'minAge'
-      | 'marketingConsent',
+      | 'marketingConsent'
+      | 'guestNote',
       string
     >
   >;
 }
 
-const FIELD_NAMES = ['name', 'phone', 'preferredDate', 'partySize', 'email'] as const;
+const FIELD_NAMES = ['name', 'phone', 'preferredDate', 'partySize', 'email', 'guestNote'] as const;
 
 function formValue(formData: FormData, key: string): string {
   const value = formData.get(key);
@@ -294,6 +303,7 @@ export async function requestBooking(
     ttclid: formValue(formData, 'ttclid'),
     fbclid: formValue(formData, 'fbclid'),
     marketingConsent: formValue(formData, 'marketingConsent'),
+    guestNote: formValue(formData, 'guestNote'),
   });
 
   if (!parsed.success) {
@@ -670,6 +680,8 @@ export async function requestBooking(
       // Per-booking snapshot of the marketing-consent checkbox; the
       // durable per-guest grant is stamped on the guest row above.
       marketingConsent: input.marketingConsent,
+      // The guest's message to the host — shown on the request card.
+      guestNote: input.guestNote ?? null,
       // Consent evidence — the checkboxes above were enforced before this
       // point, so a created booking always carries its acceptance stamps
       // and the document version accepted (2026-08-02 legal audit).

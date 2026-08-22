@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { HOST_LANGUAGE_OPTIONS } from '@/features/host-applications/types';
+import { normalizeToE164 } from '@/lib/phone';
 
 /**
  * Host profile edit — one schema validates the client form, the server
@@ -50,3 +51,46 @@ export const hostProfileSchema = z
   }));
 
 export type HostProfileInput = z.infer<typeof hostProfileSchema>;
+
+/**
+ * Host contact details (2026-08-22 audit P2-10). Every notification —
+ * new requests, reminders, payouts — goes to these; before this they
+ * were copied from the application at approval and never editable, so a
+ * host who changed numbers silently stopped hearing about requests.
+ * Same phone rule as the booking form (any country except Israel,
+ * canonical E.164); email lowercased.
+ */
+export const hostContactSchema = z.object({
+  contactPhone: z
+    .string()
+    .trim()
+    .transform((raw, ctx) => {
+      if (!raw) {
+        ctx.addIssue({ code: 'custom', message: 'phone_required' });
+        return z.NEVER;
+      }
+      const e164 = normalizeToE164(raw);
+      if (!e164) {
+        ctx.addIssue({ code: 'custom', message: 'phone_invalid' });
+        return z.NEVER;
+      }
+      return e164;
+    }),
+  contactEmail: z
+    .string()
+    .trim()
+    .max(254)
+    .transform((raw, ctx) => {
+      if (!raw) {
+        ctx.addIssue({ code: 'custom', message: 'email_required' });
+        return z.NEVER;
+      }
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(raw)) {
+        ctx.addIssue({ code: 'custom', message: 'email_invalid' });
+        return z.NEVER;
+      }
+      return raw.toLowerCase();
+    }),
+});
+
+export type HostContactInput = z.infer<typeof hostContactSchema>;

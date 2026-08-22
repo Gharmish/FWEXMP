@@ -60,7 +60,6 @@ function bidiIsolate(value: string): string {
 /** Brand wordmark for email headers — PNG (clients don't render SVG). */
 const EMAIL_LOGO_URL = `${SITE_URL}/images/gharmish-email-logo.png`;
 
-
 /** Email hero block from an experience's photo, when it has one. */
 function emailHero(
   experience: { heroImage: string | null } | undefined,
@@ -498,7 +497,7 @@ export async function sendBookingCancellationEmail(
   reference: string,
   refund: 'none' | 'refunded' | 'refund_pending' | 'wallet_credited' | 'forfeited',
   options?: {
-    cancelledBy?: 'guest' | 'operator';
+    cancelledBy?: 'guest' | 'host' | 'operator';
     /**
      * Amount actually refunded (or queued) — pass it for partial
      * policy refunds; defaults to the full charge when omitted.
@@ -546,17 +545,26 @@ export async function sendBookingCancellationEmail(
   }
   rows.push({ label: t('referenceLabel'), value: booking.referenceCode });
 
-  const byOperator = options?.cancelledBy === 'operator';
+  // Three framings (2026-08-22): the guest cancelled ("your booking has
+  // been cancelled"), the host couldn't run it, or the Gharmish team
+  // called it off — admin cancellations used to borrow the host framing
+  // and blame the host for an ops decision.
+  const framing =
+    options?.cancelledBy === 'host'
+      ? 'cancelByHost'
+      : options?.cancelledBy === 'operator'
+        ? 'cancelByOps'
+        : 'cancel';
   const intro =
     refund === 'refunded'
-      ? t(byOperator ? 'cancelByHostIntroRefunded' : 'cancelIntroRefunded')
+      ? t(`${framing}IntroRefunded`)
       : refund === 'refund_pending'
-        ? t(byOperator ? 'cancelByHostIntroRefundPending' : 'cancelIntroRefundPending')
+        ? t(`${framing}IntroRefundPending`)
         : refund === 'wallet_credited'
           ? t('cancelIntroWalletCredited')
           : refund === 'forfeited'
             ? t('cancelIntroForfeited')
-            : t(byOperator ? 'cancelByHostIntroUnpaid' : 'cancelIntroUnpaid');
+            : t(`${framing}IntroUnpaid`);
 
   // Refunded (or refund-owed) payments get a link to the invoice page,
   // which carries the credit note for VAT-stamped bookings and the
@@ -603,7 +611,6 @@ export async function sendBookingCancellationEmail(
     closing: t('cancelClosing'),
     footer: t('footer'),
   });
-
 
   await dispatchNotification({
     type: 'booking_cancelled',
@@ -1003,7 +1010,6 @@ async function lifecycleDetails(
   rows.push({ label: t('referenceLabel'), value: booking.referenceCode });
   return { rows, title, startsAt, hero: emailHero(experience, title) };
 }
-
 
 /**
  * Acknowledge a guest's booking request (request-to-book only): "the host

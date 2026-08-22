@@ -1,9 +1,18 @@
 'use client';
 
 import { useState, type ReactNode } from 'react';
-import { ArrowLeft, Menu, Plus } from 'lucide-react';
+import {
+  ArrowLeft,
+  Banknote,
+  CalendarCheck,
+  LayoutDashboard,
+  LifeBuoy,
+  Map,
+  Menu,
+  Plus,
+} from 'lucide-react';
 import { useTranslations } from 'next-intl';
-import { Link } from '@/lib/i18n';
+import { Link, usePathname } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
 import { buttonVariants } from '@/components/ui/button';
 import { GharmishLogo } from '@/components/layout/gharmish-logo';
@@ -16,6 +25,10 @@ interface HostShellProps {
   userLabel: string;
   /** Pending booking requests — surfaced as a chip on the bookings item. */
   pendingRequests: number;
+  /** Whether the "new experience" CTA renders (hidden for suspended hosts). */
+  canCreate: boolean;
+  /** WhatsApp support deep link, when a support number is configured. */
+  supportHref: string | null;
   /**
    * Session controls (sign-out, language switch) lifted from the public
    * navbar, which the host layout hides. Rendered in the rail footer so
@@ -25,6 +38,14 @@ interface HostShellProps {
   actions?: ReactNode;
 }
 
+/** Mobile bottom tabs — the four destinations a host reaches for daily. */
+const TABS = [
+  { href: '/host', Icon: LayoutDashboard, labelKey: 'today', exact: true },
+  { href: '/host/bookings', Icon: CalendarCheck, labelKey: 'bookings', showPending: true },
+  { href: '/host/experiences', Icon: Map, labelKey: 'experiences' },
+  { href: '/host/earnings', Icon: Banknote, labelKey: 'earnings' },
+] as const;
+
 /**
  * The host application shell — the sibling of `AdminShell`: a persistent
  * left rail (logo + nav + signed-in footer) beside a content column with a
@@ -33,12 +54,23 @@ interface HostShellProps {
  * The rail sits on the inline-start side, so it lands on the right
  * automatically in the RTL (Arabic) locale.
  *
- * On `lg` and up the rail is static. Below that it collapses into a drawer
- * toggled from the top bar; an overlay closes it, and following any link
- * does too (`onNavigate`).
+ * On `lg` and up the rail is static. Below that (2026-08-22 audit P1-2)
+ * the primary destinations live in a bottom tab bar — with the pending
+ * requests count on Bookings, so a request with a 24h SLA is visible
+ * from every page — and the drawer keeps the rest (profile, reviews,
+ * help, back to site, sign out). The hamburger carries a dot whenever a
+ * request is waiting.
  */
-export function HostShell({ children, userLabel, pendingRequests, actions }: HostShellProps) {
+export function HostShell({
+  children,
+  userLabel,
+  pendingRequests,
+  canCreate,
+  supportHref,
+  actions,
+}: HostShellProps) {
   const t = useTranslations('hostDashboard.nav');
+  const pathname = usePathname();
   const [open, setOpen] = useState(false);
 
   const railBody = (
@@ -54,16 +86,29 @@ export function HostShell({ children, userLabel, pendingRequests, actions }: Hos
       <div className="flex-1">
         <HostNav pendingRequests={pendingRequests} onNavigate={() => setOpen(false)} />
       </div>
-      {/* Way out of the dashboard — without this, sign-out is the only
-          exit back to the public site. */}
-      <Link
-        href="/"
-        onClick={() => setOpen(false)}
-        className="text-sarat-black-600 hover:bg-mist hover:text-sarat-black rounded-input flex items-center gap-3 px-3 py-2.5 text-sm transition-colors duration-200"
-      >
-        <ArrowLeft className="size-5 shrink-0 rtl:rotate-180" aria-hidden />
-        <span className="truncate">{t('backToSite')}</span>
-      </Link>
+      <div className="flex flex-col gap-0.5">
+        {supportHref && (
+          <a
+            href={supportHref}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-sarat-black-600 hover:bg-mist hover:text-sarat-black rounded-input flex min-h-11 items-center gap-3 px-3 py-2.5 text-sm transition-colors duration-200"
+          >
+            <LifeBuoy className="size-5 shrink-0" aria-hidden />
+            <span className="truncate">{t('help')}</span>
+          </a>
+        )}
+        {/* Way out of the dashboard — without this, sign-out is the only
+            exit back to the public site. */}
+        <Link
+          href="/"
+          onClick={() => setOpen(false)}
+          className="text-sarat-black-600 hover:bg-mist hover:text-sarat-black rounded-input flex min-h-11 items-center gap-3 px-3 py-2.5 text-sm transition-colors duration-200"
+        >
+          <ArrowLeft className="size-5 shrink-0 rtl:rotate-180" aria-hidden />
+          <span className="truncate">{t('backToSite')}</span>
+        </Link>
+      </div>
       <div className="border-sarat-black/8 rounded-card flex flex-col gap-3 [border-width:0.5px] p-4">
         <div className="flex flex-col gap-0.5">
           <p className="text-sarat-black-600 text-[11px] font-medium tracking-[0.2em] uppercase">
@@ -107,10 +152,20 @@ export function HostShell({ children, userLabel, pendingRequests, actions }: Hos
           <button
             type="button"
             onClick={() => setOpen(true)}
-            aria-label={t('openMenu')}
-            className="text-sarat-black hover:bg-mist rounded-input -ms-2 inline-flex size-11 items-center justify-center transition-colors duration-200 lg:hidden"
+            aria-label={
+              pendingRequests > 0
+                ? `${t('openMenu')} · ${t('pendingBadge', { count: pendingRequests })}`
+                : t('openMenu')
+            }
+            className="text-sarat-black hover:bg-mist rounded-input relative -ms-2 inline-flex size-11 items-center justify-center transition-colors duration-200 lg:hidden"
           >
             <Menu className="size-5" aria-hidden />
+            {pendingRequests > 0 && (
+              <span
+                aria-hidden
+                className="bg-saffron-gold absolute end-2 top-2 size-2 rounded-full"
+              />
+            )}
           </button>
           <Link
             href="/host"
@@ -119,21 +174,73 @@ export function HostShell({ children, userLabel, pendingRequests, actions }: Hos
           >
             <GharmishLogo className="h-5 w-auto" />
           </Link>
-          <Link
-            href="/host/experiences/new"
-            className={cn(
-              buttonVariants({ variant: 'primary', size: 'sm' }),
-              'ms-auto inline-flex items-center gap-2',
-            )}
-          >
-            <Plus className="size-4 shrink-0" aria-hidden />
-            {t('newExperience')}
-          </Link>
+          {canCreate && (
+            <Link
+              href="/host/experiences/new"
+              className={cn(
+                buttonVariants({ variant: 'primary', size: 'sm' }),
+                'ms-auto inline-flex items-center gap-2',
+              )}
+            >
+              <Plus className="size-4 shrink-0" aria-hidden />
+              <span className="hidden sm:inline">{t('newExperience')}</span>
+              <span className="sr-only sm:hidden">{t('newExperience')}</span>
+            </Link>
+          )}
         </header>
 
-        <main className="flex-1 px-4 py-8 sm:px-6 lg:px-10 lg:py-12">
+        <main className="flex-1 px-4 py-8 pb-28 sm:px-6 lg:px-10 lg:py-12 lg:pb-12">
           <div className="mx-auto w-full max-w-6xl">{children}</div>
         </main>
+
+        {/* Bottom tab bar (below lg) */}
+        <nav
+          aria-label={t('tabsLabel')}
+          className="border-sarat-black/8 fixed inset-x-0 bottom-0 z-30 grid grid-cols-5 [border-block-start-width:0.5px] bg-white/95 pb-[env(safe-area-inset-bottom)] backdrop-blur lg:hidden"
+        >
+          {TABS.map((tab) => {
+            const active =
+              'exact' in tab && tab.exact
+                ? pathname === tab.href
+                : pathname === tab.href || pathname.startsWith(`${tab.href}/`);
+            const showPending = 'showPending' in tab && tab.showPending && pendingRequests > 0;
+            return (
+              <Link
+                key={tab.href}
+                href={tab.href}
+                aria-current={active ? 'page' : undefined}
+                className={cn(
+                  'relative flex min-h-14 flex-col items-center justify-center gap-1 text-[11px] font-medium',
+                  active ? 'text-sarat-black' : 'text-sarat-black-600',
+                )}
+              >
+                <span className="relative">
+                  <tab.Icon className="size-5" aria-hidden />
+                  {showPending && (
+                    <span className="bg-saffron-gold text-sarat-black absolute -end-2 -top-1.5 inline-flex min-w-4 items-center justify-center rounded-full px-1 text-[10px] leading-4 tabular-nums">
+                      {pendingRequests}
+                    </span>
+                  )}
+                </span>
+                <span className="truncate">{t(tab.labelKey)}</span>
+                {active && (
+                  <span
+                    aria-hidden
+                    className="bg-saffron-gold absolute inset-x-5 top-0 h-0.5 rounded-full"
+                  />
+                )}
+              </Link>
+            );
+          })}
+          <button
+            type="button"
+            onClick={() => setOpen(true)}
+            className="text-sarat-black-600 flex min-h-14 flex-col items-center justify-center gap-1 text-[11px] font-medium"
+          >
+            <Menu className="size-5" aria-hidden />
+            <span>{t('more')}</span>
+          </button>
+        </nav>
       </div>
     </div>
   );

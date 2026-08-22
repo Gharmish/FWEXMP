@@ -35,6 +35,11 @@ interface BookingRequestCopy {
   phone: string;
   email: string;
   emailHint: string;
+  /** Optional note to the host (2026-08-22 host-dashboard audit P1-3). */
+  noteLabel: string;
+  noteHint: string;
+  notePlaceholder: string;
+  noteTooLong: string;
   /** Shown when a non-empty email doesn't parse. */
   emailInvalid: string;
   preferredDate: string;
@@ -171,11 +176,17 @@ export interface BookingRequestFormProps {
   copy: BookingRequestCopy;
 }
 
-const FIELD_NAMES = ['name', 'phone', 'email', 'preferredDate', 'partySize'] as const;
+const FIELD_NAMES = ['name', 'phone', 'email', 'preferredDate', 'partySize', 'guestNote'] as const;
 type FieldName = (typeof FIELD_NAMES)[number];
 
 /** Which fields carry a static helper hint under the label. */
-const FIELDS_WITH_HINTS = new Set<FieldName>(['phone', 'email', 'preferredDate', 'partySize']);
+const FIELDS_WITH_HINTS = new Set<FieldName>([
+  'phone',
+  'email',
+  'preferredDate',
+  'partySize',
+  'guestNote',
+]);
 
 const initialState: BookingRequestState = { success: false, values: {} };
 
@@ -254,6 +265,9 @@ function messageForField(
   }
   if (field === 'email') {
     return code === 'invalid_email' ? copy.emailInvalid : copy.emailRequired;
+  }
+  if (field === 'guestNote') {
+    return copy.noteTooLong;
   }
   return copy.required;
 }
@@ -806,6 +820,31 @@ export function BookingRequestForm({
             )}
           </div>
 
+          {/* A line to the host — dietary needs, kids' ages, pickup point.
+              Optional; shows on the host's request card, never publicly. */}
+          <div className="flex flex-col gap-2">
+            <label htmlFor="booking-note" className="text-sm font-medium">
+              {copy.noteLabel}
+            </label>
+            <textarea
+              id="booking-note"
+              name="guestNote"
+              rows={3}
+              maxLength={500}
+              defaultValue={values.guestNote}
+              placeholder={copy.notePlaceholder}
+              className="rounded-input border-sarat-black/20 text-sarat-black placeholder:text-sarat-black-600 aria-invalid:border-al-qatt-red w-full [border-width:0.5px] bg-white px-4 py-3 text-base"
+              {...fieldProps('guestNote')}
+            />
+            <p id={hintId('guestNote')} className="text-sarat-black-600 text-sm">
+              {copy.noteHint}
+            </p>
+            <FieldError
+              id={errorId('guestNote')}
+              message={messageForField('guestNote', errorFor('guestNote'), copy)}
+            />
+          </div>
+
           {requireWomenOnly && (
             <div className="border-sarat-black/8 flex flex-col gap-2 [border-top-width:0.5px] pt-4">
               <label className="flex cursor-pointer items-start gap-3">
@@ -988,9 +1027,7 @@ export function BookingRequestForm({
                   const form = formRef.current;
                   if (!form || detailsCollapsed) return;
                   const read = (name: string) =>
-                    (
-                      form.elements.namedItem(name) as HTMLInputElement | null
-                    )?.value?.trim() ?? '';
+                    (form.elements.namedItem(name) as HTMLInputElement | null)?.value?.trim() ?? '';
                   if (read('name') || read('phone') || read('email')) return;
                   event.preventDefault();
                   event.stopPropagation();

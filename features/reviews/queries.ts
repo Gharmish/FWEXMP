@@ -1,6 +1,6 @@
 import { cache } from 'react';
 import { unstable_cache } from 'next/cache';
-import { and, avg, count, desc, eq, gte, isNull } from 'drizzle-orm';
+import { and, avg, count, desc, eq, gte, isNull, sql } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import { boundedQuery } from '@/lib/deadline';
 import { serverEnv } from '@/lib/env';
@@ -10,7 +10,7 @@ import type { Guest, Review } from '@/db/schema';
 import type { ReviewAggregate, ReviewSummary } from '@/features/reviews/types';
 import { aggregateReviews } from '@/features/reviews/lib/aggregate';
 import { reportError } from '@/lib/log';
-import { getCurrentUser } from '@/features/auth/queries';
+import { getCurrentHostId } from '@/features/host-dashboard/queries';
 import * as sample from '@/features/reviews/lib/sample-data';
 import * as sampleExperiences from '@/features/experiences/lib/sample-data';
 
@@ -382,12 +382,25 @@ export interface HostReviewRow {
   textEn: string | null;
   textAr: string | null;
   hostReply: string | null;
+  /** When the reply was posted; null for legacy replies (locked). */
+  hostRepliedAt: string | null;
   createdAt: string;
   guestName: string;
   experienceSlug: string;
   experienceTitleEn: string;
   experienceTitleAr: string;
 }
+
+/** Paginated host reviews: unreplied first, then newest. */
+export interface HostReviewPage {
+  rows: readonly HostReviewRow[];
+  total: number;
+  /** Reviews still waiting for the host's reply (across all pages). */
+  unreplied: number;
+}
+
+/** Reviews per page on /host/reviews. */
+export const HOST_REVIEWS_PAGE_SIZE = 20;
 
 /**
  * Rating aggregate (count + average + 1–5 histogram) across every
@@ -399,19 +412,14 @@ export interface HostReviewRow {
 export async function getHostReviewAggregate(): Promise<ReviewAggregate> {
   const empty = { count: 0, average: null, distribution: { ...EMPTY_DISTRIBUTION } };
   if (!hasDb()) return empty;
-  const user = await getCurrentUser();
-  if (!user) return empty;
+  const hostId = await getCurrentHostId();
+  if (!hostId) return empty;
   try {
-    const host = await db.query.hosts.findFirst({
-      where: (h) => eq(h.userId, user.id),
-      columns: { id: true },
-    });
-    if (!host) return empty;
     const rows = await db
       .select({ rating: reviewsTable.rating, n: count(reviewsTable.id) })
       .from(reviewsTable)
       .innerJoin(experiences, eq(reviewsTable.experienceId, experiences.id))
-      .where(and(eq(experiences.hostId, host.id), isNull(reviewsTable.hiddenAt)))
+      .where(and(eq(experiences.hostId, hostId), isNull(reviewsTable.hiddenAt)))
       .groupBy(reviewsTable.rating);
 
     const distribution = { ...EMPTY_DISTRIBUTION };
@@ -432,51 +440,70 @@ export async function getHostReviewAggregate(): Promise<ReviewAggregate> {
 }
 
 /**
- * Every visible review across the signed-in host's experiences,
- * newest first. Host identity resolves from the session (`hosts.userId`)
- * so one host can never list another's reviews. Hidden (moderated)
- * reviews are excluded — the guest can't see them, so the host
- * shouldn't reply to them.
- *
- * `limit` lets the overview pull just the newest review without
- * hydrating the full (500-row ceiling) list.
+ * Visible reviews across the signed-in host's experiences, a page at a
+ * time — reviews still waiting for a reply sort first, then newest
+ * (2026-08-22 audit P2-8). Host identity resolves from the session
+ * (`hosts.userId`) so one host can never list another's reviews. Hidden
+ * (moderated) reviews are excluded — the guest can't see them, so the
+ * host shouldn't reply to them.
  */
-export async function listReviewsForHost(limit = 500): Promise<readonly HostReviewRow[]> {
-  if (!hasDb()) return [];
-  const user = await getCurrentUser();
-  if (!user) return [];
+export async function listReviewsForHost(
+  options: { page?: number; pageSize?: number } = {},
+): Promise<HostReviewPage> {
+  const empty: HostReviewPage = { rows: [], total: 0, unreplied: 0 };
+  if (!hasDb()) return empty;
+  const hostId = await getCurrentHostId();
+  if (!hostId) return empty;
+  const pageSize = Math.max(1, options.pageSize ?? HOST_REVIEWS_PAGE_SIZE);
+  const page = Math.max(0, Math.trunc(options.page ?? 0));
   try {
-    const host = await db.query.hosts.findFirst({
-      where: (h) => eq(h.userId, user.id),
-      columns: { id: true },
-    });
-    if (!host) return [];
-    const rows = await db
-      .select({
-        id: reviewsTable.id,
-        rating: reviewsTable.rating,
-        textEn: reviewsTable.textEn,
-        textAr: reviewsTable.textAr,
-        hostReply: reviewsTable.hostReply,
-        createdAt: reviewsTable.createdAt,
-        guestName: guests.name,
-        experienceSlug: experiences.slug,
-        experienceTitleEn: experiences.titleEn,
-        experienceTitleAr: experiences.titleAr,
-      })
-      .from(reviewsTable)
-      .innerJoin(experiences, eq(reviewsTable.experienceId, experiences.id))
-      .innerJoin(guests, eq(reviewsTable.guestId, guests.id))
-      .where(and(eq(experiences.hostId, host.id), isNull(reviewsTable.hiddenAt)))
-      .orderBy(desc(reviewsTable.createdAt))
-      .limit(limit);
-    return rows.map((row) => ({
-      ...row,
-      rating: clampRating(row.rating),
-      createdAt: row.createdAt.toISOString(),
-    }));
+    const scope = and(eq(experiences.hostId, hostId), isNull(reviewsTable.hiddenAt));
+    const [rows, [counts]] = await Promise.all([
+      db
+        .select({
+          id: reviewsTable.id,
+          rating: reviewsTable.rating,
+          textEn: reviewsTable.textEn,
+          textAr: reviewsTable.textAr,
+          hostReply: reviewsTable.hostReply,
+          hostRepliedAt: reviewsTable.hostRepliedAt,
+          createdAt: reviewsTable.createdAt,
+          guestName: guests.name,
+          experienceSlug: experiences.slug,
+          experienceTitleEn: experiences.titleEn,
+          experienceTitleAr: experiences.titleAr,
+        })
+        .from(reviewsTable)
+        .innerJoin(experiences, eq(reviewsTable.experienceId, experiences.id))
+        .innerJoin(guests, eq(reviewsTable.guestId, guests.id))
+        .where(scope)
+        .orderBy(
+          sql`case when ${reviewsTable.hostReply} is null then 0 else 1 end`,
+          desc(reviewsTable.createdAt),
+        )
+        .limit(pageSize)
+        .offset(page * pageSize),
+      db
+        .select({
+          total: sql<number>`count(*)::int`,
+          unreplied: sql<number>`count(*) filter (where ${reviewsTable.hostReply} is null)::int`,
+        })
+        .from(reviewsTable)
+        .innerJoin(experiences, eq(reviewsTable.experienceId, experiences.id))
+        .where(scope),
+    ]);
+    return {
+      rows: rows.map((row) => ({
+        ...row,
+        rating: clampRating(row.rating),
+        createdAt: row.createdAt.toISOString(),
+        hostRepliedAt: row.hostRepliedAt?.toISOString() ?? null,
+      })),
+      total: counts?.total ?? 0,
+      unreplied: counts?.unreplied ?? 0,
+    };
   } catch (error) {
     reportError(error, { surface: 'reviews:listForHost' });
-    return [];
+    return empty;
   }
 }

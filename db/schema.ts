@@ -217,6 +217,15 @@ export const cancellationKindEnum = pgEnum('cancellation_kind', [
   'emergency',
   /** Automatic releases — e.g. a lapsed payment hold cancelled by the cron. */
   'system',
+  /**
+   * The host called off a confirmed booking from their dashboard
+   * (2026-08-22 host-dashboard audit P1-4). Previously stamped as
+   * `operator`, which made host and ops cancellations indistinguishable —
+   * no host cancellation rate, no accountability. Guest-facing copy is
+   * the same "your host couldn't run this" either way; the kind is what
+   * the admin and the host's own stats read.
+   */
+  'host',
 ]);
 
 /**
@@ -755,6 +764,13 @@ export const bookings = pgTable(
      * `guests.marketingConsentAt`.
      */
     marketingConsent: boolean().notNull().default(false),
+    /**
+     * Free-text note from the guest to the host, written at the request
+     * step (dietary needs, kids' ages, pickup point, "we don't speak
+     * Arabic"). Optional, ≤500 chars. Shown to the host on the request
+     * card and booking detail — never to other guests.
+     */
+    guestNote: text(),
     /** Safe retries for AI agents (BRIEF §6). */
     idempotencyKey: text().notNull().unique(),
     /**
@@ -983,6 +999,12 @@ export const reviews = pgTable(
     textAr: text(),
     photos: text().array().notNull().default([]),
     hostReply: text(),
+    /**
+     * When the host posted their reply. The host may edit the reply for
+     * 24h from this instant (mirrors the guest's `editableUntil`);
+     * null for legacy replies, which then stay locked.
+     */
+    hostRepliedAt: timestamp({ withTimezone: true }),
     /** 24h edit cooldown window (BRIEF §8). */
     editableUntil: timestamp({ withTimezone: true }).notNull(),
     /**

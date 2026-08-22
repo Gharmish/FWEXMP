@@ -4,13 +4,21 @@ import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { redirect, Link } from '@/lib/i18n';
 import type { Locale } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
+import { pickLocalized } from '@/lib/ar-placeholder';
+import { buttonVariants } from '@/components/ui/button';
 import { EmptyState } from '@/components/ui/empty-state';
 import { formatDate } from '@/lib/format';
-import { getCurrentUser } from '@/features/auth/queries';
 import { getHostDashboard } from '@/features/host-dashboard/queries';
-import { getHostReviewAggregate, listReviewsForHost } from '@/features/reviews/queries';
+import {
+  getHostReviewAggregate,
+  HOST_REVIEWS_PAGE_SIZE,
+  listReviewsForHost,
+} from '@/features/reviews/queries';
 import { RatingSummary } from '@/features/reviews/components/rating-summary';
 import { HostReplyForm } from '@/app/[locale]/host/(dashboard)/reviews/host-reply-form';
+
+/** Hosts may edit a reply this long after posting it. */
+const REPLY_EDIT_WINDOW_MS = 24 * 60 * 60 * 1000;
 
 export async function generateMetadata({
   params,
@@ -25,25 +33,32 @@ export async function generateMetadata({
   };
 }
 
-export default async function HostReviewsPage({ params }: { params: Promise<{ locale: string }> }) {
+export default async function HostReviewsPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ locale: string }>;
+  searchParams: Promise<{ page?: string }>;
+}) {
   const { locale } = await params;
   setRequestLocale(locale);
   const loc = locale as Locale;
 
-  const user = await getCurrentUser();
-  if (!user) {
-    redirect({ href: '/sign-in?next=/host/reviews', locale: loc });
-  }
   const dashboard = await getHostDashboard();
   if (!dashboard) {
     redirect({ href: '/host/apply', locale: loc });
   }
 
-  const [t, rows, aggregate] = await Promise.all([
+  const sp = await searchParams;
+  const page = Math.max(1, Number.parseInt(sp.page ?? '1', 10) || 1);
+
+  const [t, reviewPage, aggregate] = await Promise.all([
     getTranslations('hostReviews'),
-    listReviewsForHost(),
+    listReviewsForHost({ page: page - 1, pageSize: HOST_REVIEWS_PAGE_SIZE }),
     getHostReviewAggregate(),
   ]);
+  const { rows, total, unreplied } = reviewPage;
+  const pages = Math.max(1, Math.ceil(total / HOST_REVIEWS_PAGE_SIZE));
 
   const eyebrowClassName = cn(
     'text-sarat-black-600 font-medium text-[11px]',
@@ -56,15 +71,23 @@ export default async function HostReviewsPage({ params }: { params: Promise<{ lo
     submit: t('reply.submit'),
     pending: t('reply.pending'),
     success: t('reply.success'),
+    edit: t('reply.edit'),
+    editLabel: t('reply.editLabel'),
+    editSubmit: t('reply.editSubmit'),
+    editSuccess: t('reply.editSuccess'),
+    cancelEdit: t('reply.cancelEdit'),
     errors: {
       forbidden: t('reply.errors.forbidden'),
       no_db: t('reply.errors.noDb'),
       not_found: t('reply.errors.notFound'),
       already_replied: t('reply.errors.alreadyReplied'),
+      expired: t('reply.errors.expired'),
       validation: t('reply.errors.validation'),
       server: t('reply.errors.server'),
     },
   };
+
+  const pageHref = (p: number) => (p > 1 ? `/host/reviews?page=${p}` : '/host/reviews');
 
   return (
     <div className="flex w-full max-w-4xl flex-col gap-10">
@@ -74,9 +97,17 @@ export default async function HostReviewsPage({ params }: { params: Promise<{ lo
           {t('title')}
         </h1>
         <p className="text-sarat-black-600 max-w-2xl text-base leading-relaxed">{t('intro')}</p>
+        {unreplied > 0 && (
+          <p
+            role="status"
+            className="border-saffron-gold/50 bg-saffron-gold/10 text-sarat-black rounded-card [border-width:0.5px] p-4 text-sm leading-relaxed"
+          >
+            {t('awaitingReply', { count: unreplied })}
+          </p>
+        )}
       </div>
 
-      {rows.length === 0 ? (
+      {total === 0 ? (
         <EmptyState
           icon={Star}
           eyebrow={t('empty.eyebrow')}
@@ -93,18 +124,25 @@ export default async function HostReviewsPage({ params }: { params: Promise<{ lo
           <ul className="flex flex-col gap-6">
             {rows.map((row) => {
               const text = loc === 'ar' ? (row.textAr ?? row.textEn) : (row.textEn ?? row.textAr);
+              const editable =
+                row.hostReply !== null &&
+                row.hostRepliedAt !== null &&
+                new Date(row.hostRepliedAt).getTime() + REPLY_EDIT_WINDOW_MS > Date.now();
               return (
                 <li
                   key={row.id}
-                  className="border-sarat-black/8 rounded-card flex flex-col gap-3 [border-width:0.5px] p-6"
+                  className={cn(
+                    'border-sarat-black/8 rounded-card flex flex-col gap-3 [border-width:0.5px] p-6',
+                    row.hostReply === null && 'border-saffron-gold/50',
+                  )}
                 >
                   <div className="flex flex-wrap items-center justify-between gap-3">
                     <div className="flex flex-col gap-1">
                       <Link
                         href={`/experiences/${row.experienceSlug}`}
-                        className="text-sarat-black text-base font-medium underline-offset-4 hover:underline"
+                        className="text-sarat-black inline-flex min-h-11 items-center text-base font-medium underline-offset-4 hover:underline"
                       >
-                        {loc === 'ar' ? row.experienceTitleAr : row.experienceTitleEn}
+                        {pickLocalized(loc, row.experienceTitleEn, row.experienceTitleAr)}
                       </Link>
                       <p className="text-sarat-black-600 text-sm">
                         {row.guestName} · {formatDate(new Date(row.createdAt), loc)}
@@ -135,6 +173,14 @@ export default async function HostReviewsPage({ params }: { params: Promise<{ lo
                       <p className="text-sarat-black text-base leading-relaxed whitespace-pre-line">
                         {row.hostReply}
                       </p>
+                      {editable && (
+                        <HostReplyForm
+                          reviewId={row.id}
+                          locale={loc}
+                          copy={replyCopy}
+                          existingReply={row.hostReply}
+                        />
+                      )}
                     </div>
                   ) : (
                     <HostReplyForm reviewId={row.id} locale={loc} copy={replyCopy} />
@@ -143,6 +189,33 @@ export default async function HostReviewsPage({ params }: { params: Promise<{ lo
               );
             })}
           </ul>
+          {pages > 1 && (
+            <nav aria-label={t('title')} className="flex items-center justify-between gap-4">
+              {page > 1 ? (
+                <Link
+                  href={pageHref(page - 1)}
+                  className={cn(buttonVariants({ variant: 'secondary', size: 'sm' }))}
+                >
+                  {t('pagination.prev')}
+                </Link>
+              ) : (
+                <span />
+              )}
+              <span className="text-sarat-black-600 text-sm tabular-nums">
+                {t('pagination.pageOf', { page, pages })}
+              </span>
+              {page < pages ? (
+                <Link
+                  href={pageHref(page + 1)}
+                  className={cn(buttonVariants({ variant: 'secondary', size: 'sm' }))}
+                >
+                  {t('pagination.next')}
+                </Link>
+              ) : (
+                <span />
+              )}
+            </nav>
+          )}
         </>
       )}
     </div>
