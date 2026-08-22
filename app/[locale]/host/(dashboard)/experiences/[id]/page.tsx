@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { ArrowLeft, Eye } from 'lucide-react';
+import { CheckCircle2 } from 'lucide-react';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { ScheduleCalendarSection } from '@/features/availability/components/schedule-calendar-section';
 import { redirect, Link } from '@/lib/i18n';
@@ -16,6 +17,8 @@ import { getEnabledCities } from '@/lib/cities';
 import { tierDescriptions, tierNames } from '@/features/bookings/lib/policy-copy';
 import { getHostDashboard } from '@/features/host-dashboard/queries';
 import { getMyExperienceById, getMyExperienceMoments } from '@/features/host-experiences/queries';
+import { listingReadiness, publishBlockers } from '@/features/host-experiences/lib/readiness';
+import { ReadinessCard } from '@/features/host-experiences/components/readiness-card';
 import {
   addMomentAsHost,
   deleteMomentAsHost,
@@ -63,7 +66,9 @@ const STATUS_TONE: Record<
   pending_review: 'bg-pending-surface text-pending',
   changes_requested: 'bg-rijal-clay/15 text-rijal-clay',
   live: 'bg-success-surface text-success',
-  paused: 'bg-pending-surface text-pending',
+  // Host-controlled, not "waiting on Gharmish" — neutral, not the
+  // pending amber.
+  paused: 'bg-mist-deep text-sarat-black-600',
   archived: 'bg-rijal-clay/10 text-rijal-clay',
 };
 
@@ -79,6 +84,11 @@ export default async function EditExperiencePage({
   const loc = locale as Locale;
   const sp = await searchParams;
   const ym = Array.isArray(sp.ym) ? sp.ym[0] : sp.ym;
+  const one = (k: string) => (Array.isArray(sp[k]) ? sp[k]?.[0] : sp[k]);
+  // Post-redirect feedback: the actions round-trip back here, so the
+  // confirmation rides on the URL (no JS needed to see it).
+  const justCreated = one('created') === '1';
+  const saved = one('saved'); // '1' | 'review'
 
   const user = await getCurrentUser();
   if (!user) {
@@ -125,6 +135,30 @@ export default async function EditExperiencePage({
     'text-sarat-black-600 font-medium text-[11px]',
     loc === 'en' && 'tracking-[0.2em] uppercase',
   );
+
+  // One predicate for the checklist card AND the submit gate.
+  const readiness = listingReadiness(experience, momentRows.length);
+  const blockers = publishBlockers(readiness);
+  const isPublic = experience.status === 'live' || experience.status === 'paused';
+  const readinessKeys = [
+    'title',
+    'description',
+    'price',
+    'duration',
+    'group',
+    'startTime',
+    'place',
+    'location',
+    'weekdays',
+    'inclusions',
+    'hero',
+    'gallery',
+    'timeline',
+    'languages',
+  ] as const;
+  const readinessItems = Object.fromEntries(
+    readinessKeys.map((k) => [k, t(`readiness.items.${k}`)]),
+  ) as Record<(typeof readinessKeys)[number], string>;
 
   // The timeline locks while the listing is public (live) or already in
   // the review queue — matching the server-side guard in moment-actions.
@@ -181,8 +215,9 @@ export default async function EditExperiencePage({
         <h1 className="font-display mt-2 text-4xl font-semibold tracking-[-0.035em] text-balance sm:text-5xl">
           {pickLocalized(loc, experience.titleEn, experience.titleAr)}
         </h1>
-        <p className="text-sarat-black-600 mt-2 text-sm" dir="ltr">
-          /experiences/{experience.slug}
+        <p className="text-sarat-black-600 mt-2 text-sm">
+          <span dir="ltr">/experiences/{experience.slug}</span>
+          <span className="text-sarat-black/40"> · {t('edit.slugNote')}</span>
         </p>
         {/* Owner-gated render of the real public page — see it before
             (or after) the reviewers do. */}
@@ -193,6 +228,33 @@ export default async function EditExperiencePage({
           <Eye className="size-4 shrink-0" aria-hidden />
           {t('edit.preview')}
         </Link>
+
+        {(justCreated || saved) && (
+          <p
+            role="status"
+            className={cn(
+              'rounded-card mt-6 flex items-start gap-2.5 [border-width:0.5px] p-4 text-sm leading-relaxed',
+              saved === 'review'
+                ? 'border-saffron-gold/40 bg-saffron-gold/10 text-sarat-black'
+                : 'border-juniper-green/30 bg-success-surface text-sarat-black',
+            )}
+          >
+            <CheckCircle2
+              className={cn(
+                'mt-0.5 size-4 shrink-0',
+                saved === 'review' ? 'text-saffron-gold-800' : 'text-success',
+              )}
+              aria-hidden
+            />
+            <span>
+              {justCreated
+                ? t('edit.createdNotice')
+                : saved === 'review'
+                  ? t('edit.savedReviewNotice')
+                  : t('edit.savedNotice')}
+            </span>
+          </p>
+        )}
 
         {hostSuspended && (
           <section
@@ -224,10 +286,37 @@ export default async function EditExperiencePage({
             </section>
           )}
 
-        <div className="border-sarat-black/8 mt-10 [border-top-width:0.5px] pt-10">
+        {/* Readiness first: what's left before this can go to review,
+            then the buttons that act on it. */}
+        {experience.status !== 'archived' && (
+          <div className="mt-10">
+            <ReadinessCard
+              items={readiness}
+              compact={isPublic}
+              copy={{
+                heading: t('readiness.heading'),
+                progress: (done, total) => t('readiness.progress', { done, total }),
+                allDone: t('readiness.allDone'),
+                recommendedLabel: t('readiness.recommendedLabel'),
+                items: readinessItems,
+                hints: {
+                  hero: t('readiness.hints.hero'),
+                  gallery: t('readiness.hints.gallery'),
+                  location: t('readiness.hints.location'),
+                  timeline: t('readiness.hints.timeline'),
+                  languages: t('readiness.hints.languages'),
+                },
+              }}
+            />
+          </div>
+        )}
+
+        <div className="mt-6">
           <LifecycleActions
             experienceId={experience.id}
+            slug={experience.slug}
             status={experience.status}
+            blockers={blockers}
             locale={loc}
             copy={{
               publish: t('lifecycle.publish'),
@@ -238,6 +327,14 @@ export default async function EditExperiencePage({
               pause: t('lifecycle.pause'),
               pausePending: t('lifecycle.pausePending'),
               viewPublic: t('lifecycle.viewPublic'),
+              duplicate: t('lifecycle.duplicate'),
+              duplicatePending: t('lifecycle.duplicatePending'),
+              deleteDraft: t('lifecycle.deleteDraft'),
+              deleteDraftPending: t('lifecycle.deleteDraftPending'),
+              deleteConfirmTitle: t('lifecycle.deleteConfirmTitle'),
+              deleteConfirmDescription: t('lifecycle.deleteConfirmDescription'),
+              blockedBy: t('lifecycle.blockedBy', { item: '{item}' }),
+              readiness: readinessItems,
               errors: {
                 cannot_publish: t('lifecycle.errors.cannotPublish'),
                 needs_hero: t('lifecycle.errors.needsHero'),
@@ -247,52 +344,37 @@ export default async function EditExperiencePage({
                 server: t('lifecycle.errors.server'),
                 validation: t('lifecycle.errors.validation'),
                 wrong_state: t('lifecycle.errors.wrongState'),
+                has_bookings: t('lifecycle.errors.hasBookings'),
                 suspended: t('lifecycle.errors.suspended'),
               },
             }}
           />
         </div>
 
-        {/* Partnership share — admin-owned per-experience rate, read-only
-            here. Bookings snapshot the rate, so a later change never
-            restates the host's existing earnings. */}
+        {/* Listing details — the form the host came here to fill. */}
         <div className="border-sarat-black/8 mt-10 [border-top-width:0.5px] pt-10">
-          <h2 className={eyebrowClassName}>{t('commission.heading')}</h2>
-          <p className="text-sarat-black-600 mt-2 max-w-2xl text-sm leading-relaxed">
-            {t('commission.intro')}
-          </p>
-          <dl className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-3">
-            <div className="bg-mist rounded-card flex flex-col gap-1 p-5">
-              <dt className="text-sarat-black-600 text-sm">{t('commission.shareLabel')}</dt>
-              <dd className="text-2xl font-medium tabular-nums">
-                {t('commission.pctValue', { pct: experience.commissionBps / 100 })}
-              </dd>
-            </div>
-            <div className="bg-mist rounded-card flex flex-col gap-1 p-5">
-              <dt className="text-sarat-black-600 text-sm">{t('commission.keepLabel')}</dt>
-              <dd className="text-2xl font-medium tabular-nums">
-                {t('commission.pctValue', { pct: (10000 - experience.commissionBps) / 100 })}
-              </dd>
-            </div>
-            <div className="bg-mist rounded-card flex flex-col gap-1 p-5">
-              <dt className="text-sarat-black-600 text-sm">{t('commission.perGuestLabel')}</dt>
-              <dd className="text-2xl font-medium tabular-nums">
-                <Price
-                  amount={
-                    splitCommission(
-                      experience.priceSar,
-                      experience.commissionBps,
-                      prospectiveVatRateBps,
-                    ).payoutSar
-                  }
-                  locale={loc}
-                />
-              </dd>
-            </div>
-          </dl>
-          <p className="text-sarat-black-600 mt-4 max-w-2xl text-sm leading-relaxed">
-            {t('commission.snapshotNote')}
-          </p>
+          <h2 className={eyebrowClassName}>{t('edit.formHeading')}</h2>
+          {isPublic && (
+            <p
+              role="status"
+              className="border-saffron-gold/40 bg-saffron-gold/10 text-sarat-black rounded-card mt-4 [border-width:0.5px] p-4 text-sm leading-relaxed"
+            >
+              {t('edit.liveEditWarning')}
+            </p>
+          )}
+          <div className="mt-6">
+            <ExperienceForm
+              locale={loc}
+              experience={experience}
+              vatRateBps={prospectiveVatRateBps}
+              copy={buildExperienceFormCopy(
+                tForm,
+                tierDescriptions(policyTiers, tTiers),
+                tierNames(tTiers),
+              )}
+              cityOptions={cityOptions}
+            />
+          </div>
         </div>
 
         <div className="border-sarat-black/8 mt-10 [border-top-width:0.5px] pt-10">
@@ -371,16 +453,6 @@ export default async function EditExperiencePage({
           />
         </div>
 
-        <div className="border-sarat-black/8 mt-10 [border-top-width:0.5px] pt-10">
-          <ScheduleCalendarSection
-            experienceId={experience.id}
-            locale={loc}
-            basePath={`/host/experiences/${experience.id}`}
-            canEdit
-            ym={ym}
-          />
-        </div>
-
         {/* Timeline (moments) — editable everywhere except mid-review. */}
         <div className="border-sarat-black/8 mt-10 [border-top-width:0.5px] pt-10">
           <h2 className={eyebrowClassName}>{t('moments.heading')}</h2>
@@ -422,28 +494,56 @@ export default async function EditExperiencePage({
         </div>
 
         <div className="border-sarat-black/8 mt-10 [border-top-width:0.5px] pt-10">
-          <h2 className={eyebrowClassName}>{t('edit.formHeading')}</h2>
-          {experience.status === 'live' && (
-            <p
-              role="status"
-              className="border-saffron-gold/40 bg-saffron-gold/10 text-sarat-black rounded-card mt-4 [border-width:0.5px] p-4 text-sm leading-relaxed"
-            >
-              {t('edit.liveEditWarning')}
-            </p>
-          )}
-          <div className="mt-6">
-            <ExperienceForm
-              mode="edit"
-              locale={loc}
-              experience={experience}
-              copy={buildExperienceFormCopy(
-                tForm,
-                tierDescriptions(policyTiers, tTiers),
-                tierNames(tTiers),
-              )}
-              cityOptions={cityOptions}
-            />
-          </div>
+          <ScheduleCalendarSection
+            experienceId={experience.id}
+            locale={loc}
+            basePath={`/host/experiences/${experience.id}`}
+            canEdit
+            ym={ym}
+          />
+        </div>
+
+        {/* Partnership share — admin-owned per-experience rate, read-only
+            here. The live per-guest figure also sits under the price
+            input; this block is the fuller explanation. Bookings snapshot
+            the rate, so a later change never restates existing earnings. */}
+        <div className="border-sarat-black/8 mt-10 [border-top-width:0.5px] pt-10">
+          <h2 className={eyebrowClassName}>{t('commission.heading')}</h2>
+          <p className="text-sarat-black-600 mt-2 max-w-2xl text-sm leading-relaxed">
+            {t('commission.intro')}
+          </p>
+          <dl className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-3">
+            <div className="bg-mist rounded-card flex flex-col gap-1 p-5">
+              <dt className="text-sarat-black-600 text-sm">{t('commission.shareLabel')}</dt>
+              <dd className="text-2xl font-medium tabular-nums">
+                {t('commission.pctValue', { pct: experience.commissionBps / 100 })}
+              </dd>
+            </div>
+            <div className="bg-mist rounded-card flex flex-col gap-1 p-5">
+              <dt className="text-sarat-black-600 text-sm">{t('commission.keepLabel')}</dt>
+              <dd className="text-2xl font-medium tabular-nums">
+                {t('commission.pctValue', { pct: (10000 - experience.commissionBps) / 100 })}
+              </dd>
+            </div>
+            <div className="bg-mist rounded-card flex flex-col gap-1 p-5">
+              <dt className="text-sarat-black-600 text-sm">{t('commission.perGuestLabel')}</dt>
+              <dd className="text-2xl font-medium tabular-nums">
+                <Price
+                  amount={
+                    splitCommission(
+                      experience.priceSar,
+                      experience.commissionBps,
+                      prospectiveVatRateBps,
+                    ).payoutSar
+                  }
+                  locale={loc}
+                />
+              </dd>
+            </div>
+          </dl>
+          <p className="text-sarat-black-600 mt-4 max-w-2xl text-sm leading-relaxed">
+            {t('commission.snapshotNote')}
+          </p>
         </div>
       </section>
     </div>

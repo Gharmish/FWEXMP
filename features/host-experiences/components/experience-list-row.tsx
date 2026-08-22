@@ -11,7 +11,7 @@ const STATUS_TONE: Record<HostExperienceRow['status'], string> = {
   pending_review: 'bg-pending-surface text-pending',
   changes_requested: 'bg-rijal-clay/15 text-rijal-clay',
   live: 'bg-success-surface text-success',
-  paused: 'bg-pending-surface text-pending',
+  paused: 'bg-mist-deep text-sarat-black-600',
   archived: 'bg-rijal-clay/10 text-rijal-clay',
 };
 
@@ -42,12 +42,22 @@ export function ExperienceListRow({ experience, locale, copy }: ExperienceListRo
             <Badge className={STATUS_TONE[experience.status]}>{copy.status}</Badge>
           </div>
           <div className="text-sarat-black-600 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
-            <span>{experience.placeName}</span>
-            <span aria-hidden>·</span>
-            <span>
-              <Price amount={experience.priceSar} locale={locale} /> {copy.perPerson}
-            </span>
-            <span aria-hidden>·</span>
+            {/* A fresh draft has no place or price yet — skip the blanks
+                rather than render "0 per guest". */}
+            {experience.placeName !== '' && (
+              <>
+                <span>{experience.placeName}</span>
+                <span aria-hidden>·</span>
+              </>
+            )}
+            {experience.priceSar > 0 && (
+              <>
+                <span>
+                  <Price amount={experience.priceSar} locale={locale} /> {copy.perPerson}
+                </span>
+                <span aria-hidden>·</span>
+              </>
+            )}
             <span>{copy.daysPerWeek}</span>
             <span aria-hidden>·</span>
             <span>{copy.commissionShare}</span>

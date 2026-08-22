@@ -11,14 +11,13 @@ import { reportError } from '@/lib/log';
 import { getSupabaseUserStorage } from '@/lib/supabase/server';
 import { getCurrentHostIdForWrite } from '@/features/host-experiences/queries';
 import {
+  PHOTO_BUCKET,
   galleryObjectKey,
   heroObjectKey,
   objectKeyFromPublicUrl,
   validatePhoto,
 } from '@/features/host-experiences/lib/photo';
 import type { GalleryState } from '@/features/admin/experiences/gallery-actions';
-
-const PHOTO_BUCKET = 'photos';
 
 /**
  * Upload (or replace) an experience's hero image.

@@ -75,6 +75,7 @@ export function PhotoUpload({
   const [ready, setReady] = useState(false);
   const inputId = useId();
   const photoInputRef = useRef<HTMLInputElement>(null);
+  const formRef = useRef<HTMLFormElement>(null);
 
   // The cropped preview is an object URL we own — revoke it when it changes
   // or the component unmounts so we don't leak blobs.
@@ -100,7 +101,13 @@ export function PhotoUpload({
     setCropSrc(await readFileAsDataUrl(file));
   }
 
-  /** Stage the cropped WebP into the hidden file input so the form submits it. */
+  /**
+   * Stage the cropped WebP into the hidden file input and submit at once.
+   * "Use this frame" IS the upload — the separate third tap that used to
+   * follow was routinely missed, leaving hosts thinking the photo had
+   * saved (2026-08-22 audit P2-8). The explicit button stays as a retry
+   * path if the automatic submit fails.
+   */
   function handleCropApply(file: File) {
     const input = photoInputRef.current;
     if (input) {
@@ -111,11 +118,12 @@ export function PhotoUpload({
     setPreviewUrl(URL.createObjectURL(file));
     setReady(true);
     setCropSrc(null);
+    formRef.current?.requestSubmit();
   }
 
   return (
     <>
-      <form action={action} className="flex flex-col gap-4">
+      <form ref={formRef} action={action} className="flex flex-col gap-4">
         <input type="hidden" name="experienceId" value={experienceId} />
         <input type="hidden" name="locale" value={locale} />
         {/* Holds the cropped WebP staged via DataTransfer; this is what posts. */}

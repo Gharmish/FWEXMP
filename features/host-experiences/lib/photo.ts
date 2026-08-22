@@ -13,6 +13,9 @@
  * `storage.buckets.file_size_limit` and the server-action
  * `bodySizeLimit` in next.config.ts.
  */
+/** Supabase Storage bucket holding experience photos (`experiences/{slug}/…`). */
+export const PHOTO_BUCKET = 'photos';
+
 export const MAX_PHOTO_BYTES = 15 * 1024 * 1024;
 
 /** Accepted content types → canonical file extension for the object key. */

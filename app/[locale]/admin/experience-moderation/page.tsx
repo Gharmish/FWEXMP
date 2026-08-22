@@ -4,6 +4,7 @@ import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { Link } from '@/lib/i18n';
 import type { Locale } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
+import { pickLocalized } from '@/lib/ar-placeholder';
 import { Badge } from '@/components/ui/badge';
 import { formatDate } from '@/lib/format';
 import { Price } from '@/components/ui/price';
@@ -156,7 +157,9 @@ export default async function AdminExperienceModerationPage({
               >
                 <div className="flex min-w-0 flex-col gap-1">
                   <div className="flex flex-wrap items-center gap-3">
-                    <span className="truncate text-base font-medium">{row.titleEn}</span>
+                    <span className="truncate text-base font-medium">
+                      {pickLocalized(loc, row.titleEn, row.titleAr)}
+                    </span>
                     <Badge
                       className={STATUS_TONE[row.status] ?? 'bg-sarat-black/8 text-sarat-black'}
                     >

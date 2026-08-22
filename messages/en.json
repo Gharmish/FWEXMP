@@ -1107,7 +1107,8 @@
         "needsHero": "This listing has no hero photo — it can't go live without one.",
         "needsArabic": "The Arabic title or description is still a TODO placeholder — fill it in before approving (Arabic-first audience).",
         "needsArabicMoments": "One or more timeline moments still carry a TODO Arabic placeholder — complete them in the timeline editor before approving.",
-        "needsArabicLists": "The Arabic \"What's included\" or \"What to bring\" list is empty while the English one isn't — add it in the Arabic copy editor above before approving."
+        "needsArabicLists": "The Arabic \"What's included\" or \"What to bring\" list is empty while the English one isn't — add it in the Arabic copy editor above before approving.",
+        "needsEnglish": "The English title or description is still empty — the host drafted in Arabic only. Fill it in before approving."
       }
     },
     "disputes": {
@@ -2226,9 +2227,11 @@
         "title": "New experience"
       },
       "eyebrow": "New experience",
-      "title": "Draft your experience.",
-      "intro": "Start with a working title and a paragraph or two. You can save as a draft and refine it before publishing.",
-      "arabicNotice": "Write in English, and add the Arabic yourself if you'd like — anything you leave blank, our team fills in before your listing goes live."
+      "title": "Name your experience.",
+      "intro": "Start with a name and a category — that’s all we need to save a draft. Everything else (details, photos, timeline, calendar) you add on the next page, section by section, whenever you like.",
+      "arabicNotice": "Write in Arabic, English, or both. Whatever you leave blank, our team fills in before your listing goes live.",
+      "titleHint": "A clear, evocative name. 8–120 characters. You can change it later.",
+      "titleArHint": "Give at least one language — the other can wait."
     },
     "edit": {
       "meta": {
@@ -2236,9 +2239,13 @@
       },
       "back": "Back to your dashboard",
       "formHeading": "Edit",
-      "liveEditWarning": "Heads up — this listing is live. Saving any changes will pull it off the catalog until we re-approve the updated version.",
+      "liveEditWarning": "Heads up — this listing is public. Changing the title, description, category, price, place, duration, group size, age, or cancellation policy sends it back for review (off the catalog until re-approved). Lists, weekdays, start time, and cutoff save straight away.",
       "backToList": "Back to your experiences",
-      "preview": "Preview your listing"
+      "preview": "Preview your listing",
+      "slugNote": "your listing’s address — set from the first name, stays stable",
+      "createdNotice": "Draft saved. Fill in the details below, add a hero photo, and the checklist will tell you when it’s ready to submit.",
+      "savedNotice": "Changes saved.",
+      "savedReviewNotice": "Changes saved. Because the content changed, the listing is off the catalog until the team re-approves it — usually within a day."
     },
     "commission": {
       "heading": "Partnership share",
@@ -2315,9 +2322,9 @@
       "pendingReviewLabel": "Waiting on the team. We'll let you know once your listing is reviewed.",
       "pause": "Pause",
       "pausePending": "Pausing",
-      "viewPublic": "View public page",
+      "viewPublic": "View listing",
       "errors": {
-        "cannotPublish": "Add at least one inclusion, pick at least one available weekday, and write a description of 60+ characters before submitting.",
+        "cannotPublish": "A few required items are still missing — see the checklist above.",
         "notFound": "This experience no longer exists.",
         "forbidden": "You're not authorised to do that.",
         "noDb": "We couldn't update the listing — try again in a moment.",
@@ -2325,8 +2332,16 @@
         "validation": "Check the form and try again.",
         "wrongState": "This experience can't be submitted from its current state — refresh to see the latest.",
         "suspended": "Your host account is suspended — submitting for review is blocked until the team restores it.",
-        "needsHero": "Add a hero photo before submitting — listings don't go to review without one."
-      }
+        "needsHero": "Add a hero photo before submitting — listings don't go to review without one.",
+        "hasBookings": "This draft has booking history and can’t be deleted — ask the team to archive it instead."
+      },
+      "duplicate": "Duplicate",
+      "duplicatePending": "Duplicating",
+      "deleteDraft": "Delete draft",
+      "deleteDraftPending": "Deleting",
+      "deleteConfirmTitle": "Delete this draft?",
+      "deleteConfirmDescription": "The draft and its photos are removed for good. This can’t be undone.",
+      "blockedBy": "Finish “{item}” to submit."
     },
     "reviewerFeedback": {
       "changesRequestedEyebrow": "Changes requested",
@@ -2335,19 +2350,19 @@
     },
     "form": {
       "sectionBasics": "Basics",
-      "sectionPracticalities": "Practicalities",
+      "sectionPracticalities": "Logistics",
       "sectionPlace": "Place",
-      "sectionDetail": "Practical detail",
+      "sectionDetail": "What’s included",
       "sectionAvailability": "Availability",
       "titleLabel": "Title (English)",
-      "titleHint": "A clear, evocative title in English. 8–120 characters.",
-      "titleArLabel": "Title (Arabic — optional)",
+      "titleHint": "A clear, evocative name. 8–120 characters. Give at least one language.",
+      "titleArLabel": "Title (Arabic)",
       "descriptionLabel": "Description (English)",
       "descriptionHint": "What guests will see, do, taste, learn. Rich prose helps both humans and AI agents understand the experience.",
-      "descriptionArLabel": "Description (Arabic — optional)",
-      "arOptionalHint": "Optional — leave blank and our team adds the Arabic before your listing goes live.",
+      "descriptionArLabel": "Description (Arabic)",
+      "arOptionalHint": "Optional — leave blank and our team adds it before your listing goes live.",
       "categoryLabel": "Category",
-      "durationLabel": "Duration (minutes)",
+      "durationLabel": "Duration",
       "priceLabel": "Price per guest",
       "groupSizeLabel": "Max group size",
       "minAgeLabel": "Minimum age",
@@ -2397,7 +2412,6 @@
         "forbidden": "You're not authorised to edit this experience.",
         "notFound": "That experience doesn't exist anymore.",
         "noDb": "We couldn't save right now — try again in a moment.",
-        "cannotPublish": "Add at least one inclusion, pick at least one available weekday, and write a description of 60+ characters before publishing.",
         "fields": {
           "titleShort": "Title is too short — minimum 8 characters.",
           "titleLong": "Title is too long — maximum 120 characters.",
@@ -2411,14 +2425,15 @@
           "priceTooHigh": "Price is unusually high — check the value.",
           "placeShort": "Place name is too short — at least 2 characters.",
           "placeLong": "Place name is too long — 120 characters max.",
-          "policyShort": "Cancellation policy is too short — write at least 20 characters.",
-          "policyLong": "Cancellation policy is too long — keep it under 1000 characters.",
           "required": "Check this field.",
           "timeInvalid": "Enter a time like 16:30.",
           "coordsInvalid": "Enter valid coordinates inside Saudi Arabia.",
           "groupInvalid": "Group size must be between 1 and 50.",
-          "ageInvalid": "Minimum age must be between 0 and 99."
-        }
+          "ageInvalid": "Minimum age must be between 0 and 99.",
+          "titleEither": "Give the experience a name in Arabic or English."
+        },
+        "lockedReview": "This listing is under review and can’t be edited right now.",
+        "archived": "This listing is archived and can’t be edited."
       },
       "startTimeLabel": "Start time",
       "startTimeHint": "Local start time of every occurrence. Guests see it before booking and on their ticket.",
@@ -2437,7 +2452,19 @@
       "mapSearchButton": "Search",
       "mapSearchNotFound": "No results — try another name, or tap the map to drop the pin.",
       "mapHint": "Tap the map to drop the pin, or drag it to fine-tune the exact spot.",
-      "manualCoordsLabel": "Enter coordinates manually"
+      "manualCoordsLabel": "Enter coordinates manually",
+      "counter": "{count} / {max}",
+      "durationHoursLabel": "Hours",
+      "durationMinutesLabel": "Minutes",
+      "priceHint": "What each guest pays.",
+      "priceYouKeep": "You keep ≈",
+      "priceVatIncluded": "Prices include VAT.",
+      "minAgeHint": "0 means no minimum.",
+      "mapUnsetHint": "No pin yet — tap the map where guests meet you, search a place, or paste a Maps link.",
+      "unsaved": "Unsaved changes",
+      "unsavedReviewNote": "content changes go back to review",
+      "lockedReview": "The team is reviewing this listing — details unlock as soon as the review is decided.",
+      "lockedArchived": "This listing is archived and read-only."
     },
     "moments": {
       "heading": "Experience timeline",
@@ -2469,7 +2496,8 @@
       },
       "eyebrow": "Listings",
       "title": "Your experiences",
-      "intro": "Everything you host, in one place — drafts, listings in review, and what's live in the catalog."
+      "intro": "Everything you host, in one place — drafts, listings in review, and what's live in the catalog.",
+      "deletedNotice": "Draft deleted."
     },
     "gallery": {
       "heading": "Gallery",
@@ -2487,6 +2515,35 @@
       "tooLarge": "That photo is too large even after compression. Try one under 15MB.",
       "lockedLive": "This listing is archived — its gallery can't be changed.",
       "error": "Something went wrong. Try again."
+    },
+    "readiness": {
+      "heading": "Ready to submit?",
+      "progress": "{done} of {total} required",
+      "allDone": "All set",
+      "recommendedLabel": "Recommended",
+      "items": {
+        "title": "Name",
+        "description": "Description (60+ characters)",
+        "price": "Price per guest",
+        "duration": "Duration",
+        "group": "Max group size",
+        "startTime": "Start time",
+        "place": "Place name",
+        "location": "Meeting point on the map",
+        "weekdays": "At least one weekday",
+        "inclusions": "What’s included",
+        "hero": "Hero photo",
+        "gallery": "Five or more gallery photos",
+        "timeline": "Experience timeline",
+        "languages": "Both Arabic and English"
+      },
+      "hints": {
+        "hero": "Upload it in the Hero photo section below.",
+        "gallery": "The listing’s photo mosaic appears from five photos.",
+        "location": "Tap the map in the Place section to drop the pin.",
+        "timeline": "Guests book more when they can see the flow of the day.",
+        "languages": "Optional for you — our team translates anything missing before approval."
+      }
     }
   },
   "experiencesIndex": {

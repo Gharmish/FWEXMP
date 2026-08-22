@@ -7,13 +7,17 @@ import { useLocale } from 'next-intl';
 import type { Map as LeafletMap, Marker as LeafletMarker } from 'leaflet';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { cn } from '@/lib/utils';
 import { parsePastedCoords } from '@/features/host-experiences/lib/coords';
+import { hasMeetingPoint, SAUDI_BOX } from '@/features/host-experiences/schemas';
 
-/** Saudi bounds — mirror of the zod schema (generous box). */
-const LAT_MIN = 16;
-const LAT_MAX = 33;
-const LNG_MIN = 34;
-const LNG_MAX = 56;
+const LAT_MIN = SAUDI_BOX.latMin;
+const LAT_MAX = SAUDI_BOX.latMax;
+const LNG_MIN = SAUDI_BOX.lngMin;
+const LNG_MAX = SAUDI_BOX.lngMax;
+
+/** Where the map opens before the host has placed a pin — Abha centre. */
+const ABHA_CENTRE = { lat: 18.2164, lng: 42.5053 } as const;
 
 /**
  * Brand pin as a divIcon — inline SVG on CSS design tokens, so no
@@ -24,9 +28,7 @@ const PIN_HTML = `<svg width="32" height="42" viewBox="0 0 32 42" xmlns="http://
   <circle cx="16" cy="15.5" r="6" fill="var(--color-saffron-gold)"/>
 </svg>`;
 
-function inSaudiBox(lat: number, lng: number): boolean {
-  return lat >= LAT_MIN && lat <= LAT_MAX && lng >= LNG_MIN && lng <= LNG_MAX;
-}
+const inSaudiBox = hasMeetingPoint;
 
 interface NominatimResult {
   lat: string;
@@ -46,13 +48,18 @@ export interface LocationPickerCopy {
   searchButton: string;
   searchNotFound: string;
   mapHint: string;
+  /** Shown instead of `mapHint` while no pin has been placed yet. */
+  mapUnsetHint: string;
   manualCoordsLabel: string;
 }
 
 interface LocationPickerProps {
-  defaultLat: number;
-  defaultLng: number;
+  /** `null` = no pin yet: the map opens on Abha with nothing placed. */
+  defaultLat: number | null;
+  defaultLng: number | null;
   copy: LocationPickerCopy;
+  /** Fired on every pin move so the parent form can track dirtiness. */
+  onChange?: () => void;
   /** Resolved server-side error messages for the two fields, if any. */
   latError?: string;
   lngError?: string;
@@ -78,13 +85,16 @@ export function LocationPicker({
   defaultLat,
   defaultLng,
   copy,
+  onChange,
   latError,
   lngError,
   latErrorId,
   lngErrorId,
 }: LocationPickerProps) {
-  const [lat, setLat] = useState(String(defaultLat));
-  const [lng, setLng] = useState(String(defaultLng));
+  const hasDefault = defaultLat !== null && defaultLng !== null;
+  const [lat, setLat] = useState(hasDefault ? String(defaultLat) : '');
+  const [lng, setLng] = useState(hasDefault ? String(defaultLng) : '');
+  const [placed, setPlaced] = useState(hasDefault);
   const [pasteBad, setPasteBad] = useState(false);
   const [mapReady, setMapReady] = useState(false);
   const [query, setQuery] = useState('');
@@ -96,7 +106,14 @@ export function LocationPicker({
   const mapEl = useRef<HTMLDivElement>(null);
   const mapRef = useRef<LeafletMap | null>(null);
   const markerRef = useRef<LeafletMarker | null>(null);
-  const posRef = useRef({ lat: defaultLat, lng: defaultLng });
+  const posRef = useRef({
+    lat: hasDefault ? defaultLat : ABHA_CENTRE.lat,
+    lng: hasDefault ? defaultLng : ABHA_CENTRE.lng,
+  });
+  const onChangeRef = useRef(onChange);
+  useEffect(() => {
+    onChangeRef.current = onChange;
+  });
 
   /** Single write path: form fields and map pin stay in sync. */
   const pick = useCallback((nextLat: number, nextLng: number, pan: boolean) => {
@@ -104,9 +121,17 @@ export function LocationPicker({
     const ln = Number(nextLng.toFixed(6));
     setLat(String(la));
     setLng(String(ln));
+    setPlaced(true);
     posRef.current = { lat: la, lng: ln };
-    markerRef.current?.setLatLng([la, ln]);
-    if (pan) mapRef.current?.panTo([la, ln]);
+    const marker = markerRef.current;
+    const map = mapRef.current;
+    if (marker && map) {
+      marker.setLatLng([la, ln]);
+      // The marker is created off-map in unset mode; first pick adds it.
+      if (!map.hasLayer(marker)) marker.addTo(map);
+    }
+    if (pan) map?.panTo([la, ln]);
+    onChangeRef.current?.();
   }, []);
 
   useEffect(() => {
@@ -135,7 +160,10 @@ export function LocationPicker({
           iconSize: [32, 42],
           iconAnchor: [16, 42],
         }),
-      }).addTo(map);
+      });
+      // No pin until the host places one — an Abha-centre default used
+      // to ship as a "valid" meeting point (2026-08-22 audit P1-2).
+      if (hasDefault) marker.addTo(map);
       map.on('click', (e) => pick(e.latlng.lat, e.latlng.lng, false));
       marker.on('dragend', () => {
         const p = marker.getLatLng();
@@ -151,6 +179,8 @@ export function LocationPicker({
       mapRef.current = null;
       markerRef.current = null;
     };
+    // `hasDefault` is fixed for the component's life (prefill only).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pick]);
 
   const commitManual = (nextLat: string, nextLng: string) => {
@@ -248,7 +278,14 @@ export function LocationPicker({
           aria-label={copy.previewTitle}
           className="rounded-image border-sarat-black/8 bg-mist relative z-0 aspect-[16/9] w-full overflow-hidden [border-width:0.5px]"
         />
-        <p className="text-sarat-black-600 text-sm">{copy.mapHint}</p>
+        <p
+          className={cn(
+            'text-sm',
+            placed ? 'text-sarat-black-600' : 'text-sarat-black font-medium',
+          )}
+        >
+          {placed ? copy.mapHint : copy.mapUnsetHint}
+        </p>
       </div>
 
       <div className="flex flex-col gap-2">
@@ -283,7 +320,6 @@ export function LocationPicker({
                 step="any"
                 min={LAT_MIN}
                 max={LAT_MAX}
-                required
                 dir="ltr"
                 value={lat}
                 onChange={(e) => setLat(e.target.value)}
@@ -309,7 +345,6 @@ export function LocationPicker({
                 step="any"
                 min={LNG_MIN}
                 max={LNG_MAX}
-                required
                 dir="ltr"
                 value={lng}
                 onChange={(e) => setLng(e.target.value)}

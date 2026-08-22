@@ -6,6 +6,7 @@ import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { Link } from '@/lib/i18n';
 import type { Locale } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
+import { pickLocalized } from '@/lib/ar-placeholder';
 import { getCancellationTiers } from '@/lib/cancellation-policy';
 import { tierDescription } from '@/features/bookings/lib/policy-copy';
 import { Badge } from '@/components/ui/badge';
@@ -122,7 +123,7 @@ export default async function AdminExperienceModerationDetailPage({
 
         <div className="flex flex-wrap items-baseline gap-3">
           <h1 className="font-display text-4xl font-semibold tracking-[-0.035em] text-balance sm:text-5xl">
-            {detail.titleEn}
+            {pickLocalized(loc, detail.titleEn, detail.titleAr)}
           </h1>
           <Badge className={STATUS_TONE[detail.status]}>
             {t(`experienceStatus.${detail.status}`)}
@@ -160,7 +161,7 @@ export default async function AdminExperienceModerationDetailPage({
         <div className="rounded-card relative aspect-[16/9] w-full overflow-hidden">
           <Image
             src={detail.heroImage}
-            alt={detail.titleEn}
+            alt={pickLocalized(loc, detail.titleEn, detail.titleAr)}
             fill
             sizes="(max-width: 768px) 100vw, 768px"
             className="object-cover"
@@ -390,6 +391,7 @@ export default async function AdminExperienceModerationDetailPage({
               needs_arabic: t('experienceActions.errors.needsArabic'),
               needs_arabic_moments: t('experienceActions.errors.needsArabicMoments'),
               needs_arabic_lists: t('experienceActions.errors.needsArabicLists'),
+              needs_english: t('experienceActions.errors.needsEnglish'),
               reviewer_note_short: t('experienceActions.errors.reviewerNoteShort'),
             },
           }}

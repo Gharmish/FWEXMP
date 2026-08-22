@@ -43,6 +43,7 @@ export interface AdminModerationResult {
     | 'wrong_state'
     | 'needs_hero'
     | 'needs_arabic'
+    | 'needs_english'
     | 'needs_arabic_moments'
     | 'needs_arabic_lists';
   fieldError?: string;
@@ -87,6 +88,8 @@ export async function approveExperience(
       where: (e) => eq(e.id, experienceId),
       columns: {
         heroImage: true,
+        titleEn: true,
+        descriptionEn: true,
         titleAr: true,
         descriptionAr: true,
         inclusions: true,
@@ -100,6 +103,11 @@ export async function approveExperience(
     if (!row.heroImage) return { success: false, message: 'needs_hero' };
     if (row.titleAr.startsWith('TODO(ar') || row.descriptionAr.startsWith('TODO(ar')) {
       return { success: false, message: 'needs_arabic' };
+    }
+    // Hosts may draft in Arabic only (2026-08-22) — the English side is
+    // the team's to fill before the listing reaches the catalog.
+    if (row.titleEn.trim() === '' || row.descriptionEn.trim() === '') {
+      return { success: false, message: 'needs_english' };
     }
     // Host-added moments are stamped with the same placeholder — without
     // this check the Arabic detail page ships an English-only timeline.

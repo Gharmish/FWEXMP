@@ -93,6 +93,7 @@ export async function listModerationQueue(
       id: row.id,
       slug: row.slug,
       titleEn: row.titleEn,
+      titleAr: row.titleAr,
       hostName: row.host.name,
       status: row.status,
       city: row.city,

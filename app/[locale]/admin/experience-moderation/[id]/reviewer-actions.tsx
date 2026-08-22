@@ -23,6 +23,7 @@ type ErrorKey =
   | 'needs_arabic'
   | 'needs_arabic_moments'
   | 'needs_arabic_lists'
+  | 'needs_english'
   | 'reviewer_note_short';
 
 interface Copy {

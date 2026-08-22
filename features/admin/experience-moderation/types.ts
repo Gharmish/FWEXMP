@@ -8,6 +8,7 @@ export interface ModerationQueueRow {
   id: string;
   slug: string;
   titleEn: string;
+  titleAr: string;
   hostName: string;
   status: ExperienceStatus;
   city: string;

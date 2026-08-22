@@ -29,12 +29,16 @@ export async function generateMetadata({
  */
 export default async function HostExperiencesIndexPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ locale: string }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const { locale } = await params;
   setRequestLocale(locale);
   const loc = locale as Locale;
+  const sp = await searchParams;
+  const justDeleted = (Array.isArray(sp.deleted) ? sp.deleted[0] : sp.deleted) === '1';
 
   const [t, tIndex, experiences] = await Promise.all([
     getTranslations('hostDashboard'),
@@ -70,6 +74,15 @@ export default async function HostExperiencesIndexPage({
           {t('experiences.newCta')}
         </Link>
       </div>
+
+      {justDeleted && (
+        <p
+          role="status"
+          className="border-sarat-black/8 bg-mist text-sarat-black rounded-card [border-width:0.5px] p-4 text-sm leading-relaxed"
+        >
+          {tIndex('deletedNotice')}
+        </p>
+      )}
 
       {experiences.length === 0 ? (
         <EmptyState

@@ -47,6 +47,7 @@ import {
 } from '@/features/experiences/queries';
 import { PhotoGallery } from '@/features/experiences/components/photo-gallery';
 import { MeetingPointMap } from '@/features/experiences/components/meeting-point-map';
+import { hasMeetingPoint } from '@/features/host-experiences/schemas';
 import { trackExperienceView, utmFromSearchParams } from '@/features/analytics/capture';
 import { getScheduleDataBySlug } from '@/features/availability/queries';
 import { addDays, bookableDates } from '@/features/bookings/lib/availability';
@@ -834,18 +835,23 @@ export default async function ExperienceDetailPage({
             </section>
           )}
 
-          <section className="flex flex-col gap-3">
-            <h2 className="font-display flex items-center gap-2.5 text-2xl font-medium tracking-[-0.025em]">
-              <MapPin className="text-sarat-black-600 size-5 shrink-0" aria-hidden />
-              {t('meetingPoint.heading')}
-            </h2>
-            <MeetingPointMap
-              lat={exp.lat}
-              lng={exp.lng}
-              placeName={placeName}
-              location={location}
-            />
-          </section>
+          {/* A draft previewed before its pin is placed has sentinel
+              coordinates — no map rather than one pointing at the Gulf
+              of Guinea. Live listings always pass the readiness gate. */}
+          {hasMeetingPoint(exp.lat, exp.lng) && (
+            <section className="flex flex-col gap-3">
+              <h2 className="font-display flex items-center gap-2.5 text-2xl font-medium tracking-[-0.025em]">
+                <MapPin className="text-sarat-black-600 size-5 shrink-0" aria-hidden />
+                {t('meetingPoint.heading')}
+              </h2>
+              <MeetingPointMap
+                lat={exp.lat}
+                lng={exp.lng}
+                placeName={placeName}
+                location={location}
+              />
+            </section>
+          )}
 
           <section className="flex flex-col gap-3">
             <h2 className="font-display flex items-center gap-2.5 text-2xl font-medium tracking-[-0.025em]">

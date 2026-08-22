@@ -35,6 +35,61 @@ export const EXPERIENCE_CATEGORIES = [
 export const BOOKING_CUTOFF_OPTIONS = [2, 6, 12, 24] as const;
 export const DEFAULT_BOOKING_CUTOFF_HOURS = 2;
 
+/**
+ * Draft sentinels. The `experiences` columns are notNull, and making
+ * them nullable would ripple `number | null` through every public
+ * reader of a live listing for the sake of rows that are never public.
+ * Instead a draft stores these in-band "unset" values; `listingReadiness`
+ * (lib/readiness.ts) refuses to submit a row that still carries any of
+ * them, and the strict schema below never produces them.
+ */
+export const UNSET_NUMBER = 0;
+export const UNSET_COORD = 0;
+export const UNSET_TEXT = '';
+
+/**
+ * Saudi bounding box for meeting-point coordinates (generous). A swapped
+ * lat/lng or a paste from the wrong tab otherwise drops the pin in the
+ * ocean. Mirrored by the location picker.
+ */
+export const SAUDI_BOX = { latMin: 16, latMax: 33, lngMin: 34, lngMax: 56 } as const;
+
+export function hasMeetingPoint(lat: number, lng: number): boolean {
+  return (
+    lat >= SAUDI_BOX.latMin &&
+    lat <= SAUDI_BOX.latMax &&
+    lng >= SAUDI_BOX.lngMin &&
+    lng <= SAUDI_BOX.lngMax
+  );
+}
+
+/**
+ * Arabic-Indic (٠–٩) and Eastern Arabic-Indic (۰–۹) digits → ASCII.
+ * iOS Arabic keyboards type them into `type="number"` inputs on some
+ * versions; `Number('٢٠٠')` is NaN and used to surface as a generic
+ * "Check this field".
+ */
+export function normalizeDigits(raw: string): string {
+  return raw.replace(/[\u0660-\u0669\u06F0-\u06F9]/g, (d) => {
+    const code = d.charCodeAt(0);
+    return String(code >= 0x06f0 ? code - 0x06f0 : code - 0x0660);
+  });
+}
+
+/**
+ * The form collects duration as an hours + minutes pair (hosts think
+ * "3 hours", not "180"); the DB keeps minutes. Either side may be blank.
+ * Returns '' when both are blank so the draft schema can treat it as
+ * unset rather than as zero.
+ */
+export function durationMinutesFromPair(hours: string, minutes: string): string {
+  const h = normalizeDigits(hours).trim();
+  const m = normalizeDigits(minutes).trim();
+  if (h === '' && m === '') return '';
+  const total = (Number(h || 0) || 0) * 60 + (Number(m || 0) || 0);
+  return String(total);
+}
+
 export const linesFromTextarea = (raw: string): string[] =>
   raw
     .split(/\r?\n/)
@@ -118,9 +173,83 @@ export const hostExperienceInputSchema = z.object({
    * lng 34–56, generous box) — a swapped lat/lng or a paste from the
    * wrong tab otherwise dropped the pin in the ocean.
    */
-  lat: z.coerce.number().min(16, 'coords_invalid').max(33, 'coords_invalid'),
-  lng: z.coerce.number().min(34, 'coords_invalid').max(56, 'coords_invalid'),
+  lat: z.coerce
+    .number()
+    .min(SAUDI_BOX.latMin, 'coords_invalid')
+    .max(SAUDI_BOX.latMax, 'coords_invalid'),
+  lng: z.coerce
+    .number()
+    .min(SAUDI_BOX.lngMin, 'coords_invalid')
+    .max(SAUDI_BOX.lngMax, 'coords_invalid'),
   locale: z.enum(['en', 'ar']),
 });
 
 export type HostExperienceInput = z.infer<typeof hostExperienceInputSchema>;
+
+/**
+ * Draft-mode rules (2026-08-22 host-listing audit, P1-1 / P1-2 / P1-5).
+ * A host persists a draft with as little as one title and fills the
+ * rest in over time; every notNull column falls back to its `UNSET_*`
+ * sentinel. Whatever IS supplied still gets the strict field's bounds
+ * so a draft can never hold an out-of-range value — only a missing one.
+ *
+ * Submit-for-review (`listingReadiness`) and the admin approval gate
+ * are where completeness is enforced; the strict
+ * `hostExperienceInputSchema` above keeps applying to rows that are
+ * already public (`live` / `paused`) so they can't regress to partial.
+ */
+const strict = hostExperienceInputSchema.shape;
+
+/** `''` → sentinel, anything else → the strict field's rules. */
+const orUnset = <T extends z.ZodTypeAny>(field: T, unset: z.output<T>) =>
+  z.preprocess(
+    (v) => (typeof v === 'string' ? (v.trim() === '' ? undefined : v.trim()) : v),
+    z.union([z.undefined().transform(() => unset), field]),
+  );
+
+export const hostExperienceDraftSchema = hostExperienceInputSchema
+  .extend({
+    titleEn: orUnset(strict.titleEn, UNSET_TEXT),
+    descriptionEn: orUnset(strict.descriptionEn, UNSET_TEXT),
+    placeName: orUnset(strict.placeName, UNSET_TEXT),
+    durationMinutes: orUnset(strict.durationMinutes, UNSET_NUMBER),
+    maxGroupSize: orUnset(strict.maxGroupSize, UNSET_NUMBER),
+    priceSar: orUnset(strict.priceSar, UNSET_NUMBER),
+    startTime: orUnset(strict.startTime, UNSET_TEXT),
+    lat: orUnset(strict.lat, UNSET_COORD),
+    lng: orUnset(strict.lng, UNSET_COORD),
+  })
+  .superRefine((v, ctx) => {
+    // Either language names the listing (Arabic-first hosts shouldn't
+    // be blocked by English; English-only hosts shouldn't be blocked by
+    // Arabic). Both are required before approval, not before saving.
+    if (v.titleEn === UNSET_TEXT && v.titleAr === undefined) {
+      ctx.addIssue({ code: 'custom', path: ['titleEn'], message: 'title_either' });
+    }
+    // A pin is all-or-nothing — one coordinate without the other is a
+    // paste gone wrong, not a half-set location.
+    if ((v.lat === UNSET_COORD) !== (v.lng === UNSET_COORD)) {
+      ctx.addIssue({ code: 'custom', path: ['lat'], message: 'coords_invalid' });
+    }
+  });
+
+export type HostExperienceDraftInput = z.infer<typeof hostExperienceDraftSchema>;
+
+/**
+ * The create step asks for a name and a category only — everything
+ * else lives on the edit page where each section saves on its own.
+ */
+export const newExperienceSchema = z
+  .object({
+    titleEn: orUnset(strict.titleEn, UNSET_TEXT),
+    titleAr: strict.titleAr,
+    category: strict.category,
+    locale: strict.locale,
+  })
+  .superRefine((v, ctx) => {
+    if (v.titleEn === UNSET_TEXT && v.titleAr === undefined) {
+      ctx.addIssue({ code: 'custom', path: ['titleEn'], message: 'title_either' });
+    }
+  });
+
+export type NewExperienceInput = z.infer<typeof newExperienceSchema>;

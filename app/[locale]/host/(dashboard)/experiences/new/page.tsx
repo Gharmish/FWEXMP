@@ -4,12 +4,8 @@ import { redirect } from '@/lib/i18n';
 import type { Locale } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
 import { getCurrentUser } from '@/features/auth/queries';
-import { getCancellationTiers } from '@/lib/cancellation-policy';
-import { getEnabledCities } from '@/lib/cities';
 import { getHostDashboard } from '@/features/host-dashboard/queries';
-import { tierDescriptions, tierNames } from '@/features/bookings/lib/policy-copy';
-import { ExperienceForm } from '@/app/[locale]/host/(dashboard)/experiences/[id]/experience-form';
-import { buildExperienceFormCopy } from '@/app/[locale]/host/(dashboard)/experiences/[id]/build-form-copy';
+import { NewExperienceForm } from '@/app/[locale]/host/(dashboard)/experiences/new/new-experience-form';
 
 export async function generateMetadata({
   params,
@@ -24,6 +20,12 @@ export async function generateMetadata({
   };
 }
 
+/**
+ * Step one of a new listing — name + category, nothing else. The
+ * draft row is created on submit and the host lands on the edit page
+ * where each section (details, photos, timeline, calendar) saves on
+ * its own.
+ */
 export default async function NewExperiencePage({
   params,
 }: {
@@ -43,18 +45,10 @@ export default async function NewExperiencePage({
     redirect({ href: '/host/apply', locale: loc });
   }
 
-  const [t, tForm, tTiers, enabledCities, policyTiers] = await Promise.all([
+  const [t, tForm] = await Promise.all([
     getTranslations('hostExperiences'),
     getTranslations('hostExperiences.form'),
-    getTranslations('cancellationTiers'),
-    getEnabledCities(),
-    getCancellationTiers(),
   ]);
-  const cityOptions = enabledCities.map((c) => ({
-    nameEn: c.nameEn,
-    region: c.region,
-    label: loc === 'ar' ? c.nameAr : c.nameEn,
-  }));
   const eyebrowClassName = cn(
     'text-sarat-black-600 font-medium text-[11px]',
     loc === 'en' && 'tracking-[0.2em] uppercase',
@@ -62,7 +56,7 @@ export default async function NewExperiencePage({
 
   return (
     <div className="flex flex-col">
-      <section className="mx-auto w-full max-w-3xl">
+      <section className="mx-auto w-full max-w-2xl">
         <div className="flex flex-col gap-4">
           <p className={eyebrowClassName}>{t('new.eyebrow')}</p>
           <h1 className="font-display text-4xl font-semibold tracking-[-0.035em] text-balance sm:text-5xl">
@@ -77,15 +71,36 @@ export default async function NewExperiencePage({
         </div>
 
         <div className="border-sarat-black/8 mt-12 [border-top-width:0.5px] pt-12">
-          <ExperienceForm
-            mode="create"
+          <NewExperienceForm
             locale={loc}
-            copy={buildExperienceFormCopy(
-              tForm,
-              tierDescriptions(policyTiers, tTiers),
-              tierNames(tTiers),
-            )}
-            cityOptions={cityOptions}
+            copy={{
+              titleLabel: tForm('titleLabel'),
+              titleHint: t('new.titleHint'),
+              titleArLabel: tForm('titleArLabel'),
+              titleArHint: t('new.titleArHint'),
+              categoryLabel: tForm('categoryLabel'),
+              categories: {
+                nature: tForm('categories.nature'),
+                heritage: tForm('categories.heritage'),
+                food: tForm('categories.food'),
+                wellness: tForm('categories.wellness'),
+                adventure: tForm('categories.adventure'),
+                family: tForm('categories.family'),
+                women_only: tForm('categories.women_only'),
+              },
+              submit: tForm('submitCreate'),
+              submitPending: tForm('submitCreatePending'),
+              errors: {
+                validation: tForm('errors.validation'),
+                server: tForm('errors.server'),
+                forbidden: tForm('errors.forbidden'),
+                noDb: tForm('errors.noDb'),
+                titleEither: tForm('errors.fields.titleEither'),
+                titleShort: tForm('errors.fields.titleShort'),
+                titleLong: tForm('errors.fields.titleLong'),
+                titleArInvalid: tForm('errors.fields.titleArInvalid'),
+              },
+            }}
           />
         </div>
       </section>
