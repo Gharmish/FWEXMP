@@ -73,7 +73,14 @@ export async function generateMetadata({
       description: t('description'),
     },
     verification: {
-      other: { 'facebook-domain-verification': '9wb750bssvguoass0jugvtadqj5ecl' },
+      other: {
+        'facebook-domain-verification': '9wb750bssvguoass0jugvtadqj5ecl',
+        // Saudi Business Center (eauthenticate.saudibusiness.gov.sa) domain
+        // ownership proof for gharmish.com. Must stay in the <head> of the
+        // site's home page — the platform re-checks it, so don't remove it
+        // after the first successful verification.
+        'domain-verification': '8ce735346ed7dd313e0677ac47480a725f4b093969c7acc296b95634fce99673',
+      },
     },
   };
 }
