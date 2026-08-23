@@ -193,3 +193,28 @@ Setup checklist renders above "Needs your attention" only while incomplete.
 7. Remaining P2s (earnings labeling, reviews ordering, help link, contact editing, touch targets, `pickLocalized`), then P3s.
 
 Out of scope here but worth the roadmap: guest messaging in-app (today it's WhatsApp-only, with no message history the platform can see for disputes).
+
+---
+
+## Follow-up — 2026-08-23 · the two deferred items, shipped (`41e8ff0`)
+
+Both pieces the first pass deferred are live on gharmish.com.
+
+### Notification preferences (`/host/profile` → Notifications)
+
+- **Channels** — WhatsApp and email toggles (`hosts.notify_whatsapp` / `notify_email`), enforced in the two host-contact resolvers every sender already goes through ([host-contact.ts](lib/notifications/host-contact.ts), `hostEmailContext` in [booking-email.ts](features/bookings/lib/booking-email.ts)). A switched-off channel reads as "no address", so the dispatcher and the twenty-odd senders are unchanged.
+- **Categories** — day-before reminders and new-review notices can be muted (`notify_reminders` / `notify_reviews`); everything else is transactional and always delivered on the enabled channels.
+- **Rules** — at least one channel stays on _and_ it must have an address on file (hosts row with the approved application as fallback). Account-critical, email-only notices — suspension, reinstatement, dispute opened, payment hold lapsed, "your contact details changed" — pass `{ critical: true }` and ignore the toggles; the copy says so.
+- Ops sees the contact, any pending phone change and the four toggles on the admin host page.
+
+### Verified contact-phone change (`/host/profile` → Contact details)
+
+- A new number is parked in `hosts.pending_contact_phone(_at)` and proven by a Twilio Verify code over WhatsApp ([twilio-verify.ts](lib/twilio-verify.ts), REST against the existing "Gharmish" Verify service; new env `TWILIO_VERIFY_SERVICE_SID`, set in production). Notifications stay on the old number until the code checks out. Resend and cancel paths; Arabic-Indic digits accepted; the sign-in send/verify throttles are reused. Empty env → changes are refused, never saved unverified.
+- Proving the **new** number says nothing about who holds the session, so every contact or preference change is announced to the **previous** email with a "this wasn't me" support path, audited in `user_profile_events`, and the old number loses its WhatsApp host identity (`conversations.host_id` cleared; the application-phone fallback in `identifyHost` applies only while `contact_phone` is unset).
+- Email changes save immediately; the form is a sequence-stamped step machine, so the verify step opens, closes and reopens any number of times in one page session.
+
+### What the adversarial review caught before it shipped
+
+Five review lenses (security, correctness, coverage, UX/i18n, completeness) with two skeptics per finding. Confirmed and fixed: the verify step could not reopen within a page session; "code expired" was never shown and left a stale pending row; "at least one channel" ignored whether that channel had an address; four email-only account notices would have gone silent when email was switched off; verifying the new number does not authenticate the actor (hence the change notices, audit trail and identity drop above); the email part of a submit saved silently before the phone step failed; the old application number kept WhatsApp host powers after a change; plus copy (day-of → day-before, "listing reviews" → moderation decisions, duplicate card titles, an ICU `{phone}` placeholder that needed `t.raw`), persistent ARIA live regions, and no focus-steal on load.
+
+Verification: 32 new unit tests (1491 total), lint / typecheck / production build clean, headless Playwright against a real Twilio Verify round-trip (wrong code → resend → cancel → reopen with a second number), EN and AR.
