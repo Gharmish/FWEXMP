@@ -1,6 +1,6 @@
 import 'server-only';
 
-import { and, desc, eq, inArray, isNotNull, lt, or, sql } from 'drizzle-orm';
+import { and, desc, eq, inArray, isNotNull, isNull, lt, or, sql } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import { hasSupportAgent, serverEnv } from '@/lib/env';
 import {
@@ -113,6 +113,7 @@ async function identifyHost(phone: string): Promise<string | null> {
     columns: { id: true, verificationStatus: true },
   });
   if (direct) return direct.verificationStatus !== 'suspended' ? direct.id : null;
+
   const viaAccount = await db
     .select({ id: hosts.id, verificationStatus: hosts.verificationStatus })
     .from(hosts)
@@ -123,11 +124,20 @@ async function identifyHost(phone: string): Promise<string | null> {
   if (viaAccount[0]) {
     return viaAccount[0].verificationStatus !== 'suspended' ? viaAccount[0].id : null;
   }
+  // The application's number only stands in while `hosts.contact_phone`
+  // is unset: a host who has since VERIFIED a different contact phone
+  // (2026-08-22) must not stay reachable as that host from the old one.
   const viaApplication = await db
     .select({ id: hosts.id, verificationStatus: hosts.verificationStatus })
     .from(hostApplications)
     .innerJoin(hosts, eq(hosts.userId, hostApplications.userId))
-    .where(and(eq(hostApplications.contactPhone, phone), eq(hostApplications.status, 'approved')))
+    .where(
+      and(
+        eq(hostApplications.contactPhone, phone),
+        eq(hostApplications.status, 'approved'),
+        isNull(hosts.contactPhone),
+      ),
+    )
     .limit(1);
   if (viaApplication[0]) {
     return viaApplication[0].verificationStatus !== 'suspended' ? viaApplication[0].id : null;
@@ -152,7 +162,14 @@ export async function recordInboundMessage(input: InboundMessage): Promise<Recor
   try {
     const existing = await db.query.conversations.findFirst({
       where: eq(conversations.address, address),
-      columns: { id: true, guestId: true, hostId: true, locale: true, lastAckAt: true, state: true },
+      columns: {
+        id: true,
+        guestId: true,
+        hostId: true,
+        locale: true,
+        lastAckAt: true,
+        state: true,
+      },
     });
 
     let conversationId: string;
@@ -386,7 +403,10 @@ export async function sendConversationReply(
  * The automatic "we got your message" reply for conversations a person
  * owns (phase 0). Throttled by the caller via `shouldAck`.
  */
-export async function acknowledgeInbound(recorded: RecordedInbound, address: string): Promise<void> {
+export async function acknowledgeInbound(
+  recorded: RecordedInbound,
+  address: string,
+): Promise<void> {
   await sendConversationReply({
     conversationId: recorded.conversationId,
     address,
@@ -500,7 +520,12 @@ export async function purgeExpiredConversations(limit = 200): Promise<number> {
     if (stale.length === 0) return 0;
     const deleted = await db
       .delete(conversations)
-      .where(inArray(conversations.id, stale.map((s) => s.id)))
+      .where(
+        inArray(
+          conversations.id,
+          stale.map((s) => s.id),
+        ),
+      )
       .returning({ id: conversations.id });
     return deleted.length;
   } catch (error) {

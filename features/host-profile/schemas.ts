@@ -94,3 +94,35 @@ export const hostContactSchema = z.object({
 });
 
 export type HostContactInput = z.infer<typeof hostContactSchema>;
+
+/** The 6-digit Twilio Verify code for a pending contact-phone change. */
+export const hostContactCodeSchema = z.object({
+  code: z
+    .string()
+    .trim()
+    // Arabic-Indic (٠–٩) and Persian (۰–۹) digits are what an Arabic
+    // keyboard produces — normalise before the shape check.
+    .transform((raw) =>
+      raw.replace(/[\u0660-\u0669\u06F0-\u06F9]/g, (d) =>
+        String((d.charCodeAt(0) - (d <= '\u0669' ? 0x0660 : 0x06f0)) % 10),
+      ),
+    )
+    .pipe(z.string().regex(/^\d{6}$/, 'code_invalid')),
+});
+
+/**
+ * Notification preferences. Channels: at least one must stay on —
+ * booking requests, cancellations and payouts are transactional and a
+ * host with both channels off would simply stop hearing about their own
+ * business. Categories are free to toggle.
+ */
+export const hostNotificationPrefsSchema = z
+  .object({
+    email: z.boolean(),
+    whatsapp: z.boolean(),
+    reminders: z.boolean(),
+    reviews: z.boolean(),
+  })
+  .refine((v) => v.email || v.whatsapp, { path: ['channels'], message: 'channel_required' });
+
+export type HostNotificationPrefsInput = z.infer<typeof hostNotificationPrefsSchema>;

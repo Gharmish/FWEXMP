@@ -103,6 +103,13 @@ const serverSchema = z.object({
   // out), so templates can go live one by one as Meta approves them —
   // update the env var, no deploy. See docs/notifications/twilio-setup.md.
   TWILIO_WHATSAPP_CONTENT_SIDS: z.string().default(''),
+  // Twilio Verify service (the "Gharmish" service that also backs
+  // Supabase phone sign-in, see docs/auth-phone/twilio-otp-setup.md).
+  // Used DIRECTLY for proving a host's new contact phone (2026-08-22) —
+  // Supabase's sign-in OTP can't be reused there without signing in as
+  // another user. Empty → contact-phone changes are refused with a
+  // clear message (never saved unverified).
+  TWILIO_VERIFY_SERVICE_SID: z.string().default(''),
   // Operational alerts inbox (new applications, disputes, refunds owed,
   // settlement anomalies, cron failures). Optional — `notifyAdmin()` is a
   // silent no-op until it's set, same boundary pattern as `hasEmail()`.
@@ -188,6 +195,7 @@ export const serverEnv = parseEnv(
     TWILIO_AUTH_TOKEN: process.env.TWILIO_AUTH_TOKEN,
     TWILIO_WHATSAPP_FROM: process.env.TWILIO_WHATSAPP_FROM,
     TWILIO_WHATSAPP_CONTENT_SIDS: process.env.TWILIO_WHATSAPP_CONTENT_SIDS,
+    TWILIO_VERIFY_SERVICE_SID: process.env.TWILIO_VERIFY_SERVICE_SID,
     ADMIN_ALERT_EMAIL: process.env.ADMIN_ALERT_EMAIL,
     ADMIN_ALERT_WHATSAPP: process.env.ADMIN_ALERT_WHATSAPP,
     SUPPORT_WHATSAPP: process.env.SUPPORT_WHATSAPP,
@@ -260,6 +268,15 @@ export function hasEmail(): boolean {
 export function hasWhatsApp(): boolean {
   return Boolean(
     serverEnv.TWILIO_ACCOUNT_SID && serverEnv.TWILIO_AUTH_TOKEN && serverEnv.TWILIO_WHATSAPP_FROM,
+  );
+}
+
+/** Can we send a Twilio Verify code directly (host contact-phone proof)? */
+export function hasTwilioVerify(): boolean {
+  return Boolean(
+    serverEnv.TWILIO_ACCOUNT_SID &&
+    serverEnv.TWILIO_AUTH_TOKEN &&
+    serverEnv.TWILIO_VERIFY_SERVICE_SID,
   );
 }
 

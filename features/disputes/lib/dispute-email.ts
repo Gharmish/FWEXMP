@@ -156,7 +156,7 @@ export async function sendHostDisputeOpenedEmail(referenceCode: string): Promise
     with: { experience: { columns: { titleEn: true, titleAr: true, hostId: true } } },
   });
   if (!booking) return;
-  const host = await hostNotificationContact(booking.experience.hostId);
+  const host = await hostNotificationContact(booking.experience.hostId, { critical: true });
   if (!host?.email) return;
 
   const t = await getTranslations({ locale: host.locale, namespace: 'disputeEmail' });

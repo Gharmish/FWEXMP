@@ -886,7 +886,17 @@
       "pendingDescription": "This host's application is still being reviewed.",
       "pendingCta": "Go to host applications →",
       "payoutIban": "Payout IBAN",
-      "noIban": "Not provided yet"
+      "noIban": "Not provided yet",
+      "contactPhone": "Notification phone (WhatsApp)",
+      "contactEmail": "Notification email",
+      "pendingPhone": "Change pending verification →",
+      "notifications": "Notification preferences",
+      "prefs": {
+        "whatsapp": "WhatsApp",
+        "email": "Email",
+        "reminders": "Day-before reminders",
+        "reviews": "New-review notices"
+      }
     },
     "hostStatusEvent": {
       "suspended": "Suspended",
@@ -2041,10 +2051,10 @@
       }
     },
     "contact": {
-      "title": "Contact & notifications",
-      "intro": "New requests, reminders and payout notices go here. Never shown to guests.",
+      "title": "Contact details",
+      "intro": "Where new requests, reminders and payout notices reach you. Never shown to guests.",
       "phoneLabel": "WhatsApp number",
-      "phoneHint": "Booking requests and reminders arrive on WhatsApp at this number.",
+      "phoneHint": "Booking requests and reminders arrive on WhatsApp at this number. Changing it sends a verification code to the new number first.",
       "phonePlaceholder": "5X XXX XXXX",
       "countryLabel": "Country code",
       "emailLabel": "Email",
@@ -2053,7 +2063,56 @@
       "submitting": "Saving…",
       "saved": "Contact details saved.",
       "phoneError": "Enter a valid mobile number.",
-      "emailError": "Enter a valid email address."
+      "emailError": "Enter a valid email address.",
+      "verify": {
+        "title": "Confirm your new number",
+        "intro": "We sent a 6-digit code on WhatsApp to {phone}.",
+        "emailSavedNote": "Your email is saved. The new number takes over once the code checks out — until then, messages keep going to your current number.",
+        "codeLabel": "Verification code",
+        "submit": "Confirm number",
+        "verifying": "Checking…",
+        "cancel": "Keep my current number",
+        "verified": "Number confirmed — notifications now go to your new number.",
+        "changeCancelled": "Change cancelled. Your current number stays.",
+        "codeError": "That code isn't right. Check the WhatsApp message and try again.",
+        "pendingNotice": "You started changing your number earlier. Enter the code from WhatsApp, or keep your current number.",
+        "resend": "Send a new code",
+        "resending": "Sending…",
+        "resent": "A new code is on its way.",
+        "emailSavedPhoneFailed": "Your email is saved. The phone change didn't go through — your current number stays."
+      },
+      "errors": {
+        "verifyUnavailable": "Number changes are temporarily unavailable. Your current number stays — try again later or message us on WhatsApp.",
+        "rateLimited": "Too many attempts. Wait a few minutes and try again.",
+        "phoneUnreachable": "We couldn't reach that number on WhatsApp. Check it and try again.",
+        "expired": "That code has expired. Ask for a new one, or enter the number again."
+      }
+    },
+    "notifications": {
+      "title": "Notifications",
+      "intro": "Choose how we reach you. Booking requests, guest cancellations and payout notices always go out on the channels you keep on; account and dispute notices always arrive by email.",
+      "channelsTitle": "Channels",
+      "channelsHint": "Keep at least one on so booking requests can still reach you.",
+      "whatsapp": "WhatsApp",
+      "whatsappHint": "Requests, day-before reminders and payout notices as WhatsApp messages.",
+      "whatsappNoPhone": "Add a WhatsApp number above to receive messages here.",
+      "email": "Email",
+      "emailHint": "The written record of every booking, payout statements, and account notices.",
+      "emailNoEmail": "Add an email above to receive messages here.",
+      "lastChannel": "Keep at least one channel on so booking requests can still reach you.",
+      "categoriesTitle": "Optional notices",
+      "categoriesHint": "Everything else — new requests, cancellations, payouts, decisions on your listings — always arrives.",
+      "reminders": "Day-before reminders",
+      "remindersHint": "A heads-up the day before each session with who's coming.",
+      "reviews": "New guest reviews",
+      "reviewsHint": "A note when a guest reviews one of your experiences.",
+      "submit": "Save preferences",
+      "submitting": "Saving…",
+      "saved": "Preferences saved.",
+      "errors": {
+        "channelRequired": "Keep at least one channel on.",
+        "channelUnreachable": "The channel you kept on has no address on file. Add a phone or email above first."
+      }
     }
   },
   "hostBookings": {
@@ -4251,5 +4310,27 @@
     "windowDays": "{count, plural, one {{n} day} other {{n} days}}",
     "descNoPartial": "{name} — free cancellation with a full refund until {freeWindow} before the start; no refund after that",
     "descWithPartial": "{name} — full refund until {freeWindow} before the start; {pct}% refund until {partialWindow} before; no refund after that"
+  },
+  "hostContactChangedEmail": {
+    "subject": {
+      "phone": "Your Gharmish notification number changed",
+      "email": "Your Gharmish notification email changed",
+      "prefs": "Your Gharmish notification settings changed"
+    },
+    "greeting": "Hi {name},",
+    "intro": {
+      "phone": "The WhatsApp number that receives your booking requests and reminders was just changed from your host dashboard. If that was you, nothing to do.",
+      "email": "The email address that receives your booking records and payout statements was just changed from your host dashboard. If that was you, nothing to do.",
+      "prefs": "Your notification channels were just changed from your host dashboard. If that was you, nothing to do."
+    },
+    "previousPhone": "Previous number",
+    "newPhone": "New number",
+    "previousEmail": "Previous email",
+    "newEmail": "New email",
+    "prefsLabel": "Now",
+    "cta": "This wasn't me — message support",
+    "supportMessage": "Hi, this is {name} (host). My contact details were changed and it wasn't me.",
+    "closing": "If you didn't make this change, message us on WhatsApp straight away and we'll restore your details and secure the account.",
+    "footer": "Gharmish · Experiences hosted by the people who know the place best."
   }
 }

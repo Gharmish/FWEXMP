@@ -13,6 +13,8 @@ import { getHostDashboard } from '@/features/host-dashboard/queries';
 import { HostProfileForm } from '@/features/host-profile/components/host-profile-form';
 import { HostPhotoUpload } from '@/features/host-profile/components/host-photo-upload';
 import { HostContactForm } from '@/features/host-profile/components/host-contact-form';
+import { HostNotificationPrefsForm } from '@/features/host-profile/components/host-notification-prefs-form';
+import { hostContactAddresses } from '@/lib/notifications/host-contact';
 
 export async function generateMetadata({
   params,
@@ -50,7 +52,13 @@ export default async function HostProfileSettingsPage({
   }
   const { host } = dashboard;
 
-  const t = await getTranslations('hostProfileSettings');
+  const [t, addresses] = await Promise.all([
+    getTranslations('hostProfileSettings'),
+    // Same resolution the senders use (hosts.* with the application as
+    // fallback), so the channel hints and the "one stays on" rule agree
+    // with what can actually be delivered.
+    hostContactAddresses(host.id),
+  ]);
 
   const eyebrowClassName = cn(
     'text-sarat-black-600 font-medium text-[11px]',
@@ -192,6 +200,7 @@ export default async function HostProfileSettingsPage({
             contactPhone: host.contactPhone ?? '',
             contactEmail: host.contactEmail ?? '',
           }}
+          pendingPhone={host.pendingContactPhone}
           copy={{
             phoneLabel: t('contact.phoneLabel'),
             phoneHint: t('contact.phoneHint'),
@@ -204,11 +213,74 @@ export default async function HostProfileSettingsPage({
             saved: t('contact.saved'),
             phoneError: t('contact.phoneError'),
             emailError: t('contact.emailError'),
+            verifyTitle: t('contact.verify.title'),
+            // Raw: the client form substitutes {phone} itself (LTR-isolated span), so ICU must not see it.
+            verifyIntro: t.raw('contact.verify.intro'),
+            verifyEmailSavedNote: t('contact.verify.emailSavedNote'),
+            codeLabel: t('contact.verify.codeLabel'),
+            codePlaceholder: '••••••',
+            verifySubmit: t('contact.verify.submit'),
+            verifying: t('contact.verify.verifying'),
+            verifyCancel: t('contact.verify.cancel'),
+            resend: t('contact.verify.resend'),
+            resending: t('contact.verify.resending'),
+            resent: t('contact.verify.resent'),
+            verified: t('contact.verify.verified'),
+            changeCancelled: t('contact.verify.changeCancelled'),
+            codeError: t('contact.verify.codeError'),
+            pendingNotice: t('contact.verify.pendingNotice'),
+            emailSavedPhoneFailed: t('contact.verify.emailSavedPhoneFailed'),
             errors: {
               no_db: t('details.errors.noDb'),
               no_auth: t('details.errors.noAuth'),
               validation: t('details.errors.validation'),
               server: t('details.errors.server'),
+              verify_unavailable: t('contact.errors.verifyUnavailable'),
+              rate_limited: t('contact.errors.rateLimited'),
+              phone_unreachable: t('contact.errors.phoneUnreachable'),
+              invalid_code: t('contact.verify.codeError'),
+              expired: t('contact.errors.expired'),
+            },
+          }}
+        />
+      </Card>
+
+      {/* Notification preferences — channels (≥1 stays on) + optional categories. */}
+      <Card className="flex flex-col gap-6 p-6 sm:p-8">
+        <div className="flex flex-col gap-2">
+          <h2 className={sectionTitle}>{t('notifications.title')}</h2>
+          <p className="text-sarat-black-600 text-sm leading-relaxed">{t('notifications.intro')}</p>
+        </div>
+        <HostNotificationPrefsForm
+          prefs={host.notificationPrefs}
+          hasEmail={Boolean(addresses?.email)}
+          hasPhone={Boolean(addresses?.phone)}
+          copy={{
+            channelsTitle: t('notifications.channelsTitle'),
+            channelsHint: t('notifications.channelsHint'),
+            email: t('notifications.email'),
+            emailHint: t('notifications.emailHint'),
+            whatsapp: t('notifications.whatsapp'),
+            whatsappHint: t('notifications.whatsappHint'),
+            whatsappNoPhone: t('notifications.whatsappNoPhone'),
+            emailNoEmail: t('notifications.emailNoEmail'),
+            lastChannel: t('notifications.lastChannel'),
+            categoriesTitle: t('notifications.categoriesTitle'),
+            categoriesHint: t('notifications.categoriesHint'),
+            reminders: t('notifications.reminders'),
+            remindersHint: t('notifications.remindersHint'),
+            reviews: t('notifications.reviews'),
+            reviewsHint: t('notifications.reviewsHint'),
+            submit: t('notifications.submit'),
+            submitting: t('notifications.submitting'),
+            saved: t('notifications.saved'),
+            errors: {
+              no_db: t('details.errors.noDb'),
+              no_auth: t('details.errors.noAuth'),
+              validation: t('details.errors.validation'),
+              server: t('details.errors.server'),
+              channel_required: t('notifications.errors.channelRequired'),
+              channel_unreachable: t('notifications.errors.channelUnreachable'),
             },
           }}
         />

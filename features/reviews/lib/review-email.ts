@@ -78,6 +78,8 @@ export async function sendHostNewReviewEmail(bookingReference: string): Promise<
   if (!booking?.review) return;
   const host = await hostNotificationContact(booking.experience.hostId);
   if (!host || (!host.email && !host.phone)) return;
+  // Optional category: the host can mute new-review notices.
+  if (!host.prefs.reviews) return;
 
   const t = await getTranslations({ locale: host.locale, namespace: 'reviewEmail' });
   const title = host.locale === 'ar' ? booking.experience.titleAr : booking.experience.titleEn;

@@ -325,3 +325,16 @@ button, titles ≤ 20 chars, ≤ 5 emoji, no raw URL in bodies, brand spelled
 templates, "{{1}} is your verification code" + Copy-code button). Custom OTP
 wording requires a Verify custom template approved by Twilio — a console/
 support task, not a deploy.
+
+## Host notification preferences (2026-08-22)
+
+Hosts can switch the email / WhatsApp channels and two optional
+categories (day-before reminders, new-review notices) on `/host/profile`.
+Enforcement lives in the two host-contact resolvers
+(`lib/notifications/host-contact.ts`, `hostEmailContext` in
+`features/bookings/lib/booking-email.ts`): a switched-off channel reads
+as "no address", so senders and the dispatcher are unchanged. Account-
+critical, email-only notices (suspension, reinstatement, dispute opened,
+payment hold lapsed, and "your contact details changed") pass
+`{ critical: true }` and ignore the toggles. Ops sees the current contact,
+a pending phone change and the four toggles on the admin host page.

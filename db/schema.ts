@@ -368,6 +368,28 @@ export const hosts = pgTable('hosts', {
    * for seeded demo hosts.
    */
   contactPhone: text(),
+  /**
+   * A contact-phone change the host has requested but not yet proven
+   * (2026-08-22): the new number is held here until the Twilio Verify
+   * code sent to it checks out, then promoted to `contactPhone`. Every
+   * notification keeps going to the OLD number meanwhile, so a hijacked
+   * session can't silently redirect booking requests. `At` bounds the
+   * window (codes expire; stale pendings are ignored).
+   */
+  pendingContactPhone: text(),
+  pendingContactPhoneAt: timestamp({ withTimezone: true }),
+  /**
+   * Notification preferences (2026-08-22). Channels: email / WhatsApp —
+   * at least one stays on (enforced in the action), so booking requests,
+   * cancellations and payouts can never go silent. Categories: the two
+   * optional rails a host may reasonably mute — the day-before reminder
+   * and new-review notices. Everything else is transactional and always
+   * delivered on the enabled channels.
+   */
+  notifyEmail: boolean().notNull().default(true),
+  notifyWhatsapp: boolean().notNull().default(true),
+  notifyReminders: boolean().notNull().default(true),
+  notifyReviews: boolean().notNull().default(true),
   createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
 });
 

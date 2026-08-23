@@ -28,8 +28,21 @@ export interface HostDashboardData {
     /** Notification contact — editable on /host/profile, never public. */
     contactPhone: string | null;
     contactEmail: string | null;
+    /** A new phone awaiting its verification code (within the window), if any. */
+    pendingContactPhone: string | null;
+    notificationPrefs: HostNotificationPrefs;
   };
 }
+
+export interface HostNotificationPrefs {
+  email: boolean;
+  whatsapp: boolean;
+  reminders: boolean;
+  reviews: boolean;
+}
+
+/** How long a pending phone change stays actionable (Twilio Verify codes live 10 min). */
+export const PENDING_PHONE_WINDOW_MS = 15 * 60 * 1000;
 
 function toProfile(row: Host): HostDashboardData['host'] {
   return {
@@ -48,6 +61,18 @@ function toProfile(row: Host): HostDashboardData['host'] {
     payoutIbanSet: Boolean(row.payoutIban),
     contactPhone: row.contactPhone,
     contactEmail: row.contactEmail,
+    pendingContactPhone:
+      row.pendingContactPhone &&
+      row.pendingContactPhoneAt &&
+      row.pendingContactPhoneAt.getTime() + PENDING_PHONE_WINDOW_MS > Date.now()
+        ? row.pendingContactPhone
+        : null,
+    notificationPrefs: {
+      email: row.notifyEmail,
+      whatsapp: row.notifyWhatsapp,
+      reminders: row.notifyReminders,
+      reviews: row.notifyReviews,
+    },
   };
 }
 

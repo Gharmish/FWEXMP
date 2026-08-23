@@ -40,6 +40,12 @@ export interface AdminHostDetail extends AdminHostRow {
   crNumber: string | null;
   /** Payout destination IBAN (self-managed by the host). */
   payoutIban: string | null;
+  /** Notification contact (self-managed; phone changes are Verify-gated). */
+  contactEmail: string | null;
+  contactPhone: string | null;
+  /** A phone change still awaiting its code, if any (2026-08-22). */
+  pendingContactPhone: string | null;
+  notificationPrefs: { email: boolean; whatsapp: boolean; reminders: boolean; reviews: boolean };
   languages: readonly string[];
   experiences: readonly AdminHostExperienceRow[];
   statusEvents: readonly AdminHostStatusEventView[];

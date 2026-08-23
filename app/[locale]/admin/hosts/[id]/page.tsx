@@ -194,6 +194,52 @@ export default async function AdminHostDetailPage({
         </div>
       </dl>
 
+      {/* Contact & notification preferences — self-managed by the host
+          (2026-08-22); ops needs to see where notices actually go. */}
+      <dl className="border-sarat-black/8 rounded-card grid gap-5 [border-width:0.5px] p-6 sm:grid-cols-2">
+        <div className="flex flex-col gap-1">
+          <dt className={eyebrowClassName}>{t('hostDetail.contactPhone')}</dt>
+          <dd className="text-base font-medium">
+            {host.contactPhone ? <span dir="ltr">{host.contactPhone}</span> : '—'}
+            {host.pendingContactPhone && (
+              <span className="text-warning block text-sm">
+                {t('hostDetail.pendingPhone')} <span dir="ltr">{host.pendingContactPhone}</span>
+              </span>
+            )}
+          </dd>
+        </div>
+        <div className="flex flex-col gap-1">
+          <dt className={eyebrowClassName}>{t('hostDetail.contactEmail')}</dt>
+          <dd className="text-base font-medium">
+            {host.contactEmail ? <span dir="ltr">{host.contactEmail}</span> : '—'}
+          </dd>
+        </div>
+        <div className="flex flex-col gap-1 sm:col-span-2">
+          <dt className={eyebrowClassName}>{t('hostDetail.notifications')}</dt>
+          <dd className="flex flex-wrap gap-2 text-sm">
+            {(
+              [
+                ['whatsapp', host.notificationPrefs.whatsapp],
+                ['email', host.notificationPrefs.email],
+                ['reminders', host.notificationPrefs.reminders],
+                ['reviews', host.notificationPrefs.reviews],
+              ] as const
+            ).map(([key, on]) => (
+              <span
+                key={key}
+                className={
+                  on
+                    ? 'bg-success-surface text-success rounded-button px-3 py-1'
+                    : 'bg-sarat-black/8 text-sarat-black-600 rounded-button px-3 py-1 line-through'
+                }
+              >
+                {t(`hostDetail.prefs.${key}`)}
+              </span>
+            ))}
+          </dd>
+        </div>
+      </dl>
+
       {/* Bio */}
       {host.bioEn && (
         <section className="flex flex-col gap-3">

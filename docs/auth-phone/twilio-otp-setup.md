@@ -155,3 +155,23 @@ there's evidence of guests who can't receive WhatsApp.
   notifications still receives Verify OTPs (different pipeline —
   Verify, not the Content API dispatcher). That's correct behavior:
   opting out of notifications must not lock a user out of sign-in.
+
+## Reused for host contact-phone changes (2026-08-22)
+
+The same Verify service now proves a host's NEW notification number on
+`/host/profile` before it replaces the old one. The app calls the Verify
+REST API directly (`lib/twilio-verify.ts`, `Channel=whatsapp`) with the
+existing `TWILIO_ACCOUNT_SID`/`TWILIO_AUTH_TOKEN` plus one new variable:
+
+```
+TWILIO_VERIFY_SERVICE_SID=VAddd1ac343aaa52673338c45deea5f91a
+```
+
+Set in Vercel Production (Sensitive) and `.env.local`. Empty → phone
+changes are refused with a clear message; nothing is ever saved
+unverified. The flow parks the number in `hosts.pending_contact_phone`,
+keeps notifications on the old number until the code checks out, emails
+the previous address about every change, audits it in
+`user_profile_events`, and drops the old number's WhatsApp host identity
+(`conversations.host_id`). Send/verify throttles are the sign-in ones
+(`features/auth/lib/throttle`). Local dev with stub auth accepts `000000`.

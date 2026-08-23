@@ -9,6 +9,7 @@ import QRCode from 'qrcode';
 import { formatDate, formatInteger, formatSAR, formatTime } from '@/lib/format';
 import type { EmailAttachment } from '@/lib/email';
 import { dispatchNotification, notificationsConfigured } from '@/lib/notifications/dispatch';
+import { applyChannelPrefs } from '@/lib/notifications/host-contact';
 import { SITE_URL, SELLER_LEGAL_NAME, COMMERCIAL_REGISTRATION } from '@/lib/site';
 import { reportError } from '@/lib/log';
 import { hostApplications } from '@/db/schema';
@@ -885,7 +886,8 @@ export async function sendBookingPrepareReminderEmail(
   if (booking.experienceSlug) {
     try {
       const host = await hostEmailContext(booking.experienceSlug);
-      if (host?.phone) {
+      // Optional category: the host can mute day-before reminders.
+      if (host?.phone && host.prefs.reminders) {
         await dispatchNotification({
           type: 'host_reminder_tomorrow',
           dedupeKey: `host_reminder_tomorrow:${booking.referenceCode}:${booking.date}`,
@@ -1422,11 +1424,14 @@ export async function sendBookingOnHoldEmail(reference: string): Promise<void> {
 }
 
 interface HostEmailContext {
+  /** Null when absent OR the host switched the email channel off. */
   email: string | null;
-  /** E.164 phone — the WhatsApp address. Null for seeded demo hosts. */
+  /** E.164 phone — the WhatsApp address. Null for seeded demo hosts or a switched-off channel. */
   phone: string | null;
   locale: Locale;
   title: string;
+  /** Optional-category opt-ins (reminder / review notices). */
+  prefs: { reminders: boolean; reviews: boolean };
 }
 
 /**
@@ -1437,14 +1442,28 @@ interface HostEmailContext {
  * neither channel is addressable (seeded demo hosts), so the host
  * senders below no-op for them.
  */
-async function hostEmailContext(experienceSlug: string): Promise<HostEmailContext | null> {
+async function hostEmailContext(
+  experienceSlug: string,
+  options: { critical?: boolean } = {},
+): Promise<HostEmailContext | null> {
   // The public ExperienceSummary deliberately omits commission and host
   // id, so read the row (with its host) straight from the DB.
   const experience = await db.query.experiences.findFirst({
     where: (e) => eq(e.slug, experienceSlug),
     columns: { titleEn: true, titleAr: true },
     with: {
-      host: { columns: { id: true, languages: true, contactEmail: true, contactPhone: true } },
+      host: {
+        columns: {
+          id: true,
+          languages: true,
+          contactEmail: true,
+          contactPhone: true,
+          notifyEmail: true,
+          notifyWhatsapp: true,
+          notifyReminders: true,
+          notifyReviews: true,
+        },
+      },
     },
   });
   if (!experience) return null;
@@ -1459,6 +1478,10 @@ async function hostEmailContext(experienceSlug: string): Promise<HostEmailContex
     email = email ?? application?.contactEmail ?? null;
     phone = phone ?? application?.contactPhone ?? null;
   }
+  // The host's channel toggles (2026-08-22): a switched-off channel
+  // reads as "no address" for every sender that uses this context —
+  // except account-critical notices (see HostContactOptions.critical).
+  if (!options.critical) ({ email, phone } = applyChannelPrefs({ email, phone }, experience.host));
   if (!email && !phone) return null;
 
   const locale: Locale = experience.host.languages[0] === 'en' ? 'en' : 'ar';
@@ -1467,6 +1490,7 @@ async function hostEmailContext(experienceSlug: string): Promise<HostEmailContex
     phone,
     locale,
     title: locale === 'ar' ? experience.titleAr : experience.titleEn,
+    prefs: { reminders: experience.host.notifyReminders, reviews: experience.host.notifyReviews },
   };
 }
 
@@ -1681,7 +1705,8 @@ export async function sendHostHoldLapsedEmail(reference: string): Promise<void> 
 
   const booking = await getBookingByReference(reference);
   if (!booking?.experienceSlug) return;
-  const host = await hostEmailContext(booking.experienceSlug);
+  // Account-critical: the host's hold lapsed and their calendar changed — bypasses channel toggles.
+  const host = await hostEmailContext(booking.experienceSlug, { critical: true });
   if (!host) return;
 
   const t = await getTranslations({ locale: host.locale, namespace: 'bookingEmail' });

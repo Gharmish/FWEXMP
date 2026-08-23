@@ -23,7 +23,7 @@ export async function sendHostSuspendedEmail(
   reason: string | null | undefined,
 ): Promise<void> {
   if (!hasEmail()) return;
-  const host = await hostNotificationContact(hostId);
+  const host = await hostNotificationContact(hostId, { critical: true });
   if (!host?.email) return;
 
   const t = await getTranslations({ locale: host.locale, namespace: 'hostStatusEmail' });
@@ -49,7 +49,7 @@ export async function sendHostSuspendedEmail(
 
 export async function sendHostReinstatedEmail(hostId: string): Promise<void> {
   if (!hasEmail()) return;
-  const host = await hostNotificationContact(hostId);
+  const host = await hostNotificationContact(hostId, { critical: true });
   if (!host?.email) return;
 
   const t = await getTranslations({ locale: host.locale, namespace: 'hostStatusEmail' });
