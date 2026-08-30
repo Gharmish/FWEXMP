@@ -17,6 +17,12 @@ interface RelatedExperiencesProps {
   city?: string;
   category?: Category;
   locale: Locale;
+  /**
+   * Pre-resolved wishlist membership. Pages that already read the set for
+   * their own hearts (the detail page) pass it down so this section does
+   * not repeat the cookie + account read; omitted callers fetch it here.
+   */
+  saved?: ReadonlySet<string>;
 }
 
 /**
@@ -32,8 +38,9 @@ export async function RelatedExperiences({
   city,
   category,
   locale,
+  saved: savedProp,
 }: RelatedExperiencesProps) {
-  const [all, saved] = await Promise.all([getExperiences(), getWishlistSet()]);
+  const [all, saved] = await Promise.all([getExperiences(), savedProp ?? getWishlistSet()]);
   const pool = all.filter((e) => e.slug !== excludeSlug);
   const current = all.find((e) => e.slug === excludeSlug);
   const rankCity = city ?? current?.city;

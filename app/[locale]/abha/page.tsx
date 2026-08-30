@@ -116,12 +116,20 @@ export default async function AbhaPage({
         <p className="text-sarat-black-600 text-base leading-relaxed">{t('intro2')}</p>
       </header>
 
+      {experiences.length === 0 && (
+        // City can go dark (paused/ended listings) — without this the page
+        // jumps from intro straight to the CTAs and reads as broken. The
+        // all-experiences link below stays as the recovery path.
+        <p className="text-sarat-black-600 mt-12 text-sm">{t('empty')}</p>
+      )}
+
       {experiences.length > 0 && (
         <section aria-label={t('gridLabel')} className="mt-12">
           <h2 className="font-display text-2xl font-medium tracking-[-0.025em]">
             {t('gridLabel')}
           </h2>
-          <div className="mt-6 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+          {/* gap-4 matches the /experiences catalog grid gutter. */}
+          <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {experiences.map((experience) => (
               <ExperienceCard
                 key={experience.slug}

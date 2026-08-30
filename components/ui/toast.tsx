@@ -4,6 +4,7 @@ import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import { X } from 'lucide-react';
 import { useEffect, useRef, useSyncExternalStore, type ReactNode } from 'react';
 import { useTranslations } from 'next-intl';
+import { Link } from '@/lib/i18n';
 import { SPRING } from '@/components/ui/motion';
 import { cn } from '@/lib/utils';
 
@@ -23,6 +24,8 @@ interface ToastItem {
   title: string;
   description?: string;
   tone: ToastTone;
+  /** Optional follow-up link (already-localized label + app-relative href). */
+  action?: { label: string; href: string };
 }
 
 const MAX_VISIBLE = 3;
@@ -53,7 +56,12 @@ function getServerSnapshot(): ToastItem[] {
 }
 
 /** Fire a toast from anywhere client-side (form effects, action handlers). */
-export function toast(options: { title: string; description?: string; tone?: ToastTone }) {
+export function toast(options: {
+  title: string;
+  description?: string;
+  tone?: ToastTone;
+  action?: { label: string; href: string };
+}) {
   items = [...items.slice(-(MAX_VISIBLE - 1)), { id: nextId++, tone: 'info', ...options }];
   emit();
 }
@@ -123,6 +131,15 @@ function ToastCard({ item }: { item: ToastItem }) {
         </p>
         {item.description ? (
           <p className="text-sarat-black-600 mt-1 text-sm">{item.description}</p>
+        ) : null}
+        {item.action ? (
+          <Link
+            href={item.action.href}
+            onClick={() => dismissToast(item.id)}
+            className="text-sarat-black inline-flex min-h-11 items-center text-sm font-medium underline underline-offset-4 transition-opacity duration-200 hover:opacity-60"
+          >
+            {item.action.label}
+          </Link>
         ) : null}
       </div>
       <button

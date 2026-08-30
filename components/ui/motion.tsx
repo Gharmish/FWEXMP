@@ -1,7 +1,8 @@
 'use client';
 
 import {
-  motion,
+  LazyMotion,
+  m,
   MotionConfig,
   useReducedMotion,
   useScroll,
@@ -67,16 +68,31 @@ function useIsInitialDocumentLoad(): boolean {
 }
 
 /**
+ * Async feature bundle for LazyMotion: `m.*` elements render immediately
+ * (initial styles included) but the animation runtime arrives in its own
+ * chunk after hydration, keeping it out of first-load JS. `domAnimation`
+ * covers everything in this file — animate/whileInView/hover/tap, variants
+ * and SVG pathLength; `useScroll`/`useTransform` are hooks and independent
+ * of the bundle. Nothing here uses drag/layout, so `domMax` is not needed.
+ */
+const loadFeatures = () => import('framer-motion').then((mod) => mod.domAnimation);
+
+/**
  * App-wide motion context. `reducedMotion="user"` makes Framer honour the OS
  * setting for any transform/layout animation as a second line of defence
  * behind the per-primitive `useReducedMotion()` guards. Children passed
- * through stay Server Components.
+ * through stay Server Components. LazyMotion is deliberately NOT `strict`:
+ * several components (sheet, dialog, toast, nav-shell, hero-headline, …)
+ * still import raw `motion` from framer-motion and strict mode would throw
+ * for them at runtime.
  */
 export function MotionProvider({ children }: { children: ReactNode }) {
   return (
-    <MotionConfig reducedMotion="user" transition={SPRING}>
-      {children}
-    </MotionConfig>
+    <LazyMotion features={loadFeatures}>
+      <MotionConfig reducedMotion="user" transition={SPRING}>
+        {children}
+      </MotionConfig>
+    </LazyMotion>
   );
 }
 
@@ -93,7 +109,7 @@ export function FadeIn({ children, className, delay = 0, y = 8 }: FadeInProps) {
   const isInitial = useIsInitialDocumentLoad();
   if (reduce || isInitial) return <div className={className}>{children}</div>;
   return (
-    <motion.div
+    <m.div
       className={className}
       initial={{ opacity: 0, y }}
       whileInView={{ opacity: 1, y: 0 }}
@@ -101,7 +117,7 @@ export function FadeIn({ children, className, delay = 0, y = 8 }: FadeInProps) {
       transition={{ ...SPRING, delay }}
     >
       {children}
-    </motion.div>
+    </m.div>
   );
 }
 
@@ -121,7 +137,7 @@ export function Stagger({ children, className }: MotionPrimitiveProps) {
   const isInitial = useIsInitialDocumentLoad();
   if (reduce || isInitial) return <div className={className}>{children}</div>;
   return (
-    <motion.div
+    <m.div
       className={className}
       variants={staggerContainer}
       initial="hidden"
@@ -129,7 +145,7 @@ export function Stagger({ children, className }: MotionPrimitiveProps) {
       viewport={{ once: true, margin: '0px 0px -10% 0px' }}
     >
       {children}
-    </motion.div>
+    </m.div>
   );
 }
 
@@ -139,9 +155,9 @@ export function StaggerItem({ children, className }: MotionPrimitiveProps) {
   const isInitial = useIsInitialDocumentLoad();
   if (reduce || isInitial) return <div className={className}>{children}</div>;
   return (
-    <motion.div className={className} variants={staggerItem}>
+    <m.div className={className} variants={staggerItem}>
       {children}
-    </motion.div>
+    </m.div>
   );
 }
 
@@ -150,14 +166,9 @@ export function HoverLift({ children, className }: MotionPrimitiveProps) {
   const reduce = useReducedMotion();
   if (reduce) return <div className={className}>{children}</div>;
   return (
-    <motion.div
-      className={className}
-      whileHover={{ y: -2 }}
-      whileTap={{ y: 0 }}
-      transition={SPRING}
-    >
+    <m.div className={className} whileHover={{ y: -2 }} whileTap={{ y: 0 }} transition={SPRING}>
       {children}
-    </motion.div>
+    </m.div>
   );
 }
 
@@ -170,14 +181,14 @@ export function Pop({ children, className }: MotionPrimitiveProps) {
   const reduce = useReducedMotion();
   if (reduce) return <div className={className}>{children}</div>;
   return (
-    <motion.div
+    <m.div
       className={className}
       initial={{ opacity: 0, scale: 0.8 }}
       animate={{ opacity: 1, scale: 1 }}
       transition={SPRING}
     >
       {children}
-    </motion.div>
+    </m.div>
   );
 }
 
@@ -191,14 +202,14 @@ export function PageTransition({ children, className }: MotionPrimitiveProps) {
   const isInitial = useIsInitialDocumentLoad();
   if (reduce || isInitial) return <div className={className}>{children}</div>;
   return (
-    <motion.div
+    <m.div
       className={className}
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       transition={CROSSFADE}
     >
       {children}
-    </motion.div>
+    </m.div>
   );
 }
 
@@ -217,14 +228,14 @@ export function RiseIn({ children, className, delay = 0, y = 12, scale = 1 }: Ri
   const reduce = useReducedMotion();
   if (reduce) return <div className={className}>{children}</div>;
   return (
-    <motion.div
+    <m.div
       className={className}
       initial={{ y, scale }}
       animate={{ y: 0, scale: 1 }}
       transition={{ ...SPRING, delay }}
     >
       {children}
-    </motion.div>
+    </m.div>
   );
 }
 
@@ -261,14 +272,14 @@ export function RiseInWords({
       {words.map((word, i) => (
         <Fragment key={`${i}-${word}`}>
           {i > 0 && ' '}
-          <motion.span
+          <m.span
             className="inline-block"
             initial={{ y }}
             animate={{ y: 0 }}
             transition={{ ...SPRING, delay: delay + i * stagger }}
           >
             {word}
-          </motion.span>
+          </m.span>
         </Fragment>
       ))}
     </span>
@@ -301,14 +312,14 @@ export function MountFade({
   const isInitial = useIsInitialDocumentLoad();
   if (reduce || (isInitial && !eager)) return <div className={className}>{children}</div>;
   return (
-    <motion.div
+    <m.div
       className={className}
       initial={{ opacity: 0, y }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ ...SPRING, delay }}
     >
       {children}
-    </motion.div>
+    </m.div>
   );
 }
 
@@ -331,7 +342,7 @@ export function FadeSwap({ watch, children, className }: FadeSwapProps) {
   const changed = watch !== initialWatch;
   if (reduce) return <div className={className}>{children}</div>;
   return (
-    <motion.div
+    <m.div
       key={String(watch)}
       className={className}
       initial={changed ? { opacity: 0, y: 4 } : false}
@@ -339,7 +350,7 @@ export function FadeSwap({ watch, children, className }: FadeSwapProps) {
       transition={SPRING}
     >
       {children}
-    </motion.div>
+    </m.div>
   );
 }
 
@@ -358,7 +369,7 @@ export function Draw({ children, className, axis = 'y', delay = 0 }: DrawProps) 
   const isInitial = useIsInitialDocumentLoad();
   if (reduce || isInitial) return <div className={className}>{children}</div>;
   return (
-    <motion.div
+    <m.div
       className={cn(axis === 'y' ? 'origin-top' : 'origin-left rtl:origin-right', className)}
       initial={axis === 'y' ? { scaleY: 0 } : { scaleX: 0 }}
       whileInView={axis === 'y' ? { scaleY: 1 } : { scaleX: 1 }}
@@ -366,7 +377,7 @@ export function Draw({ children, className, axis = 'y', delay = 0 }: DrawProps) 
       transition={{ ...SPRING, delay }}
     >
       {children}
-    </motion.div>
+    </m.div>
   );
 }
 
@@ -404,7 +415,7 @@ export function TracePath({ d, className, delay = 0, eager = false }: TracePathP
   const isInitial = useIsInitialDocumentLoad();
   if (reduce || (isInitial && !eager)) return <path {...shared} />;
   return (
-    <motion.path
+    <m.path
       {...shared}
       initial={{ pathLength: 0 }}
       whileInView={{ pathLength: 1 }}
@@ -455,8 +466,8 @@ export function ParallaxY({ children, className, distance = 24 }: ParallaxYProps
     );
   }
   return (
-    <motion.div ref={ref} className={className} style={{ y }}>
+    <m.div ref={ref} className={className} style={{ y }}>
       {children}
-    </motion.div>
+    </m.div>
   );
 }

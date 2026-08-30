@@ -410,10 +410,10 @@ describe('requestBooking — throttles & guards', () => {
     expect(insertedBookings).toHaveLength(0);
   });
 
-  it('caps creations per IP per hour', async () => {
+  it('caps creations per IP per hour with the network message, not the guest one', async () => {
     ipRecent = 10;
     const state = await requestBooking(initial, form());
-    expect(state).toMatchObject({ success: false, message: 'too_many' });
+    expect(state).toMatchObject({ success: false, message: 'too_many_network' });
   });
 
   it('blocks a suspended guest before any write', async () => {

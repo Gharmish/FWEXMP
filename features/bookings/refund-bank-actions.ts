@@ -23,7 +23,12 @@ import { saveRefundBankDetails } from '@/features/bookings/lib/refund-bank-core'
  * Editable while the money is still owed: a cancelled-and-paid booking
  * or any booking with a manual-queue entry. Once `refunded` with
  * nothing outstanding the details are frozen (the transfer used them).
- * Authorization matches cancel: own the booking or hold its cookie.
+ * Authorization requires cookie/session ownership ({@link
+ * bookingViewerCanAccess}) — NOT the forwardable link token. This action
+ * directs the refund OUT to a bank account, so admitting the token (as
+ * checkout does for money coming IN) would let a leaked link redirect a
+ * victim's refund. A cookieless token-only viewer is shown a sign-in
+ * prompt on the booking page instead of this form.
  */
 
 export type RefundBankDetailsState =
@@ -74,6 +79,10 @@ export async function submitRefundBankDetails(
       columns: { id: true, guestId: true },
     });
     if (!booking) return { success: false, message: 'not_found' };
+    // Cookie/session ONLY — never the link token. This records where a
+    // manually-wired refund is SENT, so a forwardable ?k= link must not
+    // authorize it (unlike checkout, which only pushes money IN). A
+    // token-only viewer is shown a sign-in prompt on the page instead.
     if (!(await bookingViewerCanAccess(reference, booking.guestId))) {
       // Same shape as a missing booking — the reference can't be probed.
       return { success: false, message: 'not_found' };

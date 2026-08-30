@@ -9,7 +9,10 @@ import { routing } from '@/lib/i18n';
  *   /<locale>/dev              internal style guide
  *   /<locale>/me               per-guest activity page
  *   /<locale>/wishlist         per-guest cookie state, never useful to a crawler
- *   /<locale>/book/confirmed/  per-booking reference URLs (UUID-shaped)
+ *   /<locale>/book/            per-booking URLs — the pay step and the
+ *                              confirmation/invoice pages, all keyed by a
+ *                              private booking reference. Nothing under
+ *                              /book is ever meant to be crawlable.
  *   /<locale>/sign-in          auth surface
  *   /<locale>/host             host dashboard (signed-in hosts only)
  *   /<locale>/host/apply       private host-application workflow
@@ -23,16 +26,7 @@ export function GET(): Response {
   // Note: order matters — robots.txt disallow rules are prefix matches,
   // so 'host' would shadow 'host/apply'. We keep both explicit for
   // clarity even though 'host' alone would suffice.
-  const privatePaths = [
-    'dev',
-    'me',
-    'wishlist',
-    'book/confirmed/',
-    'sign-in',
-    'host',
-    'host/apply',
-    'admin',
-  ];
+  const privatePaths = ['dev', 'me', 'wishlist', 'book/', 'sign-in', 'host', 'host/apply', 'admin'];
   const disallows = routing.locales
     .flatMap((l) => privatePaths.map((p) => `Disallow: /${l}/${p}`))
     .join('\n');

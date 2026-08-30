@@ -2,6 +2,7 @@ import 'server-only';
 
 import { eq } from 'drizzle-orm';
 import { db } from '@/lib/db';
+import { boundedQuery } from '@/lib/deadline';
 import { guests } from '@/db/schema';
 import { serverEnv } from '@/lib/env';
 import { reportError } from '@/lib/log';
@@ -21,10 +22,15 @@ export async function getSessionGuestId(): Promise<string | null> {
   const user = await getCurrentUser();
   if (!user) return null;
   try {
-    const guest = await db.query.guests.findFirst({
-      where: eq(guests.authUserId, user.id),
-      columns: { id: true },
-    });
+    // Deadline-bounded: runs on the pay page's render path, where a hung
+    // pooled connection would stall the page instead of reaching the
+    // catch below.
+    const guest = await boundedQuery('wallet:sessionGuest', () =>
+      db.query.guests.findFirst({
+        where: eq(guests.authUserId, user.id),
+        columns: { id: true },
+      }),
+    );
     return guest?.id ?? null;
   } catch (error) {
     reportError(error, { surface: 'wallet:sessionGuest' });

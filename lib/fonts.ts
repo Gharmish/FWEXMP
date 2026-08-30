@@ -23,6 +23,15 @@ export const bricolage = localFont({
  * IBM Plex Sans Arabic — Arabic face, used when `dir="rtl"`.
  * Self-hosted, weights 400/500 plus 600 for Display/H1 and stat numerals
  * only (premium redesign 2026-06; body and labels stay 400/500).
+ *
+ * `preload: false` because the locale layout is one module serving BOTH
+ * locales: preloading would push three Arabic woff2 files down the
+ * critical path of every English page, where no glyph is ever drawn from
+ * them. next/font emits its `<link rel="preload">` per importing module,
+ * not per locale, and the hashed `/_next/static/media/…` URLs it mints
+ * are not referenceable from app code, so an Arabic-only manual preload
+ * isn't expressible. Arabic pages therefore discover these at CSS parse
+ * time and swap in (`display: 'swap'`).
  */
 export const ibmPlexArabic = localFont({
   src: [
@@ -44,5 +53,5 @@ export const ibmPlexArabic = localFont({
   ],
   variable: '--font-arabic',
   display: 'swap',
-  preload: true,
+  preload: false,
 });

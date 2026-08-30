@@ -110,10 +110,13 @@ beforeEach(() => {
 });
 
 describe('submitReview', () => {
-  it('inserts the review and redirects to /me on success', async () => {
+  it('inserts the review and redirects back to the booking page on success', async () => {
     const result = await runSubmit(reviewForm());
     expect(result).toBeInstanceOf(Error);
-    expect((result as RedirectSentinel).redirectTo).toEqual({ href: '/me', locale: 'en' });
+    expect((result as RedirectSentinel).redirectTo).toEqual({
+      href: '/book/confirmed/4bb44dab-6f13-4d96-8b44-2f7c76ffbe17#review',
+      locale: 'en',
+    });
     expect(insertedReviews).toHaveLength(1);
     expect(insertedReviews[0]).toMatchObject({
       bookingId: 'b1',

@@ -5,6 +5,7 @@ import {
   EMPTY_CRITERIA,
   PRICE_BUCKETS,
   filterExperiences,
+  foldSearchText,
   hasActiveFilters,
   parseSearchParams,
   sortExperiences,
@@ -389,5 +390,50 @@ describe('city / date / group-size filters', () => {
     expect(parseSearchParams({ day: 'weekend' }).dayPreset).toBe('weekend');
     expect(parseSearchParams({ day: 'weekday' }).dayPreset).toBe('weekday');
     expect(parseSearchParams({ day: 'someday' }).dayPreset).toBeNull();
+  });
+});
+
+describe('foldSearchText + Arabic matching', () => {
+  it('strips Arabic diacritics and tatweel', () => {
+    expect(foldSearchText('أَبْهَا')).toBe('ابها');
+    expect(foldSearchText('قهــوة')).toBe('قهوه');
+  });
+
+  it('folds hamza-carrying alefs, ta marbuta, and alef maqsura', () => {
+    expect(foldSearchText('أبها')).toBe('ابها');
+    expect(foldSearchText('إبها')).toBe('ابها');
+    expect(foldSearchText('آبها')).toBe('ابها');
+    expect(foldSearchText('قرية')).toBe('قريه');
+    expect(foldSearchText('مقهى')).toBe('مقهي');
+  });
+
+  it('lower-cases Latin text', () => {
+    expect(foldSearchText('Jabal Sawda')).toBe('jabal sawda');
+  });
+
+  it('matches the Arabic place name the card actually displays', () => {
+    const rows = [exp({ slug: 'sawda', placeName: 'Jabal Sawda' })];
+    // toArabicText('Jabal Sawda') = 'جبل السودة' — what the AR card shows.
+    const out = filterExperiences(rows, { ...EMPTY_CRITERIA, q: 'جبل السودة' });
+    expect(out.map((e) => e.slug)).toEqual(['sawda']);
+  });
+
+  it('matches the Arabic host name the card actually displays', () => {
+    const rows = [exp({ slug: 'aziz', hostName: 'Abdulaziz Alasmari' })];
+    const out = filterExperiences(rows, { ...EMPTY_CRITERIA, q: 'عبدالعزيز' });
+    expect(out.map((e) => e.slug)).toEqual(['aziz']);
+  });
+
+  it('matches the lazy hamza-less spelling against the canonical one', () => {
+    // 'ابها' (typed) vs 'أبها' (displayed via toArabicText('Abha')).
+    const rows = [exp({ slug: 'abha-walk', placeName: 'Abha' })];
+    const out = filterExperiences(rows, { ...EMPTY_CRITERIA, q: 'ابها' });
+    expect(out.map((e) => e.slug)).toEqual(['abha-walk']);
+  });
+
+  it('matches a diacritized query against a plain title', () => {
+    const rows = [exp({ slug: 'coffee', titleAr: 'طقوس القهوة' })];
+    const out = filterExperiences(rows, { ...EMPTY_CRITERIA, q: 'القَهْوَة' });
+    expect(out.map((e) => e.slug)).toEqual(['coffee']);
   });
 });

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { useTranslations } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 import type { ReactNode } from 'react';
 import { Sheet } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
@@ -80,6 +80,7 @@ function FilterSheetBody({
   onApply,
 }: Pick<FilterSheetProps, 'criteria' | 'facets' | 'cities' | 'onApply'>) {
   const t = useTranslations('experiencesIndex');
+  const locale = useLocale();
   const [draft, setDraft] = useState<AdvancedDraft>(() => pickAdvanced(criteria));
 
   const merged: ExperienceCriteria = { ...criteria, ...draft };
@@ -97,7 +98,13 @@ function FilterSheetBody({
                 setDraft((d) => ({ ...d, priceBucket: d.priceBucket === bucket ? null : bucket }))
               }
             >
-              <RiyalSymbol className="h-[0.85em] align-[-0.05em]" />
+              {/* English prices render the ISO code (Price's treatment),
+                  Arabic the official glyph — pills must use the same mark. */}
+              {locale === 'ar' ? (
+                <RiyalSymbol className="h-[0.85em] align-[-0.05em]" />
+              ) : (
+                <span className="text-[0.72em] font-medium tracking-[0.02em]">SAR</span>
+              )}
               {t(`price.${bucket}`)}
             </Pill>
           ))}
@@ -177,7 +184,10 @@ function FilterSheetBody({
         </Section>
       )}
 
-      <div className="border-sarat-black/8 sticky bottom-0 -mx-4 mt-2 flex items-center justify-between gap-4 [border-top-width:0.5px] bg-white px-4 pt-4">
+      {/* Sticky footer needs its own safe-area padding + opaque background:
+          while stuck it floats over content at the sheet's bottom edge,
+          where the iOS home indicator would otherwise cover the buttons. */}
+      <div className="border-sarat-black/8 sticky bottom-0 -mx-4 mt-2 flex items-center justify-between gap-4 [border-top-width:0.5px] bg-white px-4 pt-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
         <button
           type="button"
           onClick={() => setDraft(EMPTY_ADVANCED)}

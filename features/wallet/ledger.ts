@@ -2,6 +2,7 @@ import 'server-only';
 
 import { desc, eq, sql } from 'drizzle-orm';
 import { db } from '@/lib/db';
+import { boundedQuery } from '@/lib/deadline';
 import { walletLedger, type NewWalletLedgerEntry, type WalletLedgerEntry } from '@/db/schema';
 
 /**
@@ -27,12 +28,19 @@ export type WalletEntryInput = Pick<
   | 'idempotencyKey'
 >;
 
-/** Current balance in whole SAR. */
+/**
+ * Current balance in whole SAR. Deadline-bounded but still THROWING: the
+ * pay page renders this inline, and a silent degrade to 0 would hide a
+ * guest's credit at checkout. Callers that can tolerate a miss
+ * (`features/wallet/queries.ts`) already catch.
+ */
 export async function getWalletBalanceSar(guestId: string): Promise<number> {
-  const [row] = await db
-    .select({ balance: sql<number>`coalesce(sum(${walletLedger.amountSar}), 0)::int` })
-    .from(walletLedger)
-    .where(eq(walletLedger.guestId, guestId));
+  const [row] = await boundedQuery('wallet:balance', () =>
+    db
+      .select({ balance: sql<number>`coalesce(sum(${walletLedger.amountSar}), 0)::int` })
+      .from(walletLedger)
+      .where(eq(walletLedger.guestId, guestId)),
+  );
   return row?.balance ?? 0;
 }
 

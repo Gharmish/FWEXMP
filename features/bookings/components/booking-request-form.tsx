@@ -1,8 +1,9 @@
 'use client';
 
-import { useActionState, useEffect, useId, useRef, useState, type ReactNode } from 'react';
+import { useActionState, useEffect, useId, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useFormStatus } from 'react-dom';
 import { motion, useReducedMotion } from 'framer-motion';
+import { useTranslations } from 'next-intl';
 import { ArrowRight, Minus, Plus } from 'lucide-react';
 import {
   requestBooking,
@@ -15,14 +16,14 @@ import { Button } from '@/components/ui/button';
 import { FieldError as SpringFieldError } from '@/components/ui/field-error';
 import { Input } from '@/components/ui/input';
 import { Pop, SPRING } from '@/components/ui/motion';
-import { Link, type Locale } from '@/lib/i18n';
+import { Link, useRouter, type Locale } from '@/lib/i18n';
 import { formatDate } from '@/lib/format';
 import { trackAddToCart } from '@/lib/funnel-tracking';
 import { cn } from '@/lib/utils';
 import { PhoneInput } from '@/components/ui/phone-input';
 import { Price } from '@/components/ui/price';
 import { BookingCalendar } from './booking-calendar';
-import type { BookableOption } from '@/features/bookings/types';
+import type { BookableOption, ClosedDateOption } from '@/features/bookings/types';
 import { readStoredUtm } from '@/features/analytics/utm-capture';
 
 export type { BookableOption } from '@/features/bookings/types';
@@ -138,6 +139,26 @@ export interface BookingRequestFormProps {
   maxDate: string;
   /** Pre-computed bookable dates (open + with capacity) for the picker. */
   availableDates: readonly BookableOption[];
+  /**
+   * In-window days that are NOT bookable, with why — threaded to the
+   * calendar so a sold-out day reads differently from a day the
+   * experience simply doesn't run. Default [] keeps today's behavior.
+   */
+  closedDates?: readonly ClosedDateOption[];
+  /**
+   * Reference of the unpaid instant hold this submission replaces —
+   * carried from the payment step's "change date or guests" link. After
+   * the replacement booking is created, the action releases that hold
+   * (ownership-verified server-side) so its capacity frees and the old
+   * pay link dies.
+   */
+  supersedesReference?: string;
+  /**
+   * Signed link token for {@link supersedesReference}. The release of the
+   * old hold is authorized on this token (proof of that reference) or the
+   * same-device cookie — never on the reference alone.
+   */
+  supersedesToken?: string;
   /** Short note under the title: instant-confirmation vs request-to-book. */
   modeNote?: string;
   /** Caption under the date label, e.g. "Runs Fri & Sat" — sets expectations. */
@@ -281,6 +302,9 @@ export function BookingRequestForm({
   minDate,
   maxDate,
   availableDates,
+  closedDates = [],
+  supersedesReference,
+  supersedesToken,
   modeNote,
   scheduleNote,
   initialDate,
@@ -332,6 +356,10 @@ export function BookingRequestForm({
   }, []);
   const noDates = availableDates.length === 0;
   const reduce = useReducedMotion();
+  const router = useRouter();
+  // Strings added after the server-built `copy` prop was frozen — the
+  // client catalog is the same one the page renders from.
+  const t = useTranslations('bookingRequest');
 
   // Client-side validation errors, keyed like the server's `state.fields` and
   // produced by the *same* zod schema (BRIEF §7). They give instant feedback
@@ -391,13 +419,57 @@ export function BookingRequestForm({
   const [partySize, setPartySize] = useState<number>(
     Number(values.partySize) || initialPartySize || 1,
   );
+  // Has the guest explicitly touched the date or party controls? Until
+  // then the mobile sticky CTA must not submit the auto-selected date —
+  // it scrolls to the calendar instead. A date carried back from the
+  // payment step WAS explicitly chosen, so it counts.
+  const [choiceMade, setChoiceMade] = useState<boolean>(() => Boolean(carriedDate));
+  // Free-typed party size draft for the numeric input (large groups):
+  // null mirrors the clamped value; '' lets the field be emptied
+  // mid-edit without snapping back to 1 under the caret.
+  const [partyDraft, setPartyDraft] = useState<string | null>(null);
   const selectedOption = availableDates.find((d) => d.value === selectedDate);
+  const groupCeiling = Number(maxGroupSize) || 1;
   const maxGuests = Math.min(
-    Number(maxGroupSize) || 1,
-    selectedOption ? selectedOption.remaining : Number(maxGroupSize) || 1,
+    groupCeiling,
+    selectedOption ? selectedOption.remaining : groupCeiling,
   );
   const effectiveParty = Math.min(Math.max(1, partySize), maxGuests);
+  // A date change shrank the chosen party — say so instead of silently
+  // clamping (the guest may prefer another day over a smaller group).
+  const partySizeClamped = selectedOption !== undefined && partySize > maxGuests;
   const totalSar = priceSar * effectiveParty;
+
+  // After a date_full / date_cutoff rejection the availability this page
+  // rendered with was stale: treat the rejected day as closed locally
+  // (the calendar strikes it through), drop the selection so it can't be
+  // re-submitted blind, and pull fresh server data. The mark is DERIVED
+  // from the action state rather than mirrored into effect-set state;
+  // the selection reset uses the guarded adjust-during-render pattern.
+  const rejectionCode = state.fields?.preferredDate;
+  const rejectedEcho = state.values?.preferredDate;
+  const rejectedDate =
+    (rejectionCode === 'date_full' || rejectionCode === 'date_cutoff') &&
+    rejectedEcho &&
+    /^\d{4}-\d{2}-\d{2}$/.test(rejectedEcho)
+      ? rejectedEcho
+      : null;
+  const [handledRejection, setHandledRejection] = useState<unknown>(null);
+  if (rejectedDate && handledRejection !== state) {
+    setHandledRejection(state);
+    if (selectedDate === rejectedDate) setSelectedDate('');
+    setChoiceMade(false);
+  }
+  useEffect(() => {
+    // Pull fresh availability once per rejection; a genuinely full day
+    // then comes back in the closedDates prop itself.
+    if (rejectedDate) router.refresh();
+  }, [state, rejectedDate, router]);
+  const closedDatesEffective = useMemo(() => {
+    if (!rejectedDate || closedDates.some((d) => d.value === rejectedDate)) return closedDates;
+    const reason = rejectionCode === 'date_full' ? ('full' as const) : ('cutoff' as const);
+    return [...closedDates, { value: rejectedDate, reason }];
+  }, [closedDates, rejectedDate, rejectionCode]);
   // The phone field is its own component (PhoneInput): a dialling-code
   // selector + national-number input that posts one canonical E.164 value
   // via a hidden `phone` input. It re-hydrates from `values.phone` (the
@@ -448,9 +520,13 @@ export function BookingRequestForm({
           ? copy.suspended
           : state.message === 'too_many'
             ? copy.tooMany
-            : state.message === 'validation'
-              ? copy.validation
-              : undefined;
+            : state.message === 'too_many_network'
+              ? t('tooManyNetwork')
+              : state.message === 'date_full'
+                ? t('dateFullForm')
+                : state.message === 'validation'
+                  ? copy.validation
+                  : undefined;
 
   // Bring an invalid control into view, centred, then focus it. A bare
   // focus() only scrolls until the element clears the viewport edge — on
@@ -463,6 +539,20 @@ export function BookingRequestForm({
     el.focus({ preventScroll: true });
   };
 
+  // The calendar feeds a hidden input, so a date problem has no field to
+  // focus — bring the calendar itself into view and land focus on its
+  // grid (the roving-tabindex day when one exists).
+  const calendarRef = useRef<HTMLDivElement>(null);
+  const revealCalendar = () => {
+    const cal = calendarRef.current;
+    if (!cal) return;
+    cal.scrollIntoView({ block: 'center' });
+    const grid =
+      cal.querySelector<HTMLElement>('[role="grid"] button[tabindex="0"]') ??
+      cal.querySelector<HTMLElement>('[role="grid"]');
+    grid?.focus({ preventScroll: true });
+  };
+
   // After a failed submit (client or server), move focus to the first invalid
   // field — or, failing that, to the form-level error region. WCAG 3.3.1 (Error
   // Identification) + 3.3.3 (Error Suggestion): the user must be able to
@@ -471,6 +561,16 @@ export function BookingRequestForm({
     if (!state.fields && !formMessage && !hasClientErrors) return;
     const form = formRef.current;
     if (!form) return;
+
+    // A rejection whose ONLY invalid field is the (hidden) date lands on
+    // the calendar, where the day must be re-picked — otherwise the loop
+    // below skips it and focus falls through to the form-level alert,
+    // far from the control that can fix the problem.
+    const errored = FIELD_NAMES.filter((field) => errorFor(field));
+    if (errored.length === 1 && errored[0] === 'preferredDate') {
+      revealCalendar();
+      return;
+    }
 
     for (const field of FIELD_NAMES) {
       if (!errorFor(field)) continue;
@@ -599,9 +699,24 @@ export function BookingRequestForm({
       <input type="hidden" name="experienceSlug" value={experienceSlug} />
       <input type="hidden" name="locale" value={locale} />
       <input type="hidden" name="idempotencyKey" value={idempotencyKey} />
+      {supersedesReference && <input type="hidden" name="supersedes" value={supersedesReference} />}
+      {supersedesReference && supersedesToken && (
+        <input type="hidden" name="supersedesToken" value={supersedesToken} />
+      )}
 
       {modeNote && (
-        <p className="bg-juniper-green/8 text-juniper-green-800 rounded-input px-3 py-2 text-sm">
+        <p
+          className={cn(
+            'rounded-input px-3 py-2 text-sm',
+            // Request mode is a PENDING state — BRIEF §3: never the
+            // confirmed green before the host has said yes. The note
+            // string itself is the mode signal: the page builds it from
+            // this same catalog's modeInstant/modeRequest.
+            modeNote === t('modeInstant')
+              ? 'bg-juniper-green/8 text-juniper-green-800'
+              : 'bg-pending-surface text-pending',
+          )}
+        >
           {modeNote}
         </p>
       )}
@@ -613,7 +728,7 @@ export function BookingRequestForm({
       ) : (
         <>
           {/* 1 — Pick a date. Calendar drives the hidden `preferredDate`. */}
-          <div className="flex flex-col gap-3">
+          <div ref={calendarRef} className="flex flex-col gap-3">
             <span className="text-sm font-medium">{copy.preferredDate}</span>
             {scheduleNote && <p className="text-sarat-black-600 -mt-1 text-sm">{scheduleNote}</p>}
             <BookingCalendar
@@ -621,8 +736,12 @@ export function BookingRequestForm({
               minDate={minDate}
               maxDate={maxDate}
               options={availableDates}
+              closedDates={closedDatesEffective}
               value={selectedDate}
-              onSelect={setSelectedDate}
+              onSelect={(date) => {
+                setChoiceMade(true);
+                setSelectedDate(date);
+              }}
               copy={{ prevMonth: copy.prevMonth, nextMonth: copy.nextMonth }}
             />
             <input type="hidden" name="preferredDate" value={selectedDate} />
@@ -632,7 +751,12 @@ export function BookingRequestForm({
                 className="text-juniper-green-800 inline-flex items-center gap-2 text-sm"
               >
                 <span className="bg-juniper-green size-1.5 rounded-full" aria-hidden />
-                {selectedOption.spotsLabel}
+                {/* Whenever this date caps the party below the listing's
+                    own ceiling, say the real number — "Available" would
+                    hide the constraint the stepper is about to enforce. */}
+                {selectedOption.remaining < groupCeiling
+                  ? t('spotsLeft', { count: selectedOption.remaining })
+                  : selectedOption.spotsLabel}
               </p>
             ) : (
               <p id={hintId('preferredDate')} className="text-sarat-black-600 text-sm">
@@ -662,34 +786,80 @@ export function BookingRequestForm({
             <span id="booking-party-size-label" className="text-sm font-medium">
               {copy.partySize}
             </span>
-            {/* Stepper — keeps the value within [1, capacity] without a keyboard. */}
-            <div className="border-sarat-black/20 rounded-input flex h-11 items-center justify-between [border-width:0.5px] px-1">
-              <button
-                type="button"
-                aria-label={copy.decrease}
-                disabled={effectiveParty <= 1}
-                onClick={() => setPartySize(Math.max(1, effectiveParty - 1))}
-                className="text-sarat-black hover:bg-sarat-black/5 inline-flex size-11 items-center justify-center rounded-full transition-colors duration-200 disabled:opacity-30"
-              >
-                <Minus className="size-4" aria-hidden />
-              </button>
-              <span
-                id="booking-party-size"
-                aria-live="polite"
-                className="text-base font-medium tabular-nums"
-              >
-                {effectiveParty}
-              </span>
-              <button
-                type="button"
-                aria-label={copy.increase}
-                disabled={effectiveParty >= maxGuests}
-                onClick={() => setPartySize(Math.min(maxGuests, effectiveParty + 1))}
-                className="text-sarat-black hover:bg-sarat-black/5 inline-flex size-11 items-center justify-center rounded-full transition-colors duration-200 disabled:opacity-30"
-              >
-                <Plus className="size-4" aria-hidden />
-              </button>
+            {/* Stepper — keeps the value within [1, capacity] without a
+                keyboard. Functional updates so rapid taps each count (a
+                stale derived value dropped every second tap). */}
+            <div className="flex items-center gap-2">
+              <div className="border-sarat-black/20 rounded-input flex h-11 flex-1 items-center justify-between [border-width:0.5px] px-1">
+                <button
+                  type="button"
+                  aria-label={copy.decrease}
+                  disabled={effectiveParty <= 1}
+                  onClick={() => {
+                    setChoiceMade(true);
+                    setPartyDraft(null);
+                    setPartySize((p) => Math.max(1, Math.min(maxGuests, p) - 1));
+                  }}
+                  className="text-sarat-black hover:bg-sarat-black/5 inline-flex size-11 items-center justify-center rounded-full transition-colors duration-200 disabled:opacity-30"
+                >
+                  <Minus className="size-4" aria-hidden />
+                </button>
+                <span
+                  id="booking-party-size"
+                  aria-live="polite"
+                  className="text-base font-medium tabular-nums"
+                >
+                  {effectiveParty}
+                </span>
+                <button
+                  type="button"
+                  aria-label={copy.increase}
+                  disabled={effectiveParty >= maxGuests}
+                  onClick={() => {
+                    setChoiceMade(true);
+                    setPartyDraft(null);
+                    setPartySize((p) => Math.min(maxGuests, Math.max(1, p) + 1));
+                  }}
+                  className="text-sarat-black hover:bg-sarat-black/5 inline-flex size-11 items-center justify-center rounded-full transition-colors duration-200 disabled:opacity-30"
+                >
+                  <Plus className="size-4" aria-hidden />
+                </button>
+              </div>
+              {/* Large groups shouldn't need dozens of taps — a direct
+                  numeric entry rides alongside, same [1, capacity] clamp. */}
+              {groupCeiling > 10 && (
+                <input
+                  type="number"
+                  inputMode="numeric"
+                  min={1}
+                  max={maxGuests}
+                  step={1}
+                  aria-label={copy.partySize}
+                  value={partyDraft ?? String(effectiveParty)}
+                  onChange={(event) => {
+                    setChoiceMade(true);
+                    const digits = event.target.value.replace(/\D/g, '');
+                    if (digits === '') {
+                      setPartyDraft('');
+                      return;
+                    }
+                    setPartyDraft(null);
+                    setPartySize(Math.min(maxGuests, Math.max(1, Number(digits))));
+                  }}
+                  onBlur={() => setPartyDraft(null)}
+                  className="border-sarat-black/20 rounded-input h-11 w-16 shrink-0 [border-width:0.5px] bg-white text-center text-base font-medium tabular-nums"
+                />
+              )}
             </div>
+            {/* Live: a date change that shrank the chosen party must be
+                said, not silently applied. sr-only while empty keeps the
+                region in the tree so the notice is announced. */}
+            <p
+              aria-live="polite"
+              className={cn('text-pending text-sm', !partySizeClamped && 'sr-only')}
+            >
+              {partySizeClamped ? t('partyClamped', { n: maxGuests }) : null}
+            </p>
             <input type="hidden" name="partySize" value={String(effectiveParty)} />
             <p id={hintId('partySize')} className="text-sarat-black-600 text-sm">
               {copy.partySizeHint}
@@ -713,6 +883,12 @@ export function BookingRequestForm({
                 <Price amount={totalSar} locale={locale} />
               </Pop>
             </div>
+            {/* Hidden live mirror: the visible amount remounts to pop on
+                change, which screen readers can miss — this line persists
+                and its text updates, so the new total is announced. */}
+            <p aria-live="polite" className="sr-only">
+              {copy.total}: <Price amount={totalSar} locale={locale} />
+            </p>
             {copy.vatIncluded && vatRateBps ? (
               <p className="text-sarat-black-600 flex items-baseline justify-between text-sm">
                 <span>{copy.vatIncluded}</span>
@@ -993,8 +1169,11 @@ export function BookingRequestForm({
             inert={!stickyBarVisible}
             data-bottom-dock
             initial={false}
-            animate={{ y: reduce ? 0 : stickyBarVisible ? 0 : '110%' }}
-            transition={SPRING}
+            // Reduced motion still needs the POSITION toggle — only the
+            // spring goes. A bar pinned at y:0 under `reduce` sat over
+            // the inline submit and footer forever.
+            animate={{ y: stickyBarVisible ? 0 : '110%' }}
+            transition={reduce ? { duration: 0 } : SPRING}
             className={cn(
               'border-sarat-black/8 fixed inset-x-0 bottom-0 z-40 [border-top-width:0.5px] bg-white/95 px-6 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] backdrop-blur lg:hidden',
               !stickyBarVisible && 'pointer-events-none',
@@ -1025,7 +1204,19 @@ export function BookingRequestForm({
               <span
                 onClickCapture={(event) => {
                   const form = formRef.current;
-                  if (!form || detailsCollapsed) return;
+                  if (!form) return;
+                  // Until the guest has explicitly picked a date (or
+                  // adjusted guests), the bar's tap goes to the calendar
+                  // — the bar is visible from page load, well before the
+                  // auto-selected date ever entered the viewport, so a
+                  // direct submit would commit to a day they never saw.
+                  if (!choiceMade || !selectedDate) {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    revealCalendar();
+                    return;
+                  }
+                  if (detailsCollapsed) return;
                   const read = (name: string) =>
                     (form.elements.namedItem(name) as HTMLInputElement | null)?.value?.trim() ?? '';
                   if (read('name') || read('phone') || read('email')) return;

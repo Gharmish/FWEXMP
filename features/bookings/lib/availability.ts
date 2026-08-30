@@ -9,6 +9,8 @@
  * would otherwise shift the weekday across midnight.
  */
 
+import type { ClosedDateOption } from '@/features/bookings/types';
+
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
 /**
@@ -229,13 +231,8 @@ export interface BookableDate {
   remaining: number;
 }
 
-/**
- * The bookable dates in the next `days` days for the guest-facing date
- * picker: each date that is open on the calendar (weekday / not blackout
- * / not stop-sell / not past) AND still has capacity. Pure — the caller
- * supplies today + the schedule + per-date booked totals.
- */
-export function bookableDates(input: {
+/** Shared input for `bookableDates` / `closedDates` — the two are complements. */
+export interface BookableDatesInput {
   fromStr: string;
   days: number;
   availabilityWeekdays: readonly number[];
@@ -247,7 +244,15 @@ export function bookableDates(input: {
   startTime?: string;
   nowMinutes?: number;
   cutoffMinutes?: number;
-}): BookableDate[] {
+}
+
+/**
+ * The bookable dates in the next `days` days for the guest-facing date
+ * picker: each date that is open on the calendar (weekday / not blackout
+ * / not stop-sell / not past) AND still has capacity. Pure — the caller
+ * supplies today + the schedule + per-date booked totals.
+ */
+export function bookableDates(input: BookableDatesInput): BookableDate[] {
   const out: BookableDate[] = [];
   for (let i = 0; i < input.days; i++) {
     const date = addDays(input.fromStr, i);
@@ -264,6 +269,56 @@ export function bookableDates(input: {
     if (!open.ok) continue;
     const remaining = remainingCapacity(input.maxGroupSize, input.bookedByDate[date] ?? 0);
     if (remaining > 0) out.push({ date, remaining });
+  }
+  return out;
+}
+
+/**
+ * The complement of `bookableDates` over the same window: every in-window,
+ * non-past day that is NOT bookable, classified for the calendar UI —
+ * `'full'` (open day, capacity exhausted), `'cutoff'` (would run, but now
+ * is inside the same-day lead time), `'closed'` (weekday off / blackout /
+ * stop-sell — the day simply doesn't run). A day that is both inside the
+ * cutoff AND not on the schedule reports `'closed'`: the cutoff is
+ * incidental when the day never runs. Same arguments as `bookableDates`;
+ * `value` matches its `date` format (`YYYY-MM-DD`).
+ */
+export function closedDates(input: BookableDatesInput): ClosedDateOption[] {
+  const out: ClosedDateOption[] = [];
+  for (let i = 0; i < input.days; i++) {
+    const date = addDays(input.fromStr, i);
+    const open = isDateBookable({
+      dateStr: date,
+      todayStr: input.fromStr,
+      availabilityWeekdays: input.availabilityWeekdays,
+      blackoutDates: input.blackoutDates,
+      stopSellDates: input.stopSellDates,
+      startTime: input.startTime,
+      nowMinutes: input.nowMinutes,
+      cutoffMinutes: input.cutoffMinutes,
+    });
+    if (open.ok) {
+      const remaining = remainingCapacity(input.maxGroupSize, input.bookedByDate[date] ?? 0);
+      if (remaining <= 0) out.push({ value: date, reason: 'full' });
+      continue;
+    }
+    // Past/malformed days aren't rendered as actionable cells — skip.
+    if (open.reason === 'past' || open.reason === 'malformed') continue;
+    if (open.reason === 'cutoff') {
+      // `isDateBookable` reports the cutoff before the schedule checks —
+      // re-ask without the time inputs so a day that never runs anyway
+      // stays a plain closed day rather than a misleading "too late".
+      const runsAtAll = isDateBookable({
+        dateStr: date,
+        todayStr: input.fromStr,
+        availabilityWeekdays: input.availabilityWeekdays,
+        blackoutDates: input.blackoutDates,
+        stopSellDates: input.stopSellDates,
+      });
+      out.push({ value: date, reason: runsAtAll.ok ? 'cutoff' : 'closed' });
+      continue;
+    }
+    out.push({ value: date, reason: 'closed' });
   }
   return out;
 }

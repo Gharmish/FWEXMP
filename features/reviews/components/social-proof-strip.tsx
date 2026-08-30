@@ -18,13 +18,20 @@ interface SocialProofStripProps {
 }
 
 export async function SocialProofStrip({ locale }: SocialProofStripProps) {
-  const reviews = await getRecentReviews(STRIP_LIMIT);
+  // Homepage curation gate: women-only reviews never auto-surface on the
+  // mixed-audience landing strip (the experience page stays unfiltered).
+  const reviews = await getRecentReviews(STRIP_LIMIT, {
+    excludeWomenOnly: true,
+    excludeEmoji: true,
+  });
   if (reviews.length === 0) return null;
 
   const t = await getTranslations('home.socialProof');
+  // Arabic reads one type-scale step up (BRIEF §3): 11px + tracking is an
+  // EN small-caps treatment — Arabic gets 13px with no added tracking.
   const eyebrowClassName = cn(
-    'text-sarat-black-600 font-medium text-[11px]',
-    locale === 'en' && 'tracking-[0.2em] uppercase',
+    'text-sarat-black-600 font-medium',
+    locale === 'en' ? 'text-[11px] tracking-[0.2em] uppercase' : 'text-[13px]',
   );
 
   return (
@@ -47,6 +54,9 @@ export async function SocialProofStrip({ locale }: SocialProofStripProps) {
               >
                 <div
                   className="flex items-center gap-1"
+                  // role="img": a generic div's aria-label is ignored by
+                  // most AT — the role makes the star row one named image.
+                  role="img"
                   aria-label={t('ratingLabel', { rating: review.rating })}
                 >
                   {Array.from({ length: 5 }, (_, i) => (

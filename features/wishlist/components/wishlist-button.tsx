@@ -6,6 +6,7 @@ import { motion, useReducedMotion } from 'framer-motion';
 import { useTranslations } from 'next-intl';
 import { cn } from '@/lib/utils';
 import { SPRING } from '@/components/ui/motion';
+import { toast } from '@/components/ui/toast';
 import { toggleWishlist } from '@/features/wishlist/actions';
 
 interface WishlistButtonProps {
@@ -13,6 +14,24 @@ interface WishlistButtonProps {
   isSaved: boolean;
   /** Tone of the card the button sits on — affects the resting colour. */
   surface?: 'light' | 'dark';
+}
+
+const SAVED_TOAST_KEY = 'gharmish-wishlist-saved-toast';
+// In-memory fallback dedupe for browsers where sessionStorage throws
+// (private modes) — at worst the toast repeats on a full page load.
+let savedToastShown = false;
+
+/** True exactly once per session — the first save gets the affordance. */
+function isFirstSaveThisSession(): boolean {
+  if (savedToastShown) return false;
+  savedToastShown = true;
+  try {
+    if (sessionStorage.getItem(SAVED_TOAST_KEY)) return false;
+    sessionStorage.setItem(SAVED_TOAST_KEY, '1');
+  } catch {
+    // No storage — the module flag above still dedupes this page load.
+  }
+  return true;
 }
 
 /**
@@ -40,9 +59,20 @@ export function WishlistButton({ slug, isSaved, surface = 'light' }: WishlistBut
 
   function handleClick() {
     setInteracted(true);
+    const saving = !optimisticSaved;
     startTransition(async () => {
       setOptimisticSaved(!optimisticSaved);
       await toggleWishlist(slug);
+      // After the action settled (a thrown action never reaches this):
+      // the first save of the session points at the list it landed in —
+      // hearts otherwise have no visible destination.
+      if (saving && isFirstSaveThisSession()) {
+        toast({
+          title: t('savedToastTitle'),
+          tone: 'success',
+          action: { label: t('savedToastCta'), href: '/wishlist' },
+        });
+      }
     });
   }
 

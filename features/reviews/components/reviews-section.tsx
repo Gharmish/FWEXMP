@@ -3,7 +3,8 @@ import { Link } from '@/lib/i18n';
 import type { Locale } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
 import { getReviewsForExperience } from '@/features/reviews/queries';
-import type { ReviewAggregate } from '@/features/reviews/types';
+import type { ReviewAggregate, ReviewSummary } from '@/features/reviews/types';
+import { JsonLd } from '@/components/seo/json-ld';
 import { Stagger, StaggerItem } from '@/components/ui/motion';
 import { RatingSummary } from '@/features/reviews/components/rating-summary';
 import { ReviewCard } from '@/features/reviews/components/review-card';
@@ -26,6 +27,36 @@ interface ReviewsSectionProps {
   showAll?: boolean;
   /** Href that re-renders the page with every review visible. */
   showAllHref?: string;
+  /**
+   * `@id` of the page's Product JSON-LD node. When set, the first-page
+   * reviews are emitted as `review` entries on a node with that same
+   * `@id` — JSON-LD merges nodes by `@id` across script blocks, so the
+   * entries attach to the Product without this (Suspense-streamed)
+   * section blocking the page body's own JSON-LD. Omit on previews.
+   */
+  productId?: string;
+}
+
+function reviewJsonLd(review: ReviewSummary): Record<string, unknown> {
+  // Body pick mirrors ReviewCard: EN text first for the structured layer
+  // (it is locale-independent), falling back to the Arabic text.
+  const body = review.textEn ?? review.textAr;
+  return {
+    '@type': 'Review',
+    // guestName is ALREADY the public display form (first name + initial,
+    // compound-name aware) — derived once at the query layer via
+    // reviewDisplayName. Re-abbreviating here would re-split an
+    // already-abbreviated name and mangle Arabic compound names.
+    author: { '@type': 'Person', name: review.guestName },
+    datePublished: review.createdAt.slice(0, 10),
+    reviewRating: {
+      '@type': 'Rating',
+      ratingValue: review.rating,
+      bestRating: 5,
+      worstRating: 1,
+    },
+    ...(body ? { reviewBody: body } : {}),
+  };
 }
 
 /** Initial reviews shown before the "show all" link. */
@@ -49,6 +80,7 @@ export async function ReviewsSection({
   aggregate,
   showAll = false,
   showAllHref,
+  productId,
 }: ReviewsSectionProps) {
   const t = await getTranslations('reviews');
   const visible = await getReviewsForExperience(
@@ -65,8 +97,22 @@ export async function ReviewsSection({
   return (
     <section
       id="reviews"
-      className="border-sarat-black/8 flex flex-col gap-8 [border-top-width:0.5px] pt-10"
+      // scroll-mt clears the sticky navbar so the `#reviews` anchor never
+      // lands with its heading hidden underneath it.
+      className="border-sarat-black/8 flex scroll-mt-20 flex-col gap-8 [border-top-width:0.5px] pt-10"
     >
+      {productId && visible.length > 0 && (
+        <JsonLd
+          data={{
+            '@context': 'https://schema.org',
+            '@type': 'Product',
+            '@id': productId,
+            // First page only, even under `?reviews=all` — the aggregate
+            // already carries the full count.
+            review: visible.slice(0, INITIAL_VISIBLE).map(reviewJsonLd),
+          }}
+        />
+      )}
       <header className="flex flex-col gap-2">
         <p className={eyebrowClassName}>{t('eyebrow')}</p>
         <h2 className="font-display text-2xl font-medium tracking-[-0.025em]">{t('heading')}</h2>

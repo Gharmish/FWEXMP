@@ -70,7 +70,7 @@ export async function HostCard({ host, locale, responseStats }: HostCardProps) {
           </div>
         </div>
       </div>
-      <p className="text-sarat-black-600 text-base">{bio}</p>
+      <p className="text-sarat-black-600 text-base whitespace-pre-line">{bio}</p>
       <Link
         href={`/hosts/${slug}`}
         className="text-sarat-black inline-flex min-h-11 w-fit items-center gap-2 text-sm font-medium transition-opacity duration-200 hover:opacity-60"

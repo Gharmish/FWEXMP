@@ -5,7 +5,7 @@ import { ArrowLeft, Lock } from 'lucide-react';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { Link } from '@/lib/i18n';
 import type { Locale } from '@/lib/i18n';
-import { MountFade } from '@/components/ui/motion';
+import { RiseIn } from '@/components/ui/motion';
 import { hasHyperpay, hasHyperpayApplePay } from '@/lib/env';
 import { formatDate, formatInteger, formatSAR, formatTime } from '@/lib/format';
 import { startInstant } from '@/features/bookings/lib/cancellation';
@@ -32,7 +32,9 @@ import { getWalletBalanceSar } from '@/features/wallet/ledger';
 import { PaymentMarks } from '@/components/layout/payment-marks';
 import { VerifiedBadge } from '@/features/hosts/components/verified-badge';
 import { toArabicText } from '@/features/experiences/lib/arabic-content';
+import { MIN_CHARGE_SAR } from '@/features/promo-codes/lib/discount';
 import { cn } from '@/lib/utils';
+import { reportError } from '@/lib/log';
 import { BOOKING_LINK_TOKEN_PARAM } from '@/features/bookings/lib/link-token';
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -105,7 +107,16 @@ export default async function PaymentPage({ params, searchParams }: PageParams) 
   }
 
   const experienceSlug = booking.experienceSlug ?? slugFromQuery;
-  const experience = experienceSlug ? await getExperienceBySlug(experienceSlug) : undefined;
+  // Independent reads batched into waves of ≤4 (the detail-page pattern)
+  // instead of a serial await chain — the guards above must stay before
+  // wave A, and the wallet balance needs the session read, so it waits
+  // for wave B.
+  const [experience, sessionGuestId, { vatEnabled, vatRateBps }] = await Promise.all([
+    experienceSlug ? getExperienceBySlug(experienceSlug) : Promise.resolve(undefined),
+    getSessionGuestId(),
+    // Platform settings feed the VAT disclosure in the summary below.
+    getPlatformSettings(),
+  ]);
   const title = experience ? (loc === 'ar' ? experience.titleAr : experience.titleEn) : null;
 
   const t = await getTranslations('payment');
@@ -115,14 +126,22 @@ export default async function PaymentPage({ params, searchParams }: PageParams) 
   // pay, but never sees another account's balance. Balance is read at
   // render; the apply action re-reads it under lock, so staleness here
   // only affects the button label, never the money.
-  const sessionGuestId = await getSessionGuestId();
   const walletOwner = sessionGuestId !== null && sessionGuestId === booking.guestId;
-  const walletBalanceSar =
-    walletOwner && booking.walletAppliedSar === 0 ? await getWalletBalanceSar(booking.guestId) : 0;
+  const [walletBalanceSar, storedBilling] = await Promise.all([
+    walletOwner && booking.walletAppliedSar === 0
+      ? getWalletBalanceSar(booking.guestId).catch((error: unknown) => {
+          // Display-only read — a transient wallet error must degrade to
+          // "no credit shown", never 500 the payment step.
+          reportError(error, { surface: 'payment:walletBalance', reference });
+          return 0;
+        })
+      : Promise.resolve(0),
+    // Billing address the guest saved on a previous checkout — so a
+    // returning guest confirms instead of retyping it (spread into
+    // `defaults` below; `country` falls back to KSA there).
+    getStoredBillingForBooking(reference),
+  ]);
   const showWalletField = walletOwner && (walletBalanceSar > 0 || booking.walletAppliedSar > 0);
-
-  // Platform settings feed the VAT disclosure in the summary below.
-  const { vatEnabled, vatRateBps } = await getPlatformSettings();
 
   // The consent line links to the generic policy page; this note states
   // what the policy means for THIS booking, from its own cancellation-
@@ -175,21 +194,39 @@ export default async function PaymentPage({ params, searchParams }: PageParams) 
 
   // Clickwrap consent line with inline links to each binding document.
   // Built here (rich text) so the link order reads naturally per locale.
+  // The policies open in a new tab: reading what you're agreeing to must
+  // not navigate away and destroy the filled form (bfcache is least
+  // reliable in exactly the WhatsApp in-app browser this page arrives in).
   const consentLinkClassName =
     'font-medium underline underline-offset-4 transition-opacity duration-200 hover:opacity-60';
   const termsLabel = t.rich('termsAgreement', {
     terms: (chunks) => (
-      <Link href="/terms" className={consentLinkClassName}>
+      <Link
+        href="/terms"
+        target="_blank"
+        rel="noopener noreferrer"
+        className={consentLinkClassName}
+      >
         {chunks}
       </Link>
     ),
     privacy: (chunks) => (
-      <Link href="/privacy" className={consentLinkClassName}>
+      <Link
+        href="/privacy"
+        target="_blank"
+        rel="noopener noreferrer"
+        className={consentLinkClassName}
+      >
         {chunks}
       </Link>
     ),
     cancellation: (chunks) => (
-      <Link href="/cancellation-policy" className={consentLinkClassName}>
+      <Link
+        href="/cancellation-policy"
+        target="_blank"
+        rel="noopener noreferrer"
+        className={consentLinkClassName}
+      >
         {chunks}
       </Link>
     ),
@@ -287,9 +324,6 @@ export default async function PaymentPage({ params, searchParams }: PageParams) 
           givenName: fullName.slice(0, lastSpace).trim(),
           surname: fullName.slice(lastSpace + 1).trim(),
         };
-  // Billing address the guest saved on a previous checkout — so a returning
-  // guest confirms instead of retyping it. `country` falls back to KSA.
-  const storedBilling = await getStoredBillingForBooking(reference);
   const defaults = {
     ...nameDefaults,
     ...(booking.guestEmail ? { email: booking.guestEmail } : {}),
@@ -304,6 +338,8 @@ export default async function PaymentPage({ params, searchParams }: PageParams) 
   // time, so on a UTC host every start time rendered +3h — `formatTime`
   // pins Asia/Riyadh on the way out but cannot undo a mis-parsed input).
   const startsAt = startInstant(booking.date, booking.startTime);
+  // The full pre-reduction base — what "unit × party" must multiply to.
+  const baseAmountSar = booking.totalAmountSar + booking.discountSar + booking.walletAppliedSar;
   const facts: Array<{ label: string; value: string }> = [
     { label: t('dateLabel'), value: formatDate(startsAt, loc) },
     { label: t('timeLabel'), value: formatTime(startsAt, loc) },
@@ -314,8 +350,11 @@ export default async function PaymentPage({ params, searchParams }: PageParams) 
     <article className="mx-auto w-full max-w-6xl px-6 py-10 sm:py-16">
       {/* Entrance on the header only. The HyperPay widget below stays
           motion-free: payment must read rock-solid, and iframes repaint
-          badly under transforms. */}
-      <MountFade eager>
+          badly under transforms. Transform-only RiseIn (never an eager
+          opacity fade): this page is usually an initial document load
+          from a WhatsApp link, and the progress/h1/deadline must paint
+          before hydration — and without JS at all. */}
+      <RiseIn>
         {/* Where the guest stands in the flow: details were captured on the
             experience page, payment is this page, confirmation follows. */}
         <CheckoutProgress
@@ -351,10 +390,11 @@ export default async function PaymentPage({ params, searchParams }: PageParams) 
               minutesLeftTemplate={t.raw('minutesLeft')}
               hoursLeftTemplate={t.raw('hoursLeft')}
               hoursOnlyLeftTemplate={t.raw('hoursOnlyLeft')}
+              expiredNote={t('errorExpired')}
             />
           )}
         </header>
-      </MountFade>
+      </RiseIn>
 
       {/* Two-column checkout ≥lg (checkout-audit P1): form on the inline-
           start side, order summary as a sticky rail on the inline-end side
@@ -398,18 +438,24 @@ export default async function PaymentPage({ params, searchParams }: PageParams) 
               ))}
             </dl>
             <div className="border-sarat-black/8 flex flex-col gap-2 [border-top-width:0.5px] pt-4">
-              {/* A promo or applied credit shows as subtotal (full base) +
-                  reduction lines above the charged total. `totalAmountSar`
-                  is always the amount the card is charged. */}
-              {(booking.discountSar > 0 || booking.walletAppliedSar > 0) && (
-                <p className="flex items-baseline justify-between gap-4 text-sm">
-                  <span className="text-sarat-black-600">{t('subtotalLabel')}</span>
-                  <Price
-                    amount={booking.totalAmountSar + booking.discountSar + booking.walletAppliedSar}
-                    locale={loc}
-                  />
-                </p>
-              )}
+              {/* The money block always opens with verifiable arithmetic:
+                  unit price × party when the pre-reduction base divides
+                  cleanly, otherwise a plain "{party} guests" subtotal —
+                  never invented math. Pay-after-approval guests arrive a
+                  day later from WhatsApp and must be able to check the
+                  total. Reduction lines follow; `totalAmountSar` is always
+                  the amount the card is charged. */}
+              <p className="flex items-baseline justify-between gap-4 text-sm">
+                <span className="text-sarat-black-600">
+                  {baseAmountSar % booking.partySize === 0
+                    ? t('unitTimesParty', {
+                        price: formatSAR(baseAmountSar / booking.partySize, loc),
+                        count: booking.partySize,
+                      })
+                    : t('partySubtotal', { count: booking.partySize })}
+                </span>
+                <Price amount={baseAmountSar} locale={loc} />
+              </p>
               {booking.discountSar > 0 && (
                 <p className="text-juniper-green-800 flex items-baseline justify-between gap-4 text-sm">
                   <span>
@@ -417,7 +463,9 @@ export default async function PaymentPage({ params, searchParams }: PageParams) 
                       ? t('promo.discountLabel', { code: booking.promoCode })
                       : t('promo.discountLabelGeneric')}
                   </span>
-                  <span>
+                  {/* The sign lives inside the LTR isolate — outside it,
+                      RTL text places the minus on the wrong side. */}
+                  <span dir="ltr">
                     −<Price amount={booking.discountSar} locale={loc} />
                   </span>
                 </p>
@@ -425,7 +473,7 @@ export default async function PaymentPage({ params, searchParams }: PageParams) 
               {booking.walletAppliedSar > 0 && (
                 <p className="text-juniper-green-800 flex items-baseline justify-between gap-4 text-sm">
                   <span>{t('walletCredit.summaryLabel')}</span>
-                  <span>
+                  <span dir="ltr">
                     −<Price amount={booking.walletAppliedSar} locale={loc} />
                   </span>
                 </p>
@@ -472,10 +520,29 @@ export default async function PaymentPage({ params, searchParams }: PageParams) 
                   balanceSar={walletBalanceSar}
                   appliedSar={booking.walletAppliedSar}
                   copy={{
-                    // Raw template — `{amount}` is substituted client-side
+                    // When the balance covers the total, the cap (apply is
+                    // clamped so a MIN_CHARGE_SAR card payment remains —
+                    // checkout-actions.ts) is stated up front instead of
+                    // letting "−479" appear unexplained. Uncapped: raw
+                    // template — `{amount}` is substituted client-side
                     // (same trap as promo.errorBelowMin: formatting it here
                     // would throw for the missing variable).
-                    available: t.raw('walletCredit.available'),
+                    available:
+                      walletBalanceSar > booking.totalAmountSar - MIN_CHARGE_SAR
+                        ? t('walletCredit.availableCapped', {
+                            applied: formatSAR(booking.totalAmountSar - MIN_CHARGE_SAR, loc),
+                            min: formatSAR(MIN_CHARGE_SAR, loc),
+                          })
+                        : t.raw('walletCredit.available'),
+                    // Echoed under the applied chip whenever the remaining
+                    // charge is exactly the floor, so the SAR 1 card step
+                    // that follows is never a surprise.
+                    capNote:
+                      booking.walletAppliedSar > 0 && booking.totalAmountSar === MIN_CHARGE_SAR
+                        ? t('walletCredit.appliedCapNote', {
+                            min: formatSAR(MIN_CHARGE_SAR, loc),
+                          })
+                        : undefined,
                     apply: t('walletCredit.apply'),
                     applying: t('walletCredit.applying'),
                     appliedPrefix: t('walletCredit.appliedPrefix'),
@@ -494,6 +561,25 @@ export default async function PaymentPage({ params, searchParams }: PageParams) 
                 />
               </div>
             )}
+            {/* No wallet session at all → one neutral, data-free pointer
+                (never a balance, never an assumption) so a signed-out
+                credit holder learns the credit is applicable here. */}
+            {sessionGuestId === null && (
+              <div className="border-sarat-black/8 [border-top-width:0.5px] pt-4">
+                <p className="text-sarat-black-600 text-sm">
+                  {t.rich('walletCredit.signInHint', {
+                    link: (chunks) => (
+                      <Link
+                        href={`/sign-in?next=${encodeURIComponent(`/book/${reference}/pay${confirmedQuery ? `?${confirmedQuery}` : ''}`)}`}
+                        className={consentLinkClassName}
+                      >
+                        {chunks}
+                      </Link>
+                    ),
+                  })}
+                </p>
+              </div>
+            )}
             <div className="border-sarat-black/8 [border-top-width:0.5px] pt-4">
               <PromoCodeField
                 reference={reference}
@@ -510,7 +596,15 @@ export default async function PaymentPage({ params, searchParams }: PageParams) 
             <Link
               // Carry the held choices back so the form opens pre-filled —
               // changing a date must not mean re-entering everything.
-              href={`/experiences/${experienceSlug}?date=${booking.date}&party=${booking.partySize}`}
+              // `supersedes` names the hold this edit replaces, so the
+              // booking flow can release it instead of stranding a second
+              // 30-minute capacity block (and burning the phone hold cap).
+              // `supersedesToken` carries this booking's signed link token
+              // so the release is authorized by proof of THIS reference —
+              // never by a bare reference an attacker could guess.
+              href={`/experiences/${experienceSlug}?date=${booking.date}&party=${booking.partySize}&supersedes=${reference}${
+                linkToken ? `&supersedesToken=${encodeURIComponent(linkToken)}` : ''
+              }`}
               className="text-sarat-black-600 hover:text-sarat-black mt-4 inline-flex items-center gap-2 text-sm transition-colors duration-200"
             >
               <ArrowLeft className="size-4 shrink-0 rtl:rotate-180" aria-hidden />
@@ -564,6 +658,7 @@ export default async function PaymentPage({ params, searchParams }: PageParams) 
               <p className="text-sarat-black-600 text-sm">{t('acceptedMethods')}</p>
               <PaymentMarks
                 label={tFooter('paymentsLabel')}
+                order="checkout"
                 names={{
                   mada: tFooter('brandMada'),
                   visa: tFooter('brandVisa'),

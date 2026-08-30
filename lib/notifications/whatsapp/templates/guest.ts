@@ -416,7 +416,9 @@ Directions and meeting details are on your booking page. Ready?`,
 📍 {meetingPoint}
 
 نتمنى لك وقتًا جميلًا وتجربة تستحق الذكر.`,
-        buttons: [{ type: 'URL', title: 'فتح الاتجاهات', urlVariable: 'mapsQuery', urlBase: MAPS_BASE }],
+        buttons: [
+          { type: 'URL', title: 'فتح الاتجاهات', urlVariable: 'mapsQuery', urlBase: MAPS_BASE },
+        ],
       },
       en: {
         body: `✨ Almost time
@@ -428,7 +430,9 @@ Directions and meeting details are on your booking page. Ready?`,
 📍 {meetingPoint}
 
 Have a wonderful time — we hope it's one to remember.`,
-        buttons: [{ type: 'URL', title: 'Get directions', urlVariable: 'mapsQuery', urlBase: MAPS_BASE }],
+        buttons: [
+          { type: 'URL', title: 'Get directions', urlVariable: 'mapsQuery', urlBase: MAPS_BASE },
+        ],
       },
     },
     legacy: {
@@ -642,7 +646,16 @@ export const REFUND_LINES = {
   },
   refund_pending: {
     ar: (amount: string) => `بدأنا استرجاع ${amount} وقد يظهر في حسابك خلال 5–10 أيام عمل`,
-    en: (amount: string) => `We've started refunding ${amount}; allow 5–10 business days for it to appear`,
+    en: (amount: string) =>
+      `We've started refunding ${amount}; allow 5–10 business days for it to appear`,
+  },
+  // A queued manual refund with NO payee on file — nothing has started
+  // and nothing can until the guest adds their bank details (P0-2).
+  needs_payee: {
+    ar: (amount: string) =>
+      `مبلغك المسترد ${amount} جاهز للتحويل — أضف بياناتك البنكية من صفحة حجزك`,
+    en: (amount: string) =>
+      `Your refund of ${amount} is ready — add your bank details from your booking page`,
   },
   wallet: {
     ar: (amount: string) => `أضفنا ${amount} إلى رصيد غارميش في حسابك`,

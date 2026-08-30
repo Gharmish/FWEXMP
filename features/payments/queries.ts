@@ -1,5 +1,6 @@
 import { eq } from 'drizzle-orm';
 import { db } from '@/lib/db';
+import { boundedQuery } from '@/lib/deadline';
 import { serverEnv } from '@/lib/env';
 import { bookings } from '@/db/schema';
 import { reportError } from '@/lib/log';
@@ -28,23 +29,28 @@ export interface StoredBilling {
 export async function getStoredBillingForBooking(reference: string): Promise<StoredBilling> {
   if (!serverEnv.DATABASE_URL) return {};
   try {
-    const row = await db.query.bookings.findFirst({
-      where: eq(bookings.idempotencyKey, reference),
-      // Minimal selection: an empty `columns` object would select every
-      // bookings column, and we only need the guest relation.
-      columns: { id: true },
-      with: {
-        guest: {
-          columns: {
-            billingStreet1: true,
-            billingCity: true,
-            billingState: true,
-            billingPostcode: true,
-            billingCountry: true,
+    // Deadline-bounded: this read sits on the payment step's render path,
+    // where a poisoned pooled connection would hang the page instead of
+    // falling through to the catch below.
+    const row = await boundedQuery('payments:storedBilling', () =>
+      db.query.bookings.findFirst({
+        where: eq(bookings.idempotencyKey, reference),
+        // Minimal selection: an empty `columns` object would select every
+        // bookings column, and we only need the guest relation.
+        columns: { id: true },
+        with: {
+          guest: {
+            columns: {
+              billingStreet1: true,
+              billingCity: true,
+              billingState: true,
+              billingPostcode: true,
+              billingCountry: true,
+            },
           },
         },
-      },
-    });
+      }),
+    );
     if (!row) return {};
     const g = row.guest;
     const out: StoredBilling = {};

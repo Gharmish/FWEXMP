@@ -15,8 +15,18 @@ import {
 } from '@/features/wallet/checkout-actions';
 
 export interface WalletCheckoutFieldCopy {
-  /** `{amount}` is replaced with the formatted SAR balance. */
+  /**
+   * `{amount}` is replaced with the formatted SAR balance. When the
+   * balance covers the total, the caller passes the fully-formatted
+   * capped line instead (no `{amount}` — the replace is a no-op).
+   */
   available: string;
+  /**
+   * Shown under the applied chip when the remaining card charge is the
+   * SAR 1 floor — echoes the cap the entry line promised. Omitted
+   * otherwise.
+   */
+  capNote?: string;
   apply: string;
   applying: string;
   appliedPrefix: string;
@@ -40,7 +50,9 @@ const initialState: WalletCheckoutActionState = { status: 'idle' };
 function ApplyButton({ label, pending: pendingLabel }: { label: string; pending: string }) {
   const { pending } = useFormStatus();
   return (
-    <Button type="submit" variant="primary" size="md" pending={pending} className="w-full">
+    // Secondary on purpose (like the promo Apply): this sits in the
+    // summary rail and must never outrank the page's payment CTA.
+    <Button type="submit" variant="secondary" size="md" pending={pending} className="w-full">
       <Wallet className="size-4 shrink-0" aria-hidden />
       {pending ? pendingLabel : label}
     </Button>
@@ -110,6 +122,7 @@ export function WalletCheckoutField({
             <RemoveButton label={copy.remove} pending={copy.removing} />
           </span>
         </div>
+        {copy.capNote && <p className="text-sarat-black-600 text-sm">{copy.capNote}</p>}
         {removeError && (
           <p role="alert" className="text-al-qatt-red-800 text-sm">
             {removeError}

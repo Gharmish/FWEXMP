@@ -25,6 +25,21 @@ export const bookingRequestSchema = z.object({
    * behavior) rather than failing the booking.
    */
   idempotencyKey: z.string().uuid().optional().catch(undefined),
+  /**
+   * Reference (idempotency-key UUID) of an earlier unpaid instant hold
+   * this submission replaces — carried by the payment step's "change
+   * date or guests" path. Best-effort like `idempotencyKey`: absent or
+   * malformed degrades to undefined, and the action only releases the
+   * named hold when the caller's ownership is provable.
+   */
+  supersedes: z.string().uuid().optional().catch(undefined),
+  /**
+   * Signed link token for {@link supersedes}. Proof the caller holds the
+   * superseded booking's own link, so its hold can be released without a
+   * same-device cookie. Best-effort: absent/invalid just means the
+   * cookie is the only accepted proof.
+   */
+  supersedesToken: z.string().max(200).optional().catch(undefined),
   name: z.string().trim().min(2).max(80),
   // The form posts a canonical E.164 number (any country except Israel, see
   // `lib/phone`). Bare digits from API/MCP clients are read as Saudi numbers.

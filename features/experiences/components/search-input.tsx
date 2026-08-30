@@ -30,13 +30,43 @@ export function SearchInput() {
     else if (Array.isArray(existing)) existing.push(value);
     else params[key] = [existing, value];
   });
-  const initialCriteria = parseSearchParams(params);
-  const [value, setValue] = useState(initialCriteria.q);
+  const urlQ = parseSearchParams(params).q;
+  const [value, setValue] = useState(urlQ);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const inputRef = useRef<HTMLInputElement | null>(null);
+  // The last canonical q THIS instance wrote to the URL. External changes
+  // (rail Reset, empty-state links, back/forward) show up as ?q= values we
+  // never pushed — those re-sync the box; our own debounced echoes don't,
+  // so in-flight typing (IME composition included) is never clobbered.
+  const lastPushedRef = useRef(urlQ);
+
+  useEffect(() => {
+    if (urlQ !== lastPushedRef.current) {
+      lastPushedRef.current = urlQ;
+      // A pending debounce would re-push the pre-reset text — drop it.
+      if (timerRef.current) clearTimeout(timerRef.current);
+      setValue(urlQ);
+    }
+  }, [urlQ]);
+
+  // One-shot deep-link: the homepage search pill links to
+  // /experiences?focus=search. focus() on a display:none instance no-ops,
+  // so whichever breakpoint's box is visible receives the cursor. The
+  // param is unknown to the criteria parser and drops off on first push.
+  const focusRequested = searchParams.get('focus') === 'search';
+  const didFocusRef = useRef(false);
+  useEffect(() => {
+    if (focusRequested && !didFocusRef.current) {
+      didFocusRef.current = true;
+      inputRef.current?.focus();
+    }
+  }, [focusRequested]);
 
   function push(next: string) {
     const criteria = parseSearchParams(params);
-    const qs = toSearchParams({ ...criteria, q: next.trim().toLowerCase() }).toString();
+    const canonical = next.trim().toLowerCase();
+    lastPushedRef.current = canonical;
+    const qs = toSearchParams({ ...criteria, q: canonical }).toString();
     startTransition(() => {
       router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
     });
@@ -79,6 +109,7 @@ export function SearchInput() {
     >
       <Search className="text-sarat-black-600 size-4 shrink-0" aria-hidden />
       <input
+        ref={inputRef}
         type="search"
         value={value}
         onChange={(event) => onChange(event.target.value)}

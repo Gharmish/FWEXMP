@@ -3,10 +3,12 @@
 import { useActionState, useId, useState } from 'react';
 import { useFormStatus } from 'react-dom';
 import { Star } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 import type { Locale } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { submitReview, updateReview, type SubmitReviewState } from '@/features/reviews/actions';
+import { reviewDisplayName } from '@/features/reviews/lib/display-name';
 import { REVIEW_TEXT_MAX } from '@/features/reviews/schemas';
 
 type ErrorKey = NonNullable<SubmitReviewState['message']>;
@@ -33,6 +35,12 @@ export interface ReviewFormProps {
   mode?: 'create' | 'edit';
   initialRating?: number;
   initialText?: string;
+  /**
+   * Guest's booking name. When present the form discloses the public
+   * byline ("Posted publicly as Sara A.") — same derivation the review
+   * surfaces render, so the guest sees exactly what will be published.
+   */
+  guestName?: string;
 }
 
 const initialState: SubmitReviewState = { success: false };
@@ -53,7 +61,9 @@ export function ReviewForm({
   mode = 'create',
   initialRating = 0,
   initialText = '',
+  guestName,
 }: ReviewFormProps) {
+  const t = useTranslations('reviews');
   const [state, action] = useActionState(
     mode === 'edit' ? updateReview : submitReview,
     initialState,
@@ -75,6 +85,11 @@ export function ReviewForm({
       <input type="hidden" name="locale" value={locale} />
 
       <h3 className="font-display text-xl font-medium tracking-[-0.02em]">{copy.heading}</h3>
+      {guestName && (
+        <p className="text-sarat-black-600 -mt-3 text-sm">
+          {t('publicNameNotice', { name: reviewDisplayName(guestName) })}
+        </p>
+      )}
 
       <fieldset className="flex flex-col gap-2">
         <legend className="text-sarat-black-600 mb-1 text-sm">{copy.ratingLabel}</legend>
@@ -85,9 +100,13 @@ export function ReviewForm({
           onMouseLeave={() => setHovered(0)}
         >
           {[1, 2, 3, 4, 5].map((value) => (
+            // size-11 = the 44px touch-target floor; the sr-only radio's
+            // focus surfaces on the visible label via `has-[:focus-visible]`
+            // (mirrors the global ring treatment — sr-only inputs never
+            // show the :focus-visible box-shadow themselves).
             <label
               key={value}
-              className="cursor-pointer p-1"
+              className="has-[:focus-visible]:ring-sarat-black/55 flex size-11 cursor-pointer items-center justify-center rounded-full has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-offset-2"
               onMouseEnter={() => setHovered(value)}
             >
               <input
@@ -127,7 +146,7 @@ export function ReviewForm({
           maxLength={REVIEW_TEXT_MAX}
           defaultValue={state.values?.text ?? initialText}
           placeholder={copy.commentPlaceholder}
-          className="rounded-input border-sarat-black/12 placeholder:text-sarat-black-600 focus:border-sarat-black/30 w-full resize-y [border-width:0.5px] bg-transparent p-3 text-base focus:outline-none"
+          className="rounded-input border-sarat-black/12 placeholder:text-sarat-black-600 focus:border-sarat-black/30 w-full resize-y [border-width:0.5px] bg-transparent p-3 text-base"
         />
       </div>
 

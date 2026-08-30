@@ -283,6 +283,7 @@ export default async function MePage({ params }: { params: Promise<{ locale: str
                   <ReviewForm
                     bookingReference={lastBooking.hint.reference}
                     locale={loc}
+                    guestName={profile?.name}
                     mode="edit"
                     initialRating={lastBooking.review.rating}
                     initialText={
@@ -343,6 +344,7 @@ export default async function MePage({ params }: { params: Promise<{ locale: str
                   <ReviewForm
                     bookingReference={lastBooking.hint.reference}
                     locale={loc}
+                    guestName={profile?.name}
                     copy={{
                       heading: t('review.heading'),
                       ratingLabel: t('review.ratingLabel'),

@@ -1,5 +1,6 @@
 import { desc, eq, sql } from 'drizzle-orm';
 import { db } from '@/lib/db';
+import { boundedQuery } from '@/lib/deadline';
 import { serverEnv } from '@/lib/env';
 import { bookings, disputes, experiences, guests } from '@/db/schema';
 import { reportError } from '@/lib/log';
@@ -123,15 +124,22 @@ export async function listDisputesForAdmin(): Promise<readonly AdminDisputeRow[]
 export async function hasOpenDisputeForBooking(reference: string): Promise<boolean> {
   if (!serverEnv.DATABASE_URL) return false;
   try {
-    const booking = await db.query.bookings.findFirst({
-      where: eq(bookings.idempotencyKey, reference),
-      columns: { id: true },
-    });
+    // Deadline-bounded: both reads run while the guest's booking page
+    // renders — a hung connection must degrade through the catch below
+    // instead of stalling the page.
+    const booking = await boundedQuery('disputes:hasOpen:booking', () =>
+      db.query.bookings.findFirst({
+        where: eq(bookings.idempotencyKey, reference),
+        columns: { id: true },
+      }),
+    );
     if (!booking) return false;
-    const open = await db.query.disputes.findFirst({
-      where: (d, { and: andOp }) => andOp(eq(d.bookingId, booking.id), eq(d.status, 'open')),
-      columns: { id: true },
-    });
+    const open = await boundedQuery('disputes:hasOpen:dispute', () =>
+      db.query.disputes.findFirst({
+        where: (d, { and: andOp }) => andOp(eq(d.bookingId, booking.id), eq(d.status, 'open')),
+        columns: { id: true },
+      }),
+    );
     return Boolean(open);
   } catch (error) {
     reportError(error, { surface: 'disputes:hasOpen', reference });

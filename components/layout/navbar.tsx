@@ -1,8 +1,11 @@
 import { Suspense } from 'react';
+import { cookies } from 'next/headers';
 import { getLocale, getTranslations } from 'next-intl/server';
-import { Compass, LogIn, Store, User } from 'lucide-react';
+import { Compass, Heart, LogIn, Store, User } from 'lucide-react';
+import { cn } from '@/lib/utils';
 import { Link } from '@/lib/i18n';
 import type { Locale } from '@/lib/i18n';
+import { WISHLIST_COOKIE, parseWishlistCookie } from '@/features/wishlist/cookie';
 import { NavShell } from '@/components/layout/nav-shell';
 import { Wordmark } from '@/components/layout/wordmark';
 import { LanguageSwitcher } from '@/components/layout/language-switcher';
@@ -50,6 +53,10 @@ const hostNavLinkClass = `${navLinkClass} max-[380px]:hidden`;
 export async function Navbar() {
   const locale = (await getLocale()) as Locale;
   const t = await getTranslations('nav');
+  // Cookie-only read (no DB): the heart entry point shows once this
+  // device has saved anything — an empty wishlist earns no nav slot.
+  const store = await cookies();
+  const hasWishlist = parseWishlistCookie(store.get(WISHLIST_COOKIE)?.value).length > 0;
 
   return (
     <NavShell>
@@ -60,6 +67,19 @@ export async function Navbar() {
             <Compass className="size-5 shrink-0" strokeWidth={1.5} aria-hidden />
             <span className="hidden sm:inline">{t('discover')}</span>
           </Link>
+          {/* `hidden sm:inline-flex`: below `sm` the signed-in bar already
+              runs at its 320px limit (see hostNavLinkClass) — mobile keeps
+              the post-save toast + footer as its routes to /wishlist. */}
+          {hasWishlist && (
+            <Link
+              href="/wishlist"
+              className={cn(navLinkClass, 'hidden sm:inline-flex')}
+              aria-label={t('wishlist')}
+            >
+              <Heart className="size-5 shrink-0" strokeWidth={1.5} aria-hidden />
+              <span className="hidden sm:inline">{t('wishlist')}</span>
+            </Link>
+          )}
           {/* The auth-dependent links need two DB round-trips
               (getCurrentUser + currentUserIsHost). Streaming them behind
               Suspense keeps every page's first byte off that critical path

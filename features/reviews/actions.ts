@@ -143,6 +143,7 @@ export async function submitReview(
 
   // The catalog/detail rating aggregates are cached cross-request.
   revalidateReviewCaches();
+  revalidatePath('/[locale]/book/confirmed/[ref]', 'page');
 
   // Tell the host they have a new review to read (and reply to) —
   // best-effort, never blocks the submission.
@@ -152,7 +153,9 @@ export async function submitReview(
     reportError(error, { surface: 'reviews:hostNewReviewEmail', bookingReference });
   }
 
-  redirect({ href: '/me', locale });
+  // Back to the booking page's review section — it renders the posted
+  // review in place; bouncing to /me lost the context (2026-08-28 audit).
+  redirect({ href: `/book/confirmed/${bookingReference}#review`, locale });
 }
 
 /**
@@ -223,12 +226,15 @@ export async function updateReview(
     revalidateReviewCaches();
     revalidatePath('/[locale]/me', 'page');
     revalidatePath('/[locale]/experiences/[slug]', 'page');
+    revalidatePath('/[locale]/book/confirmed/[ref]', 'page');
   } catch (error) {
     reportError(error, { surface: 'reviews:updateReview', bookingReference });
     return { success: false, message: 'server', values };
   }
 
-  redirect({ href: '/me', locale });
+  // Same landing as `submitReview` — the review section shows the
+  // updated rating/text in place.
+  redirect({ href: `/book/confirmed/${bookingReference}#review`, locale });
 }
 
 // ---------- host reply ----------

@@ -1,4 +1,5 @@
 import { cache } from 'react';
+import { cookies } from 'next/headers';
 import { and, desc, eq, sql } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import { decryptPii } from '@/lib/pii-crypto';
@@ -6,6 +7,7 @@ import { boundedQuery } from '@/lib/deadline';
 import { serverEnv } from '@/lib/env';
 import { bookings, experiences } from '@/db/schema';
 import type { Booking } from '@/db/schema';
+import { LAST_BOOKING_COOKIE, parseLastBookingCookie } from '@/features/account/cookie';
 import { bookingViewerCanAccess } from '@/features/bookings/lib/access';
 import { bookingLinkTokenValid } from '@/features/bookings/lib/link-token';
 import type { PolicySnapshot } from '@/features/bookings/lib/policy';
@@ -96,13 +98,18 @@ export interface BookingDetail {
   /** Whole SAR still owed to the guest via the manual (bank-transfer) queue. Null = nothing queued. */
   refundDueSar: number | null;
   /**
-   * Payee details the guest gave for a manual bank-transfer refund
-   * (IBAN decrypted for the page). Null until submitted.
+   * Payee details the guest gave for a manual bank-transfer refund.
+   * Null until submitted. The IBAN is MASKED at the query layer
+   * (`SA44 •••• … ••34`) — this shape reaches viewers who hold only the
+   * read-only booking link, and a forwarded link must never leak the
+   * full account (2026-08-28 audit). Changing it requires full re-entry;
+   * the real value stays encrypted server-side (admin queries decrypt
+   * their own copy).
    */
   refundBank: {
     bankName: string;
     beneficiaryName: string;
-    iban: string;
+    ibanMasked: string;
     submittedAt: string;
   } | null;
   /** Who called the booking off (`emergency` = admin force-majeure flow). Null = not cancelled. */
@@ -120,7 +127,21 @@ export interface BookingDetail {
   createdAt: string;
 }
 
-/** The manual-refund payee block, decrypted; null until all three are on file. */
+/**
+ * Mask an IBAN for guest-facing display: keep the SA-prefixed head (4)
+ * and the last two characters, dot the middle, grouped in fours the way
+ * bank apps print it.
+ */
+function maskIban(iban: string): string {
+  const compact = iban.replace(/\s+/g, '');
+  const masked =
+    compact.length > 6
+      ? `${compact.slice(0, 4)}${'•'.repeat(compact.length - 6)}${compact.slice(-2)}`
+      : compact;
+  return masked.replace(/(.{4})/g, '$1 ').trim();
+}
+
+/** The manual-refund payee block (IBAN masked); null until all three are on file. */
 function refundBankOf(row: {
   refundBankName: string | null;
   refundBeneficiaryName: string | null;
@@ -132,7 +153,7 @@ function refundBankOf(row: {
   return {
     bankName: row.refundBankName,
     beneficiaryName: row.refundBeneficiaryName,
-    iban,
+    ibanMasked: maskIban(iban),
     submittedAt: (row.refundBankDetailsAt ?? new Date(0)).toISOString(),
   };
 }
@@ -227,7 +248,19 @@ export async function getBookingByReference(reference: string): Promise<BookingD
  * lie about a real (often paid) booking.
  */
 export type BookingViewerResult =
-  | { state: 'ok'; booking: BookingDetail }
+  | {
+      state: 'ok';
+      booking: BookingDetail;
+      /**
+       * Which proof admitted this viewer. `owner` (signed-in account)
+       * and `cookie` (the booking's own browser) both satisfy the
+       * mutating actions' `bookingViewerCanAccess`; `token` is the
+       * READ-ONLY signed link — pages must not render cancel /
+       * reschedule / review / dispute forms for it (every one would
+       * fail server-side with a misleading error).
+       */
+      proof: 'owner' | 'cookie' | 'token';
+    }
   /** No DATABASE_URL — genuine preview/no-DB environment. */
   | { state: 'no_db' }
   /** No row carries this reference. */
@@ -265,13 +298,25 @@ export const getBookingViewForViewer = cache(
       }),
     );
     if (!owner) return { state: 'not_found' };
-    const allowed =
-      bookingLinkTokenValid(reference, token) ||
-      (await bookingViewerCanAccess(reference, owner.guestId));
-    if (!allowed) return { state: 'forbidden' };
+    // The full (mutating-grade) proof is checked FIRST so a viewer who
+    // holds both the cookie/session and the link token is never
+    // downgraded to the read-only `token` proof.
+    const trusted = await bookingViewerCanAccess(reference, owner.guestId);
+    let proof: 'owner' | 'cookie' | 'token';
+    if (trusted) {
+      // Which of the two full proofs: the last-booking cookie naming
+      // this reference, otherwise it was the signed-in owner check.
+      const store = await cookies();
+      const hint = parseLastBookingCookie(store.get(LAST_BOOKING_COOKIE)?.value);
+      proof = hint?.reference === reference ? 'cookie' : 'owner';
+    } else if (bookingLinkTokenValid(reference, token)) {
+      proof = 'token';
+    } else {
+      return { state: 'forbidden' };
+    }
     const booking = await getBookingByReference(reference);
     // Vanished between the two reads (deleted mid-render) — same as unknown.
-    return booking ? { state: 'ok', booking } : { state: 'not_found' };
+    return booking ? { state: 'ok', booking, proof } : { state: 'not_found' };
   },
 );
 
@@ -374,9 +419,11 @@ export async function getBookingsForGuest(guestId: string): Promise<GuestBooking
 /**
  * The host's WhatsApp-able contact phone for a booking — only for
  * bookings the host has accepted (confirmed/completed): a declined or
- * pending request must not leak the host's personal number. The phone
- * comes from the approved application (`host_applications.contact_phone`);
- * seeded demo hosts have no application and yield null.
+ * pending request must not leak the host's personal number. Canonical
+ * source is `hosts.contact_phone` (copied from the application at
+ * approval); the approved application is kept as a fallback for any
+ * pre-column host the backfill missed. Seeded demo hosts have neither
+ * and yield null.
  */
 export async function getHostContactPhoneForBooking(reference: string): Promise<string | null> {
   if (!hasDb()) return null;
@@ -385,10 +432,16 @@ export async function getHostContactPhoneForBooking(reference: string): Promise<
       db.query.bookings.findFirst({
         where: eq(bookings.idempotencyKey, reference),
         columns: { status: true },
-        with: { experience: { columns: { hostId: true } } },
+        with: {
+          experience: {
+            columns: { hostId: true },
+            with: { host: { columns: { contactPhone: true } } },
+          },
+        },
       }),
     );
     if (!row || (row.status !== 'confirmed' && row.status !== 'completed')) return null;
+    if (row.experience.host.contactPhone) return row.experience.host.contactPhone;
     const application = await boundedQuery('bookings:hostContact:application', () =>
       db.query.hostApplications.findFirst({
         where: (a) => eq(a.hostId, row.experience.hostId),

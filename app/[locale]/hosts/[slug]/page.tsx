@@ -16,7 +16,6 @@ import { VerifiedBadge } from '@/features/hosts/components/verified-badge';
 import { toArabicText } from '@/features/experiences/lib/arabic-content';
 import { pickLocalized } from '@/lib/ar-placeholder';
 import {
-  getAllHostSlugs,
   getExperiencesByHostSlug,
   getHostBySlug,
   getHostResponseStats,
@@ -35,11 +34,6 @@ import { WishlistButton } from '@/features/wishlist/components/wishlist-button';
 const LEGACY_HOST_SLUGS: Readonly<Record<string, string>> = {
   'faisal-al-qahtani': 'abdulaziz-alasmari',
 };
-
-export async function generateStaticParams() {
-  const slugs = await getAllHostSlugs();
-  return routing.locales.flatMap((locale) => slugs.map((slug) => ({ locale, slug })));
-}
 
 /**
  * Meta descriptions come from the host bio — DB free text with no length

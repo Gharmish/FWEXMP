@@ -13,7 +13,9 @@ import { FadeSwap, MountFade, RiseIn, Stagger, StaggerItem } from '@/components/
 import { CATEGORIES } from '@/features/experiences/lib/sample-data';
 import { getEnabledCategories } from '@/lib/platform-settings';
 import { getExperiencesFiltered, getFeaturedExperiences } from '@/features/experiences/queries';
+import { MobileSearchEntry } from '@/features/experiences/components/mobile-search-entry';
 import {
+  DEFAULT_SORT,
   EMPTY_CRITERIA,
   parseSearchParams,
   type FilterableExperience,
@@ -88,15 +90,19 @@ export default async function ExperiencesIndexPage({
 
   // Featured row only appears with no active filters — once the user
   // narrows the catalog the featured set becomes noise.
-  const showFeatured =
-    criteria.q.length === 0 &&
-    criteria.categories.length === 0 &&
-    !criteria.originalsOnly &&
-    criteria.priceBucket === null &&
-    criteria.durationBucket === null &&
-    criteria.city.length === 0 &&
-    criteria.dayPreset === null &&
-    criteria.groupSize === null;
+  const isNarrowed =
+    criteria.q.length > 0 ||
+    criteria.categories.length > 0 ||
+    criteria.originalsOnly ||
+    criteria.priceBucket !== null ||
+    criteria.durationBucket !== null ||
+    criteria.city.length > 0 ||
+    criteria.dayPreset !== null ||
+    criteria.groupSize !== null;
+  // An explicit sort also collapses the featured row into the one ranked
+  // grid — a pinned Originals row would contradict the requested order
+  // (and the grid strips featured slugs, hiding e.g. the cheapest match).
+  const showFeatured = !isNarrowed && criteria.sort === DEFAULT_SORT;
 
   const [results, featured, savedSlugs, enabledCategories] = await Promise.all([
     getExperiencesFiltered(criteria),
@@ -108,8 +114,9 @@ export default async function ExperiencesIndexPage({
 
   // Funnel signal: an ACTIVE search/filter is expressed demand; log the
   // normalized criteria and how much supply matched (0 = unserved demand).
-  // The bare catalog (showFeatured) is browsing, not searching.
-  if (!showFeatured) {
+  // The bare catalog is browsing, not searching — and so is a sort-only
+  // view (sort re-ranks supply, it doesn't express demand).
+  if (isNarrowed) {
     const parts = [
       criteria.q && `q=${criteria.q}`,
       criteria.categories.length > 0 && `category=${criteria.categories.join(',')}`,
@@ -195,6 +202,13 @@ export default async function ExperiencesIndexPage({
             <p className="text-sarat-black-600 max-w-2xl text-lg">{t('intro')}</p>
           </MountFade>
         </div>
+
+        {/* Mobile-only search + filters entry: on phones the Featured block
+            pushes the real controls ~2 screens down, so first-time guests
+            never discover them. Desktop keeps its controls beside the grid. */}
+        <div className="mt-8 max-w-3xl lg:hidden">
+          <MobileSearchEntry facets={facets} cities={cities} />
+        </div>
       </section>
 
       {showFeatured && featured.length > 0 && (
@@ -230,7 +244,10 @@ export default async function ExperiencesIndexPage({
             <h2 className="font-display text-3xl font-medium tracking-[-0.03em]">{t('all')}</h2>
 
             <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
-              <div className="lg:max-w-md lg:flex-1">
+              {/* Hidden below lg — the hero's MobileSearchEntry is the one
+                  mobile search box; two identical inputs on one page would
+                  read as a bug. Desktop layout is unchanged. */}
+              <div className="hidden lg:block lg:max-w-md lg:flex-1">
                 <SearchInput />
               </div>
               <SortSelect />

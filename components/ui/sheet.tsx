@@ -100,7 +100,16 @@ export function Sheet({
                   <X className="size-5" strokeWidth={1.5} />
                 </BaseDialog.Close>
               </div>
-              <div className={cn('px-4 pb-6', hideTitle && 'pt-4', contentClassName)}>
+              <div
+                className={cn(
+                  'px-4',
+                  // Bottom sheets sit on the device edge — keep the 1.5rem
+                  // baseline but never less than the home-indicator inset.
+                  side === 'bottom' ? 'pb-[max(1.5rem,env(safe-area-inset-bottom))]' : 'pb-6',
+                  hideTitle && 'pt-4',
+                  contentClassName,
+                )}
+              >
                 {children}
               </div>
             </BaseDialog.Popup>

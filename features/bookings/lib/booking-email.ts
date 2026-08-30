@@ -23,7 +23,9 @@ import { renderInvoicePdf, type InvoicePdfRow } from '@/features/bookings/lib/in
 import { getExperienceBySlug } from '@/features/experiences/queries';
 import { toArabicText } from '@/features/experiences/lib/arabic-content';
 import { renderBookingIcs } from './booking-ics';
+import { guestBookingUrls } from './booking-email-links';
 import { renderReceiptEmail, type ReceiptRow } from './booking-email-render';
+import { getPlatformSettings } from '@/lib/platform-settings';
 import {
   REFUND_LINES,
   firstName,
@@ -264,8 +266,13 @@ export async function sendBookingReceiptEmail(reference: string): Promise<void> 
   const hasInvoicePdf = pdfAttachments.length > 0;
   const attachments = [...pdfAttachments];
 
-  const invoiceUrl = `${SITE_URL}/${locale}/book/confirmed/${reference}/invoice`;
-  const manageUrl = `${SITE_URL}/${locale}/book/confirmed/${reference}`;
+  // Tokened URLs, never bare — the email opens in cookieless browsers
+  // (see booking-email-links.ts; 2026-08-28 P0-1).
+  const { invoice: invoiceUrl, manage: manageUrl } = guestBookingUrls(
+    locale,
+    reference,
+    booking.experienceSlug,
+  );
   const mapUrl = experience ? googleMapsLink(experience.lat, experience.lng) : null;
 
   // Calendar event alongside the PDF — a date-bound booking the guest
@@ -556,11 +563,35 @@ export async function sendBookingCancellationEmail(
       : options?.cancelledBy === 'operator'
         ? 'cancelByOps'
         : 'cancel';
+  // Which rail the money travels (2026-08-28 P1-3): the manual
+  // bank-transfer rail (platform default since 2026-08-21) must never
+  // claim "your card". Refunded → the stamped refundMethod is
+  // authoritative, guarded on details actually being on file (the
+  // admin's record-only arm also stamps 'manual' for gateway-console
+  // reversals, which DO reach the card). Pending → payee details on
+  // file mean a queued bank transfer; none, with the manual rail on,
+  // means the refund cannot move until the guest tells us where (P0-2)
+  // — so ask, via the tokened BOOKING page where the bank-details form
+  // lives, never the invoice. The settings read degrades to the manual
+  // default on error, same as executeRefund.
+  const refundedToBank =
+    refund === 'refunded' && booking.refundMethod === 'manual' && booking.refundBank !== null;
+  const pendingToBank = refund === 'refund_pending' && booking.refundBank !== null;
+  const pendingNeedsBank =
+    refund === 'refund_pending' &&
+    booking.refundBank === null &&
+    (await getPlatformSettings()).refundsViaBankTransfer;
   const intro =
     refund === 'refunded'
-      ? t(`${framing}IntroRefunded`)
+      ? t(refundedToBank ? `${framing}IntroRefundedBank` : `${framing}IntroRefunded`)
       : refund === 'refund_pending'
-        ? t(`${framing}IntroRefundPending`)
+        ? t(
+            pendingNeedsBank
+              ? `${framing}IntroRefundPendingNeedsBank`
+              : pendingToBank
+                ? `${framing}IntroRefundPendingBank`
+                : `${framing}IntroRefundPending`,
+          )
         : refund === 'wallet_credited'
           ? t('cancelIntroWalletCredited')
           : refund === 'forfeited'
@@ -569,28 +600,32 @@ export async function sendBookingCancellationEmail(
 
   // Refunded (or refund-owed) payments get a link to the invoice page,
   // which carries the credit note for VAT-stamped bookings and the
-  // refunded receipt otherwise. Wallet credits link to the booking page
-  // instead — that's where the guest chooses "spend it" vs "back to my
-  // card". Forfeited/unpaid cancellations have no money document.
-  const showDocument = refund === 'refunded' || refund === 'refund_pending';
+  // refunded receipt otherwise — EXCEPT a queued refund with no payee on
+  // file, which links the booking page where the bank-details form
+  // lives. Wallet credits link to the booking page too — that's where
+  // the guest chooses "spend it" vs "back to my card". Forfeited/unpaid
+  // cancellations have no money document.
+  const urls = guestBookingUrls(locale, reference, booking.experienceSlug);
+  const showDocument = (refund === 'refunded' || refund === 'refund_pending') && !pendingNeedsBank;
   const walletCta =
-    refund === 'wallet_credited'
-      ? {
-          label: t('viewWalletCredit'),
-          url: `${SITE_URL}/${locale}/book/confirmed/${reference}`,
-        }
-      : undefined;
+    refund === 'wallet_credited' ? { label: t('viewWalletCredit'), url: urls.manage } : undefined;
+  // The single action a payee-less refund needs: add the bank details.
+  const needsBankCta = pendingNeedsBank
+    ? { label: t('refundNeedsBankCta'), url: urls.manage }
+    : undefined;
   const cancelSubject = t('cancelSubject', { reference: booking.referenceCode });
   const cancelCtaUrl = showDocument
-    ? `${SITE_URL}/${locale}/book/confirmed/${reference}/invoice`
-    : (walletCta?.url ?? `${SITE_URL}/${locale}/book/confirmed/${reference}`);
+    ? urls.invoice
+    : ((needsBankCta ?? walletCta)?.url ?? urls.manage);
   // One system-owned sentence for the WhatsApp refund line (plan §22).
   const refundAmountText = waMoney(options?.refundAmountSar ?? booking.totalAmountSar, locale);
   const refundLine =
     refund === 'refunded'
       ? REFUND_LINES.refunded[locale](refundAmountText)
       : refund === 'refund_pending'
-        ? REFUND_LINES.refund_pending[locale](refundAmountText)
+        ? (pendingNeedsBank ? REFUND_LINES.needs_payee : REFUND_LINES.refund_pending)[locale](
+            refundAmountText,
+          )
         : refund === 'wallet_credited'
           ? REFUND_LINES.wallet[locale](refundAmountText)
           : refund === 'forfeited'
@@ -608,7 +643,7 @@ export async function sendBookingCancellationEmail(
           label: booking.vatRateBps ? t('viewCreditNote') : t('viewReceipt'),
           url: cancelCtaUrl,
         }
-      : walletCta,
+      : (needsBankCta ?? walletCta),
     closing: t('cancelClosing'),
     footer: t('footer'),
   });
@@ -677,7 +712,7 @@ export async function sendBookingRescheduledEmail(
     ...details.rows,
   ];
 
-  const bookingUrl = `${SITE_URL}/${locale}/book/confirmed/${reference}`;
+  const bookingUrl = guestBookingUrls(locale, reference, booking.experienceSlug).manage;
   const subject = t('rescheduledSubject', { reference: booking.referenceCode });
   const { html, text } = renderReceiptEmail({
     logoUrl: EMAIL_LOGO_URL,
@@ -824,7 +859,7 @@ export async function sendBookingPrepareReminderEmail(
   // rule comes from the booking's own policy snapshot plus the platform
   // grace, never the live platform settings.
   const deadline = fullRefundDeadlineFor(booking);
-  const manageUrl = `${SITE_URL}/${locale}/book/confirmed/${reference}`;
+  const manageUrl = guestBookingUrls(locale, reference, booking.experienceSlug).manage;
   const note = deadline
     ? {
         html: t('reminderManageWithDeadline', {
@@ -973,7 +1008,7 @@ export async function sendBookingDepartureReminderEmail(
         meetingPoint: placeName ?? title ?? t('genericExperience'),
         mapsQuery,
         guestName: booking.guestName,
-        mapUrl: mapUrl ?? `${SITE_URL}/${locale}/book/confirmed/${reference}`,
+        mapUrl: mapUrl ?? guestBookingUrls(locale, reference, booking.experienceSlug).manage,
       },
       { reference: booking.referenceCode },
     ),
@@ -1097,7 +1132,8 @@ export async function sendBookingApprovedEmail(reference: string): Promise<void>
 
   const needsPayment =
     hasHyperpay() && booking.paymentStatus !== 'paid' && booking.paymentDeadline !== null;
-  const payUrl = `${SITE_URL}/${locale}/book/${reference}/pay?slug=${encodeURIComponent(booking.experienceSlug)}`;
+  const urls = guestBookingUrls(locale, reference, booking.experienceSlug);
+  const payUrl = urls.pay;
   if (needsPayment && booking.paymentDeadline) {
     // Date AND time — the spot is released at a wall-clock moment.
     const d = new Date(booking.paymentDeadline);
@@ -1121,10 +1157,7 @@ export async function sendBookingApprovedEmail(reference: string): Promise<void>
     // linkify plain text, and a `?slug=` query breaks partial linkifiers).
     cta: needsPayment
       ? { label: t('completePaymentCta'), url: payUrl }
-      : {
-          label: t('rescheduledCta'),
-          url: `${SITE_URL}/${locale}/book/confirmed/${reference}`,
-        },
+      : { label: t('rescheduledCta'), url: urls.manage },
     closing: needsPayment ? t('approvedPayClosing') : t('approvedClosing'),
     footer: t('footer'),
   });
@@ -1154,7 +1187,7 @@ export async function sendBookingApprovedEmail(reference: string): Promise<void>
           ? guestPayPath(locale, reference, booking.experienceSlug)
           : guestBookingPath(locale, reference),
         guestName: booking.guestName,
-        payUrl: needsPayment ? payUrl : `${SITE_URL}/${locale}/book/confirmed/${reference}`,
+        payUrl: needsPayment ? payUrl : urls.manage,
       },
       { reference: booking.referenceCode },
     ),
@@ -1199,7 +1232,7 @@ export async function sendBookingAwaitingPaymentEmail(
   const deadlineValue = `${formatDate(deadline, locale, 'gregory', KSA_DATE)}, ${formatTime(deadline, locale, KSA_TIME)}`;
   rows.push({ label: t('paymentDeadlineLabel'), value: deadlineValue });
 
-  const payUrl = `${SITE_URL}/${locale}/book/${reference}/pay?slug=${encodeURIComponent(booking.experienceSlug)}`;
+  const payUrl = guestBookingUrls(locale, reference, booking.experienceSlug).pay;
   const type = stage === 'created' ? 'booking_awaiting_payment' : 'booking_payment_reminder';
   const subject = t(stage === 'created' ? 'awaitingPaymentSubject' : 'paymentReminderSubject', {
     reference: booking.referenceCode,
@@ -1834,7 +1867,7 @@ export async function sendBookingCompletedEmails(reference: string): Promise<voi
       // volume paid for.
       cta: {
         label: t('reviewInviteCta'),
-        url: `${SITE_URL}/${locale}/book/confirmed/${reference}#review`,
+        url: guestBookingUrls(locale, reference, booking.experienceSlug).review,
       },
       closing: t('reviewInviteClosing'),
       footer: t('footer'),
@@ -1937,7 +1970,7 @@ export async function sendBookingPaymentFailedEmail(reference: string): Promise<
     });
   }
 
-  const payUrl = `${SITE_URL}/${locale}/book/${reference}/pay?slug=${encodeURIComponent(booking.experienceSlug)}`;
+  const payUrl = guestBookingUrls(locale, reference, booking.experienceSlug).pay;
   const subject = t('paymentFailedSubject', { reference: booking.referenceCode });
   const { html, text } = renderReceiptEmail({
     logoUrl: EMAIL_LOGO_URL,

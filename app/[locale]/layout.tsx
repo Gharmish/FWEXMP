@@ -88,6 +88,10 @@ export async function generateMetadata({
 export const viewport: Viewport = {
   // Brand accent in mobile browser chrome; matches manifest theme_color.
   themeColor: '#F5B800',
+  // Lets the layout paint into the notch/home-indicator area so the
+  // `env(safe-area-inset-*)` paddings the sticky bars rely on resolve to
+  // real values instead of 0 on iOS.
+  viewportFit: 'cover',
 };
 
 export function generateStaticParams() {

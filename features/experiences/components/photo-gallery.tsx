@@ -1,15 +1,30 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import Image from 'next/image';
+import { Dialog as BaseDialog } from '@base-ui/react/dialog';
 import { motion, useReducedMotion } from 'framer-motion';
-import { ChevronLeft, ChevronRight, Images, X } from 'lucide-react';
+import {
+  Castle,
+  ChevronLeft,
+  ChevronRight,
+  Coffee,
+  Flower2,
+  Images,
+  Leaf,
+  Mountain,
+  Users,
+  Venus,
+  X,
+  type LucideIcon,
+} from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { formatInteger } from '@/lib/format';
 import type { Locale } from '@/lib/i18n';
 import { IconButton } from '@/components/ui/icon-button';
 import { SPRING } from '@/components/ui/motion';
 import { PhotoCarousel } from '@/components/ui/photo-carousel';
+import type { Category } from '@/features/experiences/types';
 
 export interface PhotoGalleryCopy {
   /** Accessible label for opening the lightbox (e.g. "View photos"). */
@@ -30,12 +45,48 @@ export interface PhotoGalleryProps {
   images: string[];
   /** Shared alt text (the experience title). */
   alt: string;
+  /** Drives the tonal placeholder when no photo exists yet. */
+  category: Category;
   locale: Locale;
   copy: PhotoGalleryCopy;
 }
 
 /** Gallery images shown in the desktop mosaic beside the hero. */
 const MAX_SIDE = 4;
+
+/**
+ * Tonal placeholder background per category. Mirrors CATEGORY_PLACEHOLDER
+ * in features/experiences/components/experience-card.tsx (not exported) —
+ * keep the two maps in sync so the pre-shoot detail hero matches the card
+ * the guest just tapped.
+ */
+const CATEGORY_PLACEHOLDER: Record<Category, string> = {
+  nature: 'bg-juniper-green/15',
+  heritage: 'bg-al-qatt-red/15',
+  food: 'bg-saffron-gold/20',
+  wellness: 'bg-wadi-mint/25',
+  adventure: 'bg-soudah-sunset/15',
+  family: 'bg-sarawat-blue/15',
+  women_only: 'bg-tihama-coral/25',
+};
+
+/**
+ * Category icons — same taxonomy as CATEGORY_ICON in category-strip.tsx
+ * and TILE_ICON in components/marketing/category-tiles.tsx (each surface
+ * holds its own copy by convention).
+ */
+const CATEGORY_ICON: Record<Category, LucideIcon> = {
+  nature: Leaf,
+  heritage: Castle,
+  food: Coffee,
+  wellness: Flower2,
+  adventure: Mountain,
+  family: Users,
+  women_only: Venus,
+};
+
+/** Minimum horizontal travel (px) before a lightbox pointer-drag counts as a swipe. */
+const SWIPE_THRESHOLD = 48;
 
 /**
  * Grid spans for the right-hand mosaic tiles, by how many gallery photos
@@ -57,17 +108,24 @@ function sideSpan(index: number, count: number): string {
  * with no gallery yet) it falls back to a single tall 3:2 hero. Every tile
  * opens a full-screen lightbox that shows each photo with `object-contain`
  * on a dark surface, so portrait and landscape shots both display in full.
+ * The lightbox rides the shared Base UI Dialog primitives (focus trap,
+ * scroll lock, Escape, aria wiring) like every other overlay in the app.
  *
  * Restraint-first (BRIEF §3): hairline affordances, no shadows, spring
  * motion that degrades to a static fade under reduced-motion.
  */
-export function PhotoGallery({ heroImage, images, alt, locale, copy }: PhotoGalleryProps) {
+export function PhotoGallery({
+  heroImage,
+  images,
+  alt,
+  category,
+  locale,
+  copy,
+}: PhotoGalleryProps) {
   const reduce = useReducedMotion();
   const [openAt, setOpenAt] = useState<number | null>(null);
-  const dialogRef = useRef<HTMLDivElement>(null);
-  // The tile that opened the lightbox — focus returns there on close
-  // (aria-modal hides the page; without trap + restore, Tab walks
-  // content screen readers can't perceive).
+  // The tile that opened the lightbox — focus returns there on close so
+  // keyboard users land back where they left the page.
   const openerRef = useRef<HTMLElement | null>(null);
 
   // The lightbox sequence is hero-first, then the gallery images. Tile
@@ -90,54 +148,42 @@ export function PhotoGallery({ heroImage, images, alt, locale, copy }: PhotoGall
     [total],
   );
 
-  // Initial focus: the close button, once per open (not on prev/next).
-  const wasOpen = useRef(false);
-  useEffect(() => {
-    const isOpen = openAt !== null;
-    if (isOpen && !wasOpen.current) {
-      dialogRef.current?.querySelector<HTMLElement>('button')?.focus();
-    }
-    wasOpen.current = isOpen;
-  }, [openAt]);
-
   // Physical arrow keys follow the on-screen (mirrored) chevrons in RTL —
-  // same convention as the booking calendar.
+  // same convention as the booking calendar. Escape/Tab are Base UI's job.
   const arrowFactor = locale === 'ar' ? -1 : 1;
-
-  // Keyboard nav + focus trap + background scroll lock while open.
-  useEffect(() => {
-    if (openAt === null) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') close();
-      else if (e.key === 'ArrowRight') step(arrowFactor);
+  const onLightboxKeyDown = useCallback(
+    (e: React.KeyboardEvent) => {
+      if (e.key === 'ArrowRight') step(arrowFactor);
       else if (e.key === 'ArrowLeft') step(-arrowFactor);
-      else if (e.key === 'Tab') {
-        const root = dialogRef.current;
-        if (!root) return;
-        const focusables = root.querySelectorAll<HTMLElement>(
-          'button:not([disabled]), [href], [tabindex]:not([tabindex="-1"])',
-        );
-        if (focusables.length === 0) return;
-        const first = focusables[0];
-        const last = focusables[focusables.length - 1];
-        const active = document.activeElement;
-        if (e.shiftKey && (active === first || !root.contains(active))) {
-          e.preventDefault();
-          last.focus();
-        } else if (!e.shiftKey && (active === last || !root.contains(active))) {
-          e.preventDefault();
-          first.focus();
-        }
-      }
-    };
-    document.addEventListener('keydown', onKey);
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
-    return () => {
-      document.removeEventListener('keydown', onKey);
-      document.body.style.overflow = previousOverflow;
-    };
-  }, [openAt, close, step, arrowFactor]);
+    },
+    [step, arrowFactor],
+  );
+
+  // Horizontal swipe navigation on touch: a plain pointer-delta check (no
+  // dependency) — the vertical guard keeps accidental scroll-ish drags inert.
+  const swipeStart = useRef<{ x: number; y: number; id: number } | null>(null);
+  const onSwipeStart = useCallback((e: React.PointerEvent) => {
+    swipeStart.current = { x: e.clientX, y: e.clientY, id: e.pointerId };
+  }, []);
+  const onSwipeEnd = useCallback(
+    (e: React.PointerEvent) => {
+      const start = swipeStart.current;
+      swipeStart.current = null;
+      if (!start || start.id !== e.pointerId || total < 2) return;
+      const dx = e.clientX - start.x;
+      const dy = e.clientY - start.y;
+      if (Math.abs(dx) < SWIPE_THRESHOLD || Math.abs(dx) < Math.abs(dy)) return;
+      // Content follows the finger: a start-ward swipe advances, mirrored
+      // in RTL exactly like the arrow keys.
+      step(dx < 0 ? arrowFactor : -arrowFactor);
+    },
+    [step, total, arrowFactor],
+  );
+
+  // Per-tile lightbox-position label ("Go to photo {n}") — every tile used
+  // to announce an identical "View photos". Same interpolation contract as
+  // PhotoCarousel: the `{n}` literal survives the server→client boundary.
+  const tileLabel = (position: number) => copy.goTo.replace('{n}', formatInteger(position, locale));
 
   const sideImages = images.slice(0, MAX_SIDE);
   // Photos that don't fit in the mosaic — surfaced as a "+N" overlay so the
@@ -153,12 +199,22 @@ export function PhotoGallery({ heroImage, images, alt, locale, copy }: PhotoGall
     </span>
   );
 
+  const PlaceholderIcon = CATEGORY_ICON[category];
+
   return (
     <>
-      {/* No hero yet: tonal placeholder mirrors the catalog card so
-          photo-less listings stay clean rather than showing a void. */}
+      {/* No hero yet: the catalog card's category tint (not a bare grey
+          slab), at a shallower aspect so the header stays near the fold,
+          with the category icon as a quiet centre mark. */}
       {!heroImage && (
-        <div className="bg-mist-deep rounded-image relative mt-8 aspect-[16/9] w-full overflow-hidden" />
+        <div
+          className={cn(
+            'rounded-image relative mt-8 flex aspect-[21/9] w-full items-center justify-center overflow-hidden',
+            CATEGORY_PLACEHOLDER[category],
+          )}
+        >
+          <PlaceholderIcon className="text-sarat-black/15 size-16" strokeWidth={1.5} aria-hidden />
+        </div>
       )}
 
       {/* Hero only (no gallery): a single 16:9 frame — the exact aspect the
@@ -219,7 +275,7 @@ export function PhotoGallery({ heroImage, images, alt, locale, copy }: PhotoGall
             {/* Hero tile */}
             <button
               type="button"
-              aria-label={copy.open}
+              aria-label={tileLabel(1)}
               onClick={() => openLightbox(0)}
               className="rounded-image relative block aspect-[16/9] w-full cursor-pointer overflow-hidden outline-none"
             >
@@ -241,7 +297,7 @@ export function PhotoGallery({ heroImage, images, alt, locale, copy }: PhotoGall
                   <button
                     key={src}
                     type="button"
-                    aria-label={copy.open}
+                    aria-label={tileLabel(2 + i)}
                     onClick={() => openLightbox(1 + i)}
                     className={cn(
                       'rounded-image bg-sarat-black/5 relative overflow-hidden outline-none',
@@ -268,65 +324,84 @@ export function PhotoGallery({ heroImage, images, alt, locale, copy }: PhotoGall
         </div>
       )}
 
-      {/* Lightbox */}
-      {openAt !== null && (
-        <div
-          ref={dialogRef}
-          role="dialog"
-          aria-modal="true"
-          aria-label={copy.open}
-          className="bg-sarat-black/95 fixed inset-0 z-50 flex flex-col"
-        >
-          <div className="flex items-center justify-between p-4">
-            <span className="text-sm text-white/80 tabular-nums">
-              {formatInteger(openAt + 1, locale)} / {formatInteger(total, locale)}
-            </span>
-            <IconButton
-              aria-label={copy.close}
-              onClick={close}
-              className="border-white/20 bg-white/10 text-white hover:bg-white/20"
-            >
-              <X aria-hidden />
-            </IconButton>
-          </div>
-
-          <motion.div
-            key={openAt}
-            initial={reduce ? false : { opacity: 0, scale: 0.98 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={SPRING}
-            className="relative min-h-0 flex-1"
+      {/* Lightbox — Base UI dialog (focus trap, scroll lock, Escape, aria)
+          with the dark full-screen surface. The popup itself is the keydown
+          target for the RTL-mirrored arrow-key navigation. */}
+      <BaseDialog.Root
+        open={openAt !== null}
+        onOpenChange={(nextOpen) => {
+          if (!nextOpen) close();
+        }}
+      >
+        <BaseDialog.Portal>
+          <BaseDialog.Backdrop className="bg-sarat-black/95 fixed inset-0 z-50" />
+          <BaseDialog.Popup
+            aria-label={copy.open}
+            onKeyDown={onLightboxKeyDown}
+            className="fixed inset-0 z-50 flex flex-col outline-none"
           >
-            <Image
-              src={lightbox[openAt]}
-              alt={`${alt} — ${formatInteger(openAt + 1, locale)}/${formatInteger(total, locale)}`}
-              fill
-              sizes="100vw"
-              className="object-contain"
-              priority
-            />
-          </motion.div>
+            {openAt !== null && (
+              <>
+                <div className="flex items-center justify-between p-4">
+                  <span className="text-sm text-white/80 tabular-nums">
+                    {formatInteger(openAt + 1, locale)} / {formatInteger(total, locale)}
+                  </span>
+                  <IconButton
+                    aria-label={copy.close}
+                    onClick={close}
+                    className="border-white/20 bg-white/10 text-white hover:bg-white/20"
+                  >
+                    <X aria-hidden />
+                  </IconButton>
+                </div>
 
-          {total > 1 && (
-            <div className="flex items-center justify-center gap-4 p-4">
-              <IconButton
-                aria-label={copy.prev}
-                onClick={() => step(-1)}
-                className="border-white/20 bg-white/10 text-white hover:bg-white/20"
-              >
-                <ChevronLeft className="rtl:rotate-180" aria-hidden />
-              </IconButton>
-              <IconButton
-                aria-label={copy.next}
-                onClick={() => step(1)}
-                className="border-white/20 bg-white/10 text-white hover:bg-white/20"
-              >
-                <ChevronRight className="rtl:rotate-180" aria-hidden />
-              </IconButton>
-            </div>
-          )}
-        </div>
-      )}
+                <motion.div
+                  key={openAt}
+                  initial={reduce ? false : { opacity: 0, scale: 0.98 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={SPRING}
+                  onPointerDown={onSwipeStart}
+                  onPointerUp={onSwipeEnd}
+                  // touch-none hands the horizontal drag to the swipe handler
+                  // (the page behind is scroll-locked anyway).
+                  className="relative min-h-0 flex-1 touch-none select-none"
+                >
+                  <Image
+                    src={lightbox[openAt]}
+                    alt={`${alt} — ${formatInteger(openAt + 1, locale)}/${formatInteger(total, locale)}`}
+                    fill
+                    sizes="100vw"
+                    className="object-contain"
+                    // Native image drag would swallow the pointerup the swipe
+                    // handler needs.
+                    draggable={false}
+                    priority
+                  />
+                </motion.div>
+
+                {total > 1 && (
+                  <div className="flex items-center justify-center gap-4 p-4">
+                    <IconButton
+                      aria-label={copy.prev}
+                      onClick={() => step(-1)}
+                      className="border-white/20 bg-white/10 text-white hover:bg-white/20"
+                    >
+                      <ChevronLeft className="rtl:rotate-180" aria-hidden />
+                    </IconButton>
+                    <IconButton
+                      aria-label={copy.next}
+                      onClick={() => step(1)}
+                      className="border-white/20 bg-white/10 text-white hover:bg-white/20"
+                    >
+                      <ChevronRight className="rtl:rotate-180" aria-hidden />
+                    </IconButton>
+                  </div>
+                )}
+              </>
+            )}
+          </BaseDialog.Popup>
+        </BaseDialog.Portal>
+      </BaseDialog.Root>
     </>
   );
 }

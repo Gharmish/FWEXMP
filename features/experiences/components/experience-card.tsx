@@ -1,4 +1,17 @@
-import { CalendarClock, Sparkles, Star, Zap } from 'lucide-react';
+import {
+  CalendarClock,
+  Castle,
+  Coffee,
+  Flower2,
+  Leaf,
+  Mountain,
+  Sparkles,
+  Star,
+  Users,
+  Venus,
+  Zap,
+  type LucideIcon,
+} from 'lucide-react';
 import { getTranslations } from 'next-intl/server';
 import { Card } from '@/components/ui/card';
 import { durationHours, formatInteger } from '@/lib/format';
@@ -45,6 +58,37 @@ const CATEGORY_PLACEHOLDER: Record<Category, string> = {
   adventure: 'bg-soudah-sunset/15',
   family: 'bg-sarawat-blue/15',
   women_only: 'bg-tihama-coral/25',
+};
+
+/**
+ * Dark-surface variant of the placeholder for featured (Originals) cards
+ * — the light tints above read as a black void on the Sarat Black card.
+ * A white/8 base carries background-color while the stronger category
+ * stop rides background-image, so the two layers don't collide.
+ */
+const CATEGORY_PLACEHOLDER_DARK: Record<Category, string> = {
+  nature: 'bg-white/8 bg-gradient-to-b from-juniper-green/40 to-transparent',
+  heritage: 'bg-white/8 bg-gradient-to-b from-al-qatt-red/40 to-transparent',
+  food: 'bg-white/8 bg-gradient-to-b from-saffron-gold/40 to-transparent',
+  wellness: 'bg-white/8 bg-gradient-to-b from-wadi-mint/40 to-transparent',
+  adventure: 'bg-white/8 bg-gradient-to-b from-soudah-sunset/40 to-transparent',
+  family: 'bg-white/8 bg-gradient-to-b from-sarawat-blue/40 to-transparent',
+  women_only: 'bg-white/8 bg-gradient-to-b from-tihama-coral/40 to-transparent',
+};
+
+/**
+ * Category icons for the photo-less placeholder — mirrors the catalogue
+ * strip's taxonomy (Castle for Aseer's fortress villages, not a foreign
+ * temple). Kept local per that file's convention.
+ */
+const CATEGORY_ICON: Record<Category, LucideIcon> = {
+  nature: Leaf,
+  heritage: Castle,
+  food: Coffee,
+  wellness: Flower2,
+  adventure: Mountain,
+  family: Users,
+  women_only: Venus,
 };
 
 export interface ExperienceCardProps {
@@ -111,6 +155,20 @@ export async function ExperienceCard({
     goTo: t('photoGoTo', { n: '{n}' }),
   };
   const href = `/experiences/${experience.slug}`;
+  const PlaceholderIcon = CATEGORY_ICON[experience.category];
+
+  // Duration copy: whole and half hours get proper ICU plural grammar
+  // (Arabic needs ساعة/ساعتان/ساعات by count — "3 ساعة" is broken); any
+  // other fraction (odd host-entered minutes) falls back to the numeric
+  // form, where a decimal correctly takes the Arabic singular.
+  const wholeHours = Math.floor(experience.durationMinutes / 60);
+  const minuteRemainder = experience.durationMinutes % 60;
+  const durationLabel =
+    minuteRemainder === 0
+      ? t('durationHours', { count: wholeHours })
+      : minuteRemainder === 30
+        ? t('durationHoursHalf', { count: wholeHours })
+        : `${durationHours(experience.durationMinutes, locale)} ${t('hours')}`;
 
   return (
     <div className="relative">
@@ -140,13 +198,35 @@ export async function ExperienceCard({
               autoAdvanceMs={0}
             />
           ) : (
-            <div
-              className={cn('aspect-[16/9] w-full', CATEGORY_PLACEHOLDER[experience.category])}
-            />
+            // Same tap target as the carousel branch. aria-hidden +
+            // tabIndex -1: the text Link below carries the accessible
+            // name, so this adds no duplicate tab stop for AT.
+            <Link
+              href={href}
+              aria-hidden
+              tabIndex={-1}
+              className={cn(
+                'flex aspect-[16/9] w-full items-center justify-center',
+                experience.featured
+                  ? CATEGORY_PLACEHOLDER_DARK[experience.category]
+                  : CATEGORY_PLACEHOLDER[experience.category],
+              )}
+            >
+              <PlaceholderIcon
+                className={cn(
+                  'size-8',
+                  experience.featured ? 'text-white/40' : 'text-sarat-black/20',
+                )}
+                strokeWidth={1.5}
+                aria-hidden
+              />
+            </Link>
           )}
 
           <Link href={href} className="flex flex-1 flex-col gap-4 p-6">
-            <div className="flex items-center gap-2">
+            {/* flex-wrap + gap-y-1: three chips exceed a 375px column —
+                without wrapping the Card's overflow-hidden clips them. */}
+            <div className="flex flex-wrap items-center gap-2 gap-y-1">
               <span
                 className={`size-2 rounded-full ${experience.featured ? 'bg-saffron-gold' : CATEGORY_DOT[experience.category]}`}
                 aria-hidden
@@ -157,7 +237,7 @@ export async function ExperienceCard({
               {experience.bookingMode === 'instant' ? (
                 <span
                   className={cn(
-                    'inline-flex items-center gap-1 rounded-full px-2 py-1 text-[10px] font-medium',
+                    'inline-flex items-center gap-1 rounded-full px-2 py-1 text-[11px] font-medium',
                     experience.featured
                       ? 'bg-white/15 text-white'
                       : 'bg-saffron-gold/20 text-sarat-black',
@@ -169,7 +249,7 @@ export async function ExperienceCard({
               ) : (
                 <span
                   className={cn(
-                    'inline-flex items-center gap-1 rounded-full px-2 py-1 text-[10px] font-medium',
+                    'inline-flex items-center gap-1 rounded-full px-2 py-1 text-[11px] font-medium',
                     experience.featured
                       ? 'bg-white/15 text-white/90'
                       : 'bg-sarat-black/8 text-sarat-black-800',
@@ -182,7 +262,7 @@ export async function ExperienceCard({
               {experience.isNew && (
                 <span
                   className={cn(
-                    'inline-flex items-center gap-1 rounded-full px-2 py-1 text-[10px] font-medium',
+                    'inline-flex items-center gap-1 rounded-full px-2 py-1 text-[11px] font-medium',
                     experience.featured ? 'bg-white/15 text-white' : 'bg-info-surface text-info',
                   )}
                 >
@@ -199,7 +279,8 @@ export async function ExperienceCard({
               {/* Phones get the single-column grid — clamp so one wordy
                   listing can't push the next card two screens away. The
                   full text lives on the detail page. */}
-              <p className={`text-base max-sm:line-clamp-3 ${muted}`}>{description}</p>
+              {/* rtl:text-lg — Arabic body reads one step up (BRIEF §3). */}
+              <p className={`text-base max-sm:line-clamp-3 rtl:text-lg ${muted}`}>{description}</p>
             </div>
 
             <div
@@ -207,9 +288,7 @@ export async function ExperienceCard({
             >
               <span>{placeName}</span>
               <span aria-hidden>·</span>
-              <span>
-                {durationHours(experience.durationMinutes, locale)} {t('hours')}
-              </span>
+              <span>{durationLabel}</span>
               <span aria-hidden>·</span>
               <span className="inline-flex items-center gap-1.5">
                 {t('withHost', { name: hostName })}
@@ -230,6 +309,7 @@ export async function ExperienceCard({
 
               {ratingDisplay && (
                 <p
+                  role="img"
                   className={cn('flex items-center gap-2 text-sm', muted)}
                   aria-label={tr('ratingLabel', { rating: experience.ratingAverage ?? 0 })}
                 >

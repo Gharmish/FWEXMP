@@ -10,8 +10,9 @@ import type { Category } from '@/lib/colors';
  * Hero headline: the word-by-word cascade of RiseInWords, with one slot
  * that rotates through the enabled categories in their immutable brand
  * tones (BRIEF §3) — one full cycle, then it settles and stays still.
- * The slot's width springs between words so the rest of the sentence
- * reflows smoothly instead of jumping.
+ * The slot is FIXED at the widest measured word, so rotation never
+ * reflows the sentence (BRIEF §3: transform/opacity only — animating
+ * the slot's width shifted the intro and CTA below for the whole cycle).
  *
  * LCP contract (same as RiseInWords): the static words and the first
  * rotating word SSR fully visible, offset only by transforms — opacity
@@ -94,6 +95,11 @@ export function HeroHeadline({ prefix, suffix, words }: HeroHeadlineProps) {
   }, [words]);
 
   const active = words[Math.min(index, words.length - 1)];
+  // Fixed slot width = widest word (per locale — the measurer holds this
+  // locale's labels). Before the first client measurement the slot sizes
+  // to its SSR content (the first word); the one-time settle to the max
+  // happens at hydration, never during rotation.
+  const slotWidth = widths && widths.length > 0 ? Math.max(...widths) : undefined;
 
   if (reduce) {
     return (
@@ -126,19 +132,18 @@ export function HeroHeadline({ prefix, suffix, words }: HeroHeadlineProps) {
       ))}
       {prefixWords.length > 0 && ' '}
       {active && (
-        // Outer span: cascade rise in sentence order. Inner span: width
-        // spring between words — separated so the always-on measurement
-        // never cancels the rise's stagger delay.
+        // Outer span: cascade rise in sentence order. Inner span: the
+        // fixed-width slot the rotating words swap inside — width is
+        // static (the widest word), never animated (BRIEF §3).
         <motion.span
           className="inline-block"
           initial={{ y: 14 }}
           animate={{ y: 0 }}
           transition={{ ...SPRING, delay: BASE_DELAY + prefixWords.length * STAGGER }}
         >
-          <motion.span
+          <span
             className="relative inline-block align-baseline whitespace-nowrap"
-            animate={widths ? { width: widths[index] } : undefined}
-            transition={SPRING}
+            style={slotWidth !== undefined ? { width: slotWidth } : undefined}
           >
             {/* Invisible copies of every word, measured for the width spring.
                 The size-0 overflow-hidden wrapper keeps this row (all words
@@ -155,8 +160,8 @@ export function HeroHeadline({ prefix, suffix, words }: HeroHeadlineProps) {
               </span>
             </span>
             {/* popLayout pops the exiting word out of flow, so the incoming
-                word and the width spring land together — no dead gap (wait
-                mode) and no fading word shoving the rest of the sentence. */}
+                word lands with no dead gap (wait mode) and no fading word
+                shoving the rest of the sentence. */}
             <AnimatePresence mode="popLayout" initial={false}>
               <motion.span
                 key={active.key}
@@ -169,7 +174,7 @@ export function HeroHeadline({ prefix, suffix, words }: HeroHeadlineProps) {
                 {active.label}
               </motion.span>
             </AnimatePresence>
-          </motion.span>
+          </span>
         </motion.span>
       )}
       {suffixWords.length > 0 && ' '}

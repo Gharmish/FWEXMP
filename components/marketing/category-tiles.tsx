@@ -10,7 +10,7 @@ import {
   Venus,
   type LucideIcon,
 } from 'lucide-react';
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useSyncExternalStore } from 'react';
 import { useReducedMotion } from 'framer-motion';
 import { Link } from '@/lib/i18n';
 import type { Locale } from '@/lib/i18n';
@@ -63,6 +63,9 @@ const TILE_ICON: Record<Category, LucideIcon> = {
 /** Auto-drift speed, px per animation frame (~24px/s at 60fps). */
 const DRIFT_SPEED = 0.4;
 
+// Stable no-op subscription for the hydration snapshot below.
+const emptySubscribe = () => () => {};
+
 function CategoryTile({
   category,
   locale,
@@ -102,9 +105,24 @@ function CategoryTile({
 export function CategoryTiles({ locale, categories }: CategoryTilesProps) {
   const scrollerRef = useRef<HTMLDivElement>(null);
   const reduceMotion = useReducedMotion();
+  // The duplicate set exists only for the marquee's seamless wrap. Mount
+  // it after hydration, and only when the drift will actually run —
+  // no-JS and reduced-motion readers otherwise scroll through every
+  // category twice for nothing. Hydration is detected via the canonical
+  // useSyncExternalStore snapshot pair (server false → client true), so
+  // no effect-set state is involved.
+  const hydrated = useSyncExternalStore(
+    emptySubscribe,
+    () => true,
+    () => false,
+  );
+  const looping = hydrated && !reduceMotion;
 
   useEffect(() => {
-    if (reduceMotion) return;
+    // Gated on `looping`, not just reduced-motion: the wrap math assumes
+    // the duplicate set is in the DOM (half = scrollWidth / 2), so the
+    // drift must never start against the single-set render.
+    if (reduceMotion || !looping) return;
     const el = scrollerRef.current;
     if (!el) return;
 
@@ -177,10 +195,11 @@ export function CategoryTiles({ locale, categories }: CategoryTilesProps) {
       el.removeEventListener('wheel', stop);
       el.removeEventListener('focusin', stop);
     };
-  }, [reduceMotion]);
+  }, [reduceMotion, looping]);
 
-  // Rendered twice for a seamless loop; the second pass is hidden from a11y.
-  const tiles = [false, true].map((duplicate) =>
+  // Rendered twice for a seamless loop (only while the marquee runs);
+  // the second pass is hidden from a11y.
+  const tiles = (looping ? [false, true] : [false]).map((duplicate) =>
     categories.map((c) => (
       <CategoryTile
         key={`${duplicate ? 'dup-' : ''}${c.key}`}

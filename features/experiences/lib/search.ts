@@ -1,5 +1,6 @@
 import type { Category } from '@/lib/colors';
 import type { ExperienceSummary } from '@/features/experiences/types';
+import { toArabicText } from '@/features/experiences/lib/arabic-content';
 
 /**
  * Pure filter / sort helpers for the experiences catalog.
@@ -223,21 +224,41 @@ function inDurationBucket(minutes: number, bucket: DurationBucket): boolean {
 }
 
 /**
- * Substring match across both locales' titles and the place name. Case
- * folded; no diacritics handling yet — that's a Meilisearch concern
- * (BRIEF §5) and not solvable for Arabic without ICU.
+ * Orthography fold for free-text matching, applied to BOTH the haystack
+ * and the query so the lazy spellings guests actually type still match:
+ * strips Arabic diacritics (U+064B–U+065F) and tatweel, folds the
+ * hamza-carrying alefs (أ/إ/آ) to bare alef, ta marbuta (ة) to ha, alef
+ * maqsura (ى) to ya, and lower-cases Latin. Pure and exported so tests
+ * (and any future SQL push-down) share the exact same rules.
+ */
+export function foldSearchText(text: string): string {
+  return text
+    .replace(/[\u064B-\u065F\u0640]/g, '')
+    .replace(/[\u0623\u0625\u0622]/g, '\u0627')
+    .replace(/\u0629/g, '\u0647')
+    .replace(/\u0649/g, '\u064A')
+    .toLowerCase();
+}
+
+/**
+ * Substring match across both locales' titles, place and host names.
+ * placeName/hostName are stored as English DB strings but the Arabic UI
+ * displays them via {@link toArabicText}, so both forms go into the
+ * haystack — typing exactly what the card shows must match.
  */
 function matchesQuery(experience: FilterableExperience, q: string): boolean {
   if (!q) return true;
-  const haystack = [
-    experience.titleEn,
-    experience.titleAr,
-    experience.placeName,
-    experience.hostName,
-  ]
-    .join(' ')
-    .toLowerCase();
-  return haystack.includes(q);
+  const haystack = foldSearchText(
+    [
+      experience.titleEn,
+      experience.titleAr,
+      experience.placeName,
+      toArabicText(experience.placeName),
+      experience.hostName,
+      toArabicText(experience.hostName),
+    ].join(' '),
+  );
+  return haystack.includes(foldSearchText(q));
 }
 
 /**

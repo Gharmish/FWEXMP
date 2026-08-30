@@ -1,6 +1,6 @@
 'use server';
 
-import { and, desc, eq, gte, inArray, ne, sql } from 'drizzle-orm';
+import { and, desc, eq, gte, inArray, isNull, ne, sql } from 'drizzle-orm';
 import { after } from 'next/server';
 import { cookies, headers } from 'next/headers';
 import { db } from '@/lib/db';
@@ -22,6 +22,7 @@ import {
 } from '@/features/bookings/lib/availability';
 import { holdStillCounts } from '@/features/bookings/lib/capacity-sql';
 import { generateReferenceCode } from '@/features/bookings/lib/reference-code';
+import { bookingLinkTokenValid } from '@/features/bookings/lib/link-token';
 import { getTierSnapshot } from '@/lib/cancellation-policy';
 import { CURRENT_TERMS_VERSION } from '@/lib/legal';
 import {
@@ -35,6 +36,7 @@ import {
   sendHostNewBookingEmail,
 } from '@/features/bookings/lib/booking-email';
 import { getPlatformSettings } from '@/lib/platform-settings';
+import { releaseWalletReservation } from '@/features/wallet/reservation';
 
 /** Today as `YYYY-MM-DD` in the experience's local day (KSA at launch). */
 function todayInRiyadh(): string {
@@ -296,6 +298,8 @@ export async function requestBooking(
     partySize: formValue(formData, 'partySize'),
     email: formValue(formData, 'email'),
     idempotencyKey: formValue(formData, 'idempotencyKey'),
+    supersedes: formValue(formData, 'supersedes'),
+    supersedesToken: formValue(formData, 'supersedesToken'),
     utmSource: formValue(formData, 'utmSource'),
     utmMedium: formValue(formData, 'utmMedium'),
     utmCampaign: formValue(formData, 'utmCampaign'),
@@ -523,13 +527,80 @@ export async function requestBooking(
     // plus requests past their approval deadline): the release cron flips
     // them to cancelled/expired only on its own cadence, and until then an
     // abandoned checkout must not lock the guest out of booking again.
+    //
+    // The payment step's "change date or guests" path books a REPLACEMENT
+    // while the original unpaid instant hold still stands. When the form
+    // names that hold (`supersedes`) and the caller PROVES they hold its
+    // link — this device's last-booking cookie points at it, or a valid
+    // signed link token for that exact reference is presented — it stops
+    // counting toward the phone throttle here and is released after the
+    // new booking is created below. A matching contact phone is NOT proof
+    // (it is attacker-suppliable), so it never authorizes the release.
+    // Ownership in any doubt → leave the hold alone; the release cron
+    // reaps it at its deadline anyway.
+    let supersededHold: { id: string; walletAppliedSar: number; countsForPhone: boolean } | null =
+      null;
+    const supersedesRef = input.supersedes;
+    if (supersedesRef && supersedesRef !== reference) {
+      try {
+        const hold = await db.query.bookings.findFirst({
+          where: (b) => eq(b.idempotencyKey, supersedesRef),
+          columns: {
+            id: true,
+            contactPhone: true,
+            status: true,
+            paymentStatus: true,
+            paymentDeadline: true,
+            settleAnomalyAt: true,
+            walletAppliedSar: true,
+          },
+        });
+        // Only a LIVE unpaid instant hold qualifies: confirmed, no
+        // payment captured or in flight, not under settle review, and
+        // its pay window still open. Anything else (paid, pending
+        // approval, lapsed) is not this flow's to touch.
+        const live =
+          hold !== undefined &&
+          hold.status === 'confirmed' &&
+          (hold.paymentStatus === 'unpaid' || hold.paymentStatus === 'failed') &&
+          hold.settleAnomalyAt === null &&
+          hold.paymentDeadline !== null &&
+          hold.paymentDeadline.getTime() > Date.now();
+        if (hold && live) {
+          const store = await cookies();
+          const hint = parseLastBookingCookie(store.get(LAST_BOOKING_COOKIE)?.value);
+          // Proof of ownership: same-device cookie OR a valid signed link
+          // token for THIS reference (HMAC-bound, so a guessed/leaked bare
+          // reference can't forge it). Phone match is deliberately excluded.
+          const owned =
+            hint?.reference === supersedesRef ||
+            bookingLinkTokenValid(supersedesRef, input.supersedesToken);
+          if (owned) {
+            supersededHold = {
+              id: hold.id,
+              walletAppliedSar: hold.walletAppliedSar,
+              // Whether the hold sits inside THIS phone's `activePhoneHolds`
+              // count (a factual overlap, not an ownership claim) — so an
+              // authorized release can discount it from the throttle.
+              countsForPhone: hold.contactPhone === input.phone,
+            };
+          }
+        }
+      } catch (error) {
+        reportError(error, { surface: 'booking-request:supersedes', reference });
+      }
+    }
+
     const ip = await clientIp();
     const [{ activeForPhone }] = await db
       .select({ activeForPhone: sql<number>`count(*)::int` })
       .from(bookings)
       .innerJoin(guests, eq(bookings.guestId, guests.id))
       .where(activePhoneHolds(input.phone));
-    if (activeForPhone >= MAX_ACTIVE_HOLDS_PER_PHONE) {
+    // A verified superseded hold is being replaced, not stacked — it
+    // must not consume one of the guest's allowed open holds.
+    const effectiveHoldsForPhone = activeForPhone - (supersededHold?.countsForPhone ? 1 : 0);
+    if (effectiveHoldsForPhone >= MAX_ACTIVE_HOLDS_PER_PHONE) {
       return {
         success: false,
         message: 'too_many',
@@ -548,7 +619,11 @@ export async function requestBooking(
           ),
         );
       if (recentForIp >= MAX_BOOKINGS_PER_IP_PER_HOUR) {
-        return { success: false, message: 'too_many', values: currentValues(formData) };
+        // Distinct code from the per-phone `too_many`: this branch is
+        // about the NETWORK (shared café/hotel NAT, not this guest's own
+        // open bookings), so the form renders neutral copy without the
+        // open-bookings list.
+        return { success: false, message: 'too_many_network', values: currentValues(formData) };
       }
     }
 
@@ -775,6 +850,37 @@ export async function requestBooking(
         fields: { preferredDate: 'date_full' },
         values: currentValues(formData),
       };
+    }
+
+    // The replacement exists — release the verified superseded hold with
+    // the exact transition the release cron applies to lapsed holds, so
+    // its capacity frees now and `createCheckout` refuses the old pay
+    // link. The WHERE re-asserts every liveness guard: a payment that
+    // raced ahead (or a settle anomaly stamped meanwhile) leaves the row
+    // untouched. Best-effort — on any failure the hold simply lapses on
+    // its own deadline; the new booking must never fail here.
+    if (supersededHold) {
+      try {
+        const releasedHold = await db
+          .update(bookings)
+          .set({ status: 'cancelled', cancelledAt: new Date(), cancellationKind: 'system' })
+          .where(
+            and(
+              eq(bookings.id, supersededHold.id),
+              eq(bookings.status, 'confirmed'),
+              inArray(bookings.paymentStatus, ['unpaid', 'failed']),
+              isNull(bookings.settleAnomalyAt),
+            ),
+          )
+          .returning({ id: bookings.id });
+        // Checkout-applied credit on the old hold was only a reservation
+        // — hand it back, same as the cron does on release.
+        if (releasedHold.length > 0 && supersededHold.walletAppliedSar > 0) {
+          await releaseWalletReservation(supersededHold.id);
+        }
+      } catch (error) {
+        reportError(error, { surface: 'booking-request:supersededRelease', reference });
+      }
     }
   } catch (error) {
     // Race-proof replay backstop: two concurrent retries can both pass the

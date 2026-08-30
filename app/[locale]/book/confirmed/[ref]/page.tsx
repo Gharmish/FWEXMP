@@ -36,6 +36,7 @@ import { ReviewForm } from '@/features/reviews/components/review-form';
 import { getReviewForBooking } from '@/features/reviews/queries';
 import { hasOpenDisputeForBooking } from '@/features/disputes/queries';
 import { CancelBookingButton } from '@/features/bookings/components/cancel-booking-button';
+import { BookingContactForm } from '@/features/bookings/components/booking-contact-form';
 import { MeetingPointMap } from '@/features/experiences/components/meeting-point-map';
 import { AddToCalendar } from '@/features/bookings/components/add-to-calendar';
 import {
@@ -158,17 +159,44 @@ export default async function BookingConfirmedPage({ params, searchParams }: Pag
   if (view.state === 'not_found') notFound();
   if (view.state === 'forbidden') return <BookingAccessNotice locale={loc} />;
   const booking = view.state === 'ok' ? view.booking : undefined;
+  // The signed link token proves the viewer may READ this booking, not
+  // act on it. Every mutating form (cancel / reschedule / review /
+  // report / refund bank-details) would fail server-side with a
+  // misleading error, so a token-only viewer sees a sign-in prompt in
+  // place of each — the refund form especially, since it directs money
+  // OUT and a forwardable link must never authorize that.
+  const tokenOnly = view.state === 'ok' && view.proof === 'token';
   const experienceSlug = booking?.experienceSlug ?? slugFromQuery;
-  const experience = experienceSlug ? await getExperienceBySlug(experienceSlug) : undefined;
 
   const t = await getTranslations('bookingConfirmed');
   const tShare = await getTranslations('share');
   const tSteps = await getTranslations('payment.steps');
   // Meeting-point copy is shared with the experience detail page.
   const tExp = await getTranslations('experienceDetail');
+
+  // Wave A — the page's independent reads, fanned out together instead
+  // of the old serial chain (2026-08-28 audit; ≤4 DB queries at once,
+  // same pool discipline as the detail page's waves). The referral-code
+  // mint stays in the wave rather than `after()`: the share button
+  // needs the code IN this render to tag the URL, and after the first
+  // visit the call is a pure read.
+  const [experience, sessionGuestId, bookingReview, referralCode, tMe] = await Promise.all([
+    experienceSlug ? getExperienceBySlug(experienceSlug) : Promise.resolve(undefined),
+    booking?.status === 'refunded' && booking.refundMethod === 'wallet'
+      ? getSessionGuestId()
+      : Promise.resolve(null),
+    booking?.status === 'completed' ? getReviewForBooking(booking.id) : Promise.resolve(null),
+    booking?.guestId ? ensureReferralCode(booking.guestId) : Promise.resolve(null),
+    booking?.status === 'completed' ? getTranslations('me') : Promise.resolve(null),
+  ]);
+
   // Instant bookings land here already `confirmed`; request bookings are
   // `pending` until the operator confirms. Drive the copy off that.
   const isConfirmed = booking?.status === 'confirmed';
+  // Completed bookings own their own header: this page is the review
+  // invite's deep-link target, and it must not greet a finished, paid
+  // experience with "request received" (2026-08-28 audit P1-1).
+  const isCompleted = booking?.status === 'completed';
   const title = experience ? (loc === 'ar' ? experience.titleAr : experience.titleEn) : null;
   const placeName = experience
     ? loc === 'ar'
@@ -244,8 +272,7 @@ export default async function BookingConfirmedPage({ params, searchParams }: Pag
   // action is wallet-scoped, so it renders only for the wallet's OWNER
   // (signed-in account), never for a cookie-only viewer.
   const isWalletRefunded = booking?.status === 'refunded' && booking.refundMethod === 'wallet';
-  const walletOwner =
-    isWalletRefunded && booking ? (await getSessionGuestId()) === booking.guestId : false;
+  const walletOwner = isWalletRefunded && booking ? sessionGuestId === booking.guestId : false;
   const walletCreditSar = booking ? booking.totalAmountSar + booking.walletAppliedSar : 0;
   // Manual bank-transfer refunds (owner decision 2026-08-21): the payee
   // block's copy is shared by the cancel form (collected up front) and
@@ -256,6 +283,7 @@ export default async function BookingConfirmedPage({ params, searchParams }: Pag
     beneficiaryNameHint: t('refundBank.beneficiaryNameHint'),
     ibanLabel: t('refundBank.ibanLabel'),
     ibanHint: t('refundBank.ibanHint'),
+    ibanReenterHint: t('refundBank.ibanReenterHint'),
     errors: {
       bank_name_invalid: t('refundBank.errors.bankName'),
       beneficiary_name_invalid: t('refundBank.errors.beneficiaryName'),
@@ -268,9 +296,8 @@ export default async function BookingConfirmedPage({ params, searchParams }: Pag
   // booking, a failed refund-to-card on a `refunded` one.
   const refundQueued = Boolean(booking && booking.refundDueSar !== null);
   // Referral share tag for the invite-friends button below — minted
-  // lazily on the guest's first visit here; null (mint failure / no
-  // booking) degrades to the plain share URL.
-  const referralCode = booking?.guestId ? await ensureReferralCode(booking.guestId) : null;
+  // lazily (in wave A) on the guest's first visit here; null (mint
+  // failure / no booking) degrades to the plain share URL.
   const referralShareSuffix = referralCode ? `?ref=${referralCode}` : '';
   const isDeclined = booking?.status === 'declined';
   const isExpired = booking?.status === 'expired';
@@ -335,7 +362,7 @@ export default async function BookingConfirmedPage({ params, searchParams }: Pag
             ? 'text-pending'
             : isPending
               ? 'text-sarat-black-600'
-              : isConfirmed
+              : isConfirmed || isCompleted
                 ? 'text-juniper-green'
                 : 'text-pending',
   );
@@ -351,7 +378,7 @@ export default async function BookingConfirmedPage({ params, searchParams }: Pag
             ? 'text-pending'
             : isPending
               ? 'text-sarat-black-600'
-              : isConfirmed
+              : isConfirmed || isCompleted
                 ? 'text-juniper-green-800'
                 : 'text-pending',
   );
@@ -369,9 +396,11 @@ export default async function BookingConfirmedPage({ params, searchParams }: Pag
               ? t('paymentPendingEyebrow')
               : isAwaitingPayment
                 ? t('approvedEyebrow')
-                : isConfirmed
-                  ? t('eyebrowConfirmed')
-                  : t('eyebrow');
+                : isCompleted
+                  ? t('completedEyebrow')
+                  : isConfirmed
+                    ? t('eyebrowConfirmed')
+                    : t('eyebrow');
   const headerTitle = isCancelled
     ? t('cancelledTitle')
     : isDeclined
@@ -386,21 +415,44 @@ export default async function BookingConfirmedPage({ params, searchParams }: Pag
               ? t('paymentPendingTitle')
               : isAwaitingPayment
                 ? t('approvedTitle')
-                : isConfirmed
-                  ? t('titleConfirmed')
-                  : t('title');
+                : isCompleted
+                  ? t('completedTitle')
+                  : isConfirmed
+                    ? t('titleConfirmed')
+                    : t('title');
   const headerDescription = isCancelled
     ? isWalletRefunded
       ? t('cancelledDescriptionWalletCredit', { amount: formatSAR(walletCreditSar, loc) })
       : booking?.status === 'refunded'
-        ? t('cancelledDescriptionRefunded')
-        : t('cancelledDescription')
+        ? // The refund copy must name where the money actually went —
+          // "your card" on the manual (bank-transfer) rail pointed
+          // guests at the wrong statement (2026-08-28 audit P1-3). The
+          // admin stamps refundMethod 'manual' even for a record-only
+          // card reversal, so "to your bank account" is only honest when
+          // payee details are actually on file.
+          booking.refundMethod === 'manual' && booking.refundBank
+          ? t('cancelledDescriptionRefundedBank')
+          : t('cancelledDescriptionRefunded')
+        : // A queued refund only names the bank account once the guest has
+          // provided one; before that (host/admin cancels, no payee yet)
+          // the generic pending copy is the honest line, and the
+          // bank-details form below does the asking.
+          refundQueued && booking?.refundBank
+          ? t('cancelledDescriptionRefundPendingBank')
+          : t('cancelledDescription')
     : isDeclined
       ? t('declinedDescription')
       : isExpired
         ? t('expiredDescription')
         : isHoldLapsed
-          ? t('holdLapsedDescription')
+          ? // Applied credit was debited at apply time and is only
+            // released by the cron — say so, or the guest watches a
+            // missing balance under "nothing was charged".
+            booking && booking.walletAppliedSar > 0
+            ? `${t('holdLapsedDescription')} ${t('holdLapsedWalletCredit', {
+                amount: formatSAR(booking.walletAppliedSar, loc),
+              })}`
+            : t('holdLapsedDescription')
           : isFailed
             ? t('paymentFailedDescription')
             : isPending
@@ -414,9 +466,11 @@ export default async function BookingConfirmedPage({ params, searchParams }: Pag
                   // references 404'd — neither reaches this preview copy.
                   !booking
                   ? t('descriptionPreview')
-                  : isConfirmed
-                    ? t('descriptionConfirmed')
-                    : t('descriptionStored');
+                  : isCompleted
+                    ? t('completedDescription')
+                    : isConfirmed
+                      ? t('descriptionConfirmed')
+                      : t('descriptionStored');
   // Plain pending request: tell the guest exactly when the host's window
   // closes (the distinct amber "pending host approval" state).
   const respondByNote =
@@ -505,18 +559,13 @@ export default async function BookingConfirmedPage({ params, searchParams }: Pag
     }
   }
 
-  // "Report a problem" swaps to a we're-on-it note while a dispute is open.
-  const openDispute = booking ? await hasOpenDisputeForBooking(ref) : false;
-
   // Review entry for ANY completed booking — this page is reachable from
   // the booking history, so reviews are no longer limited to the /me
-  // "last booking" card. Copy comes from the same `me.review` namespace.
-  const bookingReview =
-    booking?.status === 'completed' ? await getReviewForBooking(booking.id) : null;
+  // "last booking" card. The review itself (and its `me` catalog) load
+  // in wave A above.
   const reviewEditable = bookingReview
     ? new Date(bookingReview.editableUntil).getTime() > new Date().getTime()
     : false;
-  const tMe = booking?.status === 'completed' ? await getTranslations('me') : null;
   const reviewCopy = tMe
     ? {
         ratingLabel: tMe('review.ratingLabel'),
@@ -545,28 +594,6 @@ export default async function BookingConfirmedPage({ params, searchParams }: Pag
       }
     : null;
 
-  // WhatsApp line to the host — only once the host has accepted (the
-  // query itself enforces confirmed/completed and returns null otherwise).
-  const hostPhone =
-    booking && (booking.status === 'confirmed' || booking.status === 'completed')
-      ? await getHostContactPhoneForBooking(ref)
-      : null;
-  const hostWhatsapp = hostPhone
-    ? whatsappLink(hostPhone, t('whatsapp.prefill', { reference: booking?.referenceCode ?? ref }))
-    : null;
-
-  // Gharmish support over WhatsApp — every real booking, every state.
-  // Pending requests, payment trouble, and cancellations are exactly
-  // when guests reach for support, and the host line (above) only
-  // exists once the host has accepted.
-  const supportPhone = booking ? supportWhatsappE164() : null;
-  const supportWhatsapp = supportPhone
-    ? whatsappLink(
-        supportPhone,
-        t('supportWhatsapp.prefill', { reference: booking?.referenceCode ?? ref }),
-      )
-    : null;
-
   // Guest cancellation & rescheduling, from the booking's own policy
   // snapshot. Computed server-side so the page shows the true consequence
   // (full / partial / forfeited refund) before the guest commits — and so
@@ -591,48 +618,72 @@ export default async function BookingConfirmedPage({ params, searchParams }: Pag
   const cancelView = options && options.cancel.allowed ? options.cancel : null;
   const rescheduleView = options && options.reschedule.allowed ? options.reschedule : null;
 
+  const RESCHEDULE_HORIZON_DAYS = 60;
+  const todayRiyadh = todayInRiyadh();
+  // Wave B — the remaining independent reads: the dispute note, the
+  // host's WhatsApp line (the query itself enforces confirmed/completed
+  // and returns null otherwise), and the reschedule calendar's schedule
+  // window; each degrades to its "absent" value when not applicable.
+  const [openDispute, hostPhone, schedule, tb] = await Promise.all([
+    booking ? hasOpenDisputeForBooking(ref) : Promise.resolve(false),
+    booking && (booking.status === 'confirmed' || booking.status === 'completed')
+      ? getHostContactPhoneForBooking(ref)
+      : Promise.resolve(null),
+    booking && rescheduleView && !isHoldLapsed
+      ? getScheduleDataBySlug(
+          booking.experienceSlug,
+          todayRiyadh,
+          addDays(todayRiyadh, RESCHEDULE_HORIZON_DAYS),
+        )
+      : Promise.resolve(null),
+    getTranslations('bookingRequest'),
+  ]);
+  const hostWhatsapp = hostPhone
+    ? whatsappLink(hostPhone, t('whatsapp.prefill', { reference: booking?.referenceCode ?? ref }))
+    : null;
+
+  // Gharmish support over WhatsApp — every real booking, every state.
+  // Pending requests, payment trouble, and cancellations are exactly
+  // when guests reach for support, and the host line (above) only
+  // exists once the host has accepted.
+  const supportPhone = booking ? supportWhatsappE164() : null;
+  const supportWhatsapp = supportPhone
+    ? whatsappLink(
+        supportPhone,
+        t('supportWhatsapp.prefill', { reference: booking?.referenceCode ?? ref }),
+      )
+    : null;
+
   // Target dates for a reschedule — the same bookable-days computation the
   // experience page feeds its calendar, minus the booking's current date
-  // and any day without room for this party. Only built when the option
-  // will actually render.
+  // and any day without room for this party. Only built (in wave B) when
+  // the option will actually render.
   let rescheduleDates: BookableOption[] = [];
-  if (booking && rescheduleView && !isHoldLapsed) {
-    const RESCHEDULE_HORIZON_DAYS = 60;
-    const todayRiyadh = todayInRiyadh();
-    const [schedule, tb] = await Promise.all([
-      getScheduleDataBySlug(
-        booking.experienceSlug,
-        todayRiyadh,
-        addDays(todayRiyadh, RESCHEDULE_HORIZON_DAYS),
-      ),
-      getTranslations('bookingRequest'),
-    ]);
-    if (schedule) {
-      rescheduleDates = bookableDates({
-        fromStr: todayRiyadh,
-        days: RESCHEDULE_HORIZON_DAYS + 1,
-        availabilityWeekdays: schedule.availabilityWeekdays,
-        blackoutDates: schedule.blackoutDates,
-        stopSellDates: schedule.stopSellDates,
-        maxGroupSize: schedule.maxGroupSize,
-        bookedByDate: schedule.bookedByDate,
-        startTime: schedule.startTime,
-        nowMinutes: nowMinutesInRiyadh(),
-        cutoffMinutes: schedule.bookingCutoffHours * 60,
-      })
-        .filter((d) => d.date !== booking.date && d.remaining >= booking.partySize)
-        .map((d) => ({
-          value: d.date,
-          label: formatDate(new Date(`${d.date}T12:00:00Z`), loc, 'gregory', {
-            weekday: 'short',
-            day: 'numeric',
-            month: 'long',
-            timeZone: 'UTC',
-          }),
-          remaining: d.remaining,
-          spotsLabel: tb('spotsLeft', { count: d.remaining }),
-        }));
-    }
+  if (booking && schedule) {
+    rescheduleDates = bookableDates({
+      fromStr: todayRiyadh,
+      days: RESCHEDULE_HORIZON_DAYS + 1,
+      availabilityWeekdays: schedule.availabilityWeekdays,
+      blackoutDates: schedule.blackoutDates,
+      stopSellDates: schedule.stopSellDates,
+      maxGroupSize: schedule.maxGroupSize,
+      bookedByDate: schedule.bookedByDate,
+      startTime: schedule.startTime,
+      nowMinutes: nowMinutesInRiyadh(),
+      cutoffMinutes: schedule.bookingCutoffHours * 60,
+    })
+      .filter((d) => d.date !== booking.date && d.remaining >= booking.partySize)
+      .map((d) => ({
+        value: d.date,
+        label: formatDate(new Date(`${d.date}T12:00:00Z`), loc, 'gregory', {
+          weekday: 'short',
+          day: 'numeric',
+          month: 'long',
+          timeZone: 'UTC',
+        }),
+        remaining: d.remaining,
+        spotsLabel: tb('spotsLeft', { count: d.remaining }),
+      }));
   }
   // The partial-step amount is deterministic from the snapshot, so the
   // confirm/done copy can quote it regardless of which refund state the
@@ -643,6 +694,33 @@ export default async function BookingConfirmedPage({ params, searchParams }: Pag
           10_000,
       )
     : 0;
+
+  // Quiet sign-in prompt that stands in for every mutating form when the
+  // viewer was admitted by the read-only link token — mirrors the
+  // RefundToCardButton owner-check pattern and the booking-access
+  // notice's email-evidence copy.
+  const signInNotice = (
+    <p className="text-sarat-black-600 max-w-xl text-sm leading-relaxed">
+      {t('signInToManage')}{' '}
+      <Link
+        href="/sign-in?next=/me"
+        className="text-sarat-black font-medium underline underline-offset-4 transition-opacity duration-200 hover:opacity-60"
+      >
+        {t('signInToManageCta')}
+      </Link>
+    </p>
+  );
+
+  // Contact typo safety net (2026-08-28 audit): while the request is
+  // pending or payment is still owed, show which unverified email/phone
+  // the notifications go to, with an inline corrector. Never for
+  // token-only viewers — the update action requires the cookie/session.
+  const contactEditable = Boolean(
+    booking &&
+    !tokenOnly &&
+    booking.guestEmail &&
+    (booking.status === 'pending' || isAwaitingPayment),
+  );
 
   // "Add to calendar" — only an upcoming confirmed booking with nothing
   // owed belongs in a guest's calendar (the same settled gate as the
@@ -723,6 +801,50 @@ export default async function BookingConfirmedPage({ params, searchParams }: Pag
           >
             {t('payNow')}
           </Link>
+        )}
+        {/* Which unverified address the confirmation/pay link goes to,
+            with the typo corrector — one wrong character here orphans
+            the booking. LTR isolates keep the email/phone from
+            scrambling inside Arabic sentences. */}
+        {booking && contactEditable && booking.guestEmail && (
+          <div className="flex flex-col gap-2">
+            <p className="text-sarat-black-600 max-w-2xl text-base leading-relaxed">
+              {booking.guestPhone
+                ? t('contact.sendToWithPhone', {
+                    email: `\u2066${booking.guestEmail}\u2069`,
+                    phone: `\u2066${booking.guestPhone}\u2069`,
+                  })
+                : t('contact.sendTo', { email: `\u2066${booking.guestEmail}\u2069` })}
+            </p>
+            <BookingContactForm
+              reference={ref}
+              locale={loc}
+              defaults={{ email: booking.guestEmail, phone: booking.guestPhone }}
+              copy={{
+                summary: t('contact.updateSummary'),
+                emailLabel: t('contact.emailLabel'),
+                phoneLabel: t('contact.phoneLabel'),
+                countryLabel: t('contact.countryLabel'),
+                submit: t('contact.submit'),
+                pending: t('contact.pending'),
+                done: t('contact.done'),
+                errors: {
+                  required: t('contact.errors.required'),
+                  invalid_email: t('contact.errors.invalidEmail'),
+                  invalid_phone: t('contact.errors.invalidPhone'),
+                },
+                formErrors: {
+                  forbidden: t('contact.errors.forbidden'),
+                  no_db: t('contact.errors.noDb'),
+                  not_found: t('contact.errors.notFound'),
+                  wrong_state: t('contact.errors.wrongState'),
+                  account_email: t('contact.errors.accountEmail'),
+                  validation: t('contact.errors.validation'),
+                  server: t('contact.errors.server'),
+                },
+              }}
+            />
+          </div>
         )}
         {isPending && (
           <PendingPaymentRefresh
@@ -927,33 +1049,43 @@ export default async function BookingConfirmedPage({ params, searchParams }: Pag
               ? t('refundBank.onFile', { amount: formatSAR(booking.refundDueSar ?? 0, loc) })
               : t('refundBank.description', { amount: formatSAR(booking.refundDueSar ?? 0, loc) })}
           </p>
-          <RefundBankDetailsForm
-            reference={ref}
-            locale={loc}
-            existing={
-              booking.refundBank
-                ? {
-                    bankName: booking.refundBank.bankName,
-                    beneficiaryName: booking.refundBank.beneficiaryName,
-                    iban: booking.refundBank.iban,
-                  }
-                : null
-            }
-            copy={{
-              ...bankFieldsCopy,
-              submit: t('refundBank.submit'),
-              update: t('refundBank.update'),
-              pending: t('refundBank.pending'),
-              done: t('refundBank.done'),
-              formErrors: {
-                not_found: t('refundBank.formErrors.notFound'),
-                wrong_state: t('refundBank.formErrors.wrongState'),
-                no_db: t('refundBank.formErrors.noDb'),
-                validation: t('refundBank.formErrors.validation'),
-                server: t('refundBank.formErrors.server'),
-              },
-            }}
-          />
+          {tokenOnly ? (
+            // Submitting bank details directs the refund OUT to an
+            // account, so — unlike checkout — the forwardable link token
+            // is NOT enough: an account holder must be signed in. The
+            // token still gives the read view above; this prompts sign-in.
+            signInNotice
+          ) : (
+            <RefundBankDetailsForm
+              reference={ref}
+              locale={loc}
+              existing={
+                booking.refundBank
+                  ? {
+                      bankName: booking.refundBank.bankName,
+                      beneficiaryName: booking.refundBank.beneficiaryName,
+                      // Masked at the query layer — the full IBAN never
+                      // reaches the page; changing it means retyping it.
+                      ibanMasked: booking.refundBank.ibanMasked,
+                    }
+                  : null
+              }
+              copy={{
+                ...bankFieldsCopy,
+                submit: t('refundBank.submit'),
+                update: t('refundBank.update'),
+                pending: t('refundBank.pending'),
+                done: t('refundBank.done'),
+                formErrors: {
+                  not_found: t('refundBank.formErrors.notFound'),
+                  wrong_state: t('refundBank.formErrors.wrongState'),
+                  no_db: t('refundBank.formErrors.noDb'),
+                  validation: t('refundBank.formErrors.validation'),
+                  server: t('refundBank.formErrors.server'),
+                },
+              }}
+            />
+          )}
         </section>
       )}
 
@@ -1008,14 +1140,16 @@ export default async function BookingConfirmedPage({ params, searchParams }: Pag
 
       {/* The success "what happens next" steps only make sense once the
           booking is actually settled — suppress them while a payment failed
-          or is still processing. */}
+          or is still processing, and on completed bookings (nothing is
+          "next" any more; the header points at the review instead). */}
       {!isFailed &&
         !isPending &&
         !isCancelled &&
         !isDeclined &&
         !isExpired &&
         !isAwaitingPayment &&
-        !isHoldLapsed && (
+        !isHoldLapsed &&
+        !isCompleted && (
           <section className="mt-10 flex flex-col gap-3">
             <h2 className="font-display text-2xl font-medium tracking-[-0.025em]">
               {t('nextStepsHeading')}
@@ -1049,10 +1183,17 @@ export default async function BookingConfirmedPage({ params, searchParams }: Pag
           id="review"
           className="border-sarat-black/8 rounded-card mt-10 flex flex-col gap-4 [border-width:0.5px] p-6 print:hidden"
         >
-          {bookingReview && reviewEditable ? (
+          {/* Section-level h2 like every sibling — the form's own
+              heading is an h3 beneath it, keeping the outline h1→h2→h3
+              instead of skipping straight to h3. */}
+          <h2 className="font-display text-2xl font-medium tracking-[-0.025em]">
+            {t('reviewHeading')}
+          </h2>
+          {bookingReview && reviewEditable && !tokenOnly ? (
             <ReviewForm
               bookingReference={ref}
               locale={loc}
+              guestName={booking.guestName}
               mode="edit"
               initialRating={bookingReview.rating}
               initialText={(loc === 'ar' ? bookingReview.textAr : bookingReview.textEn) ?? ''}
@@ -1087,10 +1228,16 @@ export default async function BookingConfirmedPage({ params, searchParams }: Pag
                 </p>
               )}
             </div>
+          ) : tokenOnly ? (
+            // The submit action needs the cookie/session — a token-only
+            // viewer would compose a review only to lose it to a
+            // misleading error, so prompt for sign-in instead.
+            signInNotice
           ) : (
             <ReviewForm
               bookingReference={ref}
               locale={loc}
+              guestName={booking.guestName}
               copy={{
                 ...reviewCopy,
                 heading: tMe('review.heading'),
@@ -1102,13 +1249,17 @@ export default async function BookingConfirmedPage({ params, searchParams }: Pag
         </section>
       )}
 
-      {/* Report a problem — quiet disclosure, any real booking. */}
+      {/* Report a problem — quiet disclosure, any real booking. The
+          create-dispute action needs the cookie/session, so token-only
+          viewers get the sign-in prompt instead of a doomed form. */}
       {booking && (
         <section className="mt-8 print:hidden">
           {openDispute ? (
             <p className="text-sarat-black-600 max-w-xl text-sm leading-relaxed">
               {t('dispute.openNote')}
             </p>
+          ) : tokenOnly ? (
+            signInNotice
           ) : (
             <ReportProblemForm
               reference={ref}
@@ -1194,7 +1345,11 @@ export default async function BookingConfirmedPage({ params, searchParams }: Pag
           <p className="text-sarat-black-600 max-w-2xl text-base leading-relaxed">
             {t('reschedule.policy', { deadline: formatDeadline(rescheduleView.deadline) })}
           </p>
-          {rescheduleDates.length === 0 ? (
+          {tokenOnly ? (
+            // The reschedule action needs the cookie/session — don't
+            // render a calendar whose submit can only fail.
+            signInNotice
+          ) : rescheduleDates.length === 0 ? (
             <p className="text-sarat-black-600 max-w-2xl text-base leading-relaxed">
               {t('reschedule.noDates')}
             </p>
@@ -1235,6 +1390,36 @@ export default async function BookingConfirmedPage({ params, searchParams }: Pag
         </section>
       )}
 
+      {/* The reschedule option exists but is spent or expired: say WHY
+          instead of silently dropping the section — a guest who saw it
+          yesterday reads the disappearance as a bug (2026-08-28 audit).
+          `wrong_state`/`already_started` keep the old behaviour: the
+          section never applied to those bookings. */}
+      {booking &&
+        options &&
+        !options.reschedule.allowed &&
+        (options.reschedule.reason === 'window_passed' ||
+          options.reschedule.reason === 'limit_reached') &&
+        !isHoldLapsed && (
+          <section className="border-sarat-black/8 rounded-card mt-10 flex flex-col gap-3 [border-width:0.5px] p-6 print:hidden">
+            <h2 className="font-display text-2xl font-medium tracking-[-0.025em]">
+              {t('reschedule.heading')}
+            </h2>
+            <p className="text-sarat-black-600 max-w-2xl text-base leading-relaxed">
+              {options.reschedule.reason === 'window_passed'
+                ? t('reschedule.windowPassed', {
+                    deadline: formatDeadline(
+                      new Date(
+                        startInstant(booking.date, booking.startTime).getTime() -
+                          booking.policy.rescheduleCutoffHours * 60 * 60 * 1000,
+                      ),
+                    ),
+                  })
+                : t('reschedule.limitReached')}
+            </p>
+          </section>
+        )}
+
       {/* Cancellation — only while the booking can still be cancelled.
           A lapsed hold is about to be released anyway; offering "cancel"
           there would imply the spot is still held. */}
@@ -1266,51 +1451,65 @@ export default async function BookingConfirmedPage({ params, searchParams }: Pag
                     })
                   : t('cancel.policyForfeited')}
           </p>
-          <CancelBookingButton
-            reference={ref}
-            locale={loc}
-            copy={{
-              label: t('cancel.label'),
-              pending: t('cancel.pending'),
-              confirm:
-                cancelView.refund === 'forfeited'
-                  ? t('cancel.confirmForfeited')
-                  : cancelView.refund === 'partial'
-                    ? t('cancel.confirmPartial', {
-                        amount: formatSAR(cancelView.amountSar, loc),
-                      })
-                    : t('cancel.confirm'),
-              done: {
-                none: t('cancel.doneUnpaid'),
-                refunded: t('cancel.doneRefunded'),
-                refunded_partial: t('cancel.donePartialRefunded', {
-                  amount: formatSAR(partialAmountSar, loc),
-                }),
-                refund_pending: t('cancel.doneRefundPending'),
-                refund_pending_partial: t('cancel.donePartialRefundPending', {
-                  amount: formatSAR(partialAmountSar, loc),
-                }),
-                forfeited: t('cancel.doneForfeited'),
-              },
-              errors: {
-                forbidden: t('cancel.errors.forbidden'),
-                no_db: t('cancel.errors.noDb'),
-                not_found: t('cancel.errors.notFound'),
-                wrong_state: t('cancel.errors.wrongState'),
-                already_started: t('cancel.errors.alreadyStarted'),
-                validation: t('cancel.errors.validation'),
-                bank_details_required: t('cancel.errors.bankDetailsRequired'),
-                server: t('cancel.errors.server'),
-              },
-            }}
-            // A refund is owed → collect the payee up front, in the same
-            // form, so the manual queue entry is born with somewhere to go.
-            bankFields={
-              cancelView.refund === 'full' || cancelView.refund === 'partial'
-                ? { heading: t('refundBank.cancelHeading'), copy: bankFieldsCopy }
-                : undefined
-            }
-          />
+          {tokenOnly ? (
+            // The cancel action needs the cookie/session — a token-only
+            // viewer's submit would fail with "we couldn't find that
+            // booking", so prompt for sign-in instead.
+            signInNotice
+          ) : (
+            <CancelBookingButton
+              reference={ref}
+              locale={loc}
+              copy={{
+                label: t('cancel.label'),
+                pending: t('cancel.pending'),
+                confirm:
+                  cancelView.refund === 'forfeited'
+                    ? t('cancel.confirmForfeited')
+                    : cancelView.refund === 'partial'
+                      ? t('cancel.confirmPartial', {
+                          amount: formatSAR(cancelView.amountSar, loc),
+                        })
+                      : cancelView.refund === 'full'
+                        ? // Quote the amount and destination, like the
+                          // partial branch — a full refund is the one case
+                          // the dialog used to leave unstated.
+                          t('cancel.confirmFull', {
+                            amount: formatSAR(cancelView.amountSar, loc),
+                          })
+                        : t('cancel.confirm'),
+                done: {
+                  none: t('cancel.doneUnpaid'),
+                  refunded: t('cancel.doneRefunded'),
+                  refunded_partial: t('cancel.donePartialRefunded', {
+                    amount: formatSAR(partialAmountSar, loc),
+                  }),
+                  refund_pending: t('cancel.doneRefundPending'),
+                  refund_pending_partial: t('cancel.donePartialRefundPending', {
+                    amount: formatSAR(partialAmountSar, loc),
+                  }),
+                  forfeited: t('cancel.doneForfeited'),
+                },
+                errors: {
+                  forbidden: t('cancel.errors.forbidden'),
+                  no_db: t('cancel.errors.noDb'),
+                  not_found: t('cancel.errors.notFound'),
+                  wrong_state: t('cancel.errors.wrongState'),
+                  already_started: t('cancel.errors.alreadyStarted'),
+                  validation: t('cancel.errors.validation'),
+                  bank_details_required: t('cancel.errors.bankDetailsRequired'),
+                  server: t('cancel.errors.server'),
+                },
+              }}
+              // A refund is owed → collect the payee up front, in the same
+              // form, so the manual queue entry is born with somewhere to go.
+              bankFields={
+                cancelView.refund === 'full' || cancelView.refund === 'partial'
+                  ? { heading: t('refundBank.cancelHeading'), copy: bankFieldsCopy }
+                  : undefined
+              }
+            />
+          )}
         </section>
       )}
 

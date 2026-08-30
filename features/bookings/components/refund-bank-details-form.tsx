@@ -1,10 +1,11 @@
 'use client';
 
-import { useActionState } from 'react';
+import { useActionState, useState } from 'react';
 import { useFormStatus } from 'react-dom';
 import { Check } from 'lucide-react';
 import type { Locale } from '@/lib/i18n';
 import { Button } from '@/components/ui/button';
+import { refundBankDetailsSchema } from '@/features/bookings/schemas';
 import {
   RefundBankFields,
   type RefundBankFieldsCopy,
@@ -25,10 +26,16 @@ interface Copy extends RefundBankFieldsCopy {
 export interface RefundBankDetailsFormProps {
   reference: string;
   locale: Locale;
-  /** Details already on file — the form opens prefilled for correction. */
-  existing: { bankName: string; beneficiaryName: string; iban: string } | null;
+  /**
+   * Details already on file — names prefill for correction; the IBAN is
+   * only ever a MASKED display value (shown as placeholder), so a
+   * change requires retyping it in full. The server keeps the real one.
+   */
+  existing: { bankName: string; beneficiaryName: string; ibanMasked: string } | null;
   copy: Copy;
 }
+
+type BankField = 'bankName' | 'beneficiaryName' | 'iban';
 
 const initialState: RefundBankDetailsState = { success: false };
 
@@ -53,6 +60,35 @@ export function RefundBankDetailsForm({
   copy,
 }: RefundBankDetailsFormProps) {
   const [state, action] = useActionState(submitRefundBankDetails, initialState);
+  // Client-side zod pre-check (form is noValidate): the browser's own
+  // bubbles render in the BROWSER's language — English over an Arabic
+  // UI at the money step. Same shared-schema pattern as the booking
+  // form's validateBeforeSubmit.
+  const [clientFields, setClientFields] = useState<Partial<Record<BankField, string>>>({});
+
+  function validateBeforeSubmit(event: React.FormEvent<HTMLFormElement>) {
+    const form = event.currentTarget;
+    const read = (name: string) =>
+      (form.elements.namedItem(name) as HTMLInputElement | null)?.value ?? '';
+    const parsed = refundBankDetailsSchema.safeParse({
+      bankName: read('bankName'),
+      beneficiaryName: read('beneficiaryName'),
+      iban: read('iban'),
+    });
+    if (parsed.success) {
+      setClientFields({});
+      return;
+    }
+    event.preventDefault();
+    const fields: Partial<Record<BankField, string>> = {};
+    for (const issue of parsed.error.issues) {
+      const key = issue.path[0];
+      if (key === 'bankName' || key === 'beneficiaryName' || key === 'iban') {
+        fields[key] = String(issue.message);
+      }
+    }
+    setClientFields(fields);
+  }
 
   if (state.success) {
     return (
@@ -72,13 +108,26 @@ export function RefundBankDetailsForm({
       : undefined;
 
   return (
-    <form action={action} className="flex flex-col gap-4">
+    <form
+      action={action}
+      onSubmit={validateBeforeSubmit}
+      noValidate
+      className="flex flex-col gap-4"
+    >
       <input type="hidden" name="reference" value={reference} />
       <input type="hidden" name="locale" value={locale} />
       <RefundBankFields
         copy={copy}
-        values={state.values ?? existing ?? undefined}
-        fields={state.fields}
+        values={
+          state.values ??
+          (existing
+            ? { bankName: existing.bankName, beneficiaryName: existing.beneficiaryName }
+            : undefined)
+        }
+        // The client check re-validates ALL fields, so when it has
+        // findings they replace the (stale) server ones wholesale.
+        fields={Object.keys(clientFields).length ? clientFields : state.fields}
+        ibanOnFileMasked={existing?.ibanMasked}
       />
       <div className="flex flex-wrap items-center gap-3">
         <Submit label={existing ? copy.update : copy.submit} pending={copy.pending} />

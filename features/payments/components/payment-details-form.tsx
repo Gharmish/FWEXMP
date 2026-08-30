@@ -324,10 +324,30 @@ export function PaymentDetailsForm({
     trackAddPaymentInfo({ slug, reference, amountSar: totalSar });
   }, [activeCheckoutId, reference, slug, totalSar]);
 
+  // Focus follows the step swap: the widget replaces the details form in
+  // place (and Edit swaps it back), so without this keyboard/SR users are
+  // left on a control that no longer exists. Only transitions move focus
+  // — never the first render, which must not steal focus from the page.
+  const payHeadingRef = useRef<HTMLHeadingElement>(null);
+  const detailsHeadingRef = useRef<HTMLHeadingElement>(null);
+  const isWidgetStep = Boolean(activeCheckout);
+  const prevStepRef = useRef(isWidgetStep);
+  useEffect(() => {
+    if (prevStepRef.current === isWidgetStep) return;
+    prevStepRef.current = isWidgetStep;
+    (isWidgetStep ? payHeadingRef : detailsHeadingRef).current?.focus();
+  }, [isWidgetStep]);
+
   if (activeCheckout) {
     return (
       <div className="flex flex-col gap-4">
-        <h2 className="font-display text-2xl font-medium tracking-[-0.025em]">{copy.payHeading}</h2>
+        <h2
+          ref={payHeadingRef}
+          tabIndex={-1}
+          className="font-display text-2xl font-medium tracking-[-0.025em]"
+        >
+          {copy.payHeading}
+        </h2>
         {/* Who's paying, still on screen at the moment of payment — the
             same recap card pattern as the details step. */}
         <div className="border-sarat-black/8 rounded-input flex items-start justify-between gap-4 [border-width:0.5px] px-4 py-3">
@@ -414,6 +434,9 @@ export function PaymentDetailsForm({
 
   const renderTextField = (field: TextField, opts?: { optional?: boolean; span2?: boolean }) => {
     const hasError = Boolean(state.fields?.[field.name]);
+    // aria-describedby ties the message to the input (the booking form's
+    // pattern) — aria-invalid alone announces "invalid" without saying why.
+    const fieldErrorId = `pay-${field.name}-error`;
     return (
       <div key={field.name} className={cn('flex flex-col gap-2', opts?.span2 && 'sm:col-span-2')}>
         <label htmlFor={`pay-${field.name}`} className="text-sm font-medium">
@@ -431,8 +454,13 @@ export function PaymentDetailsForm({
           dir={field.name === 'email' ? 'ltr' : undefined}
           defaultValue={fieldValue(field.name)}
           aria-invalid={hasError ? true : undefined}
+          aria-describedby={hasError ? fieldErrorId : undefined}
         />
-        {hasError && <p className="text-al-qatt-red-800 text-sm">{copy.invalid[field.name]}</p>}
+        {hasError && (
+          <p id={fieldErrorId} className="text-al-qatt-red-800 text-sm">
+            {copy.invalid[field.name]}
+          </p>
+        )}
       </div>
     );
   };
@@ -444,7 +472,13 @@ export function PaymentDetailsForm({
       <input type="hidden" name="locale" value={locale} />
       <input type="hidden" name="slug" value={slug} />
 
-      <h2 className="font-display text-2xl font-medium tracking-[-0.025em]">{copy.heading}</h2>
+      <h2
+        ref={detailsHeadingRef}
+        tabIndex={-1}
+        className="font-display text-2xl font-medium tracking-[-0.025em]"
+      >
+        {copy.heading}
+      </h2>
 
       <section className="flex flex-col gap-3" aria-label={copy.yourDetails}>
         <h3 className="text-base font-medium">{copy.yourDetails}</h3>
@@ -481,19 +515,22 @@ export function PaymentDetailsForm({
       {applePayAvailable && (
         <section className="flex flex-col gap-3" aria-label={copy.methodHeading}>
           <h3 className="text-base font-medium">{copy.methodHeading}</h3>
+          {/* Plain toggle buttons with aria-pressed — NOT radios: the
+              buttons don't implement the radio keyboard contract (arrow
+              keys, roving tabindex), so claiming the role would promise
+              interactions that don't exist. */}
           <div
-            role="radiogroup"
+            role="group"
             aria-label={copy.methodHeading}
             className="border-sarat-black/8 rounded-input grid grid-cols-2 gap-1 [border-width:0.5px] p-1"
           >
             <button
               type="button"
-              role="radio"
-              aria-checked={method === 'applepay'}
+              aria-pressed={method === 'applepay'}
               aria-label={copy.methodApplePay}
               onClick={() => setChosenMethod('applepay')}
               className={cn(
-                'rounded-input flex h-10 items-center justify-center transition-colors duration-200',
+                'rounded-input flex min-h-11 items-center justify-center transition-colors duration-200',
                 method === 'applepay'
                   ? 'bg-sarat-black text-white'
                   : 'text-sarat-black-600 hover:text-sarat-black',
@@ -503,11 +540,10 @@ export function PaymentDetailsForm({
             </button>
             <button
               type="button"
-              role="radio"
-              aria-checked={method === 'card'}
+              aria-pressed={method === 'card'}
               onClick={() => setChosenMethod('card')}
               className={cn(
-                'rounded-input h-10 text-sm font-medium transition-colors duration-200',
+                'rounded-input min-h-11 text-sm font-medium transition-colors duration-200',
                 method === 'card'
                   ? 'bg-sarat-black text-white'
                   : 'text-sarat-black-600 hover:text-sarat-black',
@@ -572,6 +608,7 @@ export function PaymentDetailsForm({
                   required
                   defaultValue={values.country ?? defaults?.country ?? 'SA'}
                   aria-invalid={state.fields?.country ? true : undefined}
+                  aria-describedby={state.fields?.country ? 'pay-country-error' : undefined}
                   className={cn(
                     'rounded-input border-sarat-black/20 text-sarat-black h-11 w-full [border-width:0.5px] bg-white px-4 text-base',
                     'aria-invalid:border-al-qatt-red',
@@ -586,7 +623,9 @@ export function PaymentDetailsForm({
                   ))}
                 </select>
                 {state.fields?.country && (
-                  <p className="text-al-qatt-red-800 text-sm">{copy.invalid.country}</p>
+                  <p id="pay-country-error" className="text-al-qatt-red-800 text-sm">
+                    {copy.invalid.country}
+                  </p>
                 )}
               </div>
             </div>

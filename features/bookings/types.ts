@@ -20,3 +20,15 @@ export interface BookableOption {
    */
   cancellationNote?: string;
 }
+
+/**
+ * An in-window, non-past day that is NOT bookable, with why — produced by
+ * `closedDates()` (features/bookings/lib/availability) and consumed by the
+ * booking calendar so sold-out days read differently from days the
+ * experience simply doesn't run. `value` is `YYYY-MM-DD`, formatted
+ * identically to `BookableOption.value`.
+ */
+export interface ClosedDateOption {
+  value: string;
+  reason: 'full' | 'cutoff' | 'closed';
+}

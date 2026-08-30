@@ -37,6 +37,9 @@ export function ReviewCard({ review, locale }: ReviewCardProps) {
         </div>
         <div
           className="flex items-center gap-1"
+          // role="img": a generic div's aria-label is ignored by most AT —
+          // the role makes the star row one named image.
+          role="img"
           aria-label={t('ratingLabel', { rating: review.rating })}
         >
           {[1, 2, 3, 4, 5].map((i) => (

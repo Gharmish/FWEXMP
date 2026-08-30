@@ -1,10 +1,17 @@
-import { NextResponse, type NextRequest } from 'next/server';
+import { after, NextResponse, type NextRequest } from 'next/server';
 import { settleBooking } from '@/features/payments/settle';
 import { sendBookingReceiptEmail } from '@/features/bookings/lib/booking-email';
 import { BOOKING_LINK_TOKEN_PARAM, bookingLinkToken } from '@/features/bookings/lib/link-token';
-import { getBookingByReferenceForViewer } from '@/features/bookings/queries';
+import { getBookingByReference, getBookingByReferenceForViewer } from '@/features/bookings/queries';
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/**
+ * How long after settlement a replayed return URL still counts as the
+ * same gateway round trip (3DS challenges + a refresh, with slack) —
+ * outside it the URL is a cold hit and mints nothing.
+ */
+const ROUND_TRIP_WINDOW_MS = 45 * 60_000;
 
 /**
  * HyperPay `shopperResultUrl`. The widget redirects the browser here after
@@ -29,12 +36,37 @@ export async function GET(
   // here rather than round-tripped through HyperPay — this route knows
   // the reference, so the token never has to leave our origin.
   //
-  // Only for the browsers that need it: a guest who already proves
-  // ownership the ordinary way keeps a clean URL, and the token stays
-  // out of their history.
-  if (UUID_RE.test(reference) && !(await getBookingByReferenceForViewer(reference))) {
-    const token = bookingLinkToken(reference);
-    if (token) confirmed.searchParams.set(BOOKING_LINK_TOKEN_PARAM, token);
+  // Only for the browsers that need it (a guest who already proves
+  // ownership the ordinary way keeps a clean URL), and ONLY while the
+  // booking's payment state says a round trip is genuinely in flight —
+  // otherwise this route was an oracle that upgraded any bare UUID to a
+  // read token forever. Judged on the PRE-settle status (settle below
+  // flips `processing`):
+  //   - `processing`: the live return from the widget, about to settle
+  //     either way;
+  //   - `paid` within the window: a refresh/replay right after
+  //     settlement (`paidAt` is the settle timestamp);
+  //   - `failed` inside a still-open payment hold: the row keeps no
+  //     failure timestamp, so the hold deadline — the failed session's
+  //     own lifetime — is the closest honest bound for a retry replay.
+  // Cold hits fall through to the plain redirect; the confirmation page
+  // then shows its ordinary sign-in wall.
+  if (UUID_RE.test(reference)) {
+    const booking = await getBookingByReference(reference);
+    const now = Date.now();
+    const genuineRoundTrip =
+      booking !== undefined &&
+      (booking.paymentStatus === 'processing' ||
+        (booking.paymentStatus === 'paid' &&
+          booking.paidAt !== null &&
+          now - new Date(booking.paidAt).getTime() <= ROUND_TRIP_WINDOW_MS) ||
+        (booking.paymentStatus === 'failed' &&
+          booking.paymentDeadline !== null &&
+          new Date(booking.paymentDeadline).getTime() > now));
+    if (genuineRoundTrip && !(await getBookingByReferenceForViewer(reference))) {
+      const token = bookingLinkToken(reference);
+      if (token) confirmed.searchParams.set(BOOKING_LINK_TOKEN_PARAM, token);
+    }
   }
 
   if (UUID_RE.test(reference)) {
@@ -68,10 +100,11 @@ export async function GET(
           : outcome;
     confirmed.searchParams.set('payment', hint);
     // On the actual paid transition, send the booking receipt. Best-effort
-    // and gated (no-op without email configured / no guest email) — it must
-    // never delay or fail the redirect to the confirmation page.
+    // and gated (no-op without email configured / no guest email) — pushed
+    // past the response via `after()` so a slow mail provider never holds
+    // the guest's redirect to the confirmation page.
     if (outcome === 'success') {
-      await sendBookingReceiptEmail(reference).catch(() => {});
+      after(() => sendBookingReceiptEmail(reference).catch(() => {}));
     }
   }
 

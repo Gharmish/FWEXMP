@@ -4,6 +4,7 @@ import { randomBytes } from 'node:crypto';
 import { and, eq, ne } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import { bookings, guests } from '@/db/schema';
+import { boundedQuery } from '@/lib/deadline';
 import { reportError } from '@/lib/log';
 import { getPlatformSettings } from '@/lib/platform-settings';
 import { creditWalletTxIdempotent } from '@/features/wallet/ledger';
@@ -44,10 +45,15 @@ function generateCode(): string {
  */
 export async function ensureReferralCode(guestId: string): Promise<string | null> {
   try {
-    const guest = await db.query.guests.findFirst({
-      where: eq(guests.id, guestId),
-      columns: { referralCode: true },
-    });
+    // Deadline-bounded: minted while the confirmation page renders, so a
+    // hung pooled connection must fail fast into the catch below rather
+    // than stall a guest who has just paid.
+    const guest = await boundedQuery('referral:ensureCode:read', () =>
+      db.query.guests.findFirst({
+        where: eq(guests.id, guestId),
+        columns: { referralCode: true },
+      }),
+    );
     if (!guest) return null;
     if (guest.referralCode) return guest.referralCode;
     // Two attempts against the unique index — a collision in a 30^8
@@ -55,7 +61,12 @@ export async function ensureReferralCode(guestId: string): Promise<string | null
     for (let attempt = 0; attempt < 2; attempt += 1) {
       const code = generateCode();
       try {
-        await db.update(guests).set({ referralCode: code }).where(eq(guests.id, guestId));
+        // Safe to bound: the deadline retry re-issues the SAME code onto
+        // the same row (idempotent), and a unique-violation is a real SQL
+        // error, so it still propagates straight to the collision retry.
+        await boundedQuery('referral:ensureCode:mint', () =>
+          db.update(guests).set({ referralCode: code }).where(eq(guests.id, guestId)),
+        );
         return code;
       } catch (error) {
         if (attempt === 1) throw error;

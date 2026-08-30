@@ -1,3 +1,4 @@
+import { cache } from 'react';
 import { eq } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import { boundedQuery } from '@/lib/deadline';
@@ -84,8 +85,16 @@ export const DEFAULT_SETTINGS: PlatformSettings = {
 
 /**
  * The platform settings, or code defaults. Never throws — safe in any RSC.
+ *
+ * Wrapped in React `cache()`: a single render fans this read out many
+ * times (layout announcement band, VAT disclosure, category gates, per
+ * card), and the dedupe collapses them into one statement per request.
+ * Outside a request scope (scripts) `cache` calls straight through, so
+ * the contract is unchanged. Deliberately NOT `unstable_cache` — the
+ * settings row is money-adjacent config that must never serve stale
+ * across requests.
  */
-export async function getPlatformSettings(): Promise<PlatformSettings> {
+export const getPlatformSettings = cache(async (): Promise<PlatformSettings> => {
   if (!serverEnv.DATABASE_URL) return DEFAULT_SETTINGS;
   try {
     // Deadline-bounded: read on nearly every public render — a pooler
@@ -133,7 +142,7 @@ export async function getPlatformSettings(): Promise<PlatformSettings> {
     reportError(error, { surface: 'platform-settings:get' });
     return DEFAULT_SETTINGS;
   }
-}
+});
 
 /**
  * Strict variant for money-critical paths (payment settlement): a DB

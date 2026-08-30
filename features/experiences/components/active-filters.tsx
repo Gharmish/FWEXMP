@@ -1,7 +1,7 @@
 'use client';
 
 import { X } from 'lucide-react';
-import { useTranslations } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 import type { ReactNode } from 'react';
 import { RiyalSymbol } from '@/components/ui/riyal-symbol';
 import type { ExperienceCriteria } from '@/features/experiences/lib/search';
@@ -17,6 +17,11 @@ interface ActiveFiltersProps {
 interface Token {
   key: string;
   label: ReactNode;
+  /**
+   * Plain-text form of a ReactNode label for the remove button's
+   * aria-label — without it the label falls back to the raw token key.
+   */
+  ariaLabel?: string;
   patch: Partial<ExperienceCriteria>;
 }
 
@@ -28,18 +33,27 @@ interface Token {
  */
 export function ActiveFilters({ criteria, cities, onRemove }: ActiveFiltersProps) {
   const t = useTranslations('experiencesIndex');
+  const locale = useLocale();
 
   const tokens: Token[] = [];
 
   if (criteria.priceBucket) {
+    const bucketText = t(`price.${criteria.priceBucket}`);
     tokens.push({
       key: 'price',
-      label: (
-        <>
-          <RiyalSymbol className="h-[0.85em] align-[-0.05em]" />{' '}
-          {t(`price.${criteria.priceBucket}`)}
-        </>
-      ),
+      // English prices render the ISO code (Price's treatment), Arabic the
+      // official glyph — the token must use the same mark as the cards.
+      label:
+        locale === 'ar' ? (
+          <>
+            <RiyalSymbol className="h-[0.85em] align-[-0.05em]" /> {bucketText}
+          </>
+        ) : (
+          <>
+            <span className="text-[0.72em] font-medium tracking-[0.02em]">SAR</span> {bucketText}
+          </>
+        ),
+      ariaLabel: locale === 'ar' ? `${bucketText} ر.س` : `SAR ${bucketText}`,
       patch: { priceBucket: null },
     });
   }
@@ -78,7 +92,7 @@ export function ActiveFilters({ criteria, cities, onRemove }: ActiveFiltersProps
           <button
             type="button"
             onClick={() => onRemove(token.patch)}
-            aria-label={`${t('removeFilter')}: ${typeof token.label === 'string' ? token.label : token.key}`}
+            aria-label={`${t('removeFilter')}: ${token.ariaLabel ?? (typeof token.label === 'string' ? token.label : token.key)}`}
             className="border-sarat-black/20 text-sarat-black hover:border-sarat-black/40 inline-flex h-11 items-center gap-2 rounded-full [border-width:0.5px] ps-4 pe-3 text-sm transition-colors duration-200"
           >
             <span className="inline-flex items-center gap-1">{token.label}</span>

@@ -2,12 +2,13 @@
 
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
 import { motion, useReducedMotion } from 'framer-motion';
+import { useTranslations } from 'next-intl';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { SPRING } from '@/components/ui/motion';
 import { cn } from '@/lib/utils';
 import { formatDate, formatInteger } from '@/lib/format';
 import type { Locale } from '@/lib/i18n';
-import type { BookableOption } from '@/features/bookings/types';
+import type { BookableOption, ClosedDateOption } from '@/features/bookings/types';
 
 interface BookingCalendarCopy {
   prevMonth: string;
@@ -21,6 +22,13 @@ export interface BookingCalendarProps {
   maxDate: string;
   /** Bookable days (open + with capacity). */
   options: readonly BookableOption[];
+  /**
+   * In-window days that are NOT bookable, with the reason: `'full'` days
+   * strike the numeral through and say so in the aria-label, `'cutoff'`
+   * days explain the lead time, `'closed'` keeps the plain disabled
+   * style. Absent/empty preserves the undifferentiated gray.
+   */
+  closedDates?: readonly ClosedDateOption[];
   /** Currently selected `YYYY-MM-DD`, or '' if none. */
   value: string;
   onSelect: (date: string) => void;
@@ -65,6 +73,7 @@ export function BookingCalendar({
   minDate,
   maxDate,
   options,
+  closedDates = [],
   value,
   onSelect,
   copy,
@@ -72,12 +81,20 @@ export function BookingCalendar({
   const reduce = useReducedMotion();
   const gridId = useId();
   const layoutId = `${gridId}-selected`;
+  // Reason suffixes only — the rest of the copy still travels via props.
+  const t = useTranslations('bookingRequest');
 
   const bookable = useMemo(() => {
     const map = new Map<string, BookableOption>();
     for (const opt of options) map.set(opt.value, opt);
     return map;
   }, [options]);
+
+  const closed = useMemo(() => {
+    const map = new Map<string, ClosedDateOption['reason']>();
+    for (const day of closedDates) map.set(day.value, day.reason);
+    return map;
+  }, [closedDates]);
 
   const weekdays = useMemo(() => weekdayLabels(locale), [locale]);
 
@@ -119,10 +136,14 @@ export function BookingCalendar({
     for (let day = 1; day <= daysInMonth; day += 1) {
       const dateStr = ymd(view.year, view.month, day);
       const inWindow = dateStr >= minDate && dateStr <= maxDate;
-      out.push({ dateStr, day, inWindow, isOpen: bookable.has(dateStr) });
+      // `closed` wins over `options`: after a rejected submit the form
+      // marks the stale day closed client-side while the refreshed
+      // server data is still in flight, and that marking must disable
+      // the day even though it is still listed as bookable.
+      out.push({ dateStr, day, inWindow, isOpen: bookable.has(dateStr) && !closed.has(dateStr) });
     }
     return out;
-  }, [view, minDate, maxDate, bookable]);
+  }, [view, minDate, maxDate, bookable, closed]);
 
   // Chunk the flat cell list into 7-day rows for the ARIA grid (the leading
   // blanks already align day 1; pad the tail so every row has 7 columns).
@@ -245,7 +266,10 @@ export function BookingCalendar({
         role="grid"
         aria-label={monthTitle}
         onKeyDown={onKeyDown}
-        className="grid grid-cols-7 gap-1"
+        // Programmatically focusable so the form can land keyboard/SR
+        // users here after a rejected or missing date.
+        tabIndex={-1}
+        className="grid grid-cols-7 gap-1 focus:outline-none"
       >
         {/* Weekday header row. `contents` keeps the columnheaders as direct
             grid items so the 7-column layout is unaffected. */}
@@ -292,12 +316,23 @@ export function BookingCalendar({
               const isSelected = dateStr === value;
               const isToday = dateStr === minDate;
               const opt = bookable.get(dateStr);
+              // Why the day is unavailable: 'full' strikes the numeral
+              // and says so; 'cutoff' explains the lead time; 'closed'
+              // (doesn't run) keeps the plain disabled style.
+              const closedReason = closed.get(dateStr);
               const fullDate = formatDate(parse(dateStr), locale, 'gregory', {
                 weekday: 'long',
                 day: 'numeric',
                 month: 'long',
               });
-              const ariaLabel = opt ? `${fullDate} — ${opt.spotsLabel}` : fullDate;
+              const ariaLabel =
+                closedReason === 'full'
+                  ? `${fullDate} — ${t('dayFullSuffix')}`
+                  : closedReason === 'cutoff'
+                    ? `${fullDate} — ${t('dayCutoffSuffix')}`
+                    : opt && isOpen
+                      ? `${fullDate} — ${opt.spotsLabel}`
+                      : fullDate;
 
               // `contents` collapses the gridcell wrapper so the button stays
               // the grid item (preserving sizing + the selected-day motion).
@@ -337,7 +372,9 @@ export function BookingCalendar({
                           className="bg-sarat-black absolute inset-0 rounded-full"
                         />
                       ))}
-                    <span className="relative">{dayLabel}</span>
+                    <span className={cn('relative', closedReason === 'full' && 'line-through')}>
+                      {dayLabel}
+                    </span>
                   </button>
                 </span>
               );

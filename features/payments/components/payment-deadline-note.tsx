@@ -1,6 +1,7 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { useRouter } from 'next/navigation';
 
 interface PaymentDeadlineNoteProps {
   /** ISO timestamp of the payment hold deadline. */
@@ -13,6 +14,8 @@ interface PaymentDeadlineNoteProps {
   hoursLeftTemplate: string;
   /** Template with `{hours}` only — used on the exact hour ("2 hr 0 min" is noise). */
   hoursOnlyLeftTemplate: string;
+  /** Shown when the countdown reaches zero — the hold has lapsed. */
+  expiredNote: string;
 }
 
 /**
@@ -20,6 +23,11 @@ interface PaymentDeadlineNoteProps {
  * suffix only renders after hydration (server renders the static note),
  * so there is no SSR/client mismatch and no-JS visitors still see the
  * exact deadline.
+ *
+ * At zero the note swaps to the expired state and refreshes the route
+ * once: the server's lapsed-hold guard then redirects to the
+ * confirmation page's "payment window closed" state, instead of leaving
+ * a dead countdown over a form whose submit is doomed to fail.
  */
 export function PaymentDeadlineNote({
   deadlineIso,
@@ -27,8 +35,11 @@ export function PaymentDeadlineNote({
   minutesLeftTemplate,
   hoursLeftTemplate,
   hoursOnlyLeftTemplate,
+  expiredNote,
 }: PaymentDeadlineNoteProps) {
+  const router = useRouter();
   const [minutes, setMinutes] = useState<number | null>(null);
+  const refreshedRef = useRef(false);
 
   useEffect(() => {
     const tick = () => {
@@ -39,6 +50,24 @@ export function PaymentDeadlineNote({
     const id = setInterval(tick, 30_000);
     return () => clearInterval(id);
   }, [deadlineIso]);
+
+  const expired = minutes === 0;
+
+  useEffect(() => {
+    if (!expired || refreshedRef.current) return;
+    // Once, not per tick — the refreshed server render redirects away;
+    // if it can't (offline), looping refreshes would make it worse.
+    refreshedRef.current = true;
+    router.refresh();
+  }, [expired, router]);
+
+  if (expired) {
+    return (
+      <p className="text-al-qatt-red-800 text-sm font-medium" role="status">
+        {expiredNote}
+      </p>
+    );
+  }
 
   const remaining =
     minutes !== null && minutes > 0

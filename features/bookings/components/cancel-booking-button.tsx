@@ -1,14 +1,17 @@
 'use client';
 
-import { useActionState, useRef } from 'react';
+import { useActionState, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import type { Locale } from '@/lib/i18n';
 import { ConfirmSubmit } from '@/components/ui/confirm-dialog';
 import { cancelBookingAsGuest, type CancelBookingState } from '@/features/bookings/cancel-actions';
+import { refundBankDetailsSchema } from '@/features/bookings/schemas';
 import {
   RefundBankFields,
   type RefundBankFieldsCopy,
 } from '@/features/bookings/components/refund-bank-fields';
+
+type BankField = 'bankName' | 'beneficiaryName' | 'iban';
 
 interface Copy {
   label: string;
@@ -67,9 +70,9 @@ function Submit({ copy, validate }: { copy: Copy; validate?: () => boolean }) {
       variant="secondary"
       size="md"
       className={className}
-      // With bank fields in the form, run native validation BEFORE the
+      // With bank fields in the form, run the zod pre-check BEFORE the
       // confirm dialog opens — otherwise the guest confirms, the dialog
-      // closes, and `requestSubmit()` silently stops on an empty IBAN.
+      // closes, and the action bounces on an empty IBAN.
       trigger={
         validate
           ? (open, pending) => (
@@ -102,6 +105,37 @@ export function CancelBookingButton({
 }: CancelBookingButtonProps) {
   const [state, action] = useActionState(cancelBookingAsGuest, initialState);
   const formRef = useRef<HTMLFormElement>(null);
+  // Client-side zod pre-check (form is noValidate): `reportValidity()`
+  // showed the BROWSER's own bubbles in the browser's language —
+  // English over an Arabic UI at the money step. The shared schema
+  // surfaces the translated per-field errors instead, before the
+  // confirm dialog opens.
+  const [clientFields, setClientFields] = useState<Partial<Record<BankField, string>>>({});
+
+  function validateBankFields(): boolean {
+    const form = formRef.current;
+    if (!form) return true;
+    const read = (name: string) =>
+      (form.elements.namedItem(name) as HTMLInputElement | null)?.value ?? '';
+    const parsed = refundBankDetailsSchema.safeParse({
+      bankName: read('bankName'),
+      beneficiaryName: read('beneficiaryName'),
+      iban: read('iban'),
+    });
+    if (parsed.success) {
+      setClientFields({});
+      return true;
+    }
+    const fields: Partial<Record<BankField, string>> = {};
+    for (const issue of parsed.error.issues) {
+      const key = issue.path[0];
+      if (key === 'bankName' || key === 'beneficiaryName' || key === 'iban') {
+        fields[key] = String(issue.message);
+      }
+    }
+    setClientFields(fields);
+    return false;
+  }
 
   if (state.success) {
     const doneKey =
@@ -125,7 +159,7 @@ export function CancelBookingButton({
       : undefined;
 
   return (
-    <form ref={formRef} action={action} className="flex flex-col items-start gap-2">
+    <form ref={formRef} action={action} noValidate className="flex flex-col items-start gap-2">
       <input type="hidden" name="reference" value={reference} />
       <input type="hidden" name="locale" value={locale} />
       {bankFields && (
@@ -136,14 +170,19 @@ export function CancelBookingButton({
           <RefundBankFields
             copy={bankFields.copy}
             values={state.success ? undefined : state.values}
-            fields={state.success ? undefined : state.fields}
+            // The client check re-validates ALL fields, so when it has
+            // findings they replace the (stale) server ones wholesale.
+            fields={
+              state.success
+                ? undefined
+                : Object.keys(clientFields).length
+                  ? clientFields
+                  : state.fields
+            }
           />
         </fieldset>
       )}
-      <Submit
-        copy={copy}
-        validate={bankFields ? () => formRef.current?.reportValidity() ?? true : undefined}
-      />
+      <Submit copy={copy} validate={bankFields ? validateBankFields : undefined} />
       {error && (
         <p role="alert" className="text-al-qatt-red-800 text-sm">
           {error}

@@ -3,6 +3,7 @@ import {
   BOOKING_CUTOFF_MINUTES,
   addDays,
   bookableDates,
+  closedDates,
   isDateBookable,
   isHoldExpired,
   minutesOfDay,
@@ -219,9 +220,7 @@ describe('bookableDates', () => {
 describe('slotCloseInstantMs', () => {
   it('is local start minus the cutoff, in fixed UTC+3', () => {
     // 09:00 Riyadh on 2026-06-05 = 06:00Z; minus 120min = 04:00Z.
-    expect(slotCloseInstantMs('2026-06-05', '09:00', 120)).toBe(
-      Date.parse('2026-06-05T04:00:00Z'),
-    );
+    expect(slotCloseInstantMs('2026-06-05', '09:00', 120)).toBe(Date.parse('2026-06-05T04:00:00Z'));
   });
 
   it('with cutoff 0 it is the start instant itself', () => {
@@ -267,6 +266,62 @@ describe('startWindowClosed', () => {
 
   it('fails safe (closed) on malformed dates — these guard money paths', () => {
     expect(startWindowClosed({ ...base, dateStr: 'junk', nowMinutes: 0 })).toBe(true);
+  });
+});
+
+describe('closedDates', () => {
+  // Same schedule as the bookableDates suite: from Fri 2026-05-29,
+  // Fri/Sat experience, 8 spots, 14-day window (05-29 … 06-11).
+  const base = {
+    fromStr: '2026-05-29',
+    days: 14,
+    availabilityWeekdays: [5, 6] as number[],
+    blackoutDates: [] as string[],
+    maxGroupSize: 8,
+    bookedByDate: {} as Record<string, number>,
+  };
+
+  it('classifies off-schedule days as closed and never overlaps bookableDates', () => {
+    const out = closedDates(base);
+    const open = new Set(bookableDates(base).map((d) => d.date));
+    expect(out.every((d) => !open.has(d.value))).toBe(true);
+    expect(out.every((d) => d.reason === 'closed')).toBe(true);
+    // Sun–Thu of both weeks: 14 days minus 4 open Fri/Sat.
+    expect(out).toHaveLength(10);
+  });
+
+  it('reports capacity-exhausted open days as full, blackout/stop-sell as closed', () => {
+    const out = closedDates({
+      ...base,
+      blackoutDates: ['2026-05-30'],
+      stopSellDates: ['2026-06-05'],
+      bookedByDate: { '2026-05-29': 8 },
+    });
+    const byValue = new Map(out.map((d) => [d.value, d.reason]));
+    expect(byValue.get('2026-05-29')).toBe('full');
+    expect(byValue.get('2026-05-30')).toBe('closed');
+    expect(byValue.get('2026-06-05')).toBe('closed');
+    expect(byValue.get('2026-06-06')).toBeUndefined(); // still bookable
+  });
+
+  it('reports today as cutoff once inside the lead time — but closed when it never ran', () => {
+    const timing = {
+      startTime: '09:00',
+      nowMinutes: 10 * 60, // past start
+      cutoffMinutes: BOOKING_CUTOFF_MINUTES,
+    };
+    const cutFriday = closedDates({ ...base, ...timing });
+    expect(cutFriday.find((d) => d.value === '2026-05-29')?.reason).toBe('cutoff');
+    // Same clock on a day the schedule doesn't include at all: the
+    // cutoff is incidental — the day reads closed, not "too late".
+    const cutOffSchedule = closedDates({ ...base, ...timing, availabilityWeekdays: [6] });
+    expect(cutOffSchedule.find((d) => d.value === '2026-05-29')?.reason).toBe('closed');
+  });
+
+  it('formats values like bookableDates dates (YYYY-MM-DD, same window)', () => {
+    const out = closedDates(base);
+    expect(out.every((d) => /^\d{4}-\d{2}-\d{2}$/.test(d.value))).toBe(true);
+    expect(out.every((d) => d.value >= '2026-05-29' && d.value <= '2026-06-11')).toBe(true);
   });
 });
 

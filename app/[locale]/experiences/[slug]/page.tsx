@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import { Suspense } from 'react';
 import {
   ArrowLeft,
   Backpack,
@@ -7,6 +8,7 @@ import {
   Check,
   Clock,
   MapPin,
+  MessageCircle,
   ShieldCheck,
   Star,
   Sunrise,
@@ -39,9 +41,9 @@ import { ExperienceViewTracking } from '@/features/experiences/components/experi
 import { getKnownGuestDetails } from '@/features/account/guest-prefill';
 import { HostCard } from '@/features/hosts/components/host-card';
 import { toArabicText } from '@/features/experiences/lib/arabic-content';
+import { pickLocalized } from '@/lib/ar-placeholder';
 import { CATEGORIES } from '@/features/experiences/lib/sample-data';
 import {
-  getAllSlugs,
   getExperienceBySlug,
   getExperienceBySlugForOwnerPreview,
 } from '@/features/experiences/queries';
@@ -50,12 +52,14 @@ import { MeetingPointMap } from '@/features/experiences/components/meeting-point
 import { hasMeetingPoint } from '@/features/host-experiences/schemas';
 import { trackExperienceView, utmFromSearchParams } from '@/features/analytics/capture';
 import { getScheduleDataBySlug } from '@/features/availability/queries';
-import { addDays, bookableDates } from '@/features/bookings/lib/availability';
+import { addDays, bookableDates, closedDates } from '@/features/bookings/lib/availability';
 import { bookingOptions } from '@/features/bookings/lib/policy';
 import { getCancellationTiers } from '@/lib/cancellation-policy';
 import { policyWindow } from '@/features/bookings/lib/policy-copy';
 import { vatRatePercent } from '@/features/bookings/lib/vat';
 import { getPlatformSettings } from '@/lib/platform-settings';
+import { whatsappLink } from '@/lib/whatsapp';
+import { supportWhatsappE164 } from '@/lib/env';
 import { getCompletedBookingsCountForExperience } from '@/features/bookings/queries';
 import { getHostResponseStats } from '@/features/hosts/queries';
 import { Badge } from '@/components/ui/badge';
@@ -68,7 +72,9 @@ import { categoryFromUrlSlug } from '@/features/experiences/lib/category-landing
 import { WishlistButton } from '@/features/wishlist/components/wishlist-button';
 import { getWishlistSet } from '@/features/wishlist/queries';
 import { PaymentMarks } from '@/components/layout/payment-marks';
-import { Draw, FadeIn, MountFade, Stagger, StaggerItem } from '@/components/ui/motion';
+import { Skeleton } from '@/components/ui/skeleton';
+import { ExperienceCardSkeleton } from '@/features/experiences/components/experience-card-skeleton';
+import { Draw, FadeIn, RiseIn, Stagger, StaggerItem } from '@/components/ui/motion';
 import type { Category } from '@/features/experiences/types';
 
 /**
@@ -79,11 +85,6 @@ import type { Category } from '@/features/experiences/types';
  * weather section on /cancellation-policy covers everyone regardless.
  */
 const OUTDOOR_CATEGORIES: ReadonlySet<Category> = new Set<Category>(['nature', 'adventure']);
-
-export async function generateStaticParams() {
-  const slugs = await getAllSlugs();
-  return routing.locales.flatMap((locale) => slugs.map((slug) => ({ locale, slug })));
-}
 
 /**
  * Host-authored descriptions are DB free text with no length guarantee.
@@ -139,17 +140,24 @@ export async function generateMetadata({
   }
   const exp = await getExperienceBySlug(slug);
   if (!exp) return {};
-  const title = locale === 'ar' ? exp.titleAr : exp.titleEn;
-  const description = clampDescription(locale === 'ar' ? exp.descriptionAr : exp.descriptionEn);
+  // Same TODO(ar)-safe pick host bios use — a pending-translation marker
+  // must never become the SERP title/description.
+  const title = pickLocalized(locale, exp.titleEn, exp.titleAr);
+  const description = clampDescription(pickLocalized(locale, exp.descriptionEn, exp.descriptionAr));
   const url = `${SITE_URL}/${locale}/experiences/${slug}`;
   return {
     title,
     description,
     alternates: {
       canonical: url,
-      languages: Object.fromEntries(
-        routing.locales.map((l) => [l, `${SITE_URL}/${l}/experiences/${slug}`]),
-      ),
+      languages: {
+        ...Object.fromEntries(
+          routing.locales.map((l) => [l, `${SITE_URL}/${l}/experiences/${slug}`]),
+        ),
+        // Arabic-first market: unmatched languages default to /ar, same as
+        // the category-landing branch and the sitemap's x-default.
+        'x-default': `${SITE_URL}/ar/experiences/${slug}`,
+      },
     },
     openGraph: {
       // og:image is supplied by the co-located opengraph-image.tsx (dynamic,
@@ -192,6 +200,24 @@ export default async function ExperienceDetailPage({
   const spParty = Number(Array.isArray(sp.party) ? sp.party[0] : sp.party);
   const initialPartySize =
     Number.isInteger(spParty) && spParty >= 1 ? Math.min(spParty, 50) : undefined;
+  // Edit-instead-of-duplicate: the payment page's "change date or guests"
+  // link carries the held booking's reference so the new request supersedes
+  // the hold rather than stacking a second one. Shape-validated here; the
+  // action re-verifies ownership.
+  const spSupersedes = Array.isArray(sp.supersedes) ? sp.supersedes[0] : sp.supersedes;
+  const supersedesReference =
+    spSupersedes &&
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(spSupersedes)
+      ? spSupersedes
+      : undefined;
+  // The superseded booking's signed link token — the action releases the
+  // old hold only on proof of THIS reference (token or same-device
+  // cookie), never on the reference alone.
+  const spSupersedesToken = Array.isArray(sp.supersedesToken)
+    ? sp.supersedesToken[0]
+    : sp.supersedesToken;
+  const supersedesToken =
+    supersedesReference && typeof spSupersedesToken === 'string' ? spSupersedesToken : undefined;
 
   // Owner pre-publish preview: `?preview=1` reads the row regardless of
   // status, but only for the listing's own host (or an admin) — anyone
@@ -263,13 +289,16 @@ export default async function ExperienceDetailPage({
   ]);
   // Wave 2 — social proof and prefill. Nothing above depends on these, so
   // they are deferred rather than dropped.
-  const [completedCount, hostResponseStats, knownGuest] = await Promise.all([
+  const [completedCount, hostResponseStats, knownGuest, wishlistSaved] = await Promise.all([
     getCompletedBookingsCountForExperience(exp.slug),
     getHostResponseStats(exp.hostSlug),
     // Prefill for a returning/signed-in guest so they don't retype contact
     // details. Empty for a first-time visitor. Not needed in preview mode
     // (booking form is disabled), but cheap enough to always resolve.
     getKnownGuestDetails(),
+    // One read serves the header heart AND RelatedExperiences' hearts —
+    // this used to be a fifth serial round trip awaited inline in JSX.
+    getWishlistSet(),
   ]);
   // The tier's parameters — what new bookings will snapshot; drives the
   // cancellation section, the free-cancellation trust chip, and the
@@ -351,10 +380,29 @@ export default async function ExperienceDetailPage({
     cancellationNote: schedule ? cancellationNoteFor(d.date, schedule.startTime) : undefined,
   }));
 
-  const title = loc === 'ar' ? exp.titleAr : exp.titleEn;
-  const description = loc === 'ar' ? exp.descriptionAr : exp.descriptionEn;
+  // The non-bookable complement over the same window, classified for the
+  // calendar UI (full / cutoff / closed) — same inputs as `bookableDates`.
+  const closedDateOptions = schedule
+    ? closedDates({
+        fromStr: todayRiyadh,
+        days: BOOKING_HORIZON_DAYS + 1,
+        availabilityWeekdays: schedule.availabilityWeekdays,
+        blackoutDates: schedule.blackoutDates,
+        stopSellDates: schedule.stopSellDates,
+        maxGroupSize: schedule.maxGroupSize,
+        bookedByDate: schedule.bookedByDate,
+        startTime: schedule.startTime,
+        nowMinutes: nowMinutesRiyadh,
+        cutoffMinutes: schedule.bookingCutoffHours * 60,
+      })
+    : [];
+
+  // Same TODO(ar)-safe bilingual pick host bios use (lib/ar-placeholder) —
+  // a pending-translation marker or an empty side must never render.
+  const title = pickLocalized(loc, exp.titleEn, exp.titleAr);
+  const description = pickLocalized(loc, exp.descriptionEn, exp.descriptionAr);
   // Optional editorial story — null/undefined (sample path) hides the section.
-  const story = (loc === 'ar' ? exp.storyAr : exp.storyEn)?.trim() || null;
+  const story = pickLocalized(loc, exp.storyEn ?? '', exp.storyAr ?? '').trim() || null;
   const placeName = loc === 'ar' ? toArabicText(exp.placeName) : exp.placeName;
   const city = loc === 'ar' ? toArabicText(exp.city) : exp.city;
   const region = loc === 'ar' ? toArabicText(exp.region) : exp.region;
@@ -430,7 +478,10 @@ export default async function ExperienceDetailPage({
       : null,
     decrease: tb('decrease'),
     increase: tb('increase'),
-    noDates: tb('noDates'),
+    // `schedule === null` means the availability QUERY failed (degraded
+    // read), not that eight weeks are sold out — say so instead of the
+    // definitive sell-out copy (2026-08-28 audit).
+    noDates: schedule ? tb('noDates') : t('availabilityError'),
     prevMonth: tb('prevMonth'),
     nextMonth: tb('nextMonth'),
     womenOnlyLabel: tb('womenOnlyLabel'),
@@ -445,19 +496,36 @@ export default async function ExperienceDetailPage({
   // audit): request-to-book guests may never reach the payment page.
   const consentLinkClassName =
     'font-medium underline underline-offset-4 transition-opacity duration-200 hover:opacity-60';
+  // New tab: an in-tab navigation here would discard everything the guest
+  // typed into the booking form just to read a policy.
   const termsLabel = tb.rich('termsLabel', {
     terms: (chunks) => (
-      <Link href="/terms" className={consentLinkClassName}>
+      <Link
+        href="/terms"
+        target="_blank"
+        rel="noopener noreferrer"
+        className={consentLinkClassName}
+      >
         {chunks}
       </Link>
     ),
     privacy: (chunks) => (
-      <Link href="/privacy" className={consentLinkClassName}>
+      <Link
+        href="/privacy"
+        target="_blank"
+        rel="noopener noreferrer"
+        className={consentLinkClassName}
+      >
         {chunks}
       </Link>
     ),
     cancellation: (chunks) => (
-      <Link href="/cancellation-policy" className={consentLinkClassName}>
+      <Link
+        href="/cancellation-policy"
+        target="_blank"
+        rel="noopener noreferrer"
+        className={consentLinkClassName}
+      >
         {chunks}
       </Link>
     ),
@@ -559,9 +627,18 @@ export default async function ExperienceDetailPage({
           priceCurrency: 'SAR',
           // Honest stock signal (2026-08-02 ops audit): hardcoded
           // InStock told crawlers a fully stop-sold/booked-out listing
-          // was buyable — a structured-data-mismatch penalty risk.
-          availability:
-            availableDates.length > 0 ? 'https://schema.org/InStock' : 'https://schema.org/SoldOut',
+          // was buyable — a structured-data-mismatch penalty risk. And
+          // honest the other way too: a failed availability read
+          // (`schedule === null`) omits the field rather than asserting
+          // SoldOut to crawlers on a transient error.
+          ...(schedule
+            ? {
+                availability:
+                  availableDates.length > 0
+                    ? 'https://schema.org/InStock'
+                    : 'https://schema.org/SoldOut',
+              }
+            : {}),
           url,
         },
         ...(ratingAggregate.count > 0 && ratingAggregate.average !== null
@@ -627,14 +704,10 @@ export default async function ExperienceDetailPage({
                 catalog and home already offer it; losing it on click-through
                 was a gap. Static placement (no absolute corner) because this
                 bar isn't an image card. */}
-            <WishlistButton
-              slug={exp.slug}
-              isSaved={(await getWishlistSet()).has(exp.slug)}
-              surface="light"
-            />
+            <WishlistButton slug={exp.slug} isSaved={wishlistSaved.has(exp.slug)} surface="light" />
             <ShareButton
               url={`${SITE_URL}/${loc}/experiences/${exp.slug}`}
-              title={loc === 'ar' ? exp.titleAr : exp.titleEn}
+              title={title}
               contentType="experience"
               analyticsId={exp.slug}
             />
@@ -649,6 +722,7 @@ export default async function ExperienceDetailPage({
         heroImage={exp.heroImage}
         images={exp.images}
         alt={title}
+        category={exp.category}
         locale={loc}
         copy={{
           open: t('gallery.open'),
@@ -734,8 +808,10 @@ export default async function ExperienceDetailPage({
         <div className="flex min-w-0 flex-col gap-12">
           <section className="flex flex-col gap-3">
             <h2 className="font-display text-2xl font-medium tracking-[-0.025em]">{t('about')}</h2>
-            {/* ~65–75ch measure: long prose past 80ch is fatiguing to track. */}
-            <p className="text-sarat-black-600 max-w-[68ch] text-lg leading-relaxed">
+            {/* ~65–75ch measure: long prose past 80ch is fatiguing to track.
+                pre-line keeps the host's own paragraph breaks — the same
+                text renders pre-line in the host/admin views. */}
+            <p className="text-sarat-black-600 max-w-[68ch] text-lg leading-relaxed whitespace-pre-line">
               {description}
             </p>
           </section>
@@ -747,7 +823,9 @@ export default async function ExperienceDetailPage({
               <h2 className="font-display text-2xl font-medium tracking-[-0.025em]">
                 {t('story')}
               </h2>
-              <p className="text-sarat-black-600 max-w-[68ch] text-lg leading-relaxed">{story}</p>
+              <p className="text-sarat-black-600 max-w-[68ch] text-lg leading-relaxed whitespace-pre-line">
+                {story}
+              </p>
             </section>
           )}
 
@@ -759,6 +837,29 @@ export default async function ExperienceDetailPage({
               {t('hostedBy')}
             </h2>
             <HostCard host={exp.host} locale={loc} responseStats={hostResponseStats} />
+            {/* Pre-booking question path: the staffed Gharmish WhatsApp
+                support line (not the host's personal number — hosts keep
+                their privacy; support relays). Resolved via the shared
+                helper so it tracks the configured number and hides itself
+                when support isn't set up. Quiet secondary link. */}
+            {(() => {
+              const supportPhone = supportWhatsappE164();
+              const supportHref = supportPhone
+                ? whatsappLink(supportPhone, t('questionsPrefill', { title }))
+                : null;
+              if (!supportHref) return null;
+              return (
+                <a
+                  href={supportHref}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-sarat-black-600 inline-flex min-h-11 w-fit items-center gap-2 text-sm underline-offset-4 transition-opacity duration-200 hover:underline hover:opacity-60"
+                >
+                  <MessageCircle className="size-4 shrink-0" aria-hidden />
+                  {t('questionsLink')}
+                </a>
+              );
+            })()}
           </section>
 
           {exp.moments.length > 0 && (
@@ -848,11 +949,15 @@ export default async function ExperienceDetailPage({
                 <MapPin className="text-sarat-black-600 size-5 shrink-0" aria-hidden />
                 {t('meetingPoint.heading')}
               </h2>
+              {/* exact={false}: pre-booking, the map shows the area only —
+                  no pin, no coordinate deep link. The confirmed page keeps
+                  the exact default. */}
               <MeetingPointMap
                 lat={exp.lat}
                 lng={exp.lng}
                 placeName={placeName}
                 location={location}
+                exact={false}
               />
             </section>
           )}
@@ -883,7 +988,12 @@ export default async function ExperienceDetailPage({
               <p className="text-sarat-black-600 text-base">
                 {t.rich('weatherNote', {
                   policy: (chunks) => (
-                    <Link href="/cancellation-policy" className={consentLinkClassName}>
+                    <Link
+                      href="/cancellation-policy"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className={consentLinkClassName}
+                    >
                       {chunks}
                     </Link>
                   ),
@@ -892,25 +1002,35 @@ export default async function ExperienceDetailPage({
             )}
           </section>
 
-          <ReviewsSection
-            experienceSlug={exp.slug}
-            locale={loc}
-            // Reuse the wave-1 aggregate the JSON-LD above already needed,
-            // instead of letting this section re-read it.
-            aggregate={ratingAggregate}
-            showAll={showAllReviews}
-            showAllHref={`/experiences/${exp.slug}?reviews=all#reviews`}
-          />
+          {/* Below-the-fold + self-fetching: streamed behind Suspense so the
+              review list never blocks first byte. Safe with the deliberate
+              no-loading.tsx rule — this sits below the notFound() decision,
+              so the response status is committed before fallbacks flush. */}
+          <Suspense fallback={<ReviewsSectionFallback locale={loc} />}>
+            <ReviewsSection
+              experienceSlug={exp.slug}
+              locale={loc}
+              // Reuse the wave-1 aggregate the JSON-LD above already needed,
+              // instead of letting this section re-read it.
+              aggregate={ratingAggregate}
+              showAll={showAllReviews}
+              showAllHref={`/experiences/${exp.slug}?reviews=all#reviews`}
+              // The section emits the visible reviews as JSON-LD Review
+              // entries merged onto the page's Product node by `@id`.
+              // Never on previews (drafts emit no structured data).
+              productId={previewMode ? undefined : `${url}#product`}
+            />
+          </Suspense>
         </div>
 
         {/* Right: sticky price / booking panel. On short viewports the panel
             can be taller than the screen, so it scrolls within itself —
             keeping the submit button reachable without scrolling the page. */}
         <aside className="min-w-0 lg:sticky lg:top-20 lg:max-h-[calc(100vh-6rem)] lg:self-start lg:overflow-y-auto">
-          <MountFade
-            eager
-            className="rounded-card border-sarat-black/8 flex flex-col gap-5 [border-width:0.5px] p-6"
-          >
+          {/* RiseIn, not MountFade: the panel is conversion-critical, so it
+              must SSR visible (transform-only settle; opacity stays 1 —
+              no invisible-until-hydration on mid-range 4G devices). */}
+          <RiseIn className="rounded-card border-sarat-black/8 flex flex-col gap-5 [border-width:0.5px] p-6">
             <h2 className="font-display text-2xl font-medium tracking-[-0.025em]">
               {bookingCopy.title}
             </h2>
@@ -992,10 +1112,13 @@ export default async function ExperienceDetailPage({
                 minDate={todayRiyadh}
                 maxDate={addDays(todayRiyadh, BOOKING_HORIZON_DAYS)}
                 availableDates={availableDates}
+                closedDates={closedDateOptions}
                 modeNote={modeNote}
                 scheduleNote={scheduleNote}
                 initialDate={initialDate}
                 initialPartySize={initialPartySize}
+                supersedesReference={supersedesReference}
+                supersedesToken={supersedesToken}
                 vatRateBps={settings.vatEnabled ? settings.vatRateBps : null}
                 requireWomenOnly={exp.category === 'women_only'}
                 requireMinAge={exp.minAge > 0}
@@ -1016,7 +1139,7 @@ export default async function ExperienceDetailPage({
                 }}
               />
             )}
-          </MountFade>
+          </RiseIn>
         </aside>
       </div>
 
@@ -1024,13 +1147,59 @@ export default async function ExperienceDetailPage({
           browsing guests, and the only forward path when every date is sold
           out. Never shown on owner previews (draft catalogs are private). */}
       {!previewMode && (
-        <RelatedExperiences
-          excludeSlug={exp.slug}
-          city={exp.city}
-          category={exp.category}
-          locale={loc}
-        />
+        <Suspense fallback={<RelatedExperiencesFallback />}>
+          <RelatedExperiences
+            excludeSlug={exp.slug}
+            city={exp.city}
+            category={exp.category}
+            locale={loc}
+            // Reuse the wave-2 wishlist read instead of a second fetch.
+            saved={wishlistSaved}
+          />
+        </Suspense>
       )}
     </article>
+  );
+}
+
+/** Section-shaped placeholder mirroring ReviewsSection — no reflow on stream. */
+function ReviewsSectionFallback({ locale }: { locale: Locale }) {
+  return (
+    <section
+      aria-busy="true"
+      className="border-sarat-black/8 flex scroll-mt-20 flex-col gap-8 [border-top-width:0.5px] pt-10"
+    >
+      <div className="flex flex-col gap-2">
+        <Skeleton className="h-4 w-24" />
+        <Skeleton className={cn('h-8 max-w-full', locale === 'ar' ? 'w-36' : 'w-48')} />
+      </div>
+      <div className="grid gap-4 sm:grid-cols-2">
+        {Array.from({ length: 2 }).map((_, i) => (
+          <div
+            key={i}
+            className="rounded-card border-sarat-black/8 flex flex-col gap-3 [border-width:0.5px] p-6"
+          >
+            <Skeleton className="h-4 w-32" />
+            <Skeleton className="h-4 w-full" />
+            <Skeleton className="h-4 w-5/6" />
+            <Skeleton className="h-4 w-24" />
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+/** Card-strip placeholder mirroring RelatedExperiences' three-up grid. */
+function RelatedExperiencesFallback() {
+  return (
+    <section aria-busy="true" className="mt-16 flex flex-col gap-6">
+      <Skeleton className="h-8 w-64 max-w-full" />
+      <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+        {Array.from({ length: 3 }).map((_, i) => (
+          <ExperienceCardSkeleton key={i} />
+        ))}
+      </div>
+    </section>
   );
 }

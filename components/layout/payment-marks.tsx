@@ -29,6 +29,13 @@ interface PaymentMarksProps {
     mastercard: string;
     applePay: string;
   };
+  /**
+   * Badge order. Default follows the asset spec (logos.json) and stays on
+   * the footer; `'checkout'` leads with mada — BRIEF §5 is mada-first and
+   * the payment widget honours it, so the "We accept" row at the moment a
+   * mada holder scans for their scheme must too.
+   */
+  order?: 'checkout';
   className?: string;
 }
 
@@ -103,22 +110,26 @@ function ApplePayMark({ name }: { name: string }) {
   );
 }
 
-export function PaymentMarks({ label, names, className }: PaymentMarksProps) {
-  // Badge order follows the asset spec (logos.json).
+export function PaymentMarks({ label, names, order, className }: PaymentMarksProps) {
+  const marks = {
+    applePay: <ApplePayMark name={names.applePay} />,
+    visa: <VisaMark name={names.visa} />,
+    mastercard: <MastercardMark name={names.mastercard} />,
+    mada: <MadaMark name={names.mada} className="h-[11px]" />,
+  } as const;
+  // Default badge order follows the asset spec (logos.json); 'checkout'
+  // puts mada first (see the prop's doc comment).
+  const sequence =
+    order === 'checkout'
+      ? (['mada', 'visa', 'mastercard', 'applePay'] as const)
+      : (['applePay', 'visa', 'mastercard', 'mada'] as const);
   return (
     <ul aria-label={label} className={cn('flex flex-wrap items-center gap-2', className)}>
-      <li className={badgeClassName}>
-        <ApplePayMark name={names.applePay} />
-      </li>
-      <li className={badgeClassName}>
-        <VisaMark name={names.visa} />
-      </li>
-      <li className={badgeClassName}>
-        <MastercardMark name={names.mastercard} />
-      </li>
-      <li className={badgeClassName}>
-        <MadaMark name={names.mada} className="h-[11px]" />
-      </li>
+      {sequence.map((key) => (
+        <li key={key} className={badgeClassName}>
+          {marks[key]}
+        </li>
+      ))}
     </ul>
   );
 }

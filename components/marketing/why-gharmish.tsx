@@ -17,9 +17,11 @@ export interface WhyGharmishProps {
 
 export async function WhyGharmish({ locale }: WhyGharmishProps) {
   const t = await getTranslations('home.whyGharmish');
+  // Arabic reads one type-scale step up (BRIEF §3): 11px + tracking is an
+  // EN small-caps treatment — Arabic gets 13px with no added tracking.
   const eyebrowClassName = cn(
-    'text-sarat-black-600 font-medium text-[11px]',
-    locale === 'en' && 'tracking-[0.2em] uppercase',
+    'text-sarat-black-600 font-medium',
+    locale === 'en' ? 'text-[11px] tracking-[0.2em] uppercase' : 'text-[13px]',
   );
 
   const pillars = [

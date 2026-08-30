@@ -14,7 +14,7 @@ import { JsonLd } from '@/components/seo/json-ld';
 import { ExperienceCard } from '@/features/experiences/components/experience-card';
 import { ExperienceCardSkeleton } from '@/features/experiences/components/experience-card-skeleton';
 import { Skeleton } from '@/components/ui/skeleton';
-import { FadeIn, MountFade, RiseInWords, Stagger, StaggerItem } from '@/components/ui/motion';
+import { FadeIn, RiseIn, RiseInWords, Stagger, StaggerItem } from '@/components/ui/motion';
 import { CATEGORIES } from '@/features/experiences/lib/sample-data';
 import { getPlatformSettings } from '@/lib/platform-settings';
 import { getExperiences } from '@/features/experiences/queries';
@@ -89,9 +89,11 @@ export default async function HomePage({
   const t = await getTranslations('home');
   const tSite = await getTranslations('siteMeta');
   const loc = locale as Locale;
+  // Arabic reads one type-scale step up (BRIEF §3): 11px + tracking is an
+  // EN small-caps treatment — Arabic gets 13px with no added tracking.
   const eyebrowClassName = cn(
-    'text-sarat-black-600 font-medium text-[11px]',
-    loc === 'en' && 'tracking-[0.2em] uppercase',
+    'text-sarat-black-600 font-medium',
+    loc === 'en' ? 'text-[11px] tracking-[0.2em] uppercase' : 'text-[13px]',
   );
 
   // Only what the above-the-fold hero needs blocks first byte — just the
@@ -143,6 +145,15 @@ export default async function HomePage({
         url: `${SITE_URL}/${loc}`,
         inLanguage: loc,
         publisher: { '@id': `${SITE_URL}/#organization` },
+        // Sitelinks-search hint — `q` is the catalog's real search param.
+        potentialAction: {
+          '@type': 'SearchAction',
+          target: {
+            '@type': 'EntryPoint',
+            urlTemplate: `${SITE_URL}/${loc}/experiences?q={search_term_string}`,
+          },
+          'query-input': 'required name=search_term_string',
+        },
       },
     ],
   };
@@ -167,9 +178,9 @@ export default async function HomePage({
         <HeroHighlands />
         <div className="relative mx-auto w-full max-w-6xl px-6 pt-24 pb-40 sm:pt-32 sm:pb-52 lg:pb-60">
           <div className="flex max-w-3xl flex-col gap-6">
-            <MountFade eager delay={0}>
+            <RiseIn delay={0}>
               <p className={eyebrowClassName}>{t('eyebrow')}</p>
-            </MountFade>
+            </RiseIn>
             <h1 className="font-display text-5xl font-semibold tracking-[-0.035em] text-balance sm:text-6xl">
               <span className="sr-only">{t('headline')}</span>
               {headlineWords.length > 0 ? (
@@ -185,11 +196,11 @@ export default async function HomePage({
                 </span>
               )}
             </h1>
-            <MountFade eager delay={0.2}>
+            <RiseIn delay={0.2}>
               {/* rtl:text-xl — Arabic body-large reads one step up (BRIEF §3). */}
               <p className="text-sarat-black-600 max-w-xl text-lg rtl:text-xl">{t('intro')}</p>
-            </MountFade>
-            <MountFade eager delay={0.28}>
+            </RiseIn>
+            <RiseIn delay={0.28}>
               <div>
                 <Link
                   href="/experiences"
@@ -198,7 +209,7 @@ export default async function HomePage({
                   {t('cta')}
                 </Link>
               </div>
-            </MountFade>
+            </RiseIn>
           </div>
         </div>
       </section>
@@ -210,7 +221,10 @@ export default async function HomePage({
       <section aria-label={t('discoverAria')}>
         <div className="mx-auto flex w-full max-w-6xl flex-col gap-6 px-6 py-10">
           <Link
-            href="/experiences"
+            // `focus=search` lands the guest in the catalog's search field
+            // (the catalog focuses the input on that param) — the pill
+            // promises a search box, not the top of a listing page.
+            href="/experiences?focus=search"
             className="rounded-button border-sarat-black/12 hover:border-sarat-black/30 text-sarat-black-600 flex min-h-12 w-full max-w-xl items-center gap-3 [border-width:0.5px] px-5 py-3 transition-colors duration-200"
           >
             <Search className="size-5 shrink-0" strokeWidth={1.5} aria-hidden />
@@ -226,6 +240,15 @@ export default async function HomePage({
           already lives in chapter.body2, and product belongs this high.) */}
       <Suspense fallback={<CatalogSectionsFallback />}>
         <CatalogSections locale={loc} />
+      </Suspense>
+
+      {/* Social proof — latest high-rated guest reviews, directly under
+          the catalog it vouches for (buried below the brand-story bands
+          it converted nobody). Renders nothing until reviews exist; the
+          skeleton mirrors the three-card strip so the resolved band
+          lands without a jump. */}
+      <Suspense fallback={<SocialProofFallback />}>
+        <SocialProofStrip locale={loc} />
       </Suspense>
 
       {/* Hosts row — the people ahead of the pitch: meet the humans behind
@@ -253,13 +276,6 @@ export default async function HomePage({
       {/* What we believe — the three brand beliefs as guest-facing promises. */}
       <WhyGharmish locale={loc} />
 
-      {/* Social proof — latest high-rated guest reviews (renders nothing
-          until reviews exist; the skeleton mirrors the three-card strip
-          so the resolved band lands without a jump). */}
-      <Suspense fallback={<SocialProofFallback />}>
-        <SocialProofStrip locale={loc} />
-      </Suspense>
-
       {/* Host recruitment — the page closes on the partnership pitch. */}
       <HostCta locale={loc} />
     </div>
@@ -267,6 +283,9 @@ export default async function HomePage({
 }
 /** Two rows of the lg 3-col grid — "View all" carries the rest. */
 const HOME_CATALOG_LIMIT = 6;
+
+/** Two rows of the 2-col hosts grid — "Meet all hosts" carries the rest. */
+const HOME_HOSTS_LIMIT = 4;
 
 /**
  * The homepage never shows more than two grid rows of non-featured
@@ -304,9 +323,27 @@ async function CatalogSections({ locale }: { locale: Locale }) {
   const restOfCatalog = experiences
     .filter((e) => !featuredSlugs.has(e.slug))
     .slice(0, HOME_CATALOG_LIMIT);
+  // ItemList of exactly the cards this page renders, in render order.
+  // Emitted here (not in the page's own @graph) because the catalog
+  // streams behind Suspense — the script still lands in the flushed
+  // document, and the page body never waits on the catalog query.
+  const listed = [...featured, ...restOfCatalog];
 
   return (
     <>
+      {listed.length > 0 && (
+        <JsonLd
+          data={{
+            '@context': 'https://schema.org',
+            '@type': 'ItemList',
+            itemListElement: listed.map((e, i) => ({
+              '@type': 'ListItem',
+              position: i + 1,
+              url: `${SITE_URL}/${locale}/experiences/${e.slug}`,
+            })),
+          }}
+        />
+      )}
       {/* Originals — featured, dark cards. The heading renders only with
           content: an empty DB must not show orphaned section titles. */}
       {featured.length > 0 && (
@@ -314,8 +351,8 @@ async function CatalogSections({ locale }: { locale: Locale }) {
           <FadeIn className="mb-8 flex flex-col gap-2">
             <p
               className={cn(
-                'text-saffron-gold-800 text-[11px] font-medium',
-                locale === 'en' && 'tracking-[0.2em] uppercase',
+                'text-saffron-gold-800 font-medium',
+                locale === 'en' ? 'text-[11px] tracking-[0.2em] uppercase' : 'text-[13px]',
               )}
             >
               {t('originalsEyebrow')}
@@ -460,23 +497,35 @@ async function HostsRow({ locale }: { locale: Locale }) {
   const [t, hosts] = await Promise.all([getTranslations('home'), getAllHosts()]);
   if (hosts.length === 0) return null;
   const eyebrowClassName = cn(
-    'text-sarat-black-600 font-medium text-[11px]',
-    locale === 'en' && 'tracking-[0.2em] uppercase',
+    'text-sarat-black-600 font-medium',
+    locale === 'en' ? 'text-[11px] tracking-[0.2em] uppercase' : 'text-[13px]',
   );
+  // Capped like the catalog above (uncapped, this row would outgrow the
+  // sections around it at scale) — "Meet all hosts" carries the rest.
+  const visibleHosts = hosts.slice(0, HOME_HOSTS_LIMIT);
 
   return (
     <section className="border-sarat-black/8 [border-top-width:0.5px]">
       <div className="mx-auto w-full max-w-6xl px-6 py-20">
-        <FadeIn className="mb-8 flex flex-col gap-2">
-          <p className={eyebrowClassName}>{t('hostsEyebrow')}</p>
-          <h2 className="font-display text-3xl font-medium tracking-[-0.03em] sm:text-4xl">
-            {t('hostsTitle')}
-          </h2>
-          <p className="text-sarat-black-600 max-w-xl text-base">{t('hostsIntro')}</p>
+        <FadeIn className="mb-8 flex flex-wrap items-end justify-between gap-4">
+          <div className="flex flex-col gap-2">
+            <p className={eyebrowClassName}>{t('hostsEyebrow')}</p>
+            <h2 className="font-display text-3xl font-medium tracking-[-0.03em] sm:text-4xl">
+              {t('hostsTitle')}
+            </h2>
+            <p className="text-sarat-black-600 max-w-xl text-base">{t('hostsIntro')}</p>
+          </div>
+          <Link
+            href="/hosts"
+            className="inline-flex min-h-11 items-center gap-2 text-sm font-medium transition-opacity duration-200 hover:opacity-60"
+          >
+            {t('hostsViewAll')}
+            <ArrowRight className="size-4 shrink-0 rtl:rotate-180" aria-hidden />
+          </Link>
         </FadeIn>
         <Stagger>
           <ul className="grid gap-4 sm:grid-cols-2">
-            {hosts.map((host) => {
+            {visibleHosts.map((host) => {
               const name = locale === 'ar' ? toArabicText(host.name) : host.name;
               const bio = pickLocalized(locale, host.bioEn, host.bioAr);
               return (

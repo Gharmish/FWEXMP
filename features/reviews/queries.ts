@@ -1,6 +1,6 @@
 import { cache } from 'react';
 import { unstable_cache } from 'next/cache';
-import { and, avg, count, desc, eq, gte, isNull, sql } from 'drizzle-orm';
+import { and, avg, count, desc, eq, gte, isNull, ne, sql } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import { boundedQuery } from '@/lib/deadline';
 import { serverEnv } from '@/lib/env';
@@ -9,6 +9,8 @@ import { experiences, guests, hosts, reviews as reviewsTable } from '@/db/schema
 import type { Guest, Review } from '@/db/schema';
 import type { ReviewAggregate, ReviewSummary } from '@/features/reviews/types';
 import { aggregateReviews } from '@/features/reviews/lib/aggregate';
+import { reviewDisplayName } from '@/features/reviews/lib/display-name';
+import { isArPlaceholder } from '@/lib/ar-placeholder';
 import { reportError } from '@/lib/log';
 import { getCurrentHostId } from '@/features/host-dashboard/queries';
 import * as sample from '@/features/reviews/lib/sample-data';
@@ -39,7 +41,9 @@ function toSummary(row: ReviewWithGuest, experienceSlug: string): ReviewSummary 
   return {
     id: row.id,
     experienceSlug,
-    guestName: row.guest.name,
+    // Guest-facing surfaces only ever see the derived display name
+    // ("Sara A."); the full booking name stays on host/admin paths.
+    guestName: reviewDisplayName(row.guest.name),
     rating: clampRating(row.rating),
     textEn: row.textEn,
     textAr: row.textAr,
@@ -53,7 +57,10 @@ export async function getReviewsForExperience(
   limit?: number,
 ): Promise<readonly ReviewSummary[]> {
   if (!hasDb()) {
-    const rows = [...sample.getReviewsForExperience(slug)];
+    const rows = [...sample.getReviewsForExperience(slug)].map((r) => ({
+      ...r,
+      guestName: reviewDisplayName(r.guestName),
+    }));
     rows.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
     return typeof limit === 'number' ? rows.slice(0, limit) : rows;
   }
@@ -266,47 +273,82 @@ export interface RecentReview extends ReviewSummary {
  * home-page social-proof strip. 4★+ only (it's marketing surface, not
  * the balanced per-experience listing, which stays unfiltered). Same
  * degrade-to-empty posture as `getRatingsBySlug`.
+ *
+ * `excludeWomenOnly` and `excludeEmoji` are the HOMEPAGE curation gates
+ * (2026-08 audit P1-4): reviews on women-only experiences, and reviews
+ * whose text carries emoji/pictographs (off-brand — BRIEF §3 "never
+ * emojis"), never auto-surface on the mixed-audience landing strip.
+ * Per-experience and host-profile listings are unaffected — both flags
+ * are opt-in per call site. With `excludeEmoji` we over-fetch and filter
+ * in JS so the strip still fills to `limit` when clean reviews exist.
  */
-export async function getRecentReviews(limit: number): Promise<readonly RecentReview[]> {
+const PICTOGRAPHIC = /\p{Extended_Pictographic}/u;
+const hasEmoji = (r: { textEn: string | null; textAr: string | null }) =>
+  PICTOGRAPHIC.test(r.textEn ?? '') || PICTOGRAPHIC.test(r.textAr ?? '');
+
+export async function getRecentReviews(
+  limit: number,
+  options: { excludeWomenOnly?: boolean; excludeEmoji?: boolean } = {},
+): Promise<readonly RecentReview[]> {
+  // Over-fetch when a JS post-filter can drop rows, so the strip still fills.
+  const fetchLimit = options.excludeEmoji ? Math.min(limit * 5, 50) : limit;
   if (!hasDb()) {
+    const titles = new Map(sampleExperiences.getExperiences().map((e) => [e.slug, e] as const));
     const all = [...sample.getAllReviews()]
       .filter((r) => r.rating >= 4)
+      .filter(
+        (r) => !options.excludeWomenOnly || titles.get(r.experienceSlug)?.category !== 'women_only',
+      )
+      .filter((r) => !options.excludeEmoji || !hasEmoji(r))
       .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
       .slice(0, limit);
-    const titles = new Map(sampleExperiences.getExperiences().map((e) => [e.slug, e] as const));
     return all.map((r) => ({
       ...r,
+      guestName: reviewDisplayName(r.guestName),
       experienceTitleEn: titles.get(r.experienceSlug)?.titleEn ?? r.experienceSlug,
       experienceTitleAr: titles.get(r.experienceSlug)?.titleAr ?? r.experienceSlug,
     }));
   }
   try {
-    const rows = await db
-      .select({
-        review: reviewsTable,
-        guestName: guests.name,
-        slug: experiences.slug,
-        titleEn: experiences.titleEn,
-        titleAr: experiences.titleAr,
-      })
-      .from(reviewsTable)
-      .innerJoin(experiences, eq(reviewsTable.experienceId, experiences.id))
-      .innerJoin(guests, eq(reviewsTable.guestId, guests.id))
-      .where(and(isNull(reviewsTable.hiddenAt), gte(reviewsTable.rating, 4)))
-      .orderBy(desc(reviewsTable.createdAt))
-      .limit(limit);
-    return rows.map((row) => ({
-      id: row.review.id,
-      experienceSlug: row.slug,
-      guestName: row.guestName,
-      rating: clampRating(row.review.rating),
-      textEn: row.review.textEn,
-      textAr: row.review.textAr,
-      hostReply: row.review.hostReply,
-      createdAt: row.review.createdAt.toISOString(),
-      experienceTitleEn: row.titleEn,
-      experienceTitleAr: row.titleAr,
-    }));
+    const rows = await boundedQuery('reviews:getRecentReviews', () =>
+      db
+        .select({
+          review: reviewsTable,
+          guestName: guests.name,
+          slug: experiences.slug,
+          titleEn: experiences.titleEn,
+          titleAr: experiences.titleAr,
+        })
+        .from(reviewsTable)
+        .innerJoin(experiences, eq(reviewsTable.experienceId, experiences.id))
+        .innerJoin(guests, eq(reviewsTable.guestId, guests.id))
+        .where(
+          and(
+            isNull(reviewsTable.hiddenAt),
+            gte(reviewsTable.rating, 4),
+            ...(options.excludeWomenOnly ? [ne(experiences.category, 'women_only')] : []),
+          ),
+        )
+        .orderBy(desc(reviewsTable.createdAt))
+        .limit(fetchLimit),
+    );
+    return rows
+      .filter((row) => !options.excludeEmoji || !hasEmoji(row.review))
+      .slice(0, limit)
+      .map((row) => ({
+        id: row.review.id,
+        experienceSlug: row.slug,
+        guestName: reviewDisplayName(row.guestName),
+        rating: clampRating(row.review.rating),
+        textEn: row.review.textEn,
+        textAr: row.review.textAr,
+        hostReply: row.review.hostReply,
+        createdAt: row.review.createdAt.toISOString(),
+        experienceTitleEn: row.titleEn,
+        // TODO(ar)-guard: a placeholder Arabic title falls back to English
+        // rather than shipping scaffolding text to guests (BRIEF §4).
+        experienceTitleAr: isArPlaceholder(row.titleAr) ? row.titleEn : row.titleAr,
+      }));
   } catch (error) {
     reportError(error, { surface: 'reviews:getRecentReviews' });
     return [];
@@ -337,6 +379,7 @@ export async function getReviewsByHostSlug(
       .slice(0, limit)
       .map((r) => ({
         ...r,
+        guestName: reviewDisplayName(r.guestName),
         experienceTitleEn: titles.get(r.experienceSlug)?.titleEn ?? r.experienceSlug,
         experienceTitleAr: titles.get(r.experienceSlug)?.titleAr ?? r.experienceSlug,
       }));
@@ -360,14 +403,15 @@ export async function getReviewsByHostSlug(
     return rows.map((row) => ({
       id: row.review.id,
       experienceSlug: row.slug,
-      guestName: row.guestName,
+      // Public host profile is a guest-facing surface — display name only.
+      guestName: reviewDisplayName(row.guestName),
       rating: clampRating(row.review.rating),
       textEn: row.review.textEn,
       textAr: row.review.textAr,
       hostReply: row.review.hostReply,
       createdAt: row.review.createdAt.toISOString(),
       experienceTitleEn: row.titleEn,
-      experienceTitleAr: row.titleAr,
+      experienceTitleAr: isArPlaceholder(row.titleAr) ? row.titleEn : row.titleAr,
     }));
   } catch (error) {
     reportError(error, { surface: 'reviews:getReviewsByHostSlug', slug });

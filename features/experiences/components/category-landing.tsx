@@ -86,7 +86,8 @@ export async function CategoryLanding({ category, locale }: CategoryLandingProps
       </header>
 
       {experiences.length > 0 ? (
-        <div className="mt-12 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+        // gap-4 matches the /experiences catalog grid gutter.
+        <div className="mt-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {experiences.map((experience) => (
             <ExperienceCard
               key={experience.slug}

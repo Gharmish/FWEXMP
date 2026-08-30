@@ -44,7 +44,7 @@ export async function bookingViewerCanAccess(
  * Ownership for the CHECKOUT path: the signed link token, or the
  * ordinary proof above.
  *
- * This is the ONLY mutation family that accepts the token (2026-08-09).
+ * The ONLY mutation family that accepts the token (2026-08-09).
  * The pay link is emailed and WhatsApped to the guest, and the guest who
  * taps it holds no cookie — the in-app browser has its own jar — so
  * pay-after-approval dead-ended for exactly the guests it was sent to.
@@ -52,7 +52,7 @@ export async function bookingViewerCanAccess(
  * Safe to widen here because every action behind it only finishes paying
  * for the booking the link belongs to: charging a card, applying a promo
  * or lifting one. None moves money OUT, none destroys state. Cancel,
- * reschedule, refund and dispute keep requiring
+ * reschedule and dispute keep requiring
  * {@link bookingViewerCanAccess} on its own, and wallet credit is
  * separately session-owned, so a token-only viewer never sees a balance
  * to spend.
@@ -68,3 +68,11 @@ export async function checkoutViewerCanAccess(
   if (bookingLinkTokenValid(reference, token)) return true;
   return bookingViewerCanAccess(reference, bookingGuestId);
 }
+
+// Deliberately NO token-authorized helper for the refund bank-details
+// form: it directs a manual transfer OUT to an account, so a forwardable
+// ?k= link must not authorize it (a leaked link could redirect a
+// victim's refund). It requires bookingViewerCanAccess (cookie/session);
+// cookieless token-only viewers get a sign-in prompt on the booking page.
+// Checkout is the ONLY mutation family that accepts the token, because
+// its actions only move money IN to the booking the link belongs to.
