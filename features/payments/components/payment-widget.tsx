@@ -24,6 +24,13 @@ export interface PaymentWidgetProps {
   errorLabel: string;
   /** Retry action label. */
   retryLabel: string;
+  /**
+   * Fires once the COPYandPAY script has rendered its fields — the
+   * moment the guest can actually start entering payment details. The
+   * form uses it for the `add_payment_info` funnel step, which must not
+   * fire on a checkout that was prepared automatically on page load.
+   */
+  onReady?: () => void;
 }
 
 /**
@@ -49,9 +56,17 @@ export function PaymentWidget({
   loadingLabel,
   errorLabel,
   retryLabel,
+  onReady,
 }: PaymentWidgetProps) {
   const mountRef = useRef<HTMLDivElement>(null);
   const [status, setStatus] = useState<'loading' | 'ready' | 'error'>('loading');
+  // Latest callback without re-running the mount effect: re-injecting
+  // the widget script because a parent re-rendered would tear down the
+  // guest's half-typed card fields.
+  const onReadyRef = useRef(onReady);
+  useEffect(() => {
+    onReadyRef.current = onReady;
+  }, [onReady]);
   const [attempt, setAttempt] = useState(0);
 
   useEffect(() => {
@@ -134,6 +149,7 @@ export function PaymentWidget({
         // Guarded: an Apple Pay-only checkout renders no card pay button.
         const payButton = mount.querySelector('.wpwl-button-pay');
         if (payButton) payButton.textContent = payLabel;
+        onReadyRef.current?.();
       },
     };
 

@@ -37,6 +37,7 @@ import { routing } from '@/lib/i18n';
 import { SITE_URL, SITE_NAME } from '@/lib/site';
 import { JsonLd } from '@/components/seo/json-ld';
 import { BookingRequestForm } from '@/features/bookings/components/booking-request-form';
+import { consentLinkRenderers } from '@/features/bookings/components/consent-links';
 import { ExperienceViewTracking } from '@/features/experiences/components/experience-view-tracking';
 import { getKnownGuestDetails } from '@/features/account/guest-prefill';
 import { HostCard } from '@/features/hosts/components/host-card';
@@ -498,38 +499,9 @@ export default async function ExperienceDetailPage({
     'font-medium underline underline-offset-4 transition-opacity duration-200 hover:opacity-60';
   // New tab: an in-tab navigation here would discard everything the guest
   // typed into the booking form just to read a policy.
-  const termsLabel = tb.rich('termsLabel', {
-    terms: (chunks) => (
-      <Link
-        href="/terms"
-        target="_blank"
-        rel="noopener noreferrer"
-        className={consentLinkClassName}
-      >
-        {chunks}
-      </Link>
-    ),
-    privacy: (chunks) => (
-      <Link
-        href="/privacy"
-        target="_blank"
-        rel="noopener noreferrer"
-        className={consentLinkClassName}
-      >
-        {chunks}
-      </Link>
-    ),
-    cancellation: (chunks) => (
-      <Link
-        href="/cancellation-policy"
-        target="_blank"
-        rel="noopener noreferrer"
-        className={consentLinkClassName}
-      >
-        {chunks}
-      </Link>
-    ),
-  });
+  const tCommon = await getTranslations('common');
+  const consentLinks = consentLinkRenderers(consentLinkClassName, tCommon('opensInNewTab'));
+  const termsLabel = tb.rich('termsLabel', consentLinks);
   // The request-mode note names the real approval window so guest
   // expectations match the platform setting, not stale copy. The
   // cancellation chip reflects the platform-wide refund rule (the one
@@ -986,18 +958,7 @@ export default async function ExperienceDetailPage({
             </p>
             {OUTDOOR_CATEGORIES.has(exp.category) && (
               <p className="text-sarat-black-600 text-base">
-                {t.rich('weatherNote', {
-                  policy: (chunks) => (
-                    <Link
-                      href="/cancellation-policy"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className={consentLinkClassName}
-                    >
-                      {chunks}
-                    </Link>
-                  ),
-                })}
+                {t.rich('weatherNote', { policy: consentLinks.cancellation })}
               </p>
             )}
           </section>

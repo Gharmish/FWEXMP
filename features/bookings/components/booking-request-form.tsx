@@ -4,7 +4,7 @@ import { useActionState, useEffect, useId, useMemo, useRef, useState, type React
 import { useFormStatus } from 'react-dom';
 import { motion, useReducedMotion } from 'framer-motion';
 import { useTranslations } from 'next-intl';
-import { ArrowRight, Minus, Plus } from 'lucide-react';
+import { ArrowRight, ChevronDown, Minus, Plus } from 'lucide-react';
 import {
   requestBooking,
   type BookingRequestState,
@@ -501,11 +501,22 @@ export function BookingRequestForm({
   // a returning guest confirms instead of retyping. A rejected value must
   // never hide behind the summary, so any error forces the fields open.
   const [editingDetails, setEditingDetails] = useState(false);
+  // Optional note to the host lives behind a disclosure: most guests
+  // never write one, and the open textarea was ~170px of scroll between
+  // the email field and the Book button on a phone. Open-ness is DERIVED
+  // (never set from an effect): the guest's tap, a server-echoed value
+  // after a failed submit, or a rejected note (too long) all force it
+  // open so the field is visible when the error effect focuses it. The
+  // textarea stays mounted while hidden, so nothing typed is ever lost.
+  const [noteOpened, setNoteOpened] = useState(false);
+  const noteRef = useRef<HTMLTextAreaElement>(null);
   const detailsComplete = Boolean(
     detailValue('name') && detailValue('phone') && detailValue('email'),
   );
   const detailsHaveError = Boolean(errorFor('name') || errorFor('phone') || errorFor('email'));
   const detailsCollapsed = detailsComplete && !detailsHaveError && !editingDetails;
+  const noteOpen = noteOpened || Boolean(values.guestNote) || Boolean(errorFor('guestNote'));
+  const noteRegionId = `${errorPrefix}-note-region`;
 
   // The success path on the server action redirects to
   // /book/confirmed/[ref] before this component ever sees a success
@@ -936,6 +947,7 @@ export function BookingRequestForm({
                     id="booking-name"
                     name="name"
                     autoComplete="name"
+                    enterKeyHint="next"
                     required
                     defaultValue={detailValue('name')}
                     {...fieldProps('name')}
@@ -979,6 +991,7 @@ export function BookingRequestForm({
                     name="email"
                     type="email"
                     autoComplete="email"
+                    enterKeyHint="done"
                     dir="ltr"
                     required
                     defaultValue={detailValue('email')}
@@ -997,28 +1010,51 @@ export function BookingRequestForm({
           </div>
 
           {/* A line to the host — dietary needs, kids' ages, pickup point.
-              Optional; shows on the host's request card, never publicly. */}
+              Optional; shows on the host's request card, never publicly.
+              Folded behind a disclosure (see `noteOpen`); the trigger
+              disappears once open, and focus lands in the textarea
+              (user-initiated, so an expected move). */}
           <div className="flex flex-col gap-2">
-            <label htmlFor="booking-note" className="text-sm font-medium">
-              {copy.noteLabel}
-            </label>
-            <textarea
-              id="booking-note"
-              name="guestNote"
-              rows={3}
-              maxLength={500}
-              defaultValue={values.guestNote}
-              placeholder={copy.notePlaceholder}
-              className="rounded-input border-sarat-black/20 text-sarat-black placeholder:text-sarat-black-600 aria-invalid:border-al-qatt-red w-full [border-width:0.5px] bg-white px-4 py-3 text-base"
-              {...fieldProps('guestNote')}
-            />
-            <p id={hintId('guestNote')} className="text-sarat-black-600 text-sm">
-              {copy.noteHint}
-            </p>
-            <FieldError
-              id={errorId('guestNote')}
-              message={messageForField('guestNote', errorFor('guestNote'), copy)}
-            />
+            {!noteOpen && (
+              <button
+                type="button"
+                aria-expanded={false}
+                aria-controls={noteRegionId}
+                onClick={() => {
+                  setNoteOpened(true);
+                  // The region is hidden until this render commits —
+                  // focus after the browser has shown it.
+                  requestAnimationFrame(() => noteRef.current?.focus());
+                }}
+                className="text-sarat-black-600 hover:text-sarat-black inline-flex min-h-11 items-center gap-2 self-start text-sm font-medium transition-colors duration-200"
+              >
+                <ChevronDown className="size-4 shrink-0" aria-hidden />
+                {t('noteToggle')}
+              </button>
+            )}
+            <div id={noteRegionId} hidden={!noteOpen} className="flex flex-col gap-2">
+              <label htmlFor="booking-note" className="text-sm font-medium">
+                {copy.noteLabel}
+              </label>
+              <textarea
+                ref={noteRef}
+                id="booking-note"
+                name="guestNote"
+                rows={3}
+                maxLength={500}
+                defaultValue={values.guestNote}
+                placeholder={copy.notePlaceholder}
+                className="rounded-input border-sarat-black/20 text-sarat-black placeholder:text-sarat-black-600 aria-invalid:border-al-qatt-red w-full [border-width:0.5px] bg-white px-4 py-3 text-base"
+                {...fieldProps('guestNote')}
+              />
+              <p id={hintId('guestNote')} className="text-sarat-black-600 text-sm">
+                {copy.noteHint}
+              </p>
+              <FieldError
+                id={errorId('guestNote')}
+                message={messageForField('guestNote', errorFor('guestNote'), copy)}
+              />
+            </div>
           </div>
 
           {requireWomenOnly && (

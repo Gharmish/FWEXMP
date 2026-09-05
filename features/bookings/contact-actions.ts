@@ -123,6 +123,8 @@ export async function updateBookingContact(
         status: true,
         paymentStatus: true,
         paymentDeadline: true,
+        settleAnomalyAt: true,
+        checkoutSupersededAt: true,
       },
       with: { guest: { columns: { authUserId: true } } },
     });
@@ -136,11 +138,19 @@ export async function updateBookingContact(
     // a pending request, or an approved/instant booking inside a live
     // payment window. Everything later (paid, cancelled, lapsed) has
     // already used them.
+    // Mirrors the confirmation page's rule: `unpaid`, or a `processing`
+    // row whose checkout was merely prepared (the pay page does that on
+    // load now) — never one with an unmatched capture or a retired
+    // checkout. The page's `?payment=` return hint only shapes copy.
+    const liveHold =
+      booking.paymentDeadline !== null && !isHoldExpired(booking.paymentDeadline, new Date());
     const awaitingPayment =
       booking.status === 'confirmed' &&
-      booking.paymentStatus === 'unpaid' &&
-      booking.paymentDeadline !== null &&
-      !isHoldExpired(booking.paymentDeadline, new Date());
+      liveHold &&
+      (booking.paymentStatus === 'unpaid' ||
+        (booking.paymentStatus === 'processing' &&
+          booking.settleAnomalyAt === null &&
+          booking.checkoutSupersededAt === null));
     if (booking.status !== 'pending' && !awaitingPayment) {
       return { success: false, message: 'wrong_state', values };
     }

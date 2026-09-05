@@ -1,6 +1,6 @@
 import 'server-only';
 
-import { and, desc, eq, inArray } from 'drizzle-orm';
+import { and, count, desc, eq, gte, inArray } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import { paymentEvents, type NewPaymentEvent, type PaymentEvent } from '@/db/schema';
 import type { PaymentChannel } from '@/features/payments/types';
@@ -126,6 +126,31 @@ export async function resolvePaymentChannel(
   if (!created || created.resultCode !== 'APPLEPAY') return 'card';
   if (checkoutId !== null && created.gatewayId !== checkoutId) return 'card';
   return 'applepay';
+}
+
+/**
+ * How many events of the given types a booking has accrued since `since`.
+ * Backs the per-booking checkout-creation cap in `createCheckout`: with
+ * the payment step now preparing a checkout on page load for eligible
+ * guests, a forwardable pay link must not become a way to spawn gateway
+ * checkouts without bound.
+ */
+export async function countPaymentEventsSince(
+  bookingId: string,
+  types: readonly PaymentEvent['type'][],
+  since: Date,
+): Promise<number> {
+  const [row] = await db
+    .select({ n: count() })
+    .from(paymentEvents)
+    .where(
+      and(
+        eq(paymentEvents.bookingId, bookingId),
+        inArray(paymentEvents.type, [...types]),
+        gte(paymentEvents.createdAt, since),
+      ),
+    );
+  return row?.n ?? 0;
 }
 
 /** Full money timeline for a booking, oldest first. */

@@ -24,6 +24,20 @@ const SUCCESS_RE = /^(000\.000\.|000\.100\.1|000\.[36])/;
 const MANUAL_REVIEW_RE = /^(000\.400\.0[^3]|000\.400\.[0-1]{2}0)/;
 const PENDING_RE = /^(000\.200|800\.400\.5|100\.400\.500)/;
 
+/**
+ * What the status GET answers for a checkout no shopper ever submitted
+ * (or that expired unpaid): "invalid or missing parameter — no payment
+ * session found for the requested id". Classified `rejected` like any
+ * other non-success code, but settle must NOT read it as a card decline:
+ * nothing was attempted, so the guest gets no "payment failed" message
+ * and the hold lapses on its ordinary schedule instead.
+ */
+export const NO_PAYMENT_SESSION_CODE = '200.300.404';
+
+export function isNoPaymentSession(code: string): boolean {
+  return code === NO_PAYMENT_SESSION_CODE;
+}
+
 /** Classify a result code into a coarse outcome for the settlement flow. */
 export function classifyResult(code: string): PaymentOutcome {
   if (SUCCESS_RE.test(code) || MANUAL_REVIEW_RE.test(code)) return 'success';

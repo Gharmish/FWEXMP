@@ -3089,7 +3089,8 @@
     "noteLabel": "Anything the host should know? (optional)",
     "noteHint": "Dietary needs, children's ages, a pickup point, the language you'd prefer — the host sees this with your request.",
     "notePlaceholder": "e.g. Two of us are vegetarian, and we'd love to start a little later.",
-    "noteTooLong": "Keep your note under 500 characters."
+    "noteTooLong": "Keep your note under 500 characters.",
+    "noteToggle": "Add a note for the host"
   },
   "bookingConfirmed": {
     "meta": {
@@ -3126,6 +3127,8 @@
     "paymentChecking": "Checking for an update…",
     "paymentStillChecking": "Still processing — this can occasionally take a little longer. There's no need to pay again.",
     "paymentCheckAgain": "Check again",
+    "processingOpenNote": "Already paid? There's no need to pay again — this page updates on its own once your payment is confirmed.",
+    "processingOpenStillChecking": "Haven't paid yet? Use Complete payment above. Already paid? Check again.",
     "nextStepsHeading": "What happens next",
     "nextStep1": "Your host reviews the request and confirms availability.",
     "nextStep2": "Once confirmed, we share a secure payment link to complete the booking.",
@@ -3367,7 +3370,16 @@
     "submit": "Continue to payment",
     "pending": "Preparing payment",
     "termsAgreement": "I have read and agree to Gharmish's <terms>terms of service</terms>, <privacy>privacy policy</privacy>, and <cancellation>cancellation policy</cancellation>.",
-    "termsRequired": "Please accept the Terms & Conditions to continue.",
+    "termsRequired": "Please accept the terms of service to continue.",
+    "termsCarried": "By continuing to payment, you agree to Gharmish's <terms>terms of service</terms>, <privacy>privacy policy</privacy>, and <cancellation>cancellation policy</cancellation> — the same terms you accepted when booking.",
+    "termsCarriedPay": "By paying, you agree to Gharmish's <terms>terms of service</terms>, <privacy>privacy policy</privacy>, and <cancellation>cancellation policy</cancellation> — the same terms you accepted when booking.",
+    "introReady": "Your details are already on file, so you can pay straight away. Your payment is processed by HyperPay — we never see or store your card details.",
+    "preparingHeading": "Preparing your payment…",
+    "preparingBody": "One moment — we're setting up secure payment for you. There's nothing you need to do yet.",
+    "payingWithCard": "Paying with card",
+    "payingWithApplePay": "Paying with Apple Pay",
+    "errorTooManyAttempts": "Too many payment attempts in a short time. Please wait a few minutes and try again.",
+    "payConsent": "By paying, you agree to Gharmish's <terms>terms of service</terms>, <privacy>privacy policy</privacy>, and <cancellation>cancellation policy</cancellation>.",
     "cancellationFreeUntil": "Free cancellation until {deadline} — cancel before then for a full refund.",
     "cancellationPartialUntil": "If your plans change, cancelling before {deadline} refunds {amount}; after that, the payment is not refundable.",
     "cancellationInsideWindow": "This experience starts soon, so payments are no longer refundable if you cancel.",
@@ -4264,6 +4276,7 @@
     "receivedClosing": "— The Gharmish team"
   },
   "common": {
+    "opensInNewTab": "(opens in a new tab)",
     "close": "Close",
     "cancel": "Cancel",
     "confirm": "Confirm",

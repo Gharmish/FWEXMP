@@ -75,6 +75,24 @@ export interface BookingDetail {
   guestPhone: string | null;
   /** Guest's preferred locale — decision emails are sent in it. */
   guestPreferredLanguage: 'en' | 'ar';
+  /**
+   * Consent evidence stamped by the booking form (2026-08-02 legal
+   * audit): when the guest accepted the Terms/Privacy/Cancellation
+   * clickwrap and which document version. The pay step reads these to
+   * decide whether it may carry that acceptance over instead of asking
+   * for a second tick (`termsCarriedOver`, features/payments/lib/terms).
+   * Null on rows that predate the columns.
+   */
+  termsAcceptedAt: string | null;
+  termsVersion: string | null;
+  /**
+   * Money-state markers the confirmation page needs before it may offer
+   * payment on a `processing` row: a settle anomaly (a real capture is
+   * sitting unmatched — never invite a second payment) and a superseded
+   * checkout (the id on the row can no longer be paid). ISO or null.
+   */
+  settleAnomalyAt: string | null;
+  checkoutSupersededAt: string | null;
   /** Card scheme once settled (e.g. `MADA`, `VISA`, `MASTER`); null otherwise. */
   paymentBrand: string | null;
   /** When payment settled, ISO string; null until paid. */
@@ -216,6 +234,10 @@ export async function getBookingByReference(reference: string): Promise<BookingD
     guestEmail: row.guest.email,
     guestPhone: row.contactPhone ?? row.guest.phone,
     guestPreferredLanguage: row.guest.preferredLanguage,
+    termsAcceptedAt: row.termsAcceptedAt?.toISOString() ?? null,
+    termsVersion: row.termsVersion,
+    settleAnomalyAt: row.settleAnomalyAt?.toISOString() ?? null,
+    checkoutSupersededAt: row.checkoutSupersededAt?.toISOString() ?? null,
     paymentBrand: row.paymentBrand,
     paidAt: row.paidAt?.toISOString() ?? null,
     approvalDeadline: row.approvalDeadline?.toISOString() ?? null,
@@ -396,6 +418,10 @@ export async function getBookingsForGuest(guestId: string): Promise<GuestBooking
     guestEmail: row.guest.email,
     guestPhone: row.contactPhone ?? row.guest.phone,
     guestPreferredLanguage: row.guest.preferredLanguage,
+    termsAcceptedAt: row.termsAcceptedAt?.toISOString() ?? null,
+    termsVersion: row.termsVersion,
+    settleAnomalyAt: row.settleAnomalyAt?.toISOString() ?? null,
+    checkoutSupersededAt: row.checkoutSupersededAt?.toISOString() ?? null,
     paymentBrand: row.paymentBrand,
     paidAt: row.paidAt?.toISOString() ?? null,
     approvalDeadline: row.approvalDeadline?.toISOString() ?? null,

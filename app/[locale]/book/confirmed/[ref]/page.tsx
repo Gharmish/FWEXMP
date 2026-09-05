@@ -167,6 +167,16 @@ export default async function BookingConfirmedPage({ params, searchParams }: Pag
   // OUT and a forwardable link must never authorize that.
   const tokenOnly = view.state === 'ok' && view.proof === 'token';
   const experienceSlug = booking?.experienceSlug ?? slugFromQuery;
+  // The pay link keeps the signed token too: a viewer admitted by the
+  // link alone (WhatsApp's in-app browser holds no cookie) would
+  // otherwise bounce straight off the pay page's access check.
+  const payHref = `/book/${ref}/pay${[
+    experienceSlug ? `slug=${encodeURIComponent(experienceSlug)}` : '',
+    token ? `${BOOKING_LINK_TOKEN_PARAM}=${encodeURIComponent(token)}` : '',
+  ]
+    .filter(Boolean)
+    .map((part, i) => (i === 0 ? `?${part}` : `&${part}`))
+    .join('')}`;
 
   const t = await getTranslations('bookingConfirmed');
   const tShare = await getTranslations('share');
@@ -224,14 +234,36 @@ export default async function BookingConfirmedPage({ params, searchParams }: Pag
   // route already maps that outcome to `pending`; this keeps a stale or
   // hand-edited `?payment=error` from asserting it anyway.
   const paymentHint = asString(sp.payment);
+  // `processing` no longer implies the guest is mid-payment: the pay page
+  // prepares a checkout on load for eligible guests, so a guest who
+  // opened it, glanced, and came back here holds a `processing` row
+  // with nothing charged. Inside a live hold and WITHOUT the gateway's
+  // own return hint (`?payment=`), that row is still payable — the pay
+  // page reuses the prepared checkout — so this page must offer the
+  // way back to payment instead of a dead "we're confirming" wall. The
+  // poller still runs (a webhook may settle a real capture meanwhile)
+  // with an explicit "already paid? no need to pay again" line.
+  const isReturningFromGateway = paymentHint === 'pending' || paymentHint === 'error';
+  // Never on an anomaly-stamped row (a real capture is sitting unmatched
+  // at the gateway — inviting a second payment is the one thing that
+  // state must not do) nor on a superseded checkout.
+  const isProcessingOpen = Boolean(
+    booking &&
+    booking.status === 'confirmed' &&
+    booking.paymentStatus === 'processing' &&
+    booking.settleAnomalyAt === null &&
+    booking.checkoutSupersededAt === null &&
+    !isReturningFromGateway &&
+    booking.paymentDeadline !== null &&
+    !isHoldExpired(new Date(booking.paymentDeadline), new Date()),
+  );
   const paymentView: 'paid' | 'failed' | 'pending' | null =
     booking?.paymentStatus === 'paid' || paymentHint === 'success'
       ? 'paid'
       : booking?.paymentStatus === 'failed' || paymentHint === 'rejected'
         ? 'failed'
-        : booking?.paymentStatus === 'processing' ||
-            paymentHint === 'pending' ||
-            paymentHint === 'error'
+        : (booking?.paymentStatus === 'processing' && !isProcessingOpen) ||
+            isReturningFromGateway
           ? 'pending'
           : null;
 
@@ -321,7 +353,7 @@ export default async function BookingConfirmedPage({ params, searchParams }: Pag
   // minted a second checkout and charged the guest twice.
   const isAwaitingPayment =
     booking?.status === 'confirmed' &&
-    booking.paymentStatus === 'unpaid' &&
+    (booking.paymentStatus === 'unpaid' || isProcessingOpen) &&
     booking.paymentDeadline !== null &&
     !isHoldLapsed &&
     !isFailed &&
@@ -796,7 +828,7 @@ export default async function BookingConfirmedPage({ params, searchParams }: Pag
         {respondByNote && <p className="text-pending text-base font-medium">{respondByNote}</p>}
         {isAwaitingPayment && (
           <Link
-            href={`/book/${ref}/pay${experienceSlug ? `?slug=${encodeURIComponent(experienceSlug)}` : ''}`}
+            href={payHref}
             className={cn(buttonVariants({ variant: 'primary', size: 'lg' }), 'self-start')}
           >
             {t('payNow')}
@@ -846,10 +878,21 @@ export default async function BookingConfirmedPage({ params, searchParams }: Pag
             />
           </div>
         )}
-        {isPending && (
+        {isProcessingOpen && (
+          <p className="text-sarat-black-600 max-w-2xl text-sm leading-relaxed">
+            {t('processingOpenNote')}
+          </p>
+        )}
+        {(isPending || isProcessingOpen) && (
           <PendingPaymentRefresh
+            // The prepared-but-unattempted state must not assert "still
+            // processing / no need to pay again" under a working pay
+            // button — its poller copy is neutral about whether the
+            // guest paid.
             label={t('paymentChecking')}
-            stalledLabel={t('paymentStillChecking')}
+            stalledLabel={
+              isProcessingOpen ? t('processingOpenStillChecking') : t('paymentStillChecking')
+            }
             refreshLabel={t('paymentCheckAgain')}
           />
         )}
@@ -1517,7 +1560,7 @@ export default async function BookingConfirmedPage({ params, searchParams }: Pag
         {canRetryPayment ? (
           <>
             <Link
-              href={`/book/${ref}/pay${experienceSlug ? `?slug=${encodeURIComponent(experienceSlug)}` : ''}`}
+              href={payHref}
               className={cn(buttonVariants({ variant: 'primary', size: 'lg' }))}
             >
               {t('tryPaymentAgain')}

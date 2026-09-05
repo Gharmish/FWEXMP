@@ -123,8 +123,11 @@ let gatewayStatus: {
 };
 vi.mock('@/features/payments/lib/hyperpay', () => ({
   getPaymentStatus: async () => gatewayStatus,
+  // Mirrors the real classifier's shape: success / pending / everything
+  // else rejected — so the "no payment session" code lands in the
+  // rejected branch exactly as it does in production.
   classifyResult: (code: string) =>
-    code.startsWith('000.000.') ? 'success' : code.startsWith('800.') ? 'rejected' : 'pending',
+    code.startsWith('000.000.') ? 'success' : code.startsWith('000.200') ? 'pending' : 'rejected',
 }));
 
 const ledgerEvents: Array<Record<string, unknown>> = [];
@@ -141,8 +144,10 @@ vi.mock('@/features/bookings/lib/refund', () => ({
 }));
 
 const sendHostPaymentReceivedEmail = vi.fn(async () => undefined);
+const sendBookingPaymentFailedEmail = vi.fn(async () => undefined);
 vi.mock('@/features/bookings/lib/booking-email', () => ({
   sendHostPaymentReceivedEmail: () => sendHostPaymentReceivedEmail(),
+  sendBookingPaymentFailedEmail: () => sendBookingPaymentFailedEmail(),
 }));
 
 // The VAT tax point reads settings STRICTLY: a read failure must abort
@@ -433,6 +438,36 @@ describe('settleBooking', () => {
     expect(outcome).toBe('rejected');
     expect(setCalls[0]).toEqual({ paymentStatus: 'failed' });
     expect(ledgerEvents.map((e) => e.type)).toEqual(['settle_failed']);
+  });
+
+  it('treats a checkout nobody ever submitted as abandoned, not declined', async () => {
+    // The status GET for a never-submitted (or expired-unpaid) checkout
+    // answers 200.300.404 "no payment session". With the pay page now
+    // preparing checkouts on load, this is the normal end of "opened the
+    // page and left": hand the row back to `unpaid` so the release pass
+    // lapses it, and send nothing — no settle_failed KPI row, no
+    // "payment didn't go through" email for a card that was never used.
+    gatewayStatus = { id: 'pay-1', result: { code: '200.300.404' } };
+
+    const outcome = await settleBooking('ref-1');
+
+    expect(outcome).toBe('rejected');
+    expect(setCalls).toEqual([{ paymentStatus: 'unpaid', checkoutSupersededAt: expect.any(Date) }]);
+    // Provenance survives (the raw code is diagnosable) without a
+    // `settle_failed` row that would count as a payment failure.
+    expect(ledgerEvents).toEqual([
+      expect.objectContaining({
+        type: 'checkout_superseded',
+        gatewayId: 'chk-1',
+        resultCode: 'ABANDONED:200.300.404',
+      }),
+    ]);
+    expect(sendBookingPaymentFailedEmail).not.toHaveBeenCalled();
+    // Same arbiters as the decline flip: only this checkout, only while
+    // still processing.
+    expect(whereColumns[0]).toEqual(
+      expect.arrayContaining(['id', 'paymentStatus', 'checkoutId']),
+    );
   });
 
   it('guards the failed flip on paid-ness AND the checkout it verified', async () => {

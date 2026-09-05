@@ -10,9 +10,21 @@ import { isHoldExpired } from '@/features/bookings/lib/availability';
 import { checkoutViewerCanAccess } from '@/features/bookings/lib/access';
 import { reportError } from '@/lib/log';
 import { paymentDetailsSchema } from '@/features/payments/schemas';
-import { hyperpayBaseUrl, prepareCheckout } from '@/features/payments/lib/hyperpay';
-import { latestPaymentEvent, recordPaymentEvent } from '@/features/payments/ledger';
+import {
+  getPaymentStatus,
+  hyperpayBaseUrl,
+  prepareCheckout,
+} from '@/features/payments/lib/hyperpay';
+import { classifyResult, isNoPaymentSession } from '@/features/payments/lib/hyperpay-core';
+import { settleBooking } from '@/features/payments/settle';
+import type { PaymentChannel, PaymentOutcome } from '@/features/payments/types';
+import {
+  countPaymentEventsSince,
+  latestPaymentEvent,
+  recordPaymentEvent,
+} from '@/features/payments/ledger';
 import { CURRENT_TERMS_VERSION } from '@/lib/legal';
+import { termsCarriedOver, termsCarriedOverTag } from '@/features/payments/lib/terms';
 import { SITE_URL } from '@/lib/site';
 
 /**
@@ -24,6 +36,18 @@ import { SITE_URL } from '@/lib/site';
  * on an older widget would be invisible.
  */
 const CHECKOUT_REUSE_MINUTES = 25;
+
+/**
+ * Per-booking ceiling on gateway checkouts prepared per hour. The payment
+ * step now prepares a checkout on page load for eligible guests, so a
+ * forwardable pay link must not become a way to spawn checkouts without
+ * bound (reuse already returns the same id within the window above; this
+ * caps what a channel-switching refresh storm can still create). Counts
+ * CREATIONS only — every promo/wallet toggle retires the live checkout
+ * and the reload prepares a fresh one, so a guest doing five ordinary
+ * things in one sitting burns a handful; twenty is far beyond that.
+ */
+const CHECKOUT_CREATE_HOURLY_CAP = 20;
 
 /**
  * Server action behind the payment-details step. Validates the 3DS2
@@ -61,10 +85,39 @@ const createCheckoutSchema = paymentDetailsSchema
     // stale 'applepay' submit degrades to 'card' below when the Apple Pay
     // entity isn't configured.
     method: z.enum(['card', 'applepay']).catch('card'),
-    // Explicit clickwrap consent. The checkbox posts `on` only when ticked;
-    // an absent/other value fails here, so a tampered or scripted submit can
-    // never reach a checkout without the guest having accepted the terms.
-    terms: z.literal('on'),
+    // 'on' when the payment step dispatched this itself on page load
+    // (nothing left to type) rather than on a tap. An automatic request
+    // must never retire a live checkout on another channel — that could
+    // be the guest's own widget open in a second browser — so it is
+    // handed the existing checkout as-is instead.
+    auto: z
+      .string()
+      .optional()
+      .transform((value) => value === 'on')
+      .catch(false),
+    // 'on' when a manual re-submit changed a 3DS2 field: the live
+    // checkout was prepared with the OLD customer/billing values, so it
+    // must be superseded, never reused (the recap would otherwise show
+    // details the gateway never received).
+    edited: z
+      .string()
+      .optional()
+      .transform((value) => value === 'on')
+      .catch(false),
+    // Explicit clickwrap consent. The checkbox posts `on` only when
+    // ticked; anything else normalizes to '' here and is gated BELOW,
+    // once the booking row is loaded: a checkout without a fresh tick is
+    // allowed only when the booking's own consent stamp names the
+    // current document version (`termsCarriedOver`) — the booking form
+    // is the enforceable clickwrap, and asking the same guest to tick
+    // the same box twice thirty seconds apart was pure friction. A
+    // tampered or scripted submit still cannot reach a checkout without
+    // one of the two proofs.
+    terms: z
+      .string()
+      .optional()
+      .transform((value) => (value === 'on' ? 'on' : ''))
+      .catch(''),
     // Billing address is mandatory for CARD checkouts (3DS2/AVS per the
     // HyperPay onboarding email) but not for Apple Pay — the wallet
     // carries the address and the gateway accepts an address-less
@@ -179,6 +232,8 @@ export async function createCheckout(
     country: formValue(formData, 'country'),
     terms: formValue(formData, 'terms'),
     method: formValue(formData, 'method'),
+    auto: formValue(formData, 'auto'),
+    edited: formValue(formData, 'edited'),
   });
 
   if (!parsed.success) {
@@ -209,13 +264,17 @@ export async function createCheckout(
         id: true,
         guestId: true,
         totalAmount: true,
+        walletAppliedSar: true,
         paymentStatus: true,
         status: true,
         paymentDeadline: true,
         checkoutId: true,
         checkoutIntegrity: true,
+        checkoutSupersededAt: true,
         contactPhone: true,
         settleAnomalyAt: true,
+        termsAcceptedAt: true,
+        termsVersion: true,
       },
       // The experience and its host gate the charge too — see below.
       with: {
@@ -235,6 +294,20 @@ export async function createCheckout(
     // the signed token from the pay link we sent this guest.
     if (!(await checkoutViewerCanAccess(input.reference, booking.guestId, input.linkToken))) {
       return { status: 'error', error: 'notFound', values: echoValues(formData) };
+    }
+    // Consent gate (see the schema note): a fresh tick, or the booking's
+    // own current-version stamp. Checked right after authorization so a
+    // missing consent is reported as the field error the form knows how
+    // to render, before any money-state checks run.
+    const termsFromBooking =
+      input.terms !== 'on' && termsCarriedOver(booking, CURRENT_TERMS_VERSION);
+    if (input.terms !== 'on' && !termsFromBooking) {
+      return {
+        status: 'error',
+        error: 'validation',
+        fields: { terms: 'required' },
+        values: echoValues(formData),
+      };
     }
     if (booking.paymentStatus === 'paid') {
       return { status: 'error', error: 'alreadyPaid', values: echoValues(formData) };
@@ -293,6 +366,161 @@ export async function createCheckout(
     ) {
       return { status: 'error', error: 'expired', values: echoValues(formData) };
     }
+    const origin = await requestOrigin();
+    const returnUrl = `${origin}/${input.locale}/book/${input.reference}/pay/return?slug=${encodeURIComponent(input.slug)}`;
+    const brandsFor = (which: PaymentChannel) =>
+      which === 'applepay' ? 'APPLEPAY' : 'MADA VISA MASTER';
+    const ready = (
+      checkoutId: string,
+      integrity: string | null,
+      forChannel: PaymentChannel = channel,
+    ): CreateCheckoutState => ({
+      status: 'ready',
+      data: {
+        checkoutId,
+        integrity,
+        scriptBaseUrl: hyperpayBaseUrl(),
+        returnUrl,
+        brands: brandsFor(forChannel),
+      },
+      // The widget step shows a recap of who's paying (and "Edit" reopens
+      // the form) — echo what was actually submitted so neither surface
+      // falls back to the booking-derived defaults.
+      values: echoValues(formData),
+    });
+
+    // A `processing` booking already holds a checkout. If it's still
+    // inside the gateway's validity window, hand the SAME id back
+    // (second tab, re-submit) instead of overwriting it; if it has aged
+    // out, log the supersession so a late capture on the old checkout
+    // can still be traced during reconciliation. The reuse must match
+    // the requested channel — an Apple Pay request can never reuse a
+    // card-entity checkout (or vice versa); a mismatch supersedes.
+    // Creation cap — see CHECKOUT_CREATE_HOURLY_CAP. Read up front so a
+    // capped request leaves no ledger trace (the supersede write below
+    // must not run for a request that then refuses to create).
+    const recentCheckouts = await countPaymentEventsSince(
+      booking.id,
+      ['checkout_created'],
+      new Date(Date.now() - 60 * 60_000),
+    );
+    const capped = recentCheckouts >= CHECKOUT_CREATE_HOURLY_CAP;
+    const tooMany = (): CreateCheckoutState => {
+      reportError(new Error('Checkout creation cap reached'), {
+        surface: 'payment-create-checkout:cap',
+        reference: input.reference,
+        recentCheckouts,
+      });
+      return { status: 'error', error: 'tooManyAttempts', values: echoValues(formData) };
+    };
+
+    if (booking.paymentStatus === 'processing' && booking.checkoutId) {
+      const created = await latestPaymentEvent(booking.id, 'checkout_created');
+      const sameId = created?.gatewayId === booking.checkoutId;
+      const existingTag = sameId ? (created.resultCode ?? null) : null;
+      const existingChannel: PaymentChannel = existingTag === 'APPLEPAY' ? 'applepay' : 'card';
+      const withinWindow =
+        sameId && Date.now() - created.createdAt.getTime() < CHECKOUT_REUSE_MINUTES * 60_000;
+      const fresh = withinWindow && existingTag === channelTag;
+
+      // Ask the gateway about the live checkout BEFORE handing it back
+      // or retiring it. A capture whose 3DS return never landed (tab
+      // closed; webhook lagging) leaves the row `processing` with a
+      // consumed id — rendering a widget on it dead-ends, and
+      // superseding it would open a second charge. A captured checkout
+      // goes to settle, never to a widget. `000.200.000` is what an
+      // untouched checkout answers, so only a SUCCESS classification
+      // is conclusive here; `unknown` (gateway unreachable) may still
+      // reuse (same id, no new charge path) but never supersede.
+      let existingOutcome: PaymentOutcome | 'unknown';
+      let existingCode: string | null = null;
+      try {
+        const status = await getPaymentStatus(booking.checkoutId, existingChannel);
+        existingCode = status.result.code;
+        existingOutcome = classifyResult(existingCode);
+      } catch (error) {
+        reportError(error, {
+          surface: 'payment-create-checkout:existingStatus',
+          reference: input.reference,
+        });
+        existingOutcome = 'unknown';
+      }
+      if (existingOutcome === 'success') {
+        const settled = await settleBooking(input.reference);
+        const error =
+          settled === 'success' || settled === 'already_settled'
+            ? 'alreadyPaid'
+            : settled === 'anomaly'
+              ? 'underReview'
+              : 'server';
+        return { status: 'error', error, values: echoValues(formData) };
+      }
+      // A completed DECLINE whose 3DS return never landed leaves a
+      // consumed checkout id: single-use at the gateway, so a widget on
+      // it dead-ends. Let settle record the decline on its ordinary
+      // path (failed flip, ledger, guest email — all idempotent), then
+      // retire the id below instead of handing it back.
+      const consumed =
+        existingOutcome === 'rejected' &&
+        existingCode !== null &&
+        !isNoPaymentSession(existingCode);
+      if (consumed) {
+        try {
+          await settleBooking(input.reference);
+        } catch (error) {
+          reportError(error, {
+            surface: 'payment-create-checkout:settleDecline',
+            reference: input.reference,
+          });
+        }
+      }
+      if (fresh && !consumed && !input.edited) {
+        return ready(booking.checkoutId, booking.checkoutIntegrity);
+      }
+      // An automatic dispatch never retires a live checkout on another
+      // channel — hand it back exactly as it is; the guest's own
+      // "Choose a different payment method" tap is the deliberate path.
+      if (withinWindow && input.auto && !consumed) {
+        return ready(booking.checkoutId, booking.checkoutIntegrity, existingChannel);
+      }
+      if (existingOutcome === 'unknown') {
+        return { status: 'error', error: 'server', values: echoValues(formData) };
+      }
+      if (capped) return tooMany();
+      try {
+        await recordPaymentEvent({
+          bookingId: booking.id,
+          type: 'checkout_superseded',
+          amountSar: booking.totalAmount,
+          gatewayId: booking.checkoutId,
+        });
+      } catch (error) {
+        reportError(error, {
+          surface: 'payment-create-checkout:ledger',
+          reference: input.reference,
+        });
+      }
+    } else if (capped) {
+      return tooMany();
+    } else if (booking.checkoutId && !booking.checkoutSupersededAt) {
+      // A leftover id on a non-processing row that nothing retired
+      // (older data paths) — log it superseded before minting the next,
+      // so every retired checkout has a ledger row to trace a late
+      // capture back to.
+      try {
+        await recordPaymentEvent({
+          bookingId: booking.id,
+          type: 'checkout_superseded',
+          amountSar: booking.totalAmount,
+          gatewayId: booking.checkoutId,
+        });
+      } catch (error) {
+        reportError(error, {
+          surface: 'payment-create-checkout:ledger',
+          reference: input.reference,
+        });
+      }
+    }
 
     // Persist the payment-step email onto the guest if we don't have one yet,
     // so the confirmation receipt can reach them (the booking form only
@@ -331,58 +559,16 @@ export async function createCheckout(
         bookingId: booking.id,
         type: 'terms_accepted',
         gatewayId: CURRENT_TERMS_VERSION,
+        // Which evidence path admitted this checkout: a fresh tick on
+        // the pay page (null, as before) or the booking form's stamp
+        // carried over — an auditor can tell the two apart.
+        resultCode: termsFromBooking ? termsCarriedOverTag(booking) : null,
       });
     } catch (error) {
       reportError(error, {
         surface: 'payment-create-checkout:consent',
         reference: input.reference,
       });
-    }
-
-    const origin = await requestOrigin();
-    const returnUrl = `${origin}/${input.locale}/book/${input.reference}/pay/return?slug=${encodeURIComponent(input.slug)}`;
-    const ready = (checkoutId: string, integrity: string | null): CreateCheckoutState => ({
-      status: 'ready',
-      data: {
-        checkoutId,
-        integrity,
-        scriptBaseUrl: hyperpayBaseUrl(),
-        returnUrl,
-        brands: channel === 'applepay' ? 'APPLEPAY' : 'MADA VISA MASTER',
-      },
-      // The widget step shows a recap of who's paying (and "Edit" reopens
-      // the form) — echo what was actually submitted so neither surface
-      // falls back to the booking-derived defaults.
-      values: echoValues(formData),
-    });
-
-    // A `processing` booking already holds a checkout. If it's still
-    // inside the gateway's validity window, hand the SAME id back
-    // (second tab, re-submit) instead of overwriting it; if it has aged
-    // out, log the supersession so a late capture on the old checkout
-    // can still be traced during reconciliation. The reuse must match
-    // the requested channel — an Apple Pay request can never reuse a
-    // card-entity checkout (or vice versa); a mismatch supersedes.
-    if (booking.paymentStatus === 'processing' && booking.checkoutId) {
-      const created = await latestPaymentEvent(booking.id, 'checkout_created');
-      const fresh =
-        created?.gatewayId === booking.checkoutId &&
-        (created.resultCode ?? null) === channelTag &&
-        Date.now() - created.createdAt.getTime() < CHECKOUT_REUSE_MINUTES * 60_000;
-      if (fresh) return ready(booking.checkoutId, booking.checkoutIntegrity);
-      try {
-        await recordPaymentEvent({
-          bookingId: booking.id,
-          type: 'checkout_superseded',
-          amountSar: booking.totalAmount,
-          gatewayId: booking.checkoutId,
-        });
-      } catch (error) {
-        reportError(error, {
-          surface: 'payment-create-checkout:ledger',
-          reference: input.reference,
-        });
-      }
     }
 
     const checkout = await prepareCheckout(
@@ -407,12 +593,25 @@ export async function createCheckout(
         // Apple Pay: the wallet token carries no cardholder name, so the
         // gateway needs it on the checkout (blank holder → 100.100.401).
         cardHolder:
-          channel === 'applepay' ? `${input.givenName} ${input.surname}`.trim() : undefined,
+          channel === 'applepay'
+            ? (input.surname === input.givenName
+                ? input.givenName
+                : `${input.givenName} ${input.surname}`
+              ).trim()
+            : undefined,
       },
       channel,
     );
 
-    await db
+    // Compare-and-swap on the checkout id read at the top: two requests
+    // for the same booking (the pay link opened in the in-app browser
+    // AND in Safari, both auto-preparing on load) must never each write
+    // their own id, because settle only ever polls the id on the row —
+    // a capture on the overwritten one would be invisible. The loser
+    // re-reads the winner and hands that id back when it is the same
+    // channel; its own checkout is logged superseded and simply expires
+    // at the gateway.
+    const claimed = await db
       .update(bookings)
       .set({
         checkoutId: checkout.id,
@@ -431,7 +630,69 @@ export async function createCheckout(
         settleAnomalyAt: null,
         settleAnomalyKind: null,
       })
-      .where(eq(bookings.id, booking.id));
+      .where(
+        and(
+          eq(bookings.id, booking.id),
+          booking.checkoutId === null
+            ? isNull(bookings.checkoutId)
+            : eq(bookings.checkoutId, booking.checkoutId),
+          // The checkout was prepared at THIS amount: a promo or credit
+          // applied during the gateway round-trip changes the total
+          // (keeping the id), and a widget priced at the old total would
+          // settle into an amount anomaly. Same arbiter settle uses.
+          eq(bookings.totalAmount, booking.totalAmount),
+          eq(bookings.walletAppliedSar, booking.walletAppliedSar),
+        ),
+      )
+      .returning({ id: bookings.id });
+    if (claimed.length === 0) {
+      try {
+        await recordPaymentEvent({
+          bookingId: booking.id,
+          type: 'checkout_superseded',
+          amountSar: booking.totalAmount,
+          gatewayId: checkout.id,
+        });
+      } catch (error) {
+        reportError(error, {
+          surface: 'payment-create-checkout:ledger',
+          reference: input.reference,
+        });
+      }
+      const winner = await db.query.bookings.findFirst({
+        where: eq(bookings.id, booking.id),
+        columns: { checkoutId: true, checkoutIntegrity: true, paymentStatus: true },
+      });
+      // The winner writes its row first and its `checkout_created` a
+      // beat later — read once, then once more after a short pause, so
+      // the common interleaving doesn't read the PREVIOUS creation.
+      let winnerCreated = await latestPaymentEvent(booking.id, 'checkout_created');
+      if (winner?.checkoutId && winnerCreated?.gatewayId !== winner.checkoutId) {
+        await new Promise((resolve) => setTimeout(resolve, 400));
+        winnerCreated = await latestPaymentEvent(booking.id, 'checkout_created');
+      }
+      if (
+        winner?.checkoutId &&
+        winner.paymentStatus === 'processing' &&
+        winnerCreated?.gatewayId === winner.checkoutId
+      ) {
+        const winnerTag = winnerCreated.resultCode ?? null;
+        if (winnerTag === channelTag) return ready(winner.checkoutId, winner.checkoutIntegrity);
+        // Same rule as the reuse path: an automatic request takes the
+        // live checkout as it is rather than surfacing an error nobody
+        // asked for.
+        if (input.auto) {
+          return ready(
+            winner.checkoutId,
+            winner.checkoutIntegrity,
+            winnerTag === 'APPLEPAY' ? 'applepay' : 'card',
+          );
+        }
+      }
+      // Different channel (or the row moved on): let the guest's next
+      // tap take the ordinary reuse/supersede path.
+      return { status: 'error', error: 'server', values: echoValues(formData) };
+    }
     // The reuse window above keys off this event's timestamp, and the
     // channel tag tells settle/refund which entity to query.
     try {

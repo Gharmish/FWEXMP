@@ -21,8 +21,12 @@ import { getExperienceBySlug } from '@/features/experiences/queries';
 import { hyperpayBaseUrl } from '@/features/payments/lib/hyperpay';
 import {
   PaymentDetailsForm,
+  type PaymentAutoContinue,
   type PaymentDetailsCopy,
 } from '@/features/payments/components/payment-details-form';
+import { termsCarriedOver } from '@/features/payments/lib/terms';
+import { consentLinkRenderers } from '@/features/bookings/components/consent-links';
+import { CURRENT_TERMS_VERSION } from '@/lib/legal';
 import { CheckoutProgress } from '@/features/payments/components/checkout-progress';
 import { PaymentDeadlineNote } from '@/features/payments/components/payment-deadline-note';
 import { PromoCodeField } from '@/features/promo-codes/components/promo-code-field';
@@ -121,6 +125,7 @@ export default async function PaymentPage({ params, searchParams }: PageParams) 
 
   const t = await getTranslations('payment');
   const tFooter = await getTranslations('footer');
+  const tCommon = await getTranslations('common');
 
   // Wallet credit is strictly session-owned — a cookie-only viewer can
   // pay, but never sees another account's balance. Balance is read at
@@ -199,37 +204,25 @@ export default async function PaymentPage({ params, searchParams }: PageParams) 
   // reliable in exactly the WhatsApp in-app browser this page arrives in).
   const consentLinkClassName =
     'font-medium underline underline-offset-4 transition-opacity duration-200 hover:opacity-60';
-  const termsLabel = t.rich('termsAgreement', {
-    terms: (chunks) => (
-      <Link
-        href="/terms"
-        target="_blank"
-        rel="noopener noreferrer"
-        className={consentLinkClassName}
-      >
-        {chunks}
-      </Link>
-    ),
-    privacy: (chunks) => (
-      <Link
-        href="/privacy"
-        target="_blank"
-        rel="noopener noreferrer"
-        className={consentLinkClassName}
-      >
-        {chunks}
-      </Link>
-    ),
-    cancellation: (chunks) => (
-      <Link
-        href="/cancellation-policy"
-        target="_blank"
-        rel="noopener noreferrer"
-        className={consentLinkClassName}
-      >
-        {chunks}
-      </Link>
-    ),
+  const consentLinks = consentLinkRenderers(consentLinkClassName, tCommon('opensInNewTab'));
+  const termsLabel = t.rich('termsAgreement', consentLinks);
+  // The booking form's own clickwrap (stamped on the row with the
+  // document version) covers this checkout while the documents haven't
+  // changed since — derived from the SAME row fields the action re-checks,
+  // never from anything the client could claim. Then the pay step shows a
+  // passive re-affirmation instead of asking for the identical tick again.
+  const termsCarried = termsCarriedOver(booking, CURRENT_TERMS_VERSION);
+  const termsCarriedLabel = t.rich('termsCarried', consentLinks);
+  const termsCarriedPayLabel = t.rich('termsCarriedPay', consentLinks);
+  const payConsentLabel = t.rich('payConsent', consentLinks);
+  // Plain-text twin of the carried line for the CTA's aria-describedby:
+  // the visible sentence keeps its linked, new-tab-cued anchors, but the
+  // button's announced consequence shouldn't repeat "(opens in a new
+  // tab)" three times.
+  const termsCarriedPlain = t.rich('termsCarried', {
+    terms: (chunks) => chunks,
+    privacy: (chunks) => chunks,
+    cancellation: (chunks) => chunks,
   });
 
   const copy: PaymentDetailsCopy = {
@@ -267,8 +260,13 @@ export default async function PaymentPage({ params, searchParams }: PageParams) 
     errorExpired: t('errorExpired'),
     errorNotApproved: t('errorNotApproved'),
     errorUnderReview: t('errorUnderReview'),
+    errorTooManyAttempts: t('errorTooManyAttempts'),
     termsLabel,
     termsRequired: t('termsRequired'),
+    termsCarriedLabel,
+    termsCarriedPlain,
+    termsCarriedPayLabel,
+    payConsentLabel,
     cancellationNote,
     payHeading: t('payHeading'),
     // The widget's pay button carries the exact charged amount — by the
@@ -281,6 +279,10 @@ export default async function PaymentPage({ params, searchParams }: PageParams) 
     methodApplePay: t('methodApplePay'),
     methodCard: t('methodCard'),
     changeMethod: t('changeMethod'),
+    payingWithApplePay: t('payingWithApplePay'),
+    payingWithCard: t('payingWithCard'),
+    preparingHeading: t('preparingHeading'),
+    preparingBody: t('preparingBody'),
   };
 
   const promoCopy = {
@@ -314,12 +316,15 @@ export default async function PaymentPage({ params, searchParams }: PageParams) 
 
   // Split the booking's guest name into given/surname to prefill the form
   // (the server echo still wins on a failed submit). Most names have a final
-  // token as the surname; a single token prefills the given name only.
+  // token as the surname; a single token (a given name alone is common in
+  // Arabic entries) fills BOTH — the gateway's 3DS2 fields just need a
+  // non-empty surname, and leaving it blank reopened the identity block
+  // for exactly the guests with the least to type. Editable on the form.
   const fullName = booking.guestName.trim();
   const lastSpace = fullName.lastIndexOf(' ');
   const nameDefaults =
     lastSpace === -1
-      ? { givenName: fullName }
+      ? { givenName: fullName, surname: fullName }
       : {
           givenName: fullName.slice(0, lastSpace).trim(),
           surname: fullName.slice(lastSpace + 1).trim(),
@@ -330,6 +335,20 @@ export default async function PaymentPage({ params, searchParams }: PageParams) 
     ...storedBilling,
     country: storedBilling.country ?? 'SA',
   };
+  // Nothing left to type? Then the payment step prepares the checkout on
+  // load and the widget is the first thing the guest sees (see
+  // PaymentAutoContinue). Identity + consent are decided here from the
+  // booking row; a stored billing address makes a card checkout
+  // preparable blind, and the Apple Pay entity flag lets the DEVICE
+  // decide the wallet path client-side.
+  const identityComplete = Boolean(defaults.givenName && defaults.surname && defaults.email);
+  const addressComplete = Boolean(
+    storedBilling.street1 && storedBilling.city && storedBilling.postcode,
+  );
+  const autoContinue: PaymentAutoContinue | null =
+    termsCarried && identityComplete
+      ? { applePay: hasHyperpayApplePay(), cardReady: addressComplete }
+      : null;
 
   // The booking's facts (date/time/guests) render as a two-column grid;
   // the experience itself gets a thumbnail header and the money gets its
@@ -377,7 +396,13 @@ export default async function PaymentPage({ params, searchParams }: PageParams) 
           <h1 className="font-display text-4xl font-semibold tracking-[-0.035em] text-balance">
             {t('title')}
           </h1>
-          <p className="text-sarat-black-600 text-lg leading-relaxed">{t('intro')}</p>
+          <p className="text-sarat-black-600 text-lg leading-relaxed">
+            {/* "Pay straight away" only when the page can guarantee it:
+                a stored address makes the card checkout preparable
+                blind. The Apple Pay case is device-decided client-side
+                and may still show the address form on other devices. */}
+            {autoContinue?.cardReady ? t('introReady') : t('intro')}
+          </p>
           {holdDeadline && (
             <PaymentDeadlineNote
               deadlineIso={holdDeadline.toISOString()}
@@ -634,6 +659,8 @@ export default async function PaymentPage({ params, searchParams }: PageParams) 
             copy={copy}
             applePayEnabled={hasHyperpayApplePay()}
             defaults={defaults}
+            termsCarried={termsCarried}
+            autoContinue={autoContinue}
           />
 
           {/* Secure-checkout reassurance — PCI posture in plain language plus

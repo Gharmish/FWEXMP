@@ -9,6 +9,7 @@ import { notifyAdmin } from '@/lib/admin-alerts';
 import { isArPlaceholder } from '@/lib/ar-placeholder';
 import { getPlatformSettingsStrict } from '@/lib/platform-settings';
 import { classifyResult, getPaymentStatus } from '@/features/payments/lib/hyperpay';
+import { isNoPaymentSession } from '@/features/payments/lib/hyperpay-core';
 import { recordPaymentEvent, resolvePaymentChannel } from '@/features/payments/ledger';
 import { executeRefund } from '@/features/bookings/lib/refund';
 import {
@@ -371,6 +372,54 @@ export async function settleBooking(reference: string): Promise<SettleOutcome> {
       // idempotent via the wallet ledger, and non-throwing.
       await grantReferralRewards(reference);
       return 'success';
+    }
+
+    if (outcome === 'rejected' && isNoPaymentSession(status.result.code)) {
+      // ABANDONED, not declined: the gateway has no payment session for
+      // this checkout at all — the shopper never submitted the widget
+      // (or the checkout expired unpaid). The payment step now prepares
+      // a checkout on page load for eligible guests, so this is the
+      // ordinary end of "opened the pay page and left", not a card
+      // failure. Hand the booking back to `unpaid` (checkoutId kept, so
+      // a late capture stays resolvable) with NO `settle_failed` event
+      // — that feeds the payment-success KPI — and NO "your payment
+      // didn't go through" email: nothing was charged because nothing
+      // was tried. The release pass then lapses the hold on schedule
+      // with the honest "hold expired" notice. Same arbiters as the
+      // decline flip: only a still-`processing` row on THIS checkout.
+      // `checkoutSupersededAt` is stamped so the leftover id shares the
+      // shape every other retired checkout has (promo/wallet
+      // supersession): kept on the row for a late capture, skipped by
+      // the reconcile pass. The ledger row keeps the RAW code as its
+      // provenance — 200.300.404 is also what the gateway answers when
+      // a wallet payment is refused before any transaction exists, so
+      // a rise in these rows on the Apple Pay channel must stay
+      // diagnosable rather than reading as guests wandering off.
+      const abandoned = await db
+        .update(bookings)
+        .set({ paymentStatus: 'unpaid', checkoutSupersededAt: new Date() })
+        .where(
+          and(
+            eq(bookings.id, booking.id),
+            eq(bookings.paymentStatus, 'processing'),
+            eq(bookings.checkoutId, booking.checkoutId),
+          ),
+        )
+        .returning({ id: bookings.id });
+      if (abandoned.length > 0) {
+        try {
+          await recordPaymentEvent({
+            bookingId: booking.id,
+            type: 'checkout_superseded',
+            amountSar: booking.totalAmount,
+            gatewayId: booking.checkoutId,
+            resultCode: `ABANDONED:${status.result.code}`,
+          });
+        } catch (error) {
+          reportError(error, { surface: 'payment-settle:ledger', reference });
+        }
+      }
+      return outcome;
     }
 
     if (outcome === 'rejected') {
