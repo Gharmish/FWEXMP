@@ -149,7 +149,7 @@ export function WalletAdminForms({ personKey, idempotencyKeys, copy }: WalletAdm
       </div>
 
       {issueOpen && (
-        <form action={issue.formAction} className="flex flex-col gap-5">
+        <form action={issue.formAction} className="flex flex-col gap-6">
           <input type="hidden" name="key" value={personKey} />
           <input type="hidden" name="idempotencyKey" value={idempotencyKeys.issue} />
           {/* Goodwill (service recovery) vs promo (marketing-funded credit:
@@ -166,7 +166,7 @@ export function WalletAdminForms({ personKey, idempotencyKeys, copy }: WalletAdm
               <option value="promo">{copy.reasonPromo}</option>
             </select>
           </label>
-          <div className="grid gap-5 sm:grid-cols-2">
+          <div className="grid gap-6 sm:grid-cols-2">
             <Field
               label={copy.amount}
               hint={copy.amountHint}
@@ -221,10 +221,10 @@ export function WalletAdminForms({ personKey, idempotencyKeys, copy }: WalletAdm
       )}
 
       {adjustOpen && (
-        <form action={adjust.formAction} className="flex flex-col gap-5">
+        <form action={adjust.formAction} className="flex flex-col gap-6">
           <input type="hidden" name="key" value={personKey} />
           <input type="hidden" name="idempotencyKey" value={idempotencyKeys.adjust} />
-          <div className="grid gap-5 sm:grid-cols-2">
+          <div className="grid gap-6 sm:grid-cols-2">
             <Field
               label={copy.amount}
               hint={copy.amountHint}

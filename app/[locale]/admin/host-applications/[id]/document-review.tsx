@@ -105,7 +105,7 @@ function DocumentRow({
   const error = errorMessage(state, copy);
 
   return (
-    <li className="border-sarat-black/8 rounded-card flex flex-col gap-3 [border-width:0.5px] p-5">
+    <li className="border-sarat-black/8 rounded-card flex flex-col gap-3 [border-width:0.5px] p-6">
       <div className="flex flex-wrap items-center gap-3">
         <span className="text-base font-medium">
           {copy.typeLabels[document.type] ?? document.type}

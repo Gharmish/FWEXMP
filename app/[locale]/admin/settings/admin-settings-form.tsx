@@ -132,7 +132,7 @@ export function AdminSettingsForm({
   const hintClass = 'text-sarat-black-600 text-sm';
 
   return (
-    <form action={formAction} noValidate className="flex max-w-2xl flex-col gap-10">
+    <form action={formAction} noValidate className="flex max-w-2xl flex-col gap-12">
       <input type="hidden" name="locale" value={locale} />
       {[...enabled].map((cat) => (
         <input key={cat} type="hidden" name="enabledCategories" value={cat} />

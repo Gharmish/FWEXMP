@@ -90,7 +90,7 @@ export default async function HostPayoutStatementPage({
         </div>
       </header>
 
-      <dl className={cn('mt-10 grid gap-4 pt-6 sm:grid-cols-2', hairline)}>
+      <dl className={cn('mt-12 grid gap-4 pt-6 sm:grid-cols-2', hairline)}>
         {headerFacts.map((fact) => (
           <div key={fact.label} className="flex flex-col gap-1">
             <dt className={labelClass}>{fact.label}</dt>
@@ -176,7 +176,7 @@ export default async function HostPayoutStatementPage({
         <p className={labelClass}>{t('footerNote')}</p>
       </footer>
 
-      <div className="mt-10 flex flex-wrap items-center gap-3 print:hidden">
+      <div className="mt-12 flex flex-wrap items-center gap-3 print:hidden">
         <PrintButton label={t('printAction')} />
         <Link
           href="/host/earnings"

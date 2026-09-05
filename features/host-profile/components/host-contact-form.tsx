@@ -204,7 +204,7 @@ export function HostContactForm({ locale, contact, pendingPhone, copy }: HostCon
 
   if (step.kind === 'verify') {
     return (
-      <div className="flex flex-col gap-5">
+      <div className="flex flex-col gap-6">
         <div className="flex flex-col gap-2">
           <h3 className="text-base font-medium">{copy.verifyTitle}</h3>
           <p className="text-sarat-black-600 text-sm leading-relaxed">
@@ -263,7 +263,7 @@ export function HostContactForm({ locale, contact, pendingPhone, copy }: HostCon
   }
 
   return (
-    <form action={action} className="flex flex-col gap-5" noValidate>
+    <form action={action} className="flex flex-col gap-6" noValidate>
       <input type="hidden" name="locale" value={locale} />
       <div className="flex flex-col gap-2">
         <label htmlFor="host-contact-phone" className="text-sm font-medium">

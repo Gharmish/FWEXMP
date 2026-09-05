@@ -706,7 +706,7 @@ export default async function ExperienceDetailPage({
         }}
       />
 
-      <header className="mt-10 flex flex-col gap-3">
+      <header className="mt-12 flex flex-col gap-3">
         <span className={eyebrowClassName}>{exp.featured ? te('originals') : categoryLabel}</span>
         <h1 className="font-display max-w-3xl text-4xl font-semibold tracking-[-0.035em] text-balance sm:text-6xl">
           {title}
@@ -750,7 +750,7 @@ export default async function ExperienceDetailPage({
           at-a-glance contract a guest reads before committing. */}
       <section
         aria-label={t('highlights.heading')}
-        className="border-sarat-black/8 mt-8 grid grid-cols-2 gap-x-6 gap-y-5 [border-block-width:0.5px] py-8 sm:grid-cols-4"
+        className="border-sarat-black/8 mt-8 grid grid-cols-2 gap-x-6 gap-y-6 [border-block-width:0.5px] py-8 sm:grid-cols-4"
       >
         {highlights.map(({ key, Icon, label, value }) => (
           <div key={key} className="flex items-center gap-3">
@@ -771,7 +771,7 @@ export default async function ExperienceDetailPage({
           document scrolls sideways. Flooring at 0 makes the track win and
           the content wrap instead. Latent until some copy trips it, which
           is why it must not depend on today's strings (2026-08-08). */}
-      <div className="mt-10 grid grid-cols-[minmax(0,1fr)] gap-12 lg:grid-cols-[minmax(0,1fr)_360px]">
+      <div className="mt-12 grid grid-cols-[minmax(0,1fr)] gap-12 lg:grid-cols-[minmax(0,1fr)_360px]">
         {/* Left: content. `min-w-0` is load-bearing, not cosmetic: a grid
             item defaults to `min-width: auto` and so refuses to shrink below
             its own min-content, overflowing the track no matter how the
@@ -835,7 +835,7 @@ export default async function ExperienceDetailPage({
           </section>
 
           {exp.moments.length > 0 && (
-            <section className="flex flex-col gap-5">
+            <section className="flex flex-col gap-6">
               <FadeIn>
                 <h2 className="font-display text-2xl font-medium tracking-[-0.025em]">
                   {t('timeline')}
@@ -857,8 +857,17 @@ export default async function ExperienceDetailPage({
                             </Draw>
                           )}
                         </div>
-                        <div className={cn('flex flex-col gap-1', i < arr.length - 1 && 'pb-7')}>
-                          <span className={eyebrowClassName}>
+                        <div className={cn('flex flex-col gap-1', i < arr.length - 1 && 'pb-8')}>
+                          {/* P3-6: this is a real content label (time of
+                              day), not a decorative eyebrow — 12px is the
+                              floor, so it gets its own class instead of
+                              sharing eyebrowClassName's 11px. */}
+                          <span
+                            className={cn(
+                              'text-sarat-black-600 text-xs font-medium',
+                              loc === 'en' && 'tracking-[0.2em] uppercase',
+                            )}
+                          >
                             {loc === 'ar' ? toArabicText(m.timeOfDay) : m.timeOfDay}
                           </span>
                           <span className="text-lg font-medium">
@@ -991,7 +1000,7 @@ export default async function ExperienceDetailPage({
           {/* RiseIn, not MountFade: the panel is conversion-critical, so it
               must SSR visible (transform-only settle; opacity stays 1 —
               no invisible-until-hydration on mid-range 4G devices). */}
-          <RiseIn className="rounded-card border-sarat-black/8 flex flex-col gap-5 [border-width:0.5px] p-6">
+          <RiseIn className="rounded-card border-sarat-black/8 flex flex-col gap-6 [border-width:0.5px] p-6">
             <h2 className="font-display text-2xl font-medium tracking-[-0.025em]">
               {bookingCopy.title}
             </h2>
@@ -1128,7 +1137,7 @@ function ReviewsSectionFallback({ locale }: { locale: Locale }) {
   return (
     <section
       aria-busy="true"
-      className="border-sarat-black/8 flex scroll-mt-20 flex-col gap-8 [border-top-width:0.5px] pt-10"
+      className="border-sarat-black/8 flex scroll-mt-20 flex-col gap-8 [border-top-width:0.5px] pt-12"
     >
       <div className="flex flex-col gap-2">
         <Skeleton className="h-4 w-24" />

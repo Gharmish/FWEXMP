@@ -106,7 +106,7 @@ export async function BookingRow({
 
   if (variant === 'compact') {
     return (
-      <li className="flex flex-col gap-2 p-4 sm:flex-row sm:items-center sm:justify-between sm:gap-6 sm:p-5">
+      <li className="flex flex-col gap-2 p-4 sm:flex-row sm:items-center sm:justify-between sm:gap-6 sm:p-6">
         <div className="flex min-w-0 flex-col gap-1">
           <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
             <Link
@@ -162,7 +162,7 @@ export async function BookingRow({
   }
 
   return (
-    <li className="flex flex-col gap-4 p-5">
+    <li className="flex flex-col gap-4 p-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-6">
         <div className="flex min-w-0 flex-col gap-2">
           <div className="flex flex-wrap items-center gap-x-3 gap-y-1">

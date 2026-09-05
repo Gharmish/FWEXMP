@@ -21,10 +21,13 @@ import {
   Wallet,
 } from 'lucide-react';
 import { motion } from 'framer-motion';
-import { useTranslations } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 import { Link, usePathname } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
 import { SPRING } from '@/components/ui/motion';
+import { formatInteger } from '@/lib/format';
+import type { Locale } from '@/lib/i18n';
+import type { AdminNavCounts } from '@/features/admin/dashboard/nav-counts';
 
 interface NavItem {
   href: string;
@@ -93,6 +96,12 @@ const GROUPS: readonly NavGroup[] = [
 interface AdminNavProps {
   /** Called after a link is followed — lets the mobile drawer close itself. */
   onNavigate?: () => void;
+  /**
+   * Attention counts for the matching rail items (P2-19) — host
+   * applications, moderation, disputes, support. Undefined/zero renders
+   * no badge; keys match `NavItem.sectionKey` 1:1 by design.
+   */
+  counts?: AdminNavCounts;
 }
 
 /**
@@ -102,8 +111,9 @@ interface AdminNavProps {
  * their parent highlighted. The active row gets a Saffron Gold inline-start
  * indicator (BRIEF §3 emphasis) over a `mist-deep` fill — no shadow.
  */
-export function AdminNav({ onNavigate }: AdminNavProps) {
+export function AdminNav({ onNavigate, counts }: AdminNavProps) {
   const t = useTranslations('admin');
+  const locale = useLocale() as Locale;
   const pathname = usePathname();
 
   function isActive(item: NavItem): boolean {
@@ -124,6 +134,9 @@ export function AdminNav({ onNavigate }: AdminNavProps) {
               const label = item.labelKey
                 ? t(`nav.${item.labelKey}`)
                 : t(`sections.${item.sectionKey}.title`);
+              const badgeCount = item.sectionKey
+                ? (counts?.[item.sectionKey as keyof AdminNavCounts] ?? 0)
+                : 0;
               return (
                 <li key={item.href}>
                   <Link
@@ -153,7 +166,15 @@ export function AdminNav({ onNavigate }: AdminNavProps) {
                         active ? 'text-sarat-black' : 'text-sarat-black-600',
                       )}
                     />
-                    <span className="truncate">{label}</span>
+                    <span className="flex-1 truncate">{label}</span>
+                    {badgeCount > 0 && (
+                      <span
+                        className="bg-saffron-gold/20 text-sarat-black inline-flex min-w-5 shrink-0 items-center justify-center rounded-full px-1.5 py-0.5 text-xs font-medium tabular-nums"
+                        aria-label={t('nav.attentionCount', { count: badgeCount })}
+                      >
+                        {formatInteger(badgeCount, locale)}
+                      </span>
+                    )}
                   </Link>
                 </li>
               );

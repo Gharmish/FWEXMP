@@ -63,7 +63,7 @@ export function HostListingRow({ experience, stats, locale, copy }: HostListingR
     <li>
       <Link
         href={`/host/experiences/${experience.id}`}
-        className="hover:bg-sarat-black/[0.02] flex items-center gap-4 p-4 transition-colors duration-200 sm:p-5"
+        className="hover:bg-sarat-black/[0.02] flex items-center gap-4 p-4 transition-colors duration-200 sm:p-6"
       >
         <span className="bg-mist relative size-16 shrink-0 overflow-hidden rounded-[10px] sm:size-20">
           {experience.heroImage ? (

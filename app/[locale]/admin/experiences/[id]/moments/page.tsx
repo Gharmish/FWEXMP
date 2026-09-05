@@ -85,7 +85,7 @@ export default async function AdminMomentsPage({
   };
 
   return (
-    <div className="flex flex-col gap-10">
+    <div className="flex flex-col gap-12">
       <div className="flex flex-col gap-4">
         <Link
           href={`/admin/experiences/${id}/edit`}

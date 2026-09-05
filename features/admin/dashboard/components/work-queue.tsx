@@ -35,7 +35,7 @@ export function WorkQueue({ items, locale, emptyLabel }: WorkQueueProps) {
             <StaggerItem>
               <Link
                 href={item.href}
-                className="border-sarat-black/8 rounded-card hover:border-sarat-black/20 group flex items-center justify-between gap-4 [border-width:0.5px] px-5 py-4 transition-colors duration-200"
+                className="border-sarat-black/8 rounded-card hover:border-sarat-black/20 group flex items-center justify-between gap-4 [border-width:0.5px] px-6 py-4 transition-colors duration-200"
               >
                 <span className="flex items-center gap-3">
                   <span className="bg-saffron-gold/20 text-sarat-black inline-flex min-w-8 items-center justify-center rounded-full px-2 py-1 text-sm font-medium tabular-nums">

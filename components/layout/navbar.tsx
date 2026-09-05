@@ -62,7 +62,7 @@ export async function Navbar() {
     <NavShell>
       <nav className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-3 px-4 sm:px-6">
         <Wordmark locale={locale} />
-        <div className="flex items-center gap-1 sm:gap-5">
+        <div className="flex items-center gap-1 sm:gap-6">
           <Link href="/experiences" className={navLinkClass} aria-label={t('discover')}>
             <Compass className="size-5 shrink-0" strokeWidth={1.5} aria-hidden />
             <span className="hidden sm:inline">{t('discover')}</span>

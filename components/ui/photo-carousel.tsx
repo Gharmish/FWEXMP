@@ -179,7 +179,11 @@ export function PhotoCarousel({
           >
             <Image
               src={src}
-              alt={alt}
+              // L10: when a tap layer is present it already carries the
+              // "photo n/N" (or link) label for this slide, so a second
+              // identical `alt` on the image itself was pure repeat; fall
+              // back to the plain alt only if neither prop was passed.
+              alt={href || onSlideClick ? '' : alt}
               fill
               sizes={sizes}
               className="object-cover"

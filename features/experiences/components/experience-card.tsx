@@ -50,14 +50,17 @@ const CATEGORY_DOT: Record<Category, string> = {
  * has no `heroImage` yet (host approved but photography session not
  * shot). Stays on-brand instead of leaving an awkward grey block.
  */
+// P2-4: the pale categories (food/wellness/family/women_only) were
+// indistinguishable from white at their old low opacity — raised to the
+// -100/-200 ramp steps so the tile reads as a deliberate tonal block.
 const CATEGORY_PLACEHOLDER: Record<Category, string> = {
   nature: 'bg-juniper-green/15',
   heritage: 'bg-al-qatt-red/15',
-  food: 'bg-saffron-gold/20',
-  wellness: 'bg-wadi-mint/25',
+  food: 'bg-saffron-gold-200',
+  wellness: 'bg-wadi-mint-200',
   adventure: 'bg-soudah-sunset/15',
-  family: 'bg-sarawat-blue/15',
-  women_only: 'bg-tihama-coral/25',
+  family: 'bg-sarawat-blue-100',
+  women_only: 'bg-tihama-coral-200',
 };
 
 /**
@@ -214,8 +217,10 @@ export async function ExperienceCard({
             >
               <PlaceholderIcon
                 className={cn(
-                  'size-8',
-                  experience.featured ? 'text-white/40' : 'text-sarat-black/20',
+                  // P2-4: larger centred glyph so the tonal tile reads as
+                  // deliberate rather than an empty/broken block.
+                  'size-12',
+                  experience.featured ? 'text-white/40' : 'text-sarat-black/25',
                 )}
                 strokeWidth={1.5}
                 aria-hidden
@@ -243,7 +248,7 @@ export async function ExperienceCard({
                       : 'bg-saffron-gold/20 text-sarat-black',
                   )}
                 >
-                  <Zap className="size-3 shrink-0" aria-hidden />
+                  <Zap className="size-4 shrink-0" aria-hidden />
                   {t('instant')}
                 </span>
               ) : (
@@ -255,7 +260,7 @@ export async function ExperienceCard({
                       : 'bg-sarat-black/8 text-sarat-black-800',
                   )}
                 >
-                  <CalendarClock className="size-3 shrink-0" aria-hidden />
+                  <CalendarClock className="size-4 shrink-0" aria-hidden />
                   {t('requestMode')}
                 </span>
               )}
@@ -266,7 +271,7 @@ export async function ExperienceCard({
                     experience.featured ? 'bg-white/15 text-white' : 'bg-info-surface text-info',
                   )}
                 >
-                  <Sparkles className="size-3 shrink-0" aria-hidden />
+                  <Sparkles className="size-4 shrink-0" aria-hidden />
                   {t('newBadge')}
                 </span>
               )}
@@ -283,14 +288,16 @@ export async function ExperienceCard({
               <p className={`text-base max-sm:line-clamp-3 rtl:text-lg ${muted}`}>{description}</p>
             </div>
 
-            <div
-              className={`mt-auto flex flex-wrap items-baseline gap-x-3 gap-y-1 text-sm ${muted}`}
-            >
-              <span>{placeName}</span>
-              <span aria-hidden>·</span>
-              <span>{durationLabel}</span>
-              <span aria-hidden>·</span>
-              <span className="inline-flex items-center gap-1.5">
+            {/* P3-3: host on its own line — when "place · duration" and
+                "With {host}" shared one wrapped row, a mid-line break left
+                a dangling "·" at the end of the first line. */}
+            <div className={`mt-auto flex flex-col gap-1 text-sm ${muted}`}>
+              <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+                <span>{placeName}</span>
+                <span aria-hidden>·</span>
+                <span>{durationLabel}</span>
+              </div>
+              <div className="flex items-center gap-1.5">
                 {t('withHost', { name: hostName })}
                 {/* Micro-seal, not the tappable lockup: the whole card is one
                     Link, so a nested button would be invalid — the card builds
@@ -298,7 +305,7 @@ export async function ExperienceCard({
                 {experience.hostVerified && (
                   <VerifiedSeal className="size-3.5" label={tv('lockup')} />
                 )}
-              </span>
+              </div>
             </div>
 
             <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-2">
@@ -311,7 +318,12 @@ export async function ExperienceCard({
                 <p
                   role="img"
                   className={cn('flex items-center gap-2 text-sm', muted)}
-                  aria-label={tr('ratingLabel', { rating: experience.ratingAverage ?? 0 })}
+                  // L11: sighted users see the review count next to the
+                  // stars; the aria-label omitted it.
+                  aria-label={tr('ratingLabelWithCount', {
+                    rating: experience.ratingAverage ?? 0,
+                    count: experience.ratingCount,
+                  })}
                 >
                   <Star className="text-saffron-gold size-3.5 shrink-0 fill-current" aria-hidden />
                   <span

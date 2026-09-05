@@ -52,8 +52,9 @@ const initialState: HostProfileFormState = { status: 'idle' };
 
 function Submit({ copy }: { copy: HostProfileFormCopy }) {
   const { pending } = useFormStatus();
+  // L19: Button's own pending prop (not disabled) keeps focus during submit.
   return (
-    <Button type="submit" variant="primary" size="md" disabled={pending} className="self-start">
+    <Button type="submit" variant="primary" size="md" pending={pending} className="self-start">
       {pending ? copy.submitting : copy.submit}
     </Button>
   );
@@ -287,7 +288,7 @@ export function HostProfileForm({ profile, copy }: HostProfileFormProps) {
         </p>
       )}
 
-      <div className="border-sarat-black/8 flex items-center gap-3 [border-top-width:0.5px] pt-5">
+      <div className="border-sarat-black/8 flex items-center gap-3 [border-top-width:0.5px] pt-6">
         <Submit copy={copy} />
       </div>
     </form>

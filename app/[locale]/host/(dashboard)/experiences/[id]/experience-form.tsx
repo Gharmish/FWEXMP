@@ -469,7 +469,7 @@ export function ExperienceForm({
       ref={formRef}
       action={formAction}
       noValidate
-      className="flex flex-col gap-10"
+      className="flex flex-col gap-12"
       onInput={() => setDirty(true)}
       onChange={() => setDirty(true)}
     >
@@ -619,7 +619,7 @@ export function ExperienceForm({
         </fieldset>
 
         {/* ----- Logistics ----- */}
-        <fieldset className="border-sarat-black/8 grid gap-6 [border-top-width:0.5px] pt-10 sm:grid-cols-2">
+        <fieldset className="border-sarat-black/8 grid gap-6 [border-top-width:0.5px] pt-12 sm:grid-cols-2">
           <legend className="sr-only">{copy.sectionPracticalities}</legend>
           <p aria-hidden className={cn(sectionClassName, 'sm:col-span-2')}>
             {copy.sectionPracticalities}
@@ -810,7 +810,7 @@ export function ExperienceForm({
         </fieldset>
 
         {/* ----- Place ----- */}
-        <fieldset className="border-sarat-black/8 grid gap-6 [border-top-width:0.5px] pt-10 sm:grid-cols-2">
+        <fieldset className="border-sarat-black/8 grid gap-6 [border-top-width:0.5px] pt-12 sm:grid-cols-2">
           <legend className="sr-only">{copy.sectionPlace}</legend>
           <p aria-hidden className={cn(sectionClassName, 'sm:col-span-2')}>
             {copy.sectionPlace}
@@ -905,7 +905,7 @@ export function ExperienceForm({
         </fieldset>
 
         {/* ----- What's included ----- */}
-        <fieldset className="border-sarat-black/8 flex flex-col gap-6 [border-top-width:0.5px] pt-10">
+        <fieldset className="border-sarat-black/8 flex flex-col gap-6 [border-top-width:0.5px] pt-12">
           <legend className="sr-only">{copy.sectionDetail}</legend>
           <p aria-hidden className={sectionClassName}>
             {copy.sectionDetail}
@@ -1014,7 +1014,7 @@ export function ExperienceForm({
         </fieldset>
 
         {/* ----- Availability ----- */}
-        <fieldset className="border-sarat-black/8 flex flex-col gap-3 [border-top-width:0.5px] pt-10">
+        <fieldset className="border-sarat-black/8 flex flex-col gap-3 [border-top-width:0.5px] pt-12">
           <legend className="sr-only">{copy.sectionAvailability}</legend>
           <p aria-hidden className={cn(sectionClassName, 'mb-3')}>
             {copy.sectionAvailability}

@@ -66,20 +66,27 @@ export function HeroHeadline({ prefix, suffix, words }: HeroHeadlineProps) {
 
   useEffect(() => {
     if (reduce || words.length < 2) return;
-    // One full cycle, then settle back on the first word and stop:
-    // indefinite rotation has no pause mechanism (WCAG 2.2.2), and a
-    // headline that never stops moving reads as anything but restraint.
+    // One full cycle, then settle — on the WIDEST word, not index 0
+    // (P2-3): the slot is already sized to that word, so settling there
+    // leaves no dead gap in the fixed-width slot. Indefinite rotation has
+    // no pause mechanism (WCAG 2.2.2), and a headline that never stops
+    // moving reads as anything but restraint.
+    const widestIndex = widths && widths.length > 0 ? widths.indexOf(Math.max(...widths)) : 0;
     let steps = 0;
     const id = setInterval(() => {
       // A hidden tab freezes rAF, so exits can't run — advancing anyway
       // piles un-exited words into the DOM until the tab returns.
       if (document.hidden) return;
       steps += 1;
+      if (steps >= words.length) {
+        setIndex(widestIndex);
+        clearInterval(id);
+        return;
+      }
       setIndex((i) => (i + 1) % words.length);
-      if (steps >= words.length) clearInterval(id);
     }, ROTATE_MS);
     return () => clearInterval(id);
-  }, [reduce, words.length]);
+  }, [reduce, words.length, widths]);
 
   // Re-measure whenever the hidden measurer resizes (font swap, viewport
   // type-scale change) so the slot width always matches the live glyphs.

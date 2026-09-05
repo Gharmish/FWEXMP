@@ -82,7 +82,7 @@ export default async function AboutPage({ params }: { params: Promise<{ locale: 
     <article className="mx-auto w-full max-w-3xl px-6 py-12">
       <JsonLd data={jsonLd} />
       <header className="flex flex-col gap-4">
-        <span className="text-saffron-gold-700 text-[11px] font-medium tracking-[0.2em] uppercase">
+        <span className="text-saffron-gold-800 text-[11px] font-medium tracking-[0.2em] uppercase">
           {t('eyebrow')}
         </span>
         <h1 className="font-display text-4xl font-semibold tracking-[-0.035em] text-balance sm:text-5xl">
@@ -90,7 +90,7 @@ export default async function AboutPage({ params }: { params: Promise<{ locale: 
         </h1>
       </header>
 
-      <div className="text-sarat-black-600 mt-8 flex flex-col gap-5 text-base leading-relaxed">
+      <div className="text-sarat-black-600 mt-8 flex flex-col gap-6 text-base leading-relaxed">
         <p>{t('story1')}</p>
         <p>{t('story2')}</p>
         <p>{t('story3')}</p>

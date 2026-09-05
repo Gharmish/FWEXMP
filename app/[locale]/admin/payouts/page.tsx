@@ -52,9 +52,9 @@ export default async function AdminPayoutsPage({
   if (block?.reason === 'not_admin') notFound();
   if (block?.reason === 'no_db') {
     return (
-      <div className="flex flex-col gap-10">
+      <div className="flex flex-col gap-12">
         {backLink}
-        <div className="border-sarat-black/8 rounded-card flex flex-col items-start gap-4 [border-width:0.5px] p-10">
+        <div className="border-sarat-black/8 rounded-card flex flex-col items-start gap-4 [border-width:0.5px] p-12">
           <p className={eyebrowClassName}>{t('noDb.eyebrow')}</p>
           <h2 className="font-display text-2xl font-medium tracking-[-0.025em]">
             {t('noDb.title')}
@@ -69,7 +69,7 @@ export default async function AdminPayoutsPage({
   const totalOwed = rows.reduce((sum, r) => sum + r.netOwedSar, 0);
 
   return (
-    <div className="flex flex-col gap-10">
+    <div className="flex flex-col gap-12">
       {backLink}
       <div className="flex flex-col gap-4">
         <p className={eyebrowClassName}>{t('payoutsList.eyebrow')}</p>
@@ -89,7 +89,7 @@ export default async function AdminPayoutsPage({
       </div>
 
       {rows.length === 0 ? (
-        <div className="border-sarat-black/8 rounded-card flex flex-col items-start gap-2 [border-width:0.5px] p-10">
+        <div className="border-sarat-black/8 rounded-card flex flex-col items-start gap-2 [border-width:0.5px] p-12">
           <p className={eyebrowClassName}>{t('payoutsList.empty.eyebrow')}</p>
           <h2 className="font-display text-2xl font-medium tracking-[-0.025em]">
             {t('payoutsList.empty.title')}

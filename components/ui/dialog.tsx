@@ -3,7 +3,7 @@
 import { Dialog as BaseDialog } from '@base-ui/react/dialog';
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import { X } from 'lucide-react';
-import { useState, type ReactNode } from 'react';
+import { useState, type ReactElement, type ReactNode } from 'react';
 import { useTranslations } from 'next-intl';
 import { SPRING } from '@/components/ui/motion';
 import { cn } from '@/lib/utils';
@@ -18,8 +18,14 @@ import { cn } from '@/lib/utils';
 interface DialogProps {
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
-  /** Rendered as the dialog trigger for uncontrolled usage. */
-  trigger?: ReactNode;
+  /**
+   * Rendered as the dialog trigger for uncontrolled usage. A single
+   * element (e.g. a `Button`) — Base UI's `render` prop merges the
+   * trigger's props (onClick, aria-*) directly onto it (L16: previously
+   * wrapped in a `<span>`, which broke a `<button>` trigger's semantics
+   * and any interactive element inside it).
+   */
+  trigger?: ReactElement;
   title: string;
   description?: string;
   children?: ReactNode;
@@ -49,7 +55,7 @@ export function Dialog({
 
   return (
     <BaseDialog.Root open={open} onOpenChange={setOpen}>
-      {trigger ? <BaseDialog.Trigger render={<span>{trigger}</span>} /> : null}
+      {trigger ? <BaseDialog.Trigger render={trigger} /> : null}
       <AnimatePresence>
         {open ? (
           <BaseDialog.Portal keepMounted>

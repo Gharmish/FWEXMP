@@ -39,9 +39,10 @@ interface PaymentMarksProps {
   className?: string;
 }
 
-// 50×32 badge per logos.json: radius 32 × 13.99% ≈ 4.5px, border 32 × 3.33% ≈ 1px.
+// 50×32 badge per logos.json: radius 32 × 13.99% ≈ 4.5px (--radius-badge),
+// border 32 × 3.33% ≈ 1px.
 const badgeClassName =
-  'border-sarat-black flex aspect-[25/16] h-8 items-center justify-center rounded-[4.5px] border bg-white';
+  'border-sarat-black flex aspect-[25/16] h-8 items-center justify-center rounded-badge border bg-white';
 
 function VisaMark({ name }: { name: string }) {
   // Official Visa wordmark, drawn as vector letterforms in Visa blue (#1434CB)

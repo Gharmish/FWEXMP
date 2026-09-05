@@ -7,6 +7,7 @@ import { isAdminUser } from '@/features/admin/auth';
 import { mfaRequirement } from '@/features/admin/mfa';
 import { AdminMfaGate } from '@/features/admin/components/admin-mfa-gate';
 import { AdminShell } from '@/features/admin/dashboard/components/admin-shell';
+import { getAdminNavCounts } from '@/features/admin/dashboard/nav-counts';
 import { LanguageSwitcher } from '@/components/layout/language-switcher';
 import { SignOutButton } from '@/components/layout/sign-out-button';
 
@@ -45,11 +46,16 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   const locale = (await getLocale()) as Locale;
   const t = await getTranslations('nav');
 
+  // Rail attention badges (P2-19) — fetched only past the MFA gate, since an
+  // admin who hasn't verified this session shouldn't get counts either.
+  const navCounts = requirement === 'ok' ? await getAdminNavCounts() : {};
+
   return (
     <>
       <style>{`[data-site-chrome]{display:none!important}`}</style>
       <AdminShell
         userLabel={user.phone || (user.email ?? 'Admin')}
+        navCounts={navCounts}
         actions={
           <>
             <SignOutButton locale={locale} label={t('signOut')} />

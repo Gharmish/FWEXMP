@@ -51,9 +51,9 @@ export default async function AdminReviewsPage({
   if (block?.reason === 'not_admin') notFound();
   if (block?.reason === 'no_db') {
     return (
-      <div className="flex flex-col gap-10">
+      <div className="flex flex-col gap-12">
         {backLink}
-        <div className="border-sarat-black/8 rounded-card flex flex-col items-start gap-4 [border-width:0.5px] p-10">
+        <div className="border-sarat-black/8 rounded-card flex flex-col items-start gap-4 [border-width:0.5px] p-12">
           <p className={eyebrowClassName}>{t('noDb.eyebrow')}</p>
           <h2 className="font-display text-2xl font-medium tracking-[-0.025em]">
             {t('noDb.title')}
@@ -67,7 +67,7 @@ export default async function AdminReviewsPage({
   const rows = await listReviewsForAdmin();
 
   return (
-    <div className="flex flex-col gap-10">
+    <div className="flex flex-col gap-12">
       {backLink}
       <div className="flex flex-col gap-4">
         <p className={eyebrowClassName}>{t('reviewsList.eyebrow')}</p>
@@ -80,7 +80,7 @@ export default async function AdminReviewsPage({
       </div>
 
       {rows.length === 0 ? (
-        <div className="border-sarat-black/8 rounded-card flex flex-col items-start gap-2 [border-width:0.5px] p-10">
+        <div className="border-sarat-black/8 rounded-card flex flex-col items-start gap-2 [border-width:0.5px] p-12">
           <p className={eyebrowClassName}>{t('reviewsList.empty.eyebrow')}</p>
           <h2 className="font-display text-2xl font-medium tracking-[-0.025em]">
             {t('reviewsList.empty.title')}

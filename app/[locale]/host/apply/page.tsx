@@ -57,7 +57,7 @@ export default async function HostApplyPage({ params }: { params: Promise<{ loca
     return (
       <div className="flex flex-col">
         <section className="mx-auto w-full max-w-3xl px-6 py-20 sm:py-24">
-          <div className="flex flex-col gap-5">
+          <div className="flex flex-col gap-6">
             <p className={eyebrowClassName}>{t(`status.${existing.status}.eyebrow`)}</p>
             <h1 className="font-display text-4xl font-semibold tracking-[-0.035em] text-balance sm:text-5xl">
               {t(`status.${existing.status}.title`, { name: existing.displayName })}
@@ -67,7 +67,7 @@ export default async function HostApplyPage({ params }: { params: Promise<{ loca
             </p>
           </div>
 
-          <dl className="border-sarat-black/8 rounded-card mt-12 grid gap-5 [border-width:0.5px] p-6 sm:grid-cols-2">
+          <dl className="border-sarat-black/8 rounded-card mt-12 grid gap-6 [border-width:0.5px] p-6 sm:grid-cols-2">
             <div className="flex flex-col gap-1">
               <dt className={eyebrowClassName}>{t('summary.displayName')}</dt>
               <dd className="text-base font-medium">{existing.displayName}</dd>
@@ -115,7 +115,7 @@ export default async function HostApplyPage({ params }: { params: Promise<{ loca
             </section>
           )}
 
-          <div className="mt-10 flex flex-wrap gap-3">
+          <div className="mt-12 flex flex-wrap gap-3">
             <Link
               href="/experiences"
               className={cn(buttonVariants({ variant: 'secondary', size: 'md' }))}
@@ -134,7 +134,7 @@ export default async function HostApplyPage({ params }: { params: Promise<{ loca
   return (
     <div className="flex flex-col">
       <section className="mx-auto w-full max-w-3xl px-6 py-20 sm:py-24">
-        <div className="flex flex-col gap-5">
+        <div className="flex flex-col gap-6">
           <p className={eyebrowClassName}>{t('eyebrow')}</p>
           <h1 className="font-display text-4xl font-semibold tracking-[-0.035em] text-balance sm:text-5xl">
             {t('title')}
@@ -237,6 +237,7 @@ export default async function HostApplyPage({ params }: { params: Promise<{ loca
               contactEmailHint: t('fields.contactEmail.hint'),
               submit: existing ? t('actions.resubmit') : t('actions.submit'),
               pending: t('actions.pending'),
+              uploading: t('actions.uploading'),
               errors: {
                 validation: t('errors.validation'),
                 server: t('errors.server'),

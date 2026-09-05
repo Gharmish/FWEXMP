@@ -1,6 +1,6 @@
 'use client';
 
-import { useActionState, useId, useState } from 'react';
+import { useActionState, useEffect, useId, useState } from 'react';
 import { useFormStatus } from 'react-dom';
 import type { Locale } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
@@ -212,8 +212,26 @@ export function AdminExperienceForm({
   const labelClass = 'text-sm font-medium';
   const hintClass = 'text-sarat-black-600 text-sm';
 
+  // Unsaved-changes guard (P2-18) — the host editor already warns before a
+  // close/reload discards typed edits; the admin editor didn't.
+  const [dirty, setDirty] = useState(false);
+  useEffect(() => {
+    if (!dirty) return;
+    const guard = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+    };
+    window.addEventListener('beforeunload', guard);
+    return () => window.removeEventListener('beforeunload', guard);
+  }, [dirty]);
+
   return (
-    <form action={formAction} noValidate className="flex flex-col gap-10">
+    <form
+      action={formAction}
+      noValidate
+      className="flex flex-col gap-12"
+      onInput={() => setDirty(true)}
+      onChange={() => setDirty(true)}
+    >
       <input type="hidden" name="locale" value={locale} />
       {!isCreate && experience && <input type="hidden" name="experienceId" value={experience.id} />}
 

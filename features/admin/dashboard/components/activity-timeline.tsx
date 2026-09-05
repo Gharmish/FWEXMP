@@ -56,7 +56,7 @@ export function ActivityTimeline({ items, locale, emptyLabel, t }: ActivityTimel
                     </Draw>
                   )}
                 </div>
-                <div className={`flex min-w-0 flex-col gap-1 ${last ? '' : 'pb-5'}`}>
+                <div className={`flex min-w-0 flex-col gap-1 ${last ? '' : 'pb-6'}`}>
                   <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
                     <span className="text-base font-medium">
                       {t(`${EVENT_NS[item.kind]}.${item.event}`)}

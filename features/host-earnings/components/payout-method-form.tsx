@@ -62,6 +62,8 @@ export function PayoutMethodForm({ locale, maskedIban, copy }: PayoutMethodFormP
         autoComplete="off"
         spellCheck={false}
         dir="ltr"
+        // P2-23: keep the typed IBAN after a failed submit.
+        defaultValue={!state.success ? state.values?.iban : undefined}
         placeholder={copy.placeholder}
         aria-invalid={!state.success && state.message === 'validation' ? 'true' : undefined}
       />

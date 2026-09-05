@@ -227,7 +227,7 @@ export default async function HostDashboardPage({
       : null;
 
   return (
-    <div className="flex w-full flex-col gap-10">
+    <div className="flex w-full flex-col gap-12">
       <section className="flex flex-col gap-4">
         <p className={eyebrowClassName}>
           {t('todayEyebrow', {
@@ -297,7 +297,7 @@ export default async function HostDashboardPage({
         <section className="flex flex-col gap-4">
           <h2 className={sectionTitle}>{t('attention.title')}</h2>
           {pendingRequests.length > 0 && (
-            <ul className="border-saffron-gold/50 rounded-card divide-sarat-black/8 flex flex-col divide-y [border-width:0.5px]">
+            <ul className="border-saffron-gold/50 rounded-card divide-sarat-black/8 divide-hairline flex flex-col [border-width:0.5px]">
               {pendingRequests.map((row) => (
                 <BookingRow
                   key={row.id}
@@ -321,12 +321,12 @@ export default async function HostDashboardPage({
             </Link>
           )}
           {(awaitingPayment.length > 0 || attentionLinks.length > 0) && (
-            <ul className="border-sarat-black/8 rounded-card divide-sarat-black/8 flex flex-col divide-y [border-width:0.5px]">
+            <ul className="border-sarat-black/8 rounded-card divide-sarat-black/8 divide-hairline flex flex-col [border-width:0.5px]">
               {awaitingPayment.map((row) => (
                 <li key={row.id}>
                   <Link
                     href={`/host/bookings/${row.referenceCode}`}
-                    className="hover:bg-mist flex min-h-11 flex-wrap items-center gap-x-3 gap-y-1 px-5 py-3 text-sm transition-colors duration-200"
+                    className="hover:bg-mist flex min-h-11 flex-wrap items-center gap-x-3 gap-y-1 px-6 py-3 text-sm transition-colors duration-200"
                   >
                     <Badge className="bg-pending-surface text-pending">
                       {tBookings('awaitingPayment')}
@@ -355,7 +355,7 @@ export default async function HostDashboardPage({
                 <li key={item.key}>
                   <Link
                     href={item.href}
-                    className="hover:bg-mist flex min-h-11 items-center justify-between gap-3 px-5 py-3 text-sm transition-colors duration-200"
+                    className="hover:bg-mist flex min-h-11 items-center justify-between gap-3 px-6 py-3 text-sm transition-colors duration-200"
                   >
                     <span className="flex items-center gap-3">
                       <span className={cn('size-2 shrink-0 rounded-full', item.tone)} aria-hidden />
@@ -388,9 +388,9 @@ export default async function HostDashboardPage({
             {listings.live > 0 ? t('comingUp.empty') : t('comingUp.emptyNoListing')}
           </p>
         ) : (
-          <div className="border-sarat-black/8 rounded-card divide-sarat-black/8 flex flex-col divide-y [border-width:0.5px]">
+          <div className="border-sarat-black/8 rounded-card divide-sarat-black/8 divide-hairline flex flex-col [border-width:0.5px]">
             {[...byDay.entries()].map(([date, rows]) => (
-              <div key={date} className="flex flex-col gap-2 p-5">
+              <div key={date} className="flex flex-col gap-2 p-6">
                 <h3 className={cn(eyebrowClassName, date === today && 'text-sarat-black')}>
                   {dayLabel(date)}
                 </h3>

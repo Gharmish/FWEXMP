@@ -1,6 +1,6 @@
 'use client';
 
-import { useActionState, useEffect, useId, useRef, useState } from 'react';
+import { useActionState, useEffect, useId, useRef, useState, type FormEvent } from 'react';
 import { useFormStatus } from 'react-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -18,6 +18,10 @@ import {
   isRequiredDocument,
   validateDocument,
 } from '@/features/host-applications/lib/documents';
+// P2-25: the same schema the server action validates with, so a missing
+// or malformed field is caught before the (possibly multi-MB) upload,
+// not after.
+import { hostApplicationSchema } from '@/features/host-applications/schemas';
 import type {
   HostDocumentStatus,
   HostDocumentType,
@@ -98,6 +102,8 @@ interface HostApplyCopy {
   termsLabel: string;
   submit: string;
   pending: string;
+  /** P2-25: shown while the form is submitting AND a new file was picked. */
+  uploading: string;
   errors: Record<ErrorKey, string>;
 }
 
@@ -170,11 +176,33 @@ const FOCUS_ORDER: readonly HostApplyFieldName[] = [
   'termsAccepted',
 ];
 
-function SubmitButton({ pending: pendingCopy, submit }: { pending: string; submit: string }) {
+// P2-25: local mirrors of the server action's FormData helpers — the
+// action module is 'use server' and can't be imported for plain
+// (non-action) calls from a client component.
+function formValue(formData: FormData, key: string): string {
+  const value = formData.get(key);
+  return typeof value === 'string' ? value : '';
+}
+
+function formValues(formData: FormData, key: string): string[] {
+  return formData.getAll(key).filter((v): v is string => typeof v === 'string');
+}
+
+function SubmitButton({
+  pending: pendingCopy,
+  uploading: uploadingCopy,
+  submit,
+  hasNewFiles,
+}: {
+  pending: string;
+  uploading: string;
+  submit: string;
+  hasNewFiles: boolean;
+}) {
   const { pending } = useFormStatus();
   return (
     <Button type="submit" variant="primary" size="lg" pending={pending}>
-      {pending ? pendingCopy : submit}
+      {pending ? (hasNewFiles ? uploadingCopy : pendingCopy) : submit}
     </Button>
   );
 }
@@ -210,7 +238,12 @@ export function HostApplyForm({
   languageOptions,
   copy,
 }: HostApplyFormProps) {
-  const [state, formAction] = useActionState(submitHostApplication, initialState);
+  const [actionState, formAction] = useActionState(submitHostApplication, initialState);
+  // P2-25: a client-side safeParse failure renders exactly like a server
+  // one (same `fields`/`values`/`documents` shape) without ever posting
+  // the form — including its file inputs.
+  const [preSubmitState, setPreSubmitState] = useState<HostApplyState | null>(null);
+  const state = preSubmitState ?? actionState;
   const values = state.values ?? {};
   // Controlled state for the inputs that need it: identity type (drives
   // input mode, the visible document list, and the DOB/VAT fields),
@@ -225,6 +258,11 @@ export function HostApplyForm({
   const [fileErrors, setFileErrors] = useState<
     Partial<Record<HostDocumentType, HostApplyDocumentError>>
   >({});
+  // P2-25: which document slots currently hold a freshly-picked file —
+  // drives the "Uploading documents…" pending label.
+  const [filledDocTypes, setFilledDocTypes] = useState<ReadonlySet<HostDocumentType>>(
+    () => new Set(),
+  );
 
   const existingByType = new Map(existingDocuments.map((d) => [d.type, d]));
 
@@ -305,6 +343,87 @@ export function HostApplyForm({
       }
       return next;
     });
+    setFilledDocTypes((current) => {
+      const next = new Set(current);
+      if (file && file.size > 0) next.add(type);
+      else next.delete(type);
+      return next;
+    });
+  }
+
+  /**
+   * P2-25: re-run the same zod schema the server validates with, plus
+   * the required-document check the server applies to file inputs (zod
+   * never sees `File`s). Returns null when everything passes.
+   */
+  function clientValidate(form: HTMLFormElement): HostApplyState | null {
+    const formData = new FormData(form);
+    const nextValues: NonNullable<HostApplyState['values']> = {
+      displayName: formValue(formData, 'displayName'),
+      bioEn: formValue(formData, 'bioEn'),
+      bioAr: formValue(formData, 'bioAr'),
+      languages: formValues(formData, 'languages'),
+      identityType: formValue(formData, 'identityType'),
+      identityNumber: formValue(formData, 'identityNumber'),
+      legalName: formValue(formData, 'legalName'),
+      dateOfBirth: formValue(formData, 'dateOfBirth'),
+      iban: formValue(formData, 'iban'),
+      bankName: formValue(formData, 'bankName'),
+      bankAccountHolder: formValue(formData, 'bankAccountHolder'),
+      vatNumber: formValue(formData, 'vatNumber'),
+      termsAccepted: formValue(formData, 'termsAccepted'),
+      contactEmail: formValue(formData, 'contactEmail'),
+      city: formValue(formData, 'city') || 'Abha',
+      region: formValue(formData, 'region') || 'Aseer',
+    };
+
+    const parsed = hostApplicationSchema.safeParse({
+      ...nextValues,
+      locale: formValue(formData, 'locale'),
+    });
+
+    const fields: NonNullable<HostApplyState['fields']> = {};
+    if (!parsed.success) {
+      for (const issue of parsed.error.issues) {
+        const key = issue.path[0];
+        if (typeof key === 'string') fields[key as HostApplyFieldName] = issue.message;
+      }
+    }
+
+    const documents: NonNullable<HostApplyState['documents']> = {};
+    if (documentsEnabled) {
+      for (const type of documentTypesFor(nextValues.identityType as HostIdentityType)) {
+        if (fileErrors[type]) {
+          documents[type] = fileErrors[type];
+          continue;
+        }
+        const existing = existingByType.get(type);
+        const required = isRequiredDocument(nextValues.identityType as HostIdentityType, type);
+        const needsFile = required && (!existing || existing.status === 'rejected');
+        const file = formData.get(`doc_${type}`);
+        const hasFile = file instanceof File && file.size > 0;
+        if (needsFile && !hasFile) documents[type] = 'doc_required';
+      }
+    }
+
+    if (Object.keys(fields).length === 0 && Object.keys(documents).length === 0) return null;
+    return {
+      success: false,
+      message: 'validation',
+      fields,
+      values: nextValues,
+      documents: Object.keys(documents).length > 0 ? documents : undefined,
+    };
+  }
+
+  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    const invalid = clientValidate(event.currentTarget);
+    if (invalid) {
+      event.preventDefault();
+      setPreSubmitState(invalid);
+      return;
+    }
+    setPreSubmitState(null);
   }
 
   const sectionLabel = cn(
@@ -314,7 +433,13 @@ export function HostApplyForm({
   const isIndividual = identityType === 'national_id';
 
   return (
-    <form ref={formRef} action={formAction} noValidate className="flex flex-col gap-12">
+    <form
+      ref={formRef}
+      action={formAction}
+      onSubmit={handleSubmit}
+      noValidate
+      className="flex flex-col gap-12"
+    >
       <input type="hidden" name="locale" value={locale} />
 
       {/* ----- About you ----- */}
@@ -756,7 +881,12 @@ export function HostApplyForm({
       )}
 
       <div className="flex justify-start">
-        <SubmitButton pending={copy.pending} submit={copy.submit} />
+        <SubmitButton
+          pending={copy.pending}
+          uploading={copy.uploading}
+          submit={copy.submit}
+          hasNewFiles={filledDocTypes.size > 0}
+        />
       </div>
     </form>
   );

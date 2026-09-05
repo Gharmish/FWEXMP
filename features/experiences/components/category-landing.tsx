@@ -76,7 +76,7 @@ export async function CategoryLanding({ category, locale }: CategoryLandingProps
         {t('backToAll')}
       </Link>
       <header className="mt-6 flex max-w-3xl flex-col gap-4">
-        <span className="text-saffron-gold-700 text-[11px] font-medium tracking-[0.2em] uppercase">
+        <span className="text-saffron-gold-800 text-[11px] font-medium tracking-[0.2em] uppercase">
           {t('eyebrow')}
         </span>
         <h1 className="font-display text-4xl font-semibold tracking-[-0.035em] text-balance sm:text-5xl">

@@ -5,10 +5,16 @@ import { SITE_DESCRIPTION, SITE_NAME, SITE_URL } from '@/lib/site';
 import { routing, type Locale } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
 import { ExperienceCard } from '@/features/experiences/components/experience-card';
-import { FilterRail } from '@/features/experiences/components/filter-rail';
+import {
+  CatalogGridStatus,
+  CatalogTransitionProvider,
+  FilterRail,
+} from '@/features/experiences/components/filter-rail';
 import { SortSelect } from '@/features/experiences/components/sort-select';
 import { SearchInput } from '@/features/experiences/components/search-input';
-import { EmptyState } from '@/features/experiences/components/empty-state';
+import { EmptyState } from '@/components/ui/empty-state';
+import { buttonVariants } from '@/components/ui/button';
+import { Link } from '@/lib/i18n';
 import { FadeSwap, MountFade, RiseIn, Stagger, StaggerItem } from '@/components/ui/motion';
 import { CATEGORIES } from '@/features/experiences/lib/sample-data';
 import { getEnabledCategories } from '@/lib/platform-settings';
@@ -185,102 +191,53 @@ export default async function ExperiencesIndexPage({
   };
 
   return (
-    <div className="flex flex-col">
-      <JsonLd data={jsonLd} />
+    // Shared with the mobile search entry and the grid below: one
+    // useTransition so aria-busy is accurate regardless of which control
+    // triggered the URL change (M21).
+    <CatalogTransitionProvider>
+      <div className="flex flex-col">
+        <JsonLd data={jsonLd} />
 
-      <section className="mx-auto w-full max-w-6xl px-6 py-12 sm:py-24">
-        <div className="flex max-w-3xl flex-col gap-5">
-          <MountFade eager delay={0}>
-            <p className={eyebrowClassName}>{t('eyebrow')}</p>
-          </MountFade>
-          <RiseIn delay={0.05}>
-            <h1 className="font-display text-4xl font-semibold tracking-[-0.035em] text-balance sm:text-6xl">
-              {t('title')}
-            </h1>
-          </RiseIn>
-          <MountFade eager delay={0.12}>
-            <p className="text-sarat-black-600 max-w-2xl text-lg">{t('intro')}</p>
-          </MountFade>
-        </div>
+        <section className="mx-auto w-full max-w-6xl px-6 py-12 sm:py-24">
+          <div className="flex max-w-3xl flex-col gap-6">
+            <MountFade eager delay={0}>
+              <p className={eyebrowClassName}>{t('eyebrow')}</p>
+            </MountFade>
+            <RiseIn delay={0.05}>
+              <h1 className="font-display text-4xl font-semibold tracking-[-0.035em] text-balance sm:text-6xl">
+                {t('title')}
+              </h1>
+            </RiseIn>
+            <MountFade eager delay={0.12}>
+              <p className="text-sarat-black-600 max-w-2xl text-lg">{t('intro')}</p>
+            </MountFade>
+          </div>
 
-        {/* Mobile-only search + filters entry: on phones the Featured block
+          {/* Mobile-only search + filters entry: on phones the Featured block
             pushes the real controls ~2 screens down, so first-time guests
             never discover them. Desktop keeps its controls beside the grid. */}
-        <div className="mt-8 max-w-3xl lg:hidden">
-          <MobileSearchEntry facets={facets} cities={cities} />
-        </div>
-      </section>
-
-      {showFeatured && featured.length > 0 && (
-        <section className="border-sarat-black/8 [border-top-width:0.5px]">
-          <div className="mx-auto w-full max-w-6xl px-6 py-10 sm:py-16">
-            <h2 className="font-display mb-8 text-3xl font-medium tracking-[-0.03em]">
-              {t('featured')}
-            </h2>
-            <Stagger className="grid gap-4 sm:grid-cols-2">
-              {featured.map((experience) => (
-                <StaggerItem key={experience.slug}>
-                  <ExperienceCard
-                    experience={experience}
-                    locale={loc}
-                    actions={
-                      <WishlistButton
-                        slug={experience.slug}
-                        isSaved={savedSlugs.has(experience.slug)}
-                        surface={experience.featured ? 'dark' : 'light'}
-                      />
-                    }
-                  />
-                </StaggerItem>
-              ))}
-            </Stagger>
-          </div>
-        </section>
-      )}
-
-      <section className="border-sarat-black/8 [border-top-width:0.5px]">
-        <div className="mx-auto flex w-full max-w-6xl flex-col gap-8 px-6 py-10 sm:gap-10 sm:py-20">
-          <div className="flex flex-col gap-6">
-            <h2 className="font-display text-3xl font-medium tracking-[-0.03em]">{t('all')}</h2>
-
-            <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
-              {/* Hidden below lg — the hero's MobileSearchEntry is the one
-                  mobile search box; two identical inputs on one page would
-                  read as a bug. Desktop layout is unchanged. */}
-              <div className="hidden lg:block lg:max-w-md lg:flex-1">
-                <SearchInput />
-              </div>
-              <SortSelect />
-            </div>
-
-            <FilterRail
+          <div className="mt-8 max-w-3xl lg:hidden">
+            <MobileSearchEntry
               locale={loc}
               categories={categories}
-              resultCount={results.length}
-              cities={cities}
               facets={facets}
+              cities={cities}
             />
           </div>
+        </section>
 
-          {/* Keyed enter-fade: each new RSC payload (filter/sort change)
-              springs in instead of jump-cutting. Exit animation is
-              impossible here — the server owns the outgoing list. */}
-          <FadeSwap watch={JSON.stringify(criteria)}>
-            {results.length === 0 ? (
-              <EmptyState
-                locale={loc}
-                variant={catalog.length === 0 ? 'catalogEmpty' : 'filtered'}
-              />
-            ) : (
-              <Stagger className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                {gridResults.map((experience, index) => (
+        {showFeatured && featured.length > 0 && (
+          <section className="border-sarat-black/8 [border-top-width:0.5px]">
+            <div className="mx-auto w-full max-w-6xl px-6 py-12 sm:py-16">
+              <h2 className="font-display mb-8 text-3xl font-medium tracking-[-0.03em]">
+                {t('featured')}
+              </h2>
+              <Stagger className="grid gap-4 sm:grid-cols-2">
+                {featured.map((experience) => (
                   <StaggerItem key={experience.slug}>
                     <ExperienceCard
                       experience={experience}
                       locale={loc}
-                      // First lg row sits above the fold — eager-load so the
-                      // catalog's LCP image isn't lazy (Next.js LCP warning).
-                      priority={index < 3}
                       actions={
                         <WishlistButton
                           slug={experience.slug}
@@ -292,10 +249,88 @@ export default async function ExperiencesIndexPage({
                   </StaggerItem>
                 ))}
               </Stagger>
-            )}
-          </FadeSwap>
-        </div>
-      </section>
-    </div>
+            </div>
+          </section>
+        )}
+
+        <section className="border-sarat-black/8 [border-top-width:0.5px]">
+          <div className="mx-auto flex w-full max-w-6xl flex-col gap-8 px-6 py-12 sm:gap-12 sm:py-20">
+            <div className="flex flex-col gap-6">
+              <h2 className="font-display text-3xl font-medium tracking-[-0.03em]">{t('all')}</h2>
+
+              <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
+                {/* Hidden below lg — the hero's MobileSearchEntry is the one
+                  mobile search box; two identical inputs on one page would
+                  read as a bug. Desktop layout is unchanged. */}
+                <div className="hidden lg:block lg:max-w-md lg:flex-1">
+                  <SearchInput />
+                </div>
+                <SortSelect />
+              </div>
+
+              <FilterRail
+                locale={loc}
+                categories={categories}
+                resultCount={results.length}
+                cities={cities}
+                facets={facets}
+              />
+            </div>
+
+            {/* Keyed enter-fade: each new RSC payload (filter/sort change)
+              springs in instead of jump-cutting. Exit animation is
+              impossible here — the server owns the outgoing list. */}
+            <CatalogGridStatus>
+              <FadeSwap watch={JSON.stringify(criteria)}>
+                {results.length === 0 ? (
+                  // P2-6: bordered/start-aligned EmptyState variant, folded into
+                  // the shared primitive (see components/ui/empty-state.tsx).
+                  <EmptyState
+                    bordered
+                    eyebrow={catalog.length === 0 ? t('empty.noneEyebrow') : t('empty.eyebrow')}
+                    eyebrowUppercase={loc === 'en'}
+                    title={catalog.length === 0 ? t('empty.noneTitle') : t('empty.title')}
+                    description={
+                      catalog.length === 0 ? t('empty.noneDescription') : t('empty.description')
+                    }
+                    action={
+                      catalog.length === 0 ? undefined : (
+                        <Link
+                          href="/experiences"
+                          className={cn(buttonVariants({ variant: 'secondary' }))}
+                        >
+                          {t('reset')}
+                        </Link>
+                      )
+                    }
+                  />
+                ) : (
+                  <Stagger className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                    {gridResults.map((experience, index) => (
+                      <StaggerItem key={experience.slug}>
+                        <ExperienceCard
+                          experience={experience}
+                          locale={loc}
+                          // First lg row sits above the fold — eager-load so the
+                          // catalog's LCP image isn't lazy (Next.js LCP warning).
+                          priority={index < 3}
+                          actions={
+                            <WishlistButton
+                              slug={experience.slug}
+                              isSaved={savedSlugs.has(experience.slug)}
+                              surface={experience.featured ? 'dark' : 'light'}
+                            />
+                          }
+                        />
+                      </StaggerItem>
+                    ))}
+                  </Stagger>
+                )}
+              </FadeSwap>
+            </CatalogGridStatus>
+          </div>
+        </section>
+      </div>
+    </CatalogTransitionProvider>
   );
 }

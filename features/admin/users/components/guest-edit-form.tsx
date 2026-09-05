@@ -126,7 +126,7 @@ export function GuestEditForm({ personKey, guest, copy }: GuestEditFormProps) {
       {open && (
         <form action={action} className="flex flex-col gap-6">
           <input type="hidden" name="key" value={personKey} />
-          <div className="grid gap-5 sm:grid-cols-2">
+          <div className="grid gap-6 sm:grid-cols-2">
             <Field
               label={copy.name}
               name="name"
@@ -173,7 +173,7 @@ export function GuestEditForm({ personKey, guest, copy }: GuestEditFormProps) {
             </fieldset>
           </div>
 
-          <fieldset className="border-sarat-black/8 rounded-card flex flex-col gap-5 [border-width:0.5px] p-5">
+          <fieldset className="border-sarat-black/8 rounded-card flex flex-col gap-6 [border-width:0.5px] p-6">
             <legend className="text-sarat-black-600 px-2 text-[11px] font-medium tracking-[0.2em] uppercase">
               {copy.billing}
             </legend>
@@ -184,7 +184,7 @@ export function GuestEditForm({ personKey, guest, copy }: GuestEditFormProps) {
               error={fieldError('billingStreet1')}
               maxLength={160}
             />
-            <div className="grid gap-5 sm:grid-cols-2">
+            <div className="grid gap-6 sm:grid-cols-2">
               <Field
                 label={copy.city}
                 name="billingCity"

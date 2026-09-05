@@ -1,9 +1,8 @@
 'use client';
 
 import { useActionState, useState } from 'react';
-import { useFormStatus } from 'react-dom';
 import type { Locale } from '@/lib/i18n';
-import { Button } from '@/components/ui/button';
+import { ConfirmSubmit } from '@/components/ui/confirm-dialog';
 import {
   replyToReview,
   updateHostReply,
@@ -23,6 +22,8 @@ interface Copy {
   editSubmit: string;
   editSuccess: string;
   cancelEdit: string;
+  /** M14: confirmation-dialog body — a reply publishes publicly and can't be withdrawn. */
+  confirm: string;
   errors: Record<
     'forbidden' | 'no_db' | 'not_found' | 'already_replied' | 'expired' | 'validation' | 'server',
     string
@@ -51,12 +52,31 @@ async function runReply(
     : replyToReview(previous as HostReplyState, formData);
 }
 
-function Submit({ label, pendingLabel }: { label: string; pendingLabel: string }) {
-  const { pending } = useFormStatus();
+function Submit({
+  label,
+  pendingLabel,
+  confirmTitle,
+  confirmDescription,
+}: {
+  label: string;
+  pendingLabel: string;
+  confirmTitle: string;
+  confirmDescription: string;
+}) {
+  // M14: a posted or edited reply publishes publicly under the host's
+  // name and (for a fresh reply) can't be withdrawn — gate it the same
+  // way every other irreversible host/admin action is gated.
   return (
-    <Button type="submit" variant="secondary" size="sm" pending={pending}>
-      {pending ? pendingLabel : label}
-    </Button>
+    <ConfirmSubmit
+      title={confirmTitle}
+      description={confirmDescription}
+      confirmLabel={label}
+      pendingLabel={pendingLabel}
+      variant="secondary"
+      size="sm"
+    >
+      {label}
+    </ConfirmSubmit>
   );
 }
 
@@ -110,7 +130,9 @@ export function HostReplyForm({ reviewId, locale, copy, existingReply }: HostRep
         rows={3}
         maxLength={1000}
         required
-        defaultValue={existingReply}
+        // P2-23: a failed submit re-renders with the typed text, not the
+        // pre-edit reply (or empty, for a fresh reply).
+        defaultValue={state.values?.reply ?? existingReply}
         placeholder={copy.placeholder}
         className="rounded-input border-sarat-black/20 text-sarat-black w-full [border-width:0.5px] bg-white p-3 text-base"
       />
@@ -120,7 +142,12 @@ export function HostReplyForm({ reviewId, locale, copy, existingReply }: HostRep
         </p>
       )}
       <div className="flex items-center gap-3">
-        <Submit label={isEdit ? copy.editSubmit : copy.submit} pendingLabel={copy.pending} />
+        <Submit
+          label={isEdit ? copy.editSubmit : copy.submit}
+          pendingLabel={copy.pending}
+          confirmTitle={isEdit ? copy.editLabel : copy.label}
+          confirmDescription={copy.confirm}
+        />
         {isEdit && (
           <button
             type="button"

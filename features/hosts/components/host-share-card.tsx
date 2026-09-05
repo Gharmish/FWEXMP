@@ -59,7 +59,7 @@ export function HostShareCard({ url, shareText }: HostShareCardProps) {
   const displayUrl = url.replace(/^https?:\/\//, '');
 
   return (
-    <div className="border-sarat-black/8 rounded-card flex flex-col gap-4 [border-width:0.5px] p-5">
+    <div className="border-sarat-black/8 rounded-card flex flex-col gap-4 [border-width:0.5px] p-6">
       <div className="flex flex-col gap-1">
         <p className="text-base font-medium">{t('title')}</p>
         <p className="text-sarat-black-600 text-sm leading-relaxed">{t('description')}</p>

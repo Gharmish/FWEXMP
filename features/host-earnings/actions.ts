@@ -22,7 +22,12 @@ import { decryptPii, encryptPii } from '@/lib/pii-crypto';
 
 export type UpdatePayoutIbanState =
   | { success: true }
-  | { success: false; message?: 'forbidden' | 'no_db' | 'validation' | 'server' };
+  | {
+      success: false;
+      message?: 'forbidden' | 'no_db' | 'validation' | 'server';
+      // P2-23: echo the typed IBAN so a failed submit doesn't wipe it.
+      values?: { iban?: string };
+    };
 
 export async function updatePayoutIban(
   _previous: UpdatePayoutIbanState,
@@ -34,11 +39,12 @@ export async function updatePayoutIban(
 
   const raw = formData.get('iban');
   const locale = formData.get('locale');
+  const values = { iban: typeof raw === 'string' ? raw : '' };
   const parsed = updatePayoutIbanSchema.safeParse({
-    iban: typeof raw === 'string' ? raw : '',
+    iban: values.iban,
     locale: typeof locale === 'string' ? locale : '',
   });
-  if (!parsed.success) return { success: false, message: 'validation' };
+  if (!parsed.success) return { success: false, message: 'validation', values };
 
   try {
     // Update + audit in one transaction so the trail can't drift from
@@ -73,10 +79,10 @@ export async function updatePayoutIban(
       }
       return 'ok' as const;
     });
-    if (outcome === 'forbidden') return { success: false, message: 'forbidden' };
+    if (outcome === 'forbidden') return { success: false, message: 'forbidden', values };
   } catch (error) {
     reportError(error, { surface: 'host-earnings:updateIban' });
-    return { success: false, message: 'server' };
+    return { success: false, message: 'server', values };
   }
 
   revalidatePath('/[locale]/host/earnings', 'page');

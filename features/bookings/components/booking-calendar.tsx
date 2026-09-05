@@ -278,7 +278,8 @@ export function BookingCalendar({
             <span
               key={i}
               role="columnheader"
-              className="text-sarat-black-600 flex h-8 items-center justify-center text-[11px]"
+              // P3-6: 11px was below the 12px floor for non-eyebrow text.
+              className="text-sarat-black-600 flex h-8 items-center justify-center text-xs"
             >
               {w}
             </span>
@@ -289,13 +290,12 @@ export function BookingCalendar({
           <div key={wi} role="row" className="contents">
             {week.map((cell, ci) => {
               if (!cell)
+                // L13: a leading blank isn't a real gridcell — pairing
+                // role="gridcell" with aria-hidden told AT there was a
+                // cell here with nothing in it, which is worse than no
+                // role at all. It just needs to hold the grid's spacing.
                 return (
-                  <span
-                    key={`blank-${wi}-${ci}`}
-                    role="gridcell"
-                    aria-hidden
-                    className="aspect-square w-full"
-                  />
+                  <span key={`blank-${wi}-${ci}`} aria-hidden className="aspect-square w-full" />
                 );
               const { dateStr, day, inWindow, isOpen } = cell;
               const dayLabel = formatInteger(day, locale);
@@ -337,7 +337,15 @@ export function BookingCalendar({
               // `contents` collapses the gridcell wrapper so the button stays
               // the grid item (preserving sizing + the selected-day motion).
               return (
-                <span key={dateStr} role="gridcell" className="contents">
+                <span
+                  key={dateStr}
+                  role="gridcell"
+                  // L13: a date grid's selection state is aria-selected on
+                  // the gridcell, not aria-pressed on the button inside it
+                  // — aria-selected isn't a supported prop on role=button.
+                  aria-selected={isSelected}
+                  className="contents"
+                >
                   <button
                     ref={(el) => {
                       if (el) dayRefs.current.set(dateStr, el);
@@ -345,7 +353,6 @@ export function BookingCalendar({
                     }}
                     type="button"
                     aria-label={ariaLabel}
-                    aria-pressed={isSelected}
                     aria-disabled={isOpen ? undefined : true}
                     tabIndex={dateStr === focusedDate ? 0 : -1}
                     onClick={() => {

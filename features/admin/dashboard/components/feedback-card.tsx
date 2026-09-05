@@ -33,7 +33,7 @@ export function FeedbackCard({
     return <p className="text-sarat-black-600 text-sm">{emptyLabel}</p>;
   }
   return (
-    <ul className="flex flex-col divide-y divide-[var(--color-sarat-black)]/8">
+    <ul className="divide-hairline flex flex-col divide-[var(--color-sarat-black)]/8">
       {reviews.map((r) => {
         const low = r.rating <= 3;
         return (

@@ -29,7 +29,7 @@ export function Leaderboard({ rows, locale, emptyLabel, bookingsLabel }: Leaderb
   }
 
   return (
-    <ol className="border-sarat-black/8 rounded-card flex flex-col divide-y divide-[var(--color-sarat-black)]/8 [border-width:0.5px]">
+    <ol className="border-sarat-black/8 rounded-card divide-hairline flex flex-col divide-[var(--color-sarat-black)]/8 [border-width:0.5px]">
       {rows.map((row, i) => (
         <li key={row.id} className="flex items-center justify-between gap-4 p-4">
           <div className="flex min-w-0 items-center gap-3">

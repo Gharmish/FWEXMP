@@ -33,7 +33,7 @@ export default async function WhatsAppPreviewPage({
   const audiences = ['guest', 'host', 'support', 'admin'] as const;
 
   return (
-    <div className="flex flex-col gap-10">
+    <div className="flex flex-col gap-12">
       <div className="flex flex-col gap-3">
         <p className="text-sarat-black-600 text-[11px] font-medium tracking-[0.2em] uppercase">
           Developer
@@ -49,7 +49,7 @@ export default async function WhatsAppPreviewPage({
           <a
             href="?"
             className={cn(
-              'rounded-button border-sarat-black/20 px-3 py-1 [border-width:0.5px]',
+              'rounded-button border-sarat-black/20 [border-width:0.5px] px-3 py-1',
               !audience && 'bg-sarat-black text-white',
             )}
           >
@@ -60,7 +60,7 @@ export default async function WhatsAppPreviewPage({
               key={a}
               href={`?audience=${a}`}
               className={cn(
-                'rounded-button border-sarat-black/20 px-3 py-1 [border-width:0.5px]',
+                'rounded-button border-sarat-black/20 [border-width:0.5px] px-3 py-1',
                 audience === a && 'bg-sarat-black text-white',
               )}
             >
@@ -106,7 +106,7 @@ export default async function WhatsAppPreviewPage({
                       out.message.buttons.map((b) => (
                         <div
                           key={b.title}
-                          className="border-sarat-black/10 rounded-[20px] py-2 text-center text-[15px] font-medium text-sarawat-blue [border-width:0.5px]"
+                          className="border-sarat-black/10 text-sarawat-blue rounded-[20px] [border-width:0.5px] py-2 text-center text-[15px] font-medium"
                           title={b.url}
                         >
                           {b.title}
@@ -137,13 +137,22 @@ export default async function WhatsAppPreviewPage({
         <div className="grid gap-4 md:grid-cols-2">
           {(['ar', 'en'] as const).map((loc) => (
             <div key={loc} className="flex flex-col gap-3">
-              <div dir={loc === 'ar' ? 'rtl' : 'ltr'} className="bg-mist rounded-[20px] px-4 py-3 text-[15px] whitespace-pre-line">
+              <div
+                dir={loc === 'ar' ? 'rtl' : 'ltr'}
+                className="bg-mist rounded-[20px] px-4 py-3 text-[15px] whitespace-pre-line"
+              >
                 {SUPPORT_SESSION_COPY.ack[loc]}
               </div>
-              <div dir={loc === 'ar' ? 'rtl' : 'ltr'} className="bg-mist rounded-[20px] px-4 py-3 text-[15px] whitespace-pre-line">
+              <div
+                dir={loc === 'ar' ? 'rtl' : 'ltr'}
+                className="bg-mist rounded-[20px] px-4 py-3 text-[15px] whitespace-pre-line"
+              >
                 {SUPPORT_SESSION_COPY.ticketOpened[loc]('TK-7K3M9X')}
               </div>
-              <div dir={loc === 'ar' ? 'rtl' : 'ltr'} className="bg-mist rounded-[20px] px-4 py-3 text-[15px] whitespace-pre-line">
+              <div
+                dir={loc === 'ar' ? 'rtl' : 'ltr'}
+                className="bg-mist rounded-[20px] px-4 py-3 text-[15px] whitespace-pre-line"
+              >
                 {SUPPORT_SESSION_COPY.ticketResolved[loc]('TK-7K3M9X')}
               </div>
             </div>

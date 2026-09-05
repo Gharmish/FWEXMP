@@ -148,7 +148,7 @@ export default async function AdminDisputesPage({
   );
 
   return (
-    <div className="flex flex-col gap-10">
+    <div className="flex flex-col gap-12">
       <div className="flex flex-col gap-4">
         <Link
           href="/admin"
@@ -168,7 +168,7 @@ export default async function AdminDisputesPage({
 
       {rows === null ? (
         // No DB configured — an explicit notice, never a reassuring "all clear".
-        <div className="border-sarat-black/8 rounded-card flex flex-col items-start gap-4 [border-width:0.5px] p-10">
+        <div className="border-sarat-black/8 rounded-card flex flex-col items-start gap-4 [border-width:0.5px] p-12">
           <p className={eyebrowClassName}>{t('noDb.eyebrow')}</p>
           <h2 className="font-display text-2xl font-medium tracking-[-0.025em]">
             {t('noDb.title')}

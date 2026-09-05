@@ -46,7 +46,7 @@ export function DestinationChapter({
   return (
     <section className="border-sarat-black/8 [border-top-width:0.5px]">
       <div className="mx-auto w-full max-w-6xl px-6 py-20">
-        <div className="grid gap-10 lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)] lg:gap-16">
+        <div className="grid gap-12 lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)] lg:gap-16">
           <FadeIn className="flex flex-col gap-4">
             <Draw axis="x">
               <span className="bg-sarat-black/15 block h-px w-full" />
@@ -63,7 +63,7 @@ export function DestinationChapter({
               {title}
             </h2>
           </FadeIn>
-          <FadeIn delay={0.1} className="flex flex-col gap-5 lg:pt-24">
+          <FadeIn delay={0.1} className="flex flex-col gap-6 lg:pt-24">
             {paragraphs.map((p) => (
               <p
                 key={p}
@@ -72,7 +72,7 @@ export function DestinationChapter({
                 {p}
               </p>
             ))}
-            <div className="mt-2 flex flex-wrap items-center gap-5">
+            <div className="mt-2 flex flex-wrap items-center gap-6">
               <Link href={cta.href} className={cn(buttonVariants({ variant: 'primary' }))}>
                 {cta.label}
               </Link>

@@ -78,7 +78,7 @@ export default async function AdminExperienceModerationPage({
   );
 
   return (
-    <div className="flex flex-col gap-10">
+    <div className="flex flex-col gap-12">
       <div className="flex flex-col gap-4">
         <Link
           href="/admin"
@@ -96,7 +96,7 @@ export default async function AdminExperienceModerationPage({
         </p>
         <Link
           href="/admin/experiences/new"
-          className="bg-sarat-black rounded-button inline-flex min-h-11 items-center gap-2 self-start px-5 text-sm font-medium text-white transition-transform duration-200 hover:-translate-y-px"
+          className="bg-sarat-black rounded-button inline-flex min-h-11 items-center gap-2 self-start px-6 text-sm font-medium text-white transition-transform duration-200 hover:-translate-y-px"
         >
           <Plus className="size-4 shrink-0" aria-hidden />
           {t('experienceModerationList.create')}
@@ -130,7 +130,7 @@ export default async function AdminExperienceModerationPage({
       )}
 
       {block?.reason === 'no_db' ? (
-        <div className="border-sarat-black/8 rounded-card flex flex-col items-start gap-4 [border-width:0.5px] p-10">
+        <div className="border-sarat-black/8 rounded-card flex flex-col items-start gap-4 [border-width:0.5px] p-12">
           <p className={eyebrowClassName}>{t('noDb.eyebrow')}</p>
           <h2 className="font-display text-2xl font-medium tracking-[-0.025em]">
             {t('noDb.title')}
@@ -138,7 +138,7 @@ export default async function AdminExperienceModerationPage({
           <p className="text-sarat-black-600 max-w-xl text-base">{t('noDb.description')}</p>
         </div>
       ) : queue.length === 0 ? (
-        <div className="border-sarat-black/8 rounded-card flex flex-col items-start gap-4 [border-width:0.5px] p-10">
+        <div className="border-sarat-black/8 rounded-card flex flex-col items-start gap-4 [border-width:0.5px] p-12">
           <p className={eyebrowClassName}>{t('experienceModerationList.empty.eyebrow')}</p>
           <h2 className="font-display text-2xl font-medium tracking-[-0.025em]">
             {t('experienceModerationList.empty.title')}
@@ -148,12 +148,12 @@ export default async function AdminExperienceModerationPage({
           </p>
         </div>
       ) : (
-        <ul className="border-sarat-black/8 rounded-card flex flex-col divide-y divide-[var(--color-sarat-black)]/8 [border-width:0.5px]">
+        <ul className="border-sarat-black/8 rounded-card divide-hairline flex flex-col divide-[var(--color-sarat-black)]/8 [border-width:0.5px]">
           {queue.map((row) => (
             <li key={row.id}>
               <Link
                 href={`/admin/experience-moderation/${row.id}`}
-                className="hover:bg-sarat-black/[0.02] flex items-center justify-between gap-4 p-5 transition-colors duration-200"
+                className="hover:bg-sarat-black/[0.02] flex items-center justify-between gap-4 p-6 transition-colors duration-200"
               >
                 <div className="flex min-w-0 flex-col gap-1">
                   <div className="flex flex-wrap items-center gap-3">

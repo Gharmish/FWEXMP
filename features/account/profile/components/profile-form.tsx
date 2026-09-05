@@ -35,8 +35,9 @@ const initialState: ProfileFormState = { status: 'idle' };
 
 function Submit({ copy }: { copy: ProfileFormCopy }) {
   const { pending } = useFormStatus();
+  // L19: Button's own pending prop (not disabled) keeps focus during submit.
   return (
-    <Button type="submit" variant="primary" size="md" disabled={pending} className="self-start">
+    <Button type="submit" variant="primary" size="md" pending={pending} className="self-start">
       {pending ? copy.submitting : copy.submit}
     </Button>
   );
@@ -62,7 +63,7 @@ export function ProfileForm({ profile, copy }: ProfileFormProps) {
 
   return (
     <form action={action} className="flex flex-col gap-6">
-      <div className="grid gap-5 sm:grid-cols-2">
+      <div className="grid gap-6 sm:grid-cols-2">
         <div className="flex flex-col gap-2">
           <label htmlFor={nameId} className="text-sm font-medium">
             {copy.nameLabel}
@@ -138,7 +139,7 @@ export function ProfileForm({ profile, copy }: ProfileFormProps) {
         </p>
       )}
 
-      <div className="border-sarat-black/8 flex items-center gap-3 [border-top-width:0.5px] pt-5">
+      <div className="border-sarat-black/8 flex items-center gap-3 [border-top-width:0.5px] pt-6">
         <Submit copy={copy} />
       </div>
     </form>

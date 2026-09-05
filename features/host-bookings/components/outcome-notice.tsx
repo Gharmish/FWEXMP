@@ -3,6 +3,7 @@ import { getTranslations } from 'next-intl/server';
 import { Link } from '@/lib/i18n';
 import type { Locale } from '@/lib/i18n';
 import { formatDate, formatTime } from '@/lib/format';
+import { bidiIsolate } from '@/lib/notifications/whatsapp/format';
 import type { HostBookingOutcome } from '@/features/host-bookings/actions';
 
 const OUTCOMES: readonly HostBookingOutcome[] = [
@@ -55,11 +56,14 @@ export async function OutcomeNotice({
     outcome === 'approved'
       ? untilValid
         ? t('approvedWithWindow', {
-            reference: ref,
-            date: `${formatDate(untilDate, locale)} · ${formatTime(untilDate, locale)}`,
+            reference: bidiIsolate(ref),
+            // P2-15: isolate the LTR date/time span from surrounding Arabic text.
+            date: bidiIsolate(
+              `${formatDate(untilDate, locale)} · ${formatTime(untilDate, locale)}`,
+            ),
           })
-        : t('approvedPaid', { reference: ref })
-      : t(outcome, { reference: ref });
+        : t('approvedPaid', { reference: bidiIsolate(ref) })
+      : t(outcome, { reference: bidiIsolate(ref) });
 
   return (
     <p

@@ -82,7 +82,7 @@ export function VerifiedBadge({
       )}
 
       <Sheet open={open} onOpenChange={setOpen} title={t('sheetTitle')}>
-        <div className="flex flex-col gap-5">
+        <div className="flex flex-col gap-6">
           <div className="flex items-start gap-3">
             <VerifiedSeal className="size-9" />
             <p className="text-sarat-black-600 text-sm leading-relaxed">{t('subtitle')}</p>

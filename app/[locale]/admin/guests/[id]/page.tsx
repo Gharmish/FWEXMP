@@ -55,7 +55,7 @@ export default async function AdminGuestDetailPage({
   ];
 
   return (
-    <div className="flex flex-col gap-10">
+    <div className="flex flex-col gap-12">
       <Link
         href="/admin/guests"
         className="text-sarat-black-600 inline-flex min-h-11 items-center gap-2 self-start text-sm font-medium transition-opacity duration-200 hover:opacity-60"
@@ -94,7 +94,7 @@ export default async function AdminGuestDetailPage({
         />
       </div>
 
-      <dl className="border-sarat-black/8 rounded-card grid gap-5 [border-width:0.5px] p-6 sm:grid-cols-2">
+      <dl className="border-sarat-black/8 rounded-card grid gap-6 [border-width:0.5px] p-6 sm:grid-cols-2">
         {facts.map((f) => (
           <div key={f.label} className="flex flex-col gap-1">
             <dt className={eyebrowClassName}>{f.label}</dt>
@@ -112,9 +112,9 @@ export default async function AdminGuestDetailPage({
         {guest.bookingList.length === 0 ? (
           <p className="text-sarat-black-600 text-base">{t('guestDetail.noBookings')}</p>
         ) : (
-          <ul className="border-sarat-black/8 rounded-card flex flex-col divide-y divide-[var(--color-sarat-black)]/8 [border-width:0.5px]">
+          <ul className="border-sarat-black/8 rounded-card divide-hairline flex flex-col divide-[var(--color-sarat-black)]/8 [border-width:0.5px]">
             {guest.bookingList.map((b) => (
-              <li key={b.id} className="flex flex-wrap items-center justify-between gap-4 p-5">
+              <li key={b.id} className="flex flex-wrap items-center justify-between gap-4 p-6">
                 <div className="flex min-w-0 flex-col gap-1">
                   <div className="flex flex-wrap items-center gap-3">
                     <Link

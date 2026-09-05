@@ -40,7 +40,7 @@ export async function WhyGharmish({ locale }: WhyGharmishProps) {
           </h2>
         </FadeIn>
         <Stagger>
-          <ol className="grid gap-10 sm:grid-cols-3 sm:gap-8">
+          <ol className="grid gap-12 sm:grid-cols-3 sm:gap-8">
             {pillars.map(({ title, body }, i) => (
               <li key={title}>
                 <StaggerItem className="flex h-full flex-col gap-4">

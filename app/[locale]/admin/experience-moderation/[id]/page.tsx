@@ -75,7 +75,7 @@ export default async function AdminExperienceModerationDetailPage({
       loc === 'en' && 'tracking-[0.2em] uppercase',
     );
     return (
-      <div className="flex flex-col gap-10">
+      <div className="flex flex-col gap-12">
         <Link
           href="/admin/experience-moderation"
           className="text-sarat-black-600 inline-flex min-h-11 items-center gap-2 self-start text-sm font-medium transition-opacity duration-200 hover:opacity-60"
@@ -83,7 +83,7 @@ export default async function AdminExperienceModerationDetailPage({
           <ArrowLeft className="size-4 shrink-0 rtl:rotate-180" aria-hidden />
           {t('experienceModerationList.title')}
         </Link>
-        <div className="border-sarat-black/8 rounded-card flex flex-col items-start gap-4 [border-width:0.5px] p-10">
+        <div className="border-sarat-black/8 rounded-card flex flex-col items-start gap-4 [border-width:0.5px] p-12">
           <p className={eyebrowClassName}>{t('noDb.eyebrow')}</p>
           <h2 className="font-display text-2xl font-medium tracking-[-0.025em]">
             {t('noDb.title')}
@@ -111,7 +111,7 @@ export default async function AdminExperienceModerationDetailPage({
   );
 
   return (
-    <div className="flex flex-col gap-10">
+    <div className="flex flex-col gap-12">
       <div className="flex flex-col gap-4">
         <Link
           href="/admin/experience-moderation"
@@ -214,7 +214,7 @@ export default async function AdminExperienceModerationDetailPage({
       </section>
 
       {/* Quick facts */}
-      <dl className="border-sarat-black/8 rounded-card grid gap-5 [border-width:0.5px] p-6 sm:grid-cols-2">
+      <dl className="border-sarat-black/8 rounded-card grid gap-6 [border-width:0.5px] p-6 sm:grid-cols-2">
         <div className="flex flex-col gap-1">
           <dt className={eyebrowClassName}>{t('experienceModerationDetail.price')}</dt>
           <dd className="text-base font-medium">
@@ -377,9 +377,23 @@ export default async function AdminExperienceModerationDetailPage({
             requestChangesLabel: t('experienceActions.requestChanges'),
             requestChangesPending: t('experienceActions.requestChangesPending'),
             notesLabel: t('experienceActions.notesLabel'),
+            rejectNotesLabel: t('experienceActions.rejectNotesLabel'),
             notesApproveHint: t('experienceActions.notesApproveHint'),
             notesRejectHint: t('experienceActions.notesRejectHint'),
             notesRequestChangesHint: t('experienceActions.notesRequestChangesHint'),
+            confirmRejectTitle: t('experienceActions.confirmRejectTitle', {
+              name: pickLocalized(loc, detail.titleEn, detail.titleAr),
+            }),
+            confirmRejectDescription: t('experienceActions.confirmRejectDescription', {
+              name: pickLocalized(loc, detail.titleEn, detail.titleAr),
+            }),
+            confirmRequestChangesTitle: t('experienceActions.confirmRequestChangesTitle', {
+              name: pickLocalized(loc, detail.titleEn, detail.titleAr),
+            }),
+            confirmRequestChangesDescription: t(
+              'experienceActions.confirmRequestChangesDescription',
+              { name: pickLocalized(loc, detail.titleEn, detail.titleAr) },
+            ),
             errors: {
               forbidden: t('experienceActions.errors.forbidden'),
               no_db: t('experienceActions.errors.noDb'),

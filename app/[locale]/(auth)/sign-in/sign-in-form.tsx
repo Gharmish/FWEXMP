@@ -126,6 +126,20 @@ export function SignInForm({ locale, next, isStubMode, copy }: SignInFormProps) 
 
   const requestFields = requestState.success ? undefined : requestState.fields;
   const requestMessage = requestState.success ? undefined : requestState.message;
+  // P3-10: computed here (not inline in the branch below) so the focus
+  // effects can be unconditional hooks, same as every other effect.
+  const formMessage =
+    requestMessage === 'rate_limited'
+      ? copy.errors.rateLimited
+      : requestMessage === 'server'
+        ? copy.errors.server
+        : undefined;
+  const verifyMessage =
+    verifyState.message === 'rate_limited'
+      ? copy.errors.rateLimited
+      : verifyState.message === 'server'
+        ? copy.errors.server
+        : undefined;
   const canonicalPhone = requestState.phone ?? '';
   const serverEmail = requestState.email ?? '';
   const identifier = method === 'email' ? serverEmail || email : canonicalPhone;
@@ -144,6 +158,18 @@ export function SignInForm({ locale, next, isStubMode, copy }: SignInFormProps) 
     input.value = code;
     codeFormRef.current?.requestSubmit();
   }, []);
+
+  // P3-10: the tabIndex={-1} on these message paragraphs was dead —
+  // nothing ever moved focus there, so a screen-reader user landed back
+  // on the submit button with no route to the error text.
+  const formMessageRef = useRef<HTMLParagraphElement>(null);
+  const verifyMessageRef = useRef<HTMLParagraphElement>(null);
+  useEffect(() => {
+    if (formMessage) formMessageRef.current?.focus();
+  }, [formMessage]);
+  useEffect(() => {
+    if (verifyMessage) verifyMessageRef.current?.focus();
+  }, [verifyMessage]);
 
   const errorPrefix = useId();
   const phoneErrorId = `${errorPrefix}-phone-error`;
@@ -164,13 +190,6 @@ export function SignInForm({ locale, next, isStubMode, copy }: SignInFormProps) 
   }, [stage, showPhoneStep, method]);
 
   if (stage === 'phone') {
-    const formMessage =
-      requestMessage === 'rate_limited'
-        ? copy.errors.rateLimited
-        : requestMessage === 'server'
-          ? copy.errors.server
-          : undefined;
-
     const tabClass = (active: boolean) =>
       cn(
         'min-h-11 flex-1 rounded-button text-sm font-medium transition-[colors,transform] duration-200 active:translate-y-0',
@@ -185,7 +204,7 @@ export function SignInForm({ locale, next, isStubMode, copy }: SignInFormProps) 
           action={requestAction}
           onSubmit={() => setShowPhoneStep(false)}
           noValidate
-          className="flex flex-col gap-5"
+          className="flex flex-col gap-6"
         >
           <input type="hidden" name="locale" value={locale} />
           <input type="hidden" name="next" value={next} />
@@ -271,6 +290,7 @@ export function SignInForm({ locale, next, isStubMode, copy }: SignInFormProps) 
 
           {formMessage && (
             <p
+              ref={formMessageRef}
               role="alert"
               tabIndex={-1}
               className="text-al-qatt-red-800 text-sm focus:outline-none"
@@ -289,16 +309,9 @@ export function SignInForm({ locale, next, isStubMode, copy }: SignInFormProps) 
   // Every terminal verify failure must surface SOMETHING: invalid_code
   // renders inline via fields.code, so the form-level slot covers the
   // rest — a rate-limited verify previously rendered nothing at all.
-  const verifyMessage =
-    verifyState.message === 'rate_limited'
-      ? copy.errors.rateLimited
-      : verifyState.message === 'server'
-        ? copy.errors.server
-        : undefined;
-
   return (
     <StepTransition stepKey="code">
-      <form ref={codeFormRef} action={verifyAction} noValidate className="flex flex-col gap-5">
+      <form ref={codeFormRef} action={verifyAction} noValidate className="flex flex-col gap-6">
         <input type="hidden" name="locale" value={locale} />
         <input type="hidden" name="next" value={next} />
         <input type="hidden" name="method" value={method} />
@@ -383,7 +396,12 @@ export function SignInForm({ locale, next, isStubMode, copy }: SignInFormProps) 
         </div>
 
         {verifyMessage && (
-          <p role="alert" tabIndex={-1} className="text-al-qatt-red-800 text-sm focus:outline-none">
+          <p
+            ref={verifyMessageRef}
+            role="alert"
+            tabIndex={-1}
+            className="text-al-qatt-red-800 text-sm focus:outline-none"
+          >
             {verifyMessage}
           </p>
         )}

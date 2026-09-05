@@ -284,7 +284,7 @@ export default async function BookingInvoicePage({ params, searchParams }: PageP
       </header>
 
       {/* Identity block: number, issue date, buyer, VAT number. */}
-      <dl className={cn('mt-10 grid gap-4 pt-6 sm:grid-cols-2', hairline)}>
+      <dl className={cn('mt-12 grid gap-4 pt-6 sm:grid-cols-2', hairline)}>
         {identityRows.map((row) => (
           <div key={row.label} className="flex flex-col gap-1">
             <dt className={labelClass}>{row.label}</dt>
@@ -381,7 +381,7 @@ export default async function BookingInvoicePage({ params, searchParams }: PageP
 
       {/* ZATCA QR — tax-invoice mode only. */}
       {qrDataUrl && (
-        <section className={cn('mt-6 flex items-center gap-5 pt-6', hairline)}>
+        <section className={cn('mt-6 flex items-center gap-6 pt-6', hairline)}>
           <Image
             src={qrDataUrl}
             alt={t('qrCaption')}
@@ -396,7 +396,7 @@ export default async function BookingInvoicePage({ params, searchParams }: PageP
 
       {/* Credit note — full reversal of a refunded tax invoice. */}
       {creditNote && (
-        <section className="border-al-qatt-red/30 rounded-card mt-10 flex flex-col gap-4 [border-width:0.5px] p-6 print:break-inside-avoid">
+        <section className="border-al-qatt-red/30 rounded-card mt-12 flex flex-col gap-4 [border-width:0.5px] p-6 print:break-inside-avoid">
           <div className="flex flex-wrap items-baseline justify-between gap-3">
             <h2 className="font-display text-xl font-medium tracking-[-0.025em]">
               {t('creditNoteTitle')}
@@ -441,7 +441,7 @@ export default async function BookingInvoicePage({ params, searchParams }: PageP
             </div>
           </dl>
           {creditNoteQrDataUrl && (
-            <div className="flex items-center gap-5">
+            <div className="flex items-center gap-6">
               <Image
                 src={creditNoteQrDataUrl}
                 alt={t('qrCaption')}
@@ -465,7 +465,7 @@ export default async function BookingInvoicePage({ params, searchParams }: PageP
       </footer>
 
       {/* Actions — never printed. */}
-      <div className="mt-10 flex flex-wrap items-center gap-3 print:hidden">
+      <div className="mt-12 flex flex-wrap items-center gap-3 print:hidden">
         <PrintButton label={t('printAction')} />
         <a
           href={shareHref}

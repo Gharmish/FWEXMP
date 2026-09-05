@@ -64,7 +64,8 @@ export default async function AdminSupportThreadPage({
       waiting_admin: t('support.ticket.status.waiting_admin'),
       resolved: t('support.ticket.status.resolved'),
     },
-    category: (key) => t.has(`support.ticket.category.${key}`) ? t(`support.ticket.category.${key}`) : key,
+    category: (key) =>
+      t.has(`support.ticket.category.${key}`) ? t(`support.ticket.category.${key}`) : key,
   };
   const resolveCopy = {
     label: t('support.ticket.resolveLabel'),
@@ -167,7 +168,7 @@ export default async function AdminSupportThreadPage({
   };
 
   return (
-    <div className="flex flex-col gap-10">
+    <div className="flex flex-col gap-12">
       <div className="flex flex-col gap-4">
         <Link
           href="/admin/support"
@@ -181,7 +182,11 @@ export default async function AdminSupportThreadPage({
           {conversation.guestName ?? conversation.profileName ?? t('support.unknownSender')}
         </h1>
         <div className="text-sarat-black-600 flex flex-wrap items-center gap-x-3 gap-y-2 text-sm">
-          <a href={`tel:${conversation.address}`} dir="ltr" className="font-mono underline-offset-4 hover:underline">
+          <a
+            href={`tel:${conversation.address}`}
+            dir="ltr"
+            className="font-mono underline-offset-4 hover:underline"
+          >
             {conversation.address}
           </a>
           <span aria-hidden>·</span>

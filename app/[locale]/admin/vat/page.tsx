@@ -96,7 +96,7 @@ export default async function AdminVatPage({
 
   if (!report) {
     return (
-      <div className="flex flex-col gap-10">
+      <div className="flex flex-col gap-12">
         {header}
         <div className={card}>
           <p className={labelClass}>{t('vat.unavailable')}</p>
@@ -195,7 +195,7 @@ export default async function AdminVatPage({
   ]);
 
   return (
-    <div className="flex flex-col gap-10">
+    <div className="flex flex-col gap-12">
       {header}
 
       {/* Integrity guard: while VAT is on, every settled payment must be stamped. */}
@@ -240,7 +240,7 @@ export default async function AdminVatPage({
       </section>
 
       {/* Registration-threshold monitor. */}
-      <section className={cn(card, 'gap-5')} aria-labelledby="vat-threshold-heading">
+      <section className={cn(card, 'gap-6')} aria-labelledby="vat-threshold-heading">
         <div className="flex flex-col gap-1">
           <h2
             id="vat-threshold-heading"

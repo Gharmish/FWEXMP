@@ -77,8 +77,8 @@ export function AdminMfaGate({ mode }: AdminMfaGateProps) {
       </header>
 
       {mode === 'enroll' && (
-        <section className="border-sarat-black/8 rounded-card flex flex-col gap-5 [border-width:0.5px] p-6">
-          <ol className="text-sarat-black-600 flex list-decimal flex-col gap-2 ps-5 text-sm leading-relaxed">
+        <section className="border-sarat-black/8 rounded-card flex flex-col gap-6 [border-width:0.5px] p-6">
+          <ol className="text-sarat-black-600 flex list-decimal flex-col gap-2 ps-6 text-sm leading-relaxed">
             <li>{t('enroll.step1')}</li>
             <li>{t('enroll.step2')}</li>
             <li>{t('enroll.step3')}</li>

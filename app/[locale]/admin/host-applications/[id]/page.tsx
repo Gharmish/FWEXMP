@@ -63,7 +63,7 @@ export default async function AdminHostApplicationDetailPage({
       loc === 'en' && 'tracking-[0.2em] uppercase',
     );
     return (
-      <div className="flex flex-col gap-10">
+      <div className="flex flex-col gap-12">
         <Link
           href="/admin/host-applications"
           className="text-sarat-black-600 inline-flex min-h-11 items-center gap-2 self-start text-sm font-medium transition-opacity duration-200 hover:opacity-60"
@@ -71,7 +71,7 @@ export default async function AdminHostApplicationDetailPage({
           <ArrowLeft className="size-4 shrink-0 rtl:rotate-180" aria-hidden />
           {t('hostApplicationsList.title')}
         </Link>
-        <div className="border-sarat-black/8 rounded-card flex flex-col items-start gap-4 [border-width:0.5px] p-10">
+        <div className="border-sarat-black/8 rounded-card flex flex-col items-start gap-4 [border-width:0.5px] p-12">
           <p className={eyebrowClassName}>{t('noDb.eyebrow')}</p>
           <h2 className="font-display text-2xl font-medium tracking-[-0.025em]">
             {t('noDb.title')}
@@ -98,7 +98,7 @@ export default async function AdminHostApplicationDetailPage({
   );
 
   return (
-    <div className="flex flex-col gap-10">
+    <div className="flex flex-col gap-12">
       <div className="flex flex-col gap-4">
         <Link
           href="/admin/host-applications"
@@ -120,7 +120,7 @@ export default async function AdminHostApplicationDetailPage({
         </p>
       </div>
 
-      <dl className="border-sarat-black/8 rounded-card grid gap-5 [border-width:0.5px] p-6 sm:grid-cols-2">
+      <dl className="border-sarat-black/8 rounded-card grid gap-6 [border-width:0.5px] p-6 sm:grid-cols-2">
         <div className="flex flex-col gap-1">
           <dt className={eyebrowClassName}>{t('detail.identity')}</dt>
           <dd className="text-base font-medium">{t(`identityType.${application.identityType}`)}</dd>
@@ -277,8 +277,19 @@ export default async function AdminHostApplicationDetailPage({
             rejectLabel: t('actions.reject'),
             rejectPending: t('actions.rejectPending'),
             notesLabel: t('actions.notesLabel'),
+            rejectNotesLabel: t('actions.rejectNotesLabel'),
             notesApproveHint: t('actions.notesApproveHint'),
             notesRejectHint: t('actions.notesRejectHint'),
+            confirmApproveTitle: t('actions.confirmApproveTitle', {
+              name: application.displayName,
+            }),
+            confirmApproveDescription: t('actions.confirmApproveDescription', {
+              name: application.displayName,
+            }),
+            confirmRejectTitle: t('actions.confirmRejectTitle', { name: application.displayName }),
+            confirmRejectDescription: t('actions.confirmRejectDescription', {
+              name: application.displayName,
+            }),
             errors: {
               forbidden: t('actions.errors.forbidden'),
               no_db: t('actions.errors.noDb'),

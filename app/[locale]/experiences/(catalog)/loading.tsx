@@ -17,7 +17,7 @@ export default function CatalogLoading() {
   return (
     <div className="flex flex-col" aria-busy="true">
       <section className="mx-auto w-full max-w-6xl px-6 py-12 sm:py-24">
-        <div className="flex max-w-3xl flex-col gap-5">
+        <div className="flex max-w-3xl flex-col gap-6">
           <div className="bg-sarat-black/8 rounded-button h-3 w-24 animate-pulse" />
           <div className="flex flex-col gap-3">
             <div className="bg-sarat-black/8 rounded-input h-10 w-full max-w-2xl animate-pulse sm:h-14" />
@@ -33,7 +33,7 @@ export default function CatalogLoading() {
       </section>
 
       <section className="border-sarat-black/8 [border-top-width:0.5px]">
-        <div className="mx-auto flex w-full max-w-6xl flex-col gap-8 px-6 py-10 sm:gap-10 sm:py-20">
+        <div className="mx-auto flex w-full max-w-6xl flex-col gap-8 px-6 py-12 sm:gap-12 sm:py-20">
           <div className="flex flex-col gap-6">
             {/* "All experiences" heading */}
             <div className="bg-sarat-black/8 rounded-button h-8 w-56 animate-pulse" />

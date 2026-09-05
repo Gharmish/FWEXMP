@@ -53,7 +53,7 @@ export default async function HostApplySubmittedPage({
   return (
     <div className="flex flex-col">
       <section className="mx-auto w-full max-w-2xl px-6 py-20 sm:py-24">
-        <div className="flex flex-col items-start gap-5">
+        <div className="flex flex-col items-start gap-6">
           <Pop>
             <CheckCircle2 className="text-juniper-green size-10" aria-hidden strokeWidth={1.5} />
           </Pop>
@@ -79,7 +79,7 @@ export default async function HostApplySubmittedPage({
           </li>
         </ol>
 
-        <div className="mt-10 flex flex-wrap gap-3">
+        <div className="mt-12 flex flex-wrap gap-3">
           <Link
             href="/experiences"
             className={cn(buttonVariants({ variant: 'secondary', size: 'md' }))}

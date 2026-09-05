@@ -311,7 +311,7 @@ export async function sendBookingReceiptEmail(reference: string): Promise<void> 
       }
     : { html: t('reminderManageNoDeadline', { url: manageUrl }) };
 
-  const subject = t('subject', { reference: booking.referenceCode });
+  const subject = t('subject', { reference: bidiIsolate(booking.referenceCode) });
   const { html, text } = renderReceiptEmail({
     logoUrl: EMAIL_LOGO_URL,
     sellerLines,
@@ -613,7 +613,7 @@ export async function sendBookingCancellationEmail(
   const needsBankCta = pendingNeedsBank
     ? { label: t('refundNeedsBankCta'), url: urls.manage }
     : undefined;
-  const cancelSubject = t('cancelSubject', { reference: booking.referenceCode });
+  const cancelSubject = t('cancelSubject', { reference: bidiIsolate(booking.referenceCode) });
   const cancelCtaUrl = showDocument
     ? urls.invoice
     : ((needsBankCta ?? walletCta)?.url ?? urls.manage);
@@ -713,7 +713,7 @@ export async function sendBookingRescheduledEmail(
   ];
 
   const bookingUrl = guestBookingUrls(locale, reference, booking.experienceSlug).manage;
-  const subject = t('rescheduledSubject', { reference: booking.referenceCode });
+  const subject = t('rescheduledSubject', { reference: bidiIsolate(booking.referenceCode) });
   const { html, text } = renderReceiptEmail({
     logoUrl: EMAIL_LOGO_URL,
     subject,
@@ -1143,7 +1143,7 @@ export async function sendBookingApprovedEmail(reference: string): Promise<void>
     });
   }
 
-  const approvedSubject = t('approvedSubject', { reference: booking.referenceCode });
+  const approvedSubject = t('approvedSubject', { reference: bidiIsolate(booking.referenceCode) });
   const { html, text } = renderReceiptEmail({
     logoUrl: EMAIL_LOGO_URL,
     subject: approvedSubject,
@@ -1426,7 +1426,7 @@ export async function sendBookingOnHoldEmail(reference: string): Promise<void> {
   const details = await lifecycleDetails(booking, locale, t);
   const { rows } = details;
 
-  const subject = t('onHoldSubject', { reference: booking.referenceCode });
+  const subject = t('onHoldSubject', { reference: bidiIsolate(booking.referenceCode) });
   const { html, text } = renderReceiptEmail({
     logoUrl: EMAIL_LOGO_URL,
     subject,
@@ -1971,7 +1971,7 @@ export async function sendBookingPaymentFailedEmail(reference: string): Promise<
   }
 
   const payUrl = guestBookingUrls(locale, reference, booking.experienceSlug).pay;
-  const subject = t('paymentFailedSubject', { reference: booking.referenceCode });
+  const subject = t('paymentFailedSubject', { reference: bidiIsolate(booking.referenceCode) });
   const { html, text } = renderReceiptEmail({
     logoUrl: EMAIL_LOGO_URL,
     subject,

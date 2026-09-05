@@ -45,7 +45,7 @@ export function MotionDemos() {
   const [showError, setShowError] = useState(false);
 
   return (
-    <div className="flex flex-col gap-10">
+    <div className="flex flex-col gap-12">
       <div className="flex items-center justify-between gap-4">
         <p className="text-sarat-black-600 max-w-xl text-sm">
           The one spring — damping 25, stiffness 280 — drives every primitive. Replay re-mounts the

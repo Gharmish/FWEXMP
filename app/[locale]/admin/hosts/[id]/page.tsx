@@ -67,7 +67,7 @@ export default async function AdminHostDetailPage({
       loc === 'en' && 'tracking-[0.2em] uppercase',
     );
     return (
-      <div className="flex flex-col gap-10">
+      <div className="flex flex-col gap-12">
         <Link
           href="/admin/hosts"
           className="text-sarat-black-600 inline-flex min-h-11 items-center gap-2 self-start text-sm font-medium transition-opacity duration-200 hover:opacity-60"
@@ -75,7 +75,7 @@ export default async function AdminHostDetailPage({
           <ArrowLeft className="size-4 shrink-0 rtl:rotate-180" aria-hidden />
           {t('hostsList.title')}
         </Link>
-        <div className="border-sarat-black/8 rounded-card flex flex-col items-start gap-4 [border-width:0.5px] p-10">
+        <div className="border-sarat-black/8 rounded-card flex flex-col items-start gap-4 [border-width:0.5px] p-12">
           <p className={eyebrowClassName}>{t('noDb.eyebrow')}</p>
           <h2 className="font-display text-2xl font-medium tracking-[-0.025em]">
             {t('noDb.title')}
@@ -96,7 +96,7 @@ export default async function AdminHostDetailPage({
   );
 
   return (
-    <div className="flex flex-col gap-10">
+    <div className="flex flex-col gap-12">
       <div className="flex flex-col gap-4">
         <Link
           href="/admin/hosts"
@@ -119,7 +119,7 @@ export default async function AdminHostDetailPage({
       </div>
 
       {host.status === 'pending' && (
-        <div className="border-saffron-gold/40 bg-saffron-gold/10 rounded-card flex flex-col gap-2 [border-width:0.5px] p-5">
+        <div className="border-saffron-gold/40 bg-saffron-gold/10 rounded-card flex flex-col gap-2 [border-width:0.5px] p-6">
           <p className={eyebrowClassName}>{t('hostDetail.pendingEyebrow')}</p>
           <p className="text-base leading-relaxed">{t('hostDetail.pendingDescription')}</p>
           <Link
@@ -132,7 +132,7 @@ export default async function AdminHostDetailPage({
       )}
 
       {/* Quick stats */}
-      <dl className="border-sarat-black/8 rounded-card grid grid-cols-2 gap-5 [border-width:0.5px] p-6 sm:grid-cols-3">
+      <dl className="border-sarat-black/8 rounded-card grid grid-cols-2 gap-6 [border-width:0.5px] p-6 sm:grid-cols-3">
         <div className="flex flex-col gap-1">
           <dt className={eyebrowClassName}>{t('hostDetail.publishedExperiences')}</dt>
           <dd className="font-display text-3xl font-medium tabular-nums">
@@ -152,7 +152,7 @@ export default async function AdminHostDetailPage({
       </dl>
 
       {/* Identity */}
-      <dl className="border-sarat-black/8 rounded-card grid gap-5 [border-width:0.5px] p-6 sm:grid-cols-2">
+      <dl className="border-sarat-black/8 rounded-card grid gap-6 [border-width:0.5px] p-6 sm:grid-cols-2">
         {host.nationalId && (
           <div className="flex flex-col gap-1">
             <dt className={eyebrowClassName}>{t('hostDetail.nationalId')}</dt>
@@ -196,7 +196,7 @@ export default async function AdminHostDetailPage({
 
       {/* Contact & notification preferences — self-managed by the host
           (2026-08-22); ops needs to see where notices actually go. */}
-      <dl className="border-sarat-black/8 rounded-card grid gap-5 [border-width:0.5px] p-6 sm:grid-cols-2">
+      <dl className="border-sarat-black/8 rounded-card grid gap-6 [border-width:0.5px] p-6 sm:grid-cols-2">
         <div className="flex flex-col gap-1">
           <dt className={eyebrowClassName}>{t('hostDetail.contactPhone')}</dt>
           <dd className="text-base font-medium">
@@ -254,7 +254,7 @@ export default async function AdminHostDetailPage({
         {host.experiences.length === 0 ? (
           <p className="text-sarat-black-600 text-sm">{t('hostDetail.experiencesEmpty')}</p>
         ) : (
-          <ul className="border-sarat-black/8 rounded-card flex flex-col divide-y divide-[var(--color-sarat-black)]/8 [border-width:0.5px]">
+          <ul className="border-sarat-black/8 rounded-card divide-hairline flex flex-col divide-[var(--color-sarat-black)]/8 [border-width:0.5px]">
             {host.experiences.map((exp) => (
               <li key={exp.id} className="flex items-center justify-between gap-4 p-4">
                 <div className="flex min-w-0 items-center gap-3">

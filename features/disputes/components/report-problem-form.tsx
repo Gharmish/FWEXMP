@@ -68,6 +68,8 @@ export function ReportProblemForm({ reference, copy }: ReportProblemFormProps) {
           minLength={10}
           maxLength={DISPUTE_MESSAGE_MAX}
           required
+          // P2-23: keep the typed description after a failed submit.
+          defaultValue={!state.success ? state.values?.message : undefined}
           placeholder={copy.placeholder}
           className="rounded-input border-sarat-black/20 text-sarat-black w-full [border-width:0.5px] bg-white p-3 text-base"
         />

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useTransition } from 'react';
+import { createContext, useContext, useState, useTransition, type ReactNode } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { SlidersHorizontal } from 'lucide-react';
@@ -20,6 +20,43 @@ import {
   type ExperienceCriteria,
   type FilterableExperience,
 } from '@/features/experiences/lib/search';
+
+/**
+ * M21: the result count was already `aria-live`, but the grid's FadeSwap
+ * wrapper had no `aria-busy` while a filter/sort change is in flight —
+ * this context shares one `isPending` between every control that writes
+ * the URL (FilterRail, MobileSearchEntry) and the grid wrapper in the
+ * server-rendered catalog page, since a page-level useTransition can't
+ * otherwise cross that server/client boundary.
+ */
+const CatalogTransitionContext = createContext<{
+  isPending: boolean;
+  startTransition: (callback: () => void) => void;
+} | null>(null);
+
+export function CatalogTransitionProvider({ children }: { children: ReactNode }) {
+  const [isPending, startTransition] = useTransition();
+  return (
+    <CatalogTransitionContext.Provider value={{ isPending, startTransition }}>
+      {children}
+    </CatalogTransitionContext.Provider>
+  );
+}
+
+export function useCatalogTransition() {
+  const ctx = useContext(CatalogTransitionContext);
+  if (!ctx) {
+    throw new Error('useCatalogTransition must be used within a CatalogTransitionProvider');
+  }
+  return ctx;
+}
+
+/** Wraps the catalog grid so it reports `aria-busy` while the shared
+ * transition (any filter/sort/category change) is in flight. */
+export function CatalogGridStatus({ children }: { children: ReactNode }) {
+  const { isPending } = useCatalogTransition();
+  return <div aria-busy={isPending}>{children}</div>;
+}
 
 interface FilterRailProps {
   locale: Locale;
@@ -45,7 +82,7 @@ export function FilterRail({ locale, categories, resultCount, cities, facets }: 
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const [isPending, startTransition] = useTransition();
+  const { isPending, startTransition } = useCatalogTransition();
   const [sheetOpen, setSheetOpen] = useState(false);
   const t = useTranslations('experiencesIndex');
 
@@ -85,7 +122,11 @@ export function FilterRail({ locale, categories, resultCount, cities, facets }: 
       className={cn('flex flex-col gap-4', isPending && 'opacity-70 transition-opacity')}
       data-pending={isPending ? 'true' : undefined}
     >
-      <div className="border-sarat-black/8 sticky top-16 z-30 -mx-6 flex items-center gap-3 [border-bottom-width:0.5px] bg-white/90 px-6 py-3 backdrop-blur-md">
+      {/* P2-5: below `lg` the category strip + "All filters" trigger live
+          in MobileSearchEntry instead, directly under the search field
+          near the top of the page — this bar would otherwise duplicate
+          them two screens down, past the Featured section. */}
+      <div className="border-sarat-black/8 sticky top-16 z-30 -mx-6 hidden items-center gap-3 [border-bottom-width:0.5px] bg-white/90 px-6 py-3 backdrop-blur-md lg:flex">
         <div className="min-w-0 flex-1">
           <CategoryStrip
             locale={locale}

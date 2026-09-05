@@ -3,6 +3,7 @@
 import { useEffect } from 'react';
 import { reportError } from '@/lib/log';
 import { bricolage, ibmPlexArabic } from '@/lib/fonts';
+import { buttonVariants } from '@/components/ui/button';
 import '@/app/globals.css';
 
 /**
@@ -42,10 +43,12 @@ export default function GlobalError({
             Try again in a moment. If the issue persists, we are already on it.
           </p>
           <div>
+            {/* L17: routed through buttonVariants instead of a hand-rolled
+                class string, matching every other CTA in the app. */}
             <button
               type="button"
               onClick={() => reset()}
-              className="bg-saffron-gold text-sarat-black rounded-full px-6 py-3 text-base font-medium"
+              className={buttonVariants({ variant: 'premium', size: 'lg' })}
             >
               Try again · حاول مجددًا
             </button>

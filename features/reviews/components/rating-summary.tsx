@@ -25,7 +25,7 @@ export function RatingSummary({ aggregate, locale }: RatingSummaryProps) {
 
   if (count === 0 || average === null) {
     return (
-      <div className="border-sarat-black/8 rounded-card flex flex-col items-center gap-3 [border-width:0.5px] px-6 py-10 text-center">
+      <div className="border-sarat-black/8 rounded-card flex flex-col items-center gap-3 [border-width:0.5px] px-6 py-12 text-center">
         <div className="text-sarat-black/20 flex gap-1" aria-hidden>
           {[0, 1, 2, 3, 4].map((i) => (
             <Star key={i} className="size-5 fill-current" />

@@ -7,12 +7,15 @@ import { Link } from '@/lib/i18n';
 import { GharmishLogo } from '@/components/layout/gharmish-logo';
 import { Sheet } from '@/components/ui/sheet';
 import { AdminNav } from '@/features/admin/dashboard/components/admin-nav';
+import type { AdminNavCounts } from '@/features/admin/dashboard/nav-counts';
 import { DashboardSearch } from '@/features/admin/dashboard/components/dashboard-search';
 
 interface AdminShellProps {
   children: ReactNode;
   /** The signed-in admin's identifier (phone), shown in the rail footer. */
   userLabel: string;
+  /** Attention counts for the rail badges (P2-19) — passed through to AdminNav. */
+  navCounts?: AdminNavCounts;
   /**
    * Session controls (sign-out, language switch) lifted from the public
    * navbar, which the admin layout hides. Rendered in the rail footer so
@@ -34,12 +37,12 @@ interface AdminShellProps {
  * toggled from the top bar; an overlay closes it, and following any link does
  * too (`onNavigate`).
  */
-export function AdminShell({ children, userLabel, actions }: AdminShellProps) {
+export function AdminShell({ children, userLabel, navCounts, actions }: AdminShellProps) {
   const t = useTranslations('admin');
   const [open, setOpen] = useState(false);
 
   const railBody = (
-    <div className="flex h-full flex-col gap-8 overflow-y-auto p-5">
+    <div className="flex h-full flex-col gap-8 overflow-y-auto p-6">
       <Link
         href="/admin"
         onClick={() => setOpen(false)}
@@ -49,7 +52,7 @@ export function AdminShell({ children, userLabel, actions }: AdminShellProps) {
         <GharmishLogo className="h-5 w-auto" />
       </Link>
       <div className="flex-1">
-        <AdminNav onNavigate={() => setOpen(false)} />
+        <AdminNav onNavigate={() => setOpen(false)} counts={navCounts} />
       </div>
       <div className="border-sarat-black/8 rounded-card flex flex-col gap-3 [border-width:0.5px] p-4">
         <div className="flex flex-col gap-0.5">
@@ -116,7 +119,7 @@ export function AdminShell({ children, userLabel, actions }: AdminShellProps) {
           </div>
         </header>
 
-        <main className="flex-1 px-4 py-8 sm:px-6 lg:px-10 lg:py-12">
+        <main className="flex-1 px-4 py-8 sm:px-6 lg:px-12 lg:py-12">
           <div className="mx-auto w-full max-w-6xl">{children}</div>
         </main>
       </div>

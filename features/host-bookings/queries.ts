@@ -34,7 +34,7 @@ import type {
  */
 
 /** Requests / upcoming caps — either bucket outgrowing this is a support case. */
-const OPEN_BUCKET_LIMIT = 200;
+export const OPEN_BUCKET_LIMIT = 200;
 
 /** Past bookings per page. */
 export const PAST_PAGE_SIZE = 20;
@@ -62,6 +62,8 @@ export interface HostBookingsResult {
   past: readonly HostBookingRow[];
   pastTotal: number;
   pastPage: number;
+  /** L4: true when the requests or upcoming bucket hit OPEN_BUCKET_LIMIT and was cut off. */
+  openBucketTruncated: boolean;
 }
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -198,6 +200,7 @@ export async function listBookingsForHost(
     past: [],
     pastTotal: 0,
     pastPage: 0,
+    openBucketTruncated: false,
   };
   const hostId = await getCurrentHostId();
   if (!hostId || !serverEnv.DATABASE_URL) return empty;
@@ -253,6 +256,11 @@ export async function listBookingsForHost(
       past: past.map(toRow),
       pastTotal: pastCount?.count ?? 0,
       pastPage,
+      // L4: either bucket hitting its cap means older/other rows in that
+      // bucket are silently missing — surface it rather than pretend the
+      // list is complete.
+      openBucketTruncated:
+        requests.length >= OPEN_BUCKET_LIMIT || upcoming.length >= OPEN_BUCKET_LIMIT,
     };
   } catch (error) {
     // Rethrow: rendering the friendly "no bookings" empty state on a DB

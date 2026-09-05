@@ -45,7 +45,7 @@ export default async function AdminHostsPage({ params }: { params: Promise<{ loc
   );
 
   return (
-    <div className="flex flex-col gap-10">
+    <div className="flex flex-col gap-12">
       <div className="flex flex-col gap-4">
         <Link
           href="/admin"
@@ -64,7 +64,7 @@ export default async function AdminHostsPage({ params }: { params: Promise<{ loc
       </div>
 
       {block?.reason === 'no_db' ? (
-        <div className="border-sarat-black/8 rounded-card flex flex-col items-start gap-4 [border-width:0.5px] p-10">
+        <div className="border-sarat-black/8 rounded-card flex flex-col items-start gap-4 [border-width:0.5px] p-12">
           <p className={eyebrowClassName}>{t('noDb.eyebrow')}</p>
           <h2 className="font-display text-2xl font-medium tracking-[-0.025em]">
             {t('noDb.title')}
@@ -72,7 +72,7 @@ export default async function AdminHostsPage({ params }: { params: Promise<{ loc
           <p className="text-sarat-black-600 max-w-xl text-base">{t('noDb.description')}</p>
         </div>
       ) : rows.length === 0 ? (
-        <div className="border-sarat-black/8 rounded-card flex flex-col items-start gap-4 [border-width:0.5px] p-10">
+        <div className="border-sarat-black/8 rounded-card flex flex-col items-start gap-4 [border-width:0.5px] p-12">
           <p className={eyebrowClassName}>{t('hostsList.empty.eyebrow')}</p>
           <h2 className="font-display text-2xl font-medium tracking-[-0.025em]">
             {t('hostsList.empty.title')}
@@ -82,12 +82,12 @@ export default async function AdminHostsPage({ params }: { params: Promise<{ loc
           </p>
         </div>
       ) : (
-        <ul className="border-sarat-black/8 rounded-card flex flex-col divide-y divide-[var(--color-sarat-black)]/8 [border-width:0.5px]">
+        <ul className="border-sarat-black/8 rounded-card divide-hairline flex flex-col divide-[var(--color-sarat-black)]/8 [border-width:0.5px]">
           {rows.map((row) => (
             <li key={row.id}>
               <Link
                 href={`/admin/hosts/${row.id}`}
-                className="hover:bg-sarat-black/[0.02] flex items-center justify-between gap-4 p-5 transition-colors duration-200"
+                className="hover:bg-sarat-black/[0.02] flex items-center justify-between gap-4 p-6 transition-colors duration-200"
               >
                 <div className="flex min-w-0 flex-col gap-1">
                   <div className="flex flex-wrap items-center gap-3">

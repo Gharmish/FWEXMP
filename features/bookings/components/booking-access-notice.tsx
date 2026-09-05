@@ -46,7 +46,7 @@ export async function BookingAccessNotice({ locale }: BookingAccessNoticeProps) 
   const signedIn = Boolean(await getCurrentUser());
 
   return (
-    <article className="mx-auto w-full max-w-3xl px-6 py-10 sm:py-20">
+    <article className="mx-auto w-full max-w-3xl px-6 py-12 sm:py-20">
       <header className="flex flex-col gap-6">
         <div className="flex items-center gap-3">
           <Pop>
@@ -70,7 +70,7 @@ export async function BookingAccessNotice({ locale }: BookingAccessNoticeProps) 
         </p>
       </header>
 
-      <div className="mt-10 flex flex-wrap gap-3">
+      <div className="mt-12 flex flex-wrap gap-3">
         <Link
           href="/sign-in?next=/me"
           className={cn(buttonVariants({ variant: 'primary', size: 'lg' }))}

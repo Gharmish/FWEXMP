@@ -22,6 +22,15 @@ export const PROMO_REDEEMED_STATUSES = [
   'completed',
 ] as const satisfies readonly Booking['status'][];
 
+/**
+ * L4: the list was uncapped and undisclosed. Capped here at a generous
+ * ceiling — admin promo codes churn far less than bookings — with
+ * `wasPromoCodesListTruncated` alongside for the admin page to render a
+ * "showing the latest N" notice (not wired up here; that page is owned
+ * by another package).
+ */
+export const PROMO_CODES_LIST_LIMIT = 500;
+
 export interface PromoCodeRow {
   id: string;
   code: string;
@@ -46,7 +55,10 @@ export async function getPromoCodesForAdmin(): Promise<readonly PromoCodeRow[]> 
   const block = await adminGuard();
   if (block) return [];
 
-  const codes = await db.query.promoCodes.findMany({ orderBy: (p) => desc(p.createdAt) });
+  const codes = await db.query.promoCodes.findMany({
+    orderBy: (p) => desc(p.createdAt),
+    limit: PROMO_CODES_LIST_LIMIT,
+  });
   if (codes.length === 0) return [];
 
   // One grouped scan of bookings that reference any of these codes.
@@ -86,6 +98,14 @@ export async function getPromoCodesForAdmin(): Promise<readonly PromoCodeRow[]> 
       discountFundedSar: s?.discountFundedSar ?? 0,
     };
   });
+}
+
+/** L4: whether `getPromoCodesForAdmin` cut off older codes at `PROMO_CODES_LIST_LIMIT`. */
+export async function wasPromoCodesListTruncated(): Promise<boolean> {
+  const block = await adminGuard();
+  if (block) return false;
+  const [{ count }] = await db.select({ count: sql<number>`count(*)::int` }).from(promoCodes);
+  return count > PROMO_CODES_LIST_LIMIT;
 }
 
 /** Does a normalized code already exist? Used to pre-empt the unique-constraint race. */

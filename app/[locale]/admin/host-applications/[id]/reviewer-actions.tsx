@@ -1,8 +1,8 @@
 'use client';
 
 import { useActionState, useId } from 'react';
-import { useFormStatus } from 'react-dom';
-import { Button } from '@/components/ui/button';
+import { FieldError } from '@/components/ui/field-error';
+import { ConfirmSubmit } from '@/components/ui/confirm-dialog';
 import { cn } from '@/lib/utils';
 import type { Locale } from '@/lib/i18n';
 import {
@@ -26,8 +26,15 @@ interface ReviewerActionsCopy {
   rejectLabel: string;
   rejectPending: string;
   notesLabel: string;
+  /** Distinct label for the reject textarea (M14 — was sharing notesLabel). */
+  rejectNotesLabel: string;
   notesApproveHint: string;
   notesRejectHint: string;
+  /** ConfirmSubmit copy (P2-17) — the applicant's name is already interpolated in. */
+  confirmApproveTitle: string;
+  confirmApproveDescription: string;
+  confirmRejectTitle: string;
+  confirmRejectDescription: string;
   errors: Record<ErrorKey, string>;
 }
 
@@ -38,24 +45,6 @@ export interface ReviewerActionsProps {
 }
 
 const initialState: AdminApplyResult = { success: false };
-
-function ApproveSubmit({ copy }: { copy: ReviewerActionsCopy }) {
-  const { pending } = useFormStatus();
-  return (
-    <Button type="submit" variant="primary" size="md" pending={pending}>
-      {pending ? copy.approvePending : copy.approveLabel}
-    </Button>
-  );
-}
-
-function RejectSubmit({ copy }: { copy: ReviewerActionsCopy }) {
-  const { pending } = useFormStatus();
-  return (
-    <Button type="submit" variant="secondary" size="md" pending={pending}>
-      {pending ? copy.rejectPending : copy.rejectLabel}
-    </Button>
-  );
-}
 
 function errorMessage(result: AdminApplyResult, copy: ReviewerActionsCopy): string | undefined {
   if (result.message === 'validation' && result.fieldError) {
@@ -99,6 +88,8 @@ export function ReviewerActions({ applicationId, locale, copy }: ReviewerActions
           name="reviewerNotes"
           rows={3}
           maxLength={2000}
+          aria-invalid={approveError ? true : undefined}
+          aria-describedby={approveError ? approveErrorId : undefined}
           // React resets uncontrolled fields after an action; the echoed
           // value keeps a typed note through a failed submit (P1-6).
           defaultValue={approveState.values?.reviewerNotes ?? ''}
@@ -106,18 +97,19 @@ export function ReviewerActions({ applicationId, locale, copy }: ReviewerActions
         />
         <p className="text-sarat-black-600 text-sm">{copy.notesApproveHint}</p>
 
-        {approveError && (
-          <p
-            id={approveErrorId}
-            role="alert"
-            className="text-al-qatt-red-800 text-sm focus:outline-none"
-          >
-            {approveError}
-          </p>
-        )}
+        <FieldError id={approveErrorId}>{approveError}</FieldError>
 
         <div className="flex justify-start">
-          <ApproveSubmit copy={copy} />
+          <ConfirmSubmit
+            title={copy.confirmApproveTitle}
+            description={copy.confirmApproveDescription}
+            confirmLabel={copy.approveLabel}
+            pendingLabel={copy.approvePending}
+            variant="primary"
+            size="md"
+          >
+            {copy.approveLabel}
+          </ConfirmSubmit>
         </div>
       </form>
 
@@ -129,7 +121,7 @@ export function ReviewerActions({ applicationId, locale, copy }: ReviewerActions
         <input type="hidden" name="locale" value={locale} />
 
         <label htmlFor={rejectNotesId} className="text-sm font-medium">
-          {copy.notesLabel}
+          {copy.rejectNotesLabel}
         </label>
         <textarea
           id={rejectNotesId}
@@ -138,23 +130,27 @@ export function ReviewerActions({ applicationId, locale, copy }: ReviewerActions
           required
           minLength={10}
           maxLength={2000}
+          aria-invalid={rejectError ? true : undefined}
+          aria-describedby={rejectError ? rejectErrorId : undefined}
           defaultValue={rejectState.values?.reviewerNotes ?? ''}
           className={TEXTAREA_CLASS}
         />
         <p className="text-sarat-black-600 text-sm">{copy.notesRejectHint}</p>
 
-        {rejectError && (
-          <p
-            id={rejectErrorId}
-            role="alert"
-            className="text-al-qatt-red-800 text-sm focus:outline-none"
-          >
-            {rejectError}
-          </p>
-        )}
+        <FieldError id={rejectErrorId}>{rejectError}</FieldError>
 
         <div className="flex justify-start">
-          <RejectSubmit copy={copy} />
+          <ConfirmSubmit
+            title={copy.confirmRejectTitle}
+            description={copy.confirmRejectDescription}
+            confirmLabel={copy.rejectLabel}
+            pendingLabel={copy.rejectPending}
+            variant="secondary"
+            size="md"
+            destructive
+          >
+            {copy.rejectLabel}
+          </ConfirmSubmit>
         </div>
       </form>
     </div>

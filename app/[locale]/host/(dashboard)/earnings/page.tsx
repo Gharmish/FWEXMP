@@ -113,7 +113,7 @@ export default async function HostEarningsPage({
   );
 
   return (
-    <div className="flex w-full flex-col gap-10">
+    <div className="flex w-full flex-col gap-12">
       <div className="flex flex-col gap-4">
         <p className={eyebrowClassName}>{t('eyebrow')}</p>
         <h1 className="font-display text-4xl font-semibold tracking-[-0.035em] text-balance sm:text-5xl">
@@ -135,7 +135,7 @@ export default async function HostEarningsPage({
               the same order as the Today page: now → next → history. */}
           <section className="border-sarat-black/8 rounded-card flex flex-col gap-4 [border-width:0.5px] p-6">
             <p className={eyebrowClassName}>{t('stats.allTime')}</p>
-            <dl className="grid grid-cols-1 gap-5 sm:grid-cols-3">
+            <dl className="grid grid-cols-1 gap-6 sm:grid-cols-3">
               {(
                 [
                   ['owed', earnings.owedSar, earnings.owedCount],
@@ -225,7 +225,7 @@ export default async function HostEarningsPage({
               {earnings.breakdown.length === 0 ? (
                 <p className="text-sarat-black-600 text-base">{t('breakdown.empty')}</p>
               ) : (
-                <ul className="divide-sarat-black/8 flex flex-col divide-y">
+                <ul className="divide-sarat-black/8 divide-hairline flex flex-col">
                   {earnings.breakdown.map((row) => (
                     <li
                       key={row.experienceId}
@@ -255,7 +255,7 @@ export default async function HostEarningsPage({
               {earnings.monthly.length === 0 ? (
                 <p className="text-sarat-black-600 text-base">{t('monthly.empty')}</p>
               ) : (
-                <ul className="divide-sarat-black/8 flex flex-col divide-y">
+                <ul className="divide-sarat-black/8 divide-hairline flex flex-col">
                   {earnings.monthly.map((row) => (
                     <li
                       key={row.month}
@@ -319,11 +319,11 @@ export default async function HostEarningsPage({
                 {t('statements.title')}
               </h2>
               <p className="text-sarat-black-600 max-w-2xl text-sm">{t('statements.intro')}</p>
-              <ul className="border-sarat-black/8 rounded-card divide-sarat-black/8 flex flex-col divide-y [border-width:0.5px]">
+              <ul className="border-sarat-black/8 rounded-card divide-sarat-black/8 divide-hairline flex flex-col [border-width:0.5px]">
                 {payoutBatches.map((batch) => (
                   <li
                     key={batch.id}
-                    className="flex flex-wrap items-center justify-between gap-3 p-5"
+                    className="flex flex-wrap items-center justify-between gap-3 p-6"
                   >
                     <div className="flex flex-col gap-1">
                       <span className="text-base font-medium">
@@ -369,7 +369,8 @@ export default async function HostEarningsPage({
                 <a
                   href={exportHref}
                   download
-                  className="text-sarat-black-600 text-sm font-medium underline-offset-4 hover:underline"
+                  // P3-1: 24px min touch/text target (WCAG 2.5.8).
+                  className="text-sarat-black-600 inline-flex min-h-6 items-center text-sm font-medium underline-offset-4 hover:underline"
                 >
                   {t('history.export')}
                 </a>
@@ -397,11 +398,11 @@ export default async function HostEarningsPage({
                 {scope === 'upcoming' ? t('history.emptyUpcoming') : t('history.empty')}
               </p>
             ) : (
-              <ul className="border-sarat-black/8 rounded-card divide-sarat-black/8 flex flex-col divide-y [border-width:0.5px]">
+              <ul className="border-sarat-black/8 rounded-card divide-sarat-black/8 divide-hairline flex flex-col [border-width:0.5px]">
                 {earnings.history.map((row) => (
                   <li
                     key={row.id}
-                    className="flex flex-col gap-2 p-5 sm:flex-row sm:items-center sm:justify-between sm:gap-6"
+                    className="flex flex-col gap-2 p-6 sm:flex-row sm:items-center sm:justify-between sm:gap-6"
                   >
                     <div className="flex min-w-0 flex-col gap-1">
                       <div className="flex flex-wrap items-center gap-3">

@@ -14,21 +14,60 @@ export interface EmptyStateProps {
   icon?: LucideIcon;
   /** Optional small label above the title (already locale-cased by caller). */
   eyebrow?: string;
+  /** Uppercase + wide tracking on the eyebrow — set for Latin locales only. */
+  eyebrowUppercase?: boolean;
   title: string;
   description?: string;
   /** A single clear next step — typically a Button or link. */
   action?: ReactNode;
   className?: string;
+  /**
+   * P2-6: bordered, start-aligned card variant — folds the former
+   * features/experiences/components/empty-state.tsx (catalog "no
+   * results") look into this shared primitive instead of a second
+   * component with the opposite visual language.
+   */
+  bordered?: boolean;
 }
 
 export function EmptyState({
   icon: Icon,
   eyebrow,
+  eyebrowUppercase = false,
   title,
   description,
   action,
   className,
+  bordered = false,
 }: EmptyStateProps) {
+  if (bordered) {
+    return (
+      <div
+        data-slot="empty-state"
+        className={cn(
+          'border-sarat-black/8 rounded-card flex flex-col items-start gap-4 [border-width:0.5px] p-12',
+          className,
+        )}
+      >
+        {eyebrow ? (
+          <p
+            className={cn(
+              'text-sarat-black-600 text-[11px] font-medium',
+              eyebrowUppercase && 'tracking-[0.2em] uppercase',
+            )}
+          >
+            {eyebrow}
+          </p>
+        ) : null}
+        <h2 className="font-display text-2xl font-medium tracking-[-0.025em]">{title}</h2>
+        {description ? (
+          <p className="text-sarat-black-600 max-w-xl text-base">{description}</p>
+        ) : null}
+        {action ? <div className="mt-2">{action}</div> : null}
+      </div>
+    );
+  }
+
   return (
     <div
       data-slot="empty-state"

@@ -64,9 +64,9 @@ export default async function AdminActivityPage({
   if (block?.reason === 'not_admin') notFound();
   if (block?.reason === 'no_db') {
     return (
-      <div className="flex flex-col gap-10">
+      <div className="flex flex-col gap-12">
         {backLink}
-        <div className="border-sarat-black/8 rounded-card flex flex-col items-start gap-4 [border-width:0.5px] p-10">
+        <div className="border-sarat-black/8 rounded-card flex flex-col items-start gap-4 [border-width:0.5px] p-12">
           <p className={eyebrowClassName}>{t('noDb.eyebrow')}</p>
           <h2 className="font-display text-2xl font-medium tracking-[-0.025em]">
             {t('noDb.title')}
@@ -80,7 +80,7 @@ export default async function AdminActivityPage({
   const items = await listActivity();
 
   return (
-    <div className="flex flex-col gap-10">
+    <div className="flex flex-col gap-12">
       {backLink}
       <div className="flex flex-col gap-4">
         <p className={eyebrowClassName}>{t('activityLog.eyebrow')}</p>
@@ -95,9 +95,9 @@ export default async function AdminActivityPage({
       {items.length === 0 ? (
         <p className="text-sarat-black-600 text-base">{t('activityLog.empty')}</p>
       ) : (
-        <ol className="border-sarat-black/8 rounded-card flex flex-col divide-y divide-[var(--color-sarat-black)]/8 [border-width:0.5px]">
+        <ol className="border-sarat-black/8 rounded-card divide-hairline flex flex-col divide-[var(--color-sarat-black)]/8 [border-width:0.5px]">
           {items.map((item) => (
-            <li key={`${item.kind}-${item.id}`} className="flex flex-col gap-2 p-5">
+            <li key={`${item.kind}-${item.id}`} className="flex flex-col gap-2 p-6">
               <div className="flex flex-wrap items-center gap-3">
                 <Badge className={KIND_TONE[item.kind]}>{t(`activityLog.kind.${item.kind}`)}</Badge>
                 <span className="text-base font-medium">

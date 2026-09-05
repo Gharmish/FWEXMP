@@ -1,9 +1,17 @@
+import type { Metadata } from 'next';
 import { getLocale, getTranslations } from 'next-intl/server';
 import { Link } from '@/lib/i18n';
 import type { Locale } from '@/lib/i18n';
 import { buttonVariants } from '@/components/ui/button';
 import { MountFade } from '@/components/ui/motion';
 import { cn } from '@/lib/utils';
+
+// P3-4: the tab otherwise falls back to the bare layout title ("Gharmish").
+export async function generateMetadata(): Promise<Metadata> {
+  const locale = (await getLocale()) as Locale;
+  const t = await getTranslations({ locale, namespace: 'notFound' });
+  return { title: t('metaTitle') };
+}
 
 export default async function LocaleNotFound() {
   const locale = (await getLocale()) as Locale;

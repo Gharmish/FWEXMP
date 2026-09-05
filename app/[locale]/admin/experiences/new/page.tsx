@@ -130,7 +130,7 @@ export default async function AdminExperienceNewPage({
   };
 
   return (
-    <div className="flex flex-col gap-10">
+    <div className="flex flex-col gap-12">
       <div className="flex flex-col gap-4">
         <Link
           href="/admin/experience-moderation"

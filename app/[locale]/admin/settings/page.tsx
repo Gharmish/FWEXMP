@@ -56,9 +56,9 @@ export default async function AdminSettingsPage({
   if (block?.reason === 'not_admin') notFound();
   if (block?.reason === 'no_db') {
     return (
-      <div className="flex flex-col gap-10">
+      <div className="flex flex-col gap-12">
         {backLink}
-        <div className="border-sarat-black/8 rounded-card flex flex-col items-start gap-4 [border-width:0.5px] p-10">
+        <div className="border-sarat-black/8 rounded-card flex flex-col items-start gap-4 [border-width:0.5px] p-12">
           <p className={eyebrowClassName}>{t('noDb.eyebrow')}</p>
           <h2 className="font-display text-2xl font-medium tracking-[-0.025em]">
             {t('noDb.title')}
@@ -140,7 +140,7 @@ export default async function AdminSettingsPage({
   };
 
   return (
-    <div className="flex flex-col gap-10">
+    <div className="flex flex-col gap-12">
       {backLink}
       <div className="flex flex-col gap-4">
         <p className={eyebrowClassName}>{t('settings.eyebrow')}</p>
@@ -172,7 +172,7 @@ export default async function AdminSettingsPage({
           surface renders from and every new booking snapshots. Existing
           bookings keep their creation-time snapshot, so edits here never
           restate a guest's rights. */}
-      <div className="border-sarat-black/8 flex flex-col gap-6 [border-top-width:0.5px] pt-10">
+      <div className="border-sarat-black/8 flex flex-col gap-6 [border-top-width:0.5px] pt-12">
         <div className="flex flex-col gap-2">
           <p className={eyebrowClassName}>{t('settings.policiesEyebrow')}</p>
           <h2 className="font-display text-2xl font-medium tracking-[-0.025em]">

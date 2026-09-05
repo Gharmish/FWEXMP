@@ -5,6 +5,7 @@ import { SITE_URL } from '@/lib/site';
 import { Link, redirect } from '@/lib/i18n';
 import type { Locale } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
+import { formatSaudiPhone } from '@/lib/format';
 import { Avatar } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Card } from '@/components/ui/card';
@@ -65,14 +66,18 @@ export default async function ProfilePage({ params }: { params: Promise<{ locale
     redirect({ href: '/sign-in?next=/me/profile', locale: loc });
   }
 
-  const [bookings, reviewsWritten, disputesFiled, walletBalanceSar, t, tSteps] = await Promise.all([
-    getBookingsForGuest(profile.id),
-    getReviewsWrittenByGuest(profile.id, loc),
-    getDisputesFiledByGuest(profile.id),
-    getMyWalletBalanceSar(profile.id),
-    getTranslations('me.profile'),
-    getTranslations('payment.steps'),
-  ]);
+  const [bookings, reviewsWritten, disputesFiled, walletBalanceSar, t, tSteps, tMe] =
+    await Promise.all([
+      getBookingsForGuest(profile.id),
+      getReviewsWrittenByGuest(profile.id, loc),
+      getDisputesFiledByGuest(profile.id),
+      getMyWalletBalanceSar(profile.id),
+      getTranslations('me.profile'),
+      getTranslations('payment.steps'),
+      // L2: the awaiting-payment row's "Complete payment" link reuses the
+      // existing me.payNow string (bookConfirmed's own is scoped there).
+      getTranslations('me'),
+    ]);
 
   const eyebrowClassName = cn(
     'text-sarat-black-600 font-medium text-[11px]',
@@ -82,7 +87,7 @@ export default async function ProfilePage({ params }: { params: Promise<{ locale
   const statusLabels = buildBookingStatusLabels(t);
 
   return (
-    <div className="mx-auto flex w-full max-w-2xl flex-col gap-6 px-6 py-14 sm:py-20">
+    <div className="mx-auto flex w-full max-w-2xl flex-col gap-6 px-6 py-16 sm:py-20">
       {/* Page heading */}
       <header className="flex flex-col gap-2">
         <p className={eyebrowClassName}>{t('eyebrow')}</p>
@@ -93,7 +98,7 @@ export default async function ProfilePage({ params }: { params: Promise<{ locale
 
       {/* Identity */}
       <Card className="p-6 sm:p-8">
-        <div className="flex flex-col items-center gap-5 text-center sm:flex-row sm:items-center sm:gap-6 sm:text-start">
+        <div className="flex flex-col items-center gap-6 text-center sm:flex-row sm:items-center sm:gap-6 sm:text-start">
           <Avatar
             name={profile.name}
             src={profile.avatarUrl ?? undefined}
@@ -109,7 +114,9 @@ export default async function ProfilePage({ params }: { params: Promise<{ locale
                   and addresses read correctly inside an RTL layout. */}
               {(profile.phone || profile.email) && (
                 <p className="text-sarat-black-600 text-sm" dir="ltr">
-                  {profile.phone ?? profile.email}
+                  {/* P3-9: BRIEF §4 spacing (+966 5X XXX XXXX); non-Saudi
+                      numbers pass through formatSaudiPhone unchanged. */}
+                  {profile.phone ? formatSaudiPhone(profile.phone) : profile.email}
                 </p>
               )}
             </div>
@@ -194,6 +201,7 @@ export default async function ProfilePage({ params }: { params: Promise<{ locale
               partyLabel: t('history.partyLabel'),
               statusLabels,
               view: t('history.view'),
+              payNow: tMe('payNow'),
               steps: {
                 label: tSteps('label'),
                 details: tSteps('details'),
@@ -223,9 +231,9 @@ export default async function ProfilePage({ params }: { params: Promise<{ locale
         {reviewsWritten.length === 0 ? (
           <p className="text-sarat-black-600 text-sm leading-relaxed">{t('reviews.empty')}</p>
         ) : (
-          <ul className="border-sarat-black/8 rounded-card flex flex-col divide-y divide-[var(--color-sarat-black)]/8 [border-width:0.5px]">
+          <ul className="border-sarat-black/8 rounded-card divide-hairline flex flex-col divide-[var(--color-sarat-black)]/8 [border-width:0.5px]">
             {reviewsWritten.map((r) => (
-              <li key={r.id} className="flex flex-col gap-1 p-5">
+              <li key={r.id} className="flex flex-col gap-1 p-6">
                 <div className="flex flex-wrap items-center gap-3">
                   <span className="text-sm font-medium">
                     {t('reviews.ratingValue', { rating: r.rating })}
@@ -255,9 +263,9 @@ export default async function ProfilePage({ params }: { params: Promise<{ locale
         {disputesFiled.length === 0 ? (
           <p className="text-sarat-black-600 text-sm leading-relaxed">{t('disputes.empty')}</p>
         ) : (
-          <ul className="border-sarat-black/8 rounded-card flex flex-col divide-y divide-[var(--color-sarat-black)]/8 [border-width:0.5px]">
+          <ul className="border-sarat-black/8 rounded-card divide-hairline flex flex-col divide-[var(--color-sarat-black)]/8 [border-width:0.5px]">
             {disputesFiled.map((d) => (
-              <li key={d.id} className="flex flex-col gap-1 p-5">
+              <li key={d.id} className="flex flex-col gap-1 p-6">
                 <div className="flex flex-wrap items-center gap-3">
                   <span className="font-mono text-sm" dir="ltr">
                     {d.bookingReference}

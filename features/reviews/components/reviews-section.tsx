@@ -99,7 +99,7 @@ export async function ReviewsSection({
       id="reviews"
       // scroll-mt clears the sticky navbar so the `#reviews` anchor never
       // lands with its heading hidden underneath it.
-      className="border-sarat-black/8 flex scroll-mt-20 flex-col gap-8 [border-top-width:0.5px] pt-10"
+      className="border-sarat-black/8 flex scroll-mt-20 flex-col gap-8 [border-top-width:0.5px] pt-12"
     >
       {productId && visible.length > 0 && (
         <JsonLd

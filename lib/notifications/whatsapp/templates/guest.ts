@@ -246,8 +246,8 @@ There are other lovely experiences waiting — we'd love to see you at one 🤍`
         kind: 'text',
         required: true,
         sample: {
-          ar: 'بدأنا استرجاع 260 ر.س. إلى بطاقتك، وقد يظهر خلال 5–10 أيام عمل',
-          en: "We've started refunding SAR 260 to your card; allow 5–10 business days",
+          ar: 'بدأنا استرجاع 260 ر.س. إلى بطاقتك، وقد يظهر خلال بضعة أيام عمل',
+          en: "We've started refunding SAR 260 to your card; allow a few business days",
         },
         description: 'One sentence from REFUND_LINES — never free text.',
       },
@@ -645,9 +645,10 @@ export const REFUND_LINES = {
     en: (amount: string) => `${amount} has been refunded to your original payment method`,
   },
   refund_pending: {
-    ar: (amount: string) => `بدأنا استرجاع ${amount} وقد يظهر في حسابك خلال 5–10 أيام عمل`,
+    ar: (amount: string) => `بدأنا استرجاع ${amount} وقد يظهر في حسابك خلال بضعة أيام عمل`,
     en: (amount: string) =>
-      `We've started refunding ${amount}; allow 5–10 business days for it to appear`,
+      // P2-9: one guest-facing refund window everywhere (was "5–10 business days")
+      `We've started refunding ${amount}; allow a few business days for it to appear`,
   },
   // A queued manual refund with NO payee on file — nothing has started
   // and nothing can until the guest adds their bank details (P0-2).
@@ -659,11 +660,11 @@ export const REFUND_LINES = {
   },
   wallet: {
     ar: (amount: string) => `أضفنا ${amount} إلى رصيد غارميش في حسابك`,
-    en: (amount: string) => `${amount} has been added to your Gharmish credit`,
+    en: (amount: string) => `${amount} has been added to your Gharmish Credit`,
   },
   forfeited: {
     ar: () => 'لا يوجد مبلغ مسترد وفق سياسة الإلغاء لهذا الحجز',
-    en: () => 'No refund applies under this booking’s cancellation policy',
+    en: () => "No refund applies under this booking's cancellation policy",
   },
   none: {
     ar: () => 'لم يُخصم منك أي مبلغ',

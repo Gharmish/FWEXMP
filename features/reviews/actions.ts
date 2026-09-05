@@ -250,23 +250,26 @@ export async function updateReview(
 export interface HostReplyState {
   success: boolean;
   message?: 'forbidden' | 'no_db' | 'not_found' | 'already_replied' | 'validation' | 'server';
+  // P2-23: echo the typed reply so a failed submit doesn't wipe it.
+  values?: { reply?: string };
 }
 
 export async function replyToReview(
   _previous: HostReplyState,
   formData: FormData,
 ): Promise<HostReplyState> {
+  const values = { reply: formValue(formData, 'reply') };
   const parsed = hostReplySchema.safeParse({
     reviewId: formValue(formData, 'reviewId'),
     reply: formValue(formData, 'reply'),
     locale: formValue(formData, 'locale'),
   });
-  if (!parsed.success) return { success: false, message: 'validation' };
+  if (!parsed.success) return { success: false, message: 'validation', values };
   const { reviewId, reply } = parsed.data;
 
   const user = await getCurrentUser();
-  if (!user) return { success: false, message: 'forbidden' };
-  if (!serverEnv.DATABASE_URL) return { success: false, message: 'no_db' };
+  if (!user) return { success: false, message: 'forbidden', values };
+  if (!serverEnv.DATABASE_URL) return { success: false, message: 'no_db', values };
 
   try {
     // The status-aware resolver: a reply publishes under the host's name
@@ -274,7 +277,7 @@ export async function replyToReview(
     // it. This was the last host write path still using a raw lookup
     // (2026-07-28 third audit).
     const hostId = await getCurrentHostIdForWrite();
-    if (!hostId) return { success: false, message: 'forbidden' };
+    if (!hostId) return { success: false, message: 'forbidden', values };
 
     const review = await db.query.reviews.findFirst({
       where: (r) => eq(r.id, reviewId),
@@ -283,23 +286,23 @@ export async function replyToReview(
     });
     // Foreign and missing reviews are indistinguishable on purpose.
     if (!review || review.experience.hostId !== hostId || review.hiddenAt) {
-      return { success: false, message: 'not_found' };
+      return { success: false, message: 'not_found', values };
     }
-    if (review.hostReply) return { success: false, message: 'already_replied' };
+    if (review.hostReply) return { success: false, message: 'already_replied', values };
 
     const updated = await db
       .update(reviews)
       .set({ hostReply: reply, hostRepliedAt: new Date() })
       .where(and(eq(reviews.id, reviewId), isNull(reviews.hostReply)))
       .returning({ id: reviews.id });
-    if (updated.length === 0) return { success: false, message: 'already_replied' };
+    if (updated.length === 0) return { success: false, message: 'already_replied', values };
 
     revalidateReviewCaches();
     revalidatePath('/[locale]/host/reviews', 'page');
     revalidatePath('/[locale]/experiences/[slug]', 'page');
   } catch (error) {
     reportError(error, { surface: 'reviews:replyToReview', reviewId });
-    return { success: false, message: 'server' };
+    return { success: false, message: 'server', values };
   }
 
   // Tell the guest — best-effort: a mail hiccup must never fail the reply.
@@ -322,27 +325,30 @@ export async function replyToReview(
 export interface HostReplyEditState {
   success: boolean;
   message?: 'forbidden' | 'no_db' | 'not_found' | 'expired' | 'validation' | 'server';
+  // P2-23: echo the typed reply so a failed submit doesn't wipe it.
+  values?: { reply?: string };
 }
 
 export async function updateHostReply(
   _previous: HostReplyEditState,
   formData: FormData,
 ): Promise<HostReplyEditState> {
+  const values = { reply: formValue(formData, 'reply') };
   const parsed = hostReplySchema.safeParse({
     reviewId: formValue(formData, 'reviewId'),
     reply: formValue(formData, 'reply'),
     locale: formValue(formData, 'locale'),
   });
-  if (!parsed.success) return { success: false, message: 'validation' };
+  if (!parsed.success) return { success: false, message: 'validation', values };
   const { reviewId, reply } = parsed.data;
 
   const user = await getCurrentUser();
-  if (!user) return { success: false, message: 'forbidden' };
-  if (!serverEnv.DATABASE_URL) return { success: false, message: 'no_db' };
+  if (!user) return { success: false, message: 'forbidden', values };
+  if (!serverEnv.DATABASE_URL) return { success: false, message: 'no_db', values };
 
   try {
     const hostId = await getCurrentHostIdForWrite();
-    if (!hostId) return { success: false, message: 'forbidden' };
+    if (!hostId) return { success: false, message: 'forbidden', values };
 
     const review = await db.query.reviews.findFirst({
       where: (r) => eq(r.id, reviewId),
@@ -350,10 +356,10 @@ export async function updateHostReply(
       with: { experience: { columns: { hostId: true } } },
     });
     if (!review || review.experience.hostId !== hostId || review.hiddenAt || !review.hostReply) {
-      return { success: false, message: 'not_found' };
+      return { success: false, message: 'not_found', values };
     }
     if (!review.hostRepliedAt || review.hostRepliedAt.getTime() + EDIT_WINDOW_MS <= Date.now()) {
-      return { success: false, message: 'expired' };
+      return { success: false, message: 'expired', values };
     }
 
     const updated = await db
@@ -366,14 +372,14 @@ export async function updateHostReply(
         ),
       )
       .returning({ id: reviews.id });
-    if (updated.length === 0) return { success: false, message: 'expired' };
+    if (updated.length === 0) return { success: false, message: 'expired', values };
 
     revalidateReviewCaches();
     revalidatePath('/[locale]/host/reviews', 'page');
     revalidatePath('/[locale]/experiences/[slug]', 'page');
   } catch (error) {
     reportError(error, { surface: 'reviews:updateHostReply', reviewId });
-    return { success: false, message: 'server' };
+    return { success: false, message: 'server', values };
   }
 
   return { success: true };

@@ -306,7 +306,7 @@ export default async function HostProfilePage({
           </div>
 
           {experiences.length === 0 ? (
-            <div className="border-sarat-black/8 rounded-card [border-width:0.5px] p-10">
+            <div className="border-sarat-black/8 rounded-card [border-width:0.5px] p-12">
               <p className="text-sarat-black-600 text-base">{t('noExperiences')}</p>
             </div>
           ) : (

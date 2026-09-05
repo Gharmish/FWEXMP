@@ -56,7 +56,7 @@ export default async function SignInPage({
   );
 
   return (
-    <div className="flex flex-col gap-10">
+    <div className="flex flex-col gap-12">
       <div className="flex flex-col gap-4">
         <p className={eyebrowClassName}>{t('eyebrow')}</p>
         <h1 className="font-display text-4xl font-semibold tracking-[-0.035em] text-balance">

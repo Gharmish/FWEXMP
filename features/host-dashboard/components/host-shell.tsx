@@ -74,7 +74,7 @@ export function HostShell({
   const [open, setOpen] = useState(false);
 
   const railBody = (
-    <div className="flex h-full flex-col gap-8 overflow-y-auto p-5">
+    <div className="flex h-full flex-col gap-8 overflow-y-auto p-6">
       <Link
         href="/host"
         onClick={() => setOpen(false)}
@@ -189,7 +189,7 @@ export function HostShell({
           )}
         </header>
 
-        <main className="flex-1 px-4 py-8 pb-28 sm:px-6 lg:px-10 lg:py-12 lg:pb-12">
+        <main className="flex-1 px-4 py-8 pb-28 sm:px-6 lg:px-12 lg:py-12 lg:pb-12">
           <div className="mx-auto w-full max-w-6xl">{children}</div>
         </main>
 

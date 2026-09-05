@@ -95,7 +95,7 @@ export default async function HostsIndexPage({ params }: { params: Promise<{ loc
       <JsonLd data={jsonLd} />
 
       <section className="mx-auto w-full max-w-6xl px-6 py-20 sm:py-24">
-        <div className="flex max-w-3xl flex-col gap-5">
+        <div className="flex max-w-3xl flex-col gap-6">
           <MountFade eager delay={0}>
             <p className={eyebrowClassName}>{t('eyebrow')}</p>
           </MountFade>

@@ -67,6 +67,9 @@ export function CreatePromoForm({ locale, copy }: CreatePromoFormProps) {
   }, [state]);
 
   const fields = state.success ? {} : (state.fields ?? {});
+  // React resets uncontrolled inputs after a failed action; echo the raw
+  // values back as defaults so a typo doesn't wipe the whole form (P2-23).
+  const values = state.success ? {} : (state.values ?? {});
   const formError = state.success
     ? undefined
     : state.message === 'code_taken'
@@ -80,10 +83,10 @@ export function CreatePromoForm({ locale, copy }: CreatePromoFormProps) {
             : undefined;
 
   return (
-    <form ref={formRef} action={formAction} noValidate className="flex flex-col gap-5">
+    <form ref={formRef} action={formAction} noValidate className="flex flex-col gap-6">
       <input type="hidden" name="locale" value={locale} />
 
-      <div className="grid gap-5 sm:grid-cols-2">
+      <div className="grid gap-6 sm:grid-cols-2">
         <div className="flex flex-col gap-1">
           <label htmlFor={`${uid}-code`} className={labelClass}>
             {copy.codeLabel}
@@ -94,6 +97,7 @@ export function CreatePromoForm({ locale, copy }: CreatePromoFormProps) {
             dir="ltr"
             autoCapitalize="characters"
             className="uppercase"
+            defaultValue={values.code ?? ''}
             aria-invalid={fields.code ? true : undefined}
           />
           {fields.code ? (
@@ -108,7 +112,12 @@ export function CreatePromoForm({ locale, copy }: CreatePromoFormProps) {
             {copy.labelLabel}{' '}
             <span className="text-sarat-black-600 font-normal">({copy.optional})</span>
           </label>
-          <Input id={`${uid}-label`} name="label" aria-invalid={fields.label ? true : undefined} />
+          <Input
+            id={`${uid}-label`}
+            name="label"
+            defaultValue={values.label ?? ''}
+            aria-invalid={fields.label ? true : undefined}
+          />
           <p className={hintClass}>{copy.labelHint}</p>
         </div>
 
@@ -119,7 +128,7 @@ export function CreatePromoForm({ locale, copy }: CreatePromoFormProps) {
           <select
             id={`${uid}-type`}
             name="discountType"
-            defaultValue="percent"
+            defaultValue={values.discountType || 'percent'}
             className={cn(
               'rounded-input border-sarat-black/20 text-sarat-black h-11 w-full [border-width:0.5px] bg-white px-4 text-base',
             )}
@@ -140,6 +149,7 @@ export function CreatePromoForm({ locale, copy }: CreatePromoFormProps) {
             inputMode="numeric"
             min={1}
             dir="ltr"
+            defaultValue={values.discountValue ?? ''}
             aria-invalid={fields.discountValue ? true : undefined}
           />
           {fields.discountValue && <p className={errorClass}>{copy.fieldInvalid}</p>}
@@ -157,6 +167,7 @@ export function CreatePromoForm({ locale, copy }: CreatePromoFormProps) {
             inputMode="numeric"
             min={1}
             dir="ltr"
+            defaultValue={values.minTotalSar ?? ''}
             aria-invalid={fields.minTotalSar ? true : undefined}
           />
           {fields.minTotalSar ? (
@@ -178,6 +189,7 @@ export function CreatePromoForm({ locale, copy }: CreatePromoFormProps) {
             inputMode="numeric"
             min={1}
             dir="ltr"
+            defaultValue={values.maxRedemptions ?? ''}
             aria-invalid={fields.maxRedemptions ? true : undefined}
           />
           {fields.maxRedemptions ? (
@@ -200,6 +212,7 @@ export function CreatePromoForm({ locale, copy }: CreatePromoFormProps) {
             min={1}
             placeholder="1"
             dir="ltr"
+            defaultValue={values.maxRedemptionsPerGuest ?? ''}
             aria-invalid={fields.maxRedemptionsPerGuest ? true : undefined}
           />
           {fields.maxRedemptionsPerGuest ? (
@@ -219,6 +232,7 @@ export function CreatePromoForm({ locale, copy }: CreatePromoFormProps) {
             name="startsAt"
             type="datetime-local"
             dir="ltr"
+            defaultValue={values.startsAt ?? ''}
             aria-invalid={fields.startsAt ? true : undefined}
           />
           {fields.startsAt && <p className={errorClass}>{copy.fieldInvalid}</p>}
@@ -234,6 +248,7 @@ export function CreatePromoForm({ locale, copy }: CreatePromoFormProps) {
             name="endsAt"
             type="datetime-local"
             dir="ltr"
+            defaultValue={values.endsAt ?? ''}
             aria-invalid={fields.endsAt ? true : undefined}
           />
           {fields.endsAt && <p className={errorClass}>{copy.fieldInvalid}</p>}

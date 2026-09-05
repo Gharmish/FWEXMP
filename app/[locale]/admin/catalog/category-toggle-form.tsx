@@ -5,6 +5,7 @@ import { useFormStatus } from 'react-dom';
 import type { Locale } from '@/lib/i18n';
 import type { Category } from '@/lib/colors';
 import { Button } from '@/components/ui/button';
+import { ConfirmSubmit } from '@/components/ui/confirm-dialog';
 import { setCategoryEnabled, type CatalogActionState } from '@/features/admin/catalog/actions';
 
 export interface CategoryToggleFormCopy {
@@ -14,6 +15,9 @@ export interface CategoryToggleFormCopy {
   lastCategory: string;
   formServer: string;
   formForbidden: string;
+  /** ConfirmSubmit copy (P3-33) — only the disable direction is confirmed. */
+  confirmDisableTitle: string;
+  confirmDisableDescription: string;
 }
 
 export interface CategoryToggleFormProps {
@@ -57,7 +61,21 @@ export function CategoryToggleForm({ category, enabled, locale, copy }: Category
       <input type="hidden" name="locale" value={locale} />
       <input type="hidden" name="category" value={category} />
       {!enabled && <input type="hidden" name="enabled" value="on" />}
-      <ToggleButton label={enabled ? copy.disable : copy.enable} pending={copy.pending} />
+      {enabled ? (
+        <ConfirmSubmit
+          title={copy.confirmDisableTitle}
+          description={copy.confirmDisableDescription}
+          confirmLabel={copy.disable}
+          pendingLabel={copy.pending}
+          variant="secondary"
+          size="sm"
+          destructive
+        >
+          {copy.disable}
+        </ConfirmSubmit>
+      ) : (
+        <ToggleButton label={copy.enable} pending={copy.pending} />
+      )}
       {error && (
         <p role="alert" className="text-al-qatt-red-800 text-xs">
           {error}

@@ -182,34 +182,54 @@ beforeEach(() => {
 describe('createDispute', () => {
   it('rejects an invalid payload before touching the database', async () => {
     const state = await createDispute({ success: false }, disputeForm({ message: 'short' }));
-    expect(state).toEqual({ success: false, message: 'validation' });
+    expect(state).toEqual({
+      success: false,
+      message: 'validation',
+      values: { message: 'short' },
+    });
     expect(insertedDisputes).toHaveLength(0);
   });
 
   it('returns not_found for a missing booking', async () => {
     bookingRow = undefined;
     const state = await createDispute({ success: false }, disputeForm());
-    expect(state).toEqual({ success: false, message: 'not_found' });
+    expect(state).toEqual({
+      success: false,
+      message: 'not_found',
+      values: { message: 'The meeting point was wrong and nobody answered.' },
+    });
   });
 
   it('returns not_found (indistinguishable) when the viewer cannot access the booking', async () => {
     viewerCanAccess = false;
     const state = await createDispute({ success: false }, disputeForm());
-    expect(state).toEqual({ success: false, message: 'not_found' });
+    expect(state).toEqual({
+      success: false,
+      message: 'not_found',
+      values: { message: 'The meeting point was wrong and nobody answered.' },
+    });
     expect(insertedDisputes).toHaveLength(0);
   });
 
   it('returns already_open when an open dispute exists', async () => {
     disputeRow = { id: 'dispute-1' };
     const state = await createDispute({ success: false }, disputeForm());
-    expect(state).toEqual({ success: false, message: 'already_open' });
+    expect(state).toEqual({
+      success: false,
+      message: 'already_open',
+      values: { message: 'The meeting point was wrong and nobody answered.' },
+    });
     expect(insertedDisputes).toHaveLength(0);
   });
 
   it('throttles a guest who filed too many reports within the window', async () => {
     recentByGuest = 5;
     const state = await createDispute({ success: false }, disputeForm());
-    expect(state).toEqual({ success: false, message: 'throttled' });
+    expect(state).toEqual({
+      success: false,
+      message: 'throttled',
+      values: { message: 'The meeting point was wrong and nobody answered.' },
+    });
     expect(insertedDisputes).toHaveLength(0);
     expect(notifyAdmin).not.toHaveBeenCalled();
   });
@@ -233,7 +253,11 @@ describe('createDispute', () => {
       constraint_name: 'disputes_one_open_per_booking',
     });
     const state = await createDispute({ success: false }, disputeForm());
-    expect(state).toEqual({ success: false, message: 'already_open' });
+    expect(state).toEqual({
+      success: false,
+      message: 'already_open',
+      values: { message: 'The meeting point was wrong and nobody answered.' },
+    });
     expect(reportError).not.toHaveBeenCalled();
     expect(notifyAdmin).not.toHaveBeenCalled();
   });
@@ -241,7 +265,11 @@ describe('createDispute', () => {
   it('reports an unrelated insert failure as server', async () => {
     insertError = Object.assign(new Error('boom'), { code: '23503' });
     const state = await createDispute({ success: false }, disputeForm());
-    expect(state).toEqual({ success: false, message: 'server' });
+    expect(state).toEqual({
+      success: false,
+      message: 'server',
+      values: { message: 'The meeting point was wrong and nobody answered.' },
+    });
     expect(reportError).toHaveBeenCalled();
   });
 });

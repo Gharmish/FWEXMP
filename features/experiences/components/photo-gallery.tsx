@@ -281,7 +281,9 @@ export function PhotoGallery({
             >
               <Image
                 src={heroImage}
-                alt={alt}
+                // L10: the wrapping button already carries the "photo
+                // n/N" label — mirrors the side-mosaic tiles below.
+                alt=""
                 fill
                 sizes="(min-width: 1024px) 560px, (min-width: 640px) 50vw, 1px"
                 className="object-cover transition-transform duration-200 group-hover:scale-[1.01]"

@@ -73,11 +73,13 @@ function RemoveButton({
         pendingLabel={copy.removing}
         destructive
         trigger={(open) => (
+          // 44px touch target (L17); the visible circle stays compact so it
+          // doesn't crowd the thumbnail, the invisible padding fills the rest.
           <button
             type="button"
             aria-label={copy.remove}
             onClick={open}
-            className="bg-sarat-black/70 inline-flex size-7 items-center justify-center rounded-full text-white backdrop-blur transition-opacity duration-200 hover:opacity-80"
+            className="bg-sarat-black/70 inline-flex size-11 items-center justify-center rounded-full text-white backdrop-blur transition-opacity duration-200 hover:opacity-80"
           >
             <X className="size-4" aria-hidden />
           </button>
@@ -130,7 +132,7 @@ export function GalleryManager({
     : serverError;
 
   return (
-    <section className="border-sarat-black/8 rounded-card flex flex-col gap-5 [border-width:0.5px] p-6">
+    <section className="border-sarat-black/8 rounded-card flex flex-col gap-6 [border-width:0.5px] p-6">
       <div className="flex flex-col gap-1">
         <h2 className="font-display text-xl font-medium tracking-[-0.02em]">{copy.heading}</h2>
         <p className="text-sarat-black-600 text-sm leading-relaxed">{copy.description}</p>
@@ -203,7 +205,9 @@ export function GalleryManager({
         <p className="text-sarat-black/40 text-xs">{copy.hint}</p>
         {/* Only after a framed photo is staged — a permanently-disabled
             gray bar before that read as broken, not "choose a file first". */}
-        {ready && clientError === null && <UploadSubmit label={copy.add} pendingLabel={copy.adding} />}
+        {ready && clientError === null && (
+          <UploadSubmit label={copy.add} pendingLabel={copy.adding} />
+        )}
         {error && (
           <p role="alert" className="text-al-qatt-red-800 text-sm">
             {error}

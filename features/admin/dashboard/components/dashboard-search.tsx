@@ -39,7 +39,7 @@ export function DashboardSearch({ placeholder, submitLabel }: DashboardSearchPro
         onChange={(e) => setValue(e.target.value)}
         placeholder={placeholder}
         aria-label={submitLabel}
-        className="rounded-button border-sarat-black/20 text-sarat-black placeholder:text-sarat-black-600 h-11 w-full [border-width:0.5px] bg-white ps-10 pe-4 text-base"
+        className="rounded-button border-sarat-black/20 text-sarat-black placeholder:text-sarat-black-600 h-11 w-full [border-width:0.5px] bg-white ps-12 pe-4 text-base"
       />
     </form>
   );

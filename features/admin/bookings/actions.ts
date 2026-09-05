@@ -48,7 +48,9 @@ import { releaseWalletReservationTx } from '@/features/wallet/reservation';
  */
 
 export interface AdminBookingActionResult {
-  success: false;
+  // Widened from the literal `false` (P3-34) — resolveSettleAnomaly's
+  // success path was forced to return `success: false` by this type.
+  success: boolean;
   message?:
     | 'forbidden'
     | 'no_db'
@@ -664,5 +666,8 @@ export async function resolveSettleAnomaly(
 
   revalidatePath('/[locale]/admin/bookings/[id]', 'page');
   revalidatePath('/[locale]/book/[reference]/pay', 'page');
-  return { success: false };
+  // P3-34 — this is the success path; it was returning `success: false`,
+  // inverting the codebase's discriminated-state convention (harmless
+  // today since the button only reads `.message`, but fix it anyway).
+  return { success: true };
 }

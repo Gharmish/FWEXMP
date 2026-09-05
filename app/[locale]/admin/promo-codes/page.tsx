@@ -8,7 +8,11 @@ import { formatDate } from '@/lib/format';
 import { Badge } from '@/components/ui/badge';
 import { Price } from '@/components/ui/price';
 import { isAdminAndDbReady } from '@/features/admin/guard';
-import { getPromoCodesForAdmin } from '@/features/promo-codes/queries';
+import {
+  getPromoCodesForAdmin,
+  PROMO_CODES_LIST_LIMIT,
+  wasPromoCodesListTruncated,
+} from '@/features/promo-codes/queries';
 import { CreatePromoForm } from '@/app/[locale]/admin/promo-codes/create-promo-form';
 import { PromoActiveToggle } from '@/app/[locale]/admin/promo-codes/promo-active-toggle';
 import { notFound } from 'next/navigation';
@@ -54,9 +58,9 @@ export default async function AdminPromoCodesPage({
   if (block?.reason === 'not_admin') notFound();
   if (block?.reason === 'no_db') {
     return (
-      <div className="flex flex-col gap-10">
+      <div className="flex flex-col gap-12">
         {backLink}
-        <div className="border-sarat-black/8 rounded-card flex flex-col items-start gap-4 [border-width:0.5px] p-10">
+        <div className="border-sarat-black/8 rounded-card flex flex-col items-start gap-4 [border-width:0.5px] p-12">
           <p className={eyebrowClassName}>{t('noDb.eyebrow')}</p>
           <h2 className="font-display text-2xl font-medium tracking-[-0.025em]">
             {t('noDb.title')}
@@ -67,7 +71,10 @@ export default async function AdminPromoCodesPage({
     );
   }
 
-  const codes = await getPromoCodesForAdmin();
+  const [codes, listTruncated] = await Promise.all([
+    getPromoCodesForAdmin(),
+    wasPromoCodesListTruncated(),
+  ]);
 
   const createCopy = {
     codeLabel: t('promoCodes.form.codeLabel'),
@@ -130,7 +137,7 @@ export default async function AdminPromoCodesPage({
     Boolean(startsAt && new Date(startsAt).getTime() > now);
 
   return (
-    <div className="flex flex-col gap-10">
+    <div className="flex flex-col gap-12">
       {backLink}
 
       <div className="flex flex-col gap-4">
@@ -152,6 +159,13 @@ export default async function AdminPromoCodesPage({
           <p className="text-sarat-black-600 text-sm">{t('promoCodes.listHint')}</p>
         </div>
 
+        {/* L4: the list is capped; say so instead of presenting a silently
+            windowed set (same pattern as the bookings/disputes lists). */}
+        {listTruncated && (
+          <p className="text-sarat-black-600 text-sm" role="status">
+            {t('promoCodes.truncated', { count: PROMO_CODES_LIST_LIMIT })}
+          </p>
+        )}
         {codes.length === 0 ? (
           <p className="text-sarat-black-600 text-sm">{t('promoCodes.empty')}</p>
         ) : (

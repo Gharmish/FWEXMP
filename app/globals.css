@@ -137,7 +137,9 @@
   --color-error-surface: var(--color-al-qatt-red-100);
   --color-info: var(--color-habala-mist-800);
   --color-info-surface: var(--color-habala-mist-100);
-  --color-pending: var(--color-saffron-gold-800);
+  /* P2-2: -800 on gold-100 was 4.22:1, failing AA for 12px status text
+   * (badges, SLA countdowns); -900 gives 6.94:1 on the same surface. */
+  --color-pending: var(--color-saffron-gold-900);
   --color-pending-surface: var(--color-saffron-gold-100);
 
   /* Elevation. The single shadow in the system, reserved for floating
@@ -163,6 +165,9 @@
   --radius-input: 12px;
   --radius-image: 16px;
   --radius-modal: 24px;
+  /* P3-32/L17: payment-mark badge corner (owner asset spec: 32px height ×
+   * 13.99% ≈ 4.5px) — was an inline rounded-[4.5px] arbitrary value. */
+  --radius-badge: 4.5px;
 }
 
 /* ------------------------------------------------------------------ *
@@ -412,6 +417,25 @@ body {
     to {
       transform: translateX(5%);
     }
+  }
+}
+
+/* P2-21: Tailwind's `divide-y` sets a 1px border-top on `> * + *`, twice
+ * the weight of the 0.5px hairline our cards use for their own edge. Use
+ * `divide-hairline` instead of `divide-y` on any list inside a
+ * [border-width:0.5px] card so internal row dividers match the card
+ * border weight. Not swept at every call site in this package — other
+ * feature owners adopt it in their own files. */
+@utility divide-hairline {
+  /* Mirrors Tailwind v4's own `divide-y` rule (style + reverse support)
+     at the brief's 0.5px hairline instead of 1px, so it is a drop-in
+     replacement, not an add-on. */
+  & > :not(:last-child) {
+    --tw-divide-y-reverse: 0;
+    border-bottom-style: var(--tw-border-style);
+    border-top-style: var(--tw-border-style);
+    border-top-width: calc(0.5px * var(--tw-divide-y-reverse));
+    border-bottom-width: calc(0.5px * calc(1 - var(--tw-divide-y-reverse)));
   }
 }
 

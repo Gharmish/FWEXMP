@@ -275,7 +275,7 @@ export default async function StyleGuidePage({ params }: { params: Promise<{ loc
         </p>
         <nav
           aria-label="Sections"
-          className="border-sarat-black/8 rounded-card mt-6 [border-width:0.5px] p-5"
+          className="border-sarat-black/8 rounded-card mt-6 [border-width:0.5px] p-6"
         >
           <p className="text-sarat-black-600 mb-3 text-[11px] font-medium tracking-[0.2em] uppercase">
             Jump to
@@ -568,7 +568,7 @@ export default async function StyleGuidePage({ params }: { params: Promise<{ loc
       </Section>
 
       <Section title="Reviews — rating summary">
-        <div className="flex flex-col gap-10">
+        <div className="flex flex-col gap-12">
           <div className="flex flex-col gap-2">
             <p className="text-sarat-black-600 text-[11px] font-medium tracking-[0.2em] uppercase">
               With reviews

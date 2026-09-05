@@ -21,6 +21,9 @@ export type PromoAdminActionState =
       success: false;
       message?: 'forbidden' | 'no_db' | 'validation' | 'server' | 'code_taken' | 'not_found';
       fields?: Record<string, string>;
+      /** Echoed raw form values (P2-23) — React resets uncontrolled inputs
+       * after a failed action, so an un-echoed field silently reverts. */
+      values?: Record<string, string>;
     };
 
 async function requireAdmin(): Promise<{ adminUserId: string } | { error: PromoAdminActionState }> {
@@ -52,12 +55,35 @@ function optionalDate(value: string | undefined): Date | null {
   return Number.isNaN(d.getTime()) ? null : d;
 }
 
+/** Raw string echo of the fields the form can fail and re-render (P2-23). */
+function rawValues(formData: FormData): Record<string, string> {
+  const keys = [
+    'code',
+    'label',
+    'discountType',
+    'discountValue',
+    'minTotalSar',
+    'maxRedemptions',
+    'maxRedemptionsPerGuest',
+    'startsAt',
+    'endsAt',
+  ];
+  const values: Record<string, string> = {};
+  for (const key of keys) {
+    const value = formData.get(key);
+    if (typeof value === 'string') values[key] = value;
+  }
+  return values;
+}
+
 export async function createPromoCode(
   _previous: PromoAdminActionState,
   formData: FormData,
 ): Promise<PromoAdminActionState> {
   const guard = await requireAdmin();
   if ('error' in guard) return guard.error;
+
+  const values = rawValues(formData);
 
   const parsed = createPromoCodeSchema.safeParse({
     code: formData.get('code'),
@@ -72,7 +98,12 @@ export async function createPromoCode(
     locale: formData.get('locale'),
   });
   if (!parsed.success) {
-    return { success: false, message: 'validation', fields: fieldErrors(parsed.error.issues) };
+    return {
+      success: false,
+      message: 'validation',
+      fields: fieldErrors(parsed.error.issues),
+      values,
+    };
   }
   const input = parsed.data;
 
@@ -97,10 +128,10 @@ export async function createPromoCode(
       })
       .onConflictDoNothing({ target: promoCodes.code })
       .returning({ id: promoCodes.id });
-    if (inserted.length === 0) return { success: false, message: 'code_taken' };
+    if (inserted.length === 0) return { success: false, message: 'code_taken', values };
   } catch (error) {
     reportError(error, { surface: 'admin:promo:create' });
-    return { success: false, message: 'server' };
+    return { success: false, message: 'server', values };
   }
 
   revalidatePath('/[locale]/admin/promo-codes', 'page');

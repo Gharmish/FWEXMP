@@ -158,7 +158,7 @@ export function HostEditForm({ personKey, host, copy }: HostEditFormProps) {
             {fieldError('bioAr')}
           </div>
 
-          <div className="grid gap-5 sm:grid-cols-2">
+          <div className="grid gap-6 sm:grid-cols-2">
             <div className="flex flex-col gap-2">
               <label className="text-sm font-medium">{copy.contactEmail}</label>
               <Input
@@ -212,11 +212,11 @@ export function HostEditForm({ personKey, host, copy }: HostEditFormProps) {
             </div>
           </fieldset>
 
-          <fieldset className="border-sarat-black/8 rounded-card flex flex-col gap-5 [border-width:0.5px] p-5">
+          <fieldset className="border-sarat-black/8 rounded-card flex flex-col gap-6 [border-width:0.5px] p-6">
             <legend className="text-sarat-black-600 px-2 text-[11px] font-medium tracking-[0.2em] uppercase">
               KYC
             </legend>
-            <div className="grid gap-5 sm:grid-cols-2">
+            <div className="grid gap-6 sm:grid-cols-2">
               <div className="flex flex-col gap-2">
                 <label className="text-sm font-medium">{copy.nationalId}</label>
                 <Input

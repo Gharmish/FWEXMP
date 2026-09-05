@@ -52,9 +52,9 @@ export default async function AdminGuestsPage({
   if (block?.reason === 'not_admin') notFound();
   if (block?.reason === 'no_db') {
     return (
-      <div className="flex flex-col gap-10">
+      <div className="flex flex-col gap-12">
         {backLink}
-        <div className="border-sarat-black/8 rounded-card flex flex-col items-start gap-4 [border-width:0.5px] p-10">
+        <div className="border-sarat-black/8 rounded-card flex flex-col items-start gap-4 [border-width:0.5px] p-12">
           <p className={eyebrowClassName}>{t('noDb.eyebrow')}</p>
           <h2 className="font-display text-2xl font-medium tracking-[-0.025em]">
             {t('noDb.title')}
@@ -70,7 +70,7 @@ export default async function AdminGuestsPage({
   const rows = await listGuestsForAdmin(q);
 
   return (
-    <div className="flex flex-col gap-10">
+    <div className="flex flex-col gap-12">
       {backLink}
       <div className="flex flex-col gap-4">
         <p className={eyebrowClassName}>{t('guestsList.eyebrow')}</p>
@@ -98,7 +98,7 @@ export default async function AdminGuestsPage({
         </label>
         <button
           type="submit"
-          className="rounded-button bg-sarat-black h-11 px-5 text-sm font-medium text-white"
+          className="rounded-button bg-sarat-black h-11 px-6 text-sm font-medium text-white"
         >
           {t('guestsList.searchSubmit')}
         </button>
@@ -107,12 +107,12 @@ export default async function AdminGuestsPage({
       {rows.length === 0 ? (
         <p className="text-sarat-black-600 text-base">{t('guestsList.empty')}</p>
       ) : (
-        <ul className="border-sarat-black/8 rounded-card flex flex-col divide-y divide-[var(--color-sarat-black)]/8 [border-width:0.5px]">
+        <ul className="border-sarat-black/8 rounded-card divide-hairline flex flex-col divide-[var(--color-sarat-black)]/8 [border-width:0.5px]">
           {rows.map((row) => (
             <li key={row.id}>
               <Link
                 href={`/admin/guests/${row.id}`}
-                className="group flex items-center justify-between gap-4 p-5 transition-colors duration-200 hover:bg-[var(--color-sarat-black)]/[0.02]"
+                className="group flex items-center justify-between gap-4 p-6 transition-colors duration-200 hover:bg-[var(--color-sarat-black)]/[0.02]"
               >
                 <div className="flex min-w-0 flex-col gap-1">
                   <span className="text-base font-medium">{row.name}</span>

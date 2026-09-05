@@ -76,6 +76,7 @@ export default async function HostReviewsPage({
     editSubmit: t('reply.editSubmit'),
     editSuccess: t('reply.editSuccess'),
     cancelEdit: t('reply.cancelEdit'),
+    confirm: t('reply.confirm'),
     errors: {
       forbidden: t('reply.errors.forbidden'),
       no_db: t('reply.errors.noDb'),
@@ -90,7 +91,7 @@ export default async function HostReviewsPage({
   const pageHref = (p: number) => (p > 1 ? `/host/reviews?page=${p}` : '/host/reviews');
 
   return (
-    <div className="flex w-full max-w-4xl flex-col gap-10">
+    <div className="flex w-full max-w-4xl flex-col gap-12">
       <div className="flex flex-col gap-4">
         <p className={eyebrowClassName}>{t('eyebrow')}</p>
         <h1 className="font-display text-4xl font-semibold tracking-[-0.035em] text-balance sm:text-5xl">

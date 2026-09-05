@@ -65,7 +65,7 @@ export function AvailabilityCalendar({
   const href = (y: number, m: number) => `${basePath}?ym=${formatYearMonth(y, m)}`;
 
   return (
-    <section className="border-sarat-black/8 rounded-card flex flex-col gap-5 [border-width:0.5px] p-6">
+    <section className="border-sarat-black/8 rounded-card flex flex-col gap-6 [border-width:0.5px] p-6">
       <div className="flex flex-col gap-1">
         <h2 className="font-display text-xl font-medium tracking-[-0.02em]">{copy.heading}</h2>
         <p className="text-sarat-black-600 text-sm leading-relaxed">{copy.intro}</p>

@@ -115,7 +115,13 @@ export default async function HomePage({
       { key: 'adventure', label: t('headlineWords.adventure') },
       { key: 'family', label: t('headlineWords.family') },
     ] as const satisfies readonly { key: Category; label: string }[]
-  ).filter((w) => settings.enabledCategories.includes(w.key));
+  )
+    .filter((w) => settings.enabledCategories.includes(w.key))
+    // Longest label first: the slot is fixed at the widest word, so leading
+    // with it means the SSR paint has no dead gap and hydration's width
+    // settle is a no-op (2026-09 UX audit P2-3). Label length is a close
+    // enough proxy for rendered width in both locales.
+    .sort((a, b) => b.label.length - a.label.length);
   // The template's {word} placeholder splits it into the static halves
   // around the rotating slot (t.raw: interpolating would need a value).
   const [headlinePrefix = '', headlineSuffix = ''] = (t.raw('headlineTemplate') as string).split(
@@ -219,13 +225,13 @@ export default async function HomePage({
           deep-linking into the filtered catalog. The highlands scene above
           is the divider, so no border hairline here. */}
       <section aria-label={t('discoverAria')}>
-        <div className="mx-auto flex w-full max-w-6xl flex-col gap-6 px-6 py-10">
+        <div className="mx-auto flex w-full max-w-6xl flex-col gap-6 px-6 py-12">
           <Link
             // `focus=search` lands the guest in the catalog's search field
             // (the catalog focuses the input on that param) — the pill
             // promises a search box, not the top of a listing page.
             href="/experiences?focus=search"
-            className="rounded-button border-sarat-black/12 hover:border-sarat-black/30 text-sarat-black-600 flex min-h-12 w-full max-w-xl items-center gap-3 [border-width:0.5px] px-5 py-3 transition-colors duration-200"
+            className="rounded-button border-sarat-black/12 hover:border-sarat-black/30 text-sarat-black-600 flex min-h-12 w-full max-w-xl items-center gap-3 [border-width:0.5px] px-6 py-3 transition-colors duration-200"
           >
             <Search className="size-5 shrink-0" strokeWidth={1.5} aria-hidden />
             <span className="text-base">{t('searchPrompt')}</span>
@@ -474,7 +480,7 @@ function SocialProofFallback() {
         <div className="flex flex-col gap-3">
           <Skeleton className="h-8 w-80 max-w-full" />
         </div>
-        <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
           {Array.from({ length: 3 }).map((_, i) => (
             <div
               key={i}

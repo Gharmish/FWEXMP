@@ -11,6 +11,7 @@ import { getHostDashboard } from '@/features/host-dashboard/queries';
 import {
   listBookingsForHost,
   listCalendarDaysForHost,
+  OPEN_BUCKET_LIMIT,
   PAST_PAGE_SIZE,
 } from '@/features/host-bookings/queries';
 import { listMyExperiences } from '@/features/host-experiences/queries';
@@ -94,7 +95,7 @@ export default async function HostBookingsPage({
     listMyExperiences(),
     view === 'calendar' ? listCalendarDaysForHost(month) : Promise.resolve([]),
   ]);
-  const { requests, upcoming, past, pastTotal } = result;
+  const { requests, upcoming, past, pastTotal, openBucketTruncated } = result;
   const pastPages = Math.max(1, Math.ceil(pastTotal / PAST_PAGE_SIZE));
   const filtersActive = Boolean(q || experience);
   const suspended = dashboard.host.verificationStatus === 'suspended';
@@ -132,7 +133,7 @@ export default async function HostBookingsPage({
     rows.length === 0 ? (
       <p className="text-sarat-black-600 text-base">{t(`${emptyKey}.empty`)}</p>
     ) : (
-      <ul className="border-sarat-black/8 rounded-card divide-sarat-black/8 flex flex-col divide-y [border-width:0.5px]">
+      <ul className="border-sarat-black/8 rounded-card divide-sarat-black/8 divide-hairline flex flex-col [border-width:0.5px]">
         {rows.map((row) => (
           <BookingRow
             key={row.id}
@@ -176,6 +177,12 @@ export default async function HostBookingsPage({
             className="border-al-qatt-red/40 bg-al-qatt-red/5 text-sarat-black rounded-card [border-width:0.5px] p-4 text-sm leading-relaxed"
           >
             {t('suspendedBanner')}
+          </p>
+        )}
+        {/* L4: requests or upcoming hit the open-bucket cap — say so. */}
+        {openBucketTruncated && (
+          <p className="text-sarat-black-600 text-sm">
+            {t('truncated', { count: OPEN_BUCKET_LIMIT })}
           </p>
         )}
       </div>
@@ -386,7 +393,7 @@ export default async function HostBookingsPage({
                   {requests.length + upcoming.length + past.length === 0 ? (
                     <p className="text-sarat-black-600 text-base">{t('calendar.emptyDay')}</p>
                   ) : (
-                    <ul className="border-sarat-black/8 rounded-card divide-sarat-black/8 flex flex-col divide-y [border-width:0.5px]">
+                    <ul className="border-sarat-black/8 rounded-card divide-sarat-black/8 divide-hairline flex flex-col [border-width:0.5px]">
                       {[...requests, ...upcoming].map((row) => (
                         <BookingRow
                           key={row.id}

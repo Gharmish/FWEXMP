@@ -88,7 +88,7 @@ export default async function HostingPage({
     loc === 'en' && 'tracking-[0.2em] uppercase',
   );
   const darkEyebrowClassName = cn(
-    'text-saffron-gold font-medium text-[11px]',
+    'text-saffron-gold-800 font-medium text-[11px]',
     loc === 'en' && 'tracking-[0.2em] uppercase',
   );
 
@@ -117,7 +117,7 @@ export default async function HostingPage({
       <div className="flex flex-col">
         {/* Hero */}
         <section className="mx-auto w-full max-w-3xl px-6 pt-20 pb-16 sm:pt-24">
-          <FadeIn className="flex flex-col gap-5">
+          <FadeIn className="flex flex-col gap-6">
             <p className={eyebrowClassName}>{t('hero.eyebrow')}</p>
             <h1 className="font-display text-4xl font-semibold tracking-[-0.035em] text-balance sm:text-6xl">
               {t('hero.title')}
@@ -146,7 +146,7 @@ export default async function HostingPage({
         </section>
 
         {/* Who can host */}
-        <section className="mx-auto w-full max-w-3xl px-6 py-14">
+        <section className="mx-auto w-full max-w-3xl px-6 py-16">
           <div className="border-sarat-black/8 flex flex-col gap-6 [border-top-width:0.5px] pt-12">
             <h2 className="font-display text-2xl font-medium tracking-[-0.025em] sm:text-3xl">
               {t('audience.heading')}
@@ -154,7 +154,7 @@ export default async function HostingPage({
             <p className="text-sarat-black-600 max-w-2xl text-base leading-relaxed">
               {t('audience.intro')}
             </p>
-            <div className="mt-2 grid gap-5 sm:grid-cols-2">
+            <div className="mt-2 grid gap-6 sm:grid-cols-2">
               {audienceKeys.map((key) => (
                 <div
                   key={key}
@@ -171,7 +171,7 @@ export default async function HostingPage({
         </section>
 
         {/* How the partnership works */}
-        <section className="mx-auto w-full max-w-3xl px-6 py-14">
+        <section className="mx-auto w-full max-w-3xl px-6 py-16">
           <div className="border-sarat-black/8 flex flex-col gap-6 [border-top-width:0.5px] pt-12">
             <h2 className="font-display text-2xl font-medium tracking-[-0.025em] sm:text-3xl">
               {t('partnership.heading')}
@@ -193,7 +193,7 @@ export default async function HostingPage({
         </section>
 
         {/* How applying works — numbered stages */}
-        <section className="mx-auto w-full max-w-3xl px-6 py-14">
+        <section className="mx-auto w-full max-w-3xl px-6 py-16">
           <div className="border-sarat-black/8 flex flex-col gap-6 [border-top-width:0.5px] pt-12">
             <h2 className="font-display text-2xl font-medium tracking-[-0.025em] sm:text-3xl">
               {t('stages.heading')}
@@ -220,7 +220,7 @@ export default async function HostingPage({
         </section>
 
         {/* What you'll need — documents */}
-        <section className="mx-auto w-full max-w-3xl px-6 py-14">
+        <section className="mx-auto w-full max-w-3xl px-6 py-16">
           <div className="border-sarat-black/8 flex flex-col gap-6 [border-top-width:0.5px] pt-12">
             <h2 className="font-display text-2xl font-medium tracking-[-0.025em] sm:text-3xl">
               {t('documents.heading')}
@@ -248,7 +248,7 @@ export default async function HostingPage({
         </section>
 
         {/* Payouts & liability */}
-        <section className="mx-auto w-full max-w-3xl px-6 py-14">
+        <section className="mx-auto w-full max-w-3xl px-6 py-16">
           <div className="border-sarat-black/8 flex flex-col gap-6 [border-top-width:0.5px] pt-12">
             <h2 className="font-display text-2xl font-medium tracking-[-0.025em] sm:text-3xl">
               {t('payout.heading')}
@@ -262,7 +262,7 @@ export default async function HostingPage({
         </section>
 
         {/* FAQ */}
-        <section className="mx-auto w-full max-w-3xl px-6 py-14">
+        <section className="mx-auto w-full max-w-3xl px-6 py-16">
           <div className="border-sarat-black/8 flex flex-col gap-6 [border-top-width:0.5px] pt-12">
             <h2 className="font-display text-2xl font-medium tracking-[-0.025em] sm:text-3xl">
               {t('faq.heading')}
@@ -273,7 +273,7 @@ export default async function HostingPage({
                   key={key}
                   className="border-sarat-black/8 group [border-bottom-width:0.5px]"
                 >
-                  <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-4 py-5 text-lg font-medium [&::-webkit-details-marker]:hidden">
+                  <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-4 py-6 text-lg font-medium [&::-webkit-details-marker]:hidden">
                     {tFaq(`items.${key}.q`, faqValues)}
                     <ChevronDown
                       className="text-sarat-black-600 size-5 shrink-0 transition-transform duration-200 group-open:rotate-180"

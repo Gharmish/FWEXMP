@@ -1,11 +1,12 @@
 'use client';
 
-import { useActionState, useId, useState } from 'react';
+import { useActionState, useId, useState, type FormEvent } from 'react';
 import { useFormStatus } from 'react-dom';
 import { Star } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import type { Locale } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
+import { formatInteger } from '@/lib/format';
 import { Button } from '@/components/ui/button';
 import { submitReview, updateReview, type SubmitReviewState } from '@/features/reviews/actions';
 import { reviewDisplayName } from '@/features/reviews/lib/display-name';
@@ -48,7 +49,9 @@ const initialState: SubmitReviewState = { success: false };
 function Submit({ copy }: { copy: ReviewFormCopy }) {
   const { pending } = useFormStatus();
   return (
-    <Button type="submit" variant="primary" size="md" disabled={pending} className="self-start">
+    // L19: the Button `pending` prop (not disabled={pending}) — it keeps
+    // aria-busy and lets Button manage the disabled state consistently.
+    <Button type="submit" variant="primary" size="md" pending={pending} className="self-start">
       {pending ? copy.submitting : copy.submit}
     </Button>
   );
@@ -70,17 +73,29 @@ export function ReviewForm({
   );
   const [rating, setRating] = useState(initialRating);
   const [hovered, setHovered] = useState(0);
+  // M16: caught before the round-trip, not just after a server rejection.
+  const [ratingTouched, setRatingTouched] = useState(false);
+  const [textLength, setTextLength] = useState(initialText.length);
   const groupId = useId();
+  const ratingErrorId = `${groupId}-rating-error`;
+  const charCountId = `${groupId}-char-count`;
 
   const shown = hovered || rating;
   const generalError =
     state.message && state.message !== 'validation'
       ? (copy.errors[state.message] ?? copy.errors.server)
       : undefined;
-  const ratingError = state.fields?.rating ? copy.ratingRequired : undefined;
+  const ratingError = ratingTouched || state.fields?.rating ? copy.ratingRequired : undefined;
+
+  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    if (rating === 0) {
+      event.preventDefault();
+      setRatingTouched(true);
+    }
+  }
 
   return (
-    <form action={action} className="flex flex-col gap-5">
+    <form action={action} onSubmit={handleSubmit} className="flex flex-col gap-6">
       <input type="hidden" name="bookingReference" value={bookingReference} />
       <input type="hidden" name="locale" value={locale} />
 
@@ -97,6 +112,8 @@ export function ReviewForm({
           className="flex gap-1"
           role="radiogroup"
           aria-label={copy.ratingLabel}
+          // M16: wires the group to its own error message for AT users.
+          aria-describedby={ratingError ? ratingErrorId : undefined}
           onMouseLeave={() => setHovered(0)}
         >
           {[1, 2, 3, 4, 5].map((value) => (
@@ -114,14 +131,19 @@ export function ReviewForm({
                 name="rating"
                 value={value}
                 checked={rating === value}
-                onChange={() => setRating(value)}
+                onChange={() => {
+                  setRating(value);
+                  setRatingTouched(false);
+                }}
                 className="sr-only"
                 aria-label={copy.ratingValueLabels[value - 1]}
               />
               <Star
                 className={cn(
                   'size-7 fill-current transition-colors duration-150',
-                  value <= shown ? 'text-saffron-gold' : 'text-sarat-black/20',
+                  // M20: -800 holds contrast on white; unselected stars
+                  // stay the same muted tone.
+                  value <= shown ? 'text-saffron-gold-800' : 'text-sarat-black/20',
                 )}
                 aria-hidden
               />
@@ -129,7 +151,7 @@ export function ReviewForm({
           ))}
         </div>
         {ratingError && (
-          <p role="alert" className="text-al-qatt-red-800 text-xs">
+          <p id={ratingErrorId} role="alert" className="text-al-qatt-red-800 text-xs">
             {ratingError}
           </p>
         )}
@@ -145,9 +167,29 @@ export function ReviewForm({
           rows={4}
           maxLength={REVIEW_TEXT_MAX}
           defaultValue={state.values?.text ?? initialText}
+          onChange={(e) => setTextLength(e.target.value.length)}
           placeholder={copy.commentPlaceholder}
+          aria-describedby={charCountId}
           className="rounded-input border-sarat-black/12 placeholder:text-sarat-black-600 focus:border-sarat-black/30 w-full resize-y [border-width:0.5px] bg-transparent p-3 text-base"
         />
+        {/* M16: character counter, quiet until the guest is close to the
+            limit. */}
+        <p
+          id={charCountId}
+          className={cn(
+            'text-end text-xs',
+            textLength >= REVIEW_TEXT_MAX
+              ? 'text-al-qatt-red-800'
+              : textLength >= REVIEW_TEXT_MAX * 0.9
+                ? 'text-sarat-black-600'
+                : 'text-sarat-black/40',
+          )}
+        >
+          {t('charCount', {
+            count: formatInteger(textLength, locale),
+            max: formatInteger(REVIEW_TEXT_MAX, locale),
+          })}
+        </p>
       </div>
 
       <Submit copy={copy} />

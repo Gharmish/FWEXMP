@@ -62,9 +62,11 @@ export function RevenueChart({
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-1">
-        <div className="flex items-center gap-x-5 text-xs">
+        <div className="flex items-center gap-x-6 text-xs">
           <span className="inline-flex items-center gap-1.5">
-            <span className="bg-juniper-green/85 size-2.5 rounded-sm" aria-hidden />
+            {/* P3-32: rounded-sm was a raw radius override; rounded-full matches
+                the token set already in use for status/legend dots. */}
+            <span className="bg-juniper-green/85 size-2.5 rounded-full" aria-hidden />
             <span className="text-sarat-black-600">{gmvLabel}</span>
           </span>
           <span className="inline-flex items-center gap-1.5">

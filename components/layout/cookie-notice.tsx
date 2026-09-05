@@ -1,6 +1,7 @@
 'use client';
 
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
+import type { ReactNode } from 'react';
 import { useSyncExternalStore } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import { Link } from '@/lib/i18n';
@@ -65,11 +66,27 @@ export function CookieNotice() {
         : 'Snapchat'
       : null,
   ].filter((n): n is string => n !== null);
-  let consentBody = t('consentBody');
+  // P2-1: the privacy link now renders inline inside the body copy (via
+  // t.rich) instead of its own row, so the banner fits in two lines at
+  // 375px in English without losing the link.
+  const privacyTag = {
+    privacy: (chunks: ReactNode) => (
+      <Link
+        href="/privacy"
+        className="text-sarat-black underline underline-offset-2 transition-colors duration-200 hover:no-underline"
+      >
+        {chunks}
+      </Link>
+    ),
+  };
+  let consentBody = t.rich('consentBody', privacyTag);
   if (adNetworks.length === 0 && t.has('bodyAnalyticsOnly')) {
-    consentBody = t('bodyAnalyticsOnly');
+    consentBody = t.rich('bodyAnalyticsOnly', privacyTag);
   } else if (adNetworks.length > 0 && t.has('bodyFull')) {
-    consentBody = t('bodyFull', { networks: adNetworks.join(locale === 'ar' ? ' و' : ' and ') });
+    consentBody = t.rich('bodyFull', {
+      networks: adNetworks.join(locale === 'ar' ? ' و' : ' and '),
+      ...privacyTag,
+    });
   }
 
   return (
@@ -83,16 +100,10 @@ export function CookieNotice() {
           transition={SPRING}
           className="rounded-card border-sarat-black/8 fixed start-4 bottom-[calc(1rem+var(--bottom-dock,0px))] z-[60] w-[calc(100%-2rem)] max-w-sm [border-width:0.5px] bg-white p-4 shadow-[var(--shadow-overlay)] print:hidden"
         >
-          <p className="text-sarat-black text-sm leading-relaxed">
+          <p className="text-sarat-black text-sm leading-relaxed max-[400px]:text-xs">
             {consentMode ? consentBody : t('body')}
           </p>
-          <div className="mt-3 flex flex-wrap items-center justify-end gap-2">
-            <Link
-              href="/privacy"
-              className="text-sarat-black-600 hover:text-sarat-black me-auto text-sm underline underline-offset-2 transition-colors duration-200"
-            >
-              {t('privacyLink')}
-            </Link>
+          <div className="mt-3 flex items-center justify-end gap-2">
             {consentMode ? (
               <>
                 <Button variant="secondary" size="sm" onClick={() => writeConsent('essential')}>
@@ -103,9 +114,17 @@ export function CookieNotice() {
                 </Button>
               </>
             ) : (
-              <Button size="sm" onClick={() => writeConsent('acknowledged')}>
-                {t('cta')}
-              </Button>
+              <>
+                <Link
+                  href="/privacy"
+                  className="text-sarat-black-600 hover:text-sarat-black me-auto text-sm underline underline-offset-2 transition-colors duration-200"
+                >
+                  {t('privacyLink')}
+                </Link>
+                <Button size="sm" onClick={() => writeConsent('acknowledged')}>
+                  {t('cta')}
+                </Button>
+              </>
             )}
           </div>
         </motion.aside>

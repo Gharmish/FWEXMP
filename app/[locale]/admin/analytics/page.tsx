@@ -43,9 +43,13 @@ export default async function AdminAnalyticsPage({
     loc === 'en' && 'tracking-[0.2em] uppercase',
   );
 
+  // P0/L5 — a real query failure (snapshot null, block undefined) used to
+  // render the exact same "database not configured" copy as no_db, telling
+  // an admin with a perfectly good DB connection to go configure one.
   if (block?.reason === 'no_db' || !snapshot) {
+    const isQueryError = block?.reason !== 'no_db';
     return (
-      <div className="flex flex-col gap-10">
+      <div className="flex flex-col gap-12">
         <Link
           href="/admin"
           className="text-sarat-black-600 inline-flex min-h-11 items-center gap-2 self-start text-sm font-medium transition-opacity duration-200 hover:opacity-60"
@@ -53,12 +57,16 @@ export default async function AdminAnalyticsPage({
           <ArrowLeft className="size-4 shrink-0 rtl:rotate-180" aria-hidden />
           {t('backToAdmin')}
         </Link>
-        <div className="border-sarat-black/8 rounded-card flex flex-col items-start gap-4 [border-width:0.5px] p-10">
-          <p className={eyebrowClassName}>{t('noDb.eyebrow')}</p>
+        <div className="border-sarat-black/8 rounded-card flex flex-col items-start gap-4 [border-width:0.5px] p-12">
+          <p className={eyebrowClassName}>
+            {isQueryError ? t('analytics.queryErrorEyebrow') : t('noDb.eyebrow')}
+          </p>
           <h2 className="font-display text-2xl font-medium tracking-[-0.025em]">
-            {t('noDb.title')}
+            {isQueryError ? t('analytics.queryErrorTitle') : t('noDb.title')}
           </h2>
-          <p className="text-sarat-black-600 max-w-xl text-base">{t('noDb.description')}</p>
+          <p className="text-sarat-black-600 max-w-xl text-base">
+            {isQueryError ? t('analytics.queryErrorDescription') : t('noDb.description')}
+          </p>
         </div>
       </div>
     );
@@ -91,7 +99,7 @@ export default async function AdminAnalyticsPage({
       {/* Catalog snapshot */}
       <section className="flex flex-col gap-4">
         <h2 className={eyebrowClassName}>{t('analytics.catalogHeading')}</h2>
-        <dl className="border-sarat-black/8 rounded-card grid grid-cols-2 gap-5 [border-width:0.5px] p-6 sm:grid-cols-3 lg:grid-cols-5">
+        <dl className="border-sarat-black/8 rounded-card grid grid-cols-2 gap-6 [border-width:0.5px] p-6 sm:grid-cols-3 lg:grid-cols-5">
           <Stat
             label={t('analytics.catalog.hosts')}
             value={snapshot.catalog.hosts}
@@ -175,7 +183,7 @@ export default async function AdminAnalyticsPage({
           {snapshot.topExperiences30d.length === 0 ? (
             <p className="text-sarat-black-600 text-sm">{t('analytics.empty')}</p>
           ) : (
-            <ol className="border-sarat-black/8 rounded-card flex flex-col divide-y divide-[var(--color-sarat-black)]/8 [border-width:0.5px]">
+            <ol className="border-sarat-black/8 rounded-card divide-hairline flex flex-col divide-[var(--color-sarat-black)]/8 [border-width:0.5px]">
               {snapshot.topExperiences30d.map((row, i) => (
                 <li key={row.experienceId} className="flex items-center justify-between gap-4 p-4">
                   <div className="flex min-w-0 items-center gap-3">
@@ -207,7 +215,7 @@ export default async function AdminAnalyticsPage({
           {snapshot.topHosts30d.length === 0 ? (
             <p className="text-sarat-black-600 text-sm">{t('analytics.empty')}</p>
           ) : (
-            <ol className="border-sarat-black/8 rounded-card flex flex-col divide-y divide-[var(--color-sarat-black)]/8 [border-width:0.5px]">
+            <ol className="border-sarat-black/8 rounded-card divide-hairline flex flex-col divide-[var(--color-sarat-black)]/8 [border-width:0.5px]">
               {snapshot.topHosts30d.map((row, i) => (
                 <li key={row.hostId} className="flex items-center justify-between gap-4 p-4">
                   <div className="flex min-w-0 items-center gap-3">
@@ -284,7 +292,7 @@ function WindowCard({
   t: (key: string, values?: Record<string, string | number>) => string;
 }) {
   return (
-    <div className="border-sarat-black/8 rounded-card flex flex-col gap-4 [border-width:0.5px] p-5">
+    <div className="border-sarat-black/8 rounded-card flex flex-col gap-4 [border-width:0.5px] p-6">
       <p className={eyebrowClassName}>{label}</p>
       <div className="flex flex-col gap-1">
         <p className="text-sarat-black-600 text-[11px]">{t('analytics.gmvLabel')}</p>

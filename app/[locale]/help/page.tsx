@@ -79,7 +79,7 @@ function FaqList({
     <div className="border-sarat-black/8 flex flex-col [border-top-width:0.5px]">
       {keys.map((key) => (
         <details key={key} className="border-sarat-black/8 group [border-bottom-width:0.5px]">
-          <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-4 py-5 text-lg font-medium [&::-webkit-details-marker]:hidden">
+          <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-4 py-6 text-lg font-medium [&::-webkit-details-marker]:hidden">
             {t(`items.${key}.q`, values)}
             <ChevronDown
               className="text-sarat-black-600 size-5 shrink-0 transition-transform duration-200 group-open:rotate-180"

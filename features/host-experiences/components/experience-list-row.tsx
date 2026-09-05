@@ -30,7 +30,7 @@ export function ExperienceListRow({ experience, locale, copy }: ExperienceListRo
     <li>
       <Link
         href={`/host/experiences/${experience.id}`}
-        className="hover:bg-sarat-black/[0.02] flex items-center justify-between gap-4 p-5 transition-colors duration-200"
+        className="hover:bg-sarat-black/[0.02] flex items-center justify-between gap-4 p-6 transition-colors duration-200"
       >
         <div className="flex min-w-0 flex-col gap-1">
           <div className="flex flex-wrap items-center gap-3">

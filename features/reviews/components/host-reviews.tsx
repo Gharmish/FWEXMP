@@ -36,7 +36,7 @@ export async function HostReviews({ slug, locale }: HostReviewsProps) {
         <p className={eyebrowClassName}>{t('eyebrow')}</p>
         <h2 className="font-display text-2xl font-medium tracking-[-0.025em]">{t('title')}</h2>
       </div>
-      <ul className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+      <ul className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
         {reviews.map((review) => {
           const text = locale === 'ar' ? (review.textAr ?? review.textEn) : review.textEn;
           const title = locale === 'ar' ? review.experienceTitleAr : review.experienceTitleEn;

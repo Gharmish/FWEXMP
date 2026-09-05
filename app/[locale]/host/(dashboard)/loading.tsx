@@ -9,7 +9,7 @@ import { Skeleton } from '@/components/ui/skeleton';
  */
 export default function HostDashboardLoading() {
   return (
-    <div className="flex flex-col gap-10" aria-busy>
+    <div className="flex flex-col gap-12" aria-busy>
       <div className="flex flex-col gap-4">
         <Skeleton className="h-3 w-40" />
         <Skeleton className="h-12 w-72 max-w-full" radius="sm" />

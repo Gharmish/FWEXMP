@@ -14,6 +14,8 @@ export interface BookingHistoryCopy {
   /** Localized status label per booking status. */
   statusLabels: Record<Booking['status'], string>;
   view: string;
+  /** L2: awaiting-payment rows link out with this label instead of `view`. */
+  payNow: string;
   /** Checkout stepper labels (`payment.steps` namespace). */
   steps: { label: string; details: string; payment: string; confirmed: string };
 }
@@ -41,7 +43,7 @@ export function BookingHistory({ bookings, locale, copy }: BookingHistoryProps) 
         return (
           <li
             key={booking.id}
-            className="border-sarat-black/8 rounded-card flex flex-col gap-3 [border-width:0.5px] p-5 sm:flex-row sm:items-center sm:justify-between"
+            className="border-sarat-black/8 rounded-card flex flex-col gap-3 [border-width:0.5px] p-6 sm:flex-row sm:items-center sm:justify-between"
           >
             <div className="flex flex-col gap-1">
               <Link
@@ -78,9 +80,12 @@ export function BookingHistory({ bookings, locale, copy }: BookingHistoryProps) 
               <Price amount={booking.totalAmountSar} locale={locale} className="text-base" />
               <Link
                 href={`/book/confirmed/${booking.reference}?slug=${encodeURIComponent(booking.experienceSlug)}`}
-                className="text-sm font-medium whitespace-nowrap transition-opacity duration-200 hover:opacity-60"
+                // P3-1: 24px min touch/text target (WCAG 2.5.8).
+                // L2: awaiting-payment rows (journeyStep 1, unpaid with a
+                // live deadline) say "Complete payment", not "View".
+                className="inline-flex min-h-6 items-center text-sm font-medium whitespace-nowrap transition-opacity duration-200 hover:opacity-60"
               >
-                {copy.view}
+                {journeyStep === 1 ? copy.payNow : copy.view}
               </Link>
             </div>
           </li>

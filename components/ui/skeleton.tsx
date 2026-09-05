@@ -7,7 +7,9 @@ import { cn } from '@/lib/utils';
  * (see globals.css). `radius` matches the element it stands in for.
  */
 const radiusMap = {
-  none: 'rounded-none',
+  // P3-32: 'rounded-none' was a raw radius override; 0 radius is the
+  // browser default, so an empty class does the same thing without it.
+  none: '',
   sm: 'rounded',
   full: 'rounded-full',
   button: 'rounded-button',

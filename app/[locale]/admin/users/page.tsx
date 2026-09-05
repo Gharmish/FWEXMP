@@ -7,7 +7,11 @@ import type { Locale } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
 import { formatDate, formatInteger } from '@/lib/format';
 import { Price } from '@/components/ui/price';
-import { isAdminAndDbReady, listUsersForAdmin } from '@/features/admin/users/queries';
+import {
+  isAdminAndDbReady,
+  isUsersListTruncated,
+  listUsersForAdmin,
+} from '@/features/admin/users/queries';
 import { UserRoleChips } from '@/features/admin/users/components/user-role-chips';
 import type { UserRole } from '@/features/admin/users/types';
 
@@ -60,9 +64,9 @@ export default async function AdminUsersPage({
   if (block?.reason === 'not_admin') notFound();
   if (block?.reason === 'no_db') {
     return (
-      <div className="flex flex-col gap-10">
+      <div className="flex flex-col gap-12">
         {backLink}
-        <div className="border-sarat-black/8 rounded-card flex flex-col items-start gap-4 [border-width:0.5px] p-10">
+        <div className="border-sarat-black/8 rounded-card flex flex-col items-start gap-4 [border-width:0.5px] p-12">
           <p className={eyebrowClassName}>{t('noDb.eyebrow')}</p>
           <h2 className="font-display text-2xl font-medium tracking-[-0.025em]">
             {t('noDb.title')}
@@ -75,10 +79,10 @@ export default async function AdminUsersPage({
 
   const sp = await searchParams;
   const q = (Array.isArray(sp.q) ? sp.q[0] : sp.q)?.slice(0, 80) ?? '';
-  const rows = await listUsersForAdmin(q);
+  const [rows, truncated] = await Promise.all([listUsersForAdmin(q), isUsersListTruncated()]);
 
   return (
-    <div className="flex flex-col gap-10">
+    <div className="flex flex-col gap-12">
       {backLink}
       <div className="flex flex-col gap-4">
         <p className={eyebrowClassName}>{t('users.eyebrow')}</p>
@@ -106,7 +110,7 @@ export default async function AdminUsersPage({
         </label>
         <button
           type="submit"
-          className="rounded-button bg-sarat-black h-11 px-5 text-sm font-medium text-white"
+          className="rounded-button bg-sarat-black h-11 px-6 text-sm font-medium text-white"
         >
           {t('users.searchSubmit')}
         </button>
@@ -115,12 +119,12 @@ export default async function AdminUsersPage({
       {rows.length === 0 ? (
         <p className="text-sarat-black-600 text-base">{t('users.empty')}</p>
       ) : (
-        <ul className="border-sarat-black/8 rounded-card flex flex-col divide-y divide-[var(--color-sarat-black)]/8 [border-width:0.5px]">
+        <ul className="border-sarat-black/8 rounded-card divide-hairline flex flex-col divide-[var(--color-sarat-black)]/8 [border-width:0.5px]">
           {rows.map((row) => (
             <li key={row.key}>
               <Link
                 href={`/admin/users/${row.key}`}
-                className="group flex items-center justify-between gap-4 p-5 transition-colors duration-200 hover:bg-[var(--color-sarat-black)]/[0.02]"
+                className="group flex items-center justify-between gap-4 p-6 transition-colors duration-200 hover:bg-[var(--color-sarat-black)]/[0.02]"
               >
                 <div className="flex min-w-0 flex-col gap-1.5">
                   <div className="flex flex-wrap items-center gap-2">
@@ -168,6 +172,7 @@ export default async function AdminUsersPage({
       <p className="text-sarat-black-600 text-sm">
         {t('users.shownCount', { count: formatInteger(rows.length, loc) })}
       </p>
+      {truncated && <p className="text-sarat-black-600 text-sm">{t('usersList.truncated')}</p>}
     </div>
   );
 }

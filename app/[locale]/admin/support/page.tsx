@@ -64,7 +64,8 @@ export default async function AdminSupportPage({
       waiting_admin: t('support.ticket.status.waiting_admin'),
       resolved: t('support.ticket.status.resolved'),
     },
-    category: (key) => t.has(`support.ticket.category.${key}`) ? t(`support.ticket.category.${key}`) : key,
+    category: (key) =>
+      t.has(`support.ticket.category.${key}`) ? t(`support.ticket.category.${key}`) : key,
   };
   const awaiting = (rows ?? []).filter((r) => r.awaitingReply);
   const others = (rows ?? []).filter((r) => !r.awaitingReply);
@@ -101,7 +102,9 @@ export default async function AdminSupportPage({
           </Badge>
           <Badge
             className={
-              row.windowOpen ? 'bg-success-surface text-success' : 'bg-mist-deep text-sarat-black-600'
+              row.windowOpen
+                ? 'bg-success-surface text-success'
+                : 'bg-mist-deep text-sarat-black-600'
             }
           >
             {row.windowOpen ? t('support.windowOpen') : t('support.windowClosed')}
@@ -112,7 +115,9 @@ export default async function AdminSupportPage({
         </p>
         {row.lastInboundAt && (
           <p className="text-sarat-black-600 text-[13px]">
-            {t('support.lastInbound', { date: formatDate(new Date(row.lastInboundAt), loc, 'gregory', DATE_TIME) })}
+            {t('support.lastInbound', {
+              date: formatDate(new Date(row.lastInboundAt), loc, 'gregory', DATE_TIME),
+            })}
           </p>
         )}
       </Link>
@@ -120,7 +125,7 @@ export default async function AdminSupportPage({
   );
 
   return (
-    <div className="flex flex-col gap-10">
+    <div className="flex flex-col gap-12">
       <div className="flex flex-col gap-4">
         <Link
           href="/admin"
@@ -139,7 +144,7 @@ export default async function AdminSupportPage({
       </div>
 
       {rows === null ? (
-        <div className="border-sarat-black/8 rounded-card flex flex-col items-start gap-4 [border-width:0.5px] p-10">
+        <div className="border-sarat-black/8 rounded-card flex flex-col items-start gap-4 [border-width:0.5px] p-12">
           <p className={eyebrowClassName}>{t('noDb.eyebrow')}</p>
           <h2 className="font-display text-2xl font-medium tracking-[-0.025em]">
             {t('noDb.title')}

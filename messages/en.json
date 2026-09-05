@@ -21,7 +21,7 @@
     },
     "eyebrow": "Sign in",
     "title": "Welcome to Gharmish.",
-    "intro": "Sign in with your Saudi mobile or email to keep track of your saved experiences and bookings.",
+    "intro": "Sign in with your mobile number or email to keep track of your saved experiences and bookings.",
     "methodPhone": "Phone",
     "methodEmail": "Email",
     "phoneLabel": "Mobile number",
@@ -46,7 +46,7 @@
       "validation": "Check the highlighted fields and try again.",
       "invalidPhone": "Enter a valid mobile number for the selected country.",
       "invalidEmail": "Enter a valid email address.",
-      "invalidCode": "That code didn't match. Check it and try again.",
+      "invalidCode": "That code didn't match or has expired — check it, or request a new one.",
       "rateLimited": "Too many attempts. Wait a moment before requesting a new code.",
       "server": "We couldn't reach the verification service. Try again in a moment."
     }
@@ -439,7 +439,8 @@
       },
       "promoCodes": {
         "title": "Promo codes",
-        "description": "Create checkout discount codes and track how they’re redeemed."
+        "description": "Create checkout discount codes and track how they're redeemed.",
+        "truncated": "Showing the newest {count} codes — older ones are not listed."
       },
       "support": {
         "title": "Support inbox",
@@ -531,11 +532,13 @@
       "success": "Saved.",
       "fieldInvalid": "Check this field and try again.",
       "formServer": "We couldn't save that. Try again in a moment.",
-      "formForbidden": "You don't have permission to change the catalog.",
+      "formForbidden": "You don't have permission to change the catalogue.",
       "formValidation": "Some fields need attention.",
       "duplicateCity": "This city is already registered.",
       "lastCategory": "At least one category must stay enabled.",
-      "cityNotFound": "That city no longer exists — refresh the page."
+      "cityNotFound": "That city no longer exists — refresh the page.",
+      "confirmDisableTitle": "Disable this category?",
+      "confirmDisableDescription": "It disappears from the home page, search, and new-experience forms. Experiences already live in it stay live."
     },
     "vat": {
       "title": "VAT & filing.",
@@ -611,10 +614,10 @@
       "noBookings": "No bookings yet.",
       "suspendedBadge": "Suspended",
       "suspend": "Suspend guest",
-      "suspendPending": "Suspending…",
+      "suspendPending": "Suspending",
       "suspendConfirm": "Suspend this guest? They can still sign in and browse, but new bookings are refused until restored.",
       "restore": "Restore guest",
-      "restorePending": "Restoring…",
+      "restorePending": "Restoring",
       "errors": {
         "forbidden": "You don't have permission to do that.",
         "noDb": "The database isn't configured in this environment.",
@@ -679,8 +682,13 @@
       "reject": "Reject",
       "rejectPending": "Rejecting",
       "notesLabel": "Reviewer notes",
+      "rejectNotesLabel": "Reason for rejection",
       "notesApproveHint": "Optional — internal context, never shown to the applicant.",
       "notesRejectHint": "Required, minimum 10 characters. Shown to the applicant so they know how to refile.",
+      "confirmApproveTitle": "Approve {name} and create their host account?",
+      "confirmApproveDescription": "This publishes {name} as a verified host and sends them a welcome notification.",
+      "confirmRejectTitle": "Reject {name}'s application?",
+      "confirmRejectDescription": "This sends {name} a decline notification with your note attached. It can't be undone from here.",
       "errors": {
         "forbidden": "You're not authorised to do that.",
         "noDb": "Admin actions require a database connection.",
@@ -727,13 +735,13 @@
       "history": "History",
       "viewPublic": "View public page",
       "photoHeading": "Hero photo",
-      "photoDescription": "The first image guests see for this experience. Replacing it updates the listing and the catalog immediately, and records a photo change in the history below.",
+      "photoDescription": "The first image guests see for this experience. Replacing it updates the listing and the catalogue immediately, and records a photo change in the history below.",
       "editDetails": "Edit all details",
       "arabicHeading": "Arabic copy",
       "arabicEditorDescription": "What Arabic-speaking guests read on the public listing. Saving updates it immediately and records the edit in the history below.",
       "arabicTitleLabel": "Title (Arabic)",
       "arabicSave": "Save Arabic copy",
-      "arabicSaving": "Saving…",
+      "arabicSaving": "Saving",
       "arabicTitleInvalid": "The Arabic title needs to be 2–160 characters.",
       "arabicDescriptionInvalid": "The Arabic description needs to be 10–5000 characters.",
       "arabicInclusionsLabel": "What's included (Arabic)",
@@ -856,7 +864,7 @@
     "hostsList": {
       "eyebrow": "Hosts",
       "title": "Every host on the platform.",
-      "intro": "Suspended first (action needed), then pending, then verified. A suspended host's live experiences are paused — the catalog hides them automatically.",
+      "intro": "Suspended first (action needed), then pending, then verified. A suspended host's live experiences are paused — the catalogue hides them automatically.",
       "publishedCount": "{count, plural, =0 {No published experiences} =1 {1 published} other {# published}}",
       "bookingsCount": "{count, plural, =0 {No bookings} =1 {1 booking} other {# bookings}}",
       "joinedOn": "Joined {date}",
@@ -906,7 +914,7 @@
     "hostActions": {
       "suspend": "Suspend host",
       "suspendPending": "Suspending",
-      "suspendConfirm": "Suspending puts the host's account on hold. Every live experience is paused so it leaves the catalog immediately. Existing bookings are not cancelled.",
+      "suspendConfirm": "Suspending puts the host's account on hold. Every live experience is paused so it leaves the catalogue immediately. Existing bookings are not cancelled.",
       "unsuspend": "Restore host",
       "unsuspendPending": "Restoring",
       "notesLabel": "Reviewer notes",
@@ -926,6 +934,9 @@
       "title": "How Gharmish is doing.",
       "intro": "GMV is gross merchandise value — money moving through the platform on confirmed and completed bookings, net of refunds. Cancellations and pending requests are counted separately.",
       "generatedOn": "Snapshot taken {date}",
+      "queryErrorEyebrow": "Analytics unavailable",
+      "queryErrorTitle": "Couldn't load the analytics snapshot.",
+      "queryErrorDescription": "The database is connected, but this query failed. Try refreshing — if it keeps happening, check the logs.",
       "catalogHeading": "Catalogue",
       "windowsHeading": "Activity",
       "sparkHeading": "Bookings — last 30 days",
@@ -991,8 +1002,8 @@
       },
       "transition": {
         "confirmed": {
-          "label": "Confirm",
-          "pending": "Confirming"
+          "label": "Accept on the host's behalf",
+          "pending": "Accepting"
         },
         "completed": {
           "label": "Mark completed",
@@ -1001,11 +1012,11 @@
         "cancelled": {
           "label": "Cancel",
           "pending": "Cancelling",
-          "confirm": "Cancel this booking? The guest's request will be turned down."
+          "confirm": "Cancel this confirmed booking? The guest is refunded in full and notified. This can't be undone."
         },
         "declined": {
           "label": "Decline",
-          "pending": "Declining…",
+          "pending": "Declining",
           "confirm": "Decline this request? The guest will be notified and nothing is charged."
         }
       },
@@ -1063,7 +1074,7 @@
       "settleAnomalyTitle": "Payment under review",
       "settleAnomalyBody": "An earlier payment on this booking could not be matched ({kind}). The guest cannot start a new payment until this is cleared. Check the checkout at HyperPay first — settle or refund the stray capture — then clear the block.",
       "settleAnomalyClear": "Clear block",
-      "settleAnomalyClearPending": "Clearing…",
+      "settleAnomalyClearPending": "Clearing",
       "settleAnomalyClearConfirm": "Only clear this after checking HyperPay. Clearing lets the guest pay again — if a capture is still outstanding, they could be charged twice.",
       "refundBankHeading": "Refund bank transfer",
       "refundBankIntro": "Wire {amount} to the account below, then record the refund with the action above.",
@@ -1080,7 +1091,7 @@
       "reasonLabel": "Reason (required — kept on record)",
       "reasonPlaceholder": "e.g. Flash flooding at the meeting point — host called off the departure.",
       "label": "Emergency cancel & refund to credit",
-      "pending": "Cancelling…",
+      "pending": "Cancelling",
       "confirmTitle": "Emergency cancellation",
       "confirmDescription": "This cancels the booking immediately and moves the guest's full payment into their Gharmish Credit. It can't be undone.",
       "errors": {
@@ -1104,9 +1115,14 @@
       "requestChanges": "Request changes",
       "requestChangesPending": "Sending",
       "notesLabel": "Reviewer notes",
+      "rejectNotesLabel": "Reason for rejection",
       "notesApproveHint": "Optional — internal context, never shown to the host.",
       "notesRejectHint": "Required, minimum 10 characters. Shown to the host. Rejected listings return to draft.",
       "notesRequestChangesHint": "Required, minimum 10 characters. Shown to the host so they know what to fix before resubmitting.",
+      "confirmRejectTitle": "Reject \"{name}\"?",
+      "confirmRejectDescription": "This sends the host a decline notification with your note attached, and returns the listing to draft.",
+      "confirmRequestChangesTitle": "Request changes to \"{name}\"?",
+      "confirmRequestChangesDescription": "This sends your notes to the host so they can fix the listing before resubmitting.",
       "errors": {
         "forbidden": "You're not authorised to do that.",
         "noDb": "Admin actions require a database connection.",
@@ -1139,7 +1155,7 @@
       "resolve": "Mark resolved",
       "confirmTitle": "Mark this dispute resolved?",
       "confirmBody": "This closes the report as handled. It can't be reopened — a new problem needs a new report.",
-      "resolvePending": "Resolving…",
+      "resolvePending": "Resolving",
       "status": {
         "open": "Open",
         "resolved": "Resolved"
@@ -1166,6 +1182,7 @@
       "roleLabel": "Administrator",
       "dashboard": "Dashboard",
       "people": "People",
+      "attentionCount": "{count} waiting for you",
       "groups": {
         "overview": "Overview",
         "operations": "Operations",
@@ -1349,6 +1366,9 @@
         }
       }
     },
+    "usersList": {
+      "truncated": "Showing the newest 1,000 per source — search may miss people older than that."
+    },
     "documents": {
       "heading": "KYC documents",
       "empty": "No documents uploaded yet.",
@@ -1367,7 +1387,7 @@
       "national_id": "National ID or Iqama",
       "cr_certificate": "Commercial registration certificate",
       "tourism_license": "Tourism licence or freelance document",
-      "signatory_id": "Authorized signatory ID",
+      "signatory_id": "Authorised signatory ID",
       "vat_certificate": "VAT registration certificate",
       "iban_letter": "IBAN letter from the bank"
     },
@@ -1394,9 +1414,9 @@
       "scheduledBadge": "Scheduled",
       "activate": "Activate",
       "deactivate": "Deactivate",
-      "saving": "Saving…",
-      "formServer": "Something went wrong. Please try again.",
-      "formForbidden": "You don’t have permission to do that.",
+      "saving": "Saving",
+      "formServer": "Something went wrong. Try again.",
+      "formForbidden": "You don't have permission to do that.",
       "form": {
         "codeLabel": "Code",
         "codeHint": "2–24 letters/numbers, e.g. EID25.",
@@ -1416,13 +1436,13 @@
         "endsAtLabel": "Ends",
         "optional": "optional",
         "submit": "Create code",
-        "submitPending": "Creating…",
+        "submitPending": "Creating",
         "success": "Code created.",
         "fieldInvalid": "Check this field.",
         "codeTaken": "That code already exists.",
-        "formServer": "Something went wrong. Please try again.",
-        "formForbidden": "You don’t have permission to do that.",
-        "formValidation": "Please fix the highlighted fields."
+        "formServer": "Something went wrong. Try again.",
+        "formForbidden": "You don't have permission to do that.",
+        "formValidation": "Fix the highlighted fields."
       }
     },
     "support": {
@@ -1469,12 +1489,12 @@
         "replyLabel": "Reply",
         "replyPlaceholder": "Write to the guest in their language…",
         "send": "Send on WhatsApp",
-        "sending": "Sending…",
+        "sending": "Sending",
         "windowClosedNote": "More than 24 hours have passed since the guest's last message, so WhatsApp no longer accepts a free-form reply. The guest can re-open the window by messaging again; template-based re-engagement is coming in a later phase.",
         "close": "Close conversation",
         "reopen": "Reopen",
-        "closePending": "Closing…",
-        "reopenPending": "Reopening…",
+        "closePending": "Closing",
+        "reopenPending": "Reopening",
         "guestLink": "Open guest profile",
         "replyLanguage": "Guest language: {language}",
         "language": {
@@ -1489,11 +1509,11 @@
           "not_configured": "WhatsApp isn't configured in this environment.",
           "validation": "Write a message first (up to 4,096 characters).",
           "send_failed": "WhatsApp didn't accept the message. It's saved in the thread — try again in a moment.",
-          "server": "Something went wrong. Please try again.",
+          "server": "Something went wrong. Try again.",
           "no_template": "The re-engagement template isn't approved yet in this environment."
         },
         "nudge": "Send follow-up template",
-        "nudgePending": "Sending…",
+        "nudgePending": "Sending",
         "nudgeHint": "Sends the approved WhatsApp template naming the open ticket. When the guest replies, the 24-hour window reopens and you can write freely."
       },
       "ticketsHeading": "Tickets",
@@ -1529,12 +1549,12 @@
         "resolveLabel": "Resolution note (internal)",
         "resolvePlaceholder": "What was done…",
         "resolve": "Mark resolved",
-        "resolving": "Resolving…",
+        "resolving": "Resolving",
         "resolvedNote": "Resolved"
       },
       "stateActions": {
         "toBot": "Hand back to assistant",
-        "toBotPending": "Handing back…"
+        "toBotPending": "Handing back"
       }
     }
   },
@@ -1547,7 +1567,7 @@
       "step3": "Enter the 6-digit code it shows to finish.",
       "qrAlt": "QR code for setting up two-factor authentication",
       "secretLabel": "Setup key (if you can't scan)",
-      "preparing": "Preparing your setup key…"
+      "preparing": "Preparing your setup key"
     },
     "verify": {
       "title": "Confirm it's you",
@@ -1604,7 +1624,7 @@
       },
       "distribution": {
         "title": "Distribution",
-        "body": "We bring guests who value the real thing — Saudi travelers first, international visitors as we grow."
+        "body": "We bring guests who value the real thing — Saudi travellers first, international visitors as we grow."
       }
     },
     "stages": {
@@ -1631,7 +1651,7 @@
       "intro": "Have these ready before you apply — you can upload them during the application, and our team reviews them before your first listing goes live.",
       "identity": {
         "title": "Identity",
-        "body": "National ID or Iqama for individuals; the authorized signatory's ID for companies."
+        "body": "National ID or Iqama for individuals; the authorised signatory's ID for companies."
       },
       "licence": {
         "title": "Registration and licence",
@@ -1651,7 +1671,7 @@
       "heading": "Payouts and responsibility",
       "revenueShare": "Gharmish takes a fair revenue share, agreed with you as part of your partnership — we'll walk you through the numbers before anything is signed.",
       "payouts": "You're paid when a booking is completed. We transfer what you're owed to your Saudi IBAN and record every transfer in the payout ledger in your dashboard, where you can update your IBAN anytime.",
-      "liability": "Hosts are solely responsible and fully liable for the experiences they deliver. Gharmish does not provide insurance — please make sure you're properly covered for the activities you host."
+      "liability": "Hosts are solely responsible and fully liable for the experiences they deliver. Gharmish does not provide insurance — make sure you're properly covered for the activities you host."
     },
     "faq": {
       "heading": "Common questions"
@@ -1723,7 +1743,7 @@
       },
       "iban": {
         "label": "IBAN",
-        "hint": "Your Saudi IBAN — payouts for confirmed bookings are transferred here."
+        "hint": "Your Saudi IBAN — payouts for completed bookings are transferred here."
       },
       "bankName": {
         "label": "Bank"
@@ -1750,6 +1770,7 @@
       "submit": "Submit application",
       "resubmit": "Resubmit application",
       "pending": "Sending",
+      "uploading": "Uploading documents…",
       "browseExperiences": "Browse the catalogue",
       "backToAccount": "Back to your activity"
     },
@@ -1818,7 +1839,7 @@
         "accountHolderShort": "Enter the account holder's name.",
         "accountHolderLong": "Keep this under 120 characters.",
         "vatInvalid": "Enter the 15-digit VAT number starting with 3, or leave it blank.",
-        "termsRequired": "Please confirm the declaration to continue.",
+        "termsRequired": "Confirm the declaration to continue.",
         "docRequired": "Attach this document.",
         "docType": "Use a JPG, PNG, WebP, or PDF file.",
         "docSize": "Keep files under 4MB."
@@ -1835,7 +1856,7 @@
       "national_id": "National ID or Iqama",
       "cr_certificate": "Commercial registration certificate",
       "tourism_license": "Tourism licence or freelance document",
-      "signatory_id": "Authorized signatory ID",
+      "signatory_id": "Authorised signatory ID",
       "vat_certificate": "VAT registration certificate",
       "iban_letter": "IBAN letter from your bank"
     },
@@ -1871,7 +1892,7 @@
       "step2Title": "Photography session",
       "step2Description": "We bring the camera. Our photographer captures the place, the moments, and you — natural light, no filters.",
       "step3Title": "Go live",
-      "step3Description": "Once your listing is approved, it appears in the catalog and bookings open. We'll email you the moment someone books."
+      "step3Description": "Once your listing is approved, it appears in the catalogue and bookings open. We'll message you on WhatsApp (and email) the moment someone books."
     },
     "experiences": {
       "title": "Your experiences",
@@ -1890,7 +1911,7 @@
       "empty": {
         "eyebrow": "Empty",
         "title": "No experiences yet.",
-        "description": "Start with a draft — you can save and come back any time. Submitting for review gets your listing into the public catalog after we approve it."
+        "description": "Start with a draft — you can save and come back any time. Submitting for review gets your listing into the public catalogue after we approve it."
       }
     },
     "actions": {
@@ -2002,9 +2023,9 @@
     },
     "photo": {
       "change": "Change photo",
-      "uploading": "Uploading…",
+      "uploading": "Uploading",
       "remove": "Remove",
-      "removing": "Removing…",
+      "removing": "Removing",
       "hint": "A clear, natural-light photo of you. JPG, PNG, or WebP.",
       "errors": {
         "noDb": "We couldn't save your photo — try again in a moment.",
@@ -2036,7 +2057,7 @@
         "ur": "Urdu"
       },
       "submit": "Save profile",
-      "submitting": "Saving…",
+      "submitting": "Saving",
       "saved": "Profile saved.",
       "nameError": "Enter a display name between 2 and 80 characters.",
       "bioError": "Your bio needs to be between 40 and 1200 characters.",
@@ -2061,7 +2082,7 @@
       "emailLabel": "Email",
       "emailHint": "Payout statements and the written record of every booking.",
       "submit": "Save contact details",
-      "submitting": "Saving…",
+      "submitting": "Saving",
       "saved": "Contact details saved.",
       "phoneError": "Enter a valid mobile number.",
       "emailError": "Enter a valid email address.",
@@ -2071,14 +2092,14 @@
         "emailSavedNote": "Your email is saved. The new number takes over once the code checks out — until then, messages keep going to your current number.",
         "codeLabel": "Verification code",
         "submit": "Confirm number",
-        "verifying": "Checking…",
+        "verifying": "Checking",
         "cancel": "Keep my current number",
         "verified": "Number confirmed — notifications now go to your new number.",
         "changeCancelled": "Change cancelled. Your current number stays.",
         "codeError": "That code isn't right. Check the WhatsApp message and try again.",
         "pendingNotice": "You started changing your number earlier. Enter the code from WhatsApp, or keep your current number.",
         "resend": "Send a new code",
-        "resending": "Sending…",
+        "resending": "Sending",
         "resent": "A new code is on its way.",
         "emailSavedPhoneFailed": "Your email is saved. The phone change didn't go through — your current number stays."
       },
@@ -2108,7 +2129,7 @@
       "reviews": "New guest reviews",
       "reviewsHint": "A note when a guest reviews one of your experiences.",
       "submit": "Save preferences",
-      "submitting": "Saving…",
+      "submitting": "Saving",
       "saved": "Preferences saved.",
       "errors": {
         "channelRequired": "Keep at least one channel on.",
@@ -2125,6 +2146,7 @@
     "intro": "Requests wait for your decision, upcoming bookings show who's coming, and past ones keep the record. Tap a booking for its full story.",
     "backToDashboard": "Back to dashboard",
     "suspendedBanner": "Your host account is suspended, so booking actions are disabled. You can still see everything here.",
+    "truncated": "Showing the latest {count} — search and filters cover only this window.",
     "paidBadge": "Paid",
     "partyOf": "Party of {count}",
     "payout": "Your payout: <amount></amount>",
@@ -2159,20 +2181,20 @@
     "transition": {
       "confirmed": {
         "label": "Accept",
-        "pending": "Accepting…"
+        "pending": "Accepting"
       },
       "completed": {
         "label": "Mark completed",
-        "pending": "Saving…"
+        "pending": "Saving"
       },
       "cancelled": {
         "label": "Cancel booking",
-        "pending": "Cancelling…",
+        "pending": "Cancelling",
         "confirm": "Cancel this confirmed booking? The guest is refunded in full and notified, and the cancellation is recorded on your account. This can't be undone."
       },
       "declined": {
         "label": "Decline",
-        "pending": "Declining…",
+        "pending": "Declining",
         "confirm": "Decline this request? The guest won't be charged and will be notified."
       }
     },
@@ -2184,7 +2206,7 @@
       "wrongState": "This booking changed in another tab. Refresh to see its current state.",
       "overCapacity": "Accepting this request would exceed the group size for that date.",
       "tooEarly": "This booking can't be completed before the experience date.",
-      "tooLate": "This request can't be approved any more — the start time is too close or has already passed.",
+      "tooLate": "This request can't be accepted any more — the start time is too close or has already passed.",
       "unpaid": "This booking hasn't been paid — it can't be completed.",
       "validation": "Something about this request was invalid. Refresh and try again.",
       "server": "Something went wrong on our side. Try again.",
@@ -2325,7 +2347,7 @@
       "owed": "Owed to you",
       "owedCount": "{count, plural, one {# completed booking} other {# completed bookings}}",
       "paid": "Paid out",
-      "paidCount": "{count, plural, one {# booking settled} other {# bookings settled}}",
+      "paidCount": "{count, plural, one {# booking paid out} other {# bookings paid out}}",
       "upcoming": "On the calendar",
       "upcomingCount": "{count, plural, one {# confirmed booking} other {# confirmed bookings}}",
       "allTime": "All time"
@@ -2337,7 +2359,7 @@
       "hint": "24 characters, starting with SA. Spaces are fine — we tidy it up.",
       "currentLabel": "Current IBAN:",
       "save": "Save IBAN",
-      "saving": "Saving…",
+      "saving": "Saving",
       "success": "IBAN saved.",
       "errors": {
         "forbidden": "You don't have permission to do that.",
@@ -2444,7 +2466,7 @@
       "label": "Reply to this review",
       "placeholder": "Thank your guest, or add context…",
       "submit": "Post reply",
-      "pending": "Posting…",
+      "pending": "Posting",
       "success": "Reply posted. It now shows under the review.",
       "errors": {
         "forbidden": "You don't have permission to do that.",
@@ -2459,7 +2481,8 @@
       "editLabel": "Edit your reply (within 24 hours of posting)",
       "editSubmit": "Save reply",
       "editSuccess": "Reply updated.",
-      "cancelEdit": "Keep as is"
+      "cancelEdit": "Keep as is",
+      "confirm": "Your reply posts publicly under this review and can't be withdrawn — only edited within 24 hours."
     },
     "awaitingReply": "{count, plural, one {# review is} other {# reviews are}} waiting for your reply — they're listed first.",
     "pagination": {
@@ -2475,7 +2498,7 @@
       },
       "eyebrow": "New experience",
       "title": "Name your experience.",
-      "intro": "Start with a name and a category — that’s all we need to save a draft. Everything else (details, photos, timeline, calendar) you add on the next page, section by section, whenever you like.",
+      "intro": "Start with a name and a category — that's all we need to save a draft. Everything else (details, photos, timeline, calendar) you add on the next page, section by section, whenever you like.",
       "arabicNotice": "Write in Arabic, English, or both. Whatever you leave blank, our team fills in before your listing goes live.",
       "titleHint": "A clear, evocative name. 8–120 characters. You can change it later.",
       "titleArHint": "Give at least one language — the other can wait."
@@ -2486,13 +2509,13 @@
       },
       "back": "Back to your dashboard",
       "formHeading": "Edit",
-      "liveEditWarning": "Heads up — this listing is public. Changing the title, description, category, price, place, duration, group size, age, or cancellation policy sends it back for review (off the catalog until re-approved). Lists, weekdays, start time, and cutoff save straight away.",
+      "liveEditWarning": "Heads up — this listing is public. Changing the title, description, category, price, place, duration, group size, age, or cancellation policy sends it back for review (off the catalogue until re-approved). Lists, weekdays, start time, and cutoff save straight away.",
       "backToList": "Back to your experiences",
       "preview": "Preview your listing",
-      "slugNote": "your listing’s address — set from the first name, stays stable",
-      "createdNotice": "Draft saved. Fill in the details below, add a hero photo, and the checklist will tell you when it’s ready to submit.",
+      "slugNote": "your listing's address — set from the first name, stays stable",
+      "createdNotice": "Draft saved. Fill in the details below, add a hero photo, and the checklist will tell you when it's ready to submit.",
       "savedNotice": "Changes saved.",
-      "savedReviewNotice": "Changes saved. Because the content changed, the listing is off the catalog until the team re-approves it — usually within a day."
+      "savedReviewNotice": "Changes saved. Because the content changed, the listing is off the catalogue until the team re-approves it — usually within two working days."
     },
     "commission": {
       "heading": "Partnership share",
@@ -2505,7 +2528,7 @@
     },
     "photo": {
       "heading": "Hero photo",
-      "description": "The first image guests see on your listing and in the catalog. Use a real, natural-light shot — landscape works best.",
+      "description": "The first image guests see on your listing and in the catalogue. Use a real, natural-light shot — landscape works best.",
       "currentAlt": "Current hero photo for this experience",
       "noPhoto": "No photo yet",
       "choose": "Choose a photo",
@@ -2515,7 +2538,7 @@
       "submitting": "Uploading",
       "crop": {
         "title": "Frame your photo",
-        "instruction": "Drag to reposition and zoom to fit. This 16:9 frame is what guests see across the catalog and listing.",
+        "instruction": "Drag to reposition and zoom to fit. This 16:9 frame is what guests see across the catalogue and listing.",
         "zoom": "Zoom",
         "cancel": "Cancel",
         "apply": "Use this frame",
@@ -2580,14 +2603,14 @@
         "wrongState": "This experience can't be submitted from its current state — refresh to see the latest.",
         "suspended": "Your host account is suspended — submitting for review is blocked until the team restores it.",
         "needsHero": "Add a hero photo before submitting — listings don't go to review without one.",
-        "hasBookings": "This draft has booking history and can’t be deleted — ask the team to archive it instead."
+        "hasBookings": "This draft has booking history and can't be deleted — ask the team to archive it instead."
       },
       "duplicate": "Duplicate",
       "duplicatePending": "Duplicating",
       "deleteDraft": "Delete draft",
       "deleteDraftPending": "Deleting",
       "deleteConfirmTitle": "Delete this draft?",
-      "deleteConfirmDescription": "The draft and its photos are removed for good. This can’t be undone.",
+      "deleteConfirmDescription": "The draft and its photos are removed for good. This can't be undone.",
       "blockedBy": "Finish “{item}” to submit."
     },
     "reviewerFeedback": {
@@ -2599,7 +2622,7 @@
       "sectionBasics": "Basics",
       "sectionPracticalities": "Logistics",
       "sectionPlace": "Place",
-      "sectionDetail": "What’s included",
+      "sectionDetail": "What's included",
       "sectionAvailability": "Availability",
       "titleLabel": "Title (English)",
       "titleHint": "A clear, evocative name. 8–120 characters. Give at least one language.",
@@ -2679,8 +2702,8 @@
           "ageInvalid": "Minimum age must be between 0 and 99.",
           "titleEither": "Give the experience a name in Arabic or English."
         },
-        "lockedReview": "This listing is under review and can’t be edited right now.",
-        "archived": "This listing is archived and can’t be edited."
+        "lockedReview": "This listing is under review and can't be edited right now.",
+        "archived": "This listing is archived and can't be edited."
       },
       "startTimeLabel": "Start time",
       "startTimeHint": "Local start time of every occurrence. Guests see it before booking and on their ticket.",
@@ -2725,14 +2748,14 @@
       "arHint": "Optional — our team fills in any missing Arabic before you go live.",
       "addHeading": "Add a moment",
       "add": "Add moment",
-      "adding": "Adding…",
+      "adding": "Adding",
       "save": "Save",
-      "saving": "Saving…",
+      "saving": "Saving",
       "moveUp": "Move up",
       "moveDown": "Move down",
-      "moving": "Moving…",
+      "moving": "Moving",
       "deleteLabel": "Delete",
-      "deleting": "Deleting…",
+      "deleting": "Deleting",
       "deleteConfirm": "Delete this moment? This can't be undone.",
       "fieldInvalid": "Check the highlighted fields — title 2–120 characters, description 2–2000.",
       "error": "Something went wrong on our side. Try again."
@@ -2743,7 +2766,7 @@
       },
       "eyebrow": "Listings",
       "title": "Your experiences",
-      "intro": "Everything you host, in one place — drafts, listings in review, and what's live in the catalog.",
+      "intro": "Everything you host, in one place — drafts, listings in review, and what's live in the catalogue.",
       "deletedNotice": "Draft deleted.",
       "bookings30d": "{count, plural, =0 {No bookings in 30 days} one {# booking in 30 days} other {# bookings in 30 days}}",
       "noRating": "No rating yet",
@@ -2788,7 +2811,7 @@
         "place": "Place name",
         "location": "Meeting point on the map",
         "weekdays": "At least one weekday",
-        "inclusions": "What’s included",
+        "inclusions": "What's included",
         "hero": "Hero photo",
         "gallery": "Five or more gallery photos",
         "timeline": "Experience timeline",
@@ -2796,7 +2819,7 @@
       },
       "hints": {
         "hero": "Upload it in the Hero photo section below.",
-        "gallery": "The listing’s photo mosaic appears from five photos.",
+        "gallery": "The listing's photo mosaic appears from five photos.",
         "location": "Tap the map in the Place section to drop the pin.",
         "timeline": "Guests book more when they can see the flow of the day.",
         "languages": "Optional for you — our team translates anything missing before approval."
@@ -2934,7 +2957,7 @@
     "originals": "Gharmish Original",
     "withHost": "With {name}",
     "instant": "Instant book",
-    "perPerson": "/ person",
+    "perPerson": "per guest",
     "hours": "hr",
     "durationHours": "{count, plural, other {# hr}}",
     "durationHoursHalf": "{count, plural, =0 {30 min} other {#.5 hr}}",
@@ -2974,11 +2997,11 @@
       "ageAll": "All ages"
     },
     "translationPending": "Translation pending.",
-    "instantBadge": "Instant book — confirmed right away",
+    "instantBadge": "Instant book",
     "womenOnlyBadge": "Women only",
     "ratingSummary": "{rating} · {count, plural, =1 {1 review} other {# reviews}}",
     "breadcrumbCatalog": "Experiences",
-    "requestBadge": "Request to book — host confirms first",
+    "requestBadge": "Request to book",
     "bookedCount": "{count}+ booked",
     "meetingPoint": {
       "heading": "Meeting point",
@@ -3043,16 +3066,16 @@
     "phoneRequired": "Enter your mobile number.",
     "emailRequired": "Enter your email address.",
     "womenOnlyLabel": "I confirm this booking is for women only, as this experience requires.",
-    "womenOnlyRequired": "Please confirm this booking is for women only to continue.",
+    "womenOnlyRequired": "Confirm this booking is for women only to continue.",
     "minAgeLabel": "I confirm everyone in my group meets this experience's minimum age of {age}.",
-    "minAgeRequired": "Please confirm your group meets the minimum age to continue.",
+    "minAgeRequired": "Confirm your group meets the minimum age to continue.",
     "termsLabel": "I have read and agree to Gharmish's <terms>terms of service</terms>, <privacy>privacy policy</privacy>, and <cancellation>cancellation policy</cancellation>.",
-    "termsRequired": "Please accept the terms of service to continue.",
+    "termsRequired": "Accept the terms of service to continue.",
     "datePast": "Pick a date in the future.",
     "dateUnavailable": "This experience doesn't run on that day. Pick another date.",
     "dateCutoff": "Booking has closed for today — it's too close to the start time. Pick another day.",
     "dateFull": "That date is fully booked. Try another day.",
-    "dateFullForm": "The date you picked just sold out — please choose another day from the calendar.",
+    "dateFullForm": "The date you picked just sold out — choose another day from the calendar.",
     "dayFullSuffix": "fully booked",
     "dayCutoffSuffix": "too close to the start time",
     "partySizeTooLarge": "That's more guests than this experience can host.",
@@ -3079,12 +3102,12 @@
     "emailHint": "We send your confirmation, payment link, and reminders here.",
     "editDetails": "Edit",
     "emailInvalid": "Enter a valid email address.",
-    "tooMany": "You have too many open bookings right now. Complete or cancel one, or try again later.",
-    "tooManyNetwork": "Too many bookings are coming from this network right now — please try again within the hour.",
+    "tooMany": "You already have a few bookings in progress. Finish or cancel one below to start this one.",
+    "tooManyNetwork": "Lots of bookings are coming from this network right now. Try again in about an hour.",
     "tooManyFinish": "Finish this booking",
     "tooManyHint": "Finish or cancel one of these to free a spot — then you can book this or any other experience.",
     "tooManyStatusPayment": "Awaiting payment",
-    "tooManyStatusApproval": "Waiting for host approval",
+    "tooManyStatusApproval": "Waiting for the host",
     "tooManyStatusConfirmed": "Confirmed",
     "noteLabel": "Anything the host should know? (optional)",
     "noteHint": "Dietary needs, children's ages, a pickup point, the language you'd prefer — the host sees this with your request.",
@@ -3124,15 +3147,15 @@
     "totalPaidLabel": "Total paid",
     "paymentLabel": "Payment",
     "paid": "Paid",
-    "paymentChecking": "Checking for an update…",
+    "paymentChecking": "Checking for an update",
     "paymentStillChecking": "Still processing — this can occasionally take a little longer. There's no need to pay again.",
     "paymentCheckAgain": "Check again",
     "processingOpenNote": "Already paid? There's no need to pay again — this page updates on its own once your payment is confirmed.",
     "processingOpenStillChecking": "Haven't paid yet? Use Complete payment above. Already paid? Check again.",
     "nextStepsHeading": "What happens next",
     "nextStep1": "Your host reviews the request and confirms availability.",
-    "nextStep2": "Once confirmed, we share a secure payment link to complete the booking.",
-    "nextStep3": "Once confirmed, your booking page has everything — meeting point, what to bring, and a WhatsApp line to your host.",
+    "nextStep2": "If the host accepts, we send you a secure payment link to complete the booking.",
+    "nextStep3": "Once you've paid, your booking page has everything — meeting point, what to bring, and a WhatsApp line to your host.",
     "nextStepConfirmed1": "Your booking is confirmed — no further action needed now.",
     "nextStepConfirmed2": "Your reference is on this page and your e-ticket — quote it if you ever need a change or help.",
     "nextStepConfirmed3": "Your booking page has the meeting point, what to bring, and a WhatsApp line to your host — check it before you go.",
@@ -3153,7 +3176,7 @@
       "policyForfeited": "The refund window has passed. You can still cancel, but the payment will not be refunded.",
       "policyPartial": "The free-cancellation window has passed. Cancel before {deadline} and {amount} of the payment is refunded; after that, nothing is refunded.",
       "label": "Cancel booking",
-      "pending": "Cancelling…",
+      "pending": "Cancelling",
       "confirm": "Cancel this booking? This can't be undone.",
       "confirmFull": "Cancel this booking? Your full payment of {amount} will be refunded to the bank account you entered. This can't be undone.",
       "confirmForfeited": "Cancel this booking? The refund window has passed, so the payment won't be refunded. This can't be undone.",
@@ -3172,7 +3195,7 @@
         "alreadyStarted": "This experience has already started, so it can no longer be cancelled.",
         "validation": "Something about this request was invalid. Refresh and try again.",
         "server": "Something went wrong on our side. Try again.",
-        "bankDetailsRequired": "Please enter the bank account for your refund before cancelling."
+        "bankDetailsRequired": "Enter the bank account for your refund before cancelling."
       }
     },
     "reschedule": {
@@ -3182,7 +3205,7 @@
       "windowPassed": "The window for changing the date closed on {deadline}.",
       "limitReached": "This booking has already been moved once, so the date can't change again.",
       "label": "Change date",
-      "pending": "Moving…",
+      "pending": "Moving",
       "confirm": "Move this booking to {date}? Your payment and reference stay the same.",
       "done": "Your booking has been moved to {date}. We've emailed you the updated details.",
       "prevMonth": "Previous month",
@@ -3233,14 +3256,14 @@
       "label": "Tell us what happened",
       "placeholder": "Describe the issue — we read every report.",
       "submit": "Send report",
-      "pending": "Sending…",
+      "pending": "Sending",
       "success": "Thank you — your report is with our team. We'll be in touch.",
       "openNote": "You've reported a problem with this booking. Our team is on it and will be in touch.",
       "errors": {
         "noDb": "We couldn't send your report — try again in a moment.",
         "notFound": "We couldn't find that booking.",
         "alreadyOpen": "There's already an open report on this booking — our team is on it.",
-        "throttled": "You've sent several reports in a short time. Please try again in a little while.",
+        "throttled": "You've sent several reports in a short time. Try again in a little while.",
         "validation": "Write at least 10 characters so we can understand the issue.",
         "server": "Something went wrong on our side. Try again."
       }
@@ -3257,7 +3280,7 @@
       "phoneLabel": "Phone (WhatsApp)",
       "countryLabel": "Country code",
       "submit": "Save contact details",
-      "pending": "Saving…",
+      "pending": "Saving",
       "done": "Saved — we'll use the updated details from now on.",
       "errors": {
         "required": "Enter an email address or a phone number.",
@@ -3273,7 +3296,7 @@
       }
     },
     "approvedEyebrow": "Request accepted",
-    "approvedTitle": "Approved — complete your payment.",
+    "approvedTitle": "Accepted — complete your payment.",
     "approvedDescription": "The host accepted your request. Complete payment before {deadline} to lock in your spot — until then it's held for you.",
     "payNow": "Complete payment",
     "declinedEyebrow": "Request declined",
@@ -3293,11 +3316,11 @@
     "walletAppliedLabel": "Gharmish Credit",
     "walletCredit": {
       "heading": "Your refund, your choice",
-      "description": "{amount} is in your Gharmish Credit right now. Spend it on any experience at checkout — or move the card-charged amount back to your original payment method.",
+      "description": "{amount} is in your Gharmish Credit right now. Spend it on any experience at checkout — or move what you paid by card back to your original payment method.",
       "browse": "Browse experiences",
       "signInHint": "Sign in with the email address you gave when booking to see your balance or move the refund back to your card.",
       "toCard": "Move it back to my card",
-      "toCardPending": "Requesting refund…",
+      "toCardPending": "Requesting refund",
       "confirmTitle": "Refund to your card?",
       "confirmDescription": "{amount} will be returned to the card you paid with and removed from your Gharmish Credit. Depending on your bank, it can take a few business days to appear.",
       "doneRefunded": "Done — your refund is on its way to your card. Banks can take a few business days to show it.",
@@ -3307,7 +3330,7 @@
         "notEligible": "This booking's refund can't be moved to a card.",
         "insufficientBalance": "Part of this credit has already been spent, so it can no longer be moved back to your card.",
         "alreadyRequested": "This refund has already been requested — it's on its way.",
-        "server": "Something went wrong. Please try again."
+        "server": "Something went wrong. Try again."
       }
     },
     "refundBank": {
@@ -3323,7 +3346,7 @@
       "ibanReenterHint": "For security we only show a masked version. Enter the full IBAN again to change it.",
       "submit": "Save bank details",
       "update": "Update bank details",
-      "pending": "Saving…",
+      "pending": "Saving",
       "done": "Thanks — your bank details are saved. We'll transfer the refund within a few business days.",
       "errors": {
         "bankName": "Enter the bank's name.",
@@ -3345,7 +3368,7 @@
     },
     "eyebrow": "Secure payment",
     "title": "Complete your booking",
-    "intro": "Enter your details to pay securely. Your card is processed by HyperPay — we never see or store your card number.",
+    "intro": "Enter your details to pay securely. Your card is processed by our payment provider — we never see or store your card number.",
     "summaryLabel": "Booking summary",
     "experienceLabel": "Experience",
     "dateLabel": "Date",
@@ -3370,15 +3393,15 @@
     "submit": "Continue to payment",
     "pending": "Preparing payment",
     "termsAgreement": "I have read and agree to Gharmish's <terms>terms of service</terms>, <privacy>privacy policy</privacy>, and <cancellation>cancellation policy</cancellation>.",
-    "termsRequired": "Please accept the terms of service to continue.",
+    "termsRequired": "Accept the terms of service to continue.",
     "termsCarried": "By continuing to payment, you agree to Gharmish's <terms>terms of service</terms>, <privacy>privacy policy</privacy>, and <cancellation>cancellation policy</cancellation> — the same terms you accepted when booking.",
     "termsCarriedPay": "By paying, you agree to Gharmish's <terms>terms of service</terms>, <privacy>privacy policy</privacy>, and <cancellation>cancellation policy</cancellation> — the same terms you accepted when booking.",
-    "introReady": "Your details are already on file, so you can pay straight away. Your payment is processed by HyperPay — we never see or store your card details.",
-    "preparingHeading": "Preparing your payment…",
+    "introReady": "Your details are already on file, so you can pay straight away. Your payment is processed by our payment provider — we never see or store your card details.",
+    "preparingHeading": "Preparing your payment",
     "preparingBody": "One moment — we're setting up secure payment for you. There's nothing you need to do yet.",
     "payingWithCard": "Paying with card",
     "payingWithApplePay": "Paying with Apple Pay",
-    "errorTooManyAttempts": "Too many payment attempts in a short time. Please wait a few minutes and try again.",
+    "errorTooManyAttempts": "Too many payment attempts in a short time. Wait a few minutes and try again.",
     "payConsent": "By paying, you agree to Gharmish's <terms>terms of service</terms>, <privacy>privacy policy</privacy>, and <cancellation>cancellation policy</cancellation>.",
     "cancellationFreeUntil": "Free cancellation until {deadline} — cancel before then for a full refund.",
     "cancellationPartialUntil": "If your plans change, cancelling before {deadline} refunds {amount}; after that, the payment is not refundable.",
@@ -3398,10 +3421,10 @@
     "errorUnavailable": "Online payment isn't available right now.",
     "errorNotFound": "We couldn't find this booking.",
     "errorAlreadyPaid": "This booking is already paid.",
-    "errorExpired": "This booking's payment window has passed and the spot was released. Please book again.",
+    "errorExpired": "This booking's payment window has passed and the spot was released. Book again.",
     "payHeading": "Pay securely",
     "payAmount": "Pay {amount}",
-    "widgetLoading": "Loading secure payment…",
+    "widgetLoading": "Loading secure payment",
     "widgetError": "The secure payment form couldn't load. Check your connection and try again.",
     "widgetRetry": "Reload payment form",
     "methodHeading": "Pay with",
@@ -3410,7 +3433,7 @@
     "changeMethod": "Choose a different payment method",
     "vatIncludedLabel": "Includes VAT ({pct}%)",
     "errorNotApproved": "The host hasn't accepted this request yet. As soon as they do, you can complete your payment right here on this page.",
-    "errorUnderReview": "We're still confirming an earlier payment on this booking, so we can't start a new one yet. Our team is checking it — please don't pay again. Get in touch if you need an update.",
+    "errorUnderReview": "We're still confirming an earlier payment on this booking, so we can't start a new one yet. Our team is checking it — don't pay again. Get in touch if you need an update.",
     "secureNote": "Payments are processed securely by our payment provider with 3-D Secure. Your card details never touch Gharmish servers.",
     "acceptedMethods": "We accept",
     "deadlineNote": "Complete payment by {deadline} — we're holding your spot until then.",
@@ -3440,10 +3463,10 @@
       "label": "Have a promo code?",
       "placeholder": "Enter code",
       "apply": "Apply",
-      "applying": "Applying…",
+      "applying": "Applying",
       "appliedPrefix": "Promo applied:",
       "remove": "Remove",
-      "removing": "Removing…",
+      "removing": "Removing",
       "discountLabel": "Discount · {code}",
       "discountLabelGeneric": "Discount",
       "creditReleased": "Changing the promo code removed your applied credit — tap Apply credit to use it again.",
@@ -3456,10 +3479,10 @@
         "alreadyPaid": "This booking is already paid.",
         "checkoutInProgress": "A payment is already in progress, so the total can't change now. Finish paying, or try the code again in a few minutes.",
         "unavailable": "This booking can't take a promo code right now.",
-        "notFound": "We couldn’t find this booking.",
-        "validation": "Please check the code and try again.",
+        "notFound": "We couldn't find this booking.",
+        "validation": "Check the code and try again.",
         "noDb": "Promo codes are temporarily unavailable.",
-        "server": "Something went wrong. Please try again."
+        "server": "Something went wrong. Try again."
       }
     },
     "walletCredit": {
@@ -3468,19 +3491,19 @@
       "appliedCapNote": "A {min} card payment always remains — complete it to confirm your booking.",
       "signInHint": "Have Gharmish Credit? <link>Sign in</link> to apply it here.",
       "apply": "Apply credit",
-      "applying": "Applying…",
+      "applying": "Applying",
       "appliedPrefix": "Gharmish Credit applied:",
       "remove": "Remove",
-      "removing": "Removing…",
+      "removing": "Removing",
       "summaryLabel": "Gharmish Credit",
       "errors": {
         "nothingToApply": "There's no credit available to apply to this booking.",
         "alreadyPaid": "This booking is already paid.",
         "unavailable": "Credit can't be applied to this booking right now.",
-        "notFound": "We couldn’t find this booking.",
-        "validation": "Something didn't look right. Please try again.",
+        "notFound": "We couldn't find this booking.",
+        "validation": "Something didn't look right. Try again.",
         "noDb": "Gharmish Credit is temporarily unavailable.",
-        "server": "Something went wrong. Please try again."
+        "server": "Something went wrong. Try again."
       }
     }
   },
@@ -3497,13 +3520,13 @@
     "totalLabel": "Total paid",
     "referenceLabel": "Reference",
     "closing": "We'll send the meeting point and what to bring before the day. See you in Aseer.",
-    "footer": "Gharmish — experiences hosted by the people who know Aseer best.",
+    "footer": "Gharmish · Experiences hosted by the people who know the place best.",
     "cancelSubject": "Your Gharmish booking is cancelled · {reference}",
     "cancelIntroRefunded": "Your booking has been cancelled and your refund has been issued to your card. Depending on your bank, it can take a few business days to appear.",
     "cancelIntroRefundPending": "Your booking has been cancelled. Your refund is being processed by our team and will reach your card within a few business days.",
     "cancelIntroForfeited": "Your booking has been cancelled. Because the refund window had already passed, the payment was not refunded.",
     "cancelIntroUnpaid": "Your booking has been cancelled. Nothing was charged.",
-    "cancelIntroRefundedBank": "Your booking has been cancelled and your refund has been transferred to the bank account you provided. Depending on your bank, it can take a business day or two to appear.",
+    "cancelIntroRefundedBank": "Your booking has been cancelled and your refund has been transferred to the bank account you provided. Depending on your bank, it can take a few business days to appear.",
     "cancelIntroRefundPendingBank": "Your booking has been cancelled. Our team will transfer your refund to the bank account you provided within a few business days.",
     "cancelIntroRefundPendingNeedsBank": "Your booking has been cancelled. Your refund is ready to send — we just need to know where: open your booking page and add your bank details, and we'll transfer it within a few business days.",
     "refundNeedsBankCta": "Add your bank details",
@@ -3532,7 +3555,7 @@
     "reminderManageNoDeadline": "Plans changed? <a href=\"{url}\">Manage your booking</a>",
     "hostNewRequestSubject": "New booking request: {experience}",
     "hostNewBookingSubject": "New confirmed booking: {experience}",
-    "hostNewGreeting": "Good news,",
+    "hostNewGreeting": "Hello,",
     "hostNewRequestIntro": "A guest has requested one of your experiences. Review and accept or decline it in your dashboard.",
     "hostNewBookingIntro": "A guest has booked one of your experiences. The details are below and in your dashboard.",
     "hostNewPayoutLabel": "Your payout",
@@ -3554,7 +3577,7 @@
     "expiredIntro": "The host didn't respond within the approval window, so your request expired. You haven't been charged anything.",
     "expiredClosing": "You're welcome to send a new request for another date.",
     "expiredCta": "Choose another date",
-    "paymentLapsedSubject": "Your booking hold was released",
+    "paymentLapsedSubject": "Your booking spot was released",
     "paymentLapsedIntro": "The payment window for your booking passed, so the spot was released back to the calendar. You haven't been charged anything.",
     "paymentLapsedClosing": "If you still want to go, you can book the experience again.",
     "paymentLapsedCta": "Book again",
@@ -3564,13 +3587,13 @@
     "cancelByHostIntroRefunded": "Your host couldn't run this booking, so we've cancelled it and refunded your payment in full. Refunds usually arrive within a few business days, depending on your bank.",
     "cancelByHostIntroRefundPending": "Your host couldn't run this booking, so we've cancelled it. Your full refund is on its way — our team processes it by hand, so it can take a few business days.",
     "cancelByHostIntroUnpaid": "Your host couldn't run this booking, so we've cancelled it. Nothing was charged.",
-    "cancelByHostIntroRefundedBank": "Your host couldn't run this booking, so we've cancelled it and transferred your refund in full to the bank account you provided. Depending on your bank, it can take a business day or two to appear.",
+    "cancelByHostIntroRefundedBank": "Your host couldn't run this booking, so we've cancelled it and transferred your refund in full to the bank account you provided. Depending on your bank, it can take a few business days to appear.",
     "cancelByHostIntroRefundPendingBank": "Your host couldn't run this booking, so we've cancelled it. Our team will transfer your full refund to the bank account you provided within a few business days.",
     "cancelByHostIntroRefundPendingNeedsBank": "Your host couldn't run this booking, so we've cancelled it. Your full refund is ready to send — we just need to know where: open your booking page and add your bank details, and we'll transfer it within a few business days.",
     "cancelByOpsIntroRefunded": "The Gharmish team has cancelled this booking and refunded your payment in full. Refunds usually arrive within a few business days, depending on your bank.",
     "cancelByOpsIntroRefundPending": "The Gharmish team has cancelled this booking. Your full refund is on its way — our team processes it by hand, so it can take a few business days.",
     "cancelByOpsIntroUnpaid": "The Gharmish team has cancelled this booking. Nothing was charged.",
-    "cancelByOpsIntroRefundedBank": "The Gharmish team has cancelled this booking and transferred your refund in full to the bank account you provided. Depending on your bank, it can take a business day or two to appear.",
+    "cancelByOpsIntroRefundedBank": "The Gharmish team has cancelled this booking and transferred your refund in full to the bank account you provided. Depending on your bank, it can take a few business days to appear.",
     "cancelByOpsIntroRefundPendingBank": "The Gharmish team has cancelled this booking. We'll transfer your full refund to the bank account you provided within a few business days.",
     "cancelByOpsIntroRefundPendingNeedsBank": "The Gharmish team has cancelled this booking. Your full refund is ready to send — we just need to know where: open your booking page and add your bank details, and we'll transfer it within a few business days.",
     "cancelIntroWalletCredited": "Due to an emergency, this experience couldn't go ahead — we're sorry. Your full payment has been added to your Gharmish Credit: spend it on any experience at checkout, or open your booking page to move it back to your card.",
@@ -3581,7 +3604,7 @@
     "hostHoldLapsedSubject": "A booking lapsed unpaid: {experience}",
     "hostHoldLapsedIntro": "The booking below was never paid for within its payment window, so it has been released and the spots are open again. No action is needed.",
     "hostPaymentReceivedSubject": "Payment received: {experience}",
-    "hostPaymentReceivedIntro": "The guest's payment for the booking below has settled — the booking is fully secured.",
+    "hostPaymentReceivedIntro": "The guest's payment for the booking below has gone through — the booking is fully secured.",
     "viewInvoice": "View your invoice",
     "viewCreditNote": "View your credit note",
     "viewReceipt": "View your receipt",
@@ -3653,15 +3676,16 @@
     "footerNote": "Keep this document for your records. Questions? {email}"
   },
   "notFound": {
+    "metaTitle": "Page not found",
     "eyebrow": "404",
     "title": "This path is not on the map.",
-    "description": "The experience or page you are looking for may have moved, paused, or never existed.",
+    "description": "The page you're looking for may have moved, been paused, or never existed.",
     "home": "Back to home",
     "experiences": "Browse experiences"
   },
   "error": {
     "eyebrow": "Something went wrong",
-    "title": "We could not load this page.",
+    "title": "We couldn't load this page.",
     "description": "Try again in a moment. If the issue continues, return to the experiences list.",
     "retry": "Try again",
     "experiences": "Browse experiences"
@@ -3725,6 +3749,8 @@
     "outOf": "of {max}",
     "basedOn": "{n, plural, one {Based on {count} review} other {Based on {count} reviews}}",
     "ratingLabel": "Rated {rating} out of 5",
+    "ratingLabelWithCount": "Rated {rating} out of 5, {count, plural, =0 {no reviews yet} one {based on 1 review} other {based on # reviews}}",
+    "charCount": "{count}/{max}",
     "publicNameNotice": "Posted publicly as {name}",
     "hostReply": "Reply from the host",
     "moreHidden": "{count, plural, =1 {1 more review not shown} other {# more reviews not shown}}",
@@ -3771,7 +3797,7 @@
     "browseCta": "See what's open",
     "recommendationsHeading": "Worth a look:",
     "unsubscribe": "Unsubscribe from these emails — booking messages still arrive as usual.",
-    "footer": "Gharmish — experiences hosted by the people who know Aseer best."
+    "footer": "Gharmish · Experiences hosted by the people who know the place best."
   },
   "about": {
     "metaTitle": "About Gharmish",
@@ -3795,7 +3821,7 @@
     "intro1": "Abha sits above the clouds — a highland city on the edge of the Sarawat, where juniper forests meet stone villages and summer means mist, not heat. It's the capital of Aseer, the greenest region in Saudi Arabia, and the best of it doesn't announce itself: it gets shown to you.",
     "intro2": "That's what Gharmish is for. Every experience here is hosted by a local — a guide who grew up on these trails, an artist keeping Al-Qatt Al-Aseeri alive, a family that has poured coffee the same way for generations. Small groups, real places, booked in a few taps.",
     "gridLabel": "Experiences in Abha",
-    "empty": "No live experiences in Abha right now — new ones are added as hosts join. Browse the full catalog in the meantime.",
+    "empty": "No live experiences in Abha right now — new ones are added as hosts join. Browse the full catalogue in the meantime.",
     "allCta": "Browse all experiences",
     "hostCta": "Host with Gharmish in Abha"
   },
@@ -3803,7 +3829,7 @@
     "eyebrow": "Experiences by category",
     "backToAll": "All experiences",
     "allCta": "Browse all experiences in Abha & Aseer",
-    "empty": "No live experiences in this category right now — new ones are added as hosts join. Browse the full catalog in the meantime.",
+    "empty": "No live experiences in this category right now — new ones are added as hosts join. Browse the full catalogue in the meantime.",
     "breadcrumbCatalog": "Experiences",
     "nature": {
       "title": "Nature experiences in Abha & Aseer",
@@ -3840,9 +3866,9 @@
   "cookieNotice": {
     "regionLabel": "Cookie notice",
     "body": "Gharmish uses only the cookies it needs to work — keeping you signed in and remembering your language. No advertising or tracking cookies, ever.",
-    "consentBody": "Gharmish uses essential cookies to keep you signed in and remember your language. With your consent, we also use analytics cookies from Google Analytics to understand how the site is used, and marketing cookies from Snapchat and TikTok to measure our ads — decline them and everything still works.",
-    "bodyAnalyticsOnly": "Gharmish uses essential cookies to keep you signed in and remember your language. With your consent, we also use analytics cookies from Google Analytics to understand how the site is used — decline them and everything still works.",
-    "bodyFull": "Gharmish uses essential cookies to keep you signed in and remember your language. With your consent, we also use analytics cookies from Google Analytics to understand how the site is used, and marketing cookies from {networks} to measure our ads — decline them and everything still works.",
+    "consentBody": "Essential cookies keep you signed in. With consent, we also use Google Analytics, Snapchat and TikTok to measure our ads — see our <privacy>privacy policy</privacy>.",
+    "bodyAnalyticsOnly": "Essential cookies keep you signed in. With consent, we also use Google Analytics to understand how the site is used — see our <privacy>privacy policy</privacy>.",
+    "bodyFull": "Essential cookies keep you signed in. With consent, we also use Google Analytics and {networks} to measure our ads — see our <privacy>privacy policy</privacy>.",
     "networkTikTok": "TikTok",
     "networkSnapchat": "Snapchat",
     "privacyLink": "Privacy policy",
@@ -3884,7 +3910,7 @@
     "partyLabel": "Guests",
     "totalLabel": "Estimated total",
     "status": {
-      "pending": "Awaiting host confirmation",
+      "pending": "Waiting for the host",
       "confirmed": "Confirmed",
       "completed": "Completed",
       "cancelled": "Cancelled",
@@ -3914,11 +3940,11 @@
         "validation": "Something didn't validate. Check the form and try again.",
         "server": "We couldn't save your review. Try again in a moment.",
         "expired": "The edit window has closed — reviews can be changed for 24 hours after submission.",
-        "throttled": "You've posted several reviews in a short time. Please try again in a little while."
+        "throttled": "You've posted several reviews in a short time. Try again in a little while."
       },
       "editHeading": "Edit your review",
       "update": "Save changes",
-      "updating": "Saving…"
+      "updating": "Saving"
     },
     "wishlistTitle": "Saved experiences",
     "wishlistViewAll": "View all",
@@ -3974,7 +4000,7 @@
         "title": "Payment methods",
         "eyebrow": "Cards",
         "emptyTitle": "No saved cards yet",
-        "emptyDescription": "Saved cards arrive when online payments go live. We never store card details ourselves — they're held securely by our payment provider."
+        "emptyDescription": "We don't store cards yet — each payment is entered securely on the payment page."
       },
       "history": {
         "title": "Booking history",
@@ -3983,7 +4009,7 @@
         "emptyTitle": "No bookings yet",
         "emptyDescription": "Once you book an experience, it'll show up here.",
         "status": {
-          "pending": "Awaiting host confirmation",
+          "pending": "Waiting for the host",
           "confirmed": "Confirmed",
           "completed": "Completed",
           "cancelled": "Cancelled",
@@ -4032,11 +4058,11 @@
     },
     "payments": {
       "heading": "Your money is protected",
-      "body": "Payments run through a licensed Saudi payment gateway with 3-D Secure — card details never touch our servers. For request-to-book experiences you aren't charged until the host accepts, and if a host declines or doesn't respond in time, nothing is charged at all."
+      "body": "Payments run through our payment provider with 3-D Secure — card details never touch our servers. For request-to-book experiences you aren't charged until the host accepts, and if a host declines or doesn't respond in time, nothing is charged at all."
     },
     "insurance": {
       "heading": "Safety on the ground",
-      "body": "Every host is identity-verified before their first listing goes live, and each experience page spells out what to bring and any minimum age — so you know exactly what you are signing up for before you book. Experiences are delivered by independent hosts and Gharmish does not provide insurance; our terms of service explain how responsibility is shared, so please read them before you book."
+      "body": "Every host is identity-verified before their first listing goes live, and each experience page spells out what to bring and any minimum age — so you know exactly what you are signing up for before you book. Experiences are delivered by independent hosts and Gharmish does not provide insurance; our terms of service explain how responsibility is shared, so read them before you book."
     },
     "support": {
       "heading": "We're close by",
@@ -4056,7 +4082,7 @@
       "intro": "Booking takes a few minutes, and you always know where you stand.",
       "step1": "Browse experiences and pick a date — every listing shows its real availability calendar.",
       "step2": "Book it: Instant book experiences confirm right away; request-to-book experiences go to the host, who responds within {hours} hours.",
-      "step3": "Pay securely with mada, Visa, or Mastercard. For requests, you only pay after the host accepts.",
+      "step3": "Pay securely with mada, Visa, Mastercard, or Apple Pay. For requests, you only pay after the host accepts.",
       "step4": "Get your e-ticket and a WhatsApp line to your host. Show up — everything else is arranged."
     },
     "bookingTypes": {
@@ -4085,7 +4111,7 @@
     "requests": {
       "heading": "Booking requests",
       "body1": "A request-to-book costs nothing to send. The host has {hours} hours to accept or decline; if they decline or don't respond in time, the request closes and you are never charged.",
-      "body2": "Once a host accepts, you have {hours} hours to complete payment. If the payment window lapses, the hold is released and — as always — nothing is charged."
+      "body2": "Once a host accepts, you have {hours} hours to complete payment. If the payment window lapses, the spot is released and — as always — nothing is charged."
     },
     "refunds": {
       "heading": "How refunds are paid",
@@ -4122,7 +4148,7 @@
         "a": "Instant book: at checkout, and your spot is confirmed immediately. Request to book: only after the host accepts — you'll get a secure payment link by email and on your booking page. A declined or expired request is never charged."
       },
       "pending": {
-        "q": "What does \"awaiting host confirmation\" mean?",
+        "q": "What does \"waiting for the host\" mean?",
         "a": "Your request is with the host. They have {approvalHours} hours to accept or decline — if you shared an email, we'll notify you the moment they respond, and this page always shows the latest status. Until they accept, no money moves."
       },
       "cancel": {
@@ -4271,7 +4297,7 @@
     "rejectedSubject": "An update on your Gharmish application",
     "rejectedIntro": "We couldn't approve your application this time. The reviewer left a note explaining why on your application page — you can revise and resubmit anytime.",
     "rejectedClosing": "Thank you for your interest in hosting with Gharmish. — The Gharmish team",
-    "footer": "Gharmish — experiences hosted by the people who know Aseer best.",
+    "footer": "Gharmish · Experiences hosted by the people who know the place best.",
     "approvedCta": "Open your host dashboard",
     "rejectedCta": "View your application",
     "receivedSubject": "We received your application",
@@ -4309,7 +4335,7 @@
     "bookingLabel": "Booking",
     "refundLabel": "Refund",
     "closing": "Thank you for telling us — reports like yours keep the experiences on Gharmish worth recommending.",
-    "footer": "Gharmish — experiences hosted by the people who know Aseer best.",
+    "footer": "Gharmish · Experiences hosted by the people who know the place best.",
     "referenceLabel": "Reference",
     "viewBookingCta": "View your booking",
     "receivedSubject": "We received your report",
@@ -4326,7 +4352,7 @@
     "repliedIntro": "The host of {experience} replied to your review.",
     "replyLabel": "Their reply",
     "repliedClosing": "Thank you for sharing your experience — it helps other travellers and the hosts alike.",
-    "footer": "Gharmish — experiences hosted by the people who know Aseer best.",
+    "footer": "Gharmish · Experiences hosted by the people who know the place best.",
     "repliedCta": "Read the reply",
     "hostGreeting": "Hi {name},",
     "experienceLabel": "Experience",
@@ -4360,7 +4386,7 @@
     "reinstatedIntro": "Good news — your host account has been reinstated. Your listings stayed paused, so republish each one when you're ready to take bookings again.",
     "reinstatedCta": "Open your dashboard",
     "reinstatedClosing": "Welcome back — we're glad to have you hosting again.",
-    "footer": "Gharmish — experiences hosted by the people who know Aseer best."
+    "footer": "Gharmish · Experiences hosted by the people who know the place best."
   },
   "moderationEmail": {
     "greeting": "Hi {name},",
@@ -4375,7 +4401,7 @@
     "changesIntro": "Your experience is almost there — the reviewer asked for a few changes before it can go live. The note is on the experience page.",
     "editCta": "Open your experience",
     "decisionClosing": "Questions about the review? Reply to this email — we're happy to help.",
-    "footer": "Gharmish — experiences hosted by the people who know Aseer best."
+    "footer": "Gharmish · Experiences hosted by the people who know the place best."
   },
   "payoutEmail": {
     "greeting": "Hi {name},",
@@ -4385,7 +4411,7 @@
     "bookingsLabel": "Completed bookings",
     "earningsCta": "See your earnings",
     "paidClosing": "Thank you for hosting with Gharmish.",
-    "footer": "Gharmish — experiences hosted by the people who know Aseer best."
+    "footer": "Gharmish · Experiences hosted by the people who know the place best."
   },
   "cancellationTiers": {
     "name_flexible": "Flexible",

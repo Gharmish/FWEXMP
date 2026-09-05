@@ -262,8 +262,7 @@ export default async function BookingConfirmedPage({ params, searchParams }: Pag
       ? 'paid'
       : booking?.paymentStatus === 'failed' || paymentHint === 'rejected'
         ? 'failed'
-        : (booking?.paymentStatus === 'processing' && !isProcessingOpen) ||
-            isReturningFromGateway
+        : (booking?.paymentStatus === 'processing' && !isProcessingOpen) || isReturningFromGateway
           ? 'pending'
           : null;
 
@@ -783,7 +782,7 @@ export default async function BookingConfirmedPage({ params, searchParams }: Pag
       : null;
 
   return (
-    <article className="mx-auto w-full max-w-3xl px-6 py-10 sm:py-20">
+    <article className="mx-auto w-full max-w-3xl px-6 py-12 sm:py-20">
       {/* Ad-platform purchase conversion — only for a DB-verified paid
           booking (the query-param hint alone never fires money events). */}
       {booking && booking.paymentStatus === 'paid' && (
@@ -804,7 +803,7 @@ export default async function BookingConfirmedPage({ params, searchParams }: Pag
           current={checkoutStep}
           label={tSteps('label')}
           locale={loc}
-          className="mb-10 print:hidden"
+          className="mb-12 print:hidden"
         />
       )}
       {/* Print-only brand header: the site chrome is print-hidden, so the
@@ -899,7 +898,7 @@ export default async function BookingConfirmedPage({ params, searchParams }: Pag
       </header>
 
       <section
-        className="border-sarat-black/8 rounded-card mt-10 flex flex-col gap-4 [border-width:0.5px] p-6"
+        className="border-sarat-black/8 rounded-card mt-12 flex flex-col gap-4 [border-width:0.5px] p-6"
         aria-labelledby="booking-reference-heading"
       >
         <p id="booking-reference-heading" className={eyebrowClassName}>
@@ -1059,7 +1058,7 @@ export default async function BookingConfirmedPage({ params, searchParams }: Pag
         experience &&
         placeName &&
         locationLine && (
-          <section className="mt-10 flex flex-col gap-3 print:hidden">
+          <section className="mt-12 flex flex-col gap-3 print:hidden">
             <h2 className="font-display flex items-center gap-2.5 text-2xl font-medium tracking-[-0.025em]">
               <MapPin className="text-sarat-black-600 size-5 shrink-0" aria-hidden />
               {tExp('meetingPoint.heading')}
@@ -1083,7 +1082,7 @@ export default async function BookingConfirmedPage({ params, searchParams }: Pag
           Rendered for every refund path that didn't pass through the
           guest's own cancel form — host/admin/support cancellations. */}
       {refundQueued && booking && (
-        <section className="border-sarat-black/8 rounded-card mt-10 flex flex-col gap-4 [border-width:0.5px] p-6 print:hidden">
+        <section className="border-sarat-black/8 rounded-card mt-12 flex flex-col gap-4 [border-width:0.5px] p-6 print:hidden">
           <h2 className="font-display text-2xl font-medium tracking-[-0.025em]">
             {t('refundBank.heading')}
           </h2>
@@ -1133,7 +1132,7 @@ export default async function BookingConfirmedPage({ params, searchParams }: Pag
       )}
 
       {isWalletRefunded && booking && (
-        <section className="border-sarat-black/8 rounded-card mt-10 flex flex-col gap-4 [border-width:0.5px] p-6 print:hidden">
+        <section className="border-sarat-black/8 rounded-card mt-12 flex flex-col gap-4 [border-width:0.5px] p-6 print:hidden">
           <h2 className="font-display text-2xl font-medium tracking-[-0.025em]">
             {t('walletCredit.heading')}
           </h2>
@@ -1193,7 +1192,7 @@ export default async function BookingConfirmedPage({ params, searchParams }: Pag
         !isAwaitingPayment &&
         !isHoldLapsed &&
         !isCompleted && (
-          <section className="mt-10 flex flex-col gap-3">
+          <section className="mt-12 flex flex-col gap-3">
             <h2 className="font-display text-2xl font-medium tracking-[-0.025em]">
               {t('nextStepsHeading')}
             </h2>
@@ -1224,7 +1223,7 @@ export default async function BookingConfirmedPage({ params, searchParams }: Pag
       {booking?.status === 'completed' && tMe && reviewCopy && (
         <section
           id="review"
-          className="border-sarat-black/8 rounded-card mt-10 flex flex-col gap-4 [border-width:0.5px] p-6 print:hidden"
+          className="border-sarat-black/8 rounded-card mt-12 flex flex-col gap-4 [border-width:0.5px] p-6 print:hidden"
         >
           {/* Section-level h2 like every sibling — the form's own
               heading is an h3 beneath it, keeping the outline h1→h2→h3
@@ -1330,7 +1329,7 @@ export default async function BookingConfirmedPage({ params, searchParams }: Pag
       {/* Contact — WhatsApp deep links. The host line appears once the
           booking is accepted; Gharmish support is there in every state. */}
       {(hostWhatsapp || supportWhatsapp) && (
-        <section className="border-sarat-black/8 rounded-card mt-10 flex flex-col gap-3 [border-width:0.5px] p-6 print:hidden">
+        <section className="border-sarat-black/8 rounded-card mt-12 flex flex-col gap-3 [border-width:0.5px] p-6 print:hidden">
           <h2 className="font-display text-2xl font-medium tracking-[-0.025em]">
             {hostWhatsapp ? t('whatsapp.heading') : t('supportWhatsapp.heading')}
           </h2>
@@ -1381,7 +1380,7 @@ export default async function BookingConfirmedPage({ params, searchParams }: Pag
           A lapsed hold is about to be released; moving it would imply the
           spot is still held. */}
       {rescheduleView && !isHoldLapsed && (
-        <section className="border-sarat-black/8 rounded-card mt-10 flex flex-col gap-3 [border-width:0.5px] p-6 print:hidden">
+        <section className="border-sarat-black/8 rounded-card mt-12 flex flex-col gap-3 [border-width:0.5px] p-6 print:hidden">
           <h2 className="font-display text-2xl font-medium tracking-[-0.025em]">
             {t('reschedule.heading')}
           </h2>
@@ -1444,7 +1443,7 @@ export default async function BookingConfirmedPage({ params, searchParams }: Pag
         (options.reschedule.reason === 'window_passed' ||
           options.reschedule.reason === 'limit_reached') &&
         !isHoldLapsed && (
-          <section className="border-sarat-black/8 rounded-card mt-10 flex flex-col gap-3 [border-width:0.5px] p-6 print:hidden">
+          <section className="border-sarat-black/8 rounded-card mt-12 flex flex-col gap-3 [border-width:0.5px] p-6 print:hidden">
             <h2 className="font-display text-2xl font-medium tracking-[-0.025em]">
               {t('reschedule.heading')}
             </h2>
@@ -1467,7 +1466,7 @@ export default async function BookingConfirmedPage({ params, searchParams }: Pag
           A lapsed hold is about to be released anyway; offering "cancel"
           there would imply the spot is still held. */}
       {cancelView && !isHoldLapsed && (
-        <section className="border-sarat-black/8 rounded-card mt-10 flex flex-col gap-3 [border-width:0.5px] p-6 print:hidden">
+        <section className="border-sarat-black/8 rounded-card mt-12 flex flex-col gap-3 [border-width:0.5px] p-6 print:hidden">
           <h2 className="font-display text-2xl font-medium tracking-[-0.025em]">
             {t('cancel.heading')}
           </h2>
@@ -1556,13 +1555,10 @@ export default async function BookingConfirmedPage({ params, searchParams }: Pag
         </section>
       )}
 
-      <div className="mt-10 flex flex-wrap gap-3 print:hidden">
+      <div className="mt-12 flex flex-wrap gap-3 print:hidden">
         {canRetryPayment ? (
           <>
-            <Link
-              href={payHref}
-              className={cn(buttonVariants({ variant: 'primary', size: 'lg' }))}
-            >
+            <Link href={payHref} className={cn(buttonVariants({ variant: 'primary', size: 'lg' }))}>
               {t('tryPaymentAgain')}
             </Link>
             {experienceSlug && (

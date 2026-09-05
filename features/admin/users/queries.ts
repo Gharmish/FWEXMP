@@ -243,6 +243,29 @@ export async function listUsersForAdmin(query?: string): Promise<readonly AdminU
   }
 }
 
+/**
+ * Whether the directory silently dropped anyone (P2-24) — true once any
+ * one source (guests, hosts, applications) has more rows than
+ * `listUsersForAdmin` fetches. A separate cheap `count(*)` set rather than
+ * threading a flag through the merge above, so the export route (which
+ * doesn't render a notice) keeps calling `listUsersForAdmin` unchanged.
+ */
+export async function isUsersListTruncated(): Promise<boolean> {
+  const block = await adminGuard();
+  if (block) return false;
+  try {
+    const [[g], [h], [a]] = await Promise.all([
+      db.select({ n: sql<number>`count(*)::int` }).from(guests),
+      db.select({ n: sql<number>`count(*)::int` }).from(hosts),
+      db.select({ n: sql<number>`count(*)::int` }).from(hostApplications),
+    ]);
+    return (g?.n ?? 0) > LIST_LIMIT || (h?.n ?? 0) > LIST_LIMIT || (a?.n ?? 0) > LIST_LIMIT;
+  } catch (error) {
+    reportError(error, { surface: 'admin:isUsersListTruncated' });
+    return false;
+  }
+}
+
 type GuestRow = typeof guests.$inferSelect;
 type HostRow = typeof hosts.$inferSelect;
 type AppRow = typeof hostApplications.$inferSelect;
