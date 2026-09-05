@@ -3864,6 +3864,8 @@
     "title": "Where you left off.",
     "intro": "Your bookings, requests, and saved experiences — all in one place.",
     "introEmpty": "Nothing here yet. Once you save an experience or make a request, it'll show up on this page.",
+    "introSignedOut": "Sign in to see your bookings and requests — anything you've saved on this device is kept here too.",
+    "signInCta": "Sign in",
     "signedInAs": "Signed in as {phone}",
     "editProfile": "Edit profile",
     "statBookings": "Bookings",
@@ -4089,6 +4091,8 @@
       "heading": "How refunds are paid",
       "body1": "Refunds go back to the original payment method automatically. Depending on your bank, mada and card refunds typically appear within a few business days.",
       "body2": "If an automatic refund can't be processed, our team completes it manually and you'll receive a confirmation email — you never need to chase it.",
+      "body1Bank": "Refunds are paid by bank transfer. When you cancel, we ask for the bank account you'd like the money sent to, and our team wires it — usually within a few business days.",
+      "body2Bank": "You'll receive a confirmation once the transfer is made, and your booking page shows the refund's status the whole time — you never need to chase it.",
       "body3": "In exceptional cases — for example when our team cancels a booking for safety or force-majeure reasons — your full payment is returned instantly as Gharmish Credit, and you can then move the card-paid amount back to your card from the booking page with one tap. Any amount you paid by card can always travel back to that card."
     },
     "hostCancellations": {
@@ -4139,7 +4143,7 @@
       },
       "hostCancel": {
         "q": "What if I have to cancel as a host?",
-        "a": "Cancel from your bookings page as early as you can. The guest is notified and any payment is refunded in full automatically, no matter how close to the start it happens."
+        "a": "Cancel from your bookings page as early as you can. The guest is notified and any payment is refunded in full{refundRail, select, bank { by bank transfer} other { automatically}}, no matter how close to the start it happens."
       },
       "requestWindow": {
         "q": "How long do I have to answer a booking request?",

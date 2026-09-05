@@ -161,12 +161,27 @@ export function StaggerItem({ children, className }: MotionPrimitiveProps) {
   );
 }
 
-/** Card-style 2px lift on hover, settles on press. Quiet and spring-driven. */
+/**
+ * Card-style 2px lift on hover, settles on press. Quiet and spring-driven.
+ *
+ * `tabIndex={-1}` is load-bearing: Framer makes any element with a tap
+ * gesture keyboard-focusable (`tabIndex = 0`) unless it already carries a
+ * tabindex attribute. The wrapper is purely decorative — the card's link
+ * or button inside it is the real control — so without this every card
+ * and category chip added an unnamed tab stop, including the ones inside
+ * the aria-hidden marquee clone (2026-09 UX audit P1-3).
+ */
 export function HoverLift({ children, className }: MotionPrimitiveProps) {
   const reduce = useReducedMotion();
   if (reduce) return <div className={className}>{children}</div>;
   return (
-    <m.div className={className} whileHover={{ y: -2 }} whileTap={{ y: 0 }} transition={SPRING}>
+    <m.div
+      className={className}
+      tabIndex={-1}
+      whileHover={{ y: -2 }}
+      whileTap={{ y: 0 }}
+      transition={SPRING}
+    >
       {children}
     </m.div>
   );

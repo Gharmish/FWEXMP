@@ -110,6 +110,9 @@ export function ReviewerActions({ experienceId, locale, copy }: ReviewerActionsP
           name="reviewerNotes"
           rows={3}
           maxLength={2000}
+          // React resets uncontrolled fields after an action; the echoed
+          // value keeps a typed note through a failed submit (P1-6).
+          defaultValue={approveState.values?.reviewerNotes ?? ''}
           className={TEXTAREA_CLASS}
         />
         <p className="text-sarat-black-600 text-sm">{copy.notesApproveHint}</p>
@@ -143,6 +146,7 @@ export function ReviewerActions({ experienceId, locale, copy }: ReviewerActionsP
           required
           minLength={10}
           maxLength={2000}
+          defaultValue={requestState.values?.reviewerNotes ?? ''}
           className={TEXTAREA_CLASS}
         />
         <p className="text-sarat-black-600 text-sm">{copy.notesRequestChangesHint}</p>
@@ -179,6 +183,7 @@ export function ReviewerActions({ experienceId, locale, copy }: ReviewerActionsP
           required
           minLength={10}
           maxLength={2000}
+          defaultValue={rejectState.values?.reviewerNotes ?? ''}
           className={TEXTAREA_CLASS}
         />
         <p className="text-sarat-black-600 text-sm">{copy.notesRejectHint}</p>

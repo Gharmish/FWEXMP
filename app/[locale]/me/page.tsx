@@ -113,8 +113,30 @@ export default async function MePage({ params }: { params: Promise<{ locale: str
             {t('title')}
           </h1>
           <p className="text-sarat-black-600 max-w-2xl text-lg leading-relaxed">
-            {hasAnything ? t('intro') : t('introEmpty')}
+            {profile ? (hasAnything ? t('intro') : t('introEmpty')) : t('introSignedOut')}
           </p>
+          {/* Signed out: the hub can only show what this device's cookies
+              hint at, so say so and offer the way in — "Nothing here yet"
+              told a returning guest on a new phone that their bookings
+              didn't exist (2026-09 UX audit P1-4). */}
+          {!profile && (
+            <div className="mt-2 flex flex-wrap gap-3">
+              <Link
+                href="/sign-in?next=/me"
+                className={cn(buttonVariants({ variant: 'primary', size: 'lg' }))}
+              >
+                {t('signInCta')}
+              </Link>
+              {!hasAnything && (
+                <Link
+                  href="/experiences"
+                  className={cn(buttonVariants({ variant: 'secondary', size: 'lg' }))}
+                >
+                  {t('emptyCta')}
+                </Link>
+              )}
+            </div>
+          )}
           {profile && (
             <div className="border-sarat-black/8 rounded-card mt-2 flex flex-wrap items-center gap-x-6 gap-y-5 [border-width:0.5px] p-5 sm:p-6">
               <Avatar name={profile.name} src={profile.avatarUrl ?? undefined} size="lg" />
@@ -155,7 +177,10 @@ export default async function MePage({ params }: { params: Promise<{ locale: str
         </div>
       </section>
 
-      {!hasAnything && (
+      {/* The empty state is for a signed-in guest with nothing yet; signed
+          out, the sign-in prompt above is the whole message (one empty
+          state, not two stacked ones). */}
+      {profile && !hasAnything && (
         <section className="border-sarat-black/8 [border-top-width:0.5px]">
           <div className="mx-auto w-full max-w-6xl px-6 py-16 sm:py-20">
             <EmptyState

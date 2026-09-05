@@ -112,6 +112,9 @@ export default async function HelpPage({ params }: { params: Promise<{ locale: s
   const tierDesc = tierDescriptions(tiers, tTiers);
   const values = {
     approvalHours: settings.approvalWindowHours,
+    // Guest refunds are wired by hand while the bank-transfer rail is on;
+    // the host-cancel answer selects its wording on this (P1-5).
+    refundRail: settings.refundsViaBankTransfer ? 'bank' : 'card',
     flexDesc: tierDesc.flexible,
     modDesc: tierDesc.moderate,
     strictDesc: tierDesc.strict,

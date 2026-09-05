@@ -47,6 +47,8 @@ export interface AdminModerationResult {
     | 'needs_arabic_moments'
     | 'needs_arabic_lists';
   fieldError?: string;
+  /** Echo of the reviewer's typed note so a failed submit never wipes it (2026-09 UX audit P1-6). */
+  values?: { reviewerNotes: string };
 }
 
 function formValue(formData: FormData, key: string): string {
@@ -70,13 +72,14 @@ export async function approveExperience(
 ): Promise<AdminModerationResult> {
   const guard = await requireAdmin();
   if ('error' in guard) return guard.error;
+  const values = { reviewerNotes: formValue(formData, 'reviewerNotes') };
 
   const parsed = approveExperienceSchema.safeParse({
     experienceId: formValue(formData, 'experienceId'),
     reviewerNotes: formValue(formData, 'reviewerNotes'),
     locale: formValue(formData, 'locale'),
   });
-  if (!parsed.success) return { success: false, message: 'validation' };
+  if (!parsed.success) return { success: false, message: 'validation', values };
   const { experienceId, reviewerNotes, locale } = parsed.data;
 
   try {
@@ -99,15 +102,15 @@ export async function approveExperience(
       },
       with: { moments: { columns: { titleAr: true, descriptionAr: true } } },
     });
-    if (!row) return { success: false, message: 'not_found' };
-    if (!row.heroImage) return { success: false, message: 'needs_hero' };
+    if (!row) return { success: false, message: 'not_found', values };
+    if (!row.heroImage) return { success: false, message: 'needs_hero', values };
     if (row.titleAr.startsWith('TODO(ar') || row.descriptionAr.startsWith('TODO(ar')) {
-      return { success: false, message: 'needs_arabic' };
+      return { success: false, message: 'needs_arabic', values };
     }
     // Hosts may draft in Arabic only (2026-08-22) — the English side is
     // the team's to fill before the listing reaches the catalog.
     if (row.titleEn.trim() === '' || row.descriptionEn.trim() === '') {
-      return { success: false, message: 'needs_english' };
+      return { success: false, message: 'needs_english', values };
     }
     // Host-added moments are stamped with the same placeholder — without
     // this check the Arabic detail page ships an English-only timeline.
@@ -116,7 +119,7 @@ export async function approveExperience(
         (m) => m.titleAr.startsWith('TODO(ar') || m.descriptionAr.startsWith('TODO(ar'),
       )
     ) {
-      return { success: false, message: 'needs_arabic_moments' };
+      return { success: false, message: 'needs_arabic_moments', values };
     }
     // Empty Arabic lists fall back to the seed dictionary, which only
     // covers seeded strings — host-typed items would render in English.
@@ -124,7 +127,7 @@ export async function approveExperience(
       (row.inclusions.length > 0 && row.inclusionsAr.length === 0) ||
       (row.whatToBring.length > 0 && row.whatToBringAr.length === 0)
     ) {
-      return { success: false, message: 'needs_arabic_lists' };
+      return { success: false, message: 'needs_arabic_lists', values };
     }
 
     // Conditional update: only flips if it's still pending_review.
@@ -134,7 +137,7 @@ export async function approveExperience(
       .where(and(eq(experiences.id, experienceId), eq(experiences.status, 'pending_review')))
       .returning({ id: experiences.id });
     if (updated.length === 0) {
-      return { success: false, message: 'wrong_state' };
+      return { success: false, message: 'wrong_state', values };
     }
     await db.insert(experienceModerationEvents).values({
       experienceId,
@@ -146,7 +149,7 @@ export async function approveExperience(
     });
   } catch (error) {
     reportError(error, { surface: 'admin:approveExperience', experienceId });
-    return { success: false, message: 'server' };
+    return { success: false, message: 'server', values };
   }
 
   // Tell the host — best-effort, never fails the decision.
@@ -247,6 +250,7 @@ export async function rejectExperience(
 ): Promise<AdminModerationResult> {
   const guard = await requireAdmin();
   if ('error' in guard) return guard.error;
+  const values = { reviewerNotes: formValue(formData, 'reviewerNotes') };
 
   const parsed = rejectExperienceSchema.safeParse({
     experienceId: formValue(formData, 'experienceId'),
@@ -259,6 +263,7 @@ export async function rejectExperience(
       success: false,
       message: 'validation',
       fieldError: issue?.message ?? 'invalid',
+      values,
     };
   }
   const { experienceId, reviewerNotes, locale } = parsed.data;
@@ -270,7 +275,7 @@ export async function rejectExperience(
       .where(and(eq(experiences.id, experienceId), eq(experiences.status, 'pending_review')))
       .returning({ id: experiences.id });
     if (updated.length === 0) {
-      return { success: false, message: 'wrong_state' };
+      return { success: false, message: 'wrong_state', values };
     }
     await db.insert(experienceModerationEvents).values({
       experienceId,
@@ -282,7 +287,7 @@ export async function rejectExperience(
     });
   } catch (error) {
     reportError(error, { surface: 'admin:rejectExperience', experienceId });
-    return { success: false, message: 'server' };
+    return { success: false, message: 'server', values };
   }
 
   // Tell the host — best-effort, never fails the decision.
@@ -309,6 +314,7 @@ export async function requestExperienceChanges(
 ): Promise<AdminModerationResult> {
   const guard = await requireAdmin();
   if ('error' in guard) return guard.error;
+  const values = { reviewerNotes: formValue(formData, 'reviewerNotes') };
 
   const parsed = requestChangesSchema.safeParse({
     experienceId: formValue(formData, 'experienceId'),
@@ -321,6 +327,7 @@ export async function requestExperienceChanges(
       success: false,
       message: 'validation',
       fieldError: issue?.message ?? 'invalid',
+      values,
     };
   }
   const { experienceId, reviewerNotes, locale } = parsed.data;
@@ -332,7 +339,7 @@ export async function requestExperienceChanges(
       .where(and(eq(experiences.id, experienceId), eq(experiences.status, 'pending_review')))
       .returning({ id: experiences.id });
     if (updated.length === 0) {
-      return { success: false, message: 'wrong_state' };
+      return { success: false, message: 'wrong_state', values };
     }
     await db.insert(experienceModerationEvents).values({
       experienceId,
@@ -344,7 +351,7 @@ export async function requestExperienceChanges(
     });
   } catch (error) {
     reportError(error, { surface: 'admin:requestExperienceChanges', experienceId });
-    return { success: false, message: 'server' };
+    return { success: false, message: 'server', values };
   }
 
   // Tell the host — best-effort, never fails the decision.

@@ -193,9 +193,14 @@ export function HostShell({
           <div className="mx-auto w-full max-w-6xl">{children}</div>
         </main>
 
-        {/* Bottom tab bar (below lg) */}
+        {/* Bottom tab bar (below lg). `data-bottom-dock` joins the shared
+            bottom-overlay stack (app/globals.css): the cookie notice and
+            the toast viewport offset themselves by `--bottom-dock`, so they
+            stack above the tabs instead of covering them (2026-09 UX audit
+            P1-2). */}
         <nav
           aria-label={t('tabsLabel')}
+          data-bottom-dock
           className="border-sarat-black/8 fixed inset-x-0 bottom-0 z-30 grid grid-cols-5 [border-block-start-width:0.5px] bg-white/95 pb-[env(safe-area-inset-bottom)] backdrop-blur lg:hidden"
         >
           {TABS.map((tab) => {

@@ -213,8 +213,11 @@ export default async function HostEarningsPage({
             </form>
           </section>
 
-          {/* Rollups — where the money came from, and when. */}
-          <section className="grid gap-6 lg:grid-cols-2">
+          {/* Rollups — where the money came from, and when. `grid-cols-1`
+              (minmax(0,1fr)) matters: without it the single auto track
+              sizes to the rows' nowrap `truncate` titles and the page
+              scrolled sideways at 375px (2026-09 UX audit P1-1). */}
+          <section className="grid grid-cols-1 gap-6 lg:grid-cols-2">
             <div className="border-sarat-black/8 rounded-card flex flex-col gap-4 [border-width:0.5px] p-6">
               <h2 className="font-display text-2xl font-medium tracking-[-0.025em]">
                 {t('breakdown.title')}

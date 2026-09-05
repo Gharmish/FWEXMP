@@ -117,8 +117,12 @@ export default async function CancellationPolicyPage({
       heading: t('refunds.heading'),
       body: (
         <>
-          <p>{t('refunds.body1')}</p>
-          <p>{t('refunds.body2')}</p>
+          {/* The rail is a live setting: while refunds are wired by hand
+              (the default), this page must not promise automatic card
+              refunds — the cancel flow asks for an IBAN (2026-09 UX audit
+              P1-5). */}
+          <p>{settings.refundsViaBankTransfer ? t('refunds.body1Bank') : t('refunds.body1')}</p>
+          <p>{settings.refundsViaBankTransfer ? t('refunds.body2Bank') : t('refunds.body2')}</p>
           {/* The emergency-cancel flow returns the full payment as Gharmish
               Credit with an opt-in back to card — a refund path this page
               never disclosed before the 2026-08-02 legal audit. */}

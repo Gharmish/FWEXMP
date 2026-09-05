@@ -138,8 +138,9 @@ export async function listHostsForAdmin(): Promise<readonly AdminHostRow[]> {
       return b.createdAt.localeCompare(a.createdAt);
     });
   } catch (error) {
+    // Rethrow: empty-on-error made a DB failure indistinguishable from an empty queue; the admin error boundary owns failures (2026-09 UX audit P1-7).
     reportError(error, { surface: 'admin:listHosts' });
-    return [];
+    throw error;
   }
 }
 
@@ -216,7 +217,8 @@ export async function getHostForAdmin(id: string): Promise<AdminHostDetail | nul
       statusEvents: eventViews,
     };
   } catch (error) {
+    // Rethrow: empty-on-error made a DB failure indistinguishable from an empty queue; the admin error boundary owns failures (2026-09 UX audit P1-7).
     reportError(error, { surface: 'admin:getHost', hostId: id });
-    return null;
+    throw error;
   }
 }

@@ -323,8 +323,9 @@ export async function listPendingRequestsForHost(
       .limit(limit);
     return rows.map(toRow);
   } catch (error) {
+    // Rethrow: a false 'nothing scheduled' during a DB blip is worse than the error boundary — same rule as the bookings list and earnings queries (2026-09 UX audit P1-8).
     reportError(error, { surface: 'host-bookings:pendingRequests' });
-    return [];
+    throw error;
   }
 }
 
@@ -351,8 +352,9 @@ export async function listAwaitingPaymentForHost(
       .limit(limit);
     return rows.map(toRow);
   } catch (error) {
+    // Rethrow: a false 'nothing scheduled' during a DB blip is worse than the error boundary — same rule as the bookings list and earnings queries (2026-09 UX audit P1-8).
     reportError(error, { surface: 'host-bookings:awaitingPayment' });
-    return [];
+    throw error;
   }
 }
 
@@ -405,8 +407,9 @@ export async function listComingUpForHost(days: number): Promise<readonly HostCo
       paymentDeadline: r.paymentDeadline?.toISOString() ?? null,
     }));
   } catch (error) {
+    // Rethrow: a false 'nothing scheduled' during a DB blip is worse than the error boundary — same rule as the bookings list and earnings queries (2026-09 UX audit P1-8).
     reportError(error, { surface: 'host-bookings:comingUp' });
-    return [];
+    throw error;
   }
 }
 
@@ -445,8 +448,9 @@ export async function listCalendarDaysForHost(month: string): Promise<readonly H
       .orderBy(asc(bookings.date));
     return rows;
   } catch (error) {
+    // Rethrow: a false 'nothing scheduled' during a DB blip is worse than the error boundary — same rule as the bookings list and earnings queries (2026-09 UX audit P1-8).
     reportError(error, { surface: 'host-bookings:calendar', month });
-    return [];
+    throw error;
   }
 }
 
@@ -465,7 +469,8 @@ export async function countPendingRequestsForHost(): Promise<number> {
       .where(and(eq(experiences.hostId, hostId), inArray(bookings.status, ['pending'])));
     return count;
   } catch (error) {
+    // Rethrow: a false 'nothing scheduled' during a DB blip is worse than the error boundary — same rule as the bookings list and earnings queries (2026-09 UX audit P1-8).
     reportError(error, { surface: 'host-bookings:countPending' });
-    return 0;
+    throw error;
   }
 }

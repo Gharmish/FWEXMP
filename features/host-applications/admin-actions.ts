@@ -59,6 +59,8 @@ export interface AdminApplyResult {
     | 'server'
     | 'documents_incomplete';
   fieldError?: string;
+  /** Echo of the reviewer's typed note so a failed submit never wipes it (2026-09 UX audit P1-6). */
+  values?: { reviewerNotes: string };
 }
 
 function formValue(formData: FormData, key: string): string {
@@ -80,6 +82,7 @@ export async function approveApplication(
 ): Promise<AdminApplyResult> {
   const guard = await requireAdmin();
   if ('error' in guard) return guard.error;
+  const values = { reviewerNotes: formValue(formData, 'reviewerNotes') };
 
   const parsed = approveApplicationSchema.safeParse({
     applicationId: formValue(formData, 'applicationId'),
@@ -87,7 +90,7 @@ export async function approveApplication(
     locale: formValue(formData, 'locale'),
   });
   if (!parsed.success) {
-    return { success: false, message: 'validation' };
+    return { success: false, message: 'validation', values };
   }
   const { applicationId, reviewerNotes, locale } = parsed.data;
 
@@ -112,7 +115,7 @@ export async function approveApplication(
       where: (a) => eq(a.id, applicationId),
       columns: { id: true, identityType: true },
     });
-    if (!pendingApp) return { success: false, message: 'not_found' };
+    if (!pendingApp) return { success: false, message: 'not_found', values };
     const docs = await db.query.hostApplicationDocuments.findMany({
       where: (d) => eq(d.applicationId, applicationId),
       columns: { type: true, status: true },
@@ -122,7 +125,7 @@ export async function approveApplication(
       (type) => !approvedTypes.has(type),
     );
     if (missingRequired.length > 0) {
-      return { success: false, message: 'documents_incomplete' };
+      return { success: false, message: 'documents_incomplete', values };
     }
 
     await db.transaction(async (tx) => {
@@ -243,9 +246,9 @@ export async function approveApplication(
     });
   } catch (error) {
     reportError(error, { surface: 'admin:approveApplication', applicationId });
-    return { success: false, message: 'server' };
+    return { success: false, message: 'server', values };
   }
-  if (raced) return { success: false, message: raced };
+  if (raced) return { success: false, message: raced, values };
 
   // Tell the applicant — best-effort, never fails the approval.
   if (recipient) {
@@ -272,6 +275,7 @@ export async function rejectApplication(
 ): Promise<AdminApplyResult> {
   const guard = await requireAdmin();
   if ('error' in guard) return guard.error;
+  const values = { reviewerNotes: formValue(formData, 'reviewerNotes') };
 
   const parsed = rejectApplicationSchema.safeParse({
     applicationId: formValue(formData, 'applicationId'),
@@ -284,6 +288,7 @@ export async function rejectApplication(
       success: false,
       message: 'validation',
       fieldError: issue?.message ?? 'invalid',
+      values,
     };
   }
   const { applicationId, reviewerNotes, locale } = parsed.data;
@@ -335,9 +340,9 @@ export async function rejectApplication(
     });
   } catch (error) {
     reportError(error, { surface: 'admin:rejectApplication', applicationId });
-    return { success: false, message: 'server' };
+    return { success: false, message: 'server', values };
   }
-  if (raced) return { success: false, message: raced };
+  if (raced) return { success: false, message: raced, values };
 
   // Tell the applicant why (the note itself renders on /host/apply).
   if (recipient) {

@@ -101,8 +101,9 @@ export async function listConversationsForAdmin(): Promise<readonly AdminConvers
       .limit(CONVERSATIONS_LIST_LIMIT);
     return rows.map(toRow);
   } catch (error) {
+    // Rethrow: empty-on-error made a DB failure indistinguishable from an empty queue; the admin error boundary owns failures (2026-09 UX audit P1-7).
     reportError(error, { surface: 'support:listConversations' });
-    return [];
+    throw error;
   }
 }
 
@@ -143,7 +144,10 @@ export async function getConversationThread(id: string): Promise<ConversationThr
         createdAt: conversationMessages.createdAt,
       })
       .from(conversationMessages)
-      .leftJoin(notificationDeliveries, eq(notificationDeliveries.id, conversationMessages.deliveryId))
+      .leftJoin(
+        notificationDeliveries,
+        eq(notificationDeliveries.id, conversationMessages.deliveryId),
+      )
       .where(eq(conversationMessages.conversationId, id))
       .orderBy(conversationMessages.createdAt)
       .limit(500);
@@ -164,8 +168,9 @@ export async function getConversationThread(id: string): Promise<ConversationThr
     }));
     return { conversation: toRow(head), messages: mapped };
   } catch (error) {
+    // Rethrow: empty-on-error made a DB failure indistinguishable from an empty queue; the admin error boundary owns failures (2026-09 UX audit P1-7).
     reportError(error, { surface: 'support:getThread', id });
-    return null;
+    throw error;
   }
 }
 
@@ -236,8 +241,9 @@ export async function listOpenTicketsForAdmin(): Promise<readonly AdminTicketRow
       .limit(TICKETS_LIST_LIMIT);
     return rows.map(toTicketRow);
   } catch (error) {
+    // Rethrow: empty-on-error made a DB failure indistinguishable from an empty queue; the admin error boundary owns failures (2026-09 UX audit P1-7).
     reportError(error, { surface: 'support:listTickets' });
-    return [];
+    throw error;
   }
 }
 
@@ -258,7 +264,8 @@ export async function listTicketsForConversation(
       .limit(20);
     return rows.map(toTicketRow);
   } catch (error) {
+    // Rethrow: empty-on-error made a DB failure indistinguishable from an empty queue; the admin error boundary owns failures (2026-09 UX audit P1-7).
     reportError(error, { surface: 'support:ticketsForConversation', conversationId });
-    return [];
+    throw error;
   }
 }

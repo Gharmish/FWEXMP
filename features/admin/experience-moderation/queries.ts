@@ -116,8 +116,9 @@ export async function listModerationQueue(
       return (b.submittedAt ?? '').localeCompare(a.submittedAt ?? '');
     });
   } catch (error) {
+    // Rethrow: empty-on-error made a DB failure indistinguishable from an empty queue; the admin error boundary owns failures (2026-09 UX audit P1-7).
     reportError(error, { surface: 'admin:listModerationQueue' });
-    return [];
+    throw error;
   }
 }
 
@@ -180,8 +181,9 @@ export async function getModerationDetail(id: string): Promise<ModerationDetail 
       submittedAt,
     };
   } catch (error) {
+    // Rethrow: empty-on-error made a DB failure indistinguishable from an empty queue; the admin error boundary owns failures (2026-09 UX audit P1-7).
     reportError(error, { surface: 'admin:getModerationDetail', experienceId: id });
-    return null;
+    throw error;
   }
 }
 
