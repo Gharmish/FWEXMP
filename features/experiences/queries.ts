@@ -312,10 +312,15 @@ export async function getAllSlugsWithDates(): Promise<
 > {
   if (!hasDb()) return sample.getAllSlugs().map((slug) => ({ slug, lastModified: null }));
   try {
-    const rows = await db.query.experiences.findMany({
-      where: (e) => eq(e.status, 'live'),
-      columns: { slug: true, updatedAt: true },
-    });
+    // Request-time public path (the sitemap is served on demand to
+    // crawlers): a poisoned-pool hang is not an error the catch below
+    // sees — it is exactly what boundedQuery exists for (DATA-10).
+    const rows = await boundedQuery('sitemap:experienceSlugs', () =>
+      db.query.experiences.findMany({
+        where: (e) => eq(e.status, 'live'),
+        columns: { slug: true, updatedAt: true },
+      }),
+    );
     return rows.map((r) => ({ slug: r.slug, lastModified: r.updatedAt }));
   } catch (error) {
     reportError(error, { surface: 'experiences:getAllSlugsWithDates' });

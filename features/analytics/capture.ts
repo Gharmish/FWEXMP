@@ -1,12 +1,12 @@
+import { ADMIN_MFA_COOKIE } from '@/features/admin/mfa';
 import { after } from 'next/server';
-import { headers } from 'next/headers';
+import { cookies, headers } from 'next/headers';
 import { sql, type SQL } from 'drizzle-orm';
 import { getAnalyticsDb } from '@/lib/db';
 import { analyticsEvents, experiences } from '@/db/schema';
 import { serverEnv } from '@/lib/env';
 import { reportError } from '@/lib/log';
 import { withDeadline } from '@/lib/deadline';
-import { getCurrentUser } from '@/features/auth/queries';
 import { SITE_URL } from '@/lib/site';
 import type { UtmParams } from '@/features/analytics/types';
 
@@ -96,9 +96,15 @@ async function requestMeta(): Promise<RequestMeta | null> {
   const device: RequestMeta['device'] = /mobile|android|iphone|ipad|ipod/i.test(ua)
     ? 'mobile'
     : 'desktop';
-  // getCurrentUser is request-cached; the navbar has already paid for it.
-  const user = await getCurrentUser().catch(() => null);
-  if (user?.isAdmin) return null;
+  // Admin exclusion from a COOKIE, not a session round-trip (2026-09
+  // engineering audit PERF-01): getCurrentUser() is an HTTPS call to
+  // Supabase Auth plus a roles query for any visitor with a session cookie,
+  // and this ran before the page could flush — so signed-in guests and
+  // hosts paid it in TTFB on every public page. The verified-admin MFA
+  // marker is set for 12h at admin sign-in and is enough to keep our own
+  // browsing out of the funnel numbers.
+  const jar = await cookies();
+  if (jar.has(ADMIN_MFA_COOKIE)) return null;
   return { referrerHost, device };
 }
 

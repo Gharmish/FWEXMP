@@ -1,3 +1,4 @@
+import { getPlatformSettings } from '@/lib/platform-settings';
 import type { Metadata } from 'next';
 import type { ReactNode } from 'react';
 import {
@@ -304,6 +305,9 @@ export default async function BookingConfirmedPage({ params, searchParams }: Pag
   // (signed-in account), never for a cookie-only viewer.
   const isWalletRefunded = booking?.status === 'refunded' && booking.refundMethod === 'wallet';
   const walletOwner = isWalletRefunded && booking ? sessionGuestId === booking.guestId : false;
+  // The wallet's refund-to-card exception is a gateway reversal; hidden
+  // while refunds are wired by hand (MONEY-04, see refund-out-actions.ts).
+  const { refundsViaBankTransfer } = await getPlatformSettings();
   const walletCreditSar = booking ? booking.totalAmountSar + booking.walletAppliedSar : 0;
   // Manual bank-transfer refunds (owner decision 2026-08-21): the payee
   // block's copy is shared by the cancel form (collected up front) and
@@ -1151,7 +1155,7 @@ export default async function BookingConfirmedPage({ params, searchParams }: Pag
               // cookie-only) viewer to sign in rather than look broken.
               <p className="text-sarat-black-600 text-sm">{t('walletCredit.signInHint')}</p>
             )}
-            {walletOwner && booking.totalAmountSar > 0 && (
+            {walletOwner && !refundsViaBankTransfer && booking.totalAmountSar > 0 && (
               <RefundToCardButton
                 reference={ref}
                 locale={loc}

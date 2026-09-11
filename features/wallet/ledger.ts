@@ -34,14 +34,39 @@ export type WalletEntryInput = Pick<
  * guest's credit at checkout. Callers that can tolerate a miss
  * (`features/wallet/queries.ts`) already catch.
  */
+/**
+ * What the guest may spend now: the ledger sum minus lots that have
+ * expired but not yet been swept, mirroring the cron's expiry rule
+ * (each expiry is floored at balance minus the protected refund-credit
+ * remainder). Exported for the balance read and its tests (MONEY-07).
+ */
+export function spendableBalance(row?: {
+  balance: number;
+  expiredUnswept: number;
+  refundCredits: number;
+  refundOuts: number;
+}): number {
+  if (!row) return 0;
+  const protectedSar = Math.max(0, row.refundCredits - row.refundOuts);
+  const expirable = Math.max(0, row.balance - protectedSar);
+  return Math.max(0, row.balance - Math.min(row.expiredUnswept, expirable));
+}
+
+/** SQL aggregates `spendableBalance` needs — one statement, shared by apply and display. */
+export function spendableBalanceColumns() {
+  return {
+    balance: sql<number>`coalesce(sum(${walletLedger.amountSar}), 0)::int`,
+    expiredUnswept: sql<number>`coalesce(sum(${walletLedger.amountSar}) filter (where ${walletLedger.amountSar} > 0 and ${walletLedger.expiresAt} is not null and ${walletLedger.expiresAt} <= now() and not exists (select 1 from wallet_ledger sweep where sweep.idempotency_key = 'expiry:' || wallet_ledger.id::text)), 0)::int`,
+    refundCredits: sql<number>`coalesce(sum(${walletLedger.amountSar}) filter (where ${walletLedger.type} = 'refund_credit'), 0)::int`,
+    refundOuts: sql<number>`coalesce(sum(-${walletLedger.amountSar}) filter (where ${walletLedger.type} = 'reversal' and ${walletLedger.idempotencyKey} like 'refund-out:%'), 0)::int`,
+  };
+}
+
 export async function getWalletBalanceSar(guestId: string): Promise<number> {
   const [row] = await boundedQuery('wallet:balance', () =>
-    db
-      .select({ balance: sql<number>`coalesce(sum(${walletLedger.amountSar}), 0)::int` })
-      .from(walletLedger)
-      .where(eq(walletLedger.guestId, guestId)),
+    db.select(spendableBalanceColumns()).from(walletLedger).where(eq(walletLedger.guestId, guestId)),
   );
-  return row?.balance ?? 0;
+  return spendableBalance(row);
 }
 
 /** Full credit history for a guest, newest first. */

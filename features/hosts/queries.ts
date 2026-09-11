@@ -151,10 +151,12 @@ export async function getAllHostSlugsWithDates(): Promise<
 > {
   if (!hasDb()) return sample.getAllHostSlugs().map((slug) => ({ slug, lastModified: null }));
   try {
-    const rows = await db.query.hosts.findMany({
-      columns: { slug: true, createdAt: true },
-      where: (h) => eq(h.verificationStatus, 'verified'),
-    });
+    const rows = await boundedQuery('sitemap:hostSlugs', () =>
+      db.query.hosts.findMany({
+        columns: { slug: true, createdAt: true },
+        where: (h) => eq(h.verificationStatus, 'verified'),
+      }),
+    );
     return rows.map((r) => ({ slug: r.slug, lastModified: r.createdAt }));
   } catch (error) {
     reportError(error, { surface: 'hosts:getAllHostSlugsWithDates' });

@@ -1,5 +1,6 @@
 'use server';
 
+import { spendableBalance, spendableBalanceColumns } from '@/features/wallet/ledger';
 import { and, eq, sql } from 'drizzle-orm';
 import { revalidatePath } from 'next/cache';
 import { db } from '@/lib/db';
@@ -148,10 +149,10 @@ export async function applyWalletCredit(
       // Apply is the only transaction holding both, so no cycle exists.
       await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${'wallet:' + booking.guestId}))`);
       const [balanceRow] = await tx
-        .select({ balance: sql<number>`coalesce(sum(${walletLedger.amountSar}), 0)::int` })
+        .select(spendableBalanceColumns())
         .from(walletLedger)
         .where(eq(walletLedger.guestId, booking.guestId));
-      const balanceSar = balanceRow?.balance ?? 0;
+      const balanceSar = spendableBalance(balanceRow);
 
       // The card must still charge ≥ MIN_CHARGE_SAR — HyperPay cannot
       // charge below 1 SAR, and full-credit bookings are a later phase.

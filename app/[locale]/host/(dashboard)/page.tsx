@@ -1,3 +1,4 @@
+import { boundedQuery } from '@/lib/deadline';
 import type { Metadata } from 'next';
 import { ArrowRight, Check, Circle, Star } from 'lucide-react';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
@@ -67,32 +68,27 @@ export default async function HostDashboardPage({
   }
   const { host } = dashboard;
 
-  const [
-    t,
-    tBookings,
-    tEarn,
-    facts,
-    pendingRequests,
-    pendingCount,
-    awaitingPayment,
-    comingUp,
-    earnings,
-    reviewAggregate,
-    reviewPage,
-    responseStats,
-  ] = await Promise.all([
-    getTranslations('hostDashboard'),
-    getTranslations('hostBookings'),
-    getTranslations('hostEarnings'),
-    getHostTodayFacts(),
-    listPendingRequestsForHost(REQUEST_PREVIEW_LIMIT),
-    countPendingRequestsForHost(),
-    listAwaitingPaymentForHost(5),
-    listComingUpForHost(COMING_UP_DAYS),
-    getHostEarningsTotals(),
-    getHostReviewAggregate(),
-    listReviewsForHost({ page: 0, pageSize: 1 }),
-    getHostResponseStatsById(host.id),
+  // Two waves of ≤5 statements, each deadline-bounded (2026-09
+  // engineering audit PERF-03): this page used to fire ~13 unbounded
+  // statements at once against a 5-connection pool, so one poisoned slot
+  // hung the whole dashboard until the function timeout with no Sentry
+  // signal — the failure mode lib/deadline.ts documents from production.
+  const [t, tBookings, tEarn, facts, pendingRequests, pendingCount, awaitingPayment] =
+    await Promise.all([
+      getTranslations('hostDashboard'),
+      getTranslations('hostBookings'),
+      getTranslations('hostEarnings'),
+      boundedQuery('host:today', () => getHostTodayFacts()),
+      boundedQuery('host:pendingRequests', () => listPendingRequestsForHost(REQUEST_PREVIEW_LIMIT)),
+      boundedQuery('host:pendingCount', () => countPendingRequestsForHost()),
+      boundedQuery('host:awaitingPayment', () => listAwaitingPaymentForHost(5)),
+    ]);
+  const [comingUp, earnings, reviewAggregate, reviewPage, responseStats] = await Promise.all([
+    boundedQuery('host:comingUp', () => listComingUpForHost(COMING_UP_DAYS)),
+    boundedQuery('host:earnings', () => getHostEarningsTotals()),
+    boundedQuery('host:reviewAggregate', () => getHostReviewAggregate()),
+    boundedQuery('host:reviewPage', () => listReviewsForHost({ page: 0, pageSize: 1 })),
+    boundedQuery('host:responseStats', () => getHostResponseStatsById(host.id)),
   ]);
 
   const today = todayInRiyadh();
@@ -109,9 +105,7 @@ export default async function HostDashboardPage({
       value,
     );
   const averageDisplay =
-    reviewAggregate.average !== null
-      ? formatRating(reviewAggregate.average, loc)
-      : null;
+    reviewAggregate.average !== null ? formatRating(reviewAggregate.average, loc) : null;
 
   // ---- Setup checklist: visible only while something is missing. ----
   const listings = facts?.listings ?? {

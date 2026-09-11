@@ -82,7 +82,10 @@ vi.mock('@/lib/db', () => {
     select: (cols: Record<string, unknown>) => ({
       from: () => {
         const resolve = () => {
-          if ('balance' in cols) return [{ balance }];
+          // The spendable-balance aggregate row (features/wallet/ledger.ts):
+          // nothing expired or protected in these fixtures.
+          if ('balance' in cols)
+            return [{ balance, expiredUnswept: 0, refundCredits: 0, refundOuts: 0 }];
           if ('n' in cols) return [{ n: redemptionCount }];
           return lockedRow ? [lockedRow] : [];
         };

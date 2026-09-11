@@ -1,5 +1,6 @@
 'use server';
 
+import { getPlatformSettings } from '@/lib/platform-settings';
 import { eq, sql } from 'drizzle-orm';
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
@@ -108,6 +109,14 @@ export async function requestRefundToCard(
       booking.totalAmount > 0 &&
       booking.paymentReference !== null;
     if (!eligible) return { status: 'error', error: 'not_eligible' };
+    // Refund-out is a refund-to-SOURCE gateway reversal — never a transfer
+    // to an arbitrary bank account (SAMA posture, this module's contract).
+    // While refunds are wired by hand the gateway leg is skipped, which
+    // would have turned "move it back to my card" into a bank transfer to
+    // a guest-supplied IBAN (2026-09 engineering audit MONEY-04). The
+    // credit simply stays spendable until the gateway rail is back on.
+    const { refundsViaBankTransfer } = await getPlatformSettings();
+    if (refundsViaBankTransfer) return { status: 'error', error: 'not_eligible' };
 
     let outcome: 'ok' | 'insufficient_balance' | 'source_cap';
     try {

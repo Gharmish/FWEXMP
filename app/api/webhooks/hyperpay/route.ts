@@ -1,3 +1,5 @@
+import { getCheckoutIdForReference } from '@/features/payments/queries';
+import { isSuccessfulResult } from '@/features/payments/lib/hyperpay';
 import { after, NextResponse, type NextRequest } from 'next/server';
 import { decryptOppwaNotification } from '@/features/payments/lib/webhook-crypto';
 import { serverEnv } from '@/lib/env';
@@ -63,7 +65,14 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   try {
     const notification = JSON.parse(decrypted) as {
       type?: string;
-      payload?: { merchantTransactionId?: string };
+      payload?: {
+        merchantTransactionId?: string;
+        /** OPPWA's checkout id for this capture. */
+        ndc?: string;
+        id?: string;
+        result?: { code?: string };
+        amount?: string;
+      };
     };
     // Only payment notifications are actionable; acknowledge the rest
     // (REGISTRATION / RISK / test pings) so OPPWA stops retrying them.
@@ -71,6 +80,37 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
     const reference = notification.payload?.merchantTransactionId;
     if (!reference || !UUID_RE.test(reference)) return NextResponse.json({ received: true });
+
+    // A successful capture on a checkout that is no longer the booking's
+    // CURRENT one (a promo/credit change or a second tab prepared a newer
+    // checkout) can never settle: settleBooking only polls the current id,
+    // so the guest was charged with nothing recorded and nobody told
+    // (2026-09 engineering audit MONEY-03). Name it to a human here; the
+    // existing auto-refund/anomaly machinery takes it from the console.
+    const ndc = notification.payload?.ndc;
+    const resultCode = notification.payload?.result?.code;
+    if (ndc && resultCode && isSuccessfulResult(resultCode)) {
+      const current = await getCheckoutIdForReference(reference);
+      if (current && current !== ndc) {
+        reportError(new Error('capture on a superseded checkout'), {
+          surface: 'hyperpay-webhook:superseded-capture',
+          reference,
+        });
+        await notifyAdmin(
+          'settle_anomaly',
+          {
+            reference,
+            problem:
+              'successful capture reported for a SUPERSEDED checkout — verify at HyperPay and refund or record it',
+            capturedCheckoutId: ndc,
+            currentCheckoutId: current,
+            paymentId: notification.payload?.id ?? null,
+            amount: notification.payload?.amount ?? null,
+          },
+          { fingerprint: `superseded-capture:${reference}:${ndc}`, quietWindowMs: 24 * 3_600_000 },
+        );
+      }
+    }
 
     const outcome = await settleBooking(reference);
     // The webhook fires exactly when the guest never made it back to the

@@ -1,5 +1,6 @@
 import type { NextConfig } from 'next';
 import createNextIntlPlugin from 'next-intl/plugin';
+import { withSentryConfig } from '@sentry/nextjs';
 
 const withNextIntl = createNextIntlPlugin('./lib/request.ts');
 
@@ -108,4 +109,24 @@ const nextConfig: NextConfig = {
   },
 };
 
-export default withNextIntl(nextConfig);
+const config = withNextIntl(nextConfig);
+
+/**
+ * Sentry build plugin (2026-09 engineering audit DEPS-04): uploads source
+ * maps and stamps the release so production errors arrive as readable
+ * frames instead of `chunks/1234-abc.js:1:48213`. Only when the auth token
+ * is present — local and CI builds have none and must not fail or slow
+ * down for it. No tunnelRoute: the locale proxy would need a matcher
+ * exception for it, and ad-block loss on the browser rail is acceptable
+ * while server errors already report directly.
+ */
+export default process.env.SENTRY_AUTH_TOKEN
+  ? withSentryConfig(config, {
+      org: process.env.SENTRY_ORG,
+      project: process.env.SENTRY_PROJECT,
+      authToken: process.env.SENTRY_AUTH_TOKEN,
+      silent: !process.env.CI,
+      widenClientFileUpload: true,
+      disableLogger: true,
+    })
+  : config;
