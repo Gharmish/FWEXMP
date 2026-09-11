@@ -108,12 +108,22 @@ pnpm start         # run production build locally
 pnpm typecheck     # TypeScript check across the project
 pnpm lint          # ESLint
 pnpm format        # Prettier write
-pnpm test          # Vitest (when added)
+pnpm test          # Vitest unit suite (~100 files, runs in ~3s)
+pnpm test:coverage # Vitest with v8 coverage report
+pnpm test:e2e      # Playwright smoke (sample-data mode)
+pnpm scan          # typecheck + lint + test in one go (scripts/scan.ts)
 
 pnpm db:push       # push schema to Supabase
 pnpm db:studio     # open Drizzle Studio in browser
 pnpm db:seed       # run the seed script
-pnpm db:generate   # generate migration from schema diff
+pnpm db:generate   # generate migration from schema diff (run after EVERY db/schema.ts change; db/schema-snapshot.test.ts fails otherwise)
+pnpm db:check      # connectivity/health probe (scripts/db-check.ts)
+pnpm whatsapp:templates   # sync the WhatsApp template registry with Twilio (scripts/whatsapp-templates.ts)
+pnpm auth:emails:install  # install Supabase auth email templates (needs SUPABASE_ACCESS_TOKEN + SUPABASE_PROJECT_REF)
+pnpm auth:emails:doctor   # check auth-email DNS (SPF/DKIM)
+
+# One-off tooling: scripts/generate-plex-arabic-metrics.py (needs Python fontTools)
+# regenerates lib/og/plex-arabic-metrics.ts when the Arabic OG font changes.
 ```
 
 ---
