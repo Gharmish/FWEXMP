@@ -2,6 +2,7 @@
 
 import { eq } from 'drizzle-orm';
 import { revalidatePath } from 'next/cache';
+import { revalidateExperienceCaches } from '@/lib/cache-tags';
 import { db } from '@/lib/db';
 import { guests, hosts, payoutIbanEvents, userProfileEvents } from '@/db/schema';
 import { reportError } from '@/lib/log';
@@ -334,6 +335,8 @@ export async function updateHostProfile(
     };
   }
 
+  // Host identity rides in the tagged public detail cache (2026-09 audit ACTIONS-03).
+  revalidateExperienceCaches();
   revalidateUser(key);
   return { success: true };
 }

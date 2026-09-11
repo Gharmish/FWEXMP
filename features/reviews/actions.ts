@@ -298,7 +298,7 @@ export async function replyToReview(
     if (updated.length === 0) return { success: false, message: 'already_replied', values };
 
     revalidateReviewCaches();
-    revalidatePath('/[locale]/host/reviews', 'page');
+    revalidatePath('/[locale]/host/(dashboard)/reviews', 'page');
     revalidatePath('/[locale]/experiences/[slug]', 'page');
   } catch (error) {
     reportError(error, { surface: 'reviews:replyToReview', reviewId });
@@ -375,7 +375,7 @@ export async function updateHostReply(
     if (updated.length === 0) return { success: false, message: 'expired', values };
 
     revalidateReviewCaches();
-    revalidatePath('/[locale]/host/reviews', 'page');
+    revalidatePath('/[locale]/host/(dashboard)/reviews', 'page');
     revalidatePath('/[locale]/experiences/[slug]', 'page');
   } catch (error) {
     reportError(error, { surface: 'reviews:updateHostReply', reviewId });

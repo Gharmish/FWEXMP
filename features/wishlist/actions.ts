@@ -53,7 +53,7 @@ function revalidateWishlistSurfaces(): void {
   // Pages that render saved-state badges or the wishlist itself.
   revalidatePath('/[locale]/wishlist', 'page');
   revalidatePath('/[locale]', 'page');
-  revalidatePath('/[locale]/experiences', 'page');
+  revalidatePath('/[locale]/experiences/(catalog)', 'page');
   revalidatePath('/[locale]/experiences/[slug]', 'page');
   revalidatePath('/[locale]/hosts/[slug]', 'page');
 }

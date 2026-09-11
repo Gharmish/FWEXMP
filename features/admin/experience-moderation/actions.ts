@@ -164,10 +164,10 @@ export async function approveExperience(
   // Dynamic-segment template — mixing a templated `[locale]` with a
   // concrete id wouldn't match the cached entry.
   revalidatePath('/[locale]/admin/experience-moderation/[id]', 'page');
-  revalidatePath('/[locale]/host', 'page');
-  revalidatePath('/[locale]/host/experiences/[id]', 'page');
+  revalidatePath('/[locale]/host/(dashboard)', 'page');
+  revalidatePath('/[locale]/host/(dashboard)/experiences/[id]', 'page');
   // The public detail page renders by slug — invalidate the bucket.
-  revalidatePath('/[locale]/experiences', 'page');
+  revalidatePath('/[locale]/experiences/(catalog)', 'page');
   revalidatePath('/[locale]/experiences/[slug]', 'page');
   redirect({ href: `/admin/experience-moderation/${experienceId}`, locale });
 }
@@ -237,7 +237,7 @@ export async function updateExperienceArabicCopy(
   // Dynamic-segment template — mixing a templated `[locale]` with a
   // concrete id wouldn't match the cached entry.
   revalidatePath('/[locale]/admin/experience-moderation/[id]', 'page');
-  revalidatePath('/[locale]/experiences', 'page');
+  revalidatePath('/[locale]/experiences/(catalog)', 'page');
   revalidatePath('/[locale]/experiences/[slug]', 'page');
   redirect({ href: `/admin/experience-moderation/${experienceId}`, locale });
 }
@@ -301,8 +301,8 @@ export async function rejectExperience(
   // Dynamic-segment template — mixing a templated `[locale]` with a
   // concrete id wouldn't match the cached entry.
   revalidatePath('/[locale]/admin/experience-moderation/[id]', 'page');
-  revalidatePath('/[locale]/host', 'page');
-  revalidatePath('/[locale]/host/experiences/[id]', 'page');
+  revalidatePath('/[locale]/host/(dashboard)', 'page');
+  revalidatePath('/[locale]/host/(dashboard)/experiences/[id]', 'page');
   redirect({ href: `/admin/experience-moderation/${experienceId}`, locale });
 }
 
@@ -365,7 +365,7 @@ export async function requestExperienceChanges(
   // Dynamic-segment template — mixing a templated `[locale]` with a
   // concrete id wouldn't match the cached entry.
   revalidatePath('/[locale]/admin/experience-moderation/[id]', 'page');
-  revalidatePath('/[locale]/host', 'page');
-  revalidatePath('/[locale]/host/experiences/[id]', 'page');
+  revalidatePath('/[locale]/host/(dashboard)', 'page');
+  revalidatePath('/[locale]/host/(dashboard)/experiences/[id]', 'page');
   redirect({ href: `/admin/experience-moderation/${experienceId}`, locale });
 }

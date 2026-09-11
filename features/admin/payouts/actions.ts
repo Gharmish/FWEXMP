@@ -41,6 +41,7 @@ export interface MarkPaidState {
     | 'suspended'
     | 'amount_changed'
     | 'nothing_owed'
+    | 'validation'
     | 'server';
   paidCount?: number;
 }
@@ -63,7 +64,8 @@ export async function markHostPaid(
     expectedAmountSar: formData.get('expectedAmountSar'),
   });
   if (!parsed.success) {
-    return { success: false, message: 'server' };
+    // A stale page or a tampered id — not an outage (2026-09 audit ACTIONS-07).
+    return { success: false, message: 'validation' };
   }
   const { hostId, expectedAmountSar } = parsed.data;
 

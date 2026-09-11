@@ -88,7 +88,7 @@ export function ReplyForm({
             </p>
           )}
           <div>
-            <Button type="submit" variant="primary" size="sm" disabled={replyPending}>
+            <Button type="submit" variant="primary" size="sm" pending={replyPending}>
               {replyPending ? copy.sending : copy.send}
             </Button>
           </div>
@@ -108,7 +108,7 @@ export function ReplyForm({
                 </p>
               )}
               <div>
-                <Button type="submit" variant="primary" size="sm" disabled={nudgePending}>
+                <Button type="submit" variant="primary" size="sm" pending={nudgePending}>
                   {nudgePending ? copy.nudgePending : copy.nudge}
                 </Button>
               </div>
@@ -127,7 +127,7 @@ export function ReplyForm({
             </p>
           )}
           <div>
-            <Button type="submit" variant="secondary" size="sm" disabled={botPending}>
+            <Button type="submit" variant="secondary" size="sm" pending={botPending}>
               {botPending ? copy.toBotPending : copy.toBot}
             </Button>
           </div>
@@ -143,7 +143,7 @@ export function ReplyForm({
           </p>
         )}
         <div>
-          <Button type="submit" variant="secondary" size="sm" disabled={statePending}>
+          <Button type="submit" variant="secondary" size="sm" pending={statePending}>
             {statePending
               ? nextState === 'closed'
                 ? copy.closePending

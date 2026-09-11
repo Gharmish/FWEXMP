@@ -160,9 +160,9 @@ export async function transitionBookingAsHost(
     return { success: false, message: 'server' };
   }
 
-  revalidatePath('/[locale]/host/bookings', 'page');
-  revalidatePath('/[locale]/host/bookings/[ref]', 'page');
-  revalidatePath('/[locale]/host', 'page');
+  revalidatePath('/[locale]/host/(dashboard)/bookings', 'page');
+  revalidatePath('/[locale]/host/(dashboard)/bookings/[ref]', 'page');
+  revalidatePath('/[locale]/host/(dashboard)', 'page');
   revalidatePath('/[locale]/admin/bookings', 'page');
   redirect({ href: withOutcome(returnTo, outcome, referenceCode, until), locale });
 }

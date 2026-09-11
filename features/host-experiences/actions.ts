@@ -251,10 +251,19 @@ async function requireOwnership(
 ): Promise<{ hostId: string } | { error: HostExperienceState }> {
   const guard = await requireHostId();
   if ('error' in guard) return guard;
-  const row = await db.query.experiences.findFirst({
-    where: (e) => and(eq(e.id, experienceId), eq(e.hostId, guard.hostId)),
-    columns: { id: true },
-  });
+  // A pooler hiccup here must surface as the form's `server` message, not
+  // reject the action into the error boundary (2026-09 engineering audit
+  // ACTIONS-05) — this gate fronts every host listing write.
+  let row: { id: string } | undefined;
+  try {
+    row = await db.query.experiences.findFirst({
+      where: (e) => and(eq(e.id, experienceId), eq(e.hostId, guard.hostId)),
+      columns: { id: true },
+    });
+  } catch (error) {
+    reportError(error, { surface: 'host-experiences:requireOwnership', experienceId });
+    return { error: { success: false, message: 'server' } };
+  }
   if (!row) return { error: { success: false, message: 'not_found' } };
   return { hostId: guard.hostId };
 }
@@ -373,7 +382,7 @@ export async function createDraftExperience(
     return { success: false, message: 'server', values: collectValues(formData) };
   }
 
-  revalidatePath('/[locale]/host', 'page');
+  revalidatePath('/[locale]/host/(dashboard)', 'page');
   redirect({ href: `/host/experiences/${newId}?created=1`, locale: input.locale });
 }
 
@@ -419,9 +428,15 @@ export async function updateHostExperience(
   const guard = await requireOwnership(experienceId);
   if ('error' in guard) return guard.error;
 
-  const current = await db.query.experiences.findFirst({
-    where: (e) => eq(e.id, experienceId),
-  });
+  let current: typeof experiences.$inferSelect | undefined;
+  try {
+    current = await db.query.experiences.findFirst({
+      where: (e) => eq(e.id, experienceId),
+    });
+  } catch (error) {
+    reportError(error, { surface: 'host-experiences:update:read', experienceId });
+    return { success: false, message: 'server', values: collectValues(formData) };
+  }
   if (!current) return { success: false, message: 'not_found' };
 
   // The reviewer reads a frozen listing: while it's in the queue the
@@ -546,14 +561,14 @@ export async function updateHostExperience(
   }
 
   revalidateExperienceCaches();
-  revalidatePath('/[locale]/host', 'page');
-  revalidatePath('/[locale]/host/experiences/[id]', 'page');
+  revalidatePath('/[locale]/host/(dashboard)', 'page');
+  revalidatePath('/[locale]/host/(dashboard)/experiences/[id]', 'page');
   // The public detail page renders by slug — invalidate the bucket.
   revalidatePath('/[locale]/experiences/[slug]', 'page');
   if (demoted) {
     // Newly demoted listings need to disappear from the catalog index
     // and show up in the admin moderation queue.
-    revalidatePath('/[locale]/experiences', 'page');
+    revalidatePath('/[locale]/experiences/(catalog)', 'page');
     revalidatePath('/[locale]/admin/experience-moderation', 'page');
   }
   redirect({
@@ -689,10 +704,10 @@ export async function publishHostExperience(
   }
 
   revalidateExperienceCaches();
-  revalidatePath('/[locale]/host', 'page');
-  revalidatePath('/[locale]/host/experiences/[id]', 'page');
+  revalidatePath('/[locale]/host/(dashboard)', 'page');
+  revalidatePath('/[locale]/host/(dashboard)/experiences/[id]', 'page');
   revalidatePath('/[locale]/admin/experience-moderation', 'page');
-  revalidatePath('/[locale]/experiences', 'page');
+  revalidatePath('/[locale]/experiences/(catalog)', 'page');
   redirect({ href: `/host/experiences/${experienceId}`, locale });
 }
 
@@ -728,9 +743,9 @@ export async function pauseHostExperience(
   }
 
   revalidateExperienceCaches();
-  revalidatePath('/[locale]/host', 'page');
-  revalidatePath('/[locale]/host/experiences/[id]', 'page');
-  revalidatePath('/[locale]/experiences', 'page');
+  revalidatePath('/[locale]/host/(dashboard)', 'page');
+  revalidatePath('/[locale]/host/(dashboard)/experiences/[id]', 'page');
+  revalidatePath('/[locale]/experiences/(catalog)', 'page');
   redirect({ href: `/host/experiences/${experienceId}`, locale });
 }
 
@@ -840,7 +855,7 @@ export async function duplicateHostExperience(
     return { success: false, message: 'server' };
   }
 
-  revalidatePath('/[locale]/host', 'page');
+  revalidatePath('/[locale]/host/(dashboard)', 'page');
   redirect({ href: `/host/experiences/${newId}`, locale });
 }
 
@@ -909,6 +924,6 @@ export async function deleteDraftExperience(
     return { success: false, message: 'server' };
   }
 
-  revalidatePath('/[locale]/host', 'page');
+  revalidatePath('/[locale]/host/(dashboard)', 'page');
   redirect({ href: '/host/experiences?deleted=1', locale });
 }

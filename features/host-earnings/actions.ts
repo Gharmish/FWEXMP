@@ -85,6 +85,6 @@ export async function updatePayoutIban(
     return { success: false, message: 'server', values };
   }
 
-  revalidatePath('/[locale]/host/earnings', 'page');
+  revalidatePath('/[locale]/host/(dashboard)/earnings', 'page');
   return { success: true };
 }

@@ -5,14 +5,27 @@ import { revalidatePath } from 'next/cache';
 import { db } from '@/lib/db';
 import { conversations, supportTicketEvents, supportTickets } from '@/db/schema';
 import { reportError } from '@/lib/log';
-import { adminGuard } from '@/features/admin/guard';
+import {
+  adminFailureMessage,
+  adminGateRefused,
+  adminGuard,
+  requireAdminActor,
+} from '@/features/admin/guard';
 import { whatsappContentSid } from '@/lib/notifications/whatsapp/provider';
 import { renderWhatsApp, SUPPORT_SESSION_COPY } from '@/lib/notifications/whatsapp';
-import { sendConversationReply, sendSupportTemplate, SERVICE_WINDOW_MS } from '@/lib/conversations/inbound';
+import {
+  sendConversationReply,
+  sendSupportTemplate,
+  SERVICE_WINDOW_MS,
+} from '@/lib/conversations/inbound';
 import { openTicket } from '@/features/support/tickets';
 import { hasWhatsApp } from '@/lib/env';
-import { nudgeSchema, replySchema, resolveTicketSchema, stateSchema } from '@/features/support/schemas';
-import { getCurrentUser } from '@/features/auth/queries';
+import {
+  nudgeSchema,
+  replySchema,
+  resolveTicketSchema,
+  stateSchema,
+} from '@/features/support/schemas';
 
 /**
  * Support-inbox writes (WHATSAPP_SUPPORT_PLAN.md phase 1): a human
@@ -86,7 +99,7 @@ export async function replyToConversation(
       .set({ state: 'human', updatedAt: new Date() })
       .where(eq(conversations.id, conversation.id));
 
-    revalidatePath(`/[locale]/admin/support/${conversation.id}`, 'page');
+    revalidatePath('/[locale]/admin/support/[id]', 'page');
     revalidatePath('/[locale]/admin/support', 'page');
     if (!result.ok) return { success: false, message: 'send_failed' };
     return { success: true };
@@ -116,7 +129,7 @@ export async function setConversationState(
       .where(eq(conversations.id, parsed.data.conversationId))
       .returning({ id: conversations.id });
     if (updated.length === 0) return { success: false, message: 'not_found' };
-    revalidatePath(`/[locale]/admin/support/${parsed.data.conversationId}`, 'page');
+    revalidatePath('/[locale]/admin/support/[id]', 'page');
     revalidatePath('/[locale]/admin/support', 'page');
     return { success: true };
   } catch (error) {
@@ -129,27 +142,32 @@ export async function resolveTicket(
   _previous: SupportActionState,
   formData: FormData,
 ): Promise<SupportActionState> {
-  const guard = await adminGuard();
-  if (guard?.reason === 'no_db') return { success: false, message: 'no_db' };
-  if (guard) return { success: false, message: 'forbidden' };
+  // The write that stamps an audit actor must use the actor-resolving
+  // gate, not the read-side one plus a second session lookup that
+  // tolerates null (2026-09 engineering audit ACTIONS-09).
+  const actor = await requireAdminActor();
+  if (adminGateRefused(actor)) {
+    return { success: false, message: adminFailureMessage(actor) };
+  }
   const parsed = resolveTicketSchema.safeParse({
     ticketId: formValue(formData, 'ticketId'),
     resolutionNote: formValue(formData, 'resolutionNote') || undefined,
   });
   if (!parsed.success) return { success: false, message: 'validation' };
   try {
-    const admin = await getCurrentUser();
     const now = new Date();
     const updated = await db
       .update(supportTickets)
       .set({
         status: 'resolved',
         resolvedAt: now,
-        resolvedByUserId: admin?.id ?? null,
+        resolvedByUserId: actor.adminUserId,
         resolutionNote: parsed.data.resolutionNote ?? null,
         updatedAt: now,
       })
-      .where(and(eq(supportTickets.id, parsed.data.ticketId), ne(supportTickets.status, 'resolved')))
+      .where(
+        and(eq(supportTickets.id, parsed.data.ticketId), ne(supportTickets.status, 'resolved')),
+      )
       .returning({
         id: supportTickets.id,
         reference: supportTickets.reference,
@@ -198,7 +216,7 @@ export async function resolveTicket(
       } catch (error) {
         reportError(error, { surface: 'support:resolveTicket:notify' });
       }
-      revalidatePath(`/[locale]/admin/support/${updated[0].conversationId}`, 'page');
+      revalidatePath('/[locale]/admin/support/[id]', 'page');
     }
     revalidatePath('/[locale]/admin/support', 'page');
     return { success: true };
@@ -281,7 +299,7 @@ export async function nudgeConversation(
       .set({ lastOutboundAt: now, updatedAt: now, state: 'human' })
       .where(eq(conversations.id, conversation.id));
     const result = sent;
-    revalidatePath(`/[locale]/admin/support/${conversation.id}`, 'page');
+    revalidatePath('/[locale]/admin/support/[id]', 'page');
     if (!result.ok) return { success: false, message: 'send_failed' };
     return { success: true };
   } catch (error) {

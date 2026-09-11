@@ -26,12 +26,15 @@ export async function ScheduleCalendarSection({
   basePath,
   canEdit,
   ym,
+  notice,
 }: {
   experienceId: string;
   locale: Locale;
   basePath: string;
   canEdit: boolean;
   ym?: string;
+  /** `?calendar=` reason a refused day edit redirected back with. */
+  notice?: string;
 }) {
   const today = todayInRiyadh();
   const [ty, tm] = today.split('-').map(Number);
@@ -58,34 +61,44 @@ export async function ScheduleCalendarSection({
   ]);
 
   return (
-    <AvailabilityCalendar
-      experienceId={experienceId}
-      calendar={calendar}
-      locale={locale}
-      basePath={basePath}
-      canEdit={canEdit}
-      copy={{
-        heading: t('heading'),
-        intro: canEdit ? t('introEdit') : t('introView'),
-        prev: t('prev'),
-        next: t('next'),
-        closeDay: t('closeDay'),
-        openDay: t('openDay'),
-        closeToNew: t('closeToNew'),
-        reopenToNew: t('reopenToNew'),
-        // Raw template on purpose: `{booked}/{total}` is substituted
-        // per cell in the client component, so formatting it here (with
-        // no values to give it) throws next-intl's FORMATTING_ERROR.
-        // Safe as a raw pass-through — it carries no plural/select logic
-        // and both locales use the same two placeholders.
-        spots: t.raw('spots'),
-        legendAvailable: t('legendAvailable'),
-        legendFull: t('legendFull'),
-        legendStopSell: t('legendStopSell'),
-        legendClosed: t('legendClosed'),
-        legendOff: t('legendOff'),
-        weekdays: WEEKDAY_KEYS.map((k) => tWeek(k)),
-      }}
-    />
+    <>
+      {notice === 'has_bookings' && (
+        <p
+          role="status"
+          className="bg-warning-surface text-warning rounded-input mb-4 px-4 py-3 text-sm"
+        >
+          {t('refusedHasBookings')}
+        </p>
+      )}
+      <AvailabilityCalendar
+        experienceId={experienceId}
+        calendar={calendar}
+        locale={locale}
+        basePath={basePath}
+        canEdit={canEdit}
+        copy={{
+          heading: t('heading'),
+          intro: canEdit ? t('introEdit') : t('introView'),
+          prev: t('prev'),
+          next: t('next'),
+          closeDay: t('closeDay'),
+          openDay: t('openDay'),
+          closeToNew: t('closeToNew'),
+          reopenToNew: t('reopenToNew'),
+          // Raw template on purpose: `{booked}/{total}` is substituted
+          // per cell in the client component, so formatting it here (with
+          // no values to give it) throws next-intl's FORMATTING_ERROR.
+          // Safe as a raw pass-through — it carries no plural/select logic
+          // and both locales use the same two placeholders.
+          spots: t.raw('spots'),
+          legendAvailable: t('legendAvailable'),
+          legendFull: t('legendFull'),
+          legendStopSell: t('legendStopSell'),
+          legendClosed: t('legendClosed'),
+          legendOff: t('legendOff'),
+          weekdays: WEEKDAY_KEYS.map((k) => tWeek(k)),
+        }}
+      />
+    </>
   );
 }

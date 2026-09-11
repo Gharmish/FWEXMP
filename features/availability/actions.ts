@@ -2,6 +2,7 @@
 
 import { and, eq, inArray, sql } from 'drizzle-orm';
 import { revalidatePath } from 'next/cache';
+import { revalidateExperienceCaches } from '@/lib/cache-tags';
 import { db } from '@/lib/db';
 import { serverEnv } from '@/lib/env';
 import { bookings, experiences } from '@/db/schema';
@@ -9,6 +10,9 @@ import { reportError } from '@/lib/log';
 import { getCurrentUser } from '@/features/auth/queries';
 import { adminGateRefused, requireAdminActor } from '@/features/admin/guard';
 import { getCurrentHostIdForWrite } from '@/features/host-experiences/queries';
+import { redirect, type Locale } from '@/lib/i18n';
+import { sanitizeNextPath } from '@/features/auth/lib/next-path';
+import { holdStillCounts } from '@/features/bookings/lib/capacity-sql';
 
 const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -44,6 +48,16 @@ export async function setDayAvailability(formData: FormData): Promise<void> {
   const experienceId = formData.get('experienceId');
   const date = formData.get('date');
   const op = parseOp(formData.get('op'));
+  // Where to land after a REFUSED edit (2026-09 engineering audit
+  // ACTIONS-04 / GAPA-09): a bare `<form action>` cannot return state, and
+  // a refused blackout used to re-render the page unchanged with no word
+  // to the host. The calendar posts its own locale-less base path; the
+  // refusal redirects back to it with `?calendar=<reason>` for the page
+  // to render. Sanitised so the field can never become an open redirect.
+  const returnToRaw = formData.get('returnTo');
+  const localeRaw = formData.get('locale');
+  const locale: Locale = localeRaw === 'ar' ? 'ar' : 'en';
+  const returnTo = typeof returnToRaw === 'string' ? sanitizeNextPath(returnToRaw) : null;
   if (
     typeof experienceId !== 'string' ||
     typeof date !== 'string' ||
@@ -82,7 +96,7 @@ export async function setDayAvailability(formData: FormData): Promise<void> {
     // booking creation serializes on this same row lock — a booking
     // committed between the count and the write could land on a
     // blacked-out day. Taking the same lock closes both.
-    await db.transaction(async (tx) => {
+    const refusal = await db.transaction(async (tx) => {
       const [experience] = await tx
         .select({
           blackoutDates: experiences.blackoutDates,
@@ -91,7 +105,7 @@ export async function setDayAvailability(formData: FormData): Promise<void> {
         .from(experiences)
         .where(eq(experiences.id, experienceId))
         .for('update');
-      if (!experience) return;
+      if (!experience) return null;
 
       const blackout = new Set(experience.blackoutDates);
       const stopSell = new Set(experience.stopSellDates);
@@ -108,9 +122,12 @@ export async function setDayAvailability(formData: FormData): Promise<void> {
               eq(bookings.experienceId, experienceId),
               eq(bookings.date, date),
               inArray(bookings.status, [...BLOCKING_BOOKING_STATUSES]),
+              // A lapsed unpaid hold frees its seat on the DB clock; it
+              // must not block the host either (2026-09 audit GAPA-09).
+              holdStillCounts(),
             ),
           );
-        if (booked > 0) return; // refuse
+        if (booked > 0) return 'has_bookings'; // refuse
         blackout.add(date);
         stopSell.delete(date);
       } else if (op === 'stop_sell') {
@@ -126,7 +143,11 @@ export async function setDayAvailability(formData: FormData): Promise<void> {
         .update(experiences)
         .set({ blackoutDates: [...blackout].sort(), stopSellDates: [...stopSell].sort() })
         .where(eq(experiences.id, experienceId));
+      return null;
     });
+    if (refusal && returnTo && returnTo !== '/') {
+      redirect({ href: `${returnTo}?calendar=${refusal}`, locale });
+    }
   } catch (error) {
     reportError(error, {
       surface: 'availability:setDayAvailability',
@@ -135,7 +156,12 @@ export async function setDayAvailability(formData: FormData): Promise<void> {
     return;
   }
 
-  revalidatePath('/[locale]/host/experiences/[id]', 'page');
+  // The detail page reads blackout/stop-sell dates from the TAGGED data
+  // cache (60s backstop); paths alone left a just-closed day rendering as
+  // open to guests for up to a minute (2026-09 engineering audit
+  // ACTIONS-03).
+  revalidateExperienceCaches();
+  revalidatePath('/[locale]/host/(dashboard)/experiences/[id]', 'page');
   revalidatePath('/[locale]/admin/experiences/[id]/edit', 'page');
   revalidatePath('/[locale]/experiences/[slug]', 'page');
 }

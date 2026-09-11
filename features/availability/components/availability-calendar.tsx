@@ -162,6 +162,8 @@ export function AvailabilityCalendar({
               <input type="hidden" name="experienceId" value={experienceId} />
               <input type="hidden" name="date" value={cell.dateStr} />
               <input type="hidden" name="op" value={op} />
+              <input type="hidden" name="returnTo" value={basePath} />
+              <input type="hidden" name="locale" value={locale} />
               <button
                 type="submit"
                 aria-label={label}

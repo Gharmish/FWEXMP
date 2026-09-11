@@ -114,8 +114,8 @@ export async function uploadModerationHero(
 
   revalidateExperienceCaches();
   revalidatePath('/[locale]/admin/experience-moderation/[id]', 'page');
-  revalidatePath('/[locale]/host/experiences/[id]', 'page');
+  revalidatePath('/[locale]/host/(dashboard)/experiences/[id]', 'page');
   revalidatePath('/[locale]/experiences/[slug]', 'page');
-  revalidatePath('/[locale]/experiences', 'page');
+  revalidatePath('/[locale]/experiences/(catalog)', 'page');
   redirect({ href: `/admin/experience-moderation/${experienceId}`, locale });
 }

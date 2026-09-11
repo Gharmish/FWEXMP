@@ -3029,6 +3029,7 @@
     "heading": "Availability calendar",
     "introView": "Your schedule at a glance — which days run, how many spots are booked, and what's closed.",
     "introEdit": "Your schedule at a glance. Tap any running day to close it (e.g. a holiday); tap a closed day to reopen it. Booked spots show as booked / total.",
+    "refusedHasBookings": "That day has live bookings, so it can't be fully closed. Use \"close to new bookings\" instead, or cancel those bookings first.",
     "prev": "Previous month",
     "next": "Next month",
     "closeDay": "Close this day",

@@ -127,9 +127,9 @@ export async function uploadExperienceHero(
   }
 
   revalidateExperienceCaches();
-  revalidatePath('/[locale]/host/experiences/[id]', 'page');
+  revalidatePath('/[locale]/host/(dashboard)/experiences/[id]', 'page');
   revalidatePath('/[locale]/experiences/[slug]', 'page');
-  revalidatePath('/[locale]/experiences', 'page');
+  revalidatePath('/[locale]/experiences/(catalog)', 'page');
   redirect({ href: `/host/experiences/${experienceId}`, locale });
 }
 
@@ -215,7 +215,7 @@ export async function uploadGalleryImageAsHost(
   }
 
   revalidateExperienceCaches();
-  revalidatePath('/[locale]/host/experiences/[id]', 'page');
+  revalidatePath('/[locale]/host/(dashboard)/experiences/[id]', 'page');
   revalidatePath('/[locale]/experiences/[slug]', 'page');
   return { success: true };
 }
@@ -266,7 +266,7 @@ export async function removeGalleryImageAsHost(
   }
 
   revalidateExperienceCaches();
-  revalidatePath('/[locale]/host/experiences/[id]', 'page');
+  revalidatePath('/[locale]/host/(dashboard)/experiences/[id]', 'page');
   revalidatePath('/[locale]/experiences/[slug]', 'page');
   return { success: true };
 }

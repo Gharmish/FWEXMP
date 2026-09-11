@@ -46,6 +46,7 @@ export default async function AdminExperienceEditPage({
   const loc = locale as Locale;
   const sp = await searchParams;
   const ym = Array.isArray(sp.ym) ? sp.ym[0] : sp.ym;
+  const calendarNotice = Array.isArray(sp.calendar) ? sp.calendar[0] : sp.calendar;
 
   const block = await isAdminAndDbReady();
   const t = await getTranslations('admin');
@@ -202,6 +203,7 @@ export default async function AdminExperienceEditPage({
         basePath={`/admin/experiences/${experience.id}/edit`}
         canEdit
         ym={ym}
+        notice={calendarNotice}
       />
 
       <AdminExperienceForm

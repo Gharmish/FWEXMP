@@ -19,7 +19,7 @@ const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
  */
 export interface ModerateReviewState {
   success: boolean;
-  message?: 'forbidden' | 'no_db' | 'server';
+  message?: 'forbidden' | 'no_db' | 'validation' | 'server';
 }
 
 export async function setReviewHidden(
@@ -32,7 +32,8 @@ export async function setReviewHidden(
   const hide = formData.get('hide') === 'true';
   const parsed = z.string().regex(UUID_RE).safeParse(formData.get('reviewId'));
   if (!parsed.success) {
-    return { success: false, message: 'server' };
+    // A stale page or a tampered id — not an outage (2026-09 audit ACTIONS-07).
+    return { success: false, message: 'validation' };
   }
   const reviewId = parsed.data;
 
@@ -49,7 +50,7 @@ export async function setReviewHidden(
   revalidatePath('/[locale]/admin/reviews', 'page');
   // The experience detail + catalog rating change when visibility flips.
   revalidateReviewCaches();
-  revalidatePath('/[locale]/experiences', 'page');
+  revalidatePath('/[locale]/experiences/(catalog)', 'page');
   revalidatePath('/[locale]/experiences/[slug]', 'page');
   return { success: true };
 }

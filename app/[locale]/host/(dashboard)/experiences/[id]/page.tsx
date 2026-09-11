@@ -84,6 +84,7 @@ export default async function EditExperiencePage({
   const loc = locale as Locale;
   const sp = await searchParams;
   const ym = Array.isArray(sp.ym) ? sp.ym[0] : sp.ym;
+  const calendarNotice = Array.isArray(sp.calendar) ? sp.calendar[0] : sp.calendar;
   const one = (k: string) => (Array.isArray(sp[k]) ? sp[k]?.[0] : sp[k]);
   // Post-redirect feedback: the actions round-trip back here, so the
   // confirmation rides on the URL (no JS needed to see it).
@@ -500,6 +501,7 @@ export default async function EditExperiencePage({
             basePath={`/host/experiences/${experience.id}`}
             canEdit
             ym={ym}
+            notice={calendarNotice}
           />
         </div>
 

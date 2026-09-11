@@ -60,7 +60,7 @@ function revalidateCatalogSurfaces(): void {
   revalidatePath('/[locale]/admin/catalog', 'page');
   revalidatePath('/[locale]/admin', 'page');
   revalidatePath('/[locale]', 'page');
-  revalidatePath('/[locale]/experiences', 'page');
+  revalidatePath('/[locale]/experiences/(catalog)', 'page');
 }
 
 export async function addCity(

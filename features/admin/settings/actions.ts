@@ -152,7 +152,7 @@ export async function updateSettings(
   revalidatePath('/[locale]/admin/settings', 'page');
   revalidatePath('/[locale]/admin', 'page');
   revalidatePath('/[locale]', 'page');
-  revalidatePath('/[locale]/experiences', 'page');
+  revalidatePath('/[locale]/experiences/(catalog)', 'page');
   // VAT disclosure lines render on the detail + payment surfaces.
   revalidatePath('/[locale]/experiences/[slug]', 'page');
   revalidatePath('/[locale]/book/[reference]/pay', 'page');

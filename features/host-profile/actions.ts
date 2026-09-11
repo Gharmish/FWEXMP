@@ -2,6 +2,7 @@
 
 import { and, eq, isNotNull } from 'drizzle-orm';
 import { revalidatePath } from 'next/cache';
+import { revalidateExperienceCaches } from '@/lib/cache-tags';
 import { db } from '@/lib/db';
 import { serverEnv, hasSupabaseAuth, hasTwilioVerify, stubAuthAllowed } from '@/lib/env';
 import { checkPhoneVerification, startPhoneVerification } from '@/lib/twilio-verify';
@@ -96,7 +97,12 @@ async function recordHostProfileEvent(
 
 /** Everywhere the host's name/bio/photo shows: dashboard shell + public surfaces. */
 function revalidateHostSurfaces() {
-  revalidatePath('/[locale]/host', 'layout');
+  // Host identity (name, avatar, bio) is embedded in the tagged detail
+  // cache (`with: { host: true }`), so the data layer must flush too or
+  // the public listing shows the old name for up to 60s (2026-09
+  // engineering audit ACTIONS-03).
+  revalidateExperienceCaches();
+  revalidatePath('/[locale]/host/(dashboard)', 'layout');
   revalidatePath('/[locale]/hosts', 'page');
   revalidatePath('/[locale]/hosts/[slug]', 'page');
   revalidatePath('/[locale]/experiences/[slug]', 'page');
@@ -352,7 +358,7 @@ export async function updateHostContact(
   }
 
   if (!phoneChanged) {
-    revalidatePath('/[locale]/host/profile', 'page');
+    revalidatePath('/[locale]/host/(dashboard)/profile', 'page');
     return { status: 'success', message: 'saved' };
   }
 
@@ -363,7 +369,7 @@ export async function updateHostContact(
     return { status: 'error', message: sent.message, values: raw, emailSaved: emailChanged };
   }
 
-  revalidatePath('/[locale]/host/profile', 'page');
+  revalidatePath('/[locale]/host/(dashboard)/profile', 'page');
   return { status: 'verify', phone, emailSaved: emailChanged };
 }
 
@@ -591,7 +597,7 @@ export async function confirmHostContactPhone(
     { kind: 'phone', previous: pending.previousPhone, next: pending.phone },
     { previousEmail: pending.email, currentEmail: pending.email },
   );
-  revalidatePath('/[locale]/host/profile', 'page');
+  revalidatePath('/[locale]/host/(dashboard)/profile', 'page');
   return { status: 'success', message: 'phone_verified' };
 }
 
@@ -621,7 +627,7 @@ export async function cancelHostContactPhoneChange(): Promise<HostContactFormSta
     reportError(error, { surface: 'host-profile:cancelPhoneChange' });
     return { status: 'error', message: 'server' };
   }
-  revalidatePath('/[locale]/host/profile', 'page');
+  revalidatePath('/[locale]/host/(dashboard)/profile', 'page');
   return { status: 'success', message: 'cancelled' };
 }
 
@@ -715,6 +721,6 @@ export async function updateHostNotificationPrefs(
     reportError(error, { surface: 'host-profile:updateNotificationPrefs' });
     return { status: 'error', message: 'server', values };
   }
-  revalidatePath('/[locale]/host/profile', 'page');
+  revalidatePath('/[locale]/host/(dashboard)/profile', 'page');
   return { status: 'success' };
 }
