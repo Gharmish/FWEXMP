@@ -14,7 +14,7 @@ import {
   savedExperiences,
   supportTickets,
 } from '@/db/schema';
-import { paymentCollected, platformTakeExpr } from '@/features/bookings/lib/payout-sql';
+import { collectedRevenue, platformTakeExpr } from '@/features/bookings/lib/payout-sql';
 import { getPlatformSettings } from '@/lib/platform-settings';
 import {
   comparison,
@@ -75,7 +75,7 @@ const REVENUE = sql`${bookings.status} in ('confirmed','completed')`;
  * audit) so this page, the `/admin` landing tile, and every breakdown
  * below read one definition instead of three transcriptions.
  */
-const MONEY = sql`(${REVENUE} and ${paymentCollected()})`;
+const MONEY = collectedRevenue();
 
 /**
  * A Date bound as a casted timestamptz literal. postgres-js (prepare:false)

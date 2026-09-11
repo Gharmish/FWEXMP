@@ -95,6 +95,34 @@ export function paymentCollected(): SQL {
 }
 
 /**
+ * The ONE definition of "counts as GMV": a revenue-shaped booking whose
+ * money the platform actually collected. Every money aggregate — the
+ * `/admin` landing tile, the `/admin/analytics` headline, and every
+ * breakdown that sums to it — must filter on THIS, so a figure and its
+ * own drill-down can never disagree.
+ *
+ * 2026-08-04 ops audit. The landing page counted every booking whose
+ * status was merely `<> 'refunded'`, which swept in cancelled, expired,
+ * declined, pending and never-paid rows: on live data that was SAR
+ * 12,091 of cancelled bookings inside a SAR 22,731 "GMV" — 53% of the
+ * headline was money that never moved. The analytics page had already
+ * been gated correctly (2026-07-20), so the two surfaces disagreed
+ * about the same word; its per-category / per-host / per-source
+ * breakdowns had not, so they over-summed against their own headline.
+ *
+ * Refunds need no separate term: a reversed booking leaves the revenue
+ * statuses (`refunded`, or `cancelled` for a partial), so it drops out
+ * here automatically. Refunded value is reported on its own tile from
+ * `refundedAmountSar` rather than netted into GMV.
+ *
+ * COUNT and behavior metrics deliberately do NOT use this — an unpaid
+ * hold is still a real booking event worth counting.
+ */
+export function collectedRevenue(): SQL {
+  return sql`(${bookings.status} in ('confirmed','completed') and ${paymentCollected()})`;
+}
+
+/**
  * Rolling-12-month TAXABLE TURNOVER against the ZATCA registration
  * threshold — the single expression BOTH surfaces must use: the
  * `/admin/vat` report and the cron's 90% alert (2026-07-28 sixth audit).
