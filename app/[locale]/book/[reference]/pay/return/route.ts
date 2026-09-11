@@ -1,8 +1,10 @@
 import { after, NextResponse, type NextRequest } from 'next/server';
 import { settleBooking } from '@/features/payments/settle';
 import { sendBookingReceiptEmail } from '@/features/bookings/lib/booking-email';
+import { reportError } from '@/lib/log';
 import { BOOKING_LINK_TOKEN_PARAM, bookingLinkToken } from '@/features/bookings/lib/link-token';
 import { getBookingByReference, getBookingByReferenceForViewer } from '@/features/bookings/queries';
+import { getCheckoutIdForReference } from '@/features/payments/queries';
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -63,7 +65,22 @@ export async function GET(
         (booking.paymentStatus === 'failed' &&
           booking.paymentDeadline !== null &&
           new Date(booking.paymentDeadline).getTime() > now));
-    if (genuineRoundTrip && !(await getBookingByReferenceForViewer(reference))) {
+    // OPPWA appends `id=<checkoutId>` to shopperResultUrl on every real
+    // return, and only the paying browser holds that id. Requiring it
+    // closes the oracle where a bare reference UUID on a `processing` or
+    // open-`failed` row could mint the permanent link token
+    // (2026-09 engineering audit SEC-02).
+    const returnedCheckoutId = request.nextUrl.searchParams.get('id');
+    const currentCheckoutId = booking ? await getCheckoutIdForReference(reference) : null;
+    const fromPayingBrowser =
+      currentCheckoutId !== null &&
+      returnedCheckoutId !== null &&
+      returnedCheckoutId === currentCheckoutId;
+    if (
+      genuineRoundTrip &&
+      fromPayingBrowser &&
+      !(await getBookingByReferenceForViewer(reference))
+    ) {
       const token = bookingLinkToken(reference);
       if (token) confirmed.searchParams.set(BOOKING_LINK_TOKEN_PARAM, token);
     }
@@ -104,7 +121,11 @@ export async function GET(
     // past the response via `after()` so a slow mail provider never holds
     // the guest's redirect to the confirmation page.
     if (outcome === 'success') {
-      after(() => sendBookingReceiptEmail(reference).catch(() => {}));
+      after(() =>
+        sendBookingReceiptEmail(reference).catch((error: unknown) =>
+          reportError(error, { surface: 'pay-return:receipt', reference }),
+        ),
+      );
     }
   }
 

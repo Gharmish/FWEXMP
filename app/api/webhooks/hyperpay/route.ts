@@ -1,4 +1,4 @@
-import { NextResponse, type NextRequest } from 'next/server';
+import { after, NextResponse, type NextRequest } from 'next/server';
 import { decryptOppwaNotification } from '@/features/payments/lib/webhook-crypto';
 import { serverEnv } from '@/lib/env';
 import { reportError } from '@/lib/log';
@@ -78,7 +78,16 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     if (outcome === 'success') {
       const booking = await getBookingByReference(reference);
       if (booking) {
-        await sendBookingReceiptEmail(reference).catch(() => {});
+        // After the response, like the pay/return route: the receipt
+        // pipeline (PDF + QR + Resend + Twilio) can take seconds, and OPPWA
+        // is waiting on this 2xx — a slow provider day turned into webhook
+        // timeouts and redeliveries (2026-09 engineering audit GAPB-02).
+        // A throw before dispatch must reach Sentry, not vanish (OPS-12).
+        after(() =>
+          sendBookingReceiptEmail(reference).catch((error: unknown) =>
+            reportError(error, { surface: 'hyperpay-webhook:receipt', reference }),
+          ),
+        );
       }
     }
     // `anomaly` is permanent (amount/currency mismatch on a real

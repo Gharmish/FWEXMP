@@ -69,3 +69,18 @@ export async function getStoredBillingForBooking(reference: string): Promise<Sto
     return {};
   }
 }
+
+/**
+ * The booking's CURRENT HyperPay checkout id, or null. Used by the
+ * pay/return route to prove the redirect came from the paying browser:
+ * OPPWA appends `id=<checkoutId>` to shopperResultUrl, and nobody else
+ * holds that value (2026-09 engineering audit SEC-02).
+ */
+export async function getCheckoutIdForReference(reference: string): Promise<string | null> {
+  if (!serverEnv.DATABASE_URL) return null;
+  const row = await db.query.bookings.findFirst({
+    where: eq(bookings.idempotencyKey, reference),
+    columns: { checkoutId: true },
+  });
+  return row?.checkoutId ?? null;
+}

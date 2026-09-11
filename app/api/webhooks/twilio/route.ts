@@ -110,10 +110,12 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     return NextResponse.json({ error: 'invalid signature' }, { status: 401 });
   }
 
-  try {
-    // Status callback for an outbound message.
-    const messageStatus = params.MessageStatus?.toLowerCase();
-    if (messageStatus) {
+  // Status callback for an outbound message. Best-effort observability:
+  // a failure here is logged and ACKed (204) so Twilio does not hammer
+  // retries for a bookkeeping row.
+  const messageStatus = params.MessageStatus?.toLowerCase();
+  if (messageStatus) {
+    try {
       const mapped = STATUS_MAP[messageStatus];
       if (mapped && params.MessageSid) {
         await applyProviderStatus(
@@ -124,9 +126,13 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
             : undefined,
         );
       }
-      return new NextResponse(null, { status: 204 });
+    } catch (error) {
+      reportError(error, { surface: 'webhook-twilio:status' });
     }
+    return new NextResponse(null, { status: 204 });
+  }
 
+  try {
     // Inbound message — opt-out/opt-in keywords first, then the support line.
     const from = params.From?.replace(/^whatsapp:/, '');
     const rawBody = params.Body?.trim() ?? '';
@@ -167,8 +173,10 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     });
   } catch (error) {
     reportError(error, { surface: 'webhook-twilio' });
-    // 200 so Twilio doesn't hammer retries for an internal issue we've
-    // already logged — status callbacks are best-effort observability.
-    return new NextResponse(null, { status: 204 });
+    // An INBOUND message (or a STOP) that failed to persist must not be
+    // ACKed — the guest's words would be gone for good. 500 makes Twilio
+    // retry / hit the sender's Fallback URL (2026-09 engineering audit
+    // OPS-10). Status callbacks are handled above and stay 204-on-error.
+    return NextResponse.json({ error: 'failed' }, { status: 500 });
   }
 }
