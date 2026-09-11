@@ -1065,7 +1065,8 @@
         "guest": "Guest (self-service)",
         "operator": "Host / admin",
         "emergency": "Admin — emergency",
-        "system": "System (payment hold lapsed)"
+        "system": "System (payment hold lapsed)",
+        "agent": "Guest via WhatsApp support agent"
       },
       "cancellationReason": "Cancellation reason",
       "refundMethod": "Refund method",

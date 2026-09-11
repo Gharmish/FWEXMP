@@ -1,7 +1,16 @@
 import 'server-only';
 
 import { sql, type SQL } from 'drizzle-orm';
+import type { AnyPgColumn } from 'drizzle-orm/pg-core';
 import { bookings } from '@/db/schema';
+
+/** The four columns the hold predicate reads — `bookings` or an alias of it. */
+interface HoldColumns {
+  paymentStatus: AnyPgColumn;
+  paymentDeadline: AnyPgColumn;
+  status: AnyPgColumn;
+  approvalDeadline: AnyPgColumn;
+}
 
 /**
  * SQL condition: the booking still occupies its spot for capacity
@@ -22,7 +31,7 @@ import { bookings } from '@/db/schema';
  * predicate previously lived only in the phone-throttle query, so
  * every capacity sum over-counted by up to one cron interval.
  */
-export function holdStillCounts(): SQL {
-  return sql`not (${bookings.paymentStatus} in ('unpaid', 'failed') and ${bookings.paymentDeadline} is not null and ${bookings.paymentDeadline} <= now())
-    and not (${bookings.status} = 'pending' and ${bookings.approvalDeadline} is not null and ${bookings.approvalDeadline} <= now())`;
+export function holdStillCounts(t: HoldColumns = bookings): SQL {
+  return sql`not (${t.paymentStatus} in ('unpaid', 'failed') and ${t.paymentDeadline} is not null and ${t.paymentDeadline} <= now())
+    and not (${t.status} = 'pending' and ${t.approvalDeadline} is not null and ${t.approvalDeadline} <= now())`;
 }

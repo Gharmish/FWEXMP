@@ -164,7 +164,7 @@ export async function cancelBookingCore(
         .set({
           status: 'cancelled',
           cancelledAt: new Date(),
-          cancellationKind: 'guest',
+          cancellationKind: input.actor === 'agent' ? 'agent' : 'guest',
           ...(retainedSar > 0 ? { forfeitedSar: retainedSar } : {}),
           // Payee details ride the same transaction as the flip, so a
           // queued refund is never visible to the admin without them.

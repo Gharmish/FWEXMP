@@ -1,5 +1,6 @@
 'use server';
 
+import { isUniqueViolation } from '@/lib/db-errors';
 import { revalidatePath } from 'next/cache';
 import { db } from '@/lib/db';
 import { userProfileEvents } from '@/db/schema';
@@ -52,15 +53,6 @@ async function requireAdmin(): Promise<{ adminUserId: string } | { error: Wallet
 }
 
 /** Postgres unique-violation SQLSTATE. */
-function isUniqueViolation(error: unknown): boolean {
-  return (
-    typeof error === 'object' &&
-    error !== null &&
-    'code' in error &&
-    (error as { code?: unknown }).code === '23505'
-  );
-}
-
 const ECHO_KEYS = ['amountSar', 'note', 'expiresAt'] as const;
 
 function echoValues(formData: FormData): Record<string, string> {

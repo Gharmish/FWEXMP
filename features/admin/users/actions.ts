@@ -1,5 +1,6 @@
 'use server';
 
+import { isUniqueViolation } from '@/lib/db-errors';
 import { eq } from 'drizzle-orm';
 import { revalidatePath } from 'next/cache';
 import { revalidateExperienceCaches } from '@/lib/cache-tags';
@@ -29,15 +30,6 @@ async function requireAdmin(): Promise<{ adminUserId: string } | { error: AdminU
 }
 
 /** Postgres unique-violation SQLSTATE. */
-function isUniqueViolation(error: unknown): boolean {
-  return (
-    typeof error === 'object' &&
-    error !== null &&
-    'code' in error &&
-    (error as { code?: unknown }).code === '23505'
-  );
-}
-
 /**
  * Persist the field-level audit trail for an admin edit. One row per
  * changed field, sensitive values masked. Best-effort within the caller's

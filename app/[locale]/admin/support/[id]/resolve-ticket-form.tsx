@@ -33,7 +33,7 @@ export function ResolveTicketForm({ ticketId, copy }: ResolveTicketFormProps) {
         </p>
       )}
       <div>
-        <Button type="submit" variant="secondary" size="sm" disabled={pending}>
+        <Button type="submit" variant="secondary" size="sm" pending={pending}>
           {pending ? copy.resolving : copy.resolve}
         </Button>
       </div>

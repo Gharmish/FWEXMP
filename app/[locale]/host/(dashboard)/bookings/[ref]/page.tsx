@@ -84,7 +84,7 @@ export default async function HostBookingDetailPage({
     booking.cancelledAt,
     booking.cancellationKind === 'host'
       ? t('detail.timeline.cancelledByYou')
-      : booking.cancellationKind === 'guest'
+      : booking.cancellationKind === 'guest' || booking.cancellationKind === 'agent'
         ? t('detail.timeline.cancelledByGuest')
         : booking.cancellationKind === 'system'
           ? t('detail.timeline.cancelledBySystem')

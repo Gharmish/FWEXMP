@@ -78,8 +78,13 @@ function RemoveButton({ label, pending: pendingLabel }: { label: string; pending
     <button
       type="submit"
       aria-busy={pending || undefined}
-      className="text-sarat-black-600 hover:text-sarat-black inline-flex items-center gap-1 text-sm transition-colors duration-200 disabled:opacity-50"
-      disabled={pending}
+      className="text-sarat-black-600 hover:text-sarat-black inline-flex items-center gap-1 text-sm transition-colors duration-200 aria-disabled:opacity-50"
+      aria-disabled={pending || undefined}
+      onClick={(event) => {
+        // Stay focusable while the action runs — a disabled control drops
+        // focus mid-submit (2026-09 engineering audit ACTIONS-11).
+        if (pending) event.preventDefault();
+      }}
     >
       <X className="size-3.5 shrink-0" aria-hidden />
       {pending ? pendingLabel : label}

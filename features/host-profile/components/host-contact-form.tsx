@@ -332,8 +332,14 @@ function ResendButton({ label, pendingLabel }: { label: string; pendingLabel: st
   return (
     <button
       type="submit"
-      disabled={pending}
-      className="text-sarat-black hover:text-sarat-black-600 inline-flex min-h-11 items-center text-sm font-medium underline-offset-4 hover:underline disabled:opacity-60"
+      aria-busy={pending || undefined}
+      aria-disabled={pending || undefined}
+      onClick={(event) => {
+        // Stay focusable while the action runs — a disabled control drops
+        // focus mid-submit (2026-09 engineering audit ACTIONS-11).
+        if (pending) event.preventDefault();
+      }}
+      className="text-sarat-black hover:text-sarat-black-600 inline-flex min-h-11 items-center text-sm font-medium underline-offset-4 hover:underline aria-disabled:opacity-60"
     >
       {pending ? pendingLabel : label}
     </button>

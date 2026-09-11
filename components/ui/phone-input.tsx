@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState, useSyncExternalStore } from 'react';
+import { useMemo, useState, useSyncExternalStore, type Ref } from 'react';
 import { cn } from '@/lib/utils';
 import type { Locale } from '@/lib/i18n';
 import { COUNTRIES, DEFAULT_COUNTRY, countryName, flagEmoji, parseE164, toE164 } from '@/lib/phone';
@@ -25,6 +25,8 @@ export interface PhoneInputProps {
   countryLabel: string;
   invalid?: boolean;
   'aria-describedby'?: string;
+  /** Ref to the visible national-number input (focus management). */
+  inputRef?: Ref<HTMLInputElement>;
 }
 
 /**
@@ -50,6 +52,7 @@ export function PhoneInput({
   countryLabel,
   invalid,
   'aria-describedby': describedBy,
+  inputRef,
 }: PhoneInputProps) {
   const parsed = defaultValue ? parseE164(defaultValue) : undefined;
   const [iso, setIso] = useState<string>(parsed?.iso ?? defaultCountry);
@@ -111,6 +114,7 @@ export function PhoneInput({
       </select>
 
       <input
+        ref={inputRef}
         id={id}
         type="tel"
         inputMode="tel"

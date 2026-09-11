@@ -40,3 +40,14 @@ export function addDays(dateStr: string, n: number): string {
   d.setUTCDate(d.getUTCDate() + n);
   return todayInRiyadh(d);
 }
+
+/**
+ * `years` whole years before a Riyadh `YYYY-MM-DD` (a 29 Feb clamps to
+ * 1 Mar). Used for age gates so the cut-off is computed once, on the
+ * server clock, rather than in the browser's zone.
+ */
+export function yearsBefore(dateStr: string, years: number): string {
+  const d = new Date(`${dateStr}T12:00:00${RIYADH_OFFSET}`);
+  d.setUTCFullYear(d.getUTCFullYear() - years);
+  return todayInRiyadh(d);
+}

@@ -44,11 +44,15 @@ export default defineConfig({
     ],
     reporters: ['default'],
     coverage: {
-      // Visibility only — no thresholds until we've seen the baseline.
       provider: 'v8',
       reporter: ['text', 'html'],
       include: ['app/**', 'components/**', 'features/**', 'lib/**', 'db/**'],
-      exclude: ['**/*.test.ts', 'db/migrations/**'],
+      exclude: ['**/*.test.ts', '**/*.test.tsx', 'db/migrations/**'],
+      // Baseline taken 2026-09-11 (engineering audit TEST-12): 21.8%
+      // statements, 16.7% branches, 17.3% functions, 22.1% lines. The
+      // thresholds sit just under it so CI fails only on a regression;
+      // raise them as the suite grows.
+      thresholds: { statements: 20, branches: 15, functions: 15, lines: 20 },
     },
   },
 });

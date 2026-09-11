@@ -1,3 +1,4 @@
+import { UUID_RE } from '@/lib/uuid';
 import 'server-only';
 
 import { asc, desc, eq, gte, lte, ilike, inArray, and, not, or, sql, type SQL } from 'drizzle-orm';
@@ -68,7 +69,6 @@ export interface HostBookingsResult {
   openBucketTruncated: boolean;
 }
 
-const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
 /**
@@ -89,18 +89,8 @@ function seatsTakenByOthersExpr(): SQL<number> {
         ACTIVE_BOOKING_STATUSES.map((s) => sql`${s}`),
         sql`, `,
       )})
-      and ${sql.raw(holdStillCountsFor('other'))}
+      and ${holdStillCounts(other)}
   ), 0)`;
-}
-
-/**
- * `holdStillCounts()` is written against the `bookings` table; the
- * correlated subquery above needs it against the alias. Render the same
- * predicate for an aliased table name.
- */
-function holdStillCountsFor(tableAlias: string): string {
-  return `not ("${tableAlias}".payment_status in ('unpaid', 'failed') and "${tableAlias}".payment_deadline is not null and "${tableAlias}".payment_deadline <= now())
-    and not ("${tableAlias}".status = 'pending' and "${tableAlias}".approval_deadline is not null and "${tableAlias}".approval_deadline <= now())`;
 }
 
 interface JoinedRow {

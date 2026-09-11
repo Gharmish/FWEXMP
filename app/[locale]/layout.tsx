@@ -26,7 +26,8 @@ import { getTranslations, setRequestLocale } from 'next-intl/server';
  * wishlist) are fine because those routes never need a crawlable 404.
  */
 export const dynamic = 'force-dynamic';
-import { bricolage, ibmPlexArabic } from '@/lib/fonts';
+import { preload } from 'react-dom';
+import { bricolage } from '@/lib/fonts';
 import { routing, localeDirection, type Locale } from '@/lib/i18n';
 import { Navbar } from '@/components/layout/navbar';
 import { Footer } from '@/components/layout/footer';
@@ -116,12 +117,21 @@ export default async function LocaleLayout({
   const dir = localeDirection[locale as Locale];
   const t = await getTranslations('nav');
 
+  // Arabic pages preload the body and heading weights so the H1 paints in
+  // the brand face instead of swapping in after the CSS parse (PERF-05).
+  // 500 (labels, buttons) rides on the CSS discovery path.
+  if (locale === 'ar') {
+    for (const weight of [400, 600]) {
+      preload(`/fonts/ibm-plex-sans-arabic-${weight}.woff2`, {
+        as: 'font',
+        type: 'font/woff2',
+        crossOrigin: 'anonymous',
+      });
+    }
+  }
+
   return (
-    <html
-      lang={locale}
-      dir={dir}
-      className={`${bricolage.variable} ${ibmPlexArabic.variable} h-full antialiased`}
-    >
+    <html lang={locale} dir={dir} className={`${bricolage.variable} h-full antialiased`}>
       <body className="flex min-h-full flex-col">
         <NextIntlClientProvider>
           <DirectionProvider direction={dir}>

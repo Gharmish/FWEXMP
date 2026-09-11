@@ -218,6 +218,12 @@ export const cancellationKindEnum = pgEnum('cancellation_kind', [
   /** Automatic releases — e.g. a lapsed payment hold cancelled by the cron. */
   'system',
   /**
+   * Cancelled by the WhatsApp support agent on the guest's behalf
+   * (2026-09 engineering audit AI-06) — distinguishable from web
+   * self-service in the audit trail.
+   */
+  'agent',
+  /**
    * The host called off a confirmed booking from their dashboard
    * (2026-08-22 host-dashboard audit P1-4). Previously stamped as
    * `operator`, which made host and ops cancellations indistinguishable —

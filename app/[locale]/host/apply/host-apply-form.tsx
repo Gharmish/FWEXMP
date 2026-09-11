@@ -141,6 +141,8 @@ export interface HostApplyFormProps {
   documentsEnabled: boolean;
   existingDocuments: readonly HostApplyExistingDocument[];
   languageOptions: ReadonlyArray<{ value: HostLanguage; label: string }>;
+  /** Latest date of birth an 18-year-old can have (`YYYY-MM-DD`), computed on the server. */
+  maxDateOfBirth: string;
   copy: HostApplyCopy;
 }
 
@@ -222,13 +224,6 @@ function errorMessage(code: string | undefined, copy: HostApplyCopy): string | u
   return copy.errors.required;
 }
 
-/** Latest date of birth an 18-year-old can have, for the input's `max`. */
-function maxDateOfBirth(): string {
-  const cutoff = new Date();
-  cutoff.setFullYear(cutoff.getFullYear() - 18);
-  return cutoff.toISOString().slice(0, 10);
-}
-
 export function HostApplyForm({
   locale,
   contactPhone,
@@ -236,6 +231,7 @@ export function HostApplyForm({
   documentsEnabled,
   existingDocuments,
   languageOptions,
+  maxDateOfBirth,
   copy,
 }: HostApplyFormProps) {
   const [actionState, formAction] = useActionState(submitHostApplication, initialState);
@@ -657,7 +653,7 @@ export function HostApplyForm({
               type="date"
               required
               dir="ltr"
-              max={maxDateOfBirth()}
+              max={maxDateOfBirth}
               defaultValue={values.dateOfBirth ?? initial?.dateOfBirth}
               {...fieldProps('dateOfBirth')}
             />

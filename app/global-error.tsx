@@ -2,7 +2,7 @@
 
 import { useEffect } from 'react';
 import { reportError } from '@/lib/log';
-import { bricolage, ibmPlexArabic } from '@/lib/fonts';
+import { bricolage } from '@/lib/fonts';
 import { buttonVariants } from '@/components/ui/button';
 import '@/app/globals.css';
 
@@ -27,7 +27,7 @@ export default function GlobalError({
   }, [error]);
 
   return (
-    <html lang="en" className={`${bricolage.variable} ${ibmPlexArabic.variable} antialiased`}>
+    <html lang="en" className={`${bricolage.variable} antialiased`}>
       <body className="text-sarat-black bg-white">
         <main className="mx-auto flex min-h-screen w-full max-w-2xl flex-col justify-center gap-6 px-6 py-24">
           <p className="text-al-qatt-red-800 text-[11px] font-medium tracking-[0.2em] uppercase">

@@ -152,6 +152,8 @@ export function SignInForm({ locale, next, isStubMode, copy }: SignInFormProps) 
   // lands, so tapping the suggestion is the only interaction.
   const codeFormRef = useRef<HTMLFormElement>(null);
   const codeInputRef = useRef<HTMLInputElement>(null);
+  const phoneInputRef = useRef<HTMLInputElement>(null);
+  const emailInputRef = useRef<HTMLInputElement>(null);
   const fillAndSubmitCode = useCallback((code: string) => {
     const input = codeInputRef.current;
     if (!input) return;
@@ -183,9 +185,9 @@ export function SignInForm({ locale, next, isStubMode, copy }: SignInFormProps) 
 
   useEffect(() => {
     if (stage === 'code') {
-      document.getElementById('auth-code')?.focus();
+      codeInputRef.current?.focus();
     } else if (showPhoneStep) {
-      document.getElementById(method === 'email' ? 'auth-email' : 'auth-phone')?.focus();
+      (method === 'email' ? emailInputRef : phoneInputRef).current?.focus();
     }
   }, [stage, showPhoneStep, method]);
 
@@ -238,6 +240,7 @@ export function SignInForm({ locale, next, isStubMode, copy }: SignInFormProps) 
                 {copy.phoneLabel}
               </label>
               <PhoneInput
+                inputRef={phoneInputRef}
                 id="auth-phone"
                 name="phone"
                 locale={locale}
@@ -264,6 +267,7 @@ export function SignInForm({ locale, next, isStubMode, copy }: SignInFormProps) 
                 {copy.emailLabel}
               </label>
               <Input
+                ref={emailInputRef}
                 id="auth-email"
                 name="email"
                 type="email"

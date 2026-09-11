@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { addDays, nowMinutesInRiyadh, todayInRiyadh } from './riyadh-time';
+import { addDays, nowMinutesInRiyadh, todayInRiyadh, yearsBefore } from './riyadh-time';
 
 describe('riyadh-time', () => {
   it('reads the Riyadh calendar day, not UTC', () => {
@@ -17,5 +17,12 @@ describe('riyadh-time', () => {
     expect(addDays('2026-02-28', 1)).toBe('2026-03-01');
     expect(addDays('2026-01-01', -1)).toBe('2025-12-31');
     expect(addDays('2026-09-11', 0)).toBe('2026-09-11');
+  });
+});
+
+describe('yearsBefore', () => {
+  it('steps back whole years, clamping 29 February', () => {
+    expect(yearsBefore('2026-09-11', 18)).toBe('2008-09-11');
+    expect(yearsBefore('2024-02-29', 1)).toBe('2023-03-01');
   });
 });

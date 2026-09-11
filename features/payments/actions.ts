@@ -1,5 +1,6 @@
 'use server';
 
+import { UUID_RE } from '@/lib/uuid';
 import { and, eq, isNull, inArray, or, sql } from 'drizzle-orm';
 import { headers } from 'next/headers';
 import { z } from 'zod';
@@ -73,8 +74,6 @@ const DETAIL_FIELDS = [
   'country',
 ] as const;
 type DetailField = (typeof DETAIL_FIELDS)[number];
-
-const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 const createCheckoutSchema = paymentDetailsSchema
   .extend({
@@ -207,7 +206,11 @@ function echoValues(formData: FormData): CreateCheckoutState['values'] {
  * production to pin it.
  */
 async function requestOrigin(): Promise<string> {
-  if (process.env.NEXT_PUBLIC_SITE_URL) return SITE_URL;
+  // Production never derives the origin from request headers: the
+  // canonical SITE_URL (NEXT_PUBLIC_SITE_URL, defaulting to the live
+  // domain) is the only shopper-return origin (2026-09 engineering
+  // audit SEC-04). The header fallback stays for local dev and previews.
+  if (process.env.NEXT_PUBLIC_SITE_URL || process.env.VERCEL_ENV === 'production') return SITE_URL;
   const h = await headers();
   const host = h.get('x-forwarded-host') ?? h.get('host') ?? '';
   const proto = h.get('x-forwarded-proto') ?? (host.startsWith('localhost') ? 'http' : 'https');

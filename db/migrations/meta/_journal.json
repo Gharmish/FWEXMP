@@ -232,6 +232,13 @@
       "when": 1789126882020,
       "tag": "0032_catch_up_2026_09",
       "breakpoints": true
+    },
+    {
+      "idx": 33,
+      "version": "7",
+      "when": 1789135954896,
+      "tag": "0033_agent_cancellation_kind",
+      "breakpoints": true
     }
   ]
 }

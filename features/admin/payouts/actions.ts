@@ -1,5 +1,6 @@
 'use server';
 
+import { UUID_RE } from '@/lib/uuid';
 import { and, asc, eq, inArray, isNull } from 'drizzle-orm';
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
@@ -11,8 +12,6 @@ import { splitCommission } from '@/features/bookings/lib/commission';
 import { paymentCollected } from '@/features/bookings/lib/payout-sql';
 import { planClawbackDeduction } from '@/features/bookings/lib/clawback';
 import { sendHostPayoutPaidEmail } from '@/features/admin/payouts/payout-email';
-
-const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 /**
  * Mark every still-owed booking for one host as paid out, as a recorded

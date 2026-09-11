@@ -12,13 +12,13 @@ import type { CategoryMeta } from '@/features/experiences/types';
 import { CategoryStrip } from '@/features/experiences/components/category-strip';
 import { ActiveFilters } from '@/features/experiences/components/active-filters';
 import { FilterSheet } from '@/features/experiences/components/filter-sheet';
+import { useCatalogFacets } from '@/features/experiences/components/catalog-facets';
 import {
   EMPTY_CRITERIA,
   hasActiveFilters,
   parseSearchParams,
   toSearchParams,
   type ExperienceCriteria,
-  type FilterableExperience,
 } from '@/features/experiences/lib/search';
 
 /**
@@ -63,10 +63,6 @@ interface FilterRailProps {
   categories: readonly CategoryMeta[];
   /** Total matches under the current criteria (server-computed). */
   resultCount: number;
-  /** Distinct operating cities (display casing). */
-  cities: readonly string[];
-  /** Full-catalogue projection powering the sheet's live count. */
-  facets: readonly FilterableExperience[];
 }
 
 /**
@@ -78,7 +74,8 @@ interface FilterRailProps {
  * lives in {@link FilterSheet}. All state is URL-driven — router.replace
  * keeps back/forward and deep-links working with no client store.
  */
-export function FilterRail({ locale, categories, resultCount, cities, facets }: FilterRailProps) {
+export function FilterRail({ locale, categories, resultCount }: FilterRailProps) {
+  const { facets, cities } = useCatalogFacets();
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();

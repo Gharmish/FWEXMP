@@ -16,16 +16,13 @@ import {
   parseSearchParams,
   toSearchParams,
   type ExperienceCriteria,
-  type FilterableExperience,
 } from '@/features/experiences/lib/search';
+import { useCatalogFacets } from '@/features/experiences/components/catalog-facets';
 
 interface MobileSearchEntryProps {
   locale: Locale;
   categories: readonly CategoryMeta[];
   /** Lightweight full-catalogue projection for the sheet's live count. */
-  facets: readonly FilterableExperience[];
-  /** Distinct operating cities (display casing). */
-  cities: readonly string[];
 }
 
 /**
@@ -41,7 +38,8 @@ interface MobileSearchEntryProps {
  * inside FilterRail, two screens down past the Featured section on a
  * phone. FilterRail hides its copy below `lg` so there is exactly one.
  */
-export function MobileSearchEntry({ locale, categories, facets, cities }: MobileSearchEntryProps) {
+export function MobileSearchEntry({ locale, categories }: MobileSearchEntryProps) {
+  const { facets, cities } = useCatalogFacets();
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();

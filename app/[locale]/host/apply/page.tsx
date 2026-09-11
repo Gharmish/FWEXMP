@@ -9,6 +9,7 @@ import { getCurrentUser } from '@/features/auth/queries';
 import { getCurrentUserHostApplication } from '@/features/host-applications/queries';
 import { HostApplyForm } from '@/app/[locale]/host/apply/host-apply-form';
 import { HOST_LANGUAGE_OPTIONS } from '@/features/host-applications/types';
+import { todayInRiyadh, yearsBefore } from '@/lib/riyadh-time';
 
 export async function generateMetadata({
   params,
@@ -175,6 +176,7 @@ export default async function HostApplyPage({ params }: { params: Promise<{ loca
                   }
                 : undefined
             }
+            maxDateOfBirth={yearsBefore(todayInRiyadh(), 18)}
             languageOptions={HOST_LANGUAGE_OPTIONS.map((value) => ({
               value,
               label: t(`languages.${value}`),

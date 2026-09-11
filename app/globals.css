@@ -1,5 +1,31 @@
 @import 'tailwindcss';
 
+/* Arabic UI face (BRIEF §3). Declared here rather than via next/font so
+ * the Arabic layout can preload exactly these files and English pages
+ * never fetch them (2026-09 engineering audit PERF-05). Files are
+ * immutable-cached by next.config.ts. */
+@font-face {
+  font-family: 'IBM Plex Sans Arabic';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('/fonts/ibm-plex-sans-arabic-400.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'IBM Plex Sans Arabic';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url('/fonts/ibm-plex-sans-arabic-500.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'IBM Plex Sans Arabic';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url('/fonts/ibm-plex-sans-arabic-600.woff2') format('woff2');
+}
+
 /* ------------------------------------------------------------------ *
  * Gharmish design tokens (Tailwind v4, CSS-first)
  *
@@ -148,10 +174,11 @@
   --shadow-overlay: 0 8px 32px rgb(10 10 10 / 0.1), 0 1px 2px rgb(10 10 10 / 0.04);
 
   /* Typography. Bricolage for Latin/display, IBM Plex Sans Arabic for RTL.
-   * Variables come from next/font (lib/fonts.ts). */
+   * Bricolage comes from next/font (lib/fonts.ts); the Arabic faces are
+   * declared at the top of this file and preloaded per locale (PERF-05). */
   --font-display: var(--font-bricolage), ui-sans-serif, system-ui, sans-serif;
   --font-sans: var(--font-bricolage), ui-sans-serif, system-ui, sans-serif;
-  --font-arabic: var(--font-arabic), ui-sans-serif, system-ui, sans-serif;
+  --font-arabic: 'IBM Plex Sans Arabic', ui-sans-serif, system-ui, sans-serif;
 
   /* 8-point grid (BRIEF.md section 3). Tailwind v4's dynamic spacing scale
    * (base 0.25rem = 4px) already yields the allowed steps: p-1=4, p-2=8,

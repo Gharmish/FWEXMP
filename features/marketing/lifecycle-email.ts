@@ -1,3 +1,4 @@
+import { escapeHtml } from '@/lib/html';
 import 'server-only';
 
 import { eq } from 'drizzle-orm';
@@ -63,14 +64,6 @@ async function marketingContext(reference: string) {
   return { booking, unsubscribe };
 }
 
-function escapeHtml(value: string): string {
-  return value
-    .replaceAll('&', '&amp;')
-    .replaceAll('<', '&lt;')
-    .replaceAll('>', '&gt;')
-    .replaceAll('"', '&quot;');
-}
-
 /** Same-city-first recommendations, as anchor links for the email note. */
 async function recommendationLinks(
   excludeSlug: string,
@@ -105,7 +98,9 @@ async function sendMarketingEmail(reference: string, stage: 'rebook' | 'winback'
   const links = await recommendationLinks(booking.experience.slug, booking.experience.city, locale);
 
   const subject =
-    stage === 'rebook' ? t('rebookSubject', { city: booking.experience.city }) : t('winbackSubject');
+    stage === 'rebook'
+      ? t('rebookSubject', { city: booking.experience.city })
+      : t('winbackSubject');
   const noteHtml = [
     links ? `${escapeHtml(t('recommendationsHeading'))}<br/>${links}` : '',
     `<a href="${unsubscribe}">${escapeHtml(t('unsubscribe'))}</a>`,

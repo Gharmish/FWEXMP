@@ -4,6 +4,8 @@
  * sender (booking-email.ts) gathers data and calls `renderReceiptEmail`.
  */
 
+import { escapeHtml as esc } from '@/lib/html';
+
 export interface ReceiptRow {
   label: string;
   value: string;
@@ -61,13 +63,6 @@ export interface ReceiptContent {
 }
 
 /** HTML-escape a user/data string before interpolating into the template. */
-function esc(value: string): string {
-  return value
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;');
-}
 
 /**
  * Escape + bidi-isolate a data value. Row values routinely mix scripts

@@ -16,13 +16,10 @@ export interface GuestSeed {
   preferredLanguage?: Guest['preferredLanguage'];
 }
 
-/** Postgres unique violation (23505), anywhere in drizzle's cause chain. */
-export function isUniqueViolation(error: unknown): boolean {
-  for (let e: unknown = error; e && typeof e === 'object'; e = (e as { cause?: unknown }).cause) {
-    if ((e as { code?: unknown }).code === '23505') return true;
-  }
-  return false;
-}
+// Postgres unique violation (23505), anywhere in drizzle's cause chain.
+// Re-exported for existing importers; the one definition is lib/db-errors.ts.
+import { isUniqueViolation } from '@/lib/db-errors';
+export { isUniqueViolation };
 
 /**
  * Why claiming an unclaimed row needs evidence (2026-08-21 security

@@ -1,5 +1,6 @@
 'use server';
 
+import { UUID_RE } from '@/lib/uuid';
 import { eq } from 'drizzle-orm';
 import { revalidatePath } from 'next/cache';
 import { revalidateReviewCaches } from '@/lib/cache-tags';
@@ -8,8 +9,6 @@ import { db } from '@/lib/db';
 import { reviews } from '@/db/schema';
 import { reportError } from '@/lib/log';
 import { adminFailureMessage, adminGateRefused, requireAdminActor } from '@/features/admin/guard';
-
-const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 /**
  * Hide or unhide a review. Hidden reviews are excluded from the public

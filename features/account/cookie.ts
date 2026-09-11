@@ -1,3 +1,4 @@
+import { UUID_RE } from '@/lib/uuid';
 import 'server-only';
 
 import { createHmac, timingSafeEqual } from 'node:crypto';
@@ -28,7 +29,6 @@ import { serverEnv } from '@/lib/env';
  */
 export const LAST_BOOKING_COOKIE = 'gharmish_last_booking';
 
-const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const SLUG_RE = /^[a-z0-9](?:[a-z0-9-]{0,118}[a-z0-9])?$/;
 
 /** Domain separation — a key derived here is useless for any other purpose. */

@@ -1,3 +1,4 @@
+import { escapeHtml } from '@/lib/html';
 import 'server-only';
 
 import { and, eq, gte, sql } from 'drizzle-orm';
@@ -55,14 +56,6 @@ const SUBJECTS: Record<AdminAlertKind, string> = {
   support_ticket_sla_breached: 'Support ticket past its SLA',
   config_missing: 'Production configuration is missing required secrets',
 };
-
-function escapeHtml(value: string): string {
-  return value
-    .replaceAll('&', '&amp;')
-    .replaceAll('<', '&lt;')
-    .replaceAll('>', '&gt;')
-    .replaceAll('"', '&quot;');
-}
 
 /** Amounts arrive as bare integers under `…Sar` keys; label the unit. */
 function formatDetail(key: string, value: string | number): string {

@@ -1,5 +1,7 @@
 'use server';
 
+import { isUniqueViolation } from '@/lib/db-errors';
+import { UUID_RE } from '@/lib/uuid';
 import { getPlatformSettings } from '@/lib/platform-settings';
 import { eq, sql } from 'drizzle-orm';
 import { revalidatePath } from 'next/cache';
@@ -28,8 +30,6 @@ import { getSessionGuestId } from '@/features/wallet/queries';
  * and alerts the team — the guest sees "on its way", never a silent loss.
  */
 
-const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-
 const requestSchema = z.object({
   reference: z.string().regex(UUID_RE),
   locale: z.enum(['en', 'ar']),
@@ -56,15 +56,6 @@ function formValue(formData: FormData, key: string): string {
 }
 
 /** Postgres unique-violation SQLSTATE. */
-function isUniqueViolation(error: unknown): boolean {
-  return (
-    typeof error === 'object' &&
-    error !== null &&
-    'code' in error &&
-    (error as { code?: unknown }).code === '23505'
-  );
-}
-
 export async function requestRefundToCard(
   _previous: RefundToCardState,
   formData: FormData,

@@ -203,9 +203,12 @@ export async function updateReview(
 
     const review = await db.query.reviews.findFirst({
       where: eq(reviews.bookingId, booking.id),
-      columns: { id: true, editableUntil: true },
+      columns: { id: true, editableUntil: true, hiddenAt: true },
     });
     if (!review) return { success: false, message: 'not_found', values };
+    // A review the admin hid stays hidden — an edit must not resurface it
+    // (2026-09 engineering audit GAPA-10).
+    if (review.hiddenAt) return { success: false, message: 'forbidden', values };
     if (review.editableUntil.getTime() <= Date.now()) {
       return { success: false, message: 'expired', values };
     }
@@ -219,7 +222,13 @@ export async function updateReview(
         textEn: locale === 'en' ? (text ?? null) : undefined,
         textAr: locale === 'ar' ? (text ?? null) : undefined,
       })
-      .where(and(eq(reviews.id, review.id), gt(reviews.editableUntil, new Date())))
+      .where(
+        and(
+          eq(reviews.id, review.id),
+          isNull(reviews.hiddenAt),
+          gt(reviews.editableUntil, new Date()),
+        ),
+      )
       .returning({ id: reviews.id });
     if (updated.length === 0) return { success: false, message: 'expired', values };
 
