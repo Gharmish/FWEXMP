@@ -338,3 +338,42 @@ export async function removeSuppression(channel: Channel, address: string): Prom
     reportError(error, { surface: 'notifications:removeSuppression' });
   }
 }
+
+/**
+ * Age rows stuck at `queued` (2026-09 engineering audit OPS-07 / GAPB-04).
+ * `claimDelivery` inserts the row as `queued` and the provider call
+ * follows; a function frozen or killed in between leaves it `queued`
+ * forever — the re-claim path and the retry sweep both select only
+ * `failed`, so the message was silently lost while the ledger read as
+ * healthy. Flipping stale rows to `failed` (attempts untouched) hands them
+ * to the existing retry machinery. Bounded; never throws.
+ */
+export async function expireStaleQueuedDeliveries(
+  olderThanMs: number,
+  limit: number,
+): Promise<number> {
+  try {
+    const cutoff = new Date(Date.now() - olderThanMs);
+    const rows = await db
+      .update(notificationDeliveries)
+      .set({
+        status: 'failed',
+        error: 'claim never completed (stale queued row aged by the cron)',
+        statusUpdatedAt: new Date(),
+      })
+      .where(
+        sql`${notificationDeliveries.id} in (
+          select id from ${notificationDeliveries}
+          where ${notificationDeliveries.status} = 'queued'
+            and ${notificationDeliveries.createdAt} <= ${cutoff}
+          order by ${notificationDeliveries.createdAt} asc
+          limit ${limit}
+        )`,
+      )
+      .returning({ id: notificationDeliveries.id });
+    return rows.length;
+  } catch (error) {
+    reportError(error, { surface: 'notifications:expireStaleQueued' });
+    return 0;
+  }
+}

@@ -16,6 +16,7 @@ import {
 import { db } from '@/lib/db';
 import { serverEnv } from '@/lib/env';
 import {
+  analyticsEvents,
   authThrottleEvents,
   bookings,
   experiences,
@@ -43,11 +44,8 @@ import {
   sendBookingAwaitingPaymentEmail,
   sendHostHoldLapsedEmail,
 } from '@/features/bookings/lib/booking-email';
-import { listRetryableDeliveries } from '@/lib/notifications/ledger';
-import {
-  purgeExpiredConversations,
-  sweepUnacknowledgedInbound,
-} from '@/lib/conversations/inbound';
+import { expireStaleQueuedDeliveries, listRetryableDeliveries } from '@/lib/notifications/ledger';
+import { purgeExpiredConversations, sweepUnacknowledgedInbound } from '@/lib/conversations/inbound';
 import { sweepPendingAgentTurns } from '@/lib/support-agent/agent';
 import { maybeSendDailyReport } from '@/lib/support-agent/report';
 import { sweepTicketSla } from '@/features/support/tickets';
@@ -138,6 +136,27 @@ const COMPLETION_LIMIT = 25;
  * secret set the route rejects everything, so the job is inert until
  * configured.
  */
+/**
+ * Explicit function ceiling (2026-09 engineering audit OPS-04 / PERF-04):
+ * the run is 17 sequential passes with per-row provider I/O; without a
+ * declared ceiling and an elapsed budget, a slow provider day meant the
+ * platform killed the function mid-run — no alert, no heartbeat, and the
+ * later passes silently skipped that hour.
+ */
+export const maxDuration = 300;
+/** Wall-clock budget after which best-effort comms passes are skipped, not started. */
+const RUN_BUDGET_MS = 240_000;
+/** Passes whose failure must withhold the heartbeat so the watchdog escalates. */
+const MONEY_PASSES = new Set([
+  '0-expire-requests',
+  '1-release-holds',
+  '1b-stranded-reservations',
+  '1c-orphaned-refunds',
+  '1d-refund-out-sweep',
+  '2-reconcile',
+  '2b-settle-aging',
+]);
+
 export async function GET(request: NextRequest): Promise<NextResponse> {
   const secret = serverEnv.CRON_SECRET;
   // Constant-time comparison, same as the webhook verifiers — a plain
@@ -157,91 +176,141 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     return NextResponse.json({ released: 0, skipped: 'no-db' });
   }
 
+  // Per-pass isolation (2026-09 engineering audit OPS-03). Eleven passes
+  // used to run bare inside the outer try, so one bad row in, say, the
+  // support-line sweep aborted auto-complete, marketing, VAT guards and
+  // the heartbeat for every later hour until a code fix shipped. Each pass
+  // now fails alone: reported with its name, recorded in the summary, and
+  // — if it is a money pass — the heartbeat is withheld so the watchdog
+  // escalates instead of the run looking healthy.
+  const startedAt = Date.now();
+  const failedPasses: string[] = [];
+  const skippedPasses: string[] = [];
+  const overBudget = (): boolean => Date.now() - startedAt > RUN_BUDGET_MS;
+  const pass = async <T>(
+    name: string,
+    fn: () => Promise<T>,
+    fallback: T,
+    opts: { bestEffort?: boolean } = {},
+  ): Promise<T> => {
+    if (opts.bestEffort && overBudget()) {
+      skippedPasses.push(name);
+      return fallback;
+    }
+    try {
+      return await fn();
+    } catch (error) {
+      reportError(error, { surface: 'cron-release-holds', pass: name });
+      failedPasses.push(name);
+      return fallback;
+    }
+  };
+
   try {
     // Pass 0 — expire undecided booking requests. A `pending` request the
     // host neither approved nor declined within the approval window moves
     // to `expired` (terminal, frees the soft-held capacity; nothing was
     // ever charged in the pay-after-approval model). The guest is told —
     // best-effort, gated on having an email on file.
-    const expired = await db
-      .update(bookings)
-      .set({ status: 'expired' })
-      .where(
-        and(
-          eq(bookings.status, 'pending'),
-          isNotNull(bookings.approvalDeadline),
-          lte(bookings.approvalDeadline, new Date()),
-        ),
-      )
-      .returning({ id: bookings.id, reference: bookings.idempotencyKey });
-    for (const row of expired) {
-      try {
-        await sendBookingExpiredEmail(row.reference);
-      } catch (error) {
-        reportError(error, { surface: 'cron-expire-requests', reference: row.reference });
-      }
-    }
+    const expired = await pass(
+      '0-expire-requests',
+      async () => {
+        const rows = await db
+          .update(bookings)
+          .set({ status: 'expired' })
+          .where(
+            and(
+              eq(bookings.status, 'pending'),
+              isNotNull(bookings.approvalDeadline),
+              lte(bookings.approvalDeadline, new Date()),
+            ),
+          )
+          .returning({ id: bookings.id, reference: bookings.idempotencyKey });
+        for (const row of rows) {
+          try {
+            await sendBookingExpiredEmail(row.reference);
+          } catch (error) {
+            reportError(error, { surface: 'cron-expire-requests', reference: row.reference });
+          }
+        }
+        return rows;
+      },
+      [] as Array<{ id: string; reference: string }>,
+    );
 
     // `failed` joins `unpaid` here: a final failed attempt holds no
     // payment in flight (unlike `processing`), so past the deadline the
     // booking is released the same way. `createCheckout` refuses both
     // once the hold has lapsed, so a released seat can never be charged.
-    const released = await db
-      .update(bookings)
-      .set({ status: 'cancelled', cancelledAt: new Date(), cancellationKind: 'system' })
-      .where(
-        and(
-          inArray(bookings.paymentStatus, ['unpaid', 'failed']),
-          // NEVER release a booking that is under review (2026-07-28
-          // eighth audit). `createCheckout` refuses while
-          // `settleAnomalyAt` is set, so the guest CANNOT pay — and
-          // without this exclusion the hold simply lapsed here, the
-          // booking was cancelled as `system`, and a real capture was
-          // left orphaned on a cancelled row that Pass 1c's watch can't
-          // see either (it requires paymentStatus='paid'). The guard
-          // must freeze the clock, not just the button.
-          isNull(bookings.settleAnomalyAt),
-          isNotNull(bookings.paymentDeadline),
-          lte(bookings.paymentDeadline, new Date()),
-          notInArray(bookings.status, [
-            'cancelled',
-            'completed',
-            'refunded',
-            'declined',
-            'expired',
-          ]),
-        ),
-      )
-      .returning({
-        id: bookings.id,
-        reference: bookings.idempotencyKey,
-        walletAppliedSar: bookings.walletAppliedSar,
-      });
-    // An approved-then-never-paid request (or an abandoned instant hold)
-    // was just released — tell the guest the hold lapsed, and the host
-    // that the booking they were notified about evaporated. Best-effort.
-    for (const row of released) {
-      // A lapsed hold with checkout-applied credit was only a
-      // reservation — return it before the emails (never silently
-      // strand a guest's credit on a booking they can no longer pay).
-      if (row.walletAppliedSar > 0) {
-        try {
-          await releaseWalletReservation(row.id);
-        } catch (error) {
-          reportError(error, { surface: 'cron-release-holds:wallet', reference: row.reference });
+    const released = await pass(
+      '1-release-holds',
+      async () => {
+        const rows = await db
+          .update(bookings)
+          .set({ status: 'cancelled', cancelledAt: new Date(), cancellationKind: 'system' })
+          .where(
+            and(
+              inArray(bookings.paymentStatus, ['unpaid', 'failed']),
+              // NEVER release a booking that is under review (2026-07-28
+              // eighth audit). `createCheckout` refuses while
+              // `settleAnomalyAt` is set, so the guest CANNOT pay — and
+              // without this exclusion the hold simply lapsed here, the
+              // booking was cancelled as `system`, and a real capture was
+              // left orphaned on a cancelled row that Pass 1c's watch can't
+              // see either (it requires paymentStatus='paid'). The guard
+              // must freeze the clock, not just the button.
+              isNull(bookings.settleAnomalyAt),
+              isNotNull(bookings.paymentDeadline),
+              lte(bookings.paymentDeadline, new Date()),
+              notInArray(bookings.status, [
+                'cancelled',
+                'completed',
+                'refunded',
+                'declined',
+                'expired',
+              ]),
+            ),
+          )
+          .returning({
+            id: bookings.id,
+            reference: bookings.idempotencyKey,
+            walletAppliedSar: bookings.walletAppliedSar,
+          });
+        // An approved-then-never-paid request (or an abandoned instant hold)
+        // was just released — tell the guest the hold lapsed, and the host
+        // that the booking they were notified about evaporated. Best-effort.
+        for (const row of rows) {
+          // A lapsed hold with checkout-applied credit was only a
+          // reservation — return it before the emails (never silently
+          // strand a guest's credit on a booking they can no longer pay).
+          if (row.walletAppliedSar > 0) {
+            try {
+              await releaseWalletReservation(row.id);
+            } catch (error) {
+              reportError(error, {
+                surface: 'cron-release-holds:wallet',
+                reference: row.reference,
+              });
+            }
+          }
+          try {
+            await sendBookingPaymentLapsedEmail(row.reference);
+          } catch (error) {
+            reportError(error, { surface: 'cron-release-holds:email', reference: row.reference });
+          }
+          try {
+            await sendHostHoldLapsedEmail(row.reference);
+          } catch (error) {
+            reportError(error, {
+              surface: 'cron-release-holds:hostEmail',
+              reference: row.reference,
+            });
+          }
         }
-      }
-      try {
-        await sendBookingPaymentLapsedEmail(row.reference);
-      } catch (error) {
-        reportError(error, { surface: 'cron-release-holds:email', reference: row.reference });
-      }
-      try {
-        await sendHostHoldLapsedEmail(row.reference);
-      } catch (error) {
-        reportError(error, { surface: 'cron-release-holds:hostEmail', reference: row.reference });
-      }
-    }
+        return rows;
+      },
+      [] as Array<{ id: string; reference: string; walletAppliedSar: number }>,
+    );
 
     // Pass 1b — stranded-reservation sweep (2026-07-28 audit). Any path
     // that flips a booking terminal can in principle die between the
@@ -251,31 +320,37 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     // that stranded state — the guest's credit debited for a booking
     // that no longer exists. `releaseWalletReservation` re-checks under
     // FOR UPDATE, so re-running here is idempotent and race-free.
-    const stranded = await db.query.bookings.findMany({
-      where: and(
-        inArray(bookings.status, ['cancelled', 'expired', 'declined']),
-        notInArray(bookings.paymentStatus, ['paid']),
-        sql`${bookings.walletAppliedSar} > 0`,
-      ),
-      columns: { id: true, idempotencyKey: true },
-    });
-    for (const row of stranded) {
-      try {
-        const release = await releaseWalletReservation(row.id);
-        if (release.released) {
-          reportError(new Error('stranded wallet reservation released by sweep'), {
-            surface: 'cron-release-holds:strandedSweep',
-            reference: row.idempotencyKey,
-            amountSar: release.amountSar,
-          });
-        }
-      } catch (error) {
-        reportError(error, {
-          surface: 'cron-release-holds:strandedSweep',
-          reference: row.idempotencyKey,
+    await pass(
+      '1b-stranded-reservations',
+      async () => {
+        const stranded = await db.query.bookings.findMany({
+          where: and(
+            inArray(bookings.status, ['cancelled', 'expired', 'declined']),
+            notInArray(bookings.paymentStatus, ['paid']),
+            sql`${bookings.walletAppliedSar} > 0`,
+          ),
+          columns: { id: true, idempotencyKey: true },
         });
-      }
-    }
+        for (const row of stranded) {
+          try {
+            const release = await releaseWalletReservation(row.id);
+            if (release.released) {
+              reportError(new Error('stranded wallet reservation released by sweep'), {
+                surface: 'cron-release-holds:strandedSweep',
+                reference: row.idempotencyKey,
+                amountSar: release.amountSar,
+              });
+            }
+          } catch (error) {
+            reportError(error, {
+              surface: 'cron-release-holds:strandedSweep',
+              reference: row.idempotencyKey,
+            });
+          }
+        }
+      },
+      undefined,
+    );
 
     // Pass 1c — orphaned-refund watch (2026-07-28 audit). A cancellation
     // that owed the guest money commits its flip first and refunds
@@ -289,26 +364,33 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     // deliberately retained covers the full paid base. The policy amount
     // is contextual, so this pass only ALERTS (hourly, until an admin
     // settles it via the manual refund action) rather than moving money.
-    const orphanedRefunds = await db.query.bookings.findMany({
-      where: and(
-        eq(bookings.status, 'cancelled'),
-        eq(bookings.paymentStatus, 'paid'),
-        isNull(bookings.refundDueSar),
-        sql`coalesce(${bookings.refundedAmountSar}, 0) + coalesce(${bookings.forfeitedSar}, 0)
+    await pass(
+      '1c-orphaned-refunds',
+      async () => {
+        const orphanedRefunds = await db.query.bookings.findMany({
+          where: and(
+            eq(bookings.status, 'cancelled'),
+            eq(bookings.paymentStatus, 'paid'),
+            isNull(bookings.refundDueSar),
+            sql`coalesce(${bookings.refundedAmountSar}, 0) + coalesce(${bookings.forfeitedSar}, 0)
             < ${bookings.totalAmount} + coalesce(${bookings.walletAppliedSar}, 0)`,
-        lte(bookings.cancelledAt, new Date(Date.now() - 3_600_000)),
-      ),
-      columns: { referenceCode: true, totalAmount: true, walletAppliedSar: true },
-    });
-    if (orphanedRefunds.length > 0) {
-      await notifyAdmin('refund_due', {
-        problem: 'cancelled paid bookings with an incomplete refund journal (crashed mid-cancel?)',
-        count: orphanedRefunds.length,
-        bookings: orphanedRefunds
-          .map((b) => `${b.referenceCode} (${b.totalAmount + b.walletAppliedSar} SAR)`)
-          .join(', '),
-      });
-    }
+            lte(bookings.cancelledAt, new Date(Date.now() - 3_600_000)),
+          ),
+          columns: { referenceCode: true, totalAmount: true, walletAppliedSar: true },
+        });
+        if (orphanedRefunds.length > 0) {
+          await notifyAdmin('refund_due', {
+            problem:
+              'cancelled paid bookings with an incomplete refund journal (crashed mid-cancel?)',
+            count: orphanedRefunds.length,
+            bookings: orphanedRefunds
+              .map((b) => `${b.referenceCode} (${b.totalAmount + b.walletAppliedSar} SAR)`)
+              .join(', '),
+          });
+        }
+      },
+      undefined,
+    );
 
     // Pass 1d — refund-out orphan sweep (2026-08-01 ninth audit). The
     // refund-out flow debits the wallet in its own transaction and only
@@ -359,6 +441,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       }
     } catch (error) {
       reportError(error, { surface: 'cron-release-holds:refundOutSweep' });
+      failedPasses.push('1d-refund-out-sweep');
     }
 
     // Pass 2 — reconcile stuck holds against HyperPay. Only those whose
@@ -393,62 +476,72 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     // settlement-report reconciliation. (Corrected 2026-07-28 — the
     // "reserved, not built" claim was false and had already caused one
     // P1 fix to be designed on a wrong premise.)
-    const stuck = await db.query.bookings.findMany({
-      where: and(
-        eq(bookings.paymentStatus, 'processing'),
-        isNotNull(bookings.checkoutId),
-        // A superseded checkout can never settle at its prepared
-        // amount, so re-polling it just burns the bounded budget and
-        // re-alerts hourly. The id is KEPT so a late capture is still
-        // resolvable by settle/webhook (2026-07-28 fourth audit) —
-        // this marker is what stops the cron from chasing it.
-        isNull(bookings.checkoutSupersededAt),
-        isNotNull(bookings.paymentDeadline),
-        lte(bookings.paymentDeadline, new Date()),
-        notInArray(bookings.status, ['completed', 'refunded']),
-      ),
-      // Anomaly-stamped rows sort LAST (2026-08-01 ninth audit): an
-      // unresolved anomaly stays `processing` until an admin acts, so
-      // sorted by age alone a handful of them permanently occupied the
-      // head of the bounded window, burning a gateway round-trip each
-      // per hour and eventually starving genuinely-stuck rows out of
-      // the scan. They stay IN the scan — a settle retry can still
-      // clear a transient anomaly — just behind rows that can actually
-      // make progress. Then oldest deadline first, so the pass works on
-      // the longest-stuck money rather than re-scanning the same head.
-      orderBy: (b, { asc }) => [sql`(${b.settleAnomalyAt} is not null)`, asc(b.paymentDeadline)],
-      columns: { idempotencyKey: true },
-      with: { guest: { columns: { preferredLanguage: true } } },
-      limit: RECONCILE_LIMIT,
-    });
+    const { reconciled, settled, anomalies } = await pass(
+      '2-reconcile',
+      async () => {
+        const stuck = await db.query.bookings.findMany({
+          where: and(
+            eq(bookings.paymentStatus, 'processing'),
+            isNotNull(bookings.checkoutId),
+            // A superseded checkout can never settle at its prepared
+            // amount, so re-polling it just burns the bounded budget and
+            // re-alerts hourly. The id is KEPT so a late capture is still
+            // resolvable by settle/webhook (2026-07-28 fourth audit) —
+            // this marker is what stops the cron from chasing it.
+            isNull(bookings.checkoutSupersededAt),
+            isNotNull(bookings.paymentDeadline),
+            lte(bookings.paymentDeadline, new Date()),
+            notInArray(bookings.status, ['completed', 'refunded']),
+          ),
+          // Anomaly-stamped rows sort LAST (2026-08-01 ninth audit): an
+          // unresolved anomaly stays `processing` until an admin acts, so
+          // sorted by age alone a handful of them permanently occupied the
+          // head of the bounded window, burning a gateway round-trip each
+          // per hour and eventually starving genuinely-stuck rows out of
+          // the scan. They stay IN the scan — a settle retry can still
+          // clear a transient anomaly — just behind rows that can actually
+          // make progress. Then oldest deadline first, so the pass works on
+          // the longest-stuck money rather than re-scanning the same head.
+          orderBy: (b, { asc }) => [
+            sql`(${b.settleAnomalyAt} is not null)`,
+            asc(b.paymentDeadline),
+          ],
+          columns: { idempotencyKey: true },
+          with: { guest: { columns: { preferredLanguage: true } } },
+          limit: RECONCILE_LIMIT,
+        });
 
-    let settled = 0;
-    let anomalies = 0;
-    for (const row of stuck) {
-      const outcome = await settleBooking(row.idempotencyKey);
-      if (outcome === 'success') {
-        settled += 1;
-        // The guest's receipt + simplified tax invoice (2026-07-28 fifth
-        // audit). The return route and the webhook both send it; this
-        // pass didn't, so a booking rescued here told the HOST money
-        // arrived and left the guest with nothing — and ZATCA requires
-        // the invoice be issued to the customer. Best-effort.
-        try {
-          await sendBookingReceiptEmail(row.idempotencyKey);
-        } catch (error) {
-          reportError(error, {
-            surface: 'cron-reconcile:receipt',
-            reference: row.idempotencyKey,
-          });
+        let settled = 0;
+        let anomalies = 0;
+        for (const row of stuck) {
+          const outcome = await settleBooking(row.idempotencyKey);
+          if (outcome === 'success') {
+            settled += 1;
+            // The guest's receipt + simplified tax invoice (2026-07-28 fifth
+            // audit). The return route and the webhook both send it; this
+            // pass didn't, so a booking rescued here told the HOST money
+            // arrived and left the guest with nothing — and ZATCA requires
+            // the invoice be issued to the customer. Best-effort.
+            try {
+              await sendBookingReceiptEmail(row.idempotencyKey);
+            } catch (error) {
+              reportError(error, {
+                surface: 'cron-reconcile:receipt',
+                reference: row.idempotencyKey,
+              });
+            }
+          }
+          // `anomaly` is PERMANENT — a real capture that can never match
+          // this booking. Settle has already alerted a human once; counting
+          // it here (rather than treating it as an ordinary failure) is what
+          // keeps the run's summary honest. Suppressing the hourly re-alert
+          // is settle's job, via the anomaly stamp.
+          if (outcome === 'anomaly') anomalies += 1;
         }
-      }
-      // `anomaly` is PERMANENT — a real capture that can never match
-      // this booking. Settle has already alerted a human once; counting
-      // it here (rather than treating it as an ordinary failure) is what
-      // keeps the run's summary honest. Suppressing the hourly re-alert
-      // is settle's job, via the anomaly stamp.
-      if (outcome === 'anomaly') anomalies += 1;
-    }
+        return { reconciled: stuck.length, settled, anomalies };
+      },
+      { reconciled: 0, settled: 0, anomalies: 0 },
+    );
 
     // Pass 2b — stuck-settlement aging alert (2026-07-20 audit). A
     // booking that keeps failing to settle (gateway unreachable, amount
@@ -549,6 +642,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       }
     } catch (error) {
       reportError(error, { surface: 'cron-release-holds:settle-aging' });
+      failedPasses.push('2b-settle-aging');
     }
 
     // Pass 3 — guest reminders. Two hourly-precision reminders over
@@ -567,76 +661,90 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     const tomorrowRiyadh = addDays(todayRiyadh, 1);
     // Anything within 24h of start falls on the Riyadh "today" or
     // "tomorrow" date; scoping to those two days keeps the scan small.
-    const reminderCandidates = await db
-      .select({
-        id: bookings.id,
-        reference: bookings.idempotencyKey,
-        date: bookings.date,
-        startTime: bookings.startTime,
-        preferredLanguage: guests.preferredLanguage,
-        reminderSentAt: bookings.reminderSentAt,
-        finalReminderSentAt: bookings.finalReminderSentAt,
-      })
-      .from(bookings)
-      .innerJoin(guests, eq(bookings.guestId, guests.id))
-      .innerJoin(experiences, eq(bookings.experienceId, experiences.id))
-      .innerJoin(hosts, eq(experiences.hostId, hosts.id))
-      .where(
-        and(
-          eq(bookings.status, 'confirmed'),
-          inArray(bookings.date, [todayRiyadh, tomorrowRiyadh]),
-          // Never cheerfully remind a guest to show up for an experience
-          // the platform has WITHDRAWN (2026-07-28 eighth audit).
-          // Suspension force-pauses the host's listings, but this pass
-          // joined only bookings+guests — so suspended-host guests kept
-          // getting "get ready, see you tomorrow" for something that
-          // must not run. The system telling someone a falsehood it
-          // already knows is worse than telling them nothing.
-          ne(hosts.verificationStatus, 'suspended'),
-          or(isNotNull(guests.email), isNotNull(guests.phone)),
-          or(isNull(bookings.reminderSentAt), isNull(bookings.finalReminderSentAt)),
-        ),
-      )
-      // Bounded passes must make progress on the most urgent rows, not an
-      // arbitrary 100 (Pass 2 already does this; this one didn't).
-      .orderBy(asc(bookings.date), asc(bookings.startTime))
-      .limit(REMINDER_LIMIT);
+    const reminded = await pass(
+      '3-guest-reminders',
+      async () => {
+        let reminded = 0;
+        const reminderCandidates = await db
+          .select({
+            id: bookings.id,
+            reference: bookings.idempotencyKey,
+            date: bookings.date,
+            startTime: bookings.startTime,
+            preferredLanguage: guests.preferredLanguage,
+            reminderSentAt: bookings.reminderSentAt,
+            finalReminderSentAt: bookings.finalReminderSentAt,
+          })
+          .from(bookings)
+          .innerJoin(guests, eq(bookings.guestId, guests.id))
+          .innerJoin(experiences, eq(bookings.experienceId, experiences.id))
+          .innerJoin(hosts, eq(experiences.hostId, hosts.id))
+          .where(
+            and(
+              eq(bookings.status, 'confirmed'),
+              // Only secured bookings (2026-09 engineering audit GAPA-02): an
+              // instant booking is `confirmed` + unpaid for its 30-minute
+              // hold, an approved request for up to 24h. Telling that guest
+              // "see you tomorrow" and then "your hold expired" is the system
+              // contradicting itself. Same predicate the completion pass uses.
+              paymentCollected(),
+              inArray(bookings.date, [todayRiyadh, tomorrowRiyadh]),
+              // Never cheerfully remind a guest to show up for an experience
+              // the platform has WITHDRAWN (2026-07-28 eighth audit).
+              // Suspension force-pauses the host's listings, but this pass
+              // joined only bookings+guests — so suspended-host guests kept
+              // getting "get ready, see you tomorrow" for something that
+              // must not run. The system telling someone a falsehood it
+              // already knows is worse than telling them nothing.
+              ne(hosts.verificationStatus, 'suspended'),
+              or(isNotNull(guests.email), isNotNull(guests.phone)),
+              or(isNull(bookings.reminderSentAt), isNull(bookings.finalReminderSentAt)),
+            ),
+          )
+          // Bounded passes must make progress on the most urgent rows, not an
+          // arbitrary 100 (Pass 2 already does this; this one didn't).
+          .orderBy(asc(bookings.date), asc(bookings.startTime))
+          .limit(REMINDER_LIMIT);
 
-    let reminded = 0;
-    for (const row of reminderCandidates) {
-      const hoursUntil = (startInstant(row.date, row.startTime).getTime() - nowMs) / HOUR_MS;
-      if (hoursUntil <= 0) continue; // already started — nothing to remind
+        for (const row of reminderCandidates) {
+          const hoursUntil = (startInstant(row.date, row.startTime).getTime() - nowMs) / HOUR_MS;
+          if (hoursUntil <= 0) continue; // already started — nothing to remind
 
-      try {
-        // Day-of "see you soon" (~3h). If this is due but the 24h "get
-        // ready" never went out (a booking made less than 24h before
-        // start), send only the departure email and stamp both flags —
-        // no point in two emails seconds apart.
-        if (row.finalReminderSentAt === null && hoursUntil <= 3) {
-          await sendBookingDepartureReminderEmail(row.reference, row.preferredLanguage);
-          await db
-            .update(bookings)
-            .set({
-              finalReminderSentAt: new Date(),
-              reminderSentAt: row.reminderSentAt ?? new Date(),
-            })
-            .where(eq(bookings.id, row.id));
-          reminded += 1;
-          continue;
+          try {
+            // Day-of "see you soon" (~3h). If this is due but the 24h "get
+            // ready" never went out (a booking made less than 24h before
+            // start), send only the departure email and stamp both flags —
+            // no point in two emails seconds apart.
+            if (row.finalReminderSentAt === null && hoursUntil <= 3) {
+              await sendBookingDepartureReminderEmail(row.reference, row.preferredLanguage);
+              await db
+                .update(bookings)
+                .set({
+                  finalReminderSentAt: new Date(),
+                  reminderSentAt: row.reminderSentAt ?? new Date(),
+                })
+                .where(eq(bookings.id, row.id));
+              reminded += 1;
+              continue;
+            }
+            // "Get ready" (~24h).
+            if (row.reminderSentAt === null && hoursUntil <= 24) {
+              await sendBookingPrepareReminderEmail(row.reference, row.preferredLanguage);
+              await db
+                .update(bookings)
+                .set({ reminderSentAt: new Date() })
+                .where(eq(bookings.id, row.id));
+              reminded += 1;
+            }
+          } catch (error) {
+            reportError(error, { surface: 'cron-reminders', reference: row.reference });
+          }
         }
-        // "Get ready" (~24h).
-        if (row.reminderSentAt === null && hoursUntil <= 24) {
-          await sendBookingPrepareReminderEmail(row.reference, row.preferredLanguage);
-          await db
-            .update(bookings)
-            .set({ reminderSentAt: new Date() })
-            .where(eq(bookings.id, row.id));
-          reminded += 1;
-        }
-      } catch (error) {
-        reportError(error, { surface: 'cron-reminders', reference: row.reference });
-      }
-    }
+        return reminded;
+      },
+      0,
+      { bestEffort: true },
+    );
 
     // Pass 3a — pre-lapse payment nudge (2026-08-15 marketing audit).
     // The highest-intent abandonment in the funnel used to be worked
@@ -647,74 +755,115 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     // per booking, and the sender re-checks paid/lapsed state at send
     // time — so the hourly runs, manual triggers, and this window
     // overlapping across runs can never double-send.
-    let nudged = 0;
-    const nudgeCandidates = await db
-      .select({ reference: bookings.idempotencyKey })
-      .from(bookings)
-      .where(
-        and(
-          inArray(bookings.status, ['pending', 'confirmed']),
-          ne(bookings.paymentStatus, 'paid'),
-          isNotNull(bookings.paymentDeadline),
-          sql`${bookings.paymentDeadline} > now()`,
-          sql`${bookings.paymentDeadline} <= now() + interval '150 minutes'`,
-        ),
-      )
-      .orderBy(asc(bookings.paymentDeadline))
-      .limit(REMINDER_LIMIT);
-    for (const row of nudgeCandidates) {
-      try {
-        await sendBookingAwaitingPaymentEmail(row.reference, 'reminder');
-        nudged += 1;
-      } catch (error) {
-        reportError(error, { surface: 'cron-payment-nudge', reference: row.reference });
-      }
-    }
+    const nudged = await pass(
+      '3a-payment-nudge',
+      async () => {
+        let nudged = 0;
+        const nudgeCandidates = await db
+          .select({ reference: bookings.idempotencyKey })
+          .from(bookings)
+          .where(
+            and(
+              inArray(bookings.status, ['pending', 'confirmed']),
+              ne(bookings.paymentStatus, 'paid'),
+              isNotNull(bookings.paymentDeadline),
+              sql`${bookings.paymentDeadline} > now()`,
+              sql`${bookings.paymentDeadline} <= now() + interval '150 minutes'`,
+            ),
+          )
+          .orderBy(asc(bookings.paymentDeadline))
+          .limit(REMINDER_LIMIT);
+        for (const row of nudgeCandidates) {
+          try {
+            await sendBookingAwaitingPaymentEmail(row.reference, 'reminder');
+            nudged += 1;
+          } catch (error) {
+            reportError(error, { surface: 'cron-payment-nudge', reference: row.reference });
+          }
+        }
+        return nudged;
+      },
+      0,
+      { bestEffort: true },
+    );
 
     // Pass 3b — retry failed notification sends. Only types in the
     // retry map (re-derivable from the booking row) are re-fired; a
     // sender whose booking no longer qualifies (e.g. refunded since)
     // simply no-ops and the row ages out of the 48h window.
-    let retried = 0;
-    // Pass the sender registry's own keys as the filter (2026-08-01
-    // ninth audit) — the query used to return types this loop cannot
-    // send, which then squatted on the bounded budget permanently.
-    const retryable = await listRetryableDeliveries(
-      RETRY_LIMIT,
-      Object.keys(RETRYABLE_BOOKING_SENDERS),
-    );
-    if (retryable.length > 0) {
-      const refRows = await db.query.bookings.findMany({
-        where: inArray(bookings.id, [...new Set(retryable.map((row) => row.bookingId))]),
-        columns: { id: true, idempotencyKey: true },
-      });
-      const referenceById = new Map(refRows.map((b) => [b.id, b.idempotencyKey]));
-      for (const row of retryable) {
-        const sender = RETRYABLE_BOOKING_SENDERS[row.type];
-        const reference = referenceById.get(row.bookingId);
-        if (!sender || !reference) continue;
-        try {
-          await sender(reference, row.locale ?? 'ar');
-          retried += 1;
-        } catch (error) {
-          reportError(error, { surface: 'cron-notification-retry', reference, type: row.type });
+    const retried = await pass(
+      '3b-notification-retry',
+      async () => {
+        let retried = 0;
+        // Pass the sender registry's own keys as the filter (2026-08-01
+        // ninth audit) — the query used to return types this loop cannot
+        // send, which then squatted on the bounded budget permanently.
+        const retryable = await listRetryableDeliveries(
+          RETRY_LIMIT,
+          Object.keys(RETRYABLE_BOOKING_SENDERS),
+        );
+        if (retryable.length > 0) {
+          const refRows = await db.query.bookings.findMany({
+            where: inArray(bookings.id, [...new Set(retryable.map((row) => row.bookingId))]),
+            columns: { id: true, idempotencyKey: true },
+          });
+          const referenceById = new Map(refRows.map((b) => [b.id, b.idempotencyKey]));
+          for (const row of retryable) {
+            const sender = RETRYABLE_BOOKING_SENDERS[row.type];
+            const reference = referenceById.get(row.bookingId);
+            if (!sender || !reference) continue;
+            try {
+              await sender(reference, row.locale ?? 'ar');
+              retried += 1;
+            } catch (error) {
+              reportError(error, { surface: 'cron-notification-retry', reference, type: row.type });
+            }
+          }
         }
-      }
-    }
+        return retried;
+      },
+      0,
+      { bestEffort: true },
+    );
+
+    // Pass 3d — stale `queued` deliveries (2026-09 engineering audit
+    // OPS-07 / GAPB-04). A function killed between claiming a ledger row
+    // and the provider result leaves it `queued` forever: the retry sweep
+    // above only selects `failed`, so the guest's receipt or reminder was
+    // silently lost. Ageing them to `failed` hands them to that sweep.
+    const staleQueuedRequeued = await pass(
+      '3d-stale-queued',
+      () => expireStaleQueuedDeliveries(15 * 60_000, RETRY_LIMIT),
+      0,
+      { bestEffort: true },
+    );
 
     // Pass 3c — WhatsApp support-line safety net (2026-08-21). The
     // inbound webhook acks + pages inside `after()`; if that leg died,
     // the guest is sitting on silence. Same throttle rules as the live
     // path, so on a healthy day this is a no-op.
-    const supportSwept = await sweepUnacknowledgedInbound();
+    const supportSwept = await pass('3c-support-inbound', () => sweepUnacknowledgedInbound(), 0, {
+      bestEffort: true,
+    });
     // Phase 2: same net for bot-owned threads, plus one re-page per
     // ticket that blew through its SLA.
-    const agentSwept = await sweepPendingAgentTurns();
-    const slaBreaches = await sweepTicketSla();
+    const agentSwept = await pass('3c-agent-turns', () => sweepPendingAgentTurns(), 0, {
+      bestEffort: true,
+    });
+    const slaBreaches = await pass('3c-ticket-sla', () => sweepTicketSla(), 0, {
+      bestEffort: true,
+    });
     // Phase 3: privacy-page retention — conversations idle for 12 months go.
-    const conversationsPurged = await purgeExpiredConversations();
+    const conversationsPurged = await pass(
+      '3c-conversation-retention',
+      () => purgeExpiredConversations(),
+      0,
+      { bestEffort: true },
+    );
     // Phase 4: one email per day at 06:00 Riyadh with the line's numbers.
-    const dailyReportSent = await maybeSendDailyReport();
+    const dailyReportSent = await pass('3c-daily-report', () => maybeSendDailyReport(), false, {
+      bestEffort: true,
+    });
 
     // Pass 4 — auto-complete. A confirmed, collected booking whose date
     // has passed becomes `completed` the next day (owner decision:
@@ -737,25 +886,28 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     // day after they silently didn't happen. These rows stay `confirmed`
     // until an operator resolves them (the dashboard queue lists them);
     // if the host is reinstated instead, the next run completes them.
-    const hostNotSuspended = () =>
-      sql`${bookings.experienceId} in (
+    const completed = await pass(
+      '4-auto-complete',
+      async () => {
+        const hostNotSuspended = () =>
+          sql`${bookings.experienceId} in (
         select ${experiences.id} from ${experiences}
         join ${hosts} on ${hosts.id} = ${experiences.hostId}
         where ${hosts.verificationStatus} <> 'suspended'
       )`;
-    const completed = await db
-      .update(bookings)
-      .set({ status: 'completed' })
-      .where(
-        and(
-          eq(bookings.status, 'confirmed'),
-          sql`${bookings.date} < ${todayRiyadh}`,
-          paymentCollected(),
-          hostNotSuspended(),
-          // The subquery repeats every outer gate: an uncollected row
-          // must not occupy the LIMIT window, or it would starve
-          // completable rows behind it forever.
-          sql`${bookings.id} in (
+        const rows = await db
+          .update(bookings)
+          .set({ status: 'completed' })
+          .where(
+            and(
+              eq(bookings.status, 'confirmed'),
+              sql`${bookings.date} < ${todayRiyadh}`,
+              paymentCollected(),
+              hostNotSuspended(),
+              // The subquery repeats every outer gate: an uncollected row
+              // must not occupy the LIMIT window, or it would starve
+              // completable rows behind it forever.
+              sql`${bookings.id} in (
             select id from ${bookings}
             where ${bookings.status} = 'confirmed'
               and ${bookings.date} < ${todayRiyadh}
@@ -764,22 +916,26 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
             order by ${bookings.date} asc
             limit ${COMPLETION_LIMIT}
           )`,
-        ),
-      )
-      .returning({ id: bookings.id, reference: bookings.idempotencyKey });
+            ),
+          )
+          .returning({ id: bookings.id, reference: bookings.idempotencyKey });
 
-    // Close the loop on each completion: review invite to the guest,
-    // payout-owed notice to the host. Sequential (pool discipline, same
-    // as every other pass) and per-row best-effort — one failed send
-    // must not starve the rest, and the dedupe keys make the next run
-    // safe to re-attempt.
-    for (const row of completed) {
-      try {
-        await sendBookingCompletedEmails(row.reference);
-      } catch (error) {
-        reportError(error, { surface: 'cron-completed-email', reference: row.reference });
-      }
-    }
+        // Close the loop on each completion: review invite to the guest,
+        // payout-owed notice to the host. Sequential (pool discipline, same
+        // as every other pass) and per-row best-effort — one failed send
+        // must not starve the rest, and the dedupe keys make the next run
+        // safe to re-attempt.
+        for (const row of rows) {
+          try {
+            await sendBookingCompletedEmails(row.reference);
+          } catch (error) {
+            reportError(error, { surface: 'cron-completed-email', reference: row.reference });
+          }
+        }
+        return rows;
+      },
+      [] as Array<{ id: string; reference: string }>,
+    );
 
     // Pass 4b — post-trip marketing (2026-08-15 marketing audit). D+7
     // rebook and D+90 win-back emails off each completed booking's date.
@@ -791,48 +947,56 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     // booking that misses its day (downtime) is skipped rather than
     // sent stale. Win-back additionally requires no later live booking —
     // a guest who came back on their own must not get a "we miss you".
-    let marketed = 0;
-    const marketingStages: Array<{
-      date: string;
-      send: (reference: string) => Promise<void>;
-      requireNoLaterBooking: boolean;
-    }> = [
-      { date: addDays(todayRiyadh, -7), send: sendRebookEmail, requireNoLaterBooking: false },
-      { date: addDays(todayRiyadh, -90), send: sendWinbackEmail, requireNoLaterBooking: true },
-    ];
-    for (const stage of marketingStages) {
-      const candidates = await db
-        .select({ reference: bookings.idempotencyKey })
-        .from(bookings)
-        .innerJoin(guests, eq(bookings.guestId, guests.id))
-        .where(
-          and(
-            eq(bookings.status, 'completed'),
-            eq(bookings.date, stage.date),
-            isNotNull(guests.marketingConsentAt),
-            isNotNull(guests.email),
-            ...(stage.requireNoLaterBooking
-              ? [
-                  sql`not exists (
+    const marketed = await pass(
+      '4b-post-trip-marketing',
+      async () => {
+        let marketed = 0;
+        const marketingStages: Array<{
+          date: string;
+          send: (reference: string) => Promise<void>;
+          requireNoLaterBooking: boolean;
+        }> = [
+          { date: addDays(todayRiyadh, -7), send: sendRebookEmail, requireNoLaterBooking: false },
+          { date: addDays(todayRiyadh, -90), send: sendWinbackEmail, requireNoLaterBooking: true },
+        ];
+        for (const stage of marketingStages) {
+          const candidates = await db
+            .select({ reference: bookings.idempotencyKey })
+            .from(bookings)
+            .innerJoin(guests, eq(bookings.guestId, guests.id))
+            .where(
+              and(
+                eq(bookings.status, 'completed'),
+                eq(bookings.date, stage.date),
+                isNotNull(guests.marketingConsentAt),
+                isNotNull(guests.email),
+                ...(stage.requireNoLaterBooking
+                  ? [
+                      sql`not exists (
                     select 1 from ${bookings} b2
                     where b2.guest_id = ${bookings.guestId}
                       and b2.date > ${bookings.date}
                       and b2.status not in ('cancelled', 'declined', 'expired')
                   )`,
-                ]
-              : []),
-          ),
-        )
-        .limit(REMINDER_LIMIT);
-      for (const row of candidates) {
-        try {
-          await stage.send(row.reference);
-          marketed += 1;
-        } catch (error) {
-          reportError(error, { surface: 'cron-marketing', reference: row.reference });
+                    ]
+                  : []),
+              ),
+            )
+            .limit(REMINDER_LIMIT);
+          for (const row of candidates) {
+            try {
+              await stage.send(row.reference);
+              marketed += 1;
+            } catch (error) {
+              reportError(error, { surface: 'cron-marketing', reference: row.reference });
+            }
+          }
         }
-      }
-    }
+        return marketed;
+      },
+      0,
+      { bestEffort: true },
+    );
 
     // Pass 5 — VAT accounting guards (daily, best-effort; failures are
     // logged but never block the operational passes above).
@@ -900,6 +1064,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       }
     } catch (error) {
       reportError(error, { surface: 'cron-release-holds:vat-guards' });
+      failedPasses.push('5-vat-guards');
     }
 
     // Pass 5c — negative-take watch (2026-07-20 audit). Platform-funded
@@ -936,6 +1101,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       }
     } catch (error) {
       reportError(error, { surface: 'cron-release-holds:negative-take' });
+      failedPasses.push('5c-negative-take');
     }
 
     // Pass 6 — wallet credit expiry sweep (2026-07-20 audit: `expiresAt`
@@ -1012,6 +1178,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       }
     } catch (error) {
       reportError(error, { surface: 'cron-release-holds:wallet-expiry' });
+      failedPasses.push('6-wallet-expiry');
     }
 
     // Pass 7 — throttle-event prune (2026-07-28 audit). The abuse
@@ -1025,7 +1192,31 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         .where(lte(authThrottleEvents.createdAt, new Date(Date.now() - 24 * 3_600_000)));
     } catch (error) {
       reportError(error, { surface: 'cron-release-holds:throttlePrune' });
+      failedPasses.push('7-throttle-prune');
     }
+
+    // Pass 7b — analytics retention (2026-09 engineering audit GAPA-04).
+    // Every public page view, search and detail view has inserted a row
+    // since 2026-08-21 and nothing ever deleted one; the dashboard
+    // aggregates over the whole table on each admin load. Thirteen months
+    // keeps a full year-over-year comparison; bounded per run.
+    const analyticsPruned = await pass(
+      '7b-analytics-retention',
+      async () => {
+        const cutoff = new Date(Date.now() - 13 * 30 * 24 * 3_600_000);
+        await db.delete(analyticsEvents).where(
+          sql`${analyticsEvents.id} in (
+            select id from ${analyticsEvents}
+            where ${analyticsEvents.createdAt} <= ${cutoff}
+            order by ${analyticsEvents.createdAt} asc
+            limit 5000
+          )`,
+        );
+        return true;
+      },
+      false,
+      { bestEffort: true },
+    );
 
     // Pass 8 — KYC document retention (2026-08-02 legal audit, PDPL).
     // Identity documents on applications REJECTED more than
@@ -1083,32 +1274,52 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       }
     } catch (error) {
       reportError(error, { surface: 'cron-release-holds:kycRetention' });
+      failedPasses.push('8-kyc-retention');
     }
 
     // Heartbeat — the admin dashboard flags a stale stamp, so a silently
     // dead cron (expired secret, removed schedule, plan change) is
     // visible instead of quietly stopping expiry/release/reminders.
-    try {
-      await db
-        .insert(platformSettings)
-        .values({ id: 'platform', lastCronRunAt: new Date() })
-        .onConflictDoUpdate({
-          target: platformSettings.id,
-          set: { lastCronRunAt: new Date() },
-        });
-    } catch (error) {
-      reportError(error, { surface: 'cron-release-holds:heartbeat' });
+    // Withheld when a MONEY pass failed: a run that could not expire,
+    // release or reconcile must look dead to the watchdog, not healthy.
+    const moneyFailed = failedPasses.some((name) => MONEY_PASSES.has(name));
+    if (!moneyFailed) {
+      try {
+        await db
+          .insert(platformSettings)
+          .values({ id: 'platform', lastCronRunAt: new Date() })
+          .onConflictDoUpdate({
+            target: platformSettings.id,
+            set: { lastCronRunAt: new Date() },
+          });
+      } catch (error) {
+        reportError(error, { surface: 'cron-release-holds:heartbeat' });
+      }
+    }
+    if (failedPasses.length > 0) {
+      // One page per six hours per failing set — the persisted alert rows
+      // and Sentry keep the hourly detail.
+      await notifyAdmin(
+        'cron_failed',
+        {
+          job: 'release-holds',
+          passes: failedPasses.join(', '),
+          heartbeat: moneyFailed ? 'withheld' : 'stamped',
+        },
+        { fingerprint: `release-holds:${failedPasses.join(',')}`, quietWindowMs: 6 * 3_600_000 },
+      );
     }
 
     return NextResponse.json({
       expired: expired.length,
       released: released.length,
-      reconciled: stuck.length,
+      reconciled,
       settled,
       anomalies,
       reminded,
       nudged,
       retried,
+      staleQueuedRequeued,
       supportSwept,
       agentSwept,
       slaBreaches,
@@ -1117,7 +1328,13 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       completed: completed.length,
       marketed,
       expiredCreditSar,
+      analyticsPruned,
       kycDocumentsPurged,
+      failedPasses,
+      skippedPasses,
+      truncated: skippedPasses.length > 0,
+      heartbeat: !moneyFailed,
+      elapsedMs: Date.now() - startedAt,
     });
   } catch (error) {
     reportError(error, { surface: 'cron-release-holds' });

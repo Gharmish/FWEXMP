@@ -794,6 +794,13 @@ async function reminderData(reference: string, locale: Locale): Promise<Reminder
   // rescheduled to a new reference, or otherwise moved out of `confirmed`
   // in that window must never receive a reminder describing a stale state.
   if (booking.status !== 'confirmed') return null;
+  // …and only a SECURED one (2026-09 engineering audit GAPA-02): a
+  // confirmed-but-unpaid hold must never be told "see you tomorrow".
+  // Mirrors `paymentCollected()`: paid, or — with payments switched off —
+  // a row that never had a hold to pay.
+  if (booking.paymentStatus !== 'paid' && (hasHyperpay() || booking.paymentDeadline !== null)) {
+    return null;
+  }
 
   const experience = booking.experienceSlug
     ? await getExperienceBySlug(booking.experienceSlug)

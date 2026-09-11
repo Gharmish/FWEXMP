@@ -1600,8 +1600,10 @@ export const analyticsEventTypeEnum = pgEnum('analytics_event_type', [
  * from server renders via `after()` — a failed insert never slows or
  * breaks a page. Deliberately NO user identifiers, no IP, no session id:
  * nothing here is PII, so the cookie-notice promise ("no tracking
- * cookies, ever") holds. Bot traffic is not filtered at write time;
- * dashboard queries can add UA heuristics later if noise demands it.
+ * cookies, ever") holds. Obvious bots, link previews and admin sessions
+ * are dropped at write time (features/analytics/capture.ts, 2026-08-21);
+ * the hourly cron prunes rows older than 13 months (release-holds pass
+ * 7b, 2026-09) so the table stays bounded.
  */
 export const analyticsEvents = pgTable(
   'analytics_events',

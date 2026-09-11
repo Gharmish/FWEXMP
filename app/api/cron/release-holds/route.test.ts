@@ -27,8 +27,9 @@ vi.mock('@/lib/env', () => ({ serverEnv: env, hasSupportAgent: () => false }));
 
 // Support-line sweeps (phase 1/2) are DB-bound and covered by their own
 // modules; here they must simply not interfere with the booking passes.
+const sweepUnacknowledgedInbound = vi.fn(async () => 0);
 vi.mock('@/lib/conversations/inbound', () => ({
-  sweepUnacknowledgedInbound: async () => 0,
+  sweepUnacknowledgedInbound: (...args: unknown[]) => sweepUnacknowledgedInbound(...(args as [])),
   purgeExpiredConversations: async () => 0,
 }));
 vi.mock('@/lib/support-agent/agent', () => ({ sweepPendingAgentTurns: async () => 0 }));
@@ -73,8 +74,14 @@ vi.mock('@/features/bookings/lib/cancellation', () => ({
     new Date(Date.now() + Number(startTime) * 60 * 60 * 1000),
 }));
 
+// The VAT / negative-take passes read these SQL builders too; with the
+// chainable db stub their results are inert, but an absent mock export
+// threw and (since per-pass isolation) showed up as a failed pass.
 vi.mock('@/features/bookings/lib/payout-sql', () => ({
   paymentCollected: () => undefined,
+  platformTakeExpr: () => undefined,
+  rolling12mTurnoverExpr: () => undefined,
+  collectedRevenue: () => undefined,
 }));
 
 interface TerminalRow {
@@ -162,6 +169,8 @@ vi.mock('@/lib/db', () => ({
         },
       }),
     }),
+    // Retention passes (throttle events, analytics) — bounded deletes.
+    delete: () => ({ where: async () => undefined }),
   },
 }));
 
@@ -345,18 +354,58 @@ describe('GET /api/cron/release-holds', () => {
     expect(reminderStamps).toBe(1);
   });
 
-  it('writes the heartbeat on a successful run', async () => {
-    await GET(cronRequest());
+  it('writes the heartbeat on a successful run and reports no failed passes', async () => {
+    const response = await GET(cronRequest());
     expect(heartbeats).toBe(1);
+    expect(await response.json()).toMatchObject({ failedPasses: [], heartbeat: true });
+    expect(notifyAdmin).not.toHaveBeenCalledWith(
+      'cron_failed',
+      expect.anything(),
+      expect.anything(),
+    );
   });
 
-  it('returns 500 and alerts the team when the run fails', async () => {
+  // Per-pass isolation (2026-09 engineering audit OPS-03): a failing pass
+  // is reported by name and the run continues; only a MONEY pass failing
+  // withholds the heartbeat, so the watchdog escalates.
+  it('isolates a failing money pass: reports it, withholds the heartbeat, keeps running', async () => {
     updateFailure = new Error('db down');
     const response = await GET(cronRequest());
-    expect(response.status).toBe(500);
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    expect(body.failedPasses).toEqual(
+      expect.arrayContaining(['0-expire-requests', '1-release-holds']),
+    );
+    expect(body.heartbeat).toBe(false);
+    expect(heartbeats).toBe(0);
+    // Later passes still ran: the reminder pass is reported, not skipped.
+    expect(body.reminded).toBe(0);
     expect(notifyAdmin).toHaveBeenCalledWith(
       'cron_failed',
-      expect.objectContaining({ job: 'release-holds' }),
+      expect.objectContaining({ job: 'release-holds', heartbeat: 'withheld' }),
+      expect.objectContaining({ fingerprint: expect.stringContaining('release-holds:') }),
+    );
+  });
+
+  it('a failing best-effort sweep does not stop later passes or the heartbeat', async () => {
+    sweepUnacknowledgedInbound.mockRejectedValueOnce(new Error('support line down'));
+    const response = await GET(cronRequest());
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    expect(body.failedPasses).toEqual(['3c-support-inbound']);
+    expect(body.heartbeat).toBe(true);
+    expect(heartbeats).toBe(1);
+    // The sweep after it and the completion pass still ran.
+    expect(body.agentSwept).toBe(0);
+    expect(body.completed).toBe(0);
+    expect(reportError).toHaveBeenCalledWith(
+      expect.any(Error),
+      expect.objectContaining({ pass: '3c-support-inbound' }),
+    );
+    expect(notifyAdmin).toHaveBeenCalledWith(
+      'cron_failed',
+      expect.objectContaining({ passes: '3c-support-inbound', heartbeat: 'stamped' }),
+      expect.anything(),
     );
   });
 });
