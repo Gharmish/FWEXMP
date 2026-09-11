@@ -1,6 +1,7 @@
 import type { NextRequest } from 'next/server';
 import { getExperiences } from '@/features/experiences/queries';
 import { SITE_URL } from '@/lib/site';
+import { csvCell } from '@/lib/csv';
 
 /**
  * TikTok catalog data feed — the scheduled-fetch source for the
@@ -27,10 +28,18 @@ import { SITE_URL } from '@/lib/site';
  * detail page guards `startsWith('http')` for the same reason).
  */
 
-export const revalidate = 3600;
+// No `revalidate` export: reading `request.nextUrl.searchParams` makes the
+// handler dynamic, so the segment option was inert — the CDN header below is
+// what actually caches the feed (2026-09 engineering audit GAPB-07).
 
+/**
+ * One cell: whitespace collapsed to single spaces (TikTok wants one-line
+ * titles), then the shared RFC-4180 writer, which also defuses formula
+ * triggers — host-authored titles go into a CSV operators will open in
+ * Excel sooner or later.
+ */
 function field(value: string): string {
-  return `"${value.replaceAll('"', '""').replaceAll(/\s+/g, ' ').trim()}"`;
+  return csvCell(value.replaceAll(/\s+/g, ' ').trim());
 }
 
 function absoluteImage(heroImage: string): string {

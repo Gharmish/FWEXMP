@@ -41,11 +41,14 @@ export async function GET(): Promise<Response> {
   const lines: string[] = [
     `# ${SITE_NAME}`,
     '',
-    `> ${SITE_DESCRIPTION} A curated marketplace of authentic Aseeri experiences in Abha (Aseer region), Saudi Arabia. Bilingual: English (/en) and Arabic (/ar, RTL).`,
+    // Place-agnostic brand line (2026-08-14 positioning): the destination
+    // detail lives on each experience below, not in the manifest header
+    // (2026-09 engineering audit GAPB-08).
+    `> ${SITE_DESCRIPTION} A curated marketplace of experiences hosted by local people in Saudi Arabia — starting in Abha, in the Aseer highlands. Bilingual: English (/en) and Arabic (/ar, RTL).`,
     '',
     '## About',
     '',
-    '- Region: Abha and the Aseer highlands, Saudi Arabia',
+    '- Where: Saudi Arabia — launch destination Abha (Aseer region); each experience lists its own city and region below',
     '- Languages: English, Arabic (RTL)',
     '- Currency: SAR (Saudi Riyal)',
     '- Bookings: instant-book experiences confirm at payment; request-to-book experiences are confirmed by the host within 24 hours, then paid',
@@ -62,7 +65,7 @@ export async function GET(): Promise<Response> {
       `- URL (Arabic): ${SITE_URL}/ar/experiences/${exp.slug}`,
       `- Category: ${categoryLabel(exp.category)}`,
       `- Host: ${exp.hostName}`,
-      `- Place: ${exp.placeName}, Abha, Aseer`,
+      `- Place: ${exp.placeName}, ${exp.city}`,
       `- Duration: ${durationHours(exp.durationMinutes, 'en')} hours`,
       `- Price: ${formatSAR(exp.priceSar, 'en')} per person`,
     ];
@@ -109,6 +112,12 @@ export async function GET(): Promise<Response> {
   );
 
   return new Response(lines.join('\n'), {
-    headers: { 'Content-Type': 'text/plain; charset=utf-8' },
+    headers: {
+      'Content-Type': 'text/plain; charset=utf-8',
+      // Crawlers re-fetch this constantly; the catalog changes rarely. An
+      // hour at the CDN keeps every LLM fetch off the pooler
+      // (2026-09 engineering audit GAPB-08).
+      'Cache-Control': 'public, s-maxage=3600, stale-while-revalidate=86400',
+    },
   });
 }
