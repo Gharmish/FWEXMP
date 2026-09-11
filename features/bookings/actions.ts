@@ -2,6 +2,7 @@
 
 import { and, desc, eq, gte, inArray, isNull, ne, sql } from 'drizzle-orm';
 import { after } from 'next/server';
+import { readAdConsent } from '@/lib/consent-server';
 import { cookies, headers } from 'next/headers';
 import { db } from '@/lib/db';
 import { serverEnv, hasHyperpay } from '@/lib/env';
@@ -306,6 +307,11 @@ export async function requestBooking(
     gclid: formValue(formData, 'gclid'),
     ttclid: formValue(formData, 'ttclid'),
     fbclid: formValue(formData, 'fbclid'),
+    // Guest-to-guest referral code, posted by the form from the ?ref=
+    // landing param. Was missing from this parse input, so every booking
+    // since 2026-08-15 was stamped referralCode NULL and no referral
+    // reward could ever fire (2026-09 engineering audit ACTIONS-01).
+    referralCode: formValue(formData, 'referralCode'),
     marketingConsent: formValue(formData, 'marketingConsent'),
     guestNote: formValue(formData, 'guestNote'),
   });
@@ -327,6 +333,13 @@ export async function requestBooking(
   }
 
   const input = parsed.data;
+  // Ad-platform click ids are personal data for the platforms that issued
+  // them: persist them only when the guest accepted marketing cookies, so
+  // the server-side conversion at settlement (which keys off ttclid) can
+  // never fire for a guest who chose "essential only" or never answered
+  // the banner (2026-09 engineering audit GAPB-01). Referral codes are
+  // not ad identifiers and are kept regardless.
+  const adConsent = await readAdConsent();
   // The client mints the key when the form mounts (see schemas.ts) so a
   // retry re-sends the same one; server-minted fallback keeps keyless
   // posters working but without retry protection.
@@ -748,9 +761,9 @@ export async function requestBooking(
       // Ad-platform click ids + guest referral code, captured with the
       // same first-touch mechanism — offline conversion upload and
       // referral rewards both hang off these at settlement.
-      gclid: input.gclid ?? null,
-      ttclid: input.ttclid ?? null,
-      fbclid: input.fbclid ?? null,
+      gclid: adConsent ? (input.gclid ?? null) : null,
+      ttclid: adConsent ? (input.ttclid ?? null) : null,
+      fbclid: adConsent ? (input.fbclid ?? null) : null,
       referralCode: input.referralCode ?? null,
       // Per-booking snapshot of the marketing-consent checkbox; the
       // durable per-guest grant is stamped on the guest row above.

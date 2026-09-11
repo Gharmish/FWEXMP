@@ -52,9 +52,15 @@ vi.mock('next/headers', () => ({
     set: (name: string, value: string) => {
       cookieSets.push({ name, value });
     },
-    get: () => undefined,
+    get: (name: string) =>
+      name === 'gharmish_cookie_notice' && consentCookie
+        ? { name, value: consentCookie }
+        : undefined,
   }),
 }));
+
+/** Value of the consent cookie the mocked request carries (null = absent). */
+let consentCookie: string | null = null;
 
 let currentUser: { id: string; phone: string; email?: string } | null = null;
 vi.mock('@/features/auth/queries', () => ({
@@ -256,6 +262,7 @@ beforeEach(() => {
   guestUpdates.length = 0;
   currentUser = null;
   insertBookingError = null;
+  consentCookie = null;
   hyperpayOn = true;
   replayRow = undefined;
   guestRow = undefined;
@@ -536,5 +543,43 @@ describe('requestBooking — throttles & guards', () => {
 
     expect(insertedBookings).toHaveLength(1);
     expect(insertedBookings[0]).toMatchObject({ contactPhone: '+966555000333' });
+  });
+});
+
+describe('marketing attribution fields (2026-09 engineering audit ACTIONS-01)', () => {
+  it('persists the posted referralCode on the booking row', async () => {
+    await runExpectingRedirect(form({ referralCode: 'FRIEND-7Q2' }));
+    expect(insertedBookings).toHaveLength(1);
+    expect(insertedBookings[0]).toMatchObject({ referralCode: 'FRIEND-7Q2' });
+  });
+
+  it('stores null when no referral code was posted', async () => {
+    await runExpectingRedirect(form());
+    expect(insertedBookings).toHaveLength(1);
+    expect(insertedBookings[0]).toMatchObject({ referralCode: null });
+  });
+});
+
+describe('ad click ids follow cookie consent (2026-09 engineering audit GAPB-01)', () => {
+  it('persists gclid/ttclid/fbclid when the guest accepted marketing cookies', async () => {
+    consentCookie = 'all';
+    await runExpectingRedirect(form({ gclid: 'g.1', ttclid: 'tt.1', fbclid: 'fb.1' }));
+    expect(insertedBookings[0]).toMatchObject({ gclid: 'g.1', ttclid: 'tt.1', fbclid: 'fb.1' });
+  });
+
+  it('drops them for an essential-only choice but keeps the referral code', async () => {
+    consentCookie = 'essential';
+    await runExpectingRedirect(form({ gclid: 'g.1', ttclid: 'tt.1', referralCode: 'FRIEND' }));
+    expect(insertedBookings[0]).toMatchObject({
+      gclid: null,
+      ttclid: null,
+      fbclid: null,
+      referralCode: 'FRIEND',
+    });
+  });
+
+  it('drops them when the banner was never answered', async () => {
+    await runExpectingRedirect(form({ ttclid: 'tt.1' }));
+    expect(insertedBookings[0]).toMatchObject({ ttclid: null });
   });
 });

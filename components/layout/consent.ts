@@ -1,23 +1,17 @@
 /**
  * Cookie-consent store shared by the notice banner and the marketing
- * pixel loader. One first-party cookie, three meanings:
- *
- * - `1`         — legacy "notice acknowledged": the visitor dismissed the
- *                 essential-cookies-only notice while no marketing pixels
- *                 were configured. They were never offered a marketing
- *                 choice, so if pixels arrive later the banner asks once.
- * - `essential` — explicitly chose essential cookies only.
- * - `all`       — consented to marketing cookies (Snap / TikTok pixels).
+ * pixel loader. The cookie name, its three values and their meaning live in
+ * lib/consent-cookie.ts so the server can honour the same choice.
  *
  * Client-only module: every function touches `document`, so call them
  * from effects, event handlers, or `useSyncExternalStore` snapshots —
  * never during server render.
  */
 
-export const CONSENT_COOKIE = 'gharmish_cookie_notice';
-const COOKIE_MAX_AGE_S = 60 * 60 * 24 * 365;
+import { CONSENT_COOKIE, parseConsentCookie, type ConsentValue } from '@/lib/consent-cookie';
 
-export type ConsentValue = 'acknowledged' | 'essential' | 'all';
+export { CONSENT_COOKIE, type ConsentValue };
+const COOKIE_MAX_AGE_S = 60 * 60 * 24 * 365;
 
 const listeners = new Set<() => void>();
 
@@ -33,9 +27,7 @@ export function readConsent(): ConsentValue | null {
     .split('; ')
     .find((entry) => entry.startsWith(`${CONSENT_COOKIE}=`))
     ?.slice(CONSENT_COOKIE.length + 1);
-  if (raw === '1') return 'acknowledged';
-  if (raw === 'essential' || raw === 'all') return raw;
-  return null;
+  return parseConsentCookie(raw);
 }
 
 export function writeConsent(value: ConsentValue) {

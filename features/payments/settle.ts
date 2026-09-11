@@ -361,12 +361,22 @@ export async function settleBooking(reference: string): Promise<SettleOutcome> {
       // `purchase:${reference}` event_id, so TikTok dedupes the overlap.
       // Internally env-gated and non-throwing; the concurrent-settle
       // arbiter above guarantees exactly one caller reaches this line.
-      await reportTikTokPurchase({
-        reference,
-        valueSar: booking.totalAmount + booking.walletAppliedSar,
-        contentId: booking.experience.slug,
-        ttclid: booking.ttclid,
-      });
+      //
+      // Only with a stored click id (2026-09 engineering audit GAPB-01): a
+      // click id is persisted only when the guest accepted marketing
+      // cookies, so its presence IS the consent snapshot. A consented guest
+      // without a TikTok click is reported by the confirmation-page pixel
+      // under the same event_id and could not be attributed server-side
+      // anyway, so skipping the call loses nothing — and a guest who chose
+      // "essential only" is never reported, as the privacy policy promises.
+      if (booking.ttclid) {
+        await reportTikTokPurchase({
+          reference,
+          valueSar: booking.totalAmount + booking.walletAppliedSar,
+          contentId: booking.experience.slug,
+          ttclid: booking.ttclid,
+        });
+      }
       // Referral reward, on the same single paid transition. Internally
       // guarded (reward enabled, first paid booking, not self-referred),
       // idempotent via the wallet ledger, and non-throwing.
