@@ -36,7 +36,10 @@ let warnedInvalidKey = false;
 
 function keyBytes(): Buffer | null {
   const raw = serverEnv.PII_ENCRYPTION_KEY;
-  if (!raw) return null;
+  if (!raw) {
+    warnMissingKeyOnce();
+    return null;
+  }
   const buf = Buffer.from(raw, 'base64');
   if (buf.length !== 32) {
     if (!warnedInvalidKey) {
@@ -87,4 +90,24 @@ export function decryptPii(value: string | null): string | null {
     reportError(error, { surface: 'pii-crypto:decrypt' });
     return value;
   }
+}
+
+let warnedMissingKey = false;
+/**
+ * An absent key silently stores IBANs and national IDs in plaintext; an
+ * INVALID key already logs once, the missing case never did (2026-09
+ * engineering audit OPS-06). Production only — local and CI legitimately
+ * run without one.
+ */
+function warnMissingKeyOnce(): void {
+  if (warnedMissingKey || process.env.VERCEL_ENV !== 'production') return;
+  warnedMissingKey = true;
+  reportError(
+    new Error(
+      'PII_ENCRYPTION_KEY is not set in production — PII fields are being stored in plaintext',
+    ),
+    {
+      surface: 'pii-crypto:config',
+    },
+  );
 }

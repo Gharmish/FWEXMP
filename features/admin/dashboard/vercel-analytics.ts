@@ -71,6 +71,10 @@ async function call<T>(path: string, params: Record<string, string>): Promise<T>
   const res = await fetch(url, {
     headers: { Authorization: `Bearer ${serverEnv.VERCEL_ANALYTICS_TOKEN}` },
     next: { revalidate: REVALIDATE_SECONDS },
+    // A hung Vercel API call must not stall the admin dashboard render;
+    // the abort surfaces through the same "not connected" path as an
+    // HTTP error (2026-09 engineering audit OPS-11).
+    signal: AbortSignal.timeout(8_000),
   });
   if (!res.ok) {
     throw new Error(`vercel analytics ${path}: HTTP ${res.status}`);

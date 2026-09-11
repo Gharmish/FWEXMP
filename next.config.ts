@@ -69,6 +69,11 @@ const nextConfig: NextConfig = {
       './public/images/gharmish-email-logo.png',
     ],
     '/api/webhooks/hyperpay': ['./lib/og/fonts/*.ttf', './public/images/gharmish-email-logo.png'],
+    // The cron's reconcile pass and the notification retry sweep are the
+    // recovery paths for a receipt that failed elsewhere; without the
+    // assets they silently sent receipts with no tax-invoice PDF
+    // (2026-09 engineering audit GAPB-03).
+    '/api/cron/release-holds': ['./lib/og/fonts/*.ttf', './public/images/gharmish-email-logo.png'],
   },
   images: {
     /**

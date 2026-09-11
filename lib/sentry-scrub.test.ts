@@ -48,3 +48,34 @@ describe('scrubEvent', () => {
     expect(event.user).toEqual({ id: '[redacted]' });
   });
 });
+
+describe('scrubEvent — capability-bearing URLs (2026-09 engineering audit SEC-01)', () => {
+  it('redacts link tokens, unsubscribe tokens and reference UUIDs from the request URL', () => {
+    const event = scrubEvent({
+      request: {
+        url: 'https://gharmish.com/en/book/confirmed/3f1f2e6a-1111-4222-8333-444455556666?k=abcDEF123456789012345678901&slug=x',
+        query_string: 'k=abcDEF123456789012345678901&slug=x',
+      },
+    } as unknown as ErrorEvent);
+    expect(event.request?.url).toBe(
+      'https://gharmish.com/en/book/confirmed/[uuid]?k=[redacted]&slug=x',
+    );
+    expect(event.request?.query_string).toBe('k=[redacted]&slug=x');
+  });
+
+  it('redacts the unsubscribe token and email params', () => {
+    const event = scrubEvent({
+      request: { url: '/api/marketing/unsubscribe?e=a%40b.com&t=tok123' },
+    } as unknown as ErrorEvent);
+    expect(event.request?.url).toBe('/api/marketing/unsubscribe?e=[redacted]&t=[redacted]');
+  });
+
+  it('scrubs tags and contexts like extra', () => {
+    const event = scrubEvent({
+      tags: { guest: 'ahmed@example.com' },
+      contexts: { booking: { phone: '+966501234567' } },
+    } as unknown as ErrorEvent);
+    expect(JSON.stringify(event.tags)).not.toContain('ahmed@example.com');
+    expect(JSON.stringify(event.contexts)).not.toContain('501234567');
+  });
+});

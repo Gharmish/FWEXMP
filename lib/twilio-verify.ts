@@ -50,6 +50,11 @@ async function post(
     },
     body: new URLSearchParams(body).toString(),
     cache: 'no-store',
+    // Every other outbound client carries a deadline; a hung Verify call
+    // stalled the phone-change server action until the platform killed the
+    // function (2026-09 engineering audit OPS-11). The callers' try/catch
+    // maps the abort to their transport-failure state.
+    signal: AbortSignal.timeout(8_000),
   });
   let json: Record<string, unknown> = {};
   try {

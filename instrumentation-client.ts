@@ -12,6 +12,11 @@ import { scrubEvent } from '@/lib/sentry-scrub';
  */
 Sentry.init({
   dsn: process.env.NEXT_PUBLIC_SENTRY_DSN ?? '',
+  // Previews run NODE_ENV=production too; without these two fields their
+  // errors land in the same untagged stream as prod and nothing ties a
+  // regression to a deploy (2026-09 engineering audit OPS-05).
+  environment: process.env.NEXT_PUBLIC_VERCEL_ENV ?? process.env.NODE_ENV ?? 'development',
+  release: process.env.NEXT_PUBLIC_VERCEL_GIT_COMMIT_SHA,
   tracesSampleRate: 0,
   enabled: Boolean(process.env.NEXT_PUBLIC_SENTRY_DSN),
   // Never attach default PII (IP, cookies); scrub free-text fields

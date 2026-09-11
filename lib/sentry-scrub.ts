@@ -39,6 +39,44 @@ export function redactValue(value: unknown): unknown {
   return value;
 }
 
+const SECRET_QUERY_PARAMS = new Set(['k', 't', 'e', 'token', 'code']);
+const UUID_SEGMENT = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/** Redact capability-bearing query params in a raw query string. */
+export function redactQuery(query: string): string {
+  return query
+    .replace(/^\?/, '')
+    .split('&')
+    .filter(Boolean)
+    .map((pair) => {
+      const eq = pair.indexOf('=');
+      const key = eq === -1 ? pair : pair.slice(0, eq);
+      if (SECRET_QUERY_PARAMS.has(key)) return `${key}=[redacted]`;
+      return pair;
+    })
+    .join('&');
+}
+
+/**
+ * Redact a full URL: secret query params and UUID path segments (booking
+ * references act as partial capabilities). Unparseable input is redacted
+ * as plain text.
+ */
+export function redactUrl(url: string): string {
+  try {
+    const u = new URL(url, 'https://placeholder.invalid');
+    u.pathname = u.pathname
+      .split('/')
+      .map((seg) => (UUID_SEGMENT.test(seg) ? '[uuid]' : seg))
+      .join('/');
+    u.search = u.search ? `?${redactQuery(u.search)}` : '';
+    const out = u.toString();
+    return url.startsWith('http') ? out : out.replace('https://placeholder.invalid', '');
+  } catch {
+    return redactString(url);
+  }
+}
+
 export function scrubEvent(event: ErrorEvent): ErrorEvent {
   if (event.user) {
     // Keep only a redacted id (a KSA user id may itself be a phone); drop
@@ -50,8 +88,15 @@ export function scrubEvent(event: ErrorEvent): ErrorEvent {
   if (event.request) {
     delete event.request.cookies;
     delete event.request.headers;
+    // Booking link tokens (?k=), unsubscribe tokens (?t=, ?e=) and
+    // reference UUIDs travel in URLs; an error on those routes must not
+    // ship a live capability to the monitoring tool (2026-09 engineering
+    // audit SEC-01).
+    if (typeof event.request.url === 'string') {
+      event.request.url = redactUrl(event.request.url);
+    }
     if (typeof event.request.query_string === 'string') {
-      event.request.query_string = redactString(event.request.query_string);
+      event.request.query_string = redactString(redactQuery(event.request.query_string));
     }
     if (event.request.data !== undefined) {
       event.request.data = redactValue(event.request.data);
@@ -65,6 +110,16 @@ export function scrubEvent(event: ErrorEvent): ErrorEvent {
   if (event.extra) {
     const scrubbed = redactValue(event.extra);
     event.extra = (scrubbed ?? {}) as Record<string, unknown>;
+  }
+
+  if (event.tags) {
+    const scrubbed = redactValue(event.tags);
+    event.tags = (scrubbed ?? {}) as typeof event.tags;
+  }
+
+  if (event.contexts) {
+    const scrubbed = redactValue(event.contexts);
+    event.contexts = (scrubbed ?? {}) as typeof event.contexts;
   }
 
   if (event.exception?.values) {

@@ -1,3 +1,6 @@
+import 'server-only';
+
+import * as Sentry from '@sentry/nextjs';
 import { cache } from 'react';
 import { cookies } from 'next/headers';
 import { hasSupabaseAuth, stubAuthAllowed } from '@/lib/env';
@@ -67,5 +70,11 @@ export const getSession = cache(async (): Promise<Session | null> => {
 
 /** Convenience for the common case — UI code that just wants the user or null. */
 export async function getCurrentUser(): Promise<AuthUser | null> {
-  return (await getSession())?.user ?? null;
+  const user = (await getSession())?.user ?? null;
+  // Opaque user context for error reports (BRIEF §7 "log to Sentry with
+  // user context"; 2026-09 engineering audit OPS-05): the id only — the
+  // scrubber drops everything else, and lib/sentry-scrub redacts phone-
+  // shaped ids. Segment lets an admin-only bug be told from a guest one.
+  if (user) Sentry.setUser({ id: user.id, segment: user.isAdmin ? 'admin' : 'guest' });
+  return user;
 }

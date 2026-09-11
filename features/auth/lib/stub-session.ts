@@ -1,5 +1,6 @@
 import { createHash } from 'node:crypto';
 import type { AuthUser } from '@/features/auth/types';
+import { serverEnv } from '@/lib/env';
 
 /**
  * Cookie-backed dev session. Lives only when `hasSupabaseAuth()` is
@@ -30,8 +31,7 @@ export const STUB_OTP = '000000';
  * the admin surface skips the second factor in stub mode.
  */
 function stubAdminFlags(phone: string): Pick<AuthUser, 'isAdmin' | 'mfa'> {
-  const allowlist = (process.env.ADMIN_PHONES ?? '')
-    .split(',')
+  const allowlist = serverEnv.ADMIN_PHONES.split(',')
     .map((raw) => raw.trim())
     .filter(Boolean);
   return {

@@ -35,7 +35,8 @@ export type AdminAlertKind =
   | 'negative_take'
   | 'guest_whatsapp_inbound'
   | 'support_ticket_opened'
-  | 'support_ticket_sla_breached';
+  | 'support_ticket_sla_breached'
+  | 'config_missing';
 
 const SUBJECTS: Record<AdminAlertKind, string> = {
   host_application_submitted: 'New host application',
@@ -52,6 +53,7 @@ const SUBJECTS: Record<AdminAlertKind, string> = {
   guest_whatsapp_inbound: 'New WhatsApp message from a guest',
   support_ticket_opened: 'Support ticket opened',
   support_ticket_sla_breached: 'Support ticket past its SLA',
+  config_missing: 'Production configuration is missing required secrets',
 };
 
 function escapeHtml(value: string): string {

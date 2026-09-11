@@ -13,9 +13,24 @@ import { scrubEvent } from '@/lib/sentry-scrub';
  * The matching browser-side init lives in `instrumentation-client.ts`.
  */
 export function register(): void {
+  if (process.env.NEXT_RUNTIME === 'nodejs' && process.env.VERCEL_ENV === 'production') {
+    // Every secret in lib/env.ts defaults to '' so previews and CI boot
+    // without config — which also means a dropped production variable
+    // silently degrades a feature instead of paging anyone (2026-09
+    // engineering audit OPS-06). Report the gaps once per process; never
+    // throw — a misconfigured site must stay up.
+    void import('@/lib/config-check')
+      .then((m) => m.assertProductionConfig())
+      .catch(() => undefined);
+  }
   if (process.env.NEXT_RUNTIME === 'nodejs' || process.env.NEXT_RUNTIME === 'edge') {
     Sentry.init({
       dsn: process.env.SENTRY_DSN ?? '',
+      // Previews run NODE_ENV=production too; without these two fields their
+      // errors land in the same untagged stream as prod and nothing ties a
+      // regression to a deploy (2026-09 engineering audit OPS-05).
+      environment: process.env.VERCEL_ENV ?? process.env.NODE_ENV ?? 'development',
+      release: process.env.VERCEL_GIT_COMMIT_SHA,
       tracesSampleRate: 0,
       // Don't send any breadcrumbs / events when there's no DSN — the
       // SDK already skips network IO but this stops the per-request
