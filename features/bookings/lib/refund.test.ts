@@ -54,6 +54,9 @@ const setCalls: Array<Record<string, unknown>> = [];
 let updateShouldThrow = false;
 /** When true, the claim UPDATE (stamping refundDueSar pre-gateway) returns no rows. */
 let claimLost = false;
+/** Which refundDueSar-shaped UPDATE (1 = the pre-gateway claim, 2 = the queue stamp) throws. */
+let claimThrowOnCall: number | null = null;
+let claimCalls = 0;
 /** The booking row the executor reads for the card/credit split. */
 let refundBooking: { guestId: string; totalAmount: number; walletAppliedSar: number } | undefined;
 vi.mock('@/lib/db', () => ({
@@ -65,8 +68,13 @@ vi.mock('@/lib/db', () => ({
         const isClaim = Object.keys(values).length === 1 && 'refundDueSar' in values;
         return {
           where: () => {
+            if (isClaim) claimCalls += 1;
+            const thisClaimCall = claimCalls;
             const run = async () => {
               if (updateShouldThrow && values.status === 'refunded') {
+                throw new Error('db down');
+              }
+              if (isClaim && claimThrowOnCall === thisClaimCall) {
                 throw new Error('db down');
               }
             };
@@ -100,6 +108,8 @@ beforeEach(() => {
   updateShouldThrow = false;
   ledgerShouldThrow = false;
   claimLost = false;
+  claimThrowOnCall = null;
+  claimCalls = 0;
   refundBooking = { guestId: 'g-1', totalAmount: 480, walletAppliedSar: 0 };
 });
 
@@ -275,5 +285,37 @@ describe('executeRefund', () => {
     expect(reportError).toHaveBeenCalled();
     // The fallback stamp still lands so the money is never silently lost.
     expect(setCalls.at(-1)).toEqual({ refundDueSar: 75 });
+  });
+});
+
+describe('executeRefund never throws (2026-09 engineering audit MONEY-09)', () => {
+  it('a throwing claim write queues the refund and alerts instead of rejecting', async () => {
+    claimThrowOnCall = 1;
+    const outcome = await executeRefund('b-20', 'pay-ref-20', 480);
+    expect(outcome).toBe('refund_pending');
+    expect(refundPayment).not.toHaveBeenCalled();
+    expect(notifyAdmin).toHaveBeenCalledWith(
+      'refund_due',
+      expect.objectContaining({ bookingId: 'b-20', amountSar: 480 }),
+    );
+    expect(reportError).toHaveBeenCalledWith(
+      expect.any(Error),
+      expect.objectContaining({ surface: 'bookings:executeRefund:claimWrite' }),
+    );
+  });
+
+  it('a throwing queue stamp after a gateway failure still alerts and reports refund_pending', async () => {
+    refundPayment.mockResolvedValueOnce({ resultCode: '800.100.100' }); // declined
+    claimThrowOnCall = 2;
+    const outcome = await executeRefund('b-21', 'pay-ref-21', 480);
+    expect(outcome).toBe('refund_pending');
+    expect(notifyAdmin).toHaveBeenCalledWith(
+      'refund_due',
+      expect.objectContaining({ bookingId: 'b-21', amountSar: 480 }),
+    );
+    expect(reportError).toHaveBeenCalledWith(
+      expect.any(Error),
+      expect.objectContaining({ surface: 'bookings:executeRefund:queueStamp' }),
+    );
   });
 });

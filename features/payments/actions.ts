@@ -1,6 +1,6 @@
 'use server';
 
-import { and, eq, isNull } from 'drizzle-orm';
+import { and, eq, isNull, inArray, or, sql } from 'drizzle-orm';
 import { headers } from 'next/headers';
 import { z } from 'zod';
 import { db } from '@/lib/db';
@@ -667,6 +667,16 @@ export async function createCheckout(
           // settle into an amount anomaly. Same arbiter settle uses.
           eq(bookings.totalAmount, booking.totalAmount),
           eq(bookings.walletAppliedSar, booking.walletAppliedSar),
+          // …and that the hold is STILL LIVE (2026-09 engineering audit
+          // MONEY-02). The liveness gates above ran before a full
+          // HyperPay round-trip; a cron release, a host/admin cancel or
+          // a supersede-release landing in that window used to let this
+          // write flip a cancelled row to `processing` with a live
+          // widget in the guest's browser.
+          eq(bookings.status, 'confirmed'),
+          inArray(bookings.paymentStatus, ['unpaid', 'failed', 'processing']),
+          isNull(bookings.settleAnomalyAt),
+          or(isNull(bookings.paymentDeadline), sql`${bookings.paymentDeadline} > now()`),
         ),
       )
       .returning({ id: bookings.id });
@@ -686,8 +696,29 @@ export async function createCheckout(
       }
       const winner = await db.query.bookings.findFirst({
         where: eq(bookings.id, booking.id),
-        columns: { checkoutId: true, checkoutIntegrity: true, paymentStatus: true },
+        columns: {
+          checkoutId: true,
+          checkoutIntegrity: true,
+          paymentStatus: true,
+          status: true,
+          settleAnomalyAt: true,
+          paymentDeadline: true,
+        },
       });
+      // The row moved on while the gateway prepared this checkout: tell
+      // the guest the truth (the hold lapsed / is under review) rather
+      // than a generic "server" error that invites a retry into the same
+      // wall (2026-09 engineering audit MONEY-02).
+      if (winner && winner.settleAnomalyAt) {
+        return { status: 'error', error: 'underReview', values: echoValues(formData) };
+      }
+      if (
+        !winner ||
+        winner.status !== 'confirmed' ||
+        isHoldExpired(winner.paymentDeadline, new Date())
+      ) {
+        return { status: 'error', error: 'expired', values: echoValues(formData) };
+      }
       // The winner writes its row first and its `checkout_created` a
       // beat later — read once, then once more after a short pause, so
       // the common interleaving doesn't read the PREVIOUS creation.

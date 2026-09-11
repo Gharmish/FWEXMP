@@ -10,6 +10,7 @@ import {
   remainingCapacity,
   startWindowClosed,
   todayInRiyadh,
+  slotCloseInstantMs,
 } from '@/features/bookings/lib/availability';
 import { holdStillCounts } from '@/features/bookings/lib/capacity-sql';
 import { executeRefund } from '@/features/bookings/lib/refund';
@@ -23,6 +24,9 @@ import {
   sendBookingExpiredEmail,
   sendHostBookingCancelledEmail,
 } from '@/features/bookings/lib/booking-email';
+
+/** Shortest post-approval payment window worth opening (GAPA-03). */
+const MIN_PAYMENT_WINDOW_MS = 30 * 60_000;
 
 /**
  * The ONE booking-transition executor, shared by the admin and host
@@ -201,12 +205,24 @@ export async function executeBookingTransition(
     if (isApproval) {
       const needsPayment = hasHyperpay() && booking.paymentStatus === 'unpaid';
       const { approvalPaymentWindowHours } = await getPlatformSettings();
+      // Clamp the payment window to the slot itself (2026-09 engineering
+      // audit GAPA-03), exactly as creation clamps approvalDeadline: an
+      // unclamped `now + 24h` told a guest approved at 20:00 for a 09:00
+      // experience "pay by tomorrow 20:00" while createCheckout refused
+      // from 09:00 — a dead button under a live promise, with the seat
+      // held past the start. Under 30 minutes of payable time the
+      // approval is refused as too_late rather than opening a window the
+      // guest cannot realistically use.
+      const windowEndMs = Date.now() + approvalPaymentWindowHours * 3_600_000;
+      const slotCloseMs = slotCloseInstantMs(booking.date, booking.startTime, 0);
+      const deadlineMs = slotCloseMs === null ? windowEndMs : Math.min(windowEndMs, slotCloseMs);
+      if (needsPayment && deadlineMs - Date.now() < MIN_PAYMENT_WINDOW_MS) {
+        return 'too_late' as const;
+      }
       stamp = {
         status: to,
         approvedAt: new Date(),
-        paymentDeadline: needsPayment
-          ? new Date(Date.now() + approvalPaymentWindowHours * 3_600_000)
-          : null,
+        paymentDeadline: needsPayment ? new Date(deadlineMs) : null,
       };
     }
 
@@ -233,12 +249,20 @@ export async function executeBookingTransition(
       }
     }
 
-    // Conditional on the status we just validated, so a concurrent
-    // transition between read and write loses cleanly.
+    // Conditional on the status AND payment state we just validated, so a
+    // concurrent transition — or a settlement landing mid-flip (2026-09
+    // engineering audit MONEY-01: cancelled+paid with no refund owed) —
+    // between read and write loses cleanly as wrong_state.
     const updated = await tx
       .update(bookings)
       .set(stamp)
-      .where(and(eq(bookings.id, bookingId), eq(bookings.status, booking.status)))
+      .where(
+        and(
+          eq(bookings.id, bookingId),
+          eq(bookings.status, booking.status),
+          eq(bookings.paymentStatus, booking.paymentStatus),
+        ),
+      )
       .returning({ id: bookings.id });
     if (updated.length === 0) return 'wrong_state' as const;
 

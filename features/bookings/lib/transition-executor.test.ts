@@ -53,6 +53,29 @@ let booking: MockBooking | undefined;
 let bookedSum = 0;
 let updateRows: Array<{ id: string }> = [{ id: 'b-1' }];
 const setCalls: Array<Record<string, unknown>> = [];
+/** Column names referenced by each conditional UPDATE's WHERE, in call order. */
+const whereColumns: string[][] = [];
+
+/** Walk a drizzle SQL tree and collect the Column names it references. */
+function columnNamesIn(
+  node: unknown,
+  found: string[] = [],
+  seen = new WeakSet<object>(),
+): string[] {
+  if (!node || typeof node !== 'object') return found;
+  if (seen.has(node)) return found;
+  seen.add(node);
+  const candidate = node as { name?: unknown; columnType?: unknown };
+  if (typeof candidate.name === 'string' && typeof candidate.columnType === 'string') {
+    found.push(candidate.name);
+    return found;
+  }
+  for (const value of Object.values(node as Record<string, unknown>)) {
+    if (Array.isArray(value)) value.forEach((v) => columnNamesIn(v, found, seen));
+    else if (value && typeof value === 'object') columnNamesIn(value, found, seen);
+  }
+  return found;
+}
 vi.mock('@/lib/db', () => ({
   db: {
     transaction: async (cb: (tx: unknown) => Promise<unknown>) =>
@@ -63,7 +86,12 @@ vi.mock('@/lib/db', () => ({
         update: () => ({
           set: (values: Record<string, unknown>) => {
             setCalls.push(values);
-            return { where: () => ({ returning: async () => updateRows }) };
+            return {
+              where: (condition: unknown) => {
+                whereColumns.push(columnNamesIn(condition));
+                return { returning: async () => updateRows };
+              },
+            };
           },
         }),
       }),
@@ -96,6 +124,7 @@ const FOREIGN_HOST = { kind: 'host', hostId: 'h-other' } as const;
 beforeEach(() => {
   vi.clearAllMocks();
   setCalls.length = 0;
+  whereColumns.length = 0;
   hyperpayOn = true;
   bookedSum = 0;
   updateRows = [{ id: 'b-1' }];
@@ -373,5 +402,60 @@ describe('executeBookingTransition — slot clock on confirm (P0-2)', () => {
     expect(await executeBookingTransition('b-1', 'confirmed', OWNER_HOST)).toEqual({
       ok: 'transitioned',
     });
+  });
+});
+
+describe('executeBookingTransition — settle × cancel race (2026-09 engineering audit MONEY-01)', () => {
+  it('the flip re-asserts the payment state the verdict was computed from', async () => {
+    booking = { ...booking!, status: 'confirmed', paymentStatus: 'unpaid' };
+    expect(await executeBookingTransition('b-1', 'cancelled', ADMIN)).toEqual({
+      ok: 'transitioned',
+    });
+    const flip = whereColumns.at(-1) ?? [];
+    expect(flip.some((c) => c === 'paymentStatus' || c === 'payment_status')).toBe(true);
+    expect(flip.some((c) => c === 'status')).toBe(true);
+  });
+
+  it('a settlement landing mid-cancel makes the flip lose as wrong_state and moves no money', async () => {
+    booking = { ...booking!, status: 'confirmed', paymentStatus: 'unpaid' };
+    updateRows = []; // the conditional UPDATE matched zero rows: paymentStatus changed under us
+    expect(await executeBookingTransition('b-1', 'cancelled', ADMIN)).toEqual({
+      error: 'wrong_state',
+    });
+    expect(executeRefund).not.toHaveBeenCalled();
+    expect(sendBookingCancellationEmail).not.toHaveBeenCalled();
+  });
+});
+
+describe('executeBookingTransition — payment window clamp (2026-09 engineering audit GAPA-03)', () => {
+  afterEach(() => vi.useRealTimers());
+
+  it('clamps the post-approval payment window to the slot start', async () => {
+    vi.useFakeTimers();
+    // 06:00 Riyadh on the booking day; start is 09:00 → 3h payable, not 24h.
+    vi.setSystemTime(new Date('2027-06-05T03:00:00Z'));
+    expect(await executeBookingTransition('b-1', 'confirmed', ADMIN)).toEqual({
+      ok: 'transitioned',
+    });
+    const deadline = setCalls[0].paymentDeadline as Date;
+    expect(deadline.toISOString()).toBe('2027-06-05T06:00:00.000Z');
+  });
+
+  it('refuses an approval whose payable window would be under 30 minutes', async () => {
+    vi.useFakeTimers();
+    // 08:45 Riyadh — 15 minutes before a 09:00 start.
+    vi.setSystemTime(new Date('2027-06-05T05:45:00Z'));
+    expect(await executeBookingTransition('b-1', 'confirmed', ADMIN)).toEqual({
+      error: 'too_late',
+    });
+    expect(setCalls).toHaveLength(0);
+  });
+
+  it('keeps the full window when the slot is far away', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2027-06-01T09:00:00Z'));
+    await executeBookingTransition('b-1', 'confirmed', ADMIN);
+    const deadline = setCalls[0].paymentDeadline as Date;
+    expect(deadline.toISOString()).toBe('2027-06-02T09:00:00.000Z');
   });
 });

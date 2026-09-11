@@ -143,17 +143,33 @@ export async function executeRefund(
     // i.e. a visible entry in the admin manual-refund queue — instead
     // of an invisible half-done refund.
     if (cardShareSar > 0) {
-      const claimed = await db
-        .update(bookings)
-        .set({ refundDueSar: cardShareSar })
-        .where(
-          and(
-            eq(bookings.id, bookingId),
-            isNull(bookings.refundDueSar),
-            sql`${bookings.totalAmount} + ${bookings.walletAppliedSar} - coalesce(${bookings.refundedAmountSar}, 0) >= ${amountSar}`,
-          ),
-        )
-        .returning({ id: bookings.id });
+      // The claim is the first write after the cancellation committed;
+      // callers rely on "never throws" (2026-09 engineering audit
+      // MONEY-09) — a transient DB error here must queue the refund and
+      // alert, not reject into the actor's action as "server" while the
+      // booking is already cancelled with nothing stamped.
+      let claimed: Array<{ id: string }>;
+      try {
+        claimed = await db
+          .update(bookings)
+          .set({ refundDueSar: cardShareSar })
+          .where(
+            and(
+              eq(bookings.id, bookingId),
+              isNull(bookings.refundDueSar),
+              sql`${bookings.totalAmount} + ${bookings.walletAppliedSar} - coalesce(${bookings.refundedAmountSar}, 0) >= ${amountSar}`,
+            ),
+          )
+          .returning({ id: bookings.id });
+      } catch (error) {
+        reportError(error, { surface: 'bookings:executeRefund:claimWrite', bookingId });
+        await notifyAdmin('refund_due', {
+          bookingId,
+          amountSar,
+          problem: 'refund claim write failed — verify at the gateway, then settle the queue entry',
+        });
+        return 'refund_pending';
+      }
       if (claimed.length === 0) {
         // Another flow owns (or already returned) this booking's money.
         // Nothing moved here; the winner's queue entry / journal stands.
@@ -319,19 +335,25 @@ export async function executeRefund(
   // refunded-amount journal reflects the credit leg NOW; the admin
   // refund action adds the card share when it settles the queue entry.
   const creditLandedSar = rails === 'auto' ? amountSar - cardShareSar : 0;
-  await db
-    .update(bookings)
-    .set({
-      refundDueSar: cardShareSar,
-      // The third write site — it was still a plain assignment while the
-      // other two accumulated (2026-07-28 third audit), so a credit leg
-      // landing here ERASED whatever an earlier leg had journaled. That
-      // is the understating direction: the ZATCA credit note renders
-      // from this column, so it would under-report money that actually
-      // left the platform.
-      ...(creditLandedSar > 0 ? { refundedAmountSar: journalRefund(creditLandedSar) } : {}),
-    })
-    .where(eq(bookings.id, bookingId));
+  try {
+    await db
+      .update(bookings)
+      .set({
+        refundDueSar: cardShareSar,
+        // The third write site — it was still a plain assignment while the
+        // other two accumulated (2026-07-28 third audit), so a credit leg
+        // landing here ERASED whatever an earlier leg had journaled. That
+        // is the understating direction: the ZATCA credit note renders
+        // from this column, so it would under-report money that actually
+        // left the platform.
+        ...(creditLandedSar > 0 ? { refundedAmountSar: journalRefund(creditLandedSar) } : {}),
+      })
+      .where(eq(bookings.id, bookingId));
+  } catch (error) {
+    // Same contract as the claim above: the alert below still fires, so
+    // the operator sees the owed amount even though the stamp failed.
+    reportError(error, { surface: 'bookings:executeRefund:queueStamp', bookingId });
+  }
   // A refund the platform owes a guest must never be silent: Sentry
   // breadcrumb + operational alert to the team inbox.
   reportError(new Error('Refund pending manual reversal (refundDueSar stamped)'), {

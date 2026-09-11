@@ -4,6 +4,7 @@ import { and, eq, inArray } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import { bookings } from '@/db/schema';
 import { reportError } from '@/lib/log';
+import { getPlatformSettings } from '@/lib/platform-settings';
 import { bookingOptions } from '@/features/bookings/lib/policy';
 import { executeRefund } from '@/features/bookings/lib/refund';
 import { releaseWalletReservationTx } from '@/features/wallet/reservation';
@@ -123,10 +124,15 @@ export async function cancelBookingCore(
 
     const refundOwed =
       booking.paymentStatus === 'paid' && (cancel.refund === 'full' || cancel.refund === 'partial');
-    // The admin wires every refund by hand, so a paid booking that
-    // refunds must hand over the payee details BEFORE it flips —
-    // otherwise the queue entry is created with nowhere to send the money.
-    if (refundOwed && !input.bankDetails) {
+    // While refunds are wired by hand (`refunds_via_bank_transfer`, the
+    // 2026-08-21 owner decision), a paid booking that refunds must hand
+    // over the payee details BEFORE it flips — otherwise the queue entry
+    // is created with nowhere to send the money. With the toggle off the
+    // gateway reverses to the card and no IBAN is wanted (2026-09
+    // engineering audit MONEY-06: the requirement used to ignore the
+    // toggle and would have collected purposeless bank PII).
+    const { refundsViaBankTransfer } = await getPlatformSettings();
+    if (refundOwed && refundsViaBankTransfer && !input.bankDetails) {
       return { success: false, message: 'bank_details_required' };
     }
 
@@ -175,6 +181,15 @@ export async function cancelBookingCore(
           and(
             eq(bookings.id, booking.id),
             inArray(bookings.status, ['pending', 'confirmed']),
+            // …and the PAYMENT state the verdict was computed from
+            // (2026-09 engineering audit MONEY-01): a settlement landing
+            // between our read and this flip — 3DS finishing in another
+            // tab, or the webhook — would otherwise leave the row
+            // cancelled+paid with no refund owed, no bank details
+            // collected and a "nothing to refund" email. Losing here
+            // returns wrong_state and the guest retries against the
+            // fresh verdict, which now demands bank details and refunds.
+            eq(bookings.paymentStatus, booking.paymentStatus),
             // Re-assert everything the refund verdict was computed from
             // (2026-07-28 third audit). `bookingOptions` reads the date
             // and the reschedule counters; a concurrent reschedule —
