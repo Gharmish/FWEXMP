@@ -19,7 +19,7 @@ export interface PhoneInputProps {
   /** Stored E.164 value to re-hydrate (e.g. after a server validation error). */
   defaultValue?: string;
   required?: boolean;
-  /** Placeholder for the national-number input (no leading zero). */
+  /** Placeholder for the national-number input (canonical form, no leading zero). */
   placeholder?: string;
   /** Accessible label for the country selector. */
   countryLabel: string;
@@ -30,9 +30,10 @@ export interface PhoneInputProps {
 /**
  * Phone field with an international dialling-code selector. Defaults to Saudi
  * Arabia (BRIEF §5) but lists every country except Israel (see `lib/phone`).
- * The national number is entered without a leading zero; the component posts a
- * single canonical E.164 string (`+<country><national>`) via a hidden input so
- * forms and server actions see one clean value.
+ * The national number may be typed with or without a trunk prefix (the Saudi
+ * leading zero is stripped automatically by libphonenumber); the component
+ * posts a single canonical E.164 string (`+<country><national>`) via a hidden
+ * input so forms and server actions see one clean value.
  *
  * The flag is a Unicode regional-indicator glyph; the country name and dial
  * code are always shown as text so the option is usable even where flag glyphs
