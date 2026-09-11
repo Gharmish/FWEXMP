@@ -2,3 +2,6 @@
 node_modules
 pnpm-lock.yaml
 public
+# drizzle-kit owns these generated snapshots/journal; prettier reformatting them makes
+# every migration commit a spurious whole-file diff (2026-09 engineering audit DEPS-10).
+db/migrations/meta/

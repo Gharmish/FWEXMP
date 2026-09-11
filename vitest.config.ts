@@ -30,8 +30,18 @@ export default defineConfig({
     // edge auth-gate tests). Before it was added, that file existed on
     // disk but was silently excluded from every `pnpm test` run.
     // `app/**` covers route-handler tests (the release-holds cron).
-    include: ['*.test.ts', 'app/**/*.test.ts', 'features/**/*.test.ts', 'lib/**/*.test.ts'],
-    exclude: ['node_modules/**', '.next/**', 'db/migrations/**', '.claude/**', 'e2e/**'],
+    // Every co-located test file, wherever it lives (2026-09 engineering
+    // audit TEST-08: the previous four-root allowlist silently ignored a
+    // test under components/ or db/, and any .test.tsx).
+    include: ['**/*.test.{ts,tsx}'],
+    exclude: [
+      'node_modules/**',
+      '.next/**',
+      'db/migrations/**',
+      '.claude/**',
+      'e2e/**',
+      'coverage/**',
+    ],
     reporters: ['default'],
     coverage: {
       // Visibility only — no thresholds until we've seen the baseline.
