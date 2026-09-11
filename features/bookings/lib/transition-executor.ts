@@ -4,7 +4,13 @@ import { hasHyperpay } from '@/lib/env';
 import { bookings, experiences } from '@/db/schema';
 import { reportError } from '@/lib/log';
 import { sourcesFor, type BookingTransitionTarget } from '@/features/bookings/lib/transitions';
-import { ACTIVE_BOOKING_STATUSES, remainingCapacity } from '@/features/bookings/lib/availability';
+import {
+  ACTIVE_BOOKING_STATUSES,
+  nowMinutesInRiyadh,
+  remainingCapacity,
+  startWindowClosed,
+  todayInRiyadh,
+} from '@/features/bookings/lib/availability';
 import { holdStillCounts } from '@/features/bookings/lib/capacity-sql';
 import { executeRefund } from '@/features/bookings/lib/refund';
 import { releaseWalletReservationTx } from '@/features/wallet/reservation';
@@ -67,7 +73,9 @@ export type TransitionResult =
   /** Host-only: the approval window had lapsed, so the request was
    *  expired instead (and the guest emailed). */
   | { ok: 'expired_instead' }
-  | { error: 'not_found' | 'wrong_state' | 'over_capacity' | 'too_early' | 'unpaid' };
+  | {
+      error: 'not_found' | 'wrong_state' | 'over_capacity' | 'too_early' | 'too_late' | 'unpaid';
+    };
 
 export async function executeBookingTransition(
   bookingId: string,
@@ -81,6 +89,7 @@ export async function executeBookingTransition(
         id: true,
         experienceId: true,
         date: true,
+        startTime: true,
         partySize: true,
         status: true,
         paymentStatus: true,
@@ -92,7 +101,7 @@ export async function executeBookingTransition(
         idempotencyKey: true,
       },
       with: {
-        experience: { columns: { hostId: true, maxGroupSize: true } },
+        experience: { columns: { hostId: true, maxGroupSize: true, bookingCutoffHours: true } },
         guest: { columns: { preferredLanguage: true } },
       },
     });
@@ -121,6 +130,32 @@ export async function executeBookingTransition(
       const collected =
         booking.paymentStatus === 'paid' || (!hasHyperpay() && booking.paymentDeadline === null);
       if (!collected) return 'unpaid' as const;
+    }
+
+    // Confirming re-asserts the CLOCK, not just capacity (2026-08-02 ops
+    // audit P0-2). The creation gate checked the cutoff once, but an
+    // approval can land up to 24h later and `createCheckout` opens a
+    // further payment window on top — so without this, a request whose
+    // start had already passed could be approved and the guest charged
+    // for an experience that already happened.
+    //   - At/past start: refused for BOTH actors. "Full override powers"
+    //     covers judgment calls, not billing for a finished experience.
+    //   - Inside the lead-time window but before start: refused for the
+    //     host (same rule the guest calendar enforces); an admin override
+    //     stands — e.g. the guest is on the phone and can pay right now.
+    if (to === 'confirmed') {
+      const clock = {
+        dateStr: booking.date,
+        todayStr: todayInRiyadh(),
+        startTime: booking.startTime,
+        nowMinutes: nowMinutesInRiyadh(),
+      };
+      const started = startWindowClosed(clock);
+      const insideCutoff = startWindowClosed({
+        ...clock,
+        cutoffMinutes: booking.experience.bookingCutoffHours * 60,
+      });
+      if (started || (actor.kind === 'host' && insideCutoff)) return 'too_late' as const;
     }
 
     // Approving a request (pending → confirmed) carries side effects:

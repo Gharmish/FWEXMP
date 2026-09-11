@@ -6,7 +6,12 @@ import { z } from 'zod';
 import { db } from '@/lib/db';
 import { serverEnv, hasHyperpay, hasHyperpayApplePay } from '@/lib/env';
 import { bookings, guests } from '@/db/schema';
-import { isHoldExpired } from '@/features/bookings/lib/availability';
+import {
+  isHoldExpired,
+  nowMinutesInRiyadh,
+  startWindowClosed,
+  todayInRiyadh,
+} from '@/features/bookings/lib/availability';
 import { checkoutViewerCanAccess } from '@/features/bookings/lib/access';
 import { reportError } from '@/lib/log';
 import { paymentDetailsSchema } from '@/features/payments/schemas';
@@ -267,6 +272,8 @@ export async function createCheckout(
         walletAppliedSar: true,
         paymentStatus: true,
         status: true,
+        date: true,
+        startTime: true,
         paymentDeadline: true,
         checkoutId: true,
         checkoutIntegrity: true,
@@ -366,6 +373,24 @@ export async function createCheckout(
     ) {
       return { status: 'error', error: 'expired', values: echoValues(formData) };
     }
+    // The experience has STARTED (or its date has passed) — never open a
+    // charge for it (2026-08-02 ops audit P0-2). An approval can land
+    // late and the payment window runs up to 24h past it, so the clock
+    // must be re-asserted here, at the last gate before money moves.
+    // Cutoff 0 on purpose: the hard floor is "never at/after start" —
+    // the softer lead-time rule belongs to creation and approval, not to
+    // a guest who was already approved and is trying to pay.
+    if (
+      startWindowClosed({
+        dateStr: booking.date,
+        todayStr: todayInRiyadh(),
+        startTime: booking.startTime,
+        nowMinutes: nowMinutesInRiyadh(),
+      })
+    ) {
+      return { status: 'error', error: 'expired', values: echoValues(formData) };
+    }
+
     const origin = await requestOrigin();
     const returnUrl = `${origin}/${input.locale}/book/${input.reference}/pay/return?slug=${encodeURIComponent(input.slug)}`;
     const brandsFor = (which: PaymentChannel) =>

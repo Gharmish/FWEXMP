@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 /**
  * The unified booking-transition executor is the money-adjacent core of
@@ -37,6 +37,7 @@ interface MockBooking {
   id: string;
   experienceId: string;
   date: string;
+  startTime: string;
   partySize: number;
   status: string;
   paymentStatus: string;
@@ -45,7 +46,7 @@ interface MockBooking {
   paymentReference: string | null;
   approvalDeadline: Date | null;
   idempotencyKey: string;
-  experience: { hostId: string; maxGroupSize: number };
+  experience: { hostId: string; maxGroupSize: number; bookingCutoffHours: number };
   guest: { preferredLanguage: 'en' | 'ar' };
 }
 let booking: MockBooking | undefined;
@@ -101,7 +102,10 @@ beforeEach(() => {
   booking = {
     id: 'b-1',
     experienceId: 'e-1',
-    date: '2026-08-01',
+    // Far future: the confirm path re-asserts the clock against the
+    // slot (P0-2), and these tests exercise everything EXCEPT that.
+    date: '2027-06-05',
+    startTime: '09:00',
     partySize: 2,
     status: 'pending',
     paymentStatus: 'unpaid',
@@ -110,7 +114,7 @@ beforeEach(() => {
     paymentReference: null,
     approvalDeadline: null,
     idempotencyKey: 'ref-1',
-    experience: { hostId: 'h-1', maxGroupSize: 10 },
+    experience: { hostId: 'h-1', maxGroupSize: 10, bookingCutoffHours: 2 },
     guest: { preferredLanguage: 'en' },
   };
 });
@@ -131,7 +135,10 @@ describe('executeBookingTransition — scope', () => {
   });
 
   it('lets an admin transition any booking regardless of host', async () => {
-    booking = { ...booking!, experience: { hostId: 'h-other', maxGroupSize: 10 } };
+    booking = {
+      ...booking!,
+      experience: { hostId: 'h-other', maxGroupSize: 10, bookingCutoffHours: 2 },
+    };
     expect(await executeBookingTransition('b-1', 'confirmed', ADMIN)).toEqual({
       ok: 'transitioned',
     });
@@ -316,5 +323,55 @@ describe('executeBookingTransition — cancel & decline side effects', () => {
       ok: 'transitioned',
     });
     expect(reportError).toHaveBeenCalled();
+  });
+});
+
+describe('executeBookingTransition — slot clock on confirm (P0-2)', () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it('refuses BOTH actors once the slot has started (past date)', async () => {
+    booking = { ...booking!, date: '2026-01-01' };
+    expect(await executeBookingTransition('b-1', 'confirmed', OWNER_HOST)).toEqual({
+      error: 'too_late',
+    });
+    expect(await executeBookingTransition('b-1', 'confirmed', ADMIN)).toEqual({
+      error: 'too_late',
+    });
+    expect(setCalls).toHaveLength(0);
+  });
+
+  it('refuses BOTH actors same-day once the start time has passed', async () => {
+    vi.useFakeTimers();
+    // 2027-06-05 09:30 Riyadh (06:30Z) — start was 09:00.
+    vi.setSystemTime(new Date('2027-06-05T06:30:00Z'));
+    expect(await executeBookingTransition('b-1', 'confirmed', OWNER_HOST)).toEqual({
+      error: 'too_late',
+    });
+    expect(await executeBookingTransition('b-1', 'confirmed', ADMIN)).toEqual({
+      error: 'too_late',
+    });
+  });
+
+  it('inside the lead-time window: host refused, admin override stands', async () => {
+    vi.useFakeTimers();
+    // 08:00 Riyadh — inside the 2h cutoff before the 09:00 start.
+    vi.setSystemTime(new Date('2027-06-05T05:00:00Z'));
+    expect(await executeBookingTransition('b-1', 'confirmed', OWNER_HOST)).toEqual({
+      error: 'too_late',
+    });
+    expect(await executeBookingTransition('b-1', 'confirmed', ADMIN)).toEqual({
+      ok: 'transitioned',
+    });
+  });
+
+  it('well before the cutoff both actors may confirm', async () => {
+    vi.useFakeTimers();
+    // 06:00 Riyadh — the 2h cutoff opens until 07:00.
+    vi.setSystemTime(new Date('2027-06-05T03:00:00Z'));
+    expect(await executeBookingTransition('b-1', 'confirmed', OWNER_HOST)).toEqual({
+      ok: 'transitioned',
+    });
   });
 });
