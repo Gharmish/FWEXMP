@@ -5,6 +5,7 @@ import {
   Activity,
   BadgePercent,
   BarChart3,
+  BellRing,
   CalendarCheck,
   ClipboardCheck,
   Contact,
@@ -76,6 +77,7 @@ const GROUPS: readonly NavGroup[] = [
       { href: '/admin/reviews', Icon: Star, sectionKey: 'reviews' },
       { href: '/admin/disputes', Icon: TriangleAlert, sectionKey: 'disputes' },
       { href: '/admin/support', Icon: MessageCircle, sectionKey: 'support' },
+      { href: '/admin/alerts', Icon: BellRing, sectionKey: 'alerts' },
     ],
   },
   {

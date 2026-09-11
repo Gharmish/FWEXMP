@@ -23,7 +23,7 @@ vi.mock('@/lib/i18n', () => ({
   },
 }));
 vi.mock('@/features/bookings/lib/availability', () => ({ todayInRiyadh: () => '2026-09-11' }));
-const sendBookingOnHoldEmail = vi.fn(async (_reference: string) => undefined);
+const sendBookingOnHoldEmail = vi.fn<(reference: string) => Promise<void>>(async () => undefined);
 vi.mock('@/features/bookings/lib/booking-email', () => ({
   sendBookingOnHoldEmail: (reference: string) => sendBookingOnHoldEmail(reference),
 }));

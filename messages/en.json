@@ -78,7 +78,8 @@
       "reviewsTitle": "Reviews",
       "guestsTitle": "Guests",
       "guestDetailTitle": "Guest profile",
-      "supportTitle": "Support inbox"
+      "supportTitle": "Support inbox",
+      "alertsTitle": "Admin alerts"
     },
     "eyebrow": "Admin",
     "title": "Gharmish admin.",
@@ -446,6 +447,10 @@
       "support": {
         "title": "Support inbox",
         "description": "WhatsApp conversations with guests — reply from here."
+      },
+      "alerts": {
+        "title": "Alerts",
+        "description": "Money anomalies, failed jobs, missing configuration and escalations the platform paged you about."
       }
     },
     "settings": {
@@ -1177,6 +1182,32 @@
         "wrongState": "This report changed in another tab. Refresh to see its current state.",
         "notRefundable": "This booking can't be refunded from here — its payment state changed. Check the booking page.",
         "validation": "Notes are too long — keep them under 2,000 characters.",
+        "server": "Something went wrong on our side. Try again."
+      }
+    },
+    "alerts": {
+      "eyebrow": "Operations",
+      "title": "Admin alerts",
+      "intro": "Everything the platform paged you about — money anomalies, failed jobs, missing configuration, support escalations. Acknowledge an alert once you have looked at it. Repeats inside an alert's quiet window are recorded here without paging again.",
+      "open": "{count, plural, =0 {Nothing open} one {# needs a look} other {# need a look}}",
+      "acknowledged": "{count, plural, one {# acknowledged} other {# acknowledged}}",
+      "acknowledge": "Acknowledge",
+      "acknowledging": "Acknowledging",
+      "acknowledgeAll": "Acknowledge all open alerts",
+      "raisedAt": "Raised {date}",
+      "acknowledgedAt": "Acknowledged {date}",
+      "suppressed": "Quiet window — not paged",
+      "ticket": "Open the support inbox",
+      "empty": {
+        "eyebrow": "All clear",
+        "title": "Nothing needs your attention.",
+        "description": "New alerts land here the moment they are raised."
+      },
+      "errors": {
+        "forbidden": "You don't have permission to do that.",
+        "noDb": "The database isn't configured in this environment.",
+        "validation": "That alert id isn't valid.",
+        "notFound": "This alert was already acknowledged in another tab. Refresh to see the current list.",
         "server": "Something went wrong on our side. Try again."
       }
     },
