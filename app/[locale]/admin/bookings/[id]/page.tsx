@@ -57,6 +57,7 @@ export default async function AdminBookingDetailPage({
     wrong_state: t('bookingsList.actionErrors.wrongState'),
     over_capacity: t('bookingsList.actionErrors.overCapacity'),
     too_early: t('bookingsList.actionErrors.tooEarly'),
+    too_late: t('bookingsList.actionErrors.tooLate'),
     unpaid: t('bookingsList.actionErrors.unpaid'),
     validation: t('bookingsList.actionErrors.validation'),
     server: t('bookingsList.actionErrors.server'),
@@ -183,64 +184,64 @@ export default async function AdminBookingDetailPage({
         </section>
       )}
 
-      <dl className="border-sarat-black/8 rounded-card grid gap-5 [border-width:0.5px] p-6 sm:grid-cols-2">
-        {/* Manual bank-transfer refund (owner decision 2026-08-21): the
+      {/* Manual bank-transfer refund (owner decision 2026-08-21): the
           payee the guest filed, ready to paste into the bank app. Missing
           = the guest hasn't answered the booking-page form yet. */}
-        {booking.refundDueSar !== null && (
-          <section
-            className={cn(
-              'rounded-card flex flex-col gap-4 [border-width:0.5px] p-6',
-              booking.refundBank
-                ? 'border-juniper-green/30 bg-juniper-green/5'
-                : 'border-pending/40 bg-pending-surface',
-            )}
-          >
-            <div className="flex flex-col gap-1">
-              <h2 className="text-base font-medium">{t('bookingDetail.refundBankHeading')}</h2>
-              <p className="text-sarat-black-600 text-sm">
-                {booking.refundBank
-                  ? t('bookingDetail.refundBankIntro', {
-                      amount: formatSAR(booking.refundDueSar ?? 0, loc),
-                    })
-                  : t('bookingDetail.refundBankMissing')}
-              </p>
-            </div>
-            {booking.refundBank && (
-              <dl className="grid gap-4 sm:grid-cols-2">
+      {booking.refundDueSar !== null && (
+        <section
+          className={cn(
+            'rounded-card flex flex-col gap-4 [border-width:0.5px] p-6',
+            booking.refundBank
+              ? 'border-juniper-green/30 bg-juniper-green/5'
+              : 'border-pending/40 bg-pending-surface',
+          )}
+        >
+          <div className="flex flex-col gap-1">
+            <h2 className="text-base font-medium">{t('bookingDetail.refundBankHeading')}</h2>
+            <p className="text-sarat-black-600 text-sm">
+              {booking.refundBank
+                ? t('bookingDetail.refundBankIntro', {
+                    amount: formatSAR(booking.refundDueSar ?? 0, loc),
+                  })
+                : t('bookingDetail.refundBankMissing')}
+            </p>
+          </div>
+          {booking.refundBank && (
+            <dl className="grid gap-4 sm:grid-cols-2">
+              <div className="flex flex-col gap-1">
+                <dt className={eyebrowClassName}>{t('bookingDetail.refundBankName')}</dt>
+                <dd className="text-base font-medium">{booking.refundBank.bankName}</dd>
+              </div>
+              <div className="flex flex-col gap-1">
+                <dt className={eyebrowClassName}>{t('bookingDetail.refundBankBeneficiary')}</dt>
+                <dd className="text-base font-medium">{booking.refundBank.beneficiaryName}</dd>
+              </div>
+              <div className="flex flex-col gap-1 sm:col-span-2">
+                <dt className={eyebrowClassName}>{t('bookingDetail.refundBankIban')}</dt>
+                <dd className="flex items-center gap-2">
+                  <span dir="ltr" className="font-mono text-base font-medium tracking-[0.08em]">
+                    {booking.refundBank.iban.replace(/(.{4})/g, '$1 ').trim()}
+                  </span>
+                  <CopyButton
+                    value={booking.refundBank.iban}
+                    label={t('bookingDetail.refundBankCopy')}
+                  />
+                </dd>
+              </div>
+              {booking.refundBank.submittedAt && (
                 <div className="flex flex-col gap-1">
-                  <dt className={eyebrowClassName}>{t('bookingDetail.refundBankName')}</dt>
-                  <dd className="text-base font-medium">{booking.refundBank.bankName}</dd>
-                </div>
-                <div className="flex flex-col gap-1">
-                  <dt className={eyebrowClassName}>{t('bookingDetail.refundBankBeneficiary')}</dt>
-                  <dd className="text-base font-medium">{booking.refundBank.beneficiaryName}</dd>
-                </div>
-                <div className="flex flex-col gap-1 sm:col-span-2">
-                  <dt className={eyebrowClassName}>{t('bookingDetail.refundBankIban')}</dt>
-                  <dd className="flex items-center gap-2">
-                    <span dir="ltr" className="font-mono text-base font-medium tracking-[0.08em]">
-                      {booking.refundBank.iban.replace(/(.{4})/g, '$1 ').trim()}
-                    </span>
-                    <CopyButton
-                      value={booking.refundBank.iban}
-                      label={t('bookingDetail.refundBankCopy')}
-                    />
+                  <dt className={eyebrowClassName}>{t('bookingDetail.refundBankSubmittedAt')}</dt>
+                  <dd className="text-base font-medium">
+                    {formatDate(new Date(booking.refundBank.submittedAt), loc)}
                   </dd>
                 </div>
-                {booking.refundBank.submittedAt && (
-                  <div className="flex flex-col gap-1">
-                    <dt className={eyebrowClassName}>{t('bookingDetail.refundBankSubmittedAt')}</dt>
-                    <dd className="text-base font-medium">
-                      {formatDate(new Date(booking.refundBank.submittedAt), loc)}
-                    </dd>
-                  </div>
-                )}
-              </dl>
-            )}
-          </section>
-        )}
+              )}
+            </dl>
+          )}
+        </section>
+      )}
 
+      <dl className="border-sarat-black/8 rounded-card grid gap-5 [border-width:0.5px] p-6 sm:grid-cols-2">
         {rows.map((r) => (
           <div key={r.label} className="flex flex-col gap-1">
             <dt className={eyebrowClassName}>{r.label}</dt>
