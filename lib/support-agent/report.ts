@@ -91,12 +91,18 @@ export async function collectDailyStats(now: Date): Promise<DailyReportStats> {
   };
 }
 
-export function renderDailyReport(stats: DailyReportStats, dateLabel: string): { text: string; html: string } {
+export function renderDailyReport(
+  stats: DailyReportStats,
+  dateLabel: string,
+): { text: string; html: string } {
   const rows: Array<[string, string]> = [
     ['Guest messages received', String(stats.inbound)],
     ['New conversations', String(stats.newConversations)],
     ['Agent replies', String(stats.agentReplies)],
-    ['Median agent response', stats.medianAgentSeconds == null ? '—' : `${stats.medianAgentSeconds}s`],
+    [
+      'Median agent response',
+      stats.medianAgentSeconds == null ? '—' : `${stats.medianAgentSeconds}s`,
+    ],
     ['Team replies', String(stats.adminReplies)],
     ['Automatic acknowledgements', String(stats.acks)],
     ['Conversations handed to the team', String(stats.handoffs)],
@@ -106,11 +112,19 @@ export function renderDailyReport(stats: DailyReportStats, dateLabel: string): {
     ['…of which past SLA', String(stats.overdueTickets)],
   ];
   const url = `${SITE_URL}/en/admin/support`;
-  const text = [`Gharmish support line — ${dateLabel}`, '', ...rows.map(([k, v]) => `${k}: ${v}`), '', url].join('\n');
+  const text = [
+    `Gharmish support line — ${dateLabel}`,
+    '',
+    ...rows.map(([k, v]) => `${k}: ${v}`),
+    '',
+    url,
+  ].join('\n');
   const html = [
     `<p><strong>Gharmish support line — ${dateLabel}</strong></p>`,
     '<table cellpadding="4">',
-    ...rows.map(([k, v]) => `<tr><td>${k}</td><td style="text-align:right"><strong>${v}</strong></td></tr>`),
+    ...rows.map(
+      ([k, v]) => `<tr><td>${k}</td><td style="text-align:right"><strong>${v}</strong></td></tr>`,
+    ),
     '</table>',
     `<p><a href="${url}">Open the support inbox</a></p>`,
   ].join('');
@@ -121,7 +135,11 @@ export function renderDailyReport(stats: DailyReportStats, dateLabel: string): {
 export async function maybeSendDailyReport(now = new Date()): Promise<boolean> {
   if (!serverEnv.DATABASE_URL || !hasEmail() || !serverEnv.ADMIN_ALERT_EMAIL) return false;
   const riyadhHour = Number(
-    new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Riyadh', hour: 'numeric', hour12: false }).format(now),
+    new Intl.DateTimeFormat('en-GB', {
+      timeZone: 'Asia/Riyadh',
+      hour: 'numeric',
+      hour12: false,
+    }).format(now),
   );
   if (riyadhHour !== REPORT_HOUR_RIYADH) return false;
   try {
@@ -141,7 +159,9 @@ export async function maybeSendDailyReport(now = new Date()): Promise<boolean> {
       year: 'numeric',
     }).format(now);
     const { text, html } = renderDailyReport(stats, dateLabel);
-    await db.insert(adminAlerts).values({ kind: REPORT_KIND, subject: 'Daily support report', detail: stats });
+    await db
+      .insert(adminAlerts)
+      .values({ kind: REPORT_KIND, subject: 'Daily support report', detail: stats });
     await sendEmail({
       to: serverEnv.ADMIN_ALERT_EMAIL,
       subject: `[Gharmish admin] Support line — ${dateLabel}`,

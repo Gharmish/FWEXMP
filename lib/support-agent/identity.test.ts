@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { emailMatches, normalizeEmail } from './identity';
+import { emailMatches, identityStillValid, normalizeEmail } from './identity';
 import { toolsFor } from './tools';
 
 /**
@@ -88,5 +88,21 @@ describe('toolsFor — what an unverified sender is even offered', () => {
     for (const ctx of [BASE, { ...BASE, guestHasEmail: false }, { ...BASE, guestId: null }]) {
       expect(names(ctx)).toEqual(expect.arrayContaining(['open_ticket', 'escalate_to_human']));
     }
+  });
+});
+
+describe('identityStillValid (2026-09 engineering audit AI-04)', () => {
+  const now = new Date('2026-09-11T12:00:00Z');
+  it('is true within 24h for the guest it was made for', () => {
+    expect(identityStillValid(new Date('2026-09-11T00:00:00Z'), 'g1', 'g1', now)).toBe(true);
+  });
+  it('expires after 24h', () => {
+    expect(identityStillValid(new Date('2026-09-10T11:59:00Z'), 'g1', 'g1', now)).toBe(false);
+  });
+  it('never carries over to another guest bound later', () => {
+    expect(identityStillValid(new Date('2026-09-11T11:00:00Z'), 'g1', 'g2', now)).toBe(false);
+  });
+  it('is false when never verified', () => {
+    expect(identityStillValid(null, null, 'g1', now)).toBe(false);
   });
 });

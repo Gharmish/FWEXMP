@@ -81,6 +81,8 @@ export interface IdentityState {
   verified: boolean;
   /** There is an address to challenge against; false ⇒ the challenge is impossible. */
   hasEmail: boolean;
+  /** When the challenge was passed (null = never / for another guest). */
+  verifiedAt?: Date | null;
 }
 
 /**
@@ -91,6 +93,26 @@ export interface IdentityState {
  * (`recordInboundMessage` fills a null `guestId` on a later message)
  * must not inherit a proof made for someone else.
  */
+/** How long an email challenge keeps the write tools unlocked (AI-04). */
+export const IDENTITY_TTL_MS = 24 * 3_600_000;
+
+/**
+ * A passed challenge is a SESSION, not a permanent property of the thread
+ * (2026-09 engineering audit AI-04): the module's own threat model is a
+ * recycled or mistyped number, and a verification from March must not
+ * unlock cancel/reschedule/IBAN changes for whoever holds the number in
+ * June. Bound to the guest it was made for and to a 24h window.
+ */
+export function identityStillValid(
+  verifiedAt: Date | null,
+  verifiedGuestId: string | null,
+  guestId: string,
+  now: Date,
+): boolean {
+  if (!verifiedAt || verifiedGuestId !== guestId) return false;
+  return now.getTime() - verifiedAt.getTime() < IDENTITY_TTL_MS;
+}
+
 export async function readIdentityState(
   conversationId: string,
   guestId: string | null,
@@ -109,8 +131,10 @@ export async function readIdentityState(
       where: eq(guests.id, guestId),
       columns: { email: true },
     });
+    const verifiedAt = row?.verifiedAt ?? null;
     return {
-      verified: Boolean(row?.verifiedAt) && row?.verifiedGuestId === guestId,
+      verified: identityStillValid(verifiedAt, row?.verifiedGuestId ?? null, guestId, new Date()),
+      verifiedAt,
       hasEmail: Boolean(guest?.email),
     };
   } catch (error) {

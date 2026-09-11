@@ -2,8 +2,8 @@ import 'server-only';
 
 import type Anthropic from '@anthropic-ai/sdk';
 import { db } from '@/lib/db';
-import { and, eq, gte, inArray } from 'drizzle-orm';
-import { bookings, conversations, experiences, guests, hosts } from '@/db/schema';
+import { and, eq, gte, inArray, desc } from 'drizzle-orm';
+import { bookings, conversations, experiences, guests, hosts, supportTickets } from '@/db/schema';
 import { executeBookingTransition } from '@/features/bookings/lib/transition-executor';
 import { reportError } from '@/lib/log';
 import { whatsappLink } from '@/lib/whatsapp';
@@ -52,9 +52,25 @@ export interface ToolContext {
    * the number alone is an unverified field typed into a booking form.
    */
   identityVerified: boolean;
+  /** When the challenge was passed; bank details need one fresher than an hour (AI-04). */
+  identityVerifiedAt?: Date | null;
   /** The guest has an email to challenge against; false ⇒ no challenge is possible. */
   guestHasEmail: boolean;
 }
+
+/** Bank-detail writes need a recent proof, not a day-old one (AI-04). */
+const BANK_DETAILS_VERIFICATION_MAX_AGE_MS = 60 * 60_000;
+function bankDetailsVerificationStale(ctx: ToolContext): boolean {
+  const at = ctx.identityVerifiedAt ?? null;
+  return !at || ctx.now.getTime() - at.getTime() > BANK_DETAILS_VERIFICATION_MAX_AGE_MS;
+}
+const BANK_DETAILS_STALE = {
+  error: 'identity_stale',
+  note: 'Bank details need a fresh check: ask for the email on the booking again and pass it to verify_identity before collecting or changing an IBAN.',
+} as const;
+
+/** Tickets the agent may open per conversation per day before it must stop (AI-03). */
+const TICKETS_PER_CONVERSATION_PER_DAY = 3;
 
 export interface ToolOutcome {
   result: string;
@@ -605,6 +621,8 @@ export async function runTool(
         if (name === 'cancel_booking') {
           const raw = bankInput(input);
           if (raw) {
+            if (bankDetailsVerificationStale(ctx))
+              return { result: JSON.stringify(BANK_DETAILS_STALE) };
             const parsedBank = refundBankDetailsSchema.safeParse(raw);
             if (!parsedBank.success) return { result: JSON.stringify(bankInvalid(parsedBank)) };
             bankDetails = parsedBank.data;
@@ -637,6 +655,8 @@ export async function runTool(
       case 'submit_refund_bank_details': {
         const denied = writeToolDenied(ctx);
         if (denied) return { result: JSON.stringify(denied) };
+        if (bankDetailsVerificationStale(ctx))
+          return { result: JSON.stringify(BANK_DETAILS_STALE) };
         const booking = await findOwnBooking(ctx, str(input, 'reference_code') ?? '');
         if (!booking) return { result: JSON.stringify({ error: 'not_found' }) };
         const parsedBank = refundBankDetailsSchema.safeParse(bankInput(input) ?? {});
@@ -735,6 +755,37 @@ export async function runTool(
       }
       case 'open_ticket':
       case 'escalate_to_human': {
+        // Per-conversation daily cap (AI-03): each ticket pages the team on
+        // two paid rails; a hostile or merely chatty sender must not be
+        // able to page them on every message.
+        const since = new Date(ctx.now.getTime() - 24 * 3_600_000);
+        const recent = await db
+          .select({ reference: supportTickets.reference })
+          .from(supportTickets)
+          .where(
+            and(
+              eq(supportTickets.conversationId, ctx.conversationId),
+              gte(supportTickets.createdAt, since),
+            ),
+          )
+          .orderBy(desc(supportTickets.createdAt))
+          .limit(TICKETS_PER_CONVERSATION_PER_DAY);
+        if (recent.length >= TICKETS_PER_CONVERSATION_PER_DAY) {
+          if (name === 'escalate_to_human') {
+            await db
+              .update(conversations)
+              .set({ state: 'human', updatedAt: new Date() })
+              .where(eq(conversations.id, ctx.conversationId));
+          }
+          return {
+            result: JSON.stringify({
+              error: 'ticket_cap',
+              existing_ticket_reference: recent[0].reference,
+              note: 'The team already has tickets for this conversation today. Tell the guest their case is with the team under the existing reference and do not open another.',
+            }),
+            handedToHuman: name === 'escalate_to_human',
+          };
+        }
         const code = str(input, 'reference_code');
         const booking = code ? await findOwnBooking(ctx, code) : null;
         const ticket = await openTicket({

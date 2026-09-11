@@ -72,6 +72,7 @@ describe('refund bank details via the agent', () => {
     guestId: 'g-1',
     hostId: null,
     identityVerified: true,
+    identityVerifiedAt: new Date(),
     guestHasEmail: true,
     locale: 'en',
     now: new Date('2026-08-21T09:00:00Z'),

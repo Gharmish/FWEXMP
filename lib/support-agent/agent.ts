@@ -1,7 +1,7 @@
 import 'server-only';
 
 import Anthropic from '@anthropic-ai/sdk';
-import { and, desc, eq, gt, isNull, lt, or } from 'drizzle-orm';
+import { and, desc, eq, gt, gte, isNull, lt, or, sql } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import { hasSupportAgent, serverEnv } from '@/lib/env';
 import { conversationMessages, conversations } from '@/db/schema';
@@ -43,10 +43,24 @@ const LOCK_MS = 90 * 1000;
  * loads the full history.
  */
 const MAX_TURN_PASSES = 3;
+/** Whole-turn deadline, kept under LOCK_MS so a turn can never outlive its lock (AI-08). */
+const TURN_BUDGET_MS = 70_000;
+/**
+ * Spend ceilings (2026-09 engineering audit AI-02). The public support
+ * number used to get a full Opus run per message, forever, for anyone.
+ * Past either cap the sender is handed to a person without a model call;
+ * a counting error fails open so an outage never mutes support.
+ */
+const AGENT_TURNS_PER_CONVERSATION_PER_DAY = 40;
+const AGENT_TURNS_GLOBAL_PER_DAY = 800;
 
 let client: Anthropic | null = null;
 function anthropic(): Anthropic {
-  if (!client) client = new Anthropic({ apiKey: serverEnv.ANTHROPIC_API_KEY, maxRetries: 2 });
+  // Per-request ceiling (2026-09 engineering audit AI-08): the SDK default
+  // is ten minutes, so one slow call could outlive the 90s conversation
+  // lock and let a second turn start on the same thread.
+  if (!client)
+    client = new Anthropic({ apiKey: serverEnv.ANTHROPIC_API_KEY, maxRetries: 2, timeout: 25_000 });
   return client;
 }
 
@@ -104,6 +118,8 @@ export interface AgentRunInput {
   history: ThreadMessage[];
   ctx: ToolContext;
   guestName: string | null;
+  /** Aborts in-flight model calls when the turn's budget is spent (AI-08). */
+  signal?: AbortSignal;
 }
 
 export interface AgentRunOutput {
@@ -152,25 +168,37 @@ export async function runAgentLoop(
   let stopReason: string | null = null;
 
   for (let i = 0; i < MAX_ITERATIONS; i += 1) {
-    const response = await api.messages.create({
-      model: serverEnv.SUPPORT_AGENT_MODEL,
-      max_tokens: 2000,
-      thinking: { type: 'adaptive' },
-      output_config: { effort: 'medium' },
-      system: [
-        {
-          type: 'text',
-          text: `${AGENT_RULES}\n\n# Knowledge base\n\n${knowledge}`,
-          cache_control: { type: 'ephemeral', ttl: '1h' },
-        },
-        { type: 'text', text: volatile },
-      ],
-      tools: toolsFor(input.ctx),
-      messages,
-    });
+    const response = await api.messages.create(
+      {
+        model: serverEnv.SUPPORT_AGENT_MODEL,
+        // Thinking tokens count toward this ceiling; 2,000 either cut a
+        // policy-heavy answer mid-sentence or returned no text at all
+        // (2026-09 engineering audit AI-07). Cost is unaffected unless used.
+        max_tokens: 8000,
+        thinking: { type: 'adaptive' },
+        output_config: { effort: 'medium' },
+        system: [
+          {
+            type: 'text',
+            text: `${AGENT_RULES}\n\n# Knowledge base\n\n${knowledge}`,
+            cache_control: { type: 'ephemeral', ttl: '1h' },
+          },
+          { type: 'text', text: volatile },
+        ],
+        tools: toolsFor(input.ctx),
+        messages,
+      },
+      input.signal ? { signal: input.signal } : undefined,
+    );
     stopReason = response.stop_reason;
 
     if (response.stop_reason === 'refusal') {
+      return { reply: '', toolCalls, handedToHuman, ticketReference, stopReason };
+    }
+    // A hard cap hit mid-sentence is not an answer: never send a truncated
+    // message. Empty reply → the caller's fail-safe hands the thread to a
+    // person (AI-07).
+    if (response.stop_reason === 'max_tokens') {
       return { reply: '', toolCalls, handedToHuman, ticketReference, stopReason };
     }
 
@@ -192,7 +220,11 @@ export async function runAgentLoop(
     const results: Anthropic.ToolResultBlockParam[] = [];
     for (const use of toolUses) {
       const outcome = await runTool(use.name, use.input, input.ctx);
-      toolCalls.push({ name: use.name, input: use.input, ok: !outcome.result.includes('"error"') });
+      toolCalls.push({
+        name: use.name,
+        input: redactToolInput(use.input),
+        ok: toolResultOk(outcome.result),
+      });
       if (outcome.handedToHuman) handedToHuman = true;
       if (outcome.ticketReference) ticketReference = outcome.ticketReference;
       results.push({ type: 'tool_result', tool_use_id: use.id, content: outcome.result });
@@ -227,6 +259,7 @@ async function failSafe(
   recorded: RecordedInbound,
   address: string,
   reason: string,
+  guestId: string | null = null,
 ): Promise<AgentTurnResult> {
   let ticketReference: string | undefined;
   try {
@@ -235,7 +268,9 @@ async function failSafe(
       priority: 'high',
       summary: `Agent could not answer (${reason}). A person needs to read the thread and reply.`,
       conversationId: recorded.conversationId,
-      guestId: null,
+      // The guest is known here (AI-12): the person picking this up needs
+      // the bookings in front of them fastest of all.
+      guestId,
       openedBy: 'system',
       detail: { from: address },
     });
@@ -263,13 +298,79 @@ async function failSafe(
   return { outcome: 'failed', ticketReference };
 }
 
+/** Is a tool result a success? Parsed, not a substring match on `"error"` (AI-11). */
+export function toolResultOk(result: string): boolean {
+  try {
+    const parsed: unknown = JSON.parse(result);
+    return !(parsed !== null && typeof parsed === 'object' && 'error' in parsed);
+  } catch {
+    return true;
+  }
+}
+
+const REDACTED_TOOL_FIELDS = new Set(['iban', 'beneficiary_name']);
+
+/**
+ * The tool-call log lives in conversation_messages for 12 months. Bank
+ * details submitted over WhatsApp used to be persisted there verbatim
+ * while the same IBAN is encrypted on the booking (2026-09 engineering
+ * audit AI-05); keep field presence, drop the values.
+ */
+export function redactToolInput(input: unknown): unknown {
+  if (input === null || typeof input !== 'object' || Array.isArray(input)) return input;
+  const out: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(input as Record<string, unknown>)) {
+    if (REDACTED_TOOL_FIELDS.has(key) && typeof value === 'string') {
+      out[key] = key === 'iban' ? `…${value.replace(/\s+/g, '').slice(-4)}` : '[redacted]';
+    } else {
+      out[key] = value;
+    }
+  }
+  return out;
+}
+
+/** Daily agent-turn caps per conversation and platform-wide (AI-02). Fails open. */
+async function agentBudgetExceeded(conversationId: string): Promise<boolean> {
+  try {
+    const since = new Date(Date.now() - 24 * 3_600_000);
+    const [perConversation] = await db
+      .select({ n: sql<number>`count(*)::int` })
+      .from(conversationMessages)
+      .where(
+        and(
+          eq(conversationMessages.conversationId, conversationId),
+          eq(conversationMessages.author, 'agent'),
+          gte(conversationMessages.createdAt, since),
+        ),
+      );
+    if ((perConversation?.n ?? 0) >= AGENT_TURNS_PER_CONVERSATION_PER_DAY) return true;
+    const [global] = await db
+      .select({ n: sql<number>`count(*)::int` })
+      .from(conversationMessages)
+      .where(
+        and(eq(conversationMessages.author, 'agent'), gte(conversationMessages.createdAt, since)),
+      );
+    return (global?.n ?? 0) >= AGENT_TURNS_GLOBAL_PER_DAY;
+  } catch (error) {
+    reportError(error, { surface: 'support-agent:budget', conversationId });
+    return false;
+  }
+}
+
 /** Entry point from the webhook (inside `after()`) and the cron sweep. */
 export async function runAgentTurn(
   recorded: RecordedInbound,
   address: string,
 ): Promise<AgentTurnResult> {
-  if (!hasSupportAgent() || !serverEnv.DATABASE_URL) return { outcome: 'skipped' };
+  if (!serverEnv.DATABASE_URL) return { outcome: 'skipped' };
+  // Agent switched off (key removed during an incident) while this thread
+  // is still bot-owned: hand it to a person instead of going silent
+  // (2026-09 engineering audit AI-09).
+  if (!hasSupportAgent()) return failSafe(recorded, address, 'agent disabled');
   const conversationId = recorded.conversationId;
+  if (await agentBudgetExceeded(conversationId)) {
+    return failSafe(recorded, address, 'daily agent budget exceeded');
+  }
   const now = new Date();
 
   // One turn per conversation at a time; the lock lapses if the function dies.
@@ -301,6 +402,11 @@ export async function runAgentTurn(
   // dedupe key, and advances to the newest unanswered message on re-check.
   let messageId = recorded.messageId;
 
+  // Whole-turn deadline (AI-08): abort in-flight model calls before the
+  // lock can lapse, so two turns never run on one thread.
+  const controller = new AbortController();
+  const budgetTimer = setTimeout(() => controller.abort(), TURN_BUDGET_MS);
+
   try {
     for (let pass = 0; pass < MAX_TURN_PASSES; pass += 1) {
       const history = await loadThread(conversationId);
@@ -311,6 +417,7 @@ export async function runAgentTurn(
       const output = await runAgentLoop({
         history,
         guestName: recorded.guestName,
+        signal: controller.signal,
         ctx: {
           conversationId,
           address,
@@ -320,16 +427,19 @@ export async function runAgentTurn(
           now: new Date(),
           lastInbound: history.at(-1)?.direction === 'in' ? (history.at(-1)?.body ?? '') : '',
           identityVerified: identity.verified,
+          identityVerifiedAt: identity.verifiedAt ?? null,
           guestHasEmail: identity.hasEmail,
         },
       });
 
-      if (output.stopReason === 'refusal') return await failSafe(recorded, address, 'refusal');
+      if (output.stopReason === 'refusal')
+        return await failSafe(recorded, address, 'refusal', guestId);
       if (!output.reply)
         return await failSafe(
           recorded,
           address,
           `empty reply (${output.stopReason ?? 'no stop reason'})`,
+          guestId,
         );
 
       const sent = await sendConversationReply({
@@ -343,7 +453,7 @@ export async function runAgentTurn(
         toolCalls: output.toolCalls,
       });
       if (!sent.ok && sent.error !== 'duplicate') {
-        return await failSafe(recorded, address, `send failed: ${sent.error}`);
+        return await failSafe(recorded, address, `send failed: ${sent.error}`, guestId);
       }
 
       if (output.handedToHuman) {
@@ -383,7 +493,9 @@ export async function runAgentTurn(
     return { outcome: 'replied' };
   } catch (error) {
     reportError(error, { surface: 'support-agent:turn', conversationId });
-    return failSafe(recorded, address, error instanceof Error ? error.message : 'error');
+    return failSafe(recorded, address, error instanceof Error ? error.message : 'error', guestId);
+  } finally {
+    clearTimeout(budgetTimer);
   }
 }
 

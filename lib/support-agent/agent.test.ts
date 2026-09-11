@@ -22,7 +22,7 @@ vi.mock('./tools', () => ({
   runTool: (...args: unknown[]) => runTool(...(args as [])),
 }));
 
-import { runAgentLoop, toMessageParams } from './agent';
+import { redactToolInput, runAgentLoop, toMessageParams, toolResultOk } from './agent';
 
 const ctx = {
   conversationId: 'c1',
@@ -183,5 +183,32 @@ describe('runAgentLoop', () => {
     );
     expect(out.reply).toBe('');
     expect(calls).toHaveLength(0);
+  });
+});
+
+describe('tool-call log hygiene (2026-09 engineering audit AI-05 / AI-11)', () => {
+  it('judges success by parsing the result, not by a substring', () => {
+    expect(toolResultOk(JSON.stringify({ error: 'not_found' }))).toBe(false);
+    expect(toolResultOk(JSON.stringify({ bookings: [{ note: 'the "error" was mine' }] }))).toBe(
+      true,
+    );
+    expect(toolResultOk('not json')).toBe(true);
+  });
+
+  it('redacts bank details before they are persisted in the log', () => {
+    expect(
+      redactToolInput({
+        reference_code: 'GH-7K3M9X',
+        bank_name: 'Al Rajhi',
+        beneficiary_name: 'Sara Alasmari',
+        iban: 'SA03 8000 0000 6080 1016 7519',
+      }),
+    ).toEqual({
+      reference_code: 'GH-7K3M9X',
+      bank_name: 'Al Rajhi',
+      beneficiary_name: '[redacted]',
+      iban: '…7519',
+    });
+    expect(redactToolInput('plain')).toBe('plain');
   });
 });

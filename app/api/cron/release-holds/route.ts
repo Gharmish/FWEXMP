@@ -19,6 +19,7 @@ import {
   analyticsEvents,
   authThrottleEvents,
   bookings,
+  conversationMessages,
   experiences,
   guests,
   hostApplicationDocuments,
@@ -838,6 +839,36 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       { bestEffort: true },
     );
 
+    // Pass 3e — IBANs at rest in the support thread (2026-09 engineering
+    // audit AI-05). A guest types their IBAN into WhatsApp to get a refund;
+    // the agent must read it verbatim to submit it, and the same IBAN is
+    // then ENCRYPTED on the booking — while the message body kept it in
+    // plaintext for the 12-month retention. Two days is enough for the
+    // refund flow and an admin's eyes; after that keep the last four.
+    const ibansMasked = await pass(
+      '3e-iban-masking',
+      async () => {
+        const rows = await db
+          .update(conversationMessages)
+          .set({
+            body: sql`regexp_replace(${conversationMessages.body}, '(SA)\\s?(?:\\d\\s?){18}((?:\\d\\s?){4})', '\\1…\\2', 'gi')`,
+          })
+          .where(
+            sql`${conversationMessages.id} in (
+              select id from ${conversationMessages}
+              where ${conversationMessages.direction} = 'in'
+                and ${conversationMessages.createdAt} <= now() - interval '48 hours'
+                and ${conversationMessages.body} ~* 'SA\\s?(\\d\\s?){22}'
+              limit ${RETRY_LIMIT}
+            )`,
+          )
+          .returning({ id: conversationMessages.id });
+        return rows.length;
+      },
+      0,
+      { bestEffort: true },
+    );
+
     // Pass 3c — WhatsApp support-line safety net (2026-08-21). The
     // inbound webhook acks + pages inside `after()`; if that leg died,
     // the guest is sitting on silence. Same throttle rules as the live
@@ -1320,6 +1351,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       nudged,
       retried,
       staleQueuedRequeued,
+      ibansMasked,
       supportSwept,
       agentSwept,
       slaBreaches,

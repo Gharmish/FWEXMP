@@ -424,12 +424,19 @@ export async function pageAdminAboutInbound(
   address: string,
   body: string,
 ): Promise<void> {
-  await notifyAdmin('guest_whatsapp_inbound', {
-    from: address,
-    guest: recorded.guestName ?? 'unknown sender',
-    language: recorded.locale,
-    message: body.slice(0, 280) || '(media only)',
-  });
+  // One page per conversation per half hour (2026-09 engineering audit
+  // AI-03): a human-owned thread used to page the admin's email AND
+  // WhatsApp on every single message. The alert row is still recorded.
+  await notifyAdmin(
+    'guest_whatsapp_inbound',
+    {
+      from: address,
+      guest: recorded.guestName ?? 'unknown sender',
+      language: recorded.locale,
+      message: body.slice(0, 280) || '(media only)',
+    },
+    { fingerprint: `whatsapp-inbound:${recorded.conversationId}`, quietWindowMs: 30 * 60_000 },
+  );
 }
 
 /**

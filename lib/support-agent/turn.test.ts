@@ -24,7 +24,14 @@ vi.mock('@/lib/conversations/inbound', () => ({
   ACK_COPY: { en: 'ack', ar: 'ack' },
   sendConversationReply: (...args: unknown[]) => sendConversationReply(...(args as [])),
 }));
-vi.mock('@/features/support/tickets', () => ({ openTicket: vi.fn() }));
+const openTicket = vi.fn(async () => ({
+  reference: 'TK-1',
+  priority: 'high',
+  slaDueAt: new Date(),
+}));
+vi.mock('@/features/support/tickets', () => ({
+  openTicket: (...args: unknown[]) => openTicket(...(args as [])),
+}));
 vi.mock('./knowledge', () => ({ buildKnowledge: async () => 'KB' }));
 vi.mock('./tools', () => ({ TOOLS: [], toolsFor: () => [], runTool: vi.fn() }));
 vi.mock('./identity', () => ({
@@ -41,6 +48,8 @@ let history: Array<{
 /** Successive results of the post-reply "any newer inbound?" query. */
 let newerQueue: Array<Array<{ id: string }>> = [];
 const lockSets: Array<Record<string, unknown>> = [];
+/** Agent turns counted by the daily budget query (per conversation and global). */
+let budgetCount = 0;
 
 vi.mock('@/lib/db', () => ({
   db: {
@@ -60,14 +69,16 @@ vi.mock('@/lib/db', () => ({
     }),
     select: (shape: Record<string, unknown>) => ({
       from: () => ({
-        where: () => ({
-          orderBy: () => ({
-            // loadThread selects the message shape (desc, reversed by the
-            // caller); the re-check selects only { id }.
-            limit: async () =>
-              'direction' in shape ? [...history].reverse() : (newerQueue.shift() ?? []),
+        // Awaited directly by the daily budget counts ({ n }); chained
+        // through orderBy/limit by loadThread (message shape) and the
+        // post-reply re-check ({ id }).
+        where: () =>
+          Object.assign(Promise.resolve([{ n: budgetCount }]), {
+            orderBy: () => ({
+              limit: async () =>
+                'direction' in shape ? [...history].reverse() : (newerQueue.shift() ?? []),
+            }),
           }),
-        }),
       }),
     }),
   },
@@ -104,6 +115,7 @@ beforeEach(() => {
   history = [{ direction: 'in', body: 'hi', mediaContentType: null, createdAt: T0 }];
   newerQueue = [];
   lockSets.length = 0;
+  budgetCount = 0;
   sendConversationReply.mockClear();
 });
 
@@ -169,5 +181,22 @@ describe('runAgentTurn re-check loop', () => {
     } finally {
       db.update = original;
     }
+  });
+});
+
+describe('runAgentTurn spend ceiling (2026-09 engineering audit AI-02)', () => {
+  it('hands the thread to a person without a model call once the daily cap is hit', async () => {
+    budgetCount = 40;
+    const client = textReplyClient(['should never be sent']);
+    setAnthropicClientForTests(client);
+    const out = await runAgentTurn(recorded, '+966500000001');
+    expect(out.outcome).toBe('failed');
+    expect(openTicket).toHaveBeenCalledWith(
+      expect.objectContaining({ summary: expect.stringContaining('daily agent budget exceeded') }),
+    );
+    // The fail-safe acks the guest but no agent reply was generated.
+    expect(sendConversationReply).toHaveBeenCalledTimes(1);
+    const ack = (sendConversationReply.mock.calls[0] as unknown as [{ type: string }])[0];
+    expect(ack.type).toBe('support_ack');
   });
 });

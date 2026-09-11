@@ -2,7 +2,10 @@ import { describe, expect, it, vi } from 'vitest';
 
 vi.mock('server-only', () => ({}));
 vi.mock('@/lib/db', () => ({ db: {} }));
-vi.mock('@/lib/env', () => ({ serverEnv: { DATABASE_URL: '', ADMIN_ALERT_EMAIL: '' }, hasEmail: () => false }));
+vi.mock('@/lib/env', () => ({
+  serverEnv: { DATABASE_URL: '', ADMIN_ALERT_EMAIL: '' },
+  hasEmail: () => false,
+}));
 vi.mock('@/lib/email', () => ({ sendEmail: vi.fn() }));
 vi.mock('@/lib/log', () => ({ reportError: vi.fn() }));
 vi.mock('@/lib/site', () => ({ SITE_URL: 'https://gharmish.com' }));
@@ -33,7 +36,19 @@ describe('renderDailyReport', () => {
   });
   it('shows a dash when no agent reply exists', () => {
     const { text } = renderDailyReport(
-      { inbound: 0, agentReplies: 0, adminReplies: 0, acks: 0, newConversations: 0, handoffs: 0, ticketsOpened: 0, ticketsResolved: 0, openTickets: 0, overdueTickets: 0, medianAgentSeconds: null },
+      {
+        inbound: 0,
+        agentReplies: 0,
+        adminReplies: 0,
+        acks: 0,
+        newConversations: 0,
+        handoffs: 0,
+        ticketsOpened: 0,
+        ticketsResolved: 0,
+        openTickets: 0,
+        overdueTickets: 0,
+        medianAgentSeconds: null,
+      },
       'x',
     );
     expect(text).toContain('Median agent response: —');
