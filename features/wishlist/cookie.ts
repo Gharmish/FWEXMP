@@ -21,10 +21,16 @@ export const WISHLIST_MAX_SIZE = 100;
  * silently. Returns a fresh array so callers can mutate without
  * affecting the cached cookie string.
  */
+/** Slug shape: lowercase ASCII letters, digits, hyphens; 1-120 chars. */
+const SLUG_RE = /^[a-z0-9](?:[a-z0-9-]{0,118}[a-z0-9])?$/;
+
+/** The same shape the cookie parser accepts — gate action input on it too. */
+export function isValidWishlistSlug(slug: string): boolean {
+  return SLUG_RE.test(slug);
+}
+
 export function parseWishlistCookie(value: string | undefined): string[] {
   if (!value) return [];
-  // Slug shape: lowercase ASCII letters, digits, hyphens; 1-120 chars.
-  const SLUG_RE = /^[a-z0-9](?:[a-z0-9-]{0,118}[a-z0-9])?$/;
   const seen = new Set<string>();
   const out: string[] = [];
   for (const raw of value.split(',')) {

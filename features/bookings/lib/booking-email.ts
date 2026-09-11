@@ -27,6 +27,7 @@ import { guestBookingUrls } from './booking-email-links';
 import { renderReceiptEmail, type ReceiptRow } from './booking-email-render';
 import { getPlatformSettings } from '@/lib/platform-settings';
 import {
+  bidiIsolate,
   REFUND_LINES,
   firstName,
   guestBookingPath,
@@ -43,23 +44,6 @@ import {
   whatsappPayload,
 } from '@/lib/notifications/whatsapp';
 
-/**
- * Bidi-isolate a strongly-LTR TOKEN (`GH-XXXXXX` reference) bound for
- * an Arabic WhatsApp template body. FSI…PDI (U+2068/U+2069) stops
- * adjacent Arabic punctuation from reordering around the run; invisible
- * and harmless in LTR bodies, so applied unconditionally.
- *
- * NEVER wrap a URL variable (2026-08-01 ninth audit): an invisible
- * U+2068 abutting `https://` defeats WhatsApp's linkifier on some
- * clients, rendering the link as plain untappable text — and the
- * invoice-link variable is the phone-only guest's ONLY path to their
- * tax document. URLs stand on their own template lines; a slightly
- * reordered bracket next to a link is cosmetic, a dead link is not.
- */
-function bidiIsolate(value: string): string {
-  return `\u2068${value}\u2069`;
-}
-
 /** Brand wordmark for email headers — PNG (clients don't render SVG). */
 const EMAIL_LOGO_URL = `${SITE_URL}/images/gharmish-email-logo.png`;
 
@@ -68,7 +52,14 @@ function emailHero(
   experience: { heroImage: string | null } | undefined,
   alt: string | null,
 ): { url: string; alt: string } | undefined {
-  return experience?.heroImage ? { url: experience.heroImage, alt: alt ?? 'Gharmish' } : undefined;
+  if (!experience?.heroImage) return undefined;
+  // A relative `/images/...` path renders as a broken image in every mail
+  // client; absolutise it the way JSON-LD and the catalog feed already do
+  // (2026-09 engineering audit GAPB-09).
+  const url = experience.heroImage.startsWith('/')
+    ? `${SITE_URL}${experience.heroImage}`
+    : experience.heroImage;
+  return { url, alt: alt ?? 'Gharmish' };
 }
 
 /**

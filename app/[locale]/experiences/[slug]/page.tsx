@@ -54,6 +54,7 @@ import { hasMeetingPoint } from '@/features/host-experiences/schemas';
 import { trackExperienceView, utmFromSearchParams } from '@/features/analytics/capture';
 import { getScheduleDataBySlug } from '@/features/availability/queries';
 import {
+  BOOKING_HORIZON_DAYS,
   addDays,
   bookableDates,
   closedDates,
@@ -255,7 +256,6 @@ export default async function ExperienceDetailPage({
   // audit M10). The aggregate feeds JSON-LD + the reviews section; the
   // schedule builds the guest date picker (open weekday, not
   // blackout/stop-sell/past, with capacity) over the next ~8 weeks.
-  const BOOKING_HORIZON_DAYS = 60;
   const todayRiyadh = todayInRiyadh();
   // Current KSA wall-clock (minutes since midnight) so the picker greys out
   // today's slot once it's within the booking cutoff of its start time —

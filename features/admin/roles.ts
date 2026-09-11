@@ -1,6 +1,6 @@
 import 'server-only';
 
-import { and, eq, isNull } from 'drizzle-orm';
+import { and, eq } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import { serverEnv } from '@/lib/env';
 import { userRoles } from '@/db/schema';
@@ -24,22 +24,24 @@ import { toE164Saudi } from '@/features/auth/lib/phone';
  * keeps access even then.
  */
 export async function resolveIsAdmin(userId: string, phone: string): Promise<boolean> {
-  if (envAllowlistMatches(phone)) return true;
-  if (!serverEnv.DATABASE_URL) return false;
+  if (!serverEnv.DATABASE_URL) return envAllowlistMatches(phone);
 
   try {
-    const grant = await db.query.userRoles.findFirst({
-      where: and(
-        eq(userRoles.userId, userId),
-        eq(userRoles.role, 'admin'),
-        isNull(userRoles.revokedAt),
-      ),
-      columns: { id: true },
+    // Any admin row for this user — live or revoked — makes the table the
+    // authority, so revoking an env-listed admin in the UI takes effect
+    // (2026-09 engineering audit SEC-07). Only a user with no row at all
+    // falls through to the bootstrap allowlist.
+    const row = await db.query.userRoles.findFirst({
+      where: and(eq(userRoles.userId, userId), eq(userRoles.role, 'admin')),
+      columns: { revokedAt: true },
     });
-    return Boolean(grant);
+    if (row) return row.revokedAt === null;
+    return envAllowlistMatches(phone);
   } catch (error) {
     reportError(error, { surface: 'admin-roles:resolveIsAdmin' });
-    return false;
+    // Fail closed for table-granted admins; the env fallback still keeps
+    // the owner in during an outage.
+    return envAllowlistMatches(phone);
   }
 }
 

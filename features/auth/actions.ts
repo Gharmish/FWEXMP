@@ -1,6 +1,7 @@
 'use server';
 
 import { cookies } from 'next/headers';
+import { ADMIN_MFA_COOKIE } from '@/features/admin/mfa';
 import { revalidatePath } from 'next/cache';
 import { hasSupabaseAuth, stubAuthAllowed } from '@/lib/env';
 import { getSupabaseServerClient } from '@/lib/supabase/server';
@@ -457,6 +458,9 @@ export async function signOut(formData: FormData): Promise<void> {
   // get cleared (e.g. partial signOut error).
   const store = await cookies();
   store.delete(STUB_SESSION_COOKIE);
+  // The admin second-factor proof is bound to the session it was issued
+  // for; it must not outlive a sign-out (2026-09 engineering audit SEC-03).
+  store.delete(ADMIN_MFA_COOKIE);
 
   revalidatePath('/[locale]', 'layout');
   redirect({ href: '/', locale });

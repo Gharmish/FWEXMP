@@ -13,6 +13,7 @@ import {
   WISHLIST_COOKIE,
   addToWishlistList,
   isInWishlist,
+  isValidWishlistSlug,
   parseWishlistCookie,
   removeFromWishlistList,
   serializeWishlistCookie,
@@ -118,6 +119,10 @@ async function syncDbWishlist(cookieSlugs: readonly string[], removeSlug?: strin
 }
 
 export async function toggleWishlist(slug: string): Promise<void> {
+  // The argument comes straight off a client call; refuse anything that
+  // is not slug-shaped before it touches the cookie or a query (2026-09
+  // engineering audit GAPA-08).
+  if (!isValidWishlistSlug(slug)) return;
   const current = await readCookie();
   const removing = isInWishlist(current, slug);
   const next = removing ? removeFromWishlistList(current, slug) : addToWishlistList(current, slug);

@@ -55,6 +55,21 @@ describe('isDateBookable', () => {
     blackoutDates: [] as string[],
   };
 
+  it('refuses a date beyond the booking horizon, accepts the last day inside it (GAPA-05)', () => {
+    // 2026-05-29 + 60 days = 2026-07-28 (a Tuesday) — open the weekday so
+    // only the horizon decides.
+    const open = { ...base, availabilityWeekdays: [0, 1, 2, 3, 4, 5, 6] };
+    expect(isDateBookable({ ...open, dateStr: '2026-07-28' })).toEqual({ ok: true });
+    expect(isDateBookable({ ...open, dateStr: '2026-07-29' })).toEqual({
+      ok: false,
+      reason: 'too_far',
+    });
+    expect(isDateBookable({ ...open, dateStr: '2026-06-05', horizonDays: 3 })).toEqual({
+      ok: false,
+      reason: 'too_far',
+    });
+  });
+
   it('accepts an open weekday in the future', () => {
     expect(isDateBookable({ ...base, dateStr: '2026-05-30' })).toEqual({ ok: true });
   });

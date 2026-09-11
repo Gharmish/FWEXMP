@@ -267,6 +267,7 @@ function messageForField(
     if (code === 'date_full') return copy.dateFull;
     if (
       code === 'date_closed_weekday' ||
+      code === 'date_too_far' ||
       code === 'date_blackout' ||
       code === 'date_malformed' ||
       code === 'date_stop_sell'

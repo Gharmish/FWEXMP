@@ -39,6 +39,14 @@ export const PAYMENT_HOLD_MINUTES = 30;
  */
 export const BOOKING_CUTOFF_MINUTES = 120;
 
+/**
+ * How far ahead a guest may book, in days from the Riyadh today. The
+ * guest calendar has always stopped here; the server now enforces the
+ * same bound so a hand-crafted form cannot hold capacity a year out
+ * (2026-09 engineering audit GAPA-05).
+ */
+export const BOOKING_HORIZON_DAYS = 60;
+
 const TIME_RE = /^([0-2]\d):([0-5]\d)$/;
 
 /**
@@ -92,11 +100,14 @@ export interface BookableInput {
   nowMinutes?: number;
   /** Lead time before start, in minutes. Defaults to 0 when omitted. */
   cutoffMinutes?: number;
+  /** Booking horizon in days from `todayStr`; defaults to BOOKING_HORIZON_DAYS. */
+  horizonDays?: number;
 }
 
 export type BookableReason =
   | 'malformed'
   | 'past'
+  | 'too_far'
   | 'cutoff'
   | 'closed_weekday'
   | 'blackout'
@@ -117,6 +128,9 @@ export function isDateBookable(input: BookableInput): BookableResult {
   }
   // String compare is valid for ISO `YYYY-MM-DD` (lexicographic === chronological).
   if (input.dateStr < input.todayStr) return { ok: false, reason: 'past' };
+  if (input.dateStr > addDays(input.todayStr, input.horizonDays ?? BOOKING_HORIZON_DAYS)) {
+    return { ok: false, reason: 'too_far' };
+  }
   // Same-day cutoff: a slot closes for new bookings once now is within
   // `cutoffMinutes` of its local start time (which subsumes "past start").
   // Only today's slot can be affected — a future day's start is always far
