@@ -29,19 +29,14 @@ export async function SocialProofStrip({ locale }: SocialProofStripProps) {
   const t = await getTranslations('home.socialProof');
   // Arabic reads one type-scale step up (BRIEF §3): 11px + tracking is an
   // EN small-caps treatment — Arabic gets 13px with no added tracking.
-  const eyebrowClassName = cn(
-    'text-sarat-black-600 font-medium',
-    locale === 'en' ? 'text-[11px] tracking-[0.2em] uppercase' : 'text-[13px]',
-  );
+  const eyebrowClassName = cn('text-sarat-black-600 font-medium', 'text-eyebrow');
 
   return (
     <section className="bg-mist">
       <div className="mx-auto flex w-full max-w-6xl flex-col gap-8 px-6 py-20">
         <div className="flex flex-col gap-3">
           <p className={eyebrowClassName}>{t('eyebrow')}</p>
-          <h2 className="font-display text-3xl font-medium tracking-[-0.03em] text-balance">
-            {t('title')}
-          </h2>
+          <h2 className="text-h2-lg text-balance">{t('title')}</h2>
         </div>
         <ul className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
           {reviews.map((review) => {

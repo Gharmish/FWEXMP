@@ -1,4 +1,11 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+
+// Freeze the clock so fixtures built from `new Date()` never drift across
+// midnight or DST (2026-09 engineering audit TEST-13). Only Date is faked;
+// timers stay real for the deadline helpers.
+const FIXED_NOW = new Date('2026-09-11T09:00:00.000Z');
+beforeAll(() => vi.useFakeTimers({ now: FIXED_NOW, toFake: ['Date'] }));
+afterAll(() => vi.useRealTimers());
 
 vi.mock('server-only', () => ({}));
 vi.mock('@/lib/db', () => ({ db: {} }));

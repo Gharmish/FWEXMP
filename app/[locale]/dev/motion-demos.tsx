@@ -29,11 +29,7 @@ import { toast } from '@/components/ui/toast';
  */
 
 function DemoLabel({ children }: { children: string }) {
-  return (
-    <p className="text-sarat-black-600 text-[11px] font-medium tracking-[0.2em] uppercase">
-      {children}
-    </p>
-  );
+  return <p className="text-sarat-black-600 text-eyebrow">{children}</p>;
 }
 
 const demoCard =

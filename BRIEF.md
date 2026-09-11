@@ -74,13 +74,13 @@ Each primary color has a `-50`, `-100`, `-200`, `-400`, `-600`, `-800`, `-900` r
 
 Status chips and banners always pair a `*-surface` background with the matching text tone. All are aliases onto the brand ramps — no new hex:
 
-| Semantic  | Text tone           | Surface             | Used for                                                           |
-| --------- | ------------------- | ------------------- | ------------------------------------------------------------------ |
-| `success` | `juniper-green-800` | `juniper-green-100` | Confirmed, completed, paid                                         |
-| `pending` | `saffron-gold-800`  | `saffron-gold-100`  | Request-to-book awaiting host approval — never the confirmed green |
-| `warning` | `soudah-sunset-800` | `soudah-sunset-100` | Expiring soon, action needed                                       |
-| `error`   | `al-qatt-red-800`   | `al-qatt-red-100`   | Declined, failed, destructive                                      |
-| `info`    | `habala-mist-800`   | `habala-mist-100`   | Neutral notices, announcements                                     |
+| Semantic  | Text tone           | Surface             | Used for                                                                                                                                      |
+| --------- | ------------------- | ------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
+| `success` | `juniper-green-800` | `juniper-green-100` | Confirmed, completed, paid                                                                                                                    |
+| `pending` | `saffron-gold-900`  | `saffron-gold-100`  | Request-to-book awaiting host approval — never the confirmed green. `-900`, not `-800`: the 800 step fails 4.5:1 on the 100 surface (2026-09) |
+| `warning` | `soudah-sunset-800` | `soudah-sunset-100` | Expiring soon, action needed                                                                                                                  |
+| `error`   | `al-qatt-red-800`   | `al-qatt-red-100`   | Declined, failed, destructive                                                                                                                 |
+| `info`    | `habala-mist-800`   | `habala-mist-100`   | Neutral notices, announcements                                                                                                                |
 
 ### Category-to-color map (immutable)
 
@@ -102,7 +102,7 @@ Status chips and banners always pair a `*-surface` background with the matching 
 
 **Weights used in product: 400 and 500 — plus 600 for Display, H1, and large stat numerals only** (premium redesign 2026-06; owner-approved exception). Never 600 in body copy, labels, or H2/H3. Never 700 or 800 anywhere. The restraint is still the brand.
 
-Load both via `next/font` with `display: swap`. Self-host, do not link to Google Fonts in production.
+Self-host both with `display: swap`; never link to Google Fonts in production. Bricolage loads via `next/font`; IBM Plex Sans Arabic is declared with `@font-face` in `app/globals.css` and preloaded only on Arabic pages (2026-09 — `next/font` cannot preload per locale).
 
 #### Type scale (English)
 
@@ -134,13 +134,14 @@ Use the 8-point grid exclusively: `4, 8, 12, 16, 24, 32, 48, 64, 80, 120` (pixel
 | Buttons (pills) | `100px` (full) |
 | Cards           | `20px`         |
 | Inputs          | `12px`         |
+| Badges / chips  | `4.5px`        |
 | Images          | `16px`         |
 | Avatars         | `50%` (full)   |
 | Modals          | `24px`         |
 
 ### Borders
 
-`0.5px` hairlines, never `1px+`. Use `rgba(10,10,10,0.06)` to `0.12` for default borders.
+`0.5px` hairlines, never `1px+`. Alpha guidance (written back 2026-09 from `app/globals.css`): `rgba(10,10,10,0.06)`–`0.12` for separation (cards, dividers, table rules); `0.20`–`0.45` where a 3:1 boundary is required against white (inputs, secondary buttons, focus-adjacent controls).
 
 ### Shadows
 
@@ -239,26 +240,26 @@ Every page exists at `/ar/*` and `/en/*`. Middleware detects locale on first vis
 | Components | Base UI (`@base-ui/react`) | shadcn-style primitives restyled to Gharmish, built on Base UI                                                                              |
 | Animation  | Framer Motion              | latest                                                                                                                                      |
 | Image crop | react-easy-crop            | latest (avatar / photo cropper)                                                                                                             |
-| Forms      | react-hook-form + zod      | latest                                                                                                                                      |
-| Tables     | TanStack Table             | latest (when needed)                                                                                                                        |
+| Forms      | zod + `useActionState`     | react-hook-form was never adopted — server-validated zod schemas with `useActionState` (decision recorded 2026-07-28, CLAUDE.md)            |
+| Tables     | none                       | Admin tables are server-rendered; TanStack Table not adopted (status 2026-09, revisit if client-side sorting/paging is ever needed)         |
 | Icons      | lucide-react               | latest                                                                                                                                      |
 | i18n       | next-intl                  | latest                                                                                                                                      |
-| Date       | date-fns + date-fns-tz     | latest                                                                                                                                      |
+| Date       | `Intl` only                | `lib/format.ts` + `lib/riyadh-time.ts` (single market zone); date-fns not adopted (status 2026-09)                                          |
 
 ### Backend & data
 
-| Layer          | Choice                                                                                              |
-| -------------- | --------------------------------------------------------------------------------------------------- |
-| Database       | PostgreSQL via Supabase                                                                             |
-| ORM            | Drizzle                                                                                             |
-| Server actions | Next.js native + zod validation                                                                     |
-| Search         | Meilisearch (Arabic-aware, self-hosted or cloud)                                                    |
-| Vector         | pgvector extension (for AI features later)                                                          |
-| File storage   | **Supabase Storage** (public `photos`/`avatars`, private `kyc-documents`). R2 not used.             |
-| Image CDN      | **`next/image`** on Vercel. No third-party image CDN.                                               |
-| Email          | Resend                                                                                              |
-| Messaging      | WhatsApp Business API via **Twilio** (not 360dialog).                                               |
-| Maps           | **Leaflet + OpenStreetMap** (keyless). Owner rejected keyed providers — Mapbox/Google are NOT used. |
+| Layer          | Choice                                                                                                                     |
+| -------------- | -------------------------------------------------------------------------------------------------------------------------- |
+| Database       | PostgreSQL via Supabase                                                                                                    |
+| ORM            | Drizzle                                                                                                                    |
+| Server actions | Next.js native + zod validation                                                                                            |
+| Search         | PostgreSQL (ILIKE + SQL facets). Meilisearch **not adopted** — status 2026-09: catalog is <100 listings; revisit at ~1,000 |
+| Vector         | **Not adopted** (status 2026-09): no semantic search or recommendation feature is scheduled; pgvector stays the option     |
+| File storage   | **Supabase Storage** (public `photos`/`avatars`, private `kyc-documents`). R2 not used.                                    |
+| Image CDN      | **`next/image`** on Vercel. No third-party image CDN.                                                                      |
+| Email          | Resend                                                                                                                     |
+| Messaging      | WhatsApp Business API via **Twilio** (not 360dialog).                                                                      |
+| Maps           | **Leaflet + OpenStreetMap** (keyless). Owner rejected keyed providers — Mapbox/Google are NOT used.                        |
 
 ### Auth & identity
 
@@ -287,7 +288,7 @@ Every page exists at `/ar/*` and `/en/*`. Middleware detects locale on first vis
 - Hosting: Vercel (Frankfurt region for KSA latency).
 - DNS + CDN: Cloudflare.
 - Database region: Supabase in `eu-central-1` (Frankfurt).
-- Monitoring: Sentry (errors), PostHog (product analytics), Axiom (logs), Vercel Analytics (web vitals).
+- Monitoring: Sentry (errors, with release + user context), Vercel Analytics (traffic, web vitals), in-house `analytics_events` (product funnels, `/admin/analytics`). **PostHog and Axiom not adopted** — status 2026-09: Vercel runtime logs cover logging at this scale; revisit with a second engineer.
 
 ---
 
@@ -305,14 +306,14 @@ Shared zod schemas between database, API, and frontend. Drizzle generates types 
 
 This is non-negotiable and most platforms in 2026 will miss it.
 
-- **Schema.org structured data** on every page: `TouristAttraction`, `Event`, `Product`, `Offer`, `Review`.
-- **`/llms.txt` manifest** at root, listing the AI-readable site map.
-- **MCP server** at `mcp.gharmish.com` exposing `search_experiences`, `get_experience`, `check_availability`, `create_booking`, `get_host`.
-- **Public OpenAPI 3.1 spec** documenting all endpoints.
+- **Schema.org structured data** on every page: `TouristAttraction`, `Event`, `Product`, `Offer`, `Review`. _(Live.)_
+- **`/llms.txt` manifest** at root, listing the AI-readable site map. _(Live, cached.)_
+- **MCP server** at `mcp.gharmish.com` exposing `search_experiences`, `get_experience`, `check_availability`, `create_booking`, `get_host`. _(Status 2026-09: not built; no decision to build before the catalog and traffic justify it.)_
+- **Public OpenAPI 3.1 spec** documenting all endpoints. _(Status 2026-09: not built — there is no public API yet; ships with the MCP server.)_
 - **Stable, semantic URLs**: `/experiences/an-evening-with-the-flower-men`, not `/exp?id=4827`.
-- **Vector embeddings** of every listing, host bio, and review in pgvector. Used for semantic search and recommendations.
+- **Vector embeddings** of every listing, host bio, and review in pgvector. Used for semantic search and recommendations. _(Status 2026-09: not adopted — see §5 Vector.)_
 - **Rich prose descriptions** on every entity, not just sparse fields. LLMs need narrative context.
-- **Idempotency keys** on all booking-creation endpoints. Agents need safe retries.
+- **Idempotency keys** on all booking-creation endpoints. Agents need safe retries. _(Live.)_
 
 ### Accessibility
 

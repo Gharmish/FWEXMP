@@ -1,3 +1,4 @@
+import { Localized } from '@/components/ui/localized';
 import type { Metadata } from 'next';
 import { CalendarCheck } from 'lucide-react';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
@@ -15,7 +16,6 @@ import {
   PAST_PAGE_SIZE,
 } from '@/features/host-bookings/queries';
 import { listMyExperiences } from '@/features/host-experiences/queries';
-import { pickLocalized } from '@/lib/ar-placeholder';
 import { todayInRiyadh } from '@/features/bookings/lib/availability';
 import type { HostBookingRow } from '@/features/host-bookings/types';
 import { BookingRow } from '@/features/host-bookings/components/booking-row';
@@ -120,10 +120,7 @@ export default async function HostBookingsPage({
   };
   const currentHref = hrefFor(view === 'past' ? { past: String(pastPageParam) } : {});
 
-  const eyebrowClassName = cn(
-    'text-sarat-black-600 font-medium text-[11px]',
-    loc === 'en' && 'tracking-[0.2em] uppercase',
-  );
+  const eyebrowClassName = cn('text-sarat-black-600 text-eyebrow');
 
   const renderRows = (
     rows: readonly HostBookingRow[],
@@ -149,7 +146,7 @@ export default async function HostBookingsPage({
     );
 
   const sectionHeading = (key: 'requests' | 'upcoming' | 'past', count: number) => (
-    <h2 className="font-display flex items-baseline gap-2 text-2xl font-medium tracking-[-0.025em]">
+    <h2 className="text-h2 flex items-baseline gap-2">
       {t(`${key}.title`)}
       {count > 0 && (
         <span className="text-sarat-black-600 text-base tabular-nums">
@@ -167,9 +164,7 @@ export default async function HostBookingsPage({
     <div className="flex w-full flex-col gap-8">
       <div className="flex flex-col gap-4">
         <p className={eyebrowClassName}>{t('eyebrow')}</p>
-        <h1 className="font-display text-4xl font-semibold tracking-[-0.035em] text-balance sm:text-5xl">
-          {t('title')}
-        </h1>
+        <h1 className="text-h1">{t('title')}</h1>
         <p className="text-sarat-black-600 max-w-2xl text-base leading-relaxed">{t('intro')}</p>
         {suspended && (
           <p
@@ -279,7 +274,7 @@ export default async function HostBookingsPage({
                 <option value="">{t('filter.allExperiences')}</option>
                 {myExperiences.map((exp) => (
                   <option key={exp.id} value={exp.id}>
-                    {pickLocalized(loc, exp.titleEn, exp.titleAr)}
+                    <Localized locale={loc} en={exp.titleEn} ar={exp.titleAr} />
                   </option>
                 ))}
               </select>
@@ -376,7 +371,7 @@ export default async function HostBookingsPage({
               {date && (
                 <section className="flex flex-col gap-4">
                   <div className="flex flex-wrap items-baseline justify-between gap-3">
-                    <h2 className="font-display text-2xl font-medium tracking-[-0.025em]">
+                    <h2 className="text-h2">
                       {formatDate(new Date(`${date}T12:00:00Z`), loc, 'gregory', {
                         weekday: 'long',
                         day: 'numeric',

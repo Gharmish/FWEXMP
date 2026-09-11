@@ -3,7 +3,6 @@ import { notFound } from 'next/navigation';
 import { ArrowLeft } from 'lucide-react';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { Link } from '@/lib/i18n';
-import type { Locale } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
 import {
   getAdminExperienceForEdit,
@@ -36,12 +35,8 @@ export default async function AdminMomentsPage({
 }) {
   const { locale, id } = await params;
   setRequestLocale(locale);
-  const loc = locale as Locale;
   const t = await getTranslations('admin');
-  const eyebrowClassName = cn(
-    'text-sarat-black-600 font-medium text-[11px]',
-    loc === 'en' && 'tracking-[0.2em] uppercase',
-  );
+  const eyebrowClassName = cn('text-sarat-black-600 text-eyebrow');
 
   const block = await isAdminAndDbReady();
   if (block?.reason === 'not_admin') notFound();
@@ -49,7 +44,7 @@ export default async function AdminMomentsPage({
     return (
       <div className="flex flex-col gap-6">
         <p className={eyebrowClassName}>{t('noDb.eyebrow')}</p>
-        <h2 className="font-display text-2xl font-medium tracking-[-0.025em]">{t('noDb.title')}</h2>
+        <h2 className="text-h2">{t('noDb.title')}</h2>
         <p className="text-sarat-black-600 max-w-xl text-base">{t('noDb.description')}</p>
       </div>
     );
@@ -94,9 +89,7 @@ export default async function AdminMomentsPage({
           <ArrowLeft className="size-4 shrink-0 rtl:rotate-180" aria-hidden />
           {tM('back')}
         </Link>
-        <h1 className="font-display text-4xl font-semibold tracking-[-0.035em] text-balance sm:text-5xl">
-          {tM('heading')}
-        </h1>
+        <h1 className="text-h1">{tM('heading')}</h1>
         <p className="text-sarat-black-600 text-base">{experience.titleEn}</p>
         <p className="text-sarat-black-600 max-w-2xl text-base leading-relaxed">{tM('intro')}</p>
       </div>

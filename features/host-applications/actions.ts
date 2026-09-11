@@ -1,5 +1,6 @@
 'use server';
 
+import { matchesDeclaredType } from '@/lib/file-signature';
 import { cookies } from 'next/headers';
 import { revalidatePath } from 'next/cache';
 import { eq } from 'drizzle-orm';
@@ -72,7 +73,7 @@ export type HostApplyFieldName =
   | 'region';
 
 /** Error codes for one `doc_{type}` file input. */
-export type HostApplyDocumentError = 'doc_required' | 'doc_type' | 'doc_size';
+export type HostApplyDocumentError = 'doc_required' | 'doc_type' | 'doc_size' | 'doc_total';
 
 export interface HostApplyState {
   success: false;
@@ -159,12 +160,12 @@ interface StagedDocument {
  * has no prior upload of that type, or the prior upload was rejected —
  * an approved or still-pending document carries over untouched.
  */
-function stageDocuments(
+async function stageDocuments(
   formData: FormData,
   identityType: HostIdentityType,
   userId: string,
   existingByType: ReadonlyMap<HostDocumentType, { status: string }>,
-): { staged: StagedDocument[] } | { errors: NonNullable<HostApplyState['documents']> } {
+): Promise<{ staged: StagedDocument[] } | { errors: NonNullable<HostApplyState['documents']> }> {
   const staged: StagedDocument[] = [];
   const errors: NonNullable<HostApplyState['documents']> = {};
   // Token shared across this submission — keys stay unique per attempt
@@ -185,6 +186,11 @@ function stageDocuments(
     const check = validateDocument({ size: file.size, type: file.type });
     if (!check.ok) {
       errors[type] = check.reason === 'size' ? 'doc_size' : 'doc_type';
+      continue;
+    }
+    // A PDF or image by declaration only is refused (SEC-05).
+    if (!(await matchesDeclaredType(file, check.contentType))) {
+      errors[type] = 'doc_type';
       continue;
     }
     staged.push({
@@ -327,7 +333,7 @@ export async function submitHostApplication(
     const documentsEnabled = hasSupabaseAuth();
     let staged: StagedDocument[] = [];
     if (documentsEnabled) {
-      const result = stageDocuments(formData, input.identityType, user.id, existingByType);
+      const result = await stageDocuments(formData, input.identityType, user.id, existingByType);
       if ('errors' in result) {
         return {
           success: false,

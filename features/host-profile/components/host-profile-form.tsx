@@ -1,14 +1,16 @@
 'use client';
 
-import { useActionState, useEffect, useId } from 'react';
+import { useSuccessToast } from '@/lib/hooks/use-success-toast';
+import { useActionState, useId } from 'react';
 import { useFormStatus } from 'react-dom';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { toast } from '@/components/ui/toast';
 import { updateHostProfile } from '@/features/host-profile/actions';
 import { HOST_LANGUAGE_OPTIONS } from '@/features/host-applications/types';
 import type { HostProfileErrorKey, HostProfileFormState } from '@/features/host-profile/types';
+
+const saved = (s: { status: string }) => s.status === 'success';
 
 export interface HostProfileFormCopy {
   nameLabel: string;
@@ -78,9 +80,7 @@ export function HostProfileForm({ profile, copy }: HostProfileFormProps) {
 
   // Save feedback springs in as a toast; useActionState returns a fresh
   // state object per submit, so repeat saves re-fire.
-  useEffect(() => {
-    if (state.status === 'success') toast({ title: copy.saved, tone: 'success' });
-  }, [state, copy.saved]);
+  useSuccessToast(state, saved, copy.saved);
 
   const errored = state.status === 'error' ? state : undefined;
   const nameError = errored?.fields?.name ? copy.nameError : undefined;

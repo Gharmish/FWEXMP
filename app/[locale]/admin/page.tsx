@@ -125,11 +125,8 @@ export default async function AdminIndexPage({
     },
   );
 
-  const eyebrowClassName = cn(
-    'text-sarat-black-600 font-medium text-[11px]',
-    loc === 'en' && 'tracking-[0.2em] uppercase',
-  );
-  const sectionHeading = 'font-display text-2xl font-medium tracking-[-0.025em]';
+  const eyebrowClassName = cn('text-sarat-black-600 text-eyebrow');
+  const sectionHeading = 'text-h2';
   const card = 'border-sarat-black/8 rounded-card [border-width:0.5px] p-6';
   const newLabel = t('dashboard.kpi.new');
 
@@ -161,9 +158,7 @@ export default async function AdminIndexPage({
       <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
         <div className="flex flex-col gap-3">
           <p className={eyebrowClassName}>{t('eyebrow')}</p>
-          <h1 className="font-display text-4xl font-semibold tracking-[-0.035em] text-balance sm:text-5xl">
-            {t(`dashboard.greeting.${greetingKey()}`)}
-          </h1>
+          <h1 className="text-h1">{t(`dashboard.greeting.${greetingKey()}`)}</h1>
           <p className="text-sarat-black-600 max-w-2xl text-base leading-relaxed">
             <span className="capitalize">
               {formatDate(new Date(), loc, 'gregory', {
@@ -267,9 +262,7 @@ export default async function AdminIndexPage({
         {header}
         <div className={cn(card, 'flex flex-col items-start gap-4 p-10')}>
           <p className={eyebrowClassName}>{t('noDb.eyebrow')}</p>
-          <h2 className="font-display text-2xl font-medium tracking-[-0.025em]">
-            {t('noDb.title')}
-          </h2>
+          <h2 className="text-h2">{t('noDb.title')}</h2>
           <p className="text-sarat-black-600 max-w-xl text-base">{t('noDb.description')}</p>
         </div>
       </div>

@@ -33,10 +33,7 @@ export default async function AdminPayoutsPage({
   setRequestLocale(locale);
   const loc = locale as Locale;
   const t = await getTranslations('admin');
-  const eyebrowClassName = cn(
-    'text-sarat-black-600 font-medium text-[11px]',
-    loc === 'en' && 'tracking-[0.2em] uppercase',
-  );
+  const eyebrowClassName = cn('text-sarat-black-600 text-eyebrow');
 
   const backLink = (
     <Link
@@ -56,9 +53,7 @@ export default async function AdminPayoutsPage({
         {backLink}
         <div className="border-sarat-black/8 rounded-card flex flex-col items-start gap-4 [border-width:0.5px] p-12">
           <p className={eyebrowClassName}>{t('noDb.eyebrow')}</p>
-          <h2 className="font-display text-2xl font-medium tracking-[-0.025em]">
-            {t('noDb.title')}
-          </h2>
+          <h2 className="text-h2">{t('noDb.title')}</h2>
           <p className="text-sarat-black-600 max-w-xl text-base">{t('noDb.description')}</p>
         </div>
       </div>
@@ -73,9 +68,7 @@ export default async function AdminPayoutsPage({
       {backLink}
       <div className="flex flex-col gap-4">
         <p className={eyebrowClassName}>{t('payoutsList.eyebrow')}</p>
-        <h1 className="font-display text-4xl font-semibold tracking-[-0.035em] text-balance sm:text-5xl">
-          {t('payoutsList.title')}
-        </h1>
+        <h1 className="text-h1">{t('payoutsList.title')}</h1>
         <p className="text-sarat-black-600 max-w-2xl text-base leading-relaxed">
           {t('payoutsList.intro')}
         </p>
@@ -91,9 +84,7 @@ export default async function AdminPayoutsPage({
       {rows.length === 0 ? (
         <div className="border-sarat-black/8 rounded-card flex flex-col items-start gap-2 [border-width:0.5px] p-12">
           <p className={eyebrowClassName}>{t('payoutsList.empty.eyebrow')}</p>
-          <h2 className="font-display text-2xl font-medium tracking-[-0.025em]">
-            {t('payoutsList.empty.title')}
-          </h2>
+          <h2 className="text-h2">{t('payoutsList.empty.title')}</h2>
           <p className="text-sarat-black-600 max-w-xl text-base">
             {t('payoutsList.empty.description')}
           </p>
@@ -149,7 +140,7 @@ export default async function AdminPayoutsPage({
                 )}
               </div>
               <div className="flex items-center gap-4">
-                <span className="font-display text-2xl font-medium tracking-[-0.025em]">
+                <span className="text-h2">
                   <Price amount={row.netOwedSar} locale={loc} />
                 </span>
                 {row.owedCount > 0 && (

@@ -46,10 +46,7 @@ export default async function HostApplyPage({ params }: { params: Promise<{ loca
     getCurrentUserHostApplication(),
   ]);
 
-  const eyebrowClassName = cn(
-    'text-sarat-black-600 font-medium text-[11px]',
-    loc === 'en' && 'tracking-[0.2em] uppercase',
-  );
+  const eyebrowClassName = cn('text-sarat-black-600 text-eyebrow');
 
   // If there's already a submitted (pending or approved) application,
   // render the status surface instead of the form. A rejected
@@ -60,7 +57,7 @@ export default async function HostApplyPage({ params }: { params: Promise<{ loca
         <section className="mx-auto w-full max-w-3xl px-6 py-20 sm:py-24">
           <div className="flex flex-col gap-6">
             <p className={eyebrowClassName}>{t(`status.${existing.status}.eyebrow`)}</p>
-            <h1 className="font-display text-4xl font-semibold tracking-[-0.035em] text-balance sm:text-5xl">
+            <h1 className="text-h1">
               {t(`status.${existing.status}.title`, { name: existing.displayName })}
             </h1>
             <p className="text-sarat-black-600 max-w-2xl text-lg leading-relaxed">
@@ -137,9 +134,7 @@ export default async function HostApplyPage({ params }: { params: Promise<{ loca
       <section className="mx-auto w-full max-w-3xl px-6 py-20 sm:py-24">
         <div className="flex flex-col gap-6">
           <p className={eyebrowClassName}>{t('eyebrow')}</p>
-          <h1 className="font-display text-4xl font-semibold tracking-[-0.035em] text-balance sm:text-5xl">
-            {t('title')}
-          </h1>
+          <h1 className="text-h1">{t('title')}</h1>
           <p className="text-sarat-black-600 max-w-2xl text-lg leading-relaxed">{t('intro')}</p>
           <p className="text-sarat-black-600 max-w-2xl text-sm leading-relaxed">{t('introMeta')}</p>
         </div>
@@ -231,6 +226,7 @@ export default async function HostApplyPage({ params }: { params: Promise<{ loca
                 doc_required: t('errors.fields.docRequired'),
                 doc_type: t('errors.fields.docType'),
                 doc_size: t('errors.fields.docSize'),
+                doc_total: t('errors.fields.docTotal'),
               },
               termsLabel: t('fields.terms.label'),
               contactPhoneLabel: t('fields.contactPhone.label'),

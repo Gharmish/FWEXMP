@@ -42,12 +42,12 @@ export interface MfaEnrollState {
   qrCode?: string;
   /** The same secret in text form, for manual entry. */
   secret?: string;
-  error?: 'forbidden' | 'unavailable' | 'server';
+  message?: 'forbidden' | 'unavailable' | 'server';
 }
 
 export interface MfaVerifyState {
   status: 'idle' | 'ok' | 'error';
-  error?: 'forbidden' | 'unavailable' | 'invalid_code' | 'throttled' | 'no_factor' | 'server';
+  message?: 'forbidden' | 'unavailable' | 'invalid_code' | 'throttled' | 'no_factor' | 'server';
 }
 
 async function mfaCaller() {
@@ -69,14 +69,14 @@ async function mfaCaller() {
  */
 export async function startAdminMfaEnrollment(): Promise<MfaEnrollState> {
   const caller = await mfaCaller();
-  if ('error' in caller) return { status: 'error', error: caller.error };
+  if ('error' in caller) return { status: 'error', message: caller.error };
 
   try {
     const existing = await db.query.adminTotpFactors.findFirst({
       where: eq(adminTotpFactors.userId, caller.user.id),
       columns: { confirmedAt: true },
     });
-    if (existing?.confirmedAt) return { status: 'error', error: 'forbidden' };
+    if (existing?.confirmedAt) return { status: 'error', message: 'forbidden' };
 
     const secret = generateTotpSecret();
     await db
@@ -97,7 +97,7 @@ export async function startAdminMfaEnrollment(): Promise<MfaEnrollState> {
     return { status: 'ready', qrCode, secret };
   } catch (error) {
     reportError(error, { surface: 'admin-mfa:enroll' });
-    return { status: 'error', error: 'server' };
+    return { status: 'error', message: 'server' };
   }
 }
 
@@ -120,25 +120,25 @@ export async function verifyAdminMfa(
   formData: FormData,
 ): Promise<MfaVerifyState> {
   const caller = await mfaCaller();
-  if ('error' in caller) return { status: 'error', error: caller.error };
+  if ('error' in caller) return { status: 'error', message: caller.error };
 
   const code = codeFrom(formData);
-  if (code.length !== 6) return { status: 'error', error: 'invalid_code' };
+  if (code.length !== 6) return { status: 'error', message: 'invalid_code' };
 
   const identifier = `mfa:${caller.user.id}`;
-  if (!(await otpVerifyAllowed(identifier))) return { status: 'error', error: 'throttled' };
+  if (!(await otpVerifyAllowed(identifier))) return { status: 'error', message: 'throttled' };
 
   try {
     const factor = await db.query.adminTotpFactors.findFirst({
       where: eq(adminTotpFactors.userId, caller.user.id),
       columns: { secret: true, lastUsedStep: true, confirmedAt: true },
     });
-    if (!factor) return { status: 'error', error: 'no_factor' };
+    if (!factor) return { status: 'error', message: 'no_factor' };
 
     const result = verifyTotp(decryptPii(factor.secret), code);
     if (!result.valid || result.step === undefined) {
       await recordOtpVerifyFailure(identifier, await authClientIp());
-      return { status: 'error', error: 'invalid_code' };
+      return { status: 'error', message: 'invalid_code' };
     }
 
     // Replay guard. The conditional UPDATE is the authority (not the
@@ -163,12 +163,12 @@ export async function verifyAdminMfa(
       .returning({ userId: adminTotpFactors.userId });
     if (claimed.length === 0) {
       await recordOtpVerifyFailure(identifier, await authClientIp());
-      return { status: 'error', error: 'invalid_code' };
+      return { status: 'error', message: 'invalid_code' };
     }
 
     const expiresAt = Math.floor(Date.now() / 1000) + ADMIN_MFA_TTL_SECONDS;
     const marker = serializeAdminMfaCookie(caller.user.id, expiresAt);
-    if (!marker) return { status: 'error', error: 'server' };
+    if (!marker) return { status: 'error', message: 'server' };
 
     const store = await cookies();
     store.set(ADMIN_MFA_COOKIE, marker, {
@@ -185,6 +185,6 @@ export async function verifyAdminMfa(
     return { status: 'ok' };
   } catch (error) {
     reportError(error, { surface: 'admin-mfa:verify' });
-    return { status: 'error', error: 'server' };
+    return { status: 'error', message: 'server' };
   }
 }

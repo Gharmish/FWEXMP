@@ -1,5 +1,6 @@
 'use server';
 
+import { matchesDeclaredType } from '@/lib/file-signature';
 import { and, eq } from 'drizzle-orm';
 import { revalidatePath } from 'next/cache';
 import { revalidateExperienceCaches } from '@/lib/cache-tags';
@@ -81,6 +82,10 @@ export async function uploadExperienceHero(
             ? 'too_large'
             : 'missing',
     };
+  }
+  // The declared type is the client's word; the bytes are not (SEC-05).
+  if (!(await matchesDeclaredType(file, check.contentType))) {
+    return { success: false, message: 'invalid_type' };
   }
 
   try {
@@ -183,6 +188,10 @@ export async function uploadGalleryImageAsHost(
             ? 'too_large'
             : 'missing',
     };
+  }
+  // The declared type is the client's word; the bytes are not (SEC-05).
+  if (!(await matchesDeclaredType(file, check.contentType))) {
+    return { success: false, message: 'invalid_type' };
   }
 
   try {

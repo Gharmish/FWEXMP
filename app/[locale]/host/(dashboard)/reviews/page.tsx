@@ -1,3 +1,4 @@
+import { Localized } from '@/components/ui/localized';
 import { StarRating } from '@/components/ui/star-rating';
 import type { Metadata } from 'next';
 import { Star } from 'lucide-react';
@@ -5,7 +6,6 @@ import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { redirect, Link } from '@/lib/i18n';
 import type { Locale } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
-import { pickLocalized } from '@/lib/ar-placeholder';
 import { buttonVariants } from '@/components/ui/button';
 import { EmptyState } from '@/components/ui/empty-state';
 import { formatDate } from '@/lib/format';
@@ -61,10 +61,7 @@ export default async function HostReviewsPage({
   const { rows, total, unreplied } = reviewPage;
   const pages = Math.max(1, Math.ceil(total / HOST_REVIEWS_PAGE_SIZE));
 
-  const eyebrowClassName = cn(
-    'text-sarat-black-600 font-medium text-[11px]',
-    loc === 'en' && 'tracking-[0.2em] uppercase',
-  );
+  const eyebrowClassName = cn('text-sarat-black-600 text-eyebrow');
 
   const replyCopy = {
     label: t('reply.label'),
@@ -95,9 +92,7 @@ export default async function HostReviewsPage({
     <div className="flex w-full max-w-4xl flex-col gap-12">
       <div className="flex flex-col gap-4">
         <p className={eyebrowClassName}>{t('eyebrow')}</p>
-        <h1 className="font-display text-4xl font-semibold tracking-[-0.035em] text-balance sm:text-5xl">
-          {t('title')}
-        </h1>
+        <h1 className="text-h1">{t('title')}</h1>
         <p className="text-sarat-black-600 max-w-2xl text-base leading-relaxed">{t('intro')}</p>
         {unreplied > 0 && (
           <p
@@ -144,7 +139,11 @@ export default async function HostReviewsPage({
                         href={`/experiences/${row.experienceSlug}`}
                         className="text-sarat-black inline-flex min-h-11 items-center text-base font-medium underline-offset-4 hover:underline"
                       >
-                        {pickLocalized(loc, row.experienceTitleEn, row.experienceTitleAr)}
+                        <Localized
+                          locale={loc}
+                          en={row.experienceTitleEn}
+                          ar={row.experienceTitleAr}
+                        />
                       </Link>
                       <p className="text-sarat-black-600 text-sm">
                         {row.guestName} · {formatDate(new Date(row.createdAt), loc)}

@@ -61,10 +61,7 @@ export default async function AdminUserDetailPage({
   setRequestLocale(locale);
   const loc = locale as Locale;
   const t = await getTranslations('admin');
-  const eyebrow = cn(
-    'text-sarat-black-600 font-medium text-[11px]',
-    loc === 'en' && 'tracking-[0.2em] uppercase',
-  );
+  const eyebrow = cn('text-sarat-black-600 text-eyebrow');
 
   const block = await isAdminAndDbReady();
   if (block?.reason === 'not_admin') notFound();
@@ -82,7 +79,7 @@ export default async function AdminUserDetailPage({
     guest: t('users.roles.guest'),
   };
 
-  const sectionHeading = 'font-display text-2xl font-medium tracking-[-0.025em]';
+  const sectionHeading = 'text-h2';
   const factGrid =
     'border-sarat-black/8 rounded-card grid gap-6 [border-width:0.5px] p-6 sm:grid-cols-2';
 
@@ -109,9 +106,7 @@ export default async function AdminUserDetailPage({
       <div className="flex flex-col gap-3">
         <p className={eyebrow}>{t('users.detail.eyebrow')}</p>
         <div className="flex flex-wrap items-center gap-3">
-          <h1 className="font-display text-4xl font-semibold tracking-[-0.035em] text-balance sm:text-5xl">
-            {user.name}
-          </h1>
+          <h1 className="text-h1">{user.name}</h1>
           <UserRoleChips roles={user.roles} labels={roleLabels} />
         </div>
         <p className="text-sarat-black-600 text-sm">

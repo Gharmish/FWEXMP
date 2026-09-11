@@ -1,5 +1,6 @@
 'use server';
 
+import { matchesDeclaredType } from '@/lib/file-signature';
 import { eq } from 'drizzle-orm';
 import { revalidatePath } from 'next/cache';
 import { db } from '@/lib/db';
@@ -117,6 +118,10 @@ export async function updateAvatar(
   }
   if (!isAvatarMime(file.type)) return { status: 'error', message: 'invalid_type' };
   if (file.size > AVATAR_MAX_BYTES) return { status: 'error', message: 'too_large' };
+  // Sniff the magic number — `file.type` is client-declared (SEC-05).
+  if (!(await matchesDeclaredType(file, file.type))) {
+    return { status: 'error', message: 'invalid_type' };
+  }
 
   try {
     const profile = await getMyProfile();

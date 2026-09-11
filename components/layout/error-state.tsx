@@ -24,10 +24,7 @@ export interface ErrorStateProps {
 export function ErrorState({ error, retry, surface }: ErrorStateProps) {
   const locale = useLocale() as Locale;
   const t = useTranslations('error');
-  const eyebrowClassName = cn(
-    'text-al-qatt-red-800 font-medium text-[11px]',
-    locale === 'en' && 'tracking-[0.2em] uppercase',
-  );
+  const eyebrowClassName = cn('text-al-qatt-red-800 text-eyebrow');
 
   useEffect(() => {
     reportError(error, { surface, locale, digest: error.digest });
@@ -37,9 +34,7 @@ export function ErrorState({ error, retry, surface }: ErrorStateProps) {
     <section className="flex w-full flex-1 items-center py-24">
       <MountFade eager className="flex max-w-2xl flex-col gap-6">
         <p className={eyebrowClassName}>{t('eyebrow')}</p>
-        <h1 className="font-display text-4xl font-semibold tracking-[-0.035em] text-balance">
-          {t('title')}
-        </h1>
+        <h1 className="text-h1-fixed">{t('title')}</h1>
         <p className="text-sarat-black-600 max-w-xl text-lg">{t('description')}</p>
         <div className="flex flex-wrap gap-3">
           <button

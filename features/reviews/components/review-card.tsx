@@ -59,14 +59,7 @@ export function ReviewCard({ review, locale }: ReviewCardProps) {
 
       {review.hostReply && (
         <div className="border-sarat-black/8 mt-2 flex flex-col gap-1 [border-inline-start-width:0.5px] ps-4">
-          <p
-            className={cn(
-              'text-sarat-black-600 text-[11px] font-medium',
-              locale === 'en' && 'tracking-[0.2em] uppercase',
-            )}
-          >
-            {t('hostReply')}
-          </p>
+          <p className={cn('text-sarat-black-600 text-eyebrow')}>{t('hostReply')}</p>
           <p className="text-sarat-black-600 text-sm leading-relaxed">{review.hostReply}</p>
         </div>
       )}

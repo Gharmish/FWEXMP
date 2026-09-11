@@ -161,13 +161,7 @@ export function FilterRail({ locale, categories, resultCount }: FilterRailProps)
         {/* The RSC grid swap is visual-only (FadeSwap); this count is the
             one node that re-renders with every filter change, so it doubles
             as the screen-reader status line. */}
-        <p
-          aria-live="polite"
-          className={cn(
-            'text-sarat-black-600 shrink-0 text-[11px] font-medium',
-            locale === 'en' && 'tracking-[0.2em] uppercase',
-          )}
-        >
+        <p aria-live="polite" className={cn('text-sarat-black-600 text-eyebrow shrink-0')}>
           {t('results', { count: resultCount })}
         </p>
         <div className="flex flex-wrap items-center gap-3">

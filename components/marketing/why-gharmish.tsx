@@ -1,6 +1,5 @@
 import { getTranslations } from 'next-intl/server';
 import { cn } from '@/lib/utils';
-import type { Locale } from '@/lib/i18n';
 import { Draw, FadeIn, Stagger, StaggerItem } from '@/components/ui/motion';
 
 /**
@@ -11,18 +10,11 @@ import { Draw, FadeIn, Stagger, StaggerItem } from '@/components/ui/motion';
  * (restraint pillar, BRIEF §3). Server Component; copy comes from the
  * `home.whyGharmish` catalogue so both locales stay in next-intl.
  */
-export interface WhyGharmishProps {
-  locale: Locale;
-}
-
-export async function WhyGharmish({ locale }: WhyGharmishProps) {
+export async function WhyGharmish() {
   const t = await getTranslations('home.whyGharmish');
   // Arabic reads one type-scale step up (BRIEF §3): 11px + tracking is an
   // EN small-caps treatment — Arabic gets 13px with no added tracking.
-  const eyebrowClassName = cn(
-    'text-sarat-black-600 font-medium',
-    locale === 'en' ? 'text-[11px] tracking-[0.2em] uppercase' : 'text-[13px]',
-  );
+  const eyebrowClassName = cn('text-sarat-black-600 font-medium', 'text-eyebrow');
 
   const pillars = [
     { title: t('rootedTitle'), body: t('rootedBody') },
@@ -35,9 +27,7 @@ export async function WhyGharmish({ locale }: WhyGharmishProps) {
       <div className="mx-auto w-full max-w-6xl px-6 py-20">
         <FadeIn className="mb-12 flex flex-col gap-2">
           <p className={eyebrowClassName}>{t('eyebrow')}</p>
-          <h2 className="font-display text-3xl font-medium tracking-[-0.03em] sm:text-4xl">
-            {t('title')}
-          </h2>
+          <h2 className="text-h2-xl">{t('title')}</h2>
         </FadeIn>
         <Stagger>
           <ol className="grid gap-12 sm:grid-cols-3 sm:gap-8">

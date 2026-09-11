@@ -99,7 +99,7 @@ export function ReviewForm({
       <input type="hidden" name="bookingReference" value={bookingReference} />
       <input type="hidden" name="locale" value={locale} />
 
-      <h3 className="font-display text-xl font-medium tracking-[-0.02em]">{copy.heading}</h3>
+      <h3 className="text-h3">{copy.heading}</h3>
       {guestName && (
         <p className="text-sarat-black-600 -mt-3 text-sm">
           {t('publicNameNotice', { name: reviewDisplayName(guestName) })}

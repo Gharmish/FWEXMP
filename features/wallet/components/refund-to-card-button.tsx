@@ -65,7 +65,7 @@ export function RefundToCardButton({ reference, locale, copy }: RefundToCardButt
       </ConfirmSubmit>
       {state.status === 'error' && (
         <p role="alert" className="text-al-qatt-red-800 text-xs">
-          {copy.errors[state.error]}
+          {copy.errors[state.message]}
         </p>
       )}
     </form>

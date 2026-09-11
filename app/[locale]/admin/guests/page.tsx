@@ -33,10 +33,7 @@ export default async function AdminGuestsPage({
   setRequestLocale(locale);
   const loc = locale as Locale;
   const t = await getTranslations('admin');
-  const eyebrowClassName = cn(
-    'text-sarat-black-600 font-medium text-[11px]',
-    loc === 'en' && 'tracking-[0.2em] uppercase',
-  );
+  const eyebrowClassName = cn('text-sarat-black-600 text-eyebrow');
 
   const backLink = (
     <Link
@@ -56,9 +53,7 @@ export default async function AdminGuestsPage({
         {backLink}
         <div className="border-sarat-black/8 rounded-card flex flex-col items-start gap-4 [border-width:0.5px] p-12">
           <p className={eyebrowClassName}>{t('noDb.eyebrow')}</p>
-          <h2 className="font-display text-2xl font-medium tracking-[-0.025em]">
-            {t('noDb.title')}
-          </h2>
+          <h2 className="text-h2">{t('noDb.title')}</h2>
           <p className="text-sarat-black-600 max-w-xl text-base">{t('noDb.description')}</p>
         </div>
       </div>
@@ -74,9 +69,7 @@ export default async function AdminGuestsPage({
       {backLink}
       <div className="flex flex-col gap-4">
         <p className={eyebrowClassName}>{t('guestsList.eyebrow')}</p>
-        <h1 className="font-display text-4xl font-semibold tracking-[-0.035em] text-balance sm:text-5xl">
-          {t('guestsList.title')}
-        </h1>
+        <h1 className="text-h1">{t('guestsList.title')}</h1>
         <p className="text-sarat-black-600 max-w-2xl text-base leading-relaxed">
           {t('guestsList.intro')}
         </p>

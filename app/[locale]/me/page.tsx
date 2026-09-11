@@ -95,10 +95,7 @@ export default async function MePage({ params }: { params: Promise<{ locale: str
   // The last-booking card above already shows this one in full.
   const earlierBookings = allBookings.filter((b) => b.reference !== lastBooking?.hint.reference);
 
-  const eyebrowClassName = cn(
-    'text-sarat-black-600 font-medium text-[11px]',
-    loc === 'en' && 'tracking-[0.2em] uppercase',
-  );
+  const eyebrowClassName = cn('text-sarat-black-600 text-eyebrow');
 
   const hasAnything = wishlist.length > 0 || lastBooking !== null || allBookings.length > 0;
 
@@ -109,9 +106,7 @@ export default async function MePage({ params }: { params: Promise<{ locale: str
       <section className="mx-auto w-full max-w-6xl px-6 py-20 sm:py-24">
         <div className="flex max-w-3xl flex-col gap-6">
           <p className={eyebrowClassName}>{t('eyebrow')}</p>
-          <h1 className="font-display text-4xl font-semibold tracking-[-0.035em] text-balance sm:text-6xl">
-            {t('title')}
-          </h1>
+          <h1 className="text-h1-lg">{t('title')}</h1>
           <p className="text-sarat-black-600 max-w-2xl text-lg leading-relaxed">
             {profile ? (hasAnything ? t('intro') : t('introEmpty')) : t('introSignedOut')}
           </p>
@@ -141,9 +136,7 @@ export default async function MePage({ params }: { params: Promise<{ locale: str
             <div className="border-sarat-black/8 rounded-card mt-2 flex flex-wrap items-center gap-x-6 gap-y-6 [border-width:0.5px] p-6 sm:p-6">
               <Avatar name={profile.name} src={profile.avatarUrl ?? undefined} size="lg" />
               <div className="flex min-w-0 flex-1 basis-48 flex-col gap-1">
-                <span className="font-display truncate text-xl font-medium tracking-[-0.02em]">
-                  {profile.name}
-                </span>
+                <span className="text-h3 truncate">{profile.name}</span>
                 {/* Phone (or email) stays LTR-isolated so it reads correctly in RTL. */}
                 {(profile.phone || profile.email) && (
                   <span className="text-sarat-black-600 truncate text-sm" dir="ltr">
@@ -206,7 +199,7 @@ export default async function MePage({ params }: { params: Promise<{ locale: str
           <div className="mx-auto w-full max-w-6xl px-6 py-16 sm:py-20">
             <div className="mb-8 flex flex-col gap-2">
               <p className={eyebrowClassName}>{t('lastBookingEyebrow')}</p>
-              <h2 className="font-display text-3xl font-medium tracking-[-0.03em]">
+              <h2 className="text-h2-lg">
                 {lastBooking.experience
                   ? loc === 'ar'
                     ? lastBooking.experience.titleAr
@@ -407,9 +400,7 @@ export default async function MePage({ params }: { params: Promise<{ locale: str
           <div className="mx-auto w-full max-w-6xl px-6 py-16 sm:py-20">
             <div className="mb-8 flex flex-col gap-2">
               <p className={eyebrowClassName}>{t('bookingsEyebrow')}</p>
-              <h2 className="font-display text-3xl font-medium tracking-[-0.03em]">
-                {t('bookingsTitle')}
-              </h2>
+              <h2 className="text-h2-lg">{t('bookingsTitle')}</h2>
             </div>
             <BookingHistory
               bookings={earlierBookings}
@@ -430,9 +421,7 @@ export default async function MePage({ params }: { params: Promise<{ locale: str
         <section className="border-sarat-black/8 [border-top-width:0.5px]">
           <div className="mx-auto w-full max-w-6xl px-6 py-16 sm:py-20">
             <div className="mb-8 flex items-baseline justify-between gap-4">
-              <h2 className="font-display text-3xl font-medium tracking-[-0.03em]">
-                {t('wishlistTitle')}
-              </h2>
+              <h2 className="text-h2-lg">{t('wishlistTitle')}</h2>
               <Link
                 href="/wishlist"
                 className="inline-flex min-h-11 items-center gap-2 text-sm font-medium transition-opacity duration-200 hover:opacity-60"

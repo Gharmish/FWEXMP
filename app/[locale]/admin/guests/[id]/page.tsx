@@ -35,10 +35,7 @@ export default async function AdminGuestDetailPage({
   setRequestLocale(locale);
   const loc = locale as Locale;
   const t = await getTranslations('admin');
-  const eyebrowClassName = cn(
-    'text-sarat-black-600 font-medium text-[11px]',
-    loc === 'en' && 'tracking-[0.2em] uppercase',
-  );
+  const eyebrowClassName = cn('text-sarat-black-600 text-eyebrow');
 
   const block = await isAdminAndDbReady();
   if (block?.reason === 'not_admin') notFound();
@@ -67,9 +64,7 @@ export default async function AdminGuestDetailPage({
       <div className="flex flex-col gap-3">
         <p className={eyebrowClassName}>{t('guestDetail.eyebrow')}</p>
         <div className="flex flex-wrap items-center gap-4">
-          <h1 className="font-display text-4xl font-semibold tracking-[-0.035em] text-balance sm:text-5xl">
-            {guest.name}
-          </h1>
+          <h1 className="text-h1">{guest.name}</h1>
           {guest.suspendedAt && (
             <Badge className="bg-error-surface text-error">{t('guestDetail.suspendedBadge')}</Badge>
           )}
@@ -106,9 +101,7 @@ export default async function AdminGuestDetailPage({
       </dl>
 
       <section className="flex flex-col gap-4">
-        <h2 className="font-display text-2xl font-medium tracking-[-0.025em]">
-          {t('guestDetail.bookingsHeading')}
-        </h2>
+        <h2 className="text-h2">{t('guestDetail.bookingsHeading')}</h2>
         {guest.bookingList.length === 0 ? (
           <p className="text-sarat-black-600 text-base">{t('guestDetail.noBookings')}</p>
         ) : (

@@ -66,7 +66,7 @@ export type PromoActionState =
   | { status: 'removed'; checkoutSuperseded?: boolean; walletCreditReleased?: boolean }
   | {
       status: 'error';
-      error: PromoErrorCode;
+      message: PromoErrorCode;
       minTotalSar?: number;
       /** The attempted code, echoed so a failed apply doesn't wipe the field. */
       code?: string;
@@ -75,7 +75,7 @@ export type PromoActionState =
 function err(error: PromoErrorCode, minTotalSar?: number, code?: string): PromoActionState {
   return {
     status: 'error',
-    error,
+    message: error,
     ...(minTotalSar != null ? { minTotalSar } : {}),
     ...(code ? { code } : {}),
   };

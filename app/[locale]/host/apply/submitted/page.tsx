@@ -45,10 +45,7 @@ export default async function HostApplySubmittedPage({
   }
 
   const t = await getTranslations('hostApply.submitted');
-  const eyebrowClassName = cn(
-    'text-sarat-black-600 font-medium text-[11px]',
-    loc === 'en' && 'tracking-[0.2em] uppercase',
-  );
+  const eyebrowClassName = cn('text-sarat-black-600 text-eyebrow');
 
   return (
     <div className="flex flex-col">
@@ -58,9 +55,7 @@ export default async function HostApplySubmittedPage({
             <CheckCircle2 className="text-juniper-green size-10" aria-hidden strokeWidth={1.5} />
           </Pop>
           <p className={eyebrowClassName}>{t('eyebrow')}</p>
-          <h1 className="font-display text-4xl font-semibold tracking-[-0.035em] text-balance sm:text-5xl">
-            {t('title')}
-          </h1>
+          <h1 className="text-h1">{t('title')}</h1>
           <p className="text-sarat-black-600 text-lg leading-relaxed">{t('description')}</p>
         </div>
 

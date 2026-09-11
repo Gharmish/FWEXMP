@@ -97,7 +97,7 @@ export function ArabicEditor({
       <input type="hidden" name="locale" value={locale} />
 
       <div className="flex flex-col gap-1">
-        <h2 className="font-display text-xl font-medium tracking-[-0.02em]">{copy.heading}</h2>
+        <h2 className="text-h3">{copy.heading}</h2>
         <p className="text-sarat-black-600 text-sm leading-relaxed">{copy.description}</p>
       </div>
 

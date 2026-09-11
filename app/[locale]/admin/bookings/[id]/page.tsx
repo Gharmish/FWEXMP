@@ -39,10 +39,7 @@ export default async function AdminBookingDetailPage({
   setRequestLocale(locale);
   const loc = locale as Locale;
   const t = await getTranslations('admin');
-  const eyebrowClassName = cn(
-    'text-sarat-black-600 font-medium text-[11px]',
-    loc === 'en' && 'tracking-[0.2em] uppercase',
-  );
+  const eyebrowClassName = cn('text-sarat-black-600 text-eyebrow');
 
   const block = await isAdminAndDbReady();
   if (block?.reason === 'not_admin') notFound();
@@ -140,9 +137,7 @@ export default async function AdminBookingDetailPage({
           {t('bookingDetail.back')}
         </Link>
         <div className="flex flex-wrap items-baseline gap-3">
-          <h1 className="font-display text-4xl font-semibold tracking-[-0.035em] text-balance sm:text-5xl">
-            {booking.experienceTitleEn}
-          </h1>
+          <h1 className="text-h1">{booking.experienceTitleEn}</h1>
           <BookingStatusBadge
             status={booking.status}
             label={t(`bookingStatus.${booking.status}`)}

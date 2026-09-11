@@ -87,10 +87,7 @@ export default async function ExperiencesIndexPage({
   setRequestLocale(locale);
   const loc = locale as Locale;
   const t = await getTranslations('experiencesIndex');
-  const eyebrowClassName = cn(
-    'text-sarat-black-600 font-medium text-[11px]',
-    loc === 'en' && 'tracking-[0.2em] uppercase',
-  );
+  const eyebrowClassName = cn('text-sarat-black-600 text-eyebrow');
 
   const rawSearchParams = await searchParams;
   const criteria = parseSearchParams(rawSearchParams);
@@ -206,9 +203,7 @@ export default async function ExperiencesIndexPage({
                 <p className={eyebrowClassName}>{t('eyebrow')}</p>
               </MountFade>
               <RiseIn delay={0.05}>
-                <h1 className="font-display text-4xl font-semibold tracking-[-0.035em] text-balance sm:text-6xl">
-                  {t('title')}
-                </h1>
+                <h1 className="text-h1-lg">{t('title')}</h1>
               </RiseIn>
               <MountFade eager delay={0.12}>
                 <p className="text-sarat-black-600 max-w-2xl text-lg">{t('intro')}</p>
@@ -226,9 +221,7 @@ export default async function ExperiencesIndexPage({
           {showFeatured && featured.length > 0 && (
             <section className="border-sarat-black/8 [border-top-width:0.5px]">
               <div className="mx-auto w-full max-w-6xl px-6 py-12 sm:py-16">
-                <h2 className="font-display mb-8 text-3xl font-medium tracking-[-0.03em]">
-                  {t('featured')}
-                </h2>
+                <h2 className="text-h2-lg mb-8">{t('featured')}</h2>
                 <Stagger className="grid gap-4 sm:grid-cols-2">
                   {featured.map((experience) => (
                     <StaggerItem key={experience.slug}>
@@ -253,7 +246,7 @@ export default async function ExperiencesIndexPage({
           <section className="border-sarat-black/8 [border-top-width:0.5px]">
             <div className="mx-auto flex w-full max-w-6xl flex-col gap-8 px-6 py-12 sm:gap-12 sm:py-20">
               <div className="flex flex-col gap-6">
-                <h2 className="font-display text-3xl font-medium tracking-[-0.03em]">{t('all')}</h2>
+                <h2 className="text-h2-lg">{t('all')}</h2>
 
                 <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
                   {/* Hidden below lg — the hero's MobileSearchEntry is the one

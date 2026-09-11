@@ -18,6 +18,15 @@ export const KYC_DOCUMENTS_BUCKET = 'kyc-documents';
  */
 export const MAX_DOCUMENT_BYTES = 4 * 1024 * 1024;
 
+/**
+ * All documents in one submission must fit one server-action request:
+ * Vercel rejects bodies over 4.5MB before the function runs
+ * (next.config.ts bodySizeLimit; 2026-09 engineering audit DEPS-06).
+ * The apply form refuses to submit past this and asks the host to send
+ * the rest in a second round — the form carries earlier uploads over.
+ */
+export const MAX_SUBMISSION_BYTES = 4 * 1024 * 1024;
+
 /** Accepted content types → canonical file extension for the object key. */
 const ACCEPTED: Record<string, string> = {
   'image/jpeg': 'jpg',

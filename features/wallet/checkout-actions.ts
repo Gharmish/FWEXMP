@@ -52,10 +52,10 @@ export type WalletCheckoutActionState =
       checkoutSuperseded?: boolean;
     }
   | { status: 'removed'; checkoutSuperseded?: boolean }
-  | { status: 'error'; error: WalletCheckoutErrorCode };
+  | { status: 'error'; message: WalletCheckoutErrorCode };
 
 function err(error: WalletCheckoutErrorCode): WalletCheckoutActionState {
-  return { status: 'error', error };
+  return { status: 'error', message: error };
 }
 
 function revalidateWalletSurfaces(): void {

@@ -251,12 +251,7 @@ export async function BookingRow({
 
           {row.guestNote && (
             <blockquote className="border-saffron-gold bg-mist text-sarat-black rounded-input border-s-2 px-4 py-3 text-sm leading-relaxed">
-              <span
-                className={cn(
-                  'text-sarat-black-600 block text-[11px] font-medium',
-                  locale === 'en' && 'tracking-[0.2em] uppercase',
-                )}
-              >
+              <span className={cn('text-sarat-black-600 text-eyebrow block')}>
                 {t('guestNote')}
               </span>
               <span className="mt-1 block whitespace-pre-line">{row.guestNote}</span>

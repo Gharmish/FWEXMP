@@ -129,10 +129,7 @@ export default async function HostProfilePage({
       ? pickLocalized(loc, host.storyEn ?? host.storyAr ?? '', host.storyAr ?? host.storyEn ?? '')
       : null;
 
-  const eyebrowClassName = cn(
-    'text-sarat-black-600 font-medium text-[11px]',
-    loc === 'en' && 'tracking-[0.2em] uppercase',
-  );
+  const eyebrowClassName = cn('text-sarat-black-600 text-eyebrow');
 
   // Host-level rating: the count-weighted merge of each experience's
   // aggregate (already loaded for the cards) — no extra query.
@@ -218,9 +215,7 @@ export default async function HostProfilePage({
             <div className="flex flex-col gap-6 sm:flex-row sm:items-center">
               <Avatar name={name} src={host.photoUrl ?? undefined} size="lg" />
               <div className="flex flex-col gap-3">
-                <h1 className="font-display text-4xl font-semibold tracking-[-0.035em] text-balance sm:text-5xl">
-                  {name}
-                </h1>
+                <h1 className="text-h1">{name}</h1>
                 <div className="flex flex-wrap items-center gap-3">
                   {host.verified && (
                     <VerifiedBadge hostName={name} locale={loc} verifiedAt={host.joinedAt} />
@@ -275,9 +270,7 @@ export default async function HostProfilePage({
         <div className="border-sarat-black/8 [border-bottom-width:0.5px]">
           <div className="mx-auto w-full max-w-6xl px-6 py-12">
             <section className="flex flex-col gap-4">
-              <h2 className="font-display text-2xl font-medium tracking-[-0.025em]">
-                {t('storyHeading', { name })}
-              </h2>
+              <h2 className="text-h2">{t('storyHeading', { name })}</h2>
               <p className="text-sarat-black-600 max-w-[68ch] text-lg leading-relaxed whitespace-pre-line">
                 {story}
               </p>
@@ -289,9 +282,7 @@ export default async function HostProfilePage({
       <div className="mx-auto w-full max-w-6xl px-6 py-12">
         <section className="flex flex-col gap-8">
           <div className="flex items-baseline justify-between gap-4">
-            <h2 className="font-display text-2xl font-medium tracking-[-0.025em]">
-              {t('experiencesHeading', { name })}
-            </h2>
+            <h2 className="text-h2">{t('experiencesHeading', { name })}</h2>
             <p className="text-sarat-black-600 text-sm">
               {t('experiencesCount', { count: experiences.length })}
             </p>

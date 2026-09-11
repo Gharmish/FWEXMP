@@ -71,7 +71,7 @@ export async function BookingsCalendar({
         >
           <ChevronLeft className="size-5 rtl:rotate-180" aria-hidden />
         </Link>
-        <h2 className="font-display text-xl font-medium tracking-[-0.02em]">
+        <h2 className="text-h3">
           {formatDate(first, locale, 'gregory', {
             month: 'long',
             year: 'numeric',

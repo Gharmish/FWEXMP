@@ -535,10 +535,7 @@ export default async function ExperienceDetailPage({
           ),
         })
       : undefined;
-  const eyebrowClassName = cn(
-    'text-sarat-black-600 font-medium text-[11px]',
-    loc === 'en' && 'tracking-[0.2em] uppercase',
-  );
+  const eyebrowClassName = cn('text-sarat-black-600 text-eyebrow');
   const category = CATEGORIES.find((c) => c.key === exp.category);
   const categoryLabel = category
     ? loc === 'ar'
@@ -709,9 +706,7 @@ export default async function ExperienceDetailPage({
 
       <header className="mt-12 flex flex-col gap-3">
         <span className={eyebrowClassName}>{exp.featured ? te('originals') : categoryLabel}</span>
-        <h1 className="font-display max-w-3xl text-4xl font-semibold tracking-[-0.035em] text-balance sm:text-6xl">
-          {title}
-        </h1>
+        <h1 className="text-h1-lg max-w-3xl">{title}</h1>
         <p className="text-sarat-black-600 flex items-center gap-2 text-base">
           <MapPin className="size-4 shrink-0" aria-hidden />
           <span>
@@ -780,7 +775,7 @@ export default async function ExperienceDetailPage({
             measured. */}
         <div className="flex min-w-0 flex-col gap-12">
           <section className="flex flex-col gap-3">
-            <h2 className="font-display text-2xl font-medium tracking-[-0.025em]">{t('about')}</h2>
+            <h2 className="text-h2">{t('about')}</h2>
             {/* ~65–75ch measure: long prose past 80ch is fatiguing to track.
                 pre-line keeps the host's own paragraph breaks — the same
                 text renders pre-line in the host/admin views. */}
@@ -793,9 +788,7 @@ export default async function ExperienceDetailPage({
               renders only when real content exists (no fabrication). */}
           {story && (
             <section className="flex flex-col gap-3">
-              <h2 className="font-display text-2xl font-medium tracking-[-0.025em]">
-                {t('story')}
-              </h2>
+              <h2 className="text-h2">{t('story')}</h2>
               <p className="text-sarat-black-600 max-w-[68ch] text-lg leading-relaxed whitespace-pre-line">
                 {story}
               </p>
@@ -806,9 +799,7 @@ export default async function ExperienceDetailPage({
               guest → host → place; the host is the way in, not a footnote
               below the cancellation policy). */}
           <section className="flex flex-col gap-4">
-            <h2 className="font-display text-2xl font-medium tracking-[-0.025em]">
-              {t('hostedBy')}
-            </h2>
+            <h2 className="text-h2">{t('hostedBy')}</h2>
             <HostCard host={exp.host} locale={loc} responseStats={hostResponseStats} />
             {/* Pre-booking question path: the staffed Gharmish WhatsApp
                 support line (not the host's personal number — hosts keep
@@ -838,9 +829,7 @@ export default async function ExperienceDetailPage({
           {exp.moments.length > 0 && (
             <section className="flex flex-col gap-6">
               <FadeIn>
-                <h2 className="font-display text-2xl font-medium tracking-[-0.025em]">
-                  {t('timeline')}
-                </h2>
+                <h2 className="text-h2">{t('timeline')}</h2>
               </FadeIn>
               {/* Each moment springs in in sequence; the connector rail draws
                   itself down as it scrolls into view — one read-as-a-journey
@@ -863,12 +852,7 @@ export default async function ExperienceDetailPage({
                               day), not a decorative eyebrow — 12px is the
                               floor, so it gets its own class instead of
                               sharing eyebrowClassName's 11px. */}
-                          <span
-                            className={cn(
-                              'text-sarat-black-600 text-xs font-medium',
-                              loc === 'en' && 'tracking-[0.2em] uppercase',
-                            )}
-                          >
+                          <span className={cn('text-sarat-black-600 text-eyebrow')}>
                             {loc === 'ar' ? toArabicText(m.timeOfDay) : m.timeOfDay}
                           </span>
                           <span className="text-lg font-medium">
@@ -888,9 +872,7 @@ export default async function ExperienceDetailPage({
 
           {inclusions.length > 0 && (
             <section className="flex flex-col gap-3">
-              <h2 className="font-display text-2xl font-medium tracking-[-0.025em]">
-                {t('included')}
-              </h2>
+              <h2 className="text-h2">{t('included')}</h2>
               <ul className="text-sarat-black-600 flex flex-col gap-2.5 text-base">
                 {inclusions.map((item) => (
                   <li key={item} className="flex items-start gap-2.5">
@@ -904,7 +886,7 @@ export default async function ExperienceDetailPage({
 
           {whatToBring.length > 0 && (
             <section className="flex flex-col gap-3">
-              <h2 className="font-display flex items-center gap-2.5 text-2xl font-medium tracking-[-0.025em]">
+              <h2 className="text-h2 flex items-center gap-2.5">
                 <Backpack className="text-sarat-black-600 size-5 shrink-0" aria-hidden />
                 {t('bring')}
               </h2>
@@ -927,7 +909,7 @@ export default async function ExperienceDetailPage({
               of Guinea. Live listings always pass the readiness gate. */}
           {hasMeetingPoint(exp.lat, exp.lng) && (
             <section className="flex flex-col gap-3">
-              <h2 className="font-display flex items-center gap-2.5 text-2xl font-medium tracking-[-0.025em]">
+              <h2 className="text-h2 flex items-center gap-2.5">
                 <MapPin className="text-sarat-black-600 size-5 shrink-0" aria-hidden />
                 {t('meetingPoint.heading')}
               </h2>
@@ -945,7 +927,7 @@ export default async function ExperienceDetailPage({
           )}
 
           <section className="flex flex-col gap-3">
-            <h2 className="font-display flex items-center gap-2.5 text-2xl font-medium tracking-[-0.025em]">
+            <h2 className="text-h2 flex items-center gap-2.5">
               <ShieldCheck className="text-sarat-black-600 size-5 shrink-0" aria-hidden />
               {t('cancellation')}
             </h2>
@@ -1002,9 +984,7 @@ export default async function ExperienceDetailPage({
               must SSR visible (transform-only settle; opacity stays 1 —
               no invisible-until-hydration on mid-range 4G devices). */}
           <RiseIn className="rounded-card border-sarat-black/8 flex flex-col gap-6 [border-width:0.5px] p-6">
-            <h2 className="font-display text-2xl font-medium tracking-[-0.025em]">
-              {bookingCopy.title}
-            </h2>
+            <h2 className="text-h2">{bookingCopy.title}</h2>
             <p className="text-2xl font-medium">
               <Price amount={exp.priceSar} locale={loc} />
               <span className="text-sarat-black-600 text-base font-normal"> {te('perPerson')}</span>

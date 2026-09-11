@@ -3,8 +3,8 @@ import { cn } from '@/lib/utils';
 
 /**
  * Gharmish Card — rounded-card, 0.5px hairline border, no shadow (BRIEF §3).
- * `default` is the light Fog White surface; `dark` is the Sarat Black
- * surface used for the Originals tier.
+ * `default` is the white surface (premium redesign 2026-06 retired Fog
+ * White); `dark` is the Sarat Black surface used for the Originals tier.
  */
 const cardVariants = cva('rounded-card [border-width:0.5px] overflow-hidden', {
   variants: {

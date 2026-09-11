@@ -1,4 +1,11 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+
+// Freeze the clock so fixtures built from `new Date()` never drift across
+// midnight or DST (2026-09 engineering audit TEST-13). Only Date is faked;
+// timers stay real for the deadline helpers.
+const FIXED_NOW = new Date('2026-09-11T09:00:00.000Z');
+beforeAll(() => vi.useFakeTimers({ now: FIXED_NOW, toFake: ['Date'] }));
+afterAll(() => vi.useRealTimers());
 
 /**
  * createCheckout is the one action that opens a charge (2026-09 engineering
@@ -199,45 +206,45 @@ describe('createCheckout — gates', () => {
   it('answers notFound (never forbidden) to a viewer without cookie, session or link token', async () => {
     viewerAllowed = false;
     const out = await createCheckout(initial, form());
-    expect(out).toMatchObject({ status: 'error', error: 'notFound' });
+    expect(out).toMatchObject({ status: 'error', message: 'notFound' });
     expect(prepareCheckout).not.toHaveBeenCalled();
     expect(out.values?.givenName).toBe('Sara'); // echoed so the form survives
   });
 
   it('refuses a request the host has not approved', async () => {
     row = { ...row!, status: 'pending' };
-    expect(await createCheckout(initial, form())).toMatchObject({ error: 'notApproved' });
+    expect(await createCheckout(initial, form())).toMatchObject({ message: 'notApproved' });
   });
 
   it('refuses a released or cancelled hold as expired', async () => {
     row = { ...row!, status: 'cancelled' };
-    expect(await createCheckout(initial, form())).toMatchObject({ error: 'expired' });
+    expect(await createCheckout(initial, form())).toMatchObject({ message: 'expired' });
   });
 
   it('refuses while an unmatched capture is under review', async () => {
     row = { ...row!, settleAnomalyAt: new Date() };
-    expect(await createCheckout(initial, form())).toMatchObject({ error: 'underReview' });
+    expect(await createCheckout(initial, form())).toMatchObject({ message: 'underReview' });
   });
 
   it('refuses a lapsed hold and a slot that already started', async () => {
     holdExpired = true;
-    expect(await createCheckout(initial, form())).toMatchObject({ error: 'expired' });
+    expect(await createCheckout(initial, form())).toMatchObject({ message: 'expired' });
     holdExpired = false;
     slotStarted = true;
-    expect(await createCheckout(initial, form())).toMatchObject({ error: 'expired' });
+    expect(await createCheckout(initial, form())).toMatchObject({ message: 'expired' });
     expect(prepareCheckout).not.toHaveBeenCalled();
   });
 
   it('never charges for a withdrawn experience or a suspended host', async () => {
     row = { ...row!, experience: { status: 'paused', host: { verificationStatus: 'verified' } } };
-    expect(await createCheckout(initial, form())).toMatchObject({ error: 'unavailable' });
+    expect(await createCheckout(initial, form())).toMatchObject({ message: 'unavailable' });
     row = { ...row!, experience: { status: 'live', host: { verificationStatus: 'suspended' } } };
-    expect(await createCheckout(initial, form())).toMatchObject({ error: 'unavailable' });
+    expect(await createCheckout(initial, form())).toMatchObject({ message: 'unavailable' });
   });
 
   it('requires consent when the booking carries none', async () => {
     const out = await createCheckout(initial, form({ terms: '' }));
-    expect(out).toMatchObject({ status: 'error', error: 'validation' });
+    expect(out).toMatchObject({ status: 'error', message: 'validation' });
     expect(out.fields?.terms).toBe('required');
   });
 });
@@ -269,7 +276,7 @@ describe('createCheckout — liveness compare-and-swap (MONEY-02)', () => {
       paymentDeadline: null,
     };
     const out = await createCheckout(initial, form());
-    expect(out).toMatchObject({ status: 'error', error: 'expired' });
+    expect(out).toMatchObject({ status: 'error', message: 'expired' });
     expect(recordPaymentEvent).toHaveBeenCalledWith(
       expect.objectContaining({ type: 'checkout_superseded', gatewayId: 'chk-new' }),
     );
@@ -285,6 +292,6 @@ describe('createCheckout — liveness compare-and-swap (MONEY-02)', () => {
       settleAnomalyAt: new Date(),
       paymentDeadline: new Date('2027-06-04T12:00:00Z'),
     };
-    expect(await createCheckout(initial, form())).toMatchObject({ error: 'underReview' });
+    expect(await createCheckout(initial, form())).toMatchObject({ message: 'underReview' });
   });
 });

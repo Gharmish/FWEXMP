@@ -106,12 +106,8 @@ export default async function AbhaPage({
     <article className="mx-auto w-full max-w-6xl px-6 py-12">
       <JsonLd data={jsonLd} />
       <header className="flex max-w-3xl flex-col gap-4">
-        <span className="text-saffron-gold-800 text-[11px] font-medium tracking-[0.2em] uppercase">
-          {t('eyebrow')}
-        </span>
-        <h1 className="font-display text-4xl font-semibold tracking-[-0.035em] text-balance sm:text-5xl">
-          {t('title')}
-        </h1>
+        <span className="text-saffron-gold-800 text-eyebrow">{t('eyebrow')}</span>
+        <h1 className="text-h1">{t('title')}</h1>
         <p className="text-sarat-black-600 text-base leading-relaxed">{t('intro1')}</p>
         <p className="text-sarat-black-600 text-base leading-relaxed">{t('intro2')}</p>
       </header>
@@ -125,9 +121,7 @@ export default async function AbhaPage({
 
       {experiences.length > 0 && (
         <section aria-label={t('gridLabel')} className="mt-12">
-          <h2 className="font-display text-2xl font-medium tracking-[-0.025em]">
-            {t('gridLabel')}
-          </h2>
+          <h2 className="text-h2">{t('gridLabel')}</h2>
           {/* gap-4 matches the /experiences catalog grid gutter. */}
           <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {experiences.map((experience) => (

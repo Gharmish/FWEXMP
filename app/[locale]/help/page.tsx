@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import { ChevronDown } from 'lucide-react';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { SITE_URL } from '@/lib/site';
-import { routing, type Locale } from '@/lib/i18n';
+import { routing } from '@/lib/i18n';
 import { InfoPage } from '@/components/layout/info-page';
 import { JsonLd } from '@/components/seo/json-ld';
 import { getPlatformSettings } from '@/lib/platform-settings';
@@ -98,7 +98,6 @@ function FaqList({
 export default async function HelpPage({ params }: { params: Promise<{ locale: string }> }) {
   const { locale } = await params;
   setRequestLocale(locale);
-  const loc = locale as Locale;
   const [t, tRelated, tTiers, settings, tiers] = await Promise.all([
     getTranslations('helpFaq'),
     getTranslations('infoRelated'),
@@ -149,7 +148,6 @@ export default async function HelpPage({ params }: { params: Promise<{ locale: s
     <>
       <JsonLd data={jsonLd} />
       <InfoPage
-        locale={loc}
         eyebrow={t('eyebrow')}
         title={t('title')}
         intro={t('intro')}

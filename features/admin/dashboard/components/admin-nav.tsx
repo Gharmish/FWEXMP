@@ -125,7 +125,7 @@ export function AdminNav({ onNavigate, counts }: AdminNavProps) {
     <nav aria-label={t('nav.menuLabel')} className="flex flex-col gap-6">
       {GROUPS.map((group) => (
         <div key={group.headingKey} className="flex flex-col gap-1">
-          <p className="text-sarat-black-600 px-3 pb-1 text-[11px] font-medium tracking-[0.2em] uppercase">
+          <p className="text-sarat-black-600 text-eyebrow px-3 pb-1">
             {t(`nav.groups.${group.headingKey}`)}
           </p>
           <ul className="flex flex-col gap-0.5">

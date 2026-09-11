@@ -987,6 +987,10 @@ export const bookings = pgTable(
     index('bookings_experience_date_status_idx').on(t.experienceId, t.date, t.status),
     // Guest booking history.
     index('bookings_guest_idx').on(t.guestId),
+    // Promo redemptions are counted under the promo row's FOR UPDATE lock;
+    // without this the count is a table scan (2026-09 engineering audit
+    // DATA-11).
+    index('bookings_promo_code_idx').on(t.promoCodeId),
     // Admin list/analytics filters by status.
     index('bookings_status_idx').on(t.status),
     // The per-IP creation throttle (`WHERE created_ip = ? AND created_at

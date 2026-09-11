@@ -1,14 +1,16 @@
 'use client';
 
-import { useActionState, useEffect, useId, useState } from 'react';
+import { useSuccessToast } from '@/lib/hooks/use-success-toast';
+import { useActionState, useId, useState } from 'react';
 import { useFormStatus } from 'react-dom';
 import { ChevronDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { toast } from '@/components/ui/toast';
 import { cn } from '@/lib/utils';
 import { updateGuestProfile } from '@/features/admin/users/actions';
 import type { AdminUserEditState, AdminUserGuestFacet } from '@/features/admin/users/types';
+
+const succeeded = (s: { success: boolean }) => s.success;
 
 export interface GuestEditFormCopy {
   toggle: string;
@@ -97,9 +99,7 @@ export function GuestEditForm({ personKey, guest, copy }: GuestEditFormProps) {
   const [state, action] = useActionState(updateGuestProfile, initialState);
   const langId = useId();
 
-  useEffect(() => {
-    if (state.success) toast({ title: copy.saved, tone: 'success' });
-  }, [state, copy.saved]);
+  useSuccessToast(state, succeeded, copy.saved);
 
   // A failed submit echoes the typed values back; prefer them over the row.
   const v = state.success ? undefined : state.values;
@@ -174,9 +174,7 @@ export function GuestEditForm({ personKey, guest, copy }: GuestEditFormProps) {
           </div>
 
           <fieldset className="border-sarat-black/8 rounded-card flex flex-col gap-6 [border-width:0.5px] p-6">
-            <legend className="text-sarat-black-600 px-2 text-[11px] font-medium tracking-[0.2em] uppercase">
-              {copy.billing}
-            </legend>
+            <legend className="text-sarat-black-600 text-eyebrow px-2">{copy.billing}</legend>
             <Field
               label={copy.street1}
               name="billingStreet1"

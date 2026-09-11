@@ -50,18 +50,13 @@ export default async function SignInPage({
   }
 
   const t = await getTranslations('auth');
-  const eyebrowClassName = cn(
-    'text-sarat-black-600 font-medium text-[11px]',
-    loc === 'en' && 'tracking-[0.2em] uppercase',
-  );
+  const eyebrowClassName = cn('text-sarat-black-600 text-eyebrow');
 
   return (
     <div className="flex flex-col gap-12">
       <div className="flex flex-col gap-4">
         <p className={eyebrowClassName}>{t('eyebrow')}</p>
-        <h1 className="font-display text-4xl font-semibold tracking-[-0.035em] text-balance">
-          {t('title')}
-        </h1>
+        <h1 className="text-h1-fixed">{t('title')}</h1>
         <p className="text-sarat-black-600 text-base leading-relaxed">{t('intro')}</p>
       </div>
 

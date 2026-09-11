@@ -384,18 +384,8 @@ export default async function PaymentPage({ params, searchParams }: PageParams) 
           className="mb-8"
         />
         <header className="flex max-w-2xl flex-col gap-3">
-          <p
-            className={cn(
-              'text-juniper-green-800 text-[11px] font-medium',
-              // Letter-spacing severs connected Arabic glyphs — EN only.
-              loc === 'en' && 'tracking-[0.2em] uppercase',
-            )}
-          >
-            {t('eyebrow')}
-          </p>
-          <h1 className="font-display text-4xl font-semibold tracking-[-0.035em] text-balance">
-            {t('title')}
-          </h1>
+          <p className={cn('text-juniper-green-800 text-eyebrow')}>{t('eyebrow')}</p>
+          <h1 className="text-h1-fixed">{t('title')}</h1>
           <p className="text-sarat-black-600 text-lg leading-relaxed">
             {/* "Pay straight away" only when the page can guarantee it:
                 a stored address makes the card checkout preparable

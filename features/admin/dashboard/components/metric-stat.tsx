@@ -24,18 +24,9 @@ interface MetricStatProps {
 export function MetricStat({ label, value, locale, growth, newLabel, hint }: MetricStatProps) {
   return (
     <div className="flex flex-col gap-1">
-      <span
-        className={cn(
-          'text-sarat-black-600 text-[11px] font-medium',
-          locale === 'en' && 'tracking-[0.2em] uppercase',
-        )}
-      >
-        {label}
-      </span>
+      <span className={cn('text-sarat-black-600 text-eyebrow')}>{label}</span>
       <span className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
-        <span className="font-display text-2xl font-medium tracking-[-0.025em] tabular-nums">
-          {value}
-        </span>
+        <span className="text-h2 tabular-nums">{value}</span>
         {growth && (
           <TrendBadge
             direction={growth.direction}

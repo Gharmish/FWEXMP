@@ -29,7 +29,7 @@ export async function generateMetadata({
   };
 }
 
-const sectionTitle = 'font-display text-xl font-medium tracking-[-0.02em]';
+const sectionTitle = 'text-h3';
 
 /**
  * The host's public face, editable — everything a guest sees on
@@ -60,10 +60,7 @@ export default async function HostProfileSettingsPage({
     hostContactAddresses(host.id),
   ]);
 
-  const eyebrowClassName = cn(
-    'text-sarat-black-600 font-medium text-[11px]',
-    loc === 'en' && 'tracking-[0.2em] uppercase',
-  );
+  const eyebrowClassName = cn('text-sarat-black-600 text-eyebrow');
 
   const publicUrl = `${SITE_URL}/${loc}/hosts/${host.slug}`;
 
@@ -71,9 +68,7 @@ export default async function HostProfileSettingsPage({
     <div className="flex w-full max-w-2xl flex-col gap-6">
       <header className="flex flex-col gap-2">
         <p className={eyebrowClassName}>{t('eyebrow')}</p>
-        <h1 className="font-display text-3xl font-semibold tracking-[-0.035em] text-balance sm:text-4xl">
-          {t('title')}
-        </h1>
+        <h1 className="text-h1-sm">{t('title')}</h1>
         <p className="text-sarat-black-600 max-w-xl text-base leading-relaxed">{t('intro')}</p>
       </header>
 
@@ -88,7 +83,7 @@ export default async function HostProfileSettingsPage({
           />
           <div className="flex flex-1 flex-col items-center gap-4 sm:items-start">
             <div className="flex flex-col items-center gap-2 sm:items-start">
-              <p className="font-display text-2xl font-medium tracking-[-0.025em]">{host.name}</p>
+              <p className="text-h2">{host.name}</p>
               {host.verified ? (
                 <Badge variant="verified">{t('identity.verified')}</Badge>
               ) : (

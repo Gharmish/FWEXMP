@@ -89,10 +89,7 @@ export async function ReviewsSection({
   );
 
   const hidden = Math.max(0, aggregate.count - visible.length);
-  const eyebrowClassName = cn(
-    'text-sarat-black-600 font-medium text-[11px]',
-    locale === 'en' && 'tracking-[0.2em] uppercase',
-  );
+  const eyebrowClassName = cn('text-sarat-black-600 text-eyebrow');
 
   return (
     <section
@@ -115,7 +112,7 @@ export async function ReviewsSection({
       )}
       <header className="flex flex-col gap-2">
         <p className={eyebrowClassName}>{t('eyebrow')}</p>
-        <h2 className="font-display text-2xl font-medium tracking-[-0.025em]">{t('heading')}</h2>
+        <h2 className="text-h2">{t('heading')}</h2>
       </header>
 
       <RatingSummary aggregate={aggregate} locale={locale} />

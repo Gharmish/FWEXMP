@@ -35,12 +35,8 @@ export default async function WhatsAppPreviewPage({
   return (
     <div className="flex flex-col gap-12">
       <div className="flex flex-col gap-3">
-        <p className="text-sarat-black-600 text-[11px] font-medium tracking-[0.2em] uppercase">
-          Developer
-        </p>
-        <h1 className="font-display text-4xl font-semibold tracking-[-0.035em]">
-          WhatsApp templates
-        </h1>
+        <p className="text-sarat-black-600 text-eyebrow">Developer</p>
+        <h1 className="text-h1-fixed">WhatsApp templates</h1>
         <p className="text-sarat-black-600 max-w-2xl text-base leading-relaxed">
           Every template in <span className="font-mono text-sm">lib/notifications/whatsapp</span>,
           rendered with its Meta review samples. Arabic on the left, English on the right.
@@ -92,7 +88,7 @@ export default async function WhatsAppPreviewPage({
                 const out = renderWhatsApp(template.id, loc, vars);
                 return (
                   <div key={loc} className="flex flex-col gap-2">
-                    <p className="text-sarat-black-600 text-[11px] font-medium tracking-[0.2em] uppercase">
+                    <p className="text-sarat-black-600 text-eyebrow">
                       {loc === 'ar' ? 'Arabic' : 'English'}
                       {out.ok ? ` · ${out.message.preview.length} chars` : ' · render error'}
                     </p>

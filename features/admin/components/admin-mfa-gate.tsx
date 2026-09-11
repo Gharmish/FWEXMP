@@ -57,8 +57,8 @@ export function AdminMfaGate({ mode }: AdminMfaGateProps) {
   }, [mode, enroll.status, starting, startEnrollment]);
 
   const errorMessage = (() => {
-    if (verify.status === 'error' && verify.error) return t(`errors.${verify.error}`);
-    if (enroll.status === 'error' && enroll.error) return t(`errors.${enroll.error}`);
+    if (verify.status === 'error' && verify.message) return t(`errors.${verify.message}`);
+    if (enroll.status === 'error' && enroll.message) return t(`errors.${enroll.message}`);
     return undefined;
   })();
 
@@ -68,9 +68,7 @@ export function AdminMfaGate({ mode }: AdminMfaGateProps) {
         <span className="bg-saffron-gold-100 text-saffron-gold-800 flex size-11 items-center justify-center rounded-full">
           <ShieldCheck className="size-5" aria-hidden />
         </span>
-        <h1 className="font-display text-2xl font-medium tracking-[-0.025em]">
-          {mode === 'enroll' ? t('enroll.title') : t('verify.title')}
-        </h1>
+        <h1 className="text-h2">{mode === 'enroll' ? t('enroll.title') : t('verify.title')}</h1>
         <p className="text-sarat-black-600 text-base leading-relaxed">
           {mode === 'enroll' ? t('enroll.intro') : t('verify.intro')}
         </p>

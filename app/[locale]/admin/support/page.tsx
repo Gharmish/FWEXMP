@@ -70,10 +70,7 @@ export default async function AdminSupportPage({
   const awaiting = (rows ?? []).filter((r) => r.awaitingReply);
   const others = (rows ?? []).filter((r) => !r.awaitingReply);
 
-  const eyebrowClassName = cn(
-    'text-sarat-black-600 font-medium text-[11px]',
-    loc === 'en' && 'tracking-[0.2em] uppercase',
-  );
+  const eyebrowClassName = cn('text-sarat-black-600 text-eyebrow');
 
   const renderRow = (row: AdminConversationRow) => (
     <li key={row.id}>
@@ -135,9 +132,7 @@ export default async function AdminSupportPage({
           {t('backToAdmin')}
         </Link>
         <p className={eyebrowClassName}>{t('support.eyebrow')}</p>
-        <h1 className="font-display text-4xl font-semibold tracking-[-0.035em] text-balance sm:text-5xl">
-          {t('support.title')}
-        </h1>
+        <h1 className="text-h1">{t('support.title')}</h1>
         <p className="text-sarat-black-600 max-w-2xl text-base leading-relaxed">
           {t('support.intro')}
         </p>
@@ -146,9 +141,7 @@ export default async function AdminSupportPage({
       {rows === null ? (
         <div className="border-sarat-black/8 rounded-card flex flex-col items-start gap-4 [border-width:0.5px] p-12">
           <p className={eyebrowClassName}>{t('noDb.eyebrow')}</p>
-          <h2 className="font-display text-2xl font-medium tracking-[-0.025em]">
-            {t('noDb.title')}
-          </h2>
+          <h2 className="text-h2">{t('noDb.title')}</h2>
           <p className="text-sarat-black-600 max-w-xl text-base">{t('noDb.description')}</p>
         </div>
       ) : rows.length === 0 && (!tickets || tickets.length === 0) ? (
@@ -161,7 +154,7 @@ export default async function AdminSupportPage({
       ) : (
         <>
           <section className="flex flex-col gap-4">
-            <h2 className="font-display text-2xl font-medium tracking-[-0.025em]">
+            <h2 className="text-h2">
               {t('support.ticketsHeading')}
               {tickets && tickets.length > 0 && (
                 <span className="text-sarat-black-600 ms-2 text-base tabular-nums">
@@ -180,7 +173,7 @@ export default async function AdminSupportPage({
             )}
           </section>
           <section className="flex flex-col gap-4">
-            <h2 className="font-display text-2xl font-medium tracking-[-0.025em]">
+            <h2 className="text-h2">
               {t('support.awaitingHeading')}
               {awaiting.length > 0 && (
                 <span className="text-sarat-black-600 ms-2 text-base tabular-nums">
@@ -196,9 +189,7 @@ export default async function AdminSupportPage({
           </section>
           {others.length > 0 && (
             <section className="flex flex-col gap-4">
-              <h2 className="font-display text-2xl font-medium tracking-[-0.025em]">
-                {t('support.otherHeading')}
-              </h2>
+              <h2 className="text-h2">{t('support.otherHeading')}</h2>
               <ul className="flex flex-col gap-4">{others.map(renderRow)}</ul>
             </section>
           )}

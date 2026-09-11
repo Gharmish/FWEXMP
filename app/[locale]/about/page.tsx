@@ -82,12 +82,8 @@ export default async function AboutPage({ params }: { params: Promise<{ locale: 
     <article className="mx-auto w-full max-w-3xl px-6 py-12">
       <JsonLd data={jsonLd} />
       <header className="flex flex-col gap-4">
-        <span className="text-saffron-gold-800 text-[11px] font-medium tracking-[0.2em] uppercase">
-          {t('eyebrow')}
-        </span>
-        <h1 className="font-display text-4xl font-semibold tracking-[-0.035em] text-balance sm:text-5xl">
-          {t('title')}
-        </h1>
+        <span className="text-saffron-gold-800 text-eyebrow">{t('eyebrow')}</span>
+        <h1 className="text-h1">{t('title')}</h1>
       </header>
 
       <div className="text-sarat-black-600 mt-8 flex flex-col gap-6 text-base leading-relaxed">
@@ -100,9 +96,7 @@ export default async function AboutPage({ params }: { params: Promise<{ locale: 
         aria-label={t('contactHeading')}
         className="border-sarat-black/8 mt-12 flex flex-col gap-4 [border-top-width:0.5px] pt-8"
       >
-        <h2 className="font-display text-2xl font-medium tracking-[-0.025em]">
-          {t('contactHeading')}
-        </h2>
+        <h2 className="text-h2">{t('contactHeading')}</h2>
         <p className="text-sarat-black-600 text-base leading-relaxed">{t('contactBody')}</p>
         <div className="flex flex-wrap items-center gap-x-8 gap-y-2">
           <a

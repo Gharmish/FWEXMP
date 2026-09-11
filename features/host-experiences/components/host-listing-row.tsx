@@ -1,9 +1,9 @@
+import { Localized } from '@/components/ui/localized';
 import { formatRating } from '@/lib/format';
 import Image from 'next/image';
 import { ArrowRight, ImageOff, Star } from 'lucide-react';
 import { Link } from '@/lib/i18n';
 import type { Locale } from '@/lib/i18n';
-import { pickLocalized } from '@/lib/ar-placeholder';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 import { Price } from '@/components/ui/price';
@@ -53,16 +53,14 @@ interface HostListingRowProps {
  */
 export function HostListingRow({ experience, stats, locale, copy }: HostListingRowProps) {
   const rating =
-    stats && stats.ratingAverage !== null
-      ? formatRating(stats.ratingAverage, locale)
-      : null;
+    stats && stats.ratingAverage !== null ? formatRating(stats.ratingAverage, locale) : null;
   return (
     <li>
       <Link
         href={`/host/experiences/${experience.id}`}
         className="hover:bg-sarat-black/[0.02] flex items-center gap-4 p-4 transition-colors duration-200 sm:p-6"
       >
-        <span className="bg-mist relative size-16 shrink-0 overflow-hidden rounded-image sm:size-20">
+        <span className="bg-mist rounded-image relative size-16 shrink-0 overflow-hidden sm:size-20">
           {experience.heroImage ? (
             <Image src={experience.heroImage} alt="" fill sizes="80px" className="object-cover" />
           ) : (
@@ -78,7 +76,7 @@ export function HostListingRow({ experience, stats, locale, copy }: HostListingR
         <span className="flex min-w-0 flex-1 flex-col gap-1">
           <span className="flex flex-wrap items-center gap-x-3 gap-y-1">
             <span className="truncate text-base font-medium">
-              {pickLocalized(locale, experience.titleEn, experience.titleAr)}
+              <Localized locale={locale} en={experience.titleEn} ar={experience.titleAr} />
             </span>
             <Badge className={STATUS_TONE[experience.status]}>{copy.status}</Badge>
           </span>

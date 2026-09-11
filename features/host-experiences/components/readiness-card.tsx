@@ -37,7 +37,7 @@ export function ReadinessCard({ items, copy, compact = false }: ReadinessCardPro
       className="border-sarat-black/8 rounded-card flex flex-col gap-4 [border-width:0.5px] p-6"
     >
       <div className="flex flex-wrap items-baseline justify-between gap-2">
-        <h2 id="readiness-heading" className="font-display text-xl font-medium tracking-[-0.02em]">
+        <h2 id="readiness-heading" className="text-h3">
           {copy.heading}
         </h2>
         {!compact && (

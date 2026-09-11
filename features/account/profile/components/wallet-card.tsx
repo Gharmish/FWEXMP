@@ -32,21 +32,13 @@ export function WalletCard({ locale, balanceSar, copy }: WalletCardProps) {
   return (
     <Card variant="dark" className="flex flex-col gap-6 p-6 sm:p-8">
       <div className="flex items-center justify-between">
-        <span className="font-display text-xl font-medium tracking-[-0.02em]">{copy.title}</span>
+        <span className="text-h3">{copy.title}</span>
         <span className="flex size-10 items-center justify-center rounded-full bg-white/10">
           <Wallet className="size-5 shrink-0" aria-hidden />
         </span>
       </div>
       <div className="flex flex-1 flex-col gap-1">
-        <span
-          className={cn(
-            'text-[11px] font-medium text-white/60',
-            // Letter-spacing severs connected Arabic glyphs — EN only.
-            locale === 'en' && 'tracking-[0.2em] uppercase',
-          )}
-        >
-          {copy.balanceLabel}
-        </span>
+        <span className={cn('text-eyebrow text-white/60')}>{copy.balanceLabel}</span>
         <Price amount={balanceSar} locale={locale} className="text-3xl text-white" />
       </div>
       <p className="text-xs leading-relaxed text-white/60">{copy.note}</p>

@@ -56,11 +56,11 @@ function errorMessage(
   copy: PromoCodeFieldCopy,
 ): string | undefined {
   if (state.status !== 'error') return undefined;
-  if (state.error === 'below_min') {
+  if (state.message === 'below_min') {
     const min = state.minTotalSar != null ? formatSAR(state.minTotalSar, locale) : '';
     return copy.errorBelowMin.replace('{min}', min);
   }
-  return copy.errors[state.error];
+  return copy.errors[state.message];
 }
 
 function ApplyButton({ label, pending: pendingLabel }: { label: string; pending: string }) {

@@ -95,7 +95,7 @@ const TYPE_SCALE = [
   },
   {
     role: 'Eyebrow',
-    cls: 'font-medium text-[11px] tracking-[0.2em] uppercase',
+    cls: 'text-eyebrow',
     en: 'Originals',
     ar: 'تجارب غارميش الأصلية',
   },
@@ -239,7 +239,7 @@ function Section({ title, children }: { title: string; children: React.ReactNode
       id={sectionId(title)}
       className="border-sarat-black/8 flex scroll-mt-12 flex-col gap-6 [border-top-width:0.5px] py-12"
     >
-      <h2 className="font-display text-3xl font-medium tracking-[-0.03em]">
+      <h2 className="text-h2-lg">
         <a
           href={`#${sectionId(title)}`}
           className="transition-opacity duration-200 hover:opacity-60"
@@ -266,10 +266,8 @@ export default async function StyleGuidePage({ params }: { params: Promise<{ loc
   return (
     <div className="mx-auto flex max-w-5xl flex-col px-6 py-12">
       <header className="flex flex-col gap-2">
-        <p className="text-sarat-black-600 text-[11px] font-medium tracking-[0.2em] uppercase">
-          Gharmish · internal
-        </p>
-        <h1 className="font-display text-5xl font-semibold tracking-[-0.035em]">Design system</h1>
+        <p className="text-sarat-black-600 text-eyebrow">Gharmish · internal</p>
+        <h1 className="text-display-fixed">Design system</h1>
         <p className="text-sarat-black-600 text-base">
           Living reference for tokens and primitives. Locale: {locale}.
         </p>
@@ -277,9 +275,7 @@ export default async function StyleGuidePage({ params }: { params: Promise<{ loc
           aria-label="Sections"
           className="border-sarat-black/8 rounded-card mt-6 [border-width:0.5px] p-6"
         >
-          <p className="text-sarat-black-600 mb-3 text-[11px] font-medium tracking-[0.2em] uppercase">
-            Jump to
-          </p>
+          <p className="text-sarat-black-600 text-eyebrow mb-3">Jump to</p>
           <ul className="flex flex-wrap gap-x-4 gap-y-1.5 text-sm">
             {TOC_SECTIONS.map((title) => (
               <li key={title}>
@@ -352,9 +348,7 @@ export default async function StyleGuidePage({ params }: { params: Promise<{ loc
               key={t.role}
               className="border-sarat-black/8 grid grid-cols-1 gap-2 [border-bottom-width:0.5px] pb-6 sm:grid-cols-[120px_1fr_1fr]"
             >
-              <span className="text-sarat-black-600 text-[11px] font-medium tracking-[0.2em] uppercase">
-                {t.role}
-              </span>
+              <span className="text-sarat-black-600 text-eyebrow">{t.role}</span>
               <span className={`font-display ${t.cls}`}>{t.en}</span>
               <span className={`font-arabic ${t.cls}`} dir="rtl" lang="ar">
                 {t.ar}
@@ -388,15 +382,13 @@ export default async function StyleGuidePage({ params }: { params: Promise<{ loc
       <Section title="Card">
         <div className="grid gap-4 sm:grid-cols-2">
           <Card className="p-6">
-            <h3 className="font-display text-2xl font-medium tracking-[-0.025em]">Default card</h3>
+            <h3 className="text-h2">Default card</h3>
             <p className="text-sarat-black-600 mt-2 text-base">
               Fog White surface, 0.5px hairline, no shadow.
             </p>
           </Card>
           <Card variant="dark" className="p-6">
-            <h3 className="font-display text-2xl font-medium tracking-[-0.025em]">
-              Originals card
-            </h3>
+            <h3 className="text-h2">Originals card</h3>
             <p className="mt-2 text-base text-white/70">
               Sarat Black surface for the premium tier.
             </p>
@@ -547,18 +539,14 @@ export default async function StyleGuidePage({ params }: { params: Promise<{ loc
         </p>
         <div className="grid gap-6 sm:grid-cols-2">
           <div className="flex flex-col gap-3">
-            <span className="text-sarat-black-600 text-[11px] font-medium tracking-[0.2em] uppercase">
-              Light surface
-            </span>
+            <span className="text-sarat-black-600 text-eyebrow">Light surface</span>
             <div className="border-sarat-black/8 rounded-card flex items-center gap-4 [border-width:0.5px] bg-white p-6">
               <WishlistButton slug="dev-light-unsaved" isSaved={false} surface="light" />
               <WishlistButton slug="dev-light-saved" isSaved surface="light" />
             </div>
           </div>
           <div className="flex flex-col gap-3">
-            <span className="text-sarat-black-600 text-[11px] font-medium tracking-[0.2em] uppercase">
-              Dark surface
-            </span>
+            <span className="text-sarat-black-600 text-eyebrow">Dark surface</span>
             <div className="rounded-card bg-sarat-black flex items-center gap-4 p-6">
               <WishlistButton slug="dev-dark-unsaved" isSaved={false} surface="dark" />
               <WishlistButton slug="dev-dark-saved" isSaved surface="dark" />
@@ -570,15 +558,11 @@ export default async function StyleGuidePage({ params }: { params: Promise<{ loc
       <Section title="Reviews — rating summary">
         <div className="flex flex-col gap-12">
           <div className="flex flex-col gap-2">
-            <p className="text-sarat-black-600 text-[11px] font-medium tracking-[0.2em] uppercase">
-              With reviews
-            </p>
+            <p className="text-sarat-black-600 text-eyebrow">With reviews</p>
             <RatingSummary aggregate={SAMPLE_AGGREGATE} locale={locale as Locale} />
           </div>
           <div className="flex flex-col gap-2">
-            <p className="text-sarat-black-600 text-[11px] font-medium tracking-[0.2em] uppercase">
-              Zero state
-            </p>
+            <p className="text-sarat-black-600 text-eyebrow">Zero state</p>
             <RatingSummary aggregate={EMPTY_AGGREGATE} locale={locale as Locale} />
           </div>
         </div>

@@ -164,26 +164,26 @@ describe('applyWalletCredit', () => {
   it('hides the wallet from signed-out viewers', async () => {
     sessionGuestId = null;
     const state = await applyWalletCredit({ status: 'idle' }, applyForm());
-    expect(state).toEqual({ status: 'error', error: 'not_found' });
+    expect(state).toEqual({ status: 'error', message: 'not_found' });
     expect(insertedLedger).toHaveLength(0);
   });
 
   it('hides the wallet from a signed-in non-owner', async () => {
     sessionGuestId = 'someone-else';
     const state = await applyWalletCredit({ status: 'idle' }, applyForm());
-    expect(state).toEqual({ status: 'error', error: 'not_found' });
+    expect(state).toEqual({ status: 'error', message: 'not_found' });
   });
 
   it('rejects a paid booking', async () => {
     existingRow = { ...existingRow!, paymentStatus: 'paid' };
     const state = await applyWalletCredit({ status: 'idle' }, applyForm());
-    expect(state).toEqual({ status: 'error', error: 'already_paid' });
+    expect(state).toEqual({ status: 'error', message: 'already_paid' });
   });
 
   it('rejects an expired hold', async () => {
     holdExpired = true;
     const state = await applyWalletCredit({ status: 'idle' }, applyForm());
-    expect(state).toEqual({ status: 'error', error: 'unavailable' });
+    expect(state).toEqual({ status: 'error', message: 'unavailable' });
   });
 
   it('clamps to the balance when it is below the total', async () => {
@@ -214,7 +214,7 @@ describe('applyWalletCredit', () => {
   it('returns nothing_to_apply on zero balance', async () => {
     balance = 0;
     const state = await applyWalletCredit({ status: 'idle' }, applyForm());
-    expect(state).toEqual({ status: 'error', error: 'nothing_to_apply' });
+    expect(state).toEqual({ status: 'error', message: 'nothing_to_apply' });
     expect(insertedLedger).toHaveLength(0);
   });
 
@@ -222,7 +222,7 @@ describe('applyWalletCredit', () => {
     lockedRow = { ...lockedRow!, totalAmount: 1 };
     balance = 500;
     const state = await applyWalletCredit({ status: 'idle' }, applyForm());
-    expect(state).toEqual({ status: 'error', error: 'nothing_to_apply' });
+    expect(state).toEqual({ status: 'error', message: 'nothing_to_apply' });
   });
 
   it('re-tap is idempotent: no second debit, current amounts echoed', async () => {
@@ -255,7 +255,7 @@ describe('applyWalletCredit', () => {
   it('fails closed without a database', async () => {
     envState.DATABASE_URL = '';
     const state = await applyWalletCredit({ status: 'idle' }, applyForm());
-    expect(state).toEqual({ status: 'error', error: 'no_db' });
+    expect(state).toEqual({ status: 'error', message: 'no_db' });
   });
 });
 
@@ -263,14 +263,14 @@ describe('removeWalletCredit', () => {
   it('requires ownership', async () => {
     sessionGuestId = 'someone-else';
     const state = await removeWalletCredit({ status: 'idle' }, applyForm());
-    expect(state).toEqual({ status: 'error', error: 'not_found' });
+    expect(state).toEqual({ status: 'error', message: 'not_found' });
     expect(releaseWalletReservation).not.toHaveBeenCalled();
   });
 
   it('rejects paid bookings', async () => {
     existingRow = { ...existingRow!, paymentStatus: 'paid' };
     const state = await removeWalletCredit({ status: 'idle' }, applyForm());
-    expect(state).toEqual({ status: 'error', error: 'already_paid' });
+    expect(state).toEqual({ status: 'error', message: 'already_paid' });
   });
 
   it('releases and reports supersession with the stale prepared amount', async () => {

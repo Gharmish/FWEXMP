@@ -158,7 +158,7 @@ export default async function BookingConfirmedPage({ params, searchParams }: Pag
   //   - `no_db` — genuine preview environment; the ONLY preview copy path.
   const view = await getBookingViewForViewer(ref, token);
   if (view.state === 'not_found') notFound();
-  if (view.state === 'forbidden') return <BookingAccessNotice locale={loc} />;
+  if (view.state === 'forbidden') return <BookingAccessNotice />;
   const booking = view.state === 'ok' ? view.booking : undefined;
   // The signed link token proves the viewer may READ this booking, not
   // act on it. Every mutating form (cancel / reschedule / review /
@@ -289,7 +289,7 @@ export default async function BookingConfirmedPage({ params, searchParams }: Pag
       : `${formatDate(d, loc)}, ${formatTime(d, loc)}`;
 
   // The eyebrow's tracking/case is shared across states; only colour shifts.
-  const eyebrowBase = cn('font-medium text-[11px]', loc === 'en' && 'tracking-[0.2em] uppercase');
+  const eyebrowBase = 'text-eyebrow';
   // The reference label keeps the calm juniper treatment in every state.
   const eyebrowClassName = cn(eyebrowBase, 'text-juniper-green-800');
 
@@ -822,9 +822,7 @@ export default async function BookingConfirmedPage({ params, searchParams }: Pag
           </Pop>
           <p className={headerEyebrowClassName}>{headerEyebrow}</p>
         </div>
-        <h1 className="font-display text-4xl font-semibold tracking-[-0.035em] text-balance sm:text-5xl">
-          {headerTitle}
-        </h1>
+        <h1 className="text-h1">{headerTitle}</h1>
         <p className="text-sarat-black-600 max-w-2xl text-lg leading-relaxed">
           {headerDescription}
         </p>
@@ -1063,7 +1061,7 @@ export default async function BookingConfirmedPage({ params, searchParams }: Pag
         placeName &&
         locationLine && (
           <section className="mt-12 flex flex-col gap-3 print:hidden">
-            <h2 className="font-display flex items-center gap-2.5 text-2xl font-medium tracking-[-0.025em]">
+            <h2 className="text-h2 flex items-center gap-2.5">
               <MapPin className="text-sarat-black-600 size-5 shrink-0" aria-hidden />
               {tExp('meetingPoint.heading')}
             </h2>
@@ -1087,9 +1085,7 @@ export default async function BookingConfirmedPage({ params, searchParams }: Pag
           guest's own cancel form — host/admin/support cancellations. */}
       {refundQueued && booking && (
         <section className="border-sarat-black/8 rounded-card mt-12 flex flex-col gap-4 [border-width:0.5px] p-6 print:hidden">
-          <h2 className="font-display text-2xl font-medium tracking-[-0.025em]">
-            {t('refundBank.heading')}
-          </h2>
+          <h2 className="text-h2">{t('refundBank.heading')}</h2>
           <p className="text-sarat-black-600 max-w-2xl text-base leading-relaxed">
             {booking.refundBank
               ? t('refundBank.onFile', { amount: formatSAR(booking.refundDueSar ?? 0, loc) })
@@ -1137,9 +1133,7 @@ export default async function BookingConfirmedPage({ params, searchParams }: Pag
 
       {isWalletRefunded && booking && (
         <section className="border-sarat-black/8 rounded-card mt-12 flex flex-col gap-4 [border-width:0.5px] p-6 print:hidden">
-          <h2 className="font-display text-2xl font-medium tracking-[-0.025em]">
-            {t('walletCredit.heading')}
-          </h2>
+          <h2 className="text-h2">{t('walletCredit.heading')}</h2>
           <p className="text-sarat-black-600 text-base leading-relaxed">
             {t('walletCredit.description', { amount: formatSAR(walletCreditSar, loc) })}
           </p>
@@ -1197,9 +1191,7 @@ export default async function BookingConfirmedPage({ params, searchParams }: Pag
         !isHoldLapsed &&
         !isCompleted && (
           <section className="mt-12 flex flex-col gap-3">
-            <h2 className="font-display text-2xl font-medium tracking-[-0.025em]">
-              {t('nextStepsHeading')}
-            </h2>
+            <h2 className="text-h2">{t('nextStepsHeading')}</h2>
             <ol className="mt-1 flex flex-col gap-4">
               {[
                 isConfirmed ? t('nextStepConfirmed1') : t('nextStep1'),
@@ -1232,9 +1224,7 @@ export default async function BookingConfirmedPage({ params, searchParams }: Pag
           {/* Section-level h2 like every sibling — the form's own
               heading is an h3 beneath it, keeping the outline h1→h2→h3
               instead of skipping straight to h3. */}
-          <h2 className="font-display text-2xl font-medium tracking-[-0.025em]">
-            {t('reviewHeading')}
-          </h2>
+          <h2 className="text-h2">{t('reviewHeading')}</h2>
           {bookingReview && reviewEditable && !tokenOnly ? (
             <ReviewForm
               bookingReference={ref}
@@ -1334,7 +1324,7 @@ export default async function BookingConfirmedPage({ params, searchParams }: Pag
           booking is accepted; Gharmish support is there in every state. */}
       {(hostWhatsapp || supportWhatsapp) && (
         <section className="border-sarat-black/8 rounded-card mt-12 flex flex-col gap-3 [border-width:0.5px] p-6 print:hidden">
-          <h2 className="font-display text-2xl font-medium tracking-[-0.025em]">
+          <h2 className="text-h2">
             {hostWhatsapp ? t('whatsapp.heading') : t('supportWhatsapp.heading')}
           </h2>
           <p className="text-sarat-black-600 max-w-2xl text-base leading-relaxed">
@@ -1385,9 +1375,7 @@ export default async function BookingConfirmedPage({ params, searchParams }: Pag
           spot is still held. */}
       {rescheduleView && !isHoldLapsed && (
         <section className="border-sarat-black/8 rounded-card mt-12 flex flex-col gap-3 [border-width:0.5px] p-6 print:hidden">
-          <h2 className="font-display text-2xl font-medium tracking-[-0.025em]">
-            {t('reschedule.heading')}
-          </h2>
+          <h2 className="text-h2">{t('reschedule.heading')}</h2>
           <p className="text-sarat-black-600 max-w-2xl text-base leading-relaxed">
             {t('reschedule.policy', { deadline: formatDeadline(rescheduleView.deadline) })}
           </p>
@@ -1448,9 +1436,7 @@ export default async function BookingConfirmedPage({ params, searchParams }: Pag
           options.reschedule.reason === 'limit_reached') &&
         !isHoldLapsed && (
           <section className="border-sarat-black/8 rounded-card mt-12 flex flex-col gap-3 [border-width:0.5px] p-6 print:hidden">
-            <h2 className="font-display text-2xl font-medium tracking-[-0.025em]">
-              {t('reschedule.heading')}
-            </h2>
+            <h2 className="text-h2">{t('reschedule.heading')}</h2>
             <p className="text-sarat-black-600 max-w-2xl text-base leading-relaxed">
               {options.reschedule.reason === 'window_passed'
                 ? t('reschedule.windowPassed', {
@@ -1471,9 +1457,7 @@ export default async function BookingConfirmedPage({ params, searchParams }: Pag
           there would imply the spot is still held. */}
       {cancelView && !isHoldLapsed && (
         <section className="border-sarat-black/8 rounded-card mt-12 flex flex-col gap-3 [border-width:0.5px] p-6 print:hidden">
-          <h2 className="font-display text-2xl font-medium tracking-[-0.025em]">
-            {t('cancel.heading')}
-          </h2>
+          <h2 className="text-h2">{t('cancel.heading')}</h2>
           <p className="text-sarat-black-600 max-w-2xl text-base leading-relaxed">
             {cancelView.refund === 'none_needed'
               ? t('cancel.policyUnpaid')

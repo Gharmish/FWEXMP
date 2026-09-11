@@ -2,7 +2,6 @@ import type { Metadata } from 'next';
 import { ArrowRight, ChevronDown } from 'lucide-react';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { Link, routing } from '@/lib/i18n';
-import type { Locale } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
 import { buttonVariants } from '@/components/ui/button';
 import { FadeIn } from '@/components/ui/motion';
@@ -74,7 +73,6 @@ export default async function HostingPage({
   const { locale } = await params;
   setRequestLocale(locale);
   await trackPageView({ path: '/hosting', locale, utm: utmFromSearchParams(await searchParams) });
-  const loc = locale as Locale;
 
   const [t, tFaq, settings] = await Promise.all([
     getTranslations('hosting'),
@@ -83,14 +81,8 @@ export default async function HostingPage({
   ]);
   const faqValues = { approvalHours: settings.approvalWindowHours };
 
-  const eyebrowClassName = cn(
-    'text-sarat-black-600 font-medium text-[11px]',
-    loc === 'en' && 'tracking-[0.2em] uppercase',
-  );
-  const darkEyebrowClassName = cn(
-    'text-saffron-gold-800 font-medium text-[11px]',
-    loc === 'en' && 'tracking-[0.2em] uppercase',
-  );
+  const eyebrowClassName = cn('text-sarat-black-600 text-eyebrow');
+  const darkEyebrowClassName = cn('text-saffron-gold-800 text-eyebrow');
 
   const stageKeys = ['apply', 'review', 'build', 'earn'] as const;
   const audienceKeys = ['individuals', 'companies'] as const;
@@ -119,9 +111,7 @@ export default async function HostingPage({
         <section className="mx-auto w-full max-w-3xl px-6 pt-20 pb-16 sm:pt-24">
           <FadeIn className="flex flex-col gap-6">
             <p className={eyebrowClassName}>{t('hero.eyebrow')}</p>
-            <h1 className="font-display text-4xl font-semibold tracking-[-0.035em] text-balance sm:text-6xl">
-              {t('hero.title')}
-            </h1>
+            <h1 className="text-h1-lg">{t('hero.title')}</h1>
             <p className="text-sarat-black-600 max-w-2xl text-lg leading-relaxed">
               {t('hero.intro')}
             </p>
@@ -148,9 +138,7 @@ export default async function HostingPage({
         {/* Who can host */}
         <section className="mx-auto w-full max-w-3xl px-6 py-16">
           <div className="border-sarat-black/8 flex flex-col gap-6 [border-top-width:0.5px] pt-12">
-            <h2 className="font-display text-2xl font-medium tracking-[-0.025em] sm:text-3xl">
-              {t('audience.heading')}
-            </h2>
+            <h2 className="text-h2-responsive">{t('audience.heading')}</h2>
             <p className="text-sarat-black-600 max-w-2xl text-base leading-relaxed">
               {t('audience.intro')}
             </p>
@@ -173,9 +161,7 @@ export default async function HostingPage({
         {/* How the partnership works */}
         <section className="mx-auto w-full max-w-3xl px-6 py-16">
           <div className="border-sarat-black/8 flex flex-col gap-6 [border-top-width:0.5px] pt-12">
-            <h2 className="font-display text-2xl font-medium tracking-[-0.025em] sm:text-3xl">
-              {t('partnership.heading')}
-            </h2>
+            <h2 className="text-h2-responsive">{t('partnership.heading')}</h2>
             <p className="text-sarat-black-600 max-w-2xl text-base leading-relaxed">
               {t('partnership.intro')}
             </p>
@@ -195,9 +181,7 @@ export default async function HostingPage({
         {/* How applying works — numbered stages */}
         <section className="mx-auto w-full max-w-3xl px-6 py-16">
           <div className="border-sarat-black/8 flex flex-col gap-6 [border-top-width:0.5px] pt-12">
-            <h2 className="font-display text-2xl font-medium tracking-[-0.025em] sm:text-3xl">
-              {t('stages.heading')}
-            </h2>
+            <h2 className="text-h2-responsive">{t('stages.heading')}</h2>
             <ol className="flex list-none flex-col gap-6">
               {stageKeys.map((key, i) => (
                 <li key={key} className="flex items-start gap-4">
@@ -222,9 +206,7 @@ export default async function HostingPage({
         {/* What you'll need — documents */}
         <section className="mx-auto w-full max-w-3xl px-6 py-16">
           <div className="border-sarat-black/8 flex flex-col gap-6 [border-top-width:0.5px] pt-12">
-            <h2 className="font-display text-2xl font-medium tracking-[-0.025em] sm:text-3xl">
-              {t('documents.heading')}
-            </h2>
+            <h2 className="text-h2-responsive">{t('documents.heading')}</h2>
             <p className="text-sarat-black-600 max-w-2xl text-base leading-relaxed">
               {t('documents.intro')}
             </p>
@@ -250,9 +232,7 @@ export default async function HostingPage({
         {/* Payouts & liability */}
         <section className="mx-auto w-full max-w-3xl px-6 py-16">
           <div className="border-sarat-black/8 flex flex-col gap-6 [border-top-width:0.5px] pt-12">
-            <h2 className="font-display text-2xl font-medium tracking-[-0.025em] sm:text-3xl">
-              {t('payout.heading')}
-            </h2>
+            <h2 className="text-h2-responsive">{t('payout.heading')}</h2>
             <div className="text-sarat-black-600 flex flex-col gap-3 text-base leading-relaxed">
               <p>{t('payout.revenueShare')}</p>
               <p>{t('payout.payouts')}</p>
@@ -264,9 +244,7 @@ export default async function HostingPage({
         {/* FAQ */}
         <section className="mx-auto w-full max-w-3xl px-6 py-16">
           <div className="border-sarat-black/8 flex flex-col gap-6 [border-top-width:0.5px] pt-12">
-            <h2 className="font-display text-2xl font-medium tracking-[-0.025em] sm:text-3xl">
-              {t('faq.heading')}
-            </h2>
+            <h2 className="text-h2-responsive">{t('faq.heading')}</h2>
             <div className="border-sarat-black/8 flex flex-col [border-top-width:0.5px]">
               {FAQ_KEYS.map((key) => (
                 <details
@@ -293,9 +271,7 @@ export default async function HostingPage({
         <section className="bg-sarat-black text-white">
           <FadeIn className="mx-auto flex w-full max-w-3xl flex-col items-start gap-6 px-6 py-20">
             <p className={darkEyebrowClassName}>{t('cta.eyebrow')}</p>
-            <h2 className="font-display max-w-2xl text-3xl font-medium tracking-[-0.03em] text-balance sm:text-4xl">
-              {t('cta.title')}
-            </h2>
+            <h2 className="text-h2-xl max-w-2xl text-balance">{t('cta.title')}</h2>
             <p className="max-w-xl text-lg leading-relaxed text-white/70">{t('cta.body')}</p>
             <Link
               href="/host/apply"

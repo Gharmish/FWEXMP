@@ -25,16 +25,13 @@ export async function HostReviews({ slug, locale }: HostReviewsProps) {
 
   const t = await getTranslations('hostProfile.reviews');
   const tr = await getTranslations('reviews');
-  const eyebrowClassName = cn(
-    'text-sarat-black-600 font-medium text-[11px]',
-    locale === 'en' && 'tracking-[0.2em] uppercase',
-  );
+  const eyebrowClassName = cn('text-sarat-black-600 text-eyebrow');
 
   return (
     <section className="border-sarat-black/8 mt-12 flex flex-col gap-8 [border-top-width:0.5px] pt-12">
       <div className="flex flex-col gap-3">
         <p className={eyebrowClassName}>{t('eyebrow')}</p>
-        <h2 className="font-display text-2xl font-medium tracking-[-0.025em]">{t('title')}</h2>
+        <h2 className="text-h2">{t('title')}</h2>
       </div>
       <ul className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
         {reviews.map((review) => {

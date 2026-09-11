@@ -68,10 +68,7 @@ export default async function HostsIndexPage({ params }: { params: Promise<{ loc
   const th = await getTranslations('host');
   const tv = await getTranslations('verifiedBadge');
 
-  const eyebrowClassName = cn(
-    'text-sarat-black-600 font-medium text-[11px]',
-    loc === 'en' && 'tracking-[0.2em] uppercase',
-  );
+  const eyebrowClassName = cn('text-sarat-black-600 text-eyebrow');
 
   const url = `${SITE_URL}/${loc}/hosts`;
   const jsonLd = {
@@ -100,9 +97,7 @@ export default async function HostsIndexPage({ params }: { params: Promise<{ loc
             <p className={eyebrowClassName}>{t('eyebrow')}</p>
           </MountFade>
           <RiseIn delay={0.05}>
-            <h1 className="font-display text-4xl font-semibold tracking-[-0.035em] text-balance sm:text-6xl">
-              {t('title')}
-            </h1>
+            <h1 className="text-h1-lg">{t('title')}</h1>
           </RiseIn>
           <MountFade eager delay={0.12}>
             <p className="text-sarat-black-600 max-w-2xl text-lg leading-relaxed">{t('intro')}</p>

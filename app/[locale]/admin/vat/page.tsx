@@ -57,10 +57,7 @@ export default async function AdminVatPage({
   const range = resolveDateRange({ preset: one(sp.preset), from: one(sp.from), to: one(sp.to) });
   const report = block ? null : await getVatReport(range);
 
-  const eyebrowClassName = cn(
-    'text-sarat-black-600 font-medium text-[11px]',
-    loc === 'en' && 'tracking-[0.2em] uppercase',
-  );
+  const eyebrowClassName = cn('text-sarat-black-600 text-eyebrow');
   const card = 'border-sarat-black/8 rounded-card flex flex-col gap-2 [border-width:0.5px] p-6';
   const labelClass = 'text-sarat-black-600 text-sm';
 
@@ -75,9 +72,7 @@ export default async function AdminVatPage({
     <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
       <div className="flex flex-col gap-3">
         <p className={eyebrowClassName}>{t('sections.vat.title')}</p>
-        <h1 className="font-display text-4xl font-semibold tracking-[-0.035em] text-balance sm:text-5xl">
-          {t('vat.title')}
-        </h1>
+        <h1 className="text-h1">{t('vat.title')}</h1>
         <p className="text-sarat-black-600 max-w-2xl text-base leading-relaxed">
           {t('sections.vat.description')}
         </p>
@@ -209,10 +204,7 @@ export default async function AdminVatPage({
 
       {/* Period summary — the numbers a return is filled from. */}
       <section className="flex flex-col gap-4" aria-labelledby="vat-period-heading">
-        <h2
-          id="vat-period-heading"
-          className="font-display text-2xl font-medium tracking-[-0.025em]"
-        >
+        <h2 id="vat-period-heading" className="text-h2">
           {t('vat.periodHeading', {
             from: formatDate(new Date(`${range.from}T12:00:00`), loc),
             to: formatDate(new Date(`${range.to}T12:00:00`), loc),
@@ -262,10 +254,7 @@ export default async function AdminVatPage({
       {/* Per-booking detail + CSV. */}
       <section className="flex flex-col gap-4" aria-labelledby="vat-detail-heading">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <h2
-            id="vat-detail-heading"
-            className="font-display text-2xl font-medium tracking-[-0.025em]"
-          >
+          <h2 id="vat-detail-heading" className="text-h2">
             {t('vat.detailHeading')}
           </h2>
           {report.rows.length > 0 && (
@@ -332,10 +321,7 @@ export default async function AdminVatPage({
       {report.creditRows.length > 0 && (
         <section className="flex flex-col gap-4" aria-labelledby="vat-credit-heading">
           <div className="flex flex-wrap items-center justify-between gap-3">
-            <h2
-              id="vat-credit-heading"
-              className="font-display text-2xl font-medium tracking-[-0.025em]"
-            >
+            <h2 id="vat-credit-heading" className="text-h2">
               {t('vat.creditDetailHeading')}
             </h2>
             <CsvDownloadButton

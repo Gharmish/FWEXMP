@@ -14,6 +14,7 @@ import {
 } from '@/features/host-applications/actions';
 import {
   ACCEPTED_DOCUMENT_ATTR,
+  MAX_SUBMISSION_BYTES,
   documentTypesFor,
   isRequiredDocument,
   validateDocument,
@@ -328,6 +329,7 @@ export function HostApplyForm({
   }
 
   function onFileChange(type: HostDocumentType, file: File | null) {
+    setDocBytes((current) => ({ ...current, [type]: file && file.size > 0 ? file.size : 0 }));
     setFileErrors((current) => {
       const next = { ...current };
       delete next[type];
@@ -412,7 +414,18 @@ export function HostApplyForm({
     };
   }
 
+  // One request carries every document; past the platform body cap the
+  // submission dies before the action runs, so refuse it here with the
+  // reason (2026-09 engineering audit DEPS-06).
+  const [docBytes, setDocBytes] = useState<Partial<Record<HostDocumentType, number>>>({});
+  const totalDocBytes = Object.values(docBytes).reduce((sum, bytes) => sum + (bytes ?? 0), 0);
+  const documentsTooLarge = totalDocBytes > MAX_SUBMISSION_BYTES;
+
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    if (documentsTooLarge) {
+      event.preventDefault();
+      return;
+    }
     const invalid = clientValidate(event.currentTarget);
     if (invalid) {
       event.preventDefault();
@@ -422,10 +435,7 @@ export function HostApplyForm({
     setPreSubmitState(null);
   }
 
-  const sectionLabel = cn(
-    'text-sarat-black-600 font-medium text-[11px]',
-    locale === 'en' && 'tracking-[0.2em] uppercase',
-  );
+  const sectionLabel = cn('text-sarat-black-600 text-eyebrow');
   const isIndividual = identityType === 'national_id';
 
   return (
@@ -754,6 +764,11 @@ export function HostApplyForm({
         <fieldset className="border-sarat-black/8 flex flex-col gap-6 [border-top-width:0.5px] pt-12">
           <legend className={sectionLabel}>{copy.sectionDocuments}</legend>
           <p className="text-sarat-black-600 text-sm">{copy.documentsIntro}</p>
+          {documentsTooLarge && (
+            <p role="alert" className="text-al-qatt-red-800 text-sm">
+              {copy.documentErrors.doc_total}
+            </p>
+          )}
 
           {documentTypesFor(identityType).map((type) => {
             const existing = existingByType.get(type);

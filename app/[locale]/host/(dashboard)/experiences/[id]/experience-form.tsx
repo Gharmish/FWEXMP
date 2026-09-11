@@ -1,5 +1,6 @@
 'use client';
 
+import { useBeforeUnloadGuard } from '@/lib/hooks/use-before-unload-guard';
 import { useActionState, useEffect, useId, useRef, useState } from 'react';
 import { useFormStatus } from 'react-dom';
 import { Button } from '@/components/ui/button';
@@ -417,14 +418,7 @@ export function ExperienceForm({
   // through `onChange` on the picker (a state-driven input value
   // doesn't dispatch a native `input` event to the form).
   const [dirty, setDirty] = useState(false);
-  useEffect(() => {
-    if (!dirty) return;
-    const guard = (e: BeforeUnloadEvent) => {
-      e.preventDefault();
-    };
-    window.addEventListener('beforeunload', guard);
-    return () => window.removeEventListener('beforeunload', guard);
-  }, [dirty]);
+  useBeforeUnloadGuard(dirty);
 
   // Server-validated failures land while the host is still parked at the
   // submit button, far below the errored field on the longest form in the
@@ -461,10 +455,7 @@ export function ExperienceForm({
   // Visible section eyebrows — the long form was one unbroken column
   // (legends were sr-only), which made it hard to scan. The sr-only
   // legend stays for screen readers; this is its visual twin.
-  const sectionClassName = cn(
-    'text-sarat-black-600 font-medium text-[11px]',
-    locale === 'en' && 'tracking-[0.2em] uppercase',
-  );
+  const sectionClassName = cn('text-sarat-black-600 text-eyebrow');
 
   const labelRow = 'flex items-baseline justify-between gap-3';
 
@@ -1078,7 +1069,7 @@ export function ExperienceForm({
           className={cn(
             'flex flex-wrap items-center gap-x-4 gap-y-2 transition-[box-shadow,background-color] duration-200',
             dirty &&
-              'border-sarat-black/8 rounded-card sticky bottom-4 z-10 [border-width:0.5px] bg-white/95 p-4 shadow-overlay backdrop-blur',
+              'border-sarat-black/8 rounded-card shadow-overlay sticky bottom-4 z-10 [border-width:0.5px] bg-white/95 p-4 backdrop-blur',
           )}
         >
           <SubmitButton label={copy.submitEdit} pendingLabel={copy.submitEditPending} />

@@ -1,3 +1,4 @@
+import { Localized } from '@/components/ui/localized';
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import Image from 'next/image';
@@ -70,10 +71,7 @@ export default async function AdminExperienceModerationDetailPage({
   const block = await isAdminAndDbReady();
   if (block?.reason === 'no_db') {
     const t = await getTranslations('admin');
-    const eyebrowClassName = cn(
-      'text-sarat-black-600 font-medium text-[11px]',
-      loc === 'en' && 'tracking-[0.2em] uppercase',
-    );
+    const eyebrowClassName = cn('text-sarat-black-600 text-eyebrow');
     return (
       <div className="flex flex-col gap-12">
         <Link
@@ -85,9 +83,7 @@ export default async function AdminExperienceModerationDetailPage({
         </Link>
         <div className="border-sarat-black/8 rounded-card flex flex-col items-start gap-4 [border-width:0.5px] p-12">
           <p className={eyebrowClassName}>{t('noDb.eyebrow')}</p>
-          <h2 className="font-display text-2xl font-medium tracking-[-0.025em]">
-            {t('noDb.title')}
-          </h2>
+          <h2 className="text-h2">{t('noDb.title')}</h2>
           <p className="text-sarat-black-600 max-w-xl text-base">{t('noDb.description')}</p>
         </div>
       </div>
@@ -105,10 +101,7 @@ export default async function AdminExperienceModerationDetailPage({
     getTranslations('cancellationTiers'),
     getCancellationTiers(),
   ]);
-  const eyebrowClassName = cn(
-    'text-sarat-black-600 font-medium text-[11px]',
-    loc === 'en' && 'tracking-[0.2em] uppercase',
-  );
+  const eyebrowClassName = cn('text-sarat-black-600 text-eyebrow');
 
   return (
     <div className="flex flex-col gap-12">
@@ -122,8 +115,8 @@ export default async function AdminExperienceModerationDetailPage({
         </Link>
 
         <div className="flex flex-wrap items-baseline gap-3">
-          <h1 className="font-display text-4xl font-semibold tracking-[-0.035em] text-balance sm:text-5xl">
-            {pickLocalized(loc, detail.titleEn, detail.titleAr)}
+          <h1 className="text-h1">
+            <Localized locale={loc} en={detail.titleEn} ar={detail.titleAr} />
           </h1>
           <Badge className={STATUS_TONE[detail.status]}>
             {t(`experienceStatus.${detail.status}`)}

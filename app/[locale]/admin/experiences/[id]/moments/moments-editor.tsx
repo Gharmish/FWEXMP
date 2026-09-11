@@ -247,7 +247,7 @@ export function AddMomentForm({
       action={action}
       className="border-sarat-black/8 rounded-card flex flex-col gap-4 [border-width:0.5px] p-6"
     >
-      <h2 className="font-display text-xl font-medium tracking-[-0.02em]">{copy.addHeading}</h2>
+      <h2 className="text-h3">{copy.addHeading}</h2>
       <input type="hidden" name="experienceId" value={experienceId} />
       <Fields copy={copy} fields={fields} hideArabic={hideArabic} />
       <div className="flex items-center gap-3">

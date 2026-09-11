@@ -1,10 +1,10 @@
+import { Localized } from '@/components/ui/localized';
 import type { Metadata } from 'next';
 import { ArrowRight, ArrowLeft, Plus } from 'lucide-react';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { Link } from '@/lib/i18n';
 import type { Locale } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
-import { pickLocalized } from '@/lib/ar-placeholder';
 import { Badge } from '@/components/ui/badge';
 import { formatDate } from '@/lib/format';
 import { Price } from '@/components/ui/price';
@@ -72,10 +72,7 @@ export default async function AdminExperienceModerationPage({
         ? t('experienceModerationList.filter.all')
         : t(`experienceStatus.${f}`);
 
-  const eyebrowClassName = cn(
-    'text-sarat-black-600 font-medium text-[11px]',
-    loc === 'en' && 'tracking-[0.2em] uppercase',
-  );
+  const eyebrowClassName = cn('text-sarat-black-600 text-eyebrow');
 
   return (
     <div className="flex flex-col gap-12">
@@ -88,9 +85,7 @@ export default async function AdminExperienceModerationPage({
           {t('backToAdmin')}
         </Link>
         <p className={eyebrowClassName}>{t('experienceModerationList.eyebrow')}</p>
-        <h1 className="font-display text-4xl font-semibold tracking-[-0.035em] text-balance sm:text-5xl">
-          {t('experienceModerationList.title')}
-        </h1>
+        <h1 className="text-h1">{t('experienceModerationList.title')}</h1>
         <p className="text-sarat-black-600 max-w-2xl text-base leading-relaxed">
           {t('experienceModerationList.intro')}
         </p>
@@ -132,17 +127,13 @@ export default async function AdminExperienceModerationPage({
       {block?.reason === 'no_db' ? (
         <div className="border-sarat-black/8 rounded-card flex flex-col items-start gap-4 [border-width:0.5px] p-12">
           <p className={eyebrowClassName}>{t('noDb.eyebrow')}</p>
-          <h2 className="font-display text-2xl font-medium tracking-[-0.025em]">
-            {t('noDb.title')}
-          </h2>
+          <h2 className="text-h2">{t('noDb.title')}</h2>
           <p className="text-sarat-black-600 max-w-xl text-base">{t('noDb.description')}</p>
         </div>
       ) : queue.length === 0 ? (
         <div className="border-sarat-black/8 rounded-card flex flex-col items-start gap-4 [border-width:0.5px] p-12">
           <p className={eyebrowClassName}>{t('experienceModerationList.empty.eyebrow')}</p>
-          <h2 className="font-display text-2xl font-medium tracking-[-0.025em]">
-            {t('experienceModerationList.empty.title')}
-          </h2>
+          <h2 className="text-h2">{t('experienceModerationList.empty.title')}</h2>
           <p className="text-sarat-black-600 max-w-xl text-base">
             {t('experienceModerationList.empty.description')}
           </p>
@@ -158,7 +149,7 @@ export default async function AdminExperienceModerationPage({
                 <div className="flex min-w-0 flex-col gap-1">
                   <div className="flex flex-wrap items-center gap-3">
                     <span className="truncate text-base font-medium">
-                      {pickLocalized(loc, row.titleEn, row.titleAr)}
+                      <Localized locale={loc} en={row.titleEn} ar={row.titleAr} />
                     </span>
                     <Badge
                       className={STATUS_TONE[row.status] ?? 'bg-sarat-black/8 text-sarat-black'}

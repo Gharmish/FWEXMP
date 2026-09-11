@@ -111,9 +111,7 @@ export function HostShell({
       </div>
       <div className="border-sarat-black/8 rounded-card flex flex-col gap-3 [border-width:0.5px] p-4">
         <div className="flex flex-col gap-0.5">
-          <p className="text-sarat-black-600 text-[11px] font-medium tracking-[0.2em] uppercase">
-            {t('roleLabel')}
-          </p>
+          <p className="text-sarat-black-600 text-eyebrow">{t('roleLabel')}</p>
           <p className="text-sarat-black truncate text-sm font-medium">{userLabel}</p>
         </div>
         {actions && (

@@ -1,3 +1,4 @@
+import { Localized } from '@/components/ui/localized';
 import type { Metadata } from 'next';
 import { ArrowLeft, LifeBuoy } from 'lucide-react';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
@@ -7,7 +8,6 @@ import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 import { EmptyState } from '@/components/ui/empty-state';
 import { formatDate, formatSAR } from '@/lib/format';
-import { pickLocalized } from '@/lib/ar-placeholder';
 import { DISPUTES_LIST_LIMIT, listDisputesForAdmin } from '@/features/disputes/queries';
 import { ResolveDisputeButton } from '@/app/[locale]/admin/disputes/resolve-button';
 
@@ -37,10 +37,7 @@ export default async function AdminDisputesPage({
   const open = (rows ?? []).filter((r) => r.status === 'open');
   const resolved = (rows ?? []).filter((r) => r.status === 'resolved');
 
-  const eyebrowClassName = cn(
-    'text-sarat-black-600 font-medium text-[11px]',
-    loc === 'en' && 'tracking-[0.2em] uppercase',
-  );
+  const eyebrowClassName = cn('text-sarat-black-600 text-eyebrow');
 
   const resolveCopy = {
     notesLabel: t('disputes.notesLabel'),
@@ -70,7 +67,7 @@ export default async function AdminDisputesPage({
           href={`/experiences/${row.experienceSlug}`}
           className="text-sarat-black text-base font-medium underline-offset-4 hover:underline"
         >
-          {pickLocalized(loc, row.experienceTitleEn, row.experienceTitleAr)}
+          <Localized locale={loc} en={row.experienceTitleEn} ar={row.experienceTitleAr} />
         </Link>
         <Badge
           className={
@@ -158,9 +155,7 @@ export default async function AdminDisputesPage({
           {t('backToAdmin')}
         </Link>
         <p className={eyebrowClassName}>{t('disputes.eyebrow')}</p>
-        <h1 className="font-display text-4xl font-semibold tracking-[-0.035em] text-balance sm:text-5xl">
-          {t('disputes.title')}
-        </h1>
+        <h1 className="text-h1">{t('disputes.title')}</h1>
         <p className="text-sarat-black-600 max-w-2xl text-base leading-relaxed">
           {t('disputes.intro')}
         </p>
@@ -170,9 +165,7 @@ export default async function AdminDisputesPage({
         // No DB configured — an explicit notice, never a reassuring "all clear".
         <div className="border-sarat-black/8 rounded-card flex flex-col items-start gap-4 [border-width:0.5px] p-12">
           <p className={eyebrowClassName}>{t('noDb.eyebrow')}</p>
-          <h2 className="font-display text-2xl font-medium tracking-[-0.025em]">
-            {t('noDb.title')}
-          </h2>
+          <h2 className="text-h2">{t('noDb.title')}</h2>
           <p className="text-sarat-black-600 max-w-xl text-base">{t('noDb.description')}</p>
         </div>
       ) : rows.length === 0 ? (
@@ -185,7 +178,7 @@ export default async function AdminDisputesPage({
       ) : (
         <>
           <section className="flex flex-col gap-4">
-            <h2 className="font-display text-2xl font-medium tracking-[-0.025em]">
+            <h2 className="text-h2">
               {t('disputes.openHeading')}
               {open.length > 0 && (
                 <span className="text-sarat-black-600 ms-2 text-base tabular-nums">
@@ -201,9 +194,7 @@ export default async function AdminDisputesPage({
           </section>
           {resolved.length > 0 && (
             <section className="flex flex-col gap-4">
-              <h2 className="font-display text-2xl font-medium tracking-[-0.025em]">
-                {t('disputes.resolvedHeading')}
-              </h2>
+              <h2 className="text-h2">{t('disputes.resolvedHeading')}</h2>
               <ul className="flex flex-col gap-4">{resolved.map(renderRow)}</ul>
             </section>
           )}

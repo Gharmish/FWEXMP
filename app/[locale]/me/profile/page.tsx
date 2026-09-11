@@ -54,7 +54,7 @@ export async function generateMetadata({
   };
 }
 
-const sectionTitle = 'font-display text-xl font-medium tracking-[-0.02em]';
+const sectionTitle = 'text-h3';
 
 export default async function ProfilePage({ params }: { params: Promise<{ locale: string }> }) {
   const { locale } = await params;
@@ -79,10 +79,7 @@ export default async function ProfilePage({ params }: { params: Promise<{ locale
       getTranslations('me'),
     ]);
 
-  const eyebrowClassName = cn(
-    'text-sarat-black-600 font-medium text-[11px]',
-    loc === 'en' && 'tracking-[0.2em] uppercase',
-  );
+  const eyebrowClassName = cn('text-sarat-black-600 text-eyebrow');
 
   const statusLabels = buildBookingStatusLabels(t);
 
@@ -91,9 +88,7 @@ export default async function ProfilePage({ params }: { params: Promise<{ locale
       {/* Page heading */}
       <header className="flex flex-col gap-2">
         <p className={eyebrowClassName}>{t('eyebrow')}</p>
-        <h1 className="font-display text-3xl font-semibold tracking-[-0.035em] text-balance sm:text-4xl">
-          {t('title')}
-        </h1>
+        <h1 className="text-h1-sm">{t('title')}</h1>
       </header>
 
       {/* Identity */}
@@ -107,9 +102,7 @@ export default async function ProfilePage({ params }: { params: Promise<{ locale
           />
           <div className="flex flex-1 flex-col items-center gap-4 sm:items-start">
             <div className="flex flex-col gap-1">
-              <p className="font-display text-2xl font-medium tracking-[-0.025em]">
-                {profile.name}
-              </p>
+              <p className="text-h2">{profile.name}</p>
               {/* Phone (or email for email-OTP users) — LTR-isolated so +966
                   and addresses read correctly inside an RTL layout. */}
               {(profile.phone || profile.email) && (

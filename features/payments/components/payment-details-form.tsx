@@ -279,11 +279,7 @@ function PreparingPayment({
 }) {
   return (
     <section aria-busy="true" className="flex flex-col gap-4">
-      <h2
-        ref={headingRef}
-        tabIndex={-1}
-        className="font-display text-2xl font-medium tracking-[-0.025em]"
-      >
+      <h2 ref={headingRef} tabIndex={-1} className="text-h2">
         {copy.preparingHeading}
       </h2>
       {/* Announced through the form's persistent live region, not here:
@@ -526,7 +522,7 @@ export function PaymentDetailsForm({
         } catch {
           // Transport failure (connection dropped, in-app browser
           // backgrounded mid-request): back to the ordinary form.
-          setAutoResult({ status: 'error', error: 'server' });
+          setAutoResult({ status: 'error', message: 'server' });
         }
       });
     };
@@ -555,7 +551,7 @@ export function PaymentDetailsForm({
   const refreshed = useRef(false);
   useEffect(() => {
     if (state.status !== 'error' || !autoRan.current || refreshed.current) return;
-    if (!TERMINAL_CHECKOUT_ERRORS.has(state.error ?? '')) return;
+    if (!TERMINAL_CHECKOUT_ERRORS.has(state.message ?? '')) return;
     refreshed.current = true;
     router.refresh();
   }, [state, router]);
@@ -640,11 +636,7 @@ export function PaymentDetailsForm({
     const activeIsApplePay = activeCheckout.brands === 'APPLEPAY';
     body = (
       <div className="flex flex-col gap-4">
-        <h2
-          ref={payHeadingRef}
-          tabIndex={-1}
-          className="font-display text-2xl font-medium tracking-[-0.025em]"
-        >
+        <h2 ref={payHeadingRef} tabIndex={-1} className="text-h2">
           {copy.payHeading}
         </h2>
         {/* Who's paying, still on screen at the moment of payment — the
@@ -734,7 +726,7 @@ export function PaymentDetailsForm({
             notApproved: copy.errorNotApproved,
             underReview: copy.errorUnderReview,
             tooManyAttempts: copy.errorTooManyAttempts,
-          }[state.error ?? 'server']
+          }[state.message ?? 'server']
         : undefined;
 
     // The identity block collapses to a summary row only when the booking
@@ -796,11 +788,7 @@ export function PaymentDetailsForm({
         <input type="hidden" name="locale" value={locale} />
         <input type="hidden" name="slug" value={slug} />
 
-        <h2
-          ref={detailsHeadingRef}
-          tabIndex={-1}
-          className="font-display text-2xl font-medium tracking-[-0.025em]"
-        >
+        <h2 ref={detailsHeadingRef} tabIndex={-1} className="text-h2">
           {copy.heading}
         </h2>
 

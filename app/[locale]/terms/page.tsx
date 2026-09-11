@@ -1,7 +1,6 @@
 import type { Metadata } from 'next';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { Link, routing } from '@/lib/i18n';
-import type { Locale } from '@/lib/i18n';
 import { InfoPage } from '@/components/layout/info-page';
 import { getPlatformSettings } from '@/lib/platform-settings';
 import { getCancellationTiers } from '@/lib/cancellation-policy';
@@ -56,7 +55,6 @@ const inlineLinkClassName =
 export default async function TermsPage({ params }: { params: Promise<{ locale: string }> }) {
   const { locale } = await params;
   setRequestLocale(locale);
-  const loc = locale as Locale;
   // The windows quoted in the copy are the live platform settings — the
   // same values the booking actions enforce, never hardcoded numbers.
   const [t, tRelated, tTiers, settings, tiers] = await Promise.all([
@@ -166,7 +164,6 @@ export default async function TermsPage({ params }: { params: Promise<{ locale: 
 
   return (
     <InfoPage
-      locale={loc}
       eyebrow={t('eyebrow')}
       title={t('title')}
       intro={t('intro')}

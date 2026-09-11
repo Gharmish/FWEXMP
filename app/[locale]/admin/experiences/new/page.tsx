@@ -40,16 +40,13 @@ export default async function AdminExperienceNewPage({
 
   const block = await isAdminAndDbReady();
   const t = await getTranslations('admin');
-  const eyebrowClassName = cn(
-    'text-sarat-black-600 font-medium text-[11px]',
-    loc === 'en' && 'tracking-[0.2em] uppercase',
-  );
+  const eyebrowClassName = cn('text-sarat-black-600 text-eyebrow');
 
   if (block?.reason === 'no_db') {
     return (
       <div className="flex flex-col gap-6">
         <p className={eyebrowClassName}>{t('noDb.eyebrow')}</p>
-        <h2 className="font-display text-2xl font-medium tracking-[-0.025em]">{t('noDb.title')}</h2>
+        <h2 className="text-h2">{t('noDb.title')}</h2>
         <p className="text-sarat-black-600 max-w-xl text-base">{t('noDb.description')}</p>
       </div>
     );
@@ -141,9 +138,7 @@ export default async function AdminExperienceNewPage({
           <ArrowLeft className="size-4 shrink-0 rtl:rotate-180" aria-hidden />
           {t('backToAdmin')}
         </Link>
-        <h1 className="font-display text-4xl font-semibold tracking-[-0.035em] text-balance sm:text-5xl">
-          {tE('createHeading')}
-        </h1>
+        <h1 className="text-h1">{tE('createHeading')}</h1>
         <p className="text-sarat-black-600 max-w-2xl text-base leading-relaxed">
           {tE('createIntro')}
         </p>

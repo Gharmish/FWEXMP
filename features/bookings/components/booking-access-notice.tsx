@@ -2,7 +2,6 @@ import { Lock } from 'lucide-react';
 import { getTranslations } from 'next-intl/server';
 import { cn } from '@/lib/utils';
 import { Link } from '@/lib/i18n';
-import type { Locale } from '@/lib/i18n';
 import { buttonVariants } from '@/components/ui/button';
 import { getCurrentUser } from '@/features/auth/queries';
 import { Pop } from '@/components/ui/motion';
@@ -35,11 +34,7 @@ import { Pop } from '@/components/ui/motion';
  * A guest who booked without one recovers through `/help`, which is why
  * that CTA sits beside the sign-in button rather than below the fold.
  */
-interface BookingAccessNoticeProps {
-  locale: Locale;
-}
-
-export async function BookingAccessNotice({ locale }: BookingAccessNoticeProps) {
+export async function BookingAccessNotice() {
   const t = await getTranslations('bookingConfirmed.restricted');
   // Already signed in (just not as the booking's guest) → the sign-in
   // page would bounce them straight to /me, so name the destination.
@@ -52,18 +47,9 @@ export async function BookingAccessNotice({ locale }: BookingAccessNoticeProps) 
           <Pop>
             <Lock className="text-sarat-black-600 size-7 shrink-0" aria-hidden />
           </Pop>
-          <p
-            className={cn(
-              'text-sarat-black-600 text-[11px] font-medium',
-              locale === 'en' && 'tracking-[0.2em] uppercase',
-            )}
-          >
-            {t('eyebrow')}
-          </p>
+          <p className={cn('text-sarat-black-600 text-eyebrow')}>{t('eyebrow')}</p>
         </div>
-        <h1 className="font-display text-4xl font-semibold tracking-[-0.035em] text-balance sm:text-5xl">
-          {t('title')}
-        </h1>
+        <h1 className="text-h1">{t('title')}</h1>
         <p className="text-sarat-black-600 max-w-2xl text-lg leading-relaxed">{t('description')}</p>
         <p className="text-sarat-black-600 max-w-2xl text-base leading-relaxed">
           {t('deviceHint')}

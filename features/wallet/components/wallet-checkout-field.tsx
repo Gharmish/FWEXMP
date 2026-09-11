@@ -110,8 +110,8 @@ export function WalletCheckoutField({
     else router.refresh();
   }, [removeState, router]);
 
-  const applyError = applyState.status === 'error' ? copy.errors[applyState.error] : undefined;
-  const removeError = removeState.status === 'error' ? copy.errors[removeState.error] : undefined;
+  const applyError = applyState.status === 'error' ? copy.errors[applyState.message] : undefined;
+  const removeError = removeState.status === 'error' ? copy.errors[removeState.message] : undefined;
 
   if (appliedSar > 0) {
     return (

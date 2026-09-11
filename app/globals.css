@@ -231,7 +231,21 @@ body {
   letter-spacing: 0;
 }
 
-[dir='rtl'] .font-display {
+[dir='rtl']
+  :is(
+    .font-display,
+    .text-display,
+    .text-display-fixed,
+    .text-h1,
+    .text-h1-lg,
+    .text-h1-sm,
+    .text-h1-fixed,
+    .text-h2,
+    .text-h2-responsive,
+    .text-h2-lg,
+    .text-h2-xl,
+    .text-h3
+  ) {
   font-family: var(--font-arabic);
   letter-spacing: 0;
   /* Display/heading tiers ship utility line-heights tuned for Bricolage
@@ -462,6 +476,134 @@ body {
  * [border-width:0.5px] card so internal row dividers match the card
  * border weight. Not swept at every call site in this package — other
  * feature owners adopt it in their own files. */
+/* ---- Type scale (2026-09 engineering audit DESIGN-03) ------------------
+ * BRIEF §3's tiers as utilities, so a heading is `text-h1` rather than a
+ * six-token string copied 58×. Sizes/line-heights come from Tailwind's
+ * theme so they stay on the same scale as the ad-hoc utilities they
+ * replace. `-lg`/`-sm` are the responsive variants the pages already
+ * used; `-fixed` skips the breakpoint step. Under RTL the display family
+ * and tracking are reset below (the `.font-display` rule), and the
+ * eyebrow steps up one size per BRIEF §3 "Type scale (Arabic)". */
+@utility text-display {
+  font-family: var(--font-display);
+  font-size: var(--text-5xl);
+  line-height: var(--text-5xl--line-height);
+  font-weight: 600;
+  letter-spacing: -0.035em;
+  text-wrap: balance;
+  @media (width >= 40rem) {
+    font-size: var(--text-6xl);
+    line-height: var(--text-6xl--line-height);
+  }
+}
+@utility text-display-fixed {
+  font-family: var(--font-display);
+  font-size: var(--text-5xl);
+  line-height: var(--text-5xl--line-height);
+  font-weight: 600;
+  letter-spacing: -0.035em;
+  text-wrap: balance;
+}
+@utility text-h1 {
+  font-family: var(--font-display);
+  font-size: var(--text-4xl);
+  line-height: var(--text-4xl--line-height);
+  font-weight: 600;
+  letter-spacing: -0.035em;
+  text-wrap: balance;
+  @media (width >= 40rem) {
+    font-size: var(--text-5xl);
+    line-height: var(--text-5xl--line-height);
+  }
+}
+@utility text-h1-lg {
+  font-family: var(--font-display);
+  font-size: var(--text-4xl);
+  line-height: var(--text-4xl--line-height);
+  font-weight: 600;
+  letter-spacing: -0.035em;
+  text-wrap: balance;
+  @media (width >= 40rem) {
+    font-size: var(--text-6xl);
+    line-height: var(--text-6xl--line-height);
+  }
+}
+@utility text-h1-sm {
+  font-family: var(--font-display);
+  font-size: var(--text-3xl);
+  line-height: var(--text-3xl--line-height);
+  font-weight: 600;
+  letter-spacing: -0.035em;
+  text-wrap: balance;
+  @media (width >= 40rem) {
+    font-size: var(--text-4xl);
+    line-height: var(--text-4xl--line-height);
+  }
+}
+@utility text-h1-fixed {
+  font-family: var(--font-display);
+  font-size: var(--text-4xl);
+  line-height: var(--text-4xl--line-height);
+  font-weight: 600;
+  letter-spacing: -0.035em;
+  text-wrap: balance;
+}
+@utility text-h2 {
+  font-family: var(--font-display);
+  font-size: var(--text-2xl);
+  line-height: var(--text-2xl--line-height);
+  font-weight: 500;
+  letter-spacing: -0.025em;
+}
+@utility text-h2-responsive {
+  font-family: var(--font-display);
+  font-size: var(--text-2xl);
+  line-height: var(--text-2xl--line-height);
+  font-weight: 500;
+  letter-spacing: -0.025em;
+  @media (width >= 40rem) {
+    font-size: var(--text-3xl);
+    line-height: var(--text-3xl--line-height);
+  }
+}
+@utility text-h2-lg {
+  font-family: var(--font-display);
+  font-size: var(--text-3xl);
+  line-height: var(--text-3xl--line-height);
+  font-weight: 500;
+  letter-spacing: -0.03em;
+}
+@utility text-h2-xl {
+  font-family: var(--font-display);
+  font-size: var(--text-3xl);
+  line-height: var(--text-3xl--line-height);
+  font-weight: 500;
+  letter-spacing: -0.03em;
+  @media (width >= 40rem) {
+    font-size: var(--text-4xl);
+    line-height: var(--text-4xl--line-height);
+  }
+}
+@utility text-h3 {
+  font-family: var(--font-display);
+  font-size: var(--text-xl);
+  line-height: var(--text-xl--line-height);
+  font-weight: 500;
+  letter-spacing: -0.02em;
+}
+@utility text-eyebrow {
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  /* Arabic: one step larger, no tracking (joined glyphs), no case. */
+  [dir='rtl'] & {
+    font-size: 13px;
+    letter-spacing: 0;
+    text-transform: none;
+  }
+}
+
 @utility divide-hairline {
   /* Mirrors Tailwind v4's own `divide-y` rule (style + reverse support)
      at the brief's 0.5px hairline instead of 1px, so it is a drop-in

@@ -1,6 +1,7 @@
 'use client';
 
-import { useActionState, useEffect, useId, useState } from 'react';
+import { useBeforeUnloadGuard } from '@/lib/hooks/use-before-unload-guard';
+import { useActionState, useId, useState } from 'react';
 import { useFormStatus } from 'react-dom';
 import type { Locale } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
@@ -227,14 +228,7 @@ export function AdminExperienceForm({
   // Unsaved-changes guard (P2-18) — the host editor already warns before a
   // close/reload discards typed edits; the admin editor didn't.
   const [dirty, setDirty] = useState(false);
-  useEffect(() => {
-    if (!dirty) return;
-    const guard = (e: BeforeUnloadEvent) => {
-      e.preventDefault();
-    };
-    window.addEventListener('beforeunload', guard);
-    return () => window.removeEventListener('beforeunload', guard);
-  }, [dirty]);
+  useBeforeUnloadGuard(dirty);
 
   return (
     <form
@@ -249,9 +243,7 @@ export function AdminExperienceForm({
 
       {/* Publishing & commercial */}
       <fieldset className="flex flex-col gap-6">
-        <legend className="font-display text-xl font-medium tracking-[-0.02em]">
-          {copy.sectionPublishing}
-        </legend>
+        <legend className="text-h3">{copy.sectionPublishing}</legend>
         {isCreate && (
           <div className="flex flex-col gap-2">
             <label htmlFor="ex-host" className={labelClass}>
@@ -357,9 +349,7 @@ export function AdminExperienceForm({
 
       {/* Basics */}
       <fieldset className="flex flex-col gap-6">
-        <legend className="font-display text-xl font-medium tracking-[-0.02em]">
-          {copy.sectionBasics}
-        </legend>
+        <legend className="text-h3">{copy.sectionBasics}</legend>
         <div className="grid gap-6 sm:grid-cols-2">
           <div className="flex flex-col gap-2">
             <label htmlFor="ex-titleEn" className={labelClass}>
@@ -470,9 +460,7 @@ export function AdminExperienceForm({
 
       {/* Logistics */}
       <fieldset className="flex flex-col gap-6">
-        <legend className="font-display text-xl font-medium tracking-[-0.02em]">
-          {copy.sectionLogistics}
-        </legend>
+        <legend className="text-h3">{copy.sectionLogistics}</legend>
         <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
           <div className="flex flex-col gap-2">
             <label htmlFor="ex-duration" className={labelClass}>
@@ -583,9 +571,7 @@ export function AdminExperienceForm({
 
       {/* Lists & policy */}
       <fieldset className="flex flex-col gap-6">
-        <legend className="font-display text-xl font-medium tracking-[-0.02em]">
-          {copy.sectionLists}
-        </legend>
+        <legend className="text-h3">{copy.sectionLists}</legend>
         <div className="flex flex-col gap-2">
           <label htmlFor="ex-inclusions" className={labelClass}>
             {copy.inclusions}
@@ -632,9 +618,7 @@ export function AdminExperienceForm({
 
       {/* Availability */}
       <fieldset className="flex flex-col gap-6">
-        <legend className="font-display text-xl font-medium tracking-[-0.02em]">
-          {copy.sectionAvailability}
-        </legend>
+        <legend className="text-h3">{copy.sectionAvailability}</legend>
         <div className="flex flex-col gap-3">
           <span className={labelClass}>{copy.availabilityWeekdays}</span>
           <div className="flex flex-wrap gap-3">

@@ -1,33 +1,26 @@
 import type { Metadata } from 'next';
 import { getLocale, getTranslations } from 'next-intl/server';
 import { Link } from '@/lib/i18n';
-import type { Locale } from '@/lib/i18n';
 import { buttonVariants } from '@/components/ui/button';
 import { MountFade } from '@/components/ui/motion';
 import { cn } from '@/lib/utils';
 
 // P3-4: the tab otherwise falls back to the bare layout title ("Gharmish").
 export async function generateMetadata(): Promise<Metadata> {
-  const locale = (await getLocale()) as Locale;
+  const locale = await getLocale();
   const t = await getTranslations({ locale, namespace: 'notFound' });
   return { title: t('metaTitle') };
 }
 
 export default async function LocaleNotFound() {
-  const locale = (await getLocale()) as Locale;
   const t = await getTranslations('notFound');
-  const eyebrowClassName = cn(
-    'text-sarat-black-600 font-medium text-[11px]',
-    locale === 'en' && 'tracking-[0.2em] uppercase',
-  );
+  const eyebrowClassName = cn('text-sarat-black-600 text-eyebrow');
 
   return (
     <section className="mx-auto flex w-full max-w-6xl flex-1 items-center px-6 py-24">
       <MountFade eager className="flex max-w-2xl flex-col gap-6">
         <p className={eyebrowClassName}>{t('eyebrow')}</p>
-        <h1 className="font-display text-4xl font-semibold tracking-[-0.035em] text-balance sm:text-6xl">
-          {t('title')}
-        </h1>
+        <h1 className="text-h1-lg">{t('title')}</h1>
         <p className="text-sarat-black-600 max-w-xl text-lg">{t('description')}</p>
         <div className="flex flex-wrap gap-3">
           <Link href="/" className={cn(buttonVariants({ variant: 'primary', size: 'lg' }))}>

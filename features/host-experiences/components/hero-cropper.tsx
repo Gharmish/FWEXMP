@@ -93,7 +93,7 @@ export function HeroCropper({ imageSrc, copy, onCancel, onApply }: HeroCropperPr
         className="rounded-t-modal relative flex max-h-[90vh] w-full flex-col gap-6 bg-white p-6 sm:mx-auto sm:max-w-2xl"
       >
         <div className="flex flex-col gap-1">
-          <h2 className="font-display text-xl font-medium tracking-[-0.02em]">{copy.title}</h2>
+          <h2 className="text-h3">{copy.title}</h2>
           <p className="text-sarat-black-600 text-sm leading-relaxed">{copy.instruction}</p>
         </div>
 

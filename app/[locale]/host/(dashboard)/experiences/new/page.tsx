@@ -49,19 +49,14 @@ export default async function NewExperiencePage({
     getTranslations('hostExperiences'),
     getTranslations('hostExperiences.form'),
   ]);
-  const eyebrowClassName = cn(
-    'text-sarat-black-600 font-medium text-[11px]',
-    loc === 'en' && 'tracking-[0.2em] uppercase',
-  );
+  const eyebrowClassName = cn('text-sarat-black-600 text-eyebrow');
 
   return (
     <div className="flex flex-col">
       <section className="mx-auto w-full max-w-2xl">
         <div className="flex flex-col gap-4">
           <p className={eyebrowClassName}>{t('new.eyebrow')}</p>
-          <h1 className="font-display text-4xl font-semibold tracking-[-0.035em] text-balance sm:text-5xl">
-            {t('new.title')}
-          </h1>
+          <h1 className="text-h1">{t('new.title')}</h1>
           <p className="text-sarat-black-600 max-w-2xl text-base leading-relaxed">
             {t('new.intro')}
           </p>

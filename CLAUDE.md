@@ -52,6 +52,9 @@ Before doing anything, read `BRIEF.md` in the repo root. If the conversation con
   reverts to its server-rendered default.
 - Server actions never throw to the client. Failures return a discriminated
   state: `{ success: false, message: <per-feature union>, fields?, values? }`.
+  Multi-state actions (checkout, promo/wallet apply, MFA) use a `status`
+  machine instead of `success`, but the failure code is still under
+  `message` — never `error` (2026-09 engineering audit ACTIONS-06).
   Success either returns `{ success: true, ... }` or throws Next's
   `redirect()` — for redirect-on-success actions the observable state is
   always a failure shape. (2026-07: doc updated to match the convention the

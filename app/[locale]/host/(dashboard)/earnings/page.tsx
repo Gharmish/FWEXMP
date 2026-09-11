@@ -1,3 +1,4 @@
+import { Localized } from '@/components/ui/localized';
 import { todayInRiyadh } from '@/lib/riyadh-time';
 import type { Metadata } from 'next';
 import { Banknote } from 'lucide-react';
@@ -10,7 +11,6 @@ import { buttonVariants } from '@/components/ui/button';
 import { EmptyState } from '@/components/ui/empty-state';
 import { Price } from '@/components/ui/price';
 import { formatDate } from '@/lib/format';
-import { pickLocalized } from '@/lib/ar-placeholder';
 import { getHostDashboard } from '@/features/host-dashboard/queries';
 import {
   getHostEarnings,
@@ -104,18 +104,13 @@ export default async function HostEarningsPage({
   if (to) exportQs.set('to', to);
   const exportHref = `/api/host/export/earnings${exportQs.size > 0 ? `?${exportQs}` : ''}`;
 
-  const eyebrowClassName = cn(
-    'text-sarat-black-600 font-medium text-[11px]',
-    loc === 'en' && 'tracking-[0.2em] uppercase',
-  );
+  const eyebrowClassName = cn('text-sarat-black-600 text-eyebrow');
 
   return (
     <div className="flex w-full flex-col gap-12">
       <div className="flex flex-col gap-4">
         <p className={eyebrowClassName}>{t('eyebrow')}</p>
-        <h1 className="font-display text-4xl font-semibold tracking-[-0.035em] text-balance sm:text-5xl">
-          {t('title')}
-        </h1>
+        <h1 className="text-h1">{t('title')}</h1>
         <p className="text-sarat-black-600 max-w-2xl text-base leading-relaxed">{t('intro')}</p>
       </div>
 
@@ -216,9 +211,7 @@ export default async function HostEarningsPage({
               scrolled sideways at 375px (2026-09 UX audit P1-1). */}
           <section className="grid grid-cols-1 gap-6 lg:grid-cols-2">
             <div className="border-sarat-black/8 rounded-card flex flex-col gap-4 [border-width:0.5px] p-6">
-              <h2 className="font-display text-2xl font-medium tracking-[-0.025em]">
-                {t('breakdown.title')}
-              </h2>
+              <h2 className="text-h2">{t('breakdown.title')}</h2>
               {earnings.breakdown.length === 0 ? (
                 <p className="text-sarat-black-600 text-base">{t('breakdown.empty')}</p>
               ) : (
@@ -230,7 +223,11 @@ export default async function HostEarningsPage({
                     >
                       <div className="flex min-w-0 flex-col gap-0.5">
                         <span className="truncate text-base font-medium">
-                          {pickLocalized(loc, row.experienceTitleEn, row.experienceTitleAr)}
+                          <Localized
+                            locale={loc}
+                            en={row.experienceTitleEn}
+                            ar={row.experienceTitleAr}
+                          />
                         </span>
                         <span className="text-sarat-black-600 text-sm">
                           {t('breakdown.bookings', { count: row.count })}
@@ -246,9 +243,7 @@ export default async function HostEarningsPage({
             </div>
 
             <div className="border-sarat-black/8 rounded-card flex flex-col gap-4 [border-width:0.5px] p-6">
-              <h2 className="font-display text-2xl font-medium tracking-[-0.025em]">
-                {t('monthly.title')}
-              </h2>
+              <h2 className="text-h2">{t('monthly.title')}</h2>
               {earnings.monthly.length === 0 ? (
                 <p className="text-sarat-black-600 text-base">{t('monthly.empty')}</p>
               ) : (
@@ -282,9 +277,7 @@ export default async function HostEarningsPage({
 
           {/* Payout method */}
           <section className="flex flex-col gap-4">
-            <h2 className="font-display text-2xl font-medium tracking-[-0.025em]">
-              {t('payoutMethod.title')}
-            </h2>
+            <h2 className="text-h2">{t('payoutMethod.title')}</h2>
             <p className="text-sarat-black-600 max-w-2xl text-base leading-relaxed">
               {t('payoutMethod.description')}
             </p>
@@ -312,9 +305,7 @@ export default async function HostEarningsPage({
           {/* Payout statements — one printable remittance doc per transfer. */}
           {payoutBatches && payoutBatches.length > 0 && (
             <section className="flex flex-col gap-4">
-              <h2 className="font-display text-2xl font-medium tracking-[-0.025em]">
-                {t('statements.title')}
-              </h2>
+              <h2 className="text-h2">{t('statements.title')}</h2>
               <p className="text-sarat-black-600 max-w-2xl text-sm">{t('statements.intro')}</p>
               <ul className="border-sarat-black/8 rounded-card divide-sarat-black/8 divide-hairline flex flex-col [border-width:0.5px]">
                 {payoutBatches.map((batch) => (
@@ -350,7 +341,7 @@ export default async function HostEarningsPage({
           {/* Payout ledger */}
           <section id="ledger" className="flex flex-col gap-4">
             <div className="flex flex-wrap items-baseline justify-between gap-3">
-              <h2 className="font-display text-2xl font-medium tracking-[-0.025em]">
+              <h2 className="text-h2">
                 {t('history.title')}
                 {earnings.historyTotal > 0 && (
                   <span className="text-sarat-black-600 ms-2 text-base tabular-nums">
@@ -404,7 +395,11 @@ export default async function HostEarningsPage({
                     <div className="flex min-w-0 flex-col gap-1">
                       <div className="flex flex-wrap items-center gap-3">
                         <span className="truncate text-base font-medium">
-                          {pickLocalized(loc, row.experienceTitleEn, row.experienceTitleAr)}
+                          <Localized
+                            locale={loc}
+                            en={row.experienceTitleEn}
+                            ar={row.experienceTitleAr}
+                          />
                         </span>
                         {scope === 'upcoming' ? (
                           <Badge className="bg-habala-mist/40 text-sarat-black">

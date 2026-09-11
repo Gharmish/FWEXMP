@@ -38,10 +38,7 @@ export default async function AdminAnalyticsPage({
     getTranslations('admin'),
   ]);
 
-  const eyebrowClassName = cn(
-    'text-sarat-black-600 font-medium text-[11px]',
-    loc === 'en' && 'tracking-[0.2em] uppercase',
-  );
+  const eyebrowClassName = cn('text-sarat-black-600 text-eyebrow');
 
   // P0/L5 — a real query failure (snapshot null, block undefined) used to
   // render the exact same "database not configured" copy as no_db, telling
@@ -61,7 +58,7 @@ export default async function AdminAnalyticsPage({
           <p className={eyebrowClassName}>
             {isQueryError ? t('analytics.queryErrorEyebrow') : t('noDb.eyebrow')}
           </p>
-          <h2 className="font-display text-2xl font-medium tracking-[-0.025em]">
+          <h2 className="text-h2">
             {isQueryError ? t('analytics.queryErrorTitle') : t('noDb.title')}
           </h2>
           <p className="text-sarat-black-600 max-w-xl text-base">
@@ -83,9 +80,7 @@ export default async function AdminAnalyticsPage({
           {t('backToAdmin')}
         </Link>
         <p className={eyebrowClassName}>{t('analytics.eyebrow')}</p>
-        <h1 className="font-display text-4xl font-semibold tracking-[-0.035em] text-balance sm:text-5xl">
-          {t('analytics.title')}
-        </h1>
+        <h1 className="text-h1">{t('analytics.title')}</h1>
         <p className="text-sarat-black-600 max-w-2xl text-base leading-relaxed">
           {t('analytics.intro')}
         </p>

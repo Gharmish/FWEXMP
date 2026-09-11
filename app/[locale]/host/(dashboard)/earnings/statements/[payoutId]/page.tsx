@@ -83,7 +83,7 @@ export default async function HostPayoutStatementPage({
           <p className={labelClass}>{t('issuedTo', { name: dashboard.host.name })}</p>
         </div>
         <div className="flex flex-col items-end gap-1 text-end">
-          <h1 className="font-display text-2xl font-medium tracking-[-0.025em]">{t('title')}</h1>
+          <h1 className="text-h2">{t('title')}</h1>
           <p className={labelClass} dir="ltr">
             {statement.id.slice(0, 8).toUpperCase()}
           </p>

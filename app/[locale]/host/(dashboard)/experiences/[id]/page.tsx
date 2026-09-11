@@ -1,3 +1,4 @@
+import { Localized } from '@/components/ui/localized';
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { ArrowLeft, Eye } from 'lucide-react';
@@ -7,7 +8,6 @@ import { ScheduleCalendarSection } from '@/features/availability/components/sche
 import { redirect, Link } from '@/lib/i18n';
 import type { Locale } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
-import { pickLocalized } from '@/lib/ar-placeholder';
 import { Badge } from '@/components/ui/badge';
 import { Price } from '@/components/ui/price';
 import { splitCommission } from '@/features/bookings/lib/commission';
@@ -132,10 +132,7 @@ export default async function EditExperiencePage({
     region: c.region,
     label: loc === 'ar' ? c.nameAr : c.nameEn,
   }));
-  const eyebrowClassName = cn(
-    'text-sarat-black-600 font-medium text-[11px]',
-    loc === 'en' && 'tracking-[0.2em] uppercase',
-  );
+  const eyebrowClassName = cn('text-sarat-black-600 text-eyebrow');
 
   // One predicate for the checklist card AND the submit gate.
   const readiness = listingReadiness(experience, momentRows.length);
@@ -213,8 +210,8 @@ export default async function EditExperiencePage({
           </Badge>
         </div>
 
-        <h1 className="font-display mt-2 text-4xl font-semibold tracking-[-0.035em] text-balance sm:text-5xl">
-          {pickLocalized(loc, experience.titleEn, experience.titleAr)}
+        <h1 className="text-h1 mt-2">
+          <Localized locale={loc} en={experience.titleEn} ar={experience.titleAr} />
         </h1>
         <p className="text-sarat-black-600 mt-2 text-sm">
           <span dir="ltr">/experiences/{experience.slug}</span>

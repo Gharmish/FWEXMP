@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { SITE_URL } from '@/lib/site';
-import { routing, type Locale } from '@/lib/i18n';
+import { routing } from '@/lib/i18n';
 import { InfoPage } from '@/components/layout/info-page';
 import { getPlatformSettings } from '@/lib/platform-settings';
 
@@ -68,7 +68,6 @@ function Steps({ items }: { items: readonly string[] }) {
 export default async function HowItWorksPage({ params }: { params: Promise<{ locale: string }> }) {
   const { locale } = await params;
   setRequestLocale(locale);
-  const loc = locale as Locale;
   const [t, tRelated, settings] = await Promise.all([
     getTranslations('howItWorks'),
     getTranslations('infoRelated'),
@@ -115,7 +114,6 @@ export default async function HowItWorksPage({ params }: { params: Promise<{ loc
 
   return (
     <InfoPage
-      locale={loc}
       eyebrow={t('eyebrow')}
       title={t('title')}
       intro={t('intro')}

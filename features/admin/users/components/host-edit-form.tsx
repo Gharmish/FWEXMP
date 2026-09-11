@@ -1,15 +1,17 @@
 'use client';
 
-import { useActionState, useEffect, useId, useState } from 'react';
+import { useSuccessToast } from '@/lib/hooks/use-success-toast';
+import { useActionState, useId, useState } from 'react';
 import { useFormStatus } from 'react-dom';
 import { ChevronDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { toast } from '@/components/ui/toast';
 import { cn } from '@/lib/utils';
 import { updateHostProfile } from '@/features/admin/users/actions';
 import { HOST_LANGUAGE_OPTIONS } from '@/features/host-applications/types';
 import type { AdminUserEditState } from '@/features/admin/users/types';
+
+const succeeded = (s: { success: boolean }) => s.success;
 
 export interface HostEditFormCopy {
   toggle: string;
@@ -73,9 +75,7 @@ export function HostEditForm({ personKey, host, copy }: HostEditFormProps) {
   const bioEnId = useId();
   const bioArId = useId();
 
-  useEffect(() => {
-    if (state.success) toast({ title: copy.saved, tone: 'success' });
-  }, [state, copy.saved]);
+  useSuccessToast(state, succeeded, copy.saved);
 
   // A failed submit echoes the typed values back; prefer them over the row.
   const v = state.success ? undefined : state.values;
@@ -213,9 +213,7 @@ export function HostEditForm({ personKey, host, copy }: HostEditFormProps) {
           </fieldset>
 
           <fieldset className="border-sarat-black/8 rounded-card flex flex-col gap-6 [border-width:0.5px] p-6">
-            <legend className="text-sarat-black-600 px-2 text-[11px] font-medium tracking-[0.2em] uppercase">
-              KYC
-            </legend>
+            <legend className="text-sarat-black-600 text-eyebrow px-2">KYC</legend>
             <div className="grid gap-6 sm:grid-cols-2">
               <div className="flex flex-col gap-2">
                 <label className="text-sm font-medium">{copy.nationalId}</label>

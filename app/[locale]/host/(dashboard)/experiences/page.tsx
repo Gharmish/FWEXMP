@@ -58,10 +58,7 @@ export default async function HostExperiencesIndexPage({
   const active = sorted.filter((e) => e.status !== 'archived');
   const archived = sorted.filter((e) => e.status === 'archived');
 
-  const eyebrowClassName = cn(
-    'text-sarat-black-600 font-medium text-[11px]',
-    loc === 'en' && 'tracking-[0.2em] uppercase',
-  );
+  const eyebrowClassName = cn('text-sarat-black-600 text-eyebrow');
 
   const nextStepFor = (status: HostExperienceRow['status']) => {
     switch (status) {
@@ -109,9 +106,7 @@ export default async function HostExperiencesIndexPage({
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div className="flex flex-col gap-3">
           <p className={eyebrowClassName}>{tIndex('eyebrow')}</p>
-          <h1 className="font-display text-4xl font-semibold tracking-[-0.035em] text-balance sm:text-5xl">
-            {tIndex('title')}
-          </h1>
+          <h1 className="text-h1">{tIndex('title')}</h1>
           <p className="text-sarat-black-600 max-w-2xl text-base leading-relaxed">
             {tIndex('intro')}
           </p>

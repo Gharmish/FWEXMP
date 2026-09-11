@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { SITE_URL } from '@/lib/site';
-import { routing, type Locale } from '@/lib/i18n';
+import { routing } from '@/lib/i18n';
 import { InfoPage } from '@/components/layout/info-page';
 
 export async function generateMetadata({
@@ -52,7 +52,6 @@ export default async function TrustAndSafetyPage({
 }) {
   const { locale } = await params;
   setRequestLocale(locale);
-  const loc = locale as Locale;
   const [t, tRelated] = await Promise.all([
     getTranslations('trustSafety'),
     getTranslations('infoRelated'),
@@ -67,7 +66,6 @@ export default async function TrustAndSafetyPage({
 
   return (
     <InfoPage
-      locale={loc}
       eyebrow={t('eyebrow')}
       title={t('title')}
       intro={t('intro')}

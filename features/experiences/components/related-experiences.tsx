@@ -54,7 +54,7 @@ export async function RelatedExperiences({
   const t = await getTranslations({ locale, namespace: 'relatedExperiences' });
   return (
     <section aria-label={t('title')} className="mt-16 flex flex-col gap-6">
-      <h2 className="font-display text-2xl font-medium tracking-[-0.025em]">{t('title')}</h2>
+      <h2 className="text-h2">{t('title')}</h2>
       <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
         {related.map((experience) => (
           <ExperienceCard

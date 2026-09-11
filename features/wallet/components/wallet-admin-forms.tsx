@@ -1,14 +1,16 @@
 'use client';
 
-import { useActionState, useEffect, useId, useState } from 'react';
+import { useSuccessToast } from '@/lib/hooks/use-success-toast';
+import { useActionState, useId, useState } from 'react';
 import { ChevronDown } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { ConfirmSubmit } from '@/components/ui/confirm-dialog';
-import { toast } from '@/components/ui/toast';
 import { cn } from '@/lib/utils';
 import { adjustWalletBalance, issueWalletCredit } from '@/features/wallet/actions';
 import { WALLET_MAX_PER_ACTION_SAR, WALLET_NOTE_MAX } from '@/features/wallet/schemas';
 import type { WalletActionState } from '@/features/wallet/types';
+
+const succeeded = (s: { success: boolean }) => s.success;
 
 export interface WalletAdminFormsCopy {
   issueToggle: string;
@@ -120,9 +122,7 @@ function useWalletFormState(
   copy: WalletAdminFormsCopy,
 ) {
   const [state, formAction] = useActionState(action, initialState);
-  useEffect(() => {
-    if (state.success) toast({ title: successTitle, tone: 'success' });
-  }, [state, successTitle]);
+  useSuccessToast(state, succeeded, successTitle);
   const values = state.success ? undefined : state.values;
   const fieldError = (name: string): string | undefined =>
     !state.success && state.fields?.[name] ? copy.fieldInvalid : undefined;

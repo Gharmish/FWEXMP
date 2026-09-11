@@ -50,19 +50,14 @@ export default async function WishlistPage({ params }: { params: Promise<{ local
   const t = await getTranslations('wishlist');
 
   const experiences = await getWishlistExperiences();
-  const eyebrowClassName = cn(
-    'text-sarat-black-600 font-medium text-[11px]',
-    loc === 'en' && 'tracking-[0.2em] uppercase',
-  );
+  const eyebrowClassName = cn('text-sarat-black-600 text-eyebrow');
 
   return (
     <div className="flex flex-col">
       <section className="mx-auto w-full max-w-6xl px-6 py-20 sm:py-24">
         <div className="flex max-w-3xl flex-col gap-6">
           <p className={eyebrowClassName}>{t('eyebrow')}</p>
-          <h1 className="font-display text-4xl font-semibold tracking-[-0.035em] text-balance sm:text-6xl">
-            {t('title')}
-          </h1>
+          <h1 className="text-h1-lg">{t('title')}</h1>
           <p className="text-sarat-black-600 max-w-2xl text-lg leading-relaxed">
             {experiences.length === 0 ? t('introEmpty') : t('intro')}
           </p>

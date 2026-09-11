@@ -76,10 +76,7 @@ export default async function AdminSupportThreadPage({
   };
   const { conversation, messages } = thread;
 
-  const eyebrowClassName = cn(
-    'text-sarat-black-600 font-medium text-[11px]',
-    loc === 'en' && 'tracking-[0.2em] uppercase',
-  );
+  const eyebrowClassName = cn('text-sarat-black-600 text-eyebrow');
   const guestDir = conversation.locale === 'ar' ? 'rtl' : 'ltr';
   const agentAvailable = hasSupportAgent();
 
@@ -117,7 +114,7 @@ export default async function AdminSupportThreadPage({
       <li key={m.id} className={cn('flex', inbound ? 'justify-start' : 'justify-end')}>
         <div
           className={cn(
-            'flex max-w-[80%] flex-col gap-1 rounded-card px-4 py-3',
+            'rounded-card flex max-w-[80%] flex-col gap-1 px-4 py-3',
             inbound ? 'bg-mist text-sarat-black' : 'bg-sarat-black text-white',
           )}
         >
@@ -178,7 +175,7 @@ export default async function AdminSupportThreadPage({
           {t('support.thread.backToInbox')}
         </Link>
         <p className={eyebrowClassName}>{t('support.eyebrow')}</p>
-        <h1 className="font-display text-3xl font-semibold tracking-[-0.035em] text-balance sm:text-4xl">
+        <h1 className="text-h1-sm">
           {conversation.guestName ?? conversation.profileName ?? t('support.unknownSender')}
         </h1>
         <div className="text-sarat-black-600 flex flex-wrap items-center gap-x-3 gap-y-2 text-sm">
@@ -229,9 +226,7 @@ export default async function AdminSupportThreadPage({
 
       {tickets.length > 0 && (
         <section className="flex flex-col gap-4">
-          <h2 className="font-display text-2xl font-medium tracking-[-0.025em]">
-            {t('support.ticketsHeading')}
-          </h2>
+          <h2 className="text-h2">{t('support.ticketsHeading')}</h2>
           <ul className="flex flex-col gap-4">
             {tickets.map((ticket) => (
               <TicketCard

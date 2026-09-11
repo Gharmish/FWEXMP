@@ -1847,7 +1847,8 @@
         "termsRequired": "Confirm the declaration to continue.",
         "docRequired": "Attach this document.",
         "docType": "Use a JPG, PNG, WebP, or PDF file.",
-        "docSize": "Keep files under 4MB."
+        "docSize": "Keep files under 4MB.",
+        "docTotal": "Your documents add up to more than 4MB for one submission. Send the largest ones now and the rest in a second submission — what you have already uploaded is kept."
       },
       "uploadFailed": "We couldn't upload one of your documents. Check your connection and try again."
     },

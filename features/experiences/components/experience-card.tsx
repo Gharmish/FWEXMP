@@ -133,15 +133,10 @@ export async function ExperienceCard({
     : experience.category;
 
   const muted = experience.featured ? 'text-white/70' : 'text-sarat-black-600';
-  const labelClassName = cn(
-    'font-medium text-[11px]',
-    locale === 'en' && 'tracking-[0.2em] uppercase',
-  );
+  const labelClassName = cn('text-eyebrow');
 
   const ratingDisplay =
-    experience.ratingAverage !== null
-      ? formatRating(experience.ratingAverage, locale)
-      : null;
+    experience.ratingAverage !== null ? formatRating(experience.ratingAverage, locale) : null;
   const ratingCountDisplay = formatInteger(experience.ratingCount, locale);
 
   // Hero-first photo set for the card carousel. `{n}` is a literal the
@@ -274,9 +269,7 @@ export async function ExperienceCard({
             </div>
 
             <div className="flex flex-col gap-2">
-              <h3 className="font-display text-2xl font-medium tracking-[-0.025em] text-balance">
-                {title}
-              </h3>
+              <h3 className="text-h2 text-balance">{title}</h3>
               {/* Phones get the single-column grid — clamp so one wordy
                   listing can't push the next card two screens away. The
                   full text lives on the detail page. */}

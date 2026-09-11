@@ -1,6 +1,5 @@
 import { ArrowRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import type { Locale } from '@/lib/i18n';
 import { Link } from '@/lib/i18n';
 import { buttonVariants } from '@/components/ui/button';
 import { Draw, FadeIn } from '@/components/ui/motion';
@@ -15,7 +14,6 @@ import { Draw, FadeIn } from '@/components/ui/motion';
  * destination photography exists (no-fabrication rule).
  */
 export interface DestinationChapterProps {
-  locale: Locale;
   /** Two-digit editorial numeral, e.g. "01" — always rendered LTR. */
   number: string;
   /** Eyebrow label, e.g. "Chapter one". */
@@ -28,7 +26,6 @@ export interface DestinationChapterProps {
 }
 
 export function DestinationChapter({
-  locale,
   number,
   label,
   title,
@@ -38,10 +35,7 @@ export function DestinationChapter({
 }: DestinationChapterProps) {
   // Arabic reads one type-scale step up (BRIEF §3): 11px + tracking is an
   // EN small-caps treatment — Arabic gets 13px with no added tracking.
-  const eyebrowClassName = cn(
-    'text-sarat-black-600 font-medium',
-    locale === 'en' ? 'text-[11px] tracking-[0.2em] uppercase' : 'text-[13px]',
-  );
+  const eyebrowClassName = cn('text-sarat-black-600 font-medium', 'text-eyebrow');
 
   return (
     <section className="border-sarat-black/8 [border-top-width:0.5px]">
@@ -59,9 +53,7 @@ export function DestinationChapter({
               {number}
             </span>
             <p className={eyebrowClassName}>{label}</p>
-            <h2 className="font-display text-3xl font-medium tracking-[-0.03em] text-balance sm:text-4xl">
-              {title}
-            </h2>
+            <h2 className="text-h2-xl text-balance">{title}</h2>
           </FadeIn>
           <FadeIn delay={0.1} className="flex flex-col gap-6 lg:pt-24">
             {paragraphs.map((p) => (

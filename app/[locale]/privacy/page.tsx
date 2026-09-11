@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
-import { routing, type Locale } from '@/lib/i18n';
+import { routing } from '@/lib/i18n';
 import { InfoPage } from '@/components/layout/info-page';
 import { SITE_URL, SUPPORT_EMAIL } from '@/lib/site';
 
@@ -51,7 +51,6 @@ const inlineLinkClassName =
 export default async function PrivacyPage({ params }: { params: Promise<{ locale: string }> }) {
   const { locale } = await params;
   setRequestLocale(locale);
-  const loc = locale as Locale;
   const [t, tRelated] = await Promise.all([
     getTranslations('privacyPage'),
     getTranslations('infoRelated'),
@@ -105,7 +104,6 @@ export default async function PrivacyPage({ params }: { params: Promise<{ locale
 
   return (
     <InfoPage
-      locale={loc}
       eyebrow={t('eyebrow')}
       title={t('title')}
       intro={t('intro')}

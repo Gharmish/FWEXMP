@@ -33,17 +33,8 @@ export function FunnelStrip({ steps, locale, stepRateLabel }: FunnelStripProps) 
         const width = Math.max(2, Math.round((step.count / top) * 100));
         return (
           <li key={step.id} className="flex flex-col gap-2">
-            <span
-              className={cn(
-                'text-sarat-black-600 text-[11px] font-medium',
-                locale === 'en' && 'tracking-[0.2em] uppercase',
-              )}
-            >
-              {step.label}
-            </span>
-            <span className="font-display text-2xl font-medium tracking-[-0.025em] tabular-nums">
-              {formatInteger(step.count, locale)}
-            </span>
+            <span className={cn('text-sarat-black-600 text-eyebrow')}>{step.label}</span>
+            <span className="text-h2 tabular-nums">{formatInteger(step.count, locale)}</span>
             <div className="bg-mist-deep h-1.5 w-full overflow-hidden rounded-full">
               <div
                 className={cn(

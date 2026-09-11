@@ -59,10 +59,7 @@ export default async function HostBookingDetailPage({
   const suspended = dashboard.host.verificationStatus === 'suspended';
   const transitionCopy = buildTransitionCopy(t);
   const currentHref = `/host/bookings/${booking.referenceCode}`;
-  const eyebrowClassName = cn(
-    'text-sarat-black-600 font-medium text-[11px]',
-    loc === 'en' && 'tracking-[0.2em] uppercase',
-  );
+  const eyebrowClassName = cn('text-sarat-black-600 text-eyebrow');
   const when = (iso: string) => {
     const d = new Date(iso);
     return `${formatDate(d, loc)} · ${formatTime(d, loc)}`;
@@ -145,7 +142,7 @@ export default async function HostBookingDetailPage({
           {t('backToBookings')}
         </Link>
         <p className={eyebrowClassName}>{t('detail.eyebrow')}</p>
-        <h1 className="font-display text-3xl font-semibold tracking-[-0.035em] text-balance sm:text-4xl">
+        <h1 className="text-h1-sm">
           <span dir="ltr">{booking.referenceCode}</span>
         </h1>
       </div>
@@ -171,9 +168,7 @@ export default async function HostBookingDetailPage({
 
       <div className="grid gap-6 lg:grid-cols-2">
         <section className="border-sarat-black/8 rounded-card flex flex-col gap-4 [border-width:0.5px] p-6">
-          <h2 className="font-display text-xl font-medium tracking-[-0.02em]">
-            {t('detail.timeline.title')}
-          </h2>
+          <h2 className="text-h3">{t('detail.timeline.title')}</h2>
           <ol className="flex flex-col gap-3">
             {timeline.map((event) => (
               <li key={event.key} className="flex items-start gap-3">
@@ -188,9 +183,7 @@ export default async function HostBookingDetailPage({
         </section>
 
         <section className="border-sarat-black/8 rounded-card flex flex-col gap-4 [border-width:0.5px] p-6">
-          <h2 className="font-display text-xl font-medium tracking-[-0.02em]">
-            {t('detail.facts.title')}
-          </h2>
+          <h2 className="text-h3">{t('detail.facts.title')}</h2>
           <dl className="flex flex-col gap-3">
             {facts.map((fact) => (
               <div key={fact.label} className="flex flex-col gap-0.5">

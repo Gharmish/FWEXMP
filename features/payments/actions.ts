@@ -167,8 +167,8 @@ export interface CheckoutReady {
 
 export interface CreateCheckoutState {
   status: 'idle' | 'error' | 'ready';
-  /** Form-level error code (translated client-side). */
-  error?: string;
+  /** Form-level failure code (translated client-side). */
+  message?: string;
   /** Per-field validation codes (`terms` flags a missing consent tick). */
   fields?: Partial<Record<DetailField | 'terms', string>>;
   /**
@@ -222,7 +222,7 @@ export async function createCheckout(
   formData: FormData,
 ): Promise<CreateCheckoutState> {
   if (!hasHyperpay() || !serverEnv.DATABASE_URL) {
-    return { status: 'error', error: 'unavailable' };
+    return { status: 'error', message: 'unavailable' };
   }
 
   const parsed = createCheckoutSchema.safeParse({
@@ -254,7 +254,7 @@ export async function createCheckout(
         fields[key as DetailField] = 'invalid';
       }
     }
-    return { status: 'error', error: 'validation', fields, values: echoValues(formData) };
+    return { status: 'error', message: 'validation', fields, values: echoValues(formData) };
   }
 
   const input = parsed.data;
@@ -296,14 +296,14 @@ export async function createCheckout(
     });
 
     if (!booking) {
-      return { status: 'error', error: 'notFound', values: echoValues(formData) };
+      return { status: 'error', message: 'notFound', values: echoValues(formData) };
     }
     // Authorize the caller before touching the booking (set-email, checkout).
     // The reference alone must not let a stranger drive someone's payment or
     // set their email — require ownership, the browser's booking cookie, or
     // the signed token from the pay link we sent this guest.
     if (!(await checkoutViewerCanAccess(input.reference, booking.guestId, input.linkToken))) {
-      return { status: 'error', error: 'notFound', values: echoValues(formData) };
+      return { status: 'error', message: 'notFound', values: echoValues(formData) };
     }
     // Consent gate (see the schema note): a fresh tick, or the booking's
     // own current-version stamp. Checked right after authorization so a
@@ -314,23 +314,23 @@ export async function createCheckout(
     if (input.terms !== 'on' && !termsFromBooking) {
       return {
         status: 'error',
-        error: 'validation',
+        message: 'validation',
         fields: { terms: 'required' },
         values: echoValues(formData),
       };
     }
     if (booking.paymentStatus === 'paid') {
-      return { status: 'error', error: 'alreadyPaid', values: echoValues(formData) };
+      return { status: 'error', message: 'alreadyPaid', values: echoValues(formData) };
     }
     // Pay-after-approval: a request that the host hasn't approved yet
     // (`pending`) — or that was declined/expired — must never reach a
     // checkout. Only a `confirmed` booking (instant, or an approved
     // request inside its payment window) can be charged.
     if (booking.status === 'pending') {
-      return { status: 'error', error: 'notApproved', values: echoValues(formData) };
+      return { status: 'error', message: 'notApproved', values: echoValues(formData) };
     }
     if (booking.status !== 'confirmed') {
-      return { status: 'error', error: 'expired', values: echoValues(formData) };
+      return { status: 'error', message: 'expired', values: echoValues(formData) };
     }
     // An UNMATCHED CAPTURE is outstanding on this booking — refuse to
     // start another one (2026-07-28 seventh audit).
@@ -349,7 +349,7 @@ export async function createCheckout(
     // with no admin path at all, which made it a permanent lockout;
     // the clear-here clause in that comment was circular.
     if (booking.settleAnomalyAt) {
-      return { status: 'error', error: 'underReview', values: echoValues(formData) };
+      return { status: 'error', message: 'underReview', values: echoValues(formData) };
     }
     // NEVER charge for an experience the platform has pulled
     // (2026-07-28 eighth audit). Suspending a host force-pauses their
@@ -362,7 +362,7 @@ export async function createCheckout(
       booking.experience.status !== 'live' ||
       booking.experience.host.verificationStatus === 'suspended'
     ) {
-      return { status: 'error', error: 'unavailable', values: echoValues(formData) };
+      return { status: 'error', message: 'unavailable', values: echoValues(formData) };
     }
     // Never prepare a checkout for a hold that's been released (cancelled) or
     // has expired — this is what makes auto-release safe: a freed spot can
@@ -374,7 +374,7 @@ export async function createCheckout(
       (booking.paymentStatus === 'unpaid' || booking.paymentStatus === 'failed') &&
       isHoldExpired(booking.paymentDeadline, new Date())
     ) {
-      return { status: 'error', error: 'expired', values: echoValues(formData) };
+      return { status: 'error', message: 'expired', values: echoValues(formData) };
     }
     // The experience has STARTED (or its date has passed) — never open a
     // charge for it (2026-08-02 ops audit P0-2). An approval can land
@@ -391,7 +391,7 @@ export async function createCheckout(
         nowMinutes: nowMinutesInRiyadh(),
       })
     ) {
-      return { status: 'error', error: 'expired', values: echoValues(formData) };
+      return { status: 'error', message: 'expired', values: echoValues(formData) };
     }
 
     const origin = await requestOrigin();
@@ -439,7 +439,7 @@ export async function createCheckout(
         reference: input.reference,
         recentCheckouts,
       });
-      return { status: 'error', error: 'tooManyAttempts', values: echoValues(formData) };
+      return { status: 'error', message: 'tooManyAttempts', values: echoValues(formData) };
     };
 
     if (booking.paymentStatus === 'processing' && booking.checkoutId) {
@@ -481,7 +481,7 @@ export async function createCheckout(
             : settled === 'anomaly'
               ? 'underReview'
               : 'server';
-        return { status: 'error', error, values: echoValues(formData) };
+        return { status: 'error', message: error, values: echoValues(formData) };
       }
       // A completed DECLINE whose 3DS return never landed leaves a
       // consumed checkout id: single-use at the gateway, so a widget on
@@ -512,7 +512,7 @@ export async function createCheckout(
         return ready(booking.checkoutId, booking.checkoutIntegrity, existingChannel);
       }
       if (existingOutcome === 'unknown') {
-        return { status: 'error', error: 'server', values: echoValues(formData) };
+        return { status: 'error', message: 'server', values: echoValues(formData) };
       }
       if (capped) return tooMany();
       try {
@@ -713,14 +713,14 @@ export async function createCheckout(
       // than a generic "server" error that invites a retry into the same
       // wall (2026-09 engineering audit MONEY-02).
       if (winner && winner.settleAnomalyAt) {
-        return { status: 'error', error: 'underReview', values: echoValues(formData) };
+        return { status: 'error', message: 'underReview', values: echoValues(formData) };
       }
       if (
         !winner ||
         winner.status !== 'confirmed' ||
         isHoldExpired(winner.paymentDeadline, new Date())
       ) {
-        return { status: 'error', error: 'expired', values: echoValues(formData) };
+        return { status: 'error', message: 'expired', values: echoValues(formData) };
       }
       // The winner writes its row first and its `checkout_created` a
       // beat later — read once, then once more after a short pause, so
@@ -750,7 +750,7 @@ export async function createCheckout(
       }
       // Different channel (or the row moved on): let the guest's next
       // tap take the ordinary reuse/supersede path.
-      return { status: 'error', error: 'server', values: echoValues(formData) };
+      return { status: 'error', message: 'server', values: echoValues(formData) };
     }
     // The reuse window above keys off this event's timestamp, and the
     // channel tag tells settle/refund which entity to query.
@@ -769,6 +769,6 @@ export async function createCheckout(
     return ready(checkout.id, checkout.integrity ?? null);
   } catch (error) {
     reportError(error, { surface: 'payment-create-checkout', reference: input.reference });
-    return { status: 'error', error: 'server', values: echoValues(formData) };
+    return { status: 'error', message: 'server', values: echoValues(formData) };
   }
 }

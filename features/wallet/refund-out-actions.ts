@@ -40,7 +40,7 @@ export type RefundToCardState =
   | { status: 'done'; outcome: 'refunded' | 'refund_pending'; amountSar: number }
   | {
       status: 'error';
-      error:
+      message:
         | 'not_found'
         | 'not_eligible'
         | 'insufficient_balance'
@@ -64,9 +64,9 @@ export async function requestRefundToCard(
     reference: formValue(formData, 'reference'),
     locale: formValue(formData, 'locale'),
   });
-  if (!parsed.success) return { status: 'error', error: 'validation' };
+  if (!parsed.success) return { status: 'error', message: 'validation' };
   const { reference } = parsed.data;
-  if (!serverEnv.DATABASE_URL) return { status: 'error', error: 'no_db' };
+  if (!serverEnv.DATABASE_URL) return { status: 'error', message: 'no_db' };
 
   try {
     const booking = await db.query.bookings.findFirst({
@@ -81,13 +81,13 @@ export async function requestRefundToCard(
         refundMethod: true,
       },
     });
-    if (!booking) return { status: 'error', error: 'not_found' };
+    if (!booking) return { status: 'error', message: 'not_found' };
     // STRICT wallet ownership (same doctrine as the checkout actions):
     // a wallet belongs to the signed-in account, never to whoever holds
     // the booking cookie. Same shape as a missing booking either way.
     const sessionGuestId = await getSessionGuestId();
     if (!sessionGuestId || sessionGuestId !== booking.guestId) {
-      return { status: 'error', error: 'not_found' };
+      return { status: 'error', message: 'not_found' };
     }
 
     // Only a wallet-refunded booking with a real card charge qualifies:
@@ -99,7 +99,7 @@ export async function requestRefundToCard(
       booking.paymentStatus === 'paid' &&
       booking.totalAmount > 0 &&
       booking.paymentReference !== null;
-    if (!eligible) return { status: 'error', error: 'not_eligible' };
+    if (!eligible) return { status: 'error', message: 'not_eligible' };
     // Refund-out is a refund-to-SOURCE gateway reversal — never a transfer
     // to an arbitrary bank account (SAMA posture, this module's contract).
     // While refunds are wired by hand the gateway leg is skipped, which
@@ -107,7 +107,7 @@ export async function requestRefundToCard(
     // a guest-supplied IBAN (2026-09 engineering audit MONEY-04). The
     // credit simply stays spendable until the gateway rail is back on.
     const { refundsViaBankTransfer } = await getPlatformSettings();
-    if (refundsViaBankTransfer) return { status: 'error', error: 'not_eligible' };
+    if (refundsViaBankTransfer) return { status: 'error', message: 'not_eligible' };
 
     let outcome: 'ok' | 'insufficient_balance' | 'source_cap';
     try {
@@ -143,14 +143,14 @@ export async function requestRefundToCard(
         });
       });
     } catch (error) {
-      if (isUniqueViolation(error)) return { status: 'error', error: 'already_requested' };
+      if (isUniqueViolation(error)) return { status: 'error', message: 'already_requested' };
       throw error;
     }
     if (outcome === 'insufficient_balance') {
-      return { status: 'error', error: 'insufficient_balance' };
+      return { status: 'error', message: 'insufficient_balance' };
     }
     if (outcome === 'source_cap') {
-      return { status: 'error', error: 'not_eligible' };
+      return { status: 'error', message: 'not_eligible' };
     }
 
     const refund = await executeRefund(
@@ -166,6 +166,6 @@ export async function requestRefundToCard(
     return { status: 'done', outcome: refund, amountSar: booking.totalAmount };
   } catch (error) {
     reportError(error, { surface: 'wallet:refundToCard', reference });
-    return { status: 'error', error: 'server' };
+    return { status: 'error', message: 'server' };
   }
 }

@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
-import { routing, type Locale } from '@/lib/i18n';
+import { routing } from '@/lib/i18n';
 import { SITE_URL } from '@/lib/site';
 import { InfoPage } from '@/components/layout/info-page';
 import { getCancellationTiers } from '@/lib/cancellation-policy';
@@ -58,7 +58,6 @@ export default async function CancellationPolicyPage({
 }) {
   const { locale } = await params;
   setRequestLocale(locale);
-  const loc = locale as Locale;
   // The numbers on this page are the live platform settings and the
   // DB-backed cancellation tiers — the same values the cancel/approval
   // actions enforce, never hardcoded copy.
@@ -153,7 +152,6 @@ export default async function CancellationPolicyPage({
 
   return (
     <InfoPage
-      locale={loc}
       eyebrow={t('eyebrow')}
       title={t('title')}
       intro={t('intro')}

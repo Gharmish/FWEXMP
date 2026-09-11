@@ -1,17 +1,19 @@
 'use client';
 
-import { useActionState, useEffect, useId } from 'react';
+import { useSuccessToast } from '@/lib/hooks/use-success-toast';
+import { useActionState, useId } from 'react';
 import { useFormStatus } from 'react-dom';
 import { localeLabel } from '@/lib/i18n';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { toast } from '@/components/ui/toast';
 import { updateProfile } from '@/features/account/profile/actions';
 import type {
   GuestProfile,
   ProfileErrorKey,
   ProfileFormState,
 } from '@/features/account/profile/types';
+
+const saved = (s: { status: string }) => s.status === 'success';
 
 export interface ProfileFormCopy {
   nameLabel: string;
@@ -51,9 +53,7 @@ export function ProfileForm({ profile, copy }: ProfileFormProps) {
 
   // Save feedback springs in as a toast; useActionState returns a fresh
   // state object per submit, so repeat saves re-fire.
-  useEffect(() => {
-    if (state.status === 'success') toast({ title: copy.saved, tone: 'success' });
-  }, [state, copy.saved]);
+  useSuccessToast(state, saved, copy.saved);
 
   const errored = state.status === 'error' ? state : undefined;
   const nameError = errored?.fields?.name ? copy.nameError : undefined;

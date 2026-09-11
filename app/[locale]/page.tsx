@@ -91,10 +91,7 @@ export default async function HomePage({
   const loc = locale as Locale;
   // Arabic reads one type-scale step up (BRIEF §3): 11px + tracking is an
   // EN small-caps treatment — Arabic gets 13px with no added tracking.
-  const eyebrowClassName = cn(
-    'text-sarat-black-600 font-medium',
-    loc === 'en' ? 'text-[11px] tracking-[0.2em] uppercase' : 'text-[13px]',
-  );
+  const eyebrowClassName = cn('text-sarat-black-600 font-medium', 'text-eyebrow');
 
   // Only what the above-the-fold hero needs blocks first byte — just the
   // platform settings. The catalog, wishlist, and hosts stream in behind
@@ -187,7 +184,7 @@ export default async function HomePage({
             <RiseIn delay={0}>
               <p className={eyebrowClassName}>{t('eyebrow')}</p>
             </RiseIn>
-            <h1 className="font-display text-5xl font-semibold tracking-[-0.035em] text-balance sm:text-6xl">
+            <h1 className="text-display">
               <span className="sr-only">{t('headline')}</span>
               {headlineWords.length > 0 ? (
                 <HeroHeadline
@@ -270,7 +267,6 @@ export default async function HomePage({
           presentation only: a future destination is a new message block
           plus one more render of DestinationChapter, no schema change. */}
       <DestinationChapter
-        locale={loc}
         number="01"
         label={t('chapter.label')}
         title={t('chapter.title')}
@@ -280,10 +276,10 @@ export default async function HomePage({
       />
 
       {/* What we believe — the three brand beliefs as guest-facing promises. */}
-      <WhyGharmish locale={loc} />
+      <WhyGharmish />
 
       {/* Host recruitment — the page closes on the partnership pitch. */}
-      <HostCta locale={loc} />
+      <HostCta />
     </div>
   );
 }
@@ -355,17 +351,10 @@ async function CatalogSections({ locale }: { locale: Locale }) {
       {featured.length > 0 && (
         <section className="mx-auto w-full max-w-6xl px-6 py-20">
           <FadeIn className="mb-8 flex flex-col gap-2">
-            <p
-              className={cn(
-                'text-saffron-gold-800 font-medium',
-                locale === 'en' ? 'text-[11px] tracking-[0.2em] uppercase' : 'text-[13px]',
-              )}
-            >
+            <p className={cn('text-saffron-gold-800 font-medium', 'text-eyebrow')}>
               {t('originalsEyebrow')}
             </p>
-            <h2 className="font-display text-3xl font-medium tracking-[-0.03em] sm:text-4xl">
-              {t('originalsTitle')}
-            </h2>
+            <h2 className="text-h2-xl">{t('originalsTitle')}</h2>
             <p className="text-sarat-black-600 max-w-2xl text-base">{t('originalsSub')}</p>
           </FadeIn>
           <Stagger className="grid gap-4 sm:grid-cols-2">
@@ -392,9 +381,7 @@ async function CatalogSections({ locale }: { locale: Locale }) {
       {restOfCatalog.length > 0 && (
         <section className="mx-auto w-full max-w-6xl px-6 pb-24">
           <FadeIn className="mb-8 flex items-baseline justify-between gap-4">
-            <h2 className="font-display text-3xl font-medium tracking-[-0.03em] sm:text-4xl">
-              {t('allTitle')}
-            </h2>
+            <h2 className="text-h2-xl">{t('allTitle')}</h2>
             <Link
               href="/experiences"
               className="inline-flex min-h-11 items-center gap-2 text-sm font-medium transition-opacity duration-200 hover:opacity-60"
@@ -502,10 +489,7 @@ function SocialProofFallback() {
 async function HostsRow({ locale }: { locale: Locale }) {
   const [t, hosts] = await Promise.all([getTranslations('home'), getAllHosts()]);
   if (hosts.length === 0) return null;
-  const eyebrowClassName = cn(
-    'text-sarat-black-600 font-medium',
-    locale === 'en' ? 'text-[11px] tracking-[0.2em] uppercase' : 'text-[13px]',
-  );
+  const eyebrowClassName = cn('text-sarat-black-600 font-medium', 'text-eyebrow');
   // Capped like the catalog above (uncapped, this row would outgrow the
   // sections around it at scale) — "Meet all hosts" carries the rest.
   const visibleHosts = hosts.slice(0, HOME_HOSTS_LIMIT);
@@ -516,9 +500,7 @@ async function HostsRow({ locale }: { locale: Locale }) {
         <FadeIn className="mb-8 flex flex-wrap items-end justify-between gap-4">
           <div className="flex flex-col gap-2">
             <p className={eyebrowClassName}>{t('hostsEyebrow')}</p>
-            <h2 className="font-display text-3xl font-medium tracking-[-0.03em] sm:text-4xl">
-              {t('hostsTitle')}
-            </h2>
+            <h2 className="text-h2-xl">{t('hostsTitle')}</h2>
             <p className="text-sarat-black-600 max-w-xl text-base">{t('hostsIntro')}</p>
           </div>
           <Link

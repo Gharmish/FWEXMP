@@ -1,3 +1,4 @@
+import { Localized } from '@/components/ui/localized';
 import { boundedQuery } from '@/lib/deadline';
 import type { Metadata } from 'next';
 import { ArrowRight, Check, Circle, Star } from 'lucide-react';
@@ -95,11 +96,8 @@ export default async function HostDashboardPage({
   const tomorrow = addDays(today, 1);
   const suspended = host.verificationStatus === 'suspended';
   const transitionCopy = buildTransitionCopy(tBookings);
-  const eyebrowClassName = cn(
-    'text-sarat-black-600 font-medium text-[11px]',
-    loc === 'en' && 'tracking-[0.2em] uppercase',
-  );
-  const sectionTitle = 'font-display text-2xl font-medium tracking-[-0.025em]';
+  const eyebrowClassName = cn('text-sarat-black-600 text-eyebrow');
+  const sectionTitle = 'text-h2';
   const number = (value: number) =>
     new Intl.NumberFormat(loc === 'ar' ? 'ar-SA' : 'en-SA', { numberingSystem: 'latn' }).format(
       value,
@@ -228,9 +226,7 @@ export default async function HostDashboardPage({
             }),
           })}
         </p>
-        <h1 className="font-display text-4xl font-semibold tracking-[-0.035em] text-balance sm:text-5xl">
-          {t('greeting', { name: host.name })}
-        </h1>
+        <h1 className="text-h1">{t('greeting', { name: host.name })}</h1>
         {suspended && (
           <p
             role="status"
@@ -324,7 +320,12 @@ export default async function HostDashboardPage({
                     <span className="font-medium">{row.guestName}</span>
                     <span className="text-sarat-black-600">
                       {formatDate(new Date(row.date), loc)} · <span dir="ltr">{row.startTime}</span>{' '}
-                      · {pickLocalized(loc, row.experienceTitleEn, row.experienceTitleAr)}
+                      ·{' '}
+                      <Localized
+                        locale={loc}
+                        en={row.experienceTitleEn}
+                        ar={row.experienceTitleAr}
+                      />
                     </span>
                     {row.paymentDeadline && (
                       <span className="text-sarat-black-600 ms-auto">
@@ -397,7 +398,11 @@ export default async function HostDashboardPage({
                             {row.startTime}
                           </span>
                           <span className="font-medium">
-                            {pickLocalized(loc, row.experienceTitleEn, row.experienceTitleAr)}
+                            <Localized
+                              locale={loc}
+                              en={row.experienceTitleEn}
+                              ar={row.experienceTitleAr}
+                            />
                           </span>
                           <span className="text-sarat-black-600">
                             {row.guestName} · {tBookings('partyOf', { count: row.partySize })}
@@ -448,7 +453,7 @@ export default async function HostDashboardPage({
                   <dt className="text-sarat-black-600 text-xs font-medium">
                     {tEarn(`stats.${key}`)}
                   </dt>
-                  <dd className="font-display text-2xl font-medium tracking-[-0.025em] tabular-nums">
+                  <dd className="text-h2 tabular-nums">
                     <Price amount={amount} locale={loc} />
                   </dd>
                   <p className="text-sarat-black-600 text-sm">
@@ -473,7 +478,7 @@ export default async function HostDashboardPage({
           <dl className="grid grid-cols-2 gap-4">
             <div className="flex flex-col gap-1">
               <dt className="text-sarat-black-600 text-xs font-medium">{t('numbers.rating')}</dt>
-              <dd className="font-display flex items-center gap-1.5 text-2xl font-medium tracking-[-0.025em] tabular-nums">
+              <dd className="text-h2 flex items-center gap-1.5 tabular-nums">
                 <Star className="text-saffron-gold size-5 fill-current" aria-hidden />
                 {averageDisplay ?? '—'}
               </dd>
@@ -485,7 +490,7 @@ export default async function HostDashboardPage({
               <dt className="text-sarat-black-600 text-xs font-medium">
                 {t('numbers.responseRate')}
               </dt>
-              <dd className="font-display text-2xl font-medium tracking-[-0.025em] tabular-nums">
+              <dd className="text-h2 tabular-nums">
                 {responseStats ? `${number(responseStats.ratePct)}%` : '—'}
               </dd>
               <p className="text-sarat-black-600 text-sm">
@@ -498,7 +503,7 @@ export default async function HostDashboardPage({
               <dt className="text-sarat-black-600 text-xs font-medium">
                 {t('numbers.cancellations')}
               </dt>
-              <dd className="font-display text-2xl font-medium tracking-[-0.025em] tabular-nums">
+              <dd className="text-h2 tabular-nums">
                 {facts ? number(facts.cancellations12m) : '—'}
               </dd>
               <p className="text-sarat-black-600 text-sm">
@@ -509,9 +514,7 @@ export default async function HostDashboardPage({
             </div>
             <div className="flex flex-col gap-1">
               <dt className="text-sarat-black-600 text-xs font-medium">{t('numbers.listings')}</dt>
-              <dd className="font-display text-2xl font-medium tracking-[-0.025em] tabular-nums">
-                {number(listings.live)}
-              </dd>
+              <dd className="text-h2 tabular-nums">{number(listings.live)}</dd>
               <p className="text-sarat-black-600 text-sm">
                 {t('numbers.listingsHint', { total: listings.total })}
               </p>

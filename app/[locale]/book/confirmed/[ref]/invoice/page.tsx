@@ -271,9 +271,7 @@ export default async function BookingInvoicePage({ params, searchParams }: PageP
           </p>
         </div>
         <div className="flex flex-col items-end gap-1 text-end">
-          <h1 className="font-display text-2xl font-medium tracking-[-0.025em]">
-            {vat ? t('taxInvoiceTitle') : t('receiptTitle')}
-          </h1>
+          <h1 className="text-h2">{vat ? t('taxInvoiceTitle') : t('receiptTitle')}</h1>
           {/* Stamp is FULL reversals only — see the two gates above. */}
           {fullyRefunded && (
             <p className="text-al-qatt-red-800 border-al-qatt-red/40 rounded-full [border-width:0.5px] px-3 py-0.5 text-sm font-medium">

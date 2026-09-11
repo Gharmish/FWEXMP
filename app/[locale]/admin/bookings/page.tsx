@@ -106,10 +106,7 @@ export default async function AdminBookingsPage({
     server: t('bookingsList.actionErrors.server'),
   };
 
-  const eyebrowClassName = cn(
-    'text-sarat-black-600 font-medium text-[11px]',
-    loc === 'en' && 'tracking-[0.2em] uppercase',
-  );
+  const eyebrowClassName = cn('text-sarat-black-600 text-eyebrow');
 
   return (
     <div className="flex flex-col gap-10">
@@ -122,9 +119,7 @@ export default async function AdminBookingsPage({
           {t('backToAdmin')}
         </Link>
         <p className={eyebrowClassName}>{t('bookingsList.eyebrow')}</p>
-        <h1 className="font-display text-4xl font-semibold tracking-[-0.035em] text-balance sm:text-5xl">
-          {t('bookingsList.title')}
-        </h1>
+        <h1 className="text-h1">{t('bookingsList.title')}</h1>
         <p className="text-sarat-black-600 max-w-2xl text-base leading-relaxed">
           {t('bookingsList.intro')}
         </p>
@@ -133,9 +128,7 @@ export default async function AdminBookingsPage({
       {block?.reason === 'no_db' ? (
         <div className="border-sarat-black/8 rounded-card flex flex-col items-start gap-4 [border-width:0.5px] p-10">
           <p className={eyebrowClassName}>{t('noDb.eyebrow')}</p>
-          <h2 className="font-display text-2xl font-medium tracking-[-0.025em]">
-            {t('noDb.title')}
-          </h2>
+          <h2 className="text-h2">{t('noDb.title')}</h2>
           <p className="text-sarat-black-600 max-w-xl text-base">{t('noDb.description')}</p>
         </div>
       ) : (
@@ -196,9 +189,7 @@ export default async function AdminBookingsPage({
           {rows.length === 0 ? (
             <div className="border-sarat-black/8 rounded-card flex flex-col items-start gap-4 [border-width:0.5px] p-10">
               <p className={eyebrowClassName}>{t('bookingsList.empty.eyebrow')}</p>
-              <h2 className="font-display text-2xl font-medium tracking-[-0.025em]">
-                {t('bookingsList.empty.title')}
-              </h2>
+              <h2 className="text-h2">{t('bookingsList.empty.title')}</h2>
               <p className="text-sarat-black-600 max-w-xl text-base">
                 {t('bookingsList.empty.description')}
               </p>

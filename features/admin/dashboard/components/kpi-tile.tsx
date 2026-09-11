@@ -22,10 +22,7 @@ interface KpiTileProps {
  * when `href` is set the whole tile is a link with the standard border-hover.
  */
 export function KpiTile({ label, value, locale, href, trend, hint }: KpiTileProps) {
-  const eyebrow = cn(
-    'text-sarat-black-600 font-medium text-[11px]',
-    locale === 'en' && 'uppercase tracking-[0.2em]',
-  );
+  const eyebrow = cn('text-sarat-black-600 text-eyebrow');
 
   const inner = (
     <>
