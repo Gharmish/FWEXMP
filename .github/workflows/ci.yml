@@ -34,6 +34,10 @@ jobs:
   # in-repo sample catalog). Playwright builds and starts the app itself
   # via webServer in playwright.config.ts.
   e2e:
+    # A red unit/lint/build job must fail the pipeline fast instead of
+    # spending another runner on browser smoke (2026-09 engineering audit
+    # TEST-01).
+    needs: checks
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

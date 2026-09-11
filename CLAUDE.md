@@ -126,6 +126,11 @@ Several Claude sessions (and I) often work in this ONE checkout at the same time
 - Commit with explicit pathspecs (`git commit <your files> -m ...`) — never a bare `git commit`, even right after `git add`; another session can stage files in between.
 - If a shared file (especially `db/schema.ts`) contains hunks that aren't yours, stage only your hunks (`git apply --cached` with a filtered patch).
 - After committing, verify with `git show --stat HEAD` that nothing foreign was swept in.
+- Deploy only a SHA whose CI run is green — check with
+  `gh run list --commit <sha> --json status,conclusion` (or the Actions tab)
+  before `vercel deploy --prod`. The local pre-commit hook is skippable with
+  `--no-verify`, so the GitHub run is the only gate that counts
+  (2026-09 engineering audit TEST-01).
 - Never `vercel deploy --prod` from a dirty tree — it uploads the whole directory, including other sessions' half-finished work. Deploy from a clean export: `git archive HEAD | tar -x -C <scratch>/deploy` + copy only `.vercel/project.json` into a fresh `.vercel/` there.
 
 ## How we handle disagreement
