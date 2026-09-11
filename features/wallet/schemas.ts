@@ -8,12 +8,12 @@ const localeSchema = z.enum(['en', 'ar']);
 
 /** Guest checkout: apply available credit to a booking (referenced by its UUID). */
 export const applyWalletCreditSchema = z.object({
-  reference: z.string().uuid(),
+  reference: z.uuid(),
   locale: localeSchema,
 });
 
 export const removeWalletCreditSchema = z.object({
-  reference: z.string().uuid(),
+  reference: z.uuid(),
   locale: localeSchema,
 });
 
@@ -48,7 +48,7 @@ export const issueWalletCreditSchema = z
     reason: z.enum(['goodwill', 'promo']),
     note: noteSchema,
     expiresAt: optionalLocalDateTime,
-    idempotencyKey: z.string().uuid(),
+    idempotencyKey: z.uuid(),
   })
   .superRefine((data, ctx) => {
     if (data.expiresAt && data.expiresAt !== '') {
@@ -69,7 +69,7 @@ export const adjustWalletBalanceSchema = z.object({
     .max(WALLET_MAX_PER_ACTION_SAR, 'amount_over_cap'),
   /** A deduction always carries a reason — the ledger row is the audit record. */
   note: z.string().trim().min(1, 'note_required').max(WALLET_NOTE_MAX, 'note_long'),
-  idempotencyKey: z.string().uuid(),
+  idempotencyKey: z.uuid(),
 });
 
 export type AdjustWalletBalanceInput = z.infer<typeof adjustWalletBalanceSchema>;

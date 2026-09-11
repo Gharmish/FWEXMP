@@ -85,7 +85,7 @@ export type AdminExperienceInput = z.infer<typeof adminExperienceSchema>;
 
 /** Create needs everything edit needs, plus the owning host. */
 export const adminCreateExperienceSchema = adminExperienceSchema.extend({
-  hostId: z.string().uuid('host_required'),
+  hostId: z.uuid('host_required'),
 });
 
 export type AdminCreateExperienceInput = z.infer<typeof adminCreateExperienceSchema>;

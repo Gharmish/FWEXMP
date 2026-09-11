@@ -24,7 +24,7 @@ export const addCitySchema = z.object({
 });
 
 export const updateCitySchema = z.object({
-  cityId: z.string().uuid(),
+  cityId: z.uuid(),
   nameAr: cityName,
   region: z.string().trim().min(2, 'name_short').max(80, 'name_long'),
   enabled: z.boolean(),

@@ -72,7 +72,7 @@ export const createPromoCodeSchema = z
 export type CreatePromoCodeInput = z.infer<typeof createPromoCodeSchema>;
 
 export const setPromoActiveSchema = z.object({
-  promoCodeId: z.string().uuid(),
+  promoCodeId: z.uuid(),
   active: z.boolean(),
   locale: localeSchema,
 });
@@ -86,7 +86,7 @@ const linkTokenSchema = z.string().max(64).optional();
 
 /** Guest checkout: apply a code to a booking (referenced by its UUID). */
 export const applyPromoSchema = z.object({
-  reference: z.string().uuid(),
+  reference: z.uuid(),
   code: codeSchema,
   slug: z.string().trim().optional(),
   locale: localeSchema,
@@ -97,7 +97,7 @@ export type ApplyPromoInput = z.infer<typeof applyPromoSchema>;
 
 /** Guest checkout: remove whatever code is on a booking. */
 export const removePromoSchema = z.object({
-  reference: z.string().uuid(),
+  reference: z.uuid(),
   slug: z.string().trim().optional(),
   locale: localeSchema,
   linkToken: linkTokenSchema,

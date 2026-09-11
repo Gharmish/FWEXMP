@@ -10,7 +10,7 @@ import { z } from 'zod';
 const localeSchema = z.enum(['en', 'ar']);
 
 export const refundBookingSchema = z.object({
-  bookingId: z.string().uuid(),
+  bookingId: z.uuid(),
   locale: localeSchema,
 });
 
@@ -21,7 +21,7 @@ export type RefundBookingInput = z.infer<typeof refundBookingSchema>;
  * in lib/transitions.ts, which owns the allowed-`from` rules.
  */
 export const transitionBookingSchema = z.object({
-  bookingId: z.string().uuid(),
+  bookingId: z.uuid(),
   to: z.enum(['confirmed', 'completed', 'cancelled', 'declined']),
   locale: localeSchema,
 });
@@ -38,7 +38,7 @@ export const EMERGENCY_REASON_MAX = 500;
  * an answer.
  */
 export const emergencyCancelSchema = z.object({
-  bookingId: z.string().uuid(),
+  bookingId: z.uuid(),
   reason: z.string().trim().min(1, 'reason_required').max(EMERGENCY_REASON_MAX, 'reason_long'),
   locale: localeSchema,
 });

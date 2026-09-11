@@ -37,7 +37,7 @@ import { isHoldExpired } from '@/features/bookings/lib/availability';
 /** Optional-but-one contact fields; same shapes as `bookingRequestSchema`. */
 const updateBookingContactSchema = z
   .object({
-    reference: z.string().uuid(),
+    reference: z.uuid(),
     locale: z.enum(['en', 'ar']),
     email: z
       .string()

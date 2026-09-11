@@ -8,12 +8,12 @@ import { z } from 'zod';
 export const DISPUTE_MESSAGE_MAX = 2000;
 
 export const createDisputeSchema = z.object({
-  reference: z.string().uuid(),
+  reference: z.uuid(),
   message: z.string().trim().min(10).max(DISPUTE_MESSAGE_MAX),
 });
 
 export const resolveDisputeSchema = z.object({
-  disputeId: z.string().uuid(),
+  disputeId: z.uuid(),
   adminNotes: z.string().trim().max(DISPUTE_MESSAGE_MAX).optional(),
   /** Grant a full refund of the booking as part of the resolution. */
   issueRefund: z.boolean(),

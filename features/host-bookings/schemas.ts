@@ -17,7 +17,7 @@ export type HostCancelReason = (typeof HOST_CANCEL_REASONS)[number];
 
 export const hostTransitionBookingSchema = z
   .object({
-    bookingId: z.string().uuid(),
+    bookingId: z.uuid(),
     to: z.enum(['confirmed', 'completed', 'cancelled', 'declined']),
     locale: z.enum(['en', 'ar']),
     returnTo: z

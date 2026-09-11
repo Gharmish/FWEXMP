@@ -12,13 +12,13 @@ const optionalNotes = z
   .optional();
 
 export const suspendHostSchema = z.object({
-  hostId: z.string().uuid(),
+  hostId: z.uuid(),
   reviewerNotes: optionalNotes,
   locale: localeSchema,
 });
 
 export const unsuspendHostSchema = z.object({
-  hostId: z.string().uuid(),
+  hostId: z.uuid(),
   reviewerNotes: optionalNotes,
   locale: localeSchema,
 });

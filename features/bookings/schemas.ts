@@ -24,7 +24,7 @@ export const bookingRequestSchema = z.object({
    * falls back to a server-minted UUID (no retry protection, pre-2026-07
    * behavior) rather than failing the booking.
    */
-  idempotencyKey: z.string().uuid().optional().catch(undefined),
+  idempotencyKey: z.uuid().optional().catch(undefined),
   /**
    * Reference (idempotency-key UUID) of an earlier unpaid instant hold
    * this submission replaces — carried by the payment step's "change
@@ -32,7 +32,7 @@ export const bookingRequestSchema = z.object({
    * malformed degrades to undefined, and the action only releases the
    * named hold when the caller's ownership is provable.
    */
-  supersedes: z.string().uuid().optional().catch(undefined),
+  supersedes: z.uuid().optional().catch(undefined),
   /**
    * Signed link token for {@link supersedes}. Proof the caller holds the
    * superseded booking's own link, so its hold can be released without a
@@ -153,7 +153,7 @@ export const refundBankDetailsSchema = z.object({
 export type RefundBankDetailsInput = z.infer<typeof refundBankDetailsSchema>;
 
 export const submitRefundBankDetailsSchema = refundBankDetailsSchema.extend({
-  reference: z.string().uuid(),
+  reference: z.uuid(),
   locale: z.enum(['en', 'ar']),
 });
 
@@ -164,7 +164,7 @@ export const submitRefundBankDetailsSchema = refundBankDetailsSchema.extend({
  * a guest cancellation that arrives without them.
  */
 export const cancelBookingSchema = z.object({
-  reference: z.string().uuid(),
+  reference: z.uuid(),
   locale: z.enum(['en', 'ar']),
   bankDetails: refundBankDetailsSchema.optional(),
 });
@@ -172,7 +172,7 @@ export const cancelBookingSchema = z.object({
 export type CancelBookingInput = z.infer<typeof cancelBookingSchema>;
 
 export const rescheduleBookingSchema = z.object({
-  reference: z.string().uuid(),
+  reference: z.uuid(),
   locale: z.enum(['en', 'ar']),
   newDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
 });

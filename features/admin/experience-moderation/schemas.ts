@@ -9,7 +9,7 @@ import { linesFromTextarea } from '@/features/host-experiences/schemas';
 const localeSchema = z.enum(['en', 'ar']);
 
 export const approveExperienceSchema = z.object({
-  experienceId: z.string().uuid(),
+  experienceId: z.uuid(),
   reviewerNotes: z
     .union([z.string().trim().max(2000), z.literal('').transform(() => undefined)])
     .optional(),
@@ -17,13 +17,13 @@ export const approveExperienceSchema = z.object({
 });
 
 export const rejectExperienceSchema = z.object({
-  experienceId: z.string().uuid(),
+  experienceId: z.uuid(),
   reviewerNotes: z.string().trim().min(10, 'reviewer_note_short').max(2000),
   locale: localeSchema,
 });
 
 export const requestChangesSchema = z.object({
-  experienceId: z.string().uuid(),
+  experienceId: z.uuid(),
   reviewerNotes: z.string().trim().min(10, 'reviewer_note_short').max(2000),
   locale: localeSchema,
 });
@@ -34,7 +34,7 @@ export const requestChangesSchema = z.object({
  * surfaces can never disagree about what's valid Arabic copy.
  */
 export const updateArabicCopySchema = z.object({
-  experienceId: z.string().uuid(),
+  experienceId: z.uuid(),
   titleAr: z.string().trim().min(2, 'title_ar_invalid').max(160, 'title_ar_invalid'),
   descriptionAr: z
     .string()

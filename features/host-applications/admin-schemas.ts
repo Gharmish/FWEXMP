@@ -5,7 +5,7 @@ import { z } from 'zod';
  * user-facing rejection surface needs a sentence the team can show.
  */
 export const approveApplicationSchema = z.object({
-  applicationId: z.string().uuid(),
+  applicationId: z.uuid(),
   reviewerNotes: z
     .union([z.string().trim().max(2000), z.literal('').transform(() => undefined)])
     .optional(),
@@ -13,7 +13,7 @@ export const approveApplicationSchema = z.object({
 });
 
 export const rejectApplicationSchema = z.object({
-  applicationId: z.string().uuid(),
+  applicationId: z.uuid(),
   reviewerNotes: z.string().trim().min(10, 'rejection_note_short').max(2000),
   locale: z.enum(['en', 'ar']),
 });
@@ -24,7 +24,7 @@ export const rejectApplicationSchema = z.object({
  */
 export const reviewDocumentSchema = z
   .object({
-    documentId: z.string().uuid(),
+    documentId: z.uuid(),
     decision: z.enum(['approved', 'rejected']),
     reviewerNotes: z
       .union([z.string().trim().max(2000), z.literal('').transform(() => undefined)])

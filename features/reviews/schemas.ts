@@ -16,7 +16,7 @@ import { z } from 'zod';
 export const REVIEW_TEXT_MAX = 1000;
 
 export const createReviewSchema = z.object({
-  bookingReference: z.string().uuid(),
+  bookingReference: z.uuid(),
   rating: z.coerce.number().int().min(1).max(5),
   text: z
     .string()
@@ -36,7 +36,7 @@ export type CreateReviewInput = z.infer<typeof createReviewSchema>;
  * both locales (host voice, not translated copy).
  */
 export const hostReplySchema = z.object({
-  reviewId: z.string().uuid(),
+  reviewId: z.uuid(),
   reply: z.string().trim().min(2).max(REVIEW_TEXT_MAX),
   locale: z.enum(['en', 'ar']),
 });
