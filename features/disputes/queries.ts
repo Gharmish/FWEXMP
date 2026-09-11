@@ -1,3 +1,5 @@
+import 'server-only';
+
 import { desc, eq, sql } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import { boundedQuery } from '@/lib/deadline';

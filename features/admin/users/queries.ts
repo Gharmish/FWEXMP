@@ -1,3 +1,5 @@
+import 'server-only';
+
 import { and, desc, eq, inArray, or, sql } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import { reportError } from '@/lib/log';

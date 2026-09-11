@@ -1,3 +1,5 @@
+import 'server-only';
+
 import { desc, sql, type SQL } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import { bookings } from '@/db/schema';

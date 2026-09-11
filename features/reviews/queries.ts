@@ -1,3 +1,5 @@
+import 'server-only';
+
 import { cache } from 'react';
 import { unstable_cache } from 'next/cache';
 import { and, avg, count, desc, eq, gte, isNull, ne, sql } from 'drizzle-orm';

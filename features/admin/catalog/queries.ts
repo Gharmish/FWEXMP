@@ -1,3 +1,5 @@
+import 'server-only';
+
 import { sql } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import { adminGuard } from '@/features/admin/guard';

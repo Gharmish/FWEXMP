@@ -1,3 +1,5 @@
+import 'server-only';
+
 import { cache } from 'react';
 import { cookies } from 'next/headers';
 import { and, desc, eq, sql } from 'drizzle-orm';

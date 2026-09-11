@@ -1,3 +1,5 @@
+import 'server-only';
+
 import { serverEnv } from '@/lib/env';
 import type { Guest } from '@/db/schema';
 import { getCurrentUser } from '@/features/auth/queries';

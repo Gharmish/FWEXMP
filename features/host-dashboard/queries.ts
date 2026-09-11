@@ -1,3 +1,5 @@
+import 'server-only';
+
 import { cache } from 'react';
 import { and, eq, sql } from 'drizzle-orm';
 import { db } from '@/lib/db';

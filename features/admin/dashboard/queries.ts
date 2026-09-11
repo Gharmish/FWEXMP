@@ -1,3 +1,5 @@
+import 'server-only';
+
 import { eq, sql } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import { reportError } from '@/lib/log';

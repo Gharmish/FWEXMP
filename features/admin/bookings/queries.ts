@@ -1,3 +1,5 @@
+import 'server-only';
+
 import { desc, eq } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import { decryptPii } from '@/lib/pii-crypto';

@@ -1,3 +1,5 @@
+import 'server-only';
+
 import { cookies } from 'next/headers';
 import { desc, eq } from 'drizzle-orm';
 import { db } from '@/lib/db';

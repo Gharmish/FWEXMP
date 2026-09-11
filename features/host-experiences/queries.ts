@@ -1,3 +1,5 @@
+import 'server-only';
+
 import { and, desc, eq, gte, isNull, sql } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import { serverEnv } from '@/lib/env';

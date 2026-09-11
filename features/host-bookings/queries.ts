@@ -1,3 +1,5 @@
+import 'server-only';
+
 import { asc, desc, eq, gte, lte, ilike, inArray, and, not, or, sql, type SQL } from 'drizzle-orm';
 import { alias } from 'drizzle-orm/pg-core';
 import { db } from '@/lib/db';
