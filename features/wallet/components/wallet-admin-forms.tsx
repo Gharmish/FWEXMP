@@ -1,6 +1,6 @@
 'use client';
 
-import { useSuccessToast } from '@/lib/hooks/use-success-toast';
+import { useSuccessToast } from '@/components/ui/use-success-toast';
 import { useActionState, useId, useState } from 'react';
 import { ChevronDown } from 'lucide-react';
 import { Input } from '@/components/ui/input';

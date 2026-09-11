@@ -5,7 +5,7 @@ import { boundedQuery } from '@/lib/deadline';
 import { serverEnv } from '@/lib/env';
 import { reportError } from '@/lib/log';
 import { platformSettings } from '@/db/schema';
-import { EXPERIENCE_CATEGORIES } from '@/features/host-experiences/schemas';
+import { EXPERIENCE_CATEGORIES } from '@/lib/categories';
 import type { Category } from '@/lib/colors';
 
 /**

@@ -1,10 +1,7 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { getTranslations } from 'next-intl/server';
 import { reportError } from '@/lib/log';
-import {
-  BOOKING_LINK_TOKEN_PARAM,
-  bookingManageUrl,
-} from '@/features/bookings/lib/link-token';
+import { BOOKING_LINK_TOKEN_PARAM, bookingManageUrl } from '@/lib/booking-link-token';
 import { renderBookingIcs } from '@/features/bookings/lib/booking-ics';
 import { calendarEventDescription, googleMapsLink } from '@/features/bookings/lib/calendar-links';
 import { startInstant } from '@/features/bookings/lib/cancellation';

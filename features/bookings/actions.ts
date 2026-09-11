@@ -25,8 +25,8 @@ import {
 } from '@/features/bookings/lib/availability';
 import { holdStillCounts } from '@/features/bookings/lib/capacity-sql';
 import { generateReferenceCode } from '@/features/bookings/lib/reference-code';
-import { bookingLinkTokenValid } from '@/features/bookings/lib/link-token';
-import { getTierSnapshot } from '@/lib/cancellation-policy';
+import { bookingLinkTokenValid } from '@/lib/booking-link-token';
+import { getTierSnapshot } from '@/features/bookings/lib/cancellation-policy';
 import { CURRENT_TERMS_VERSION } from '@/lib/legal';
 import {
   LAST_BOOKING_COOKIE,

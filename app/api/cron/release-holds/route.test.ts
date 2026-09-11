@@ -35,12 +35,12 @@ vi.mock('@/lib/env', () => ({ serverEnv: env, hasSupportAgent: () => false }));
 // Support-line sweeps (phase 1/2) are DB-bound and covered by their own
 // modules; here they must simply not interfere with the booking passes.
 const sweepUnacknowledgedInbound = vi.fn(async () => 0);
-vi.mock('@/lib/conversations/inbound', () => ({
+vi.mock('@/features/conversations/inbound', () => ({
   sweepUnacknowledgedInbound: (...args: unknown[]) => sweepUnacknowledgedInbound(...(args as [])),
   purgeExpiredConversations: async () => 0,
 }));
-vi.mock('@/lib/support-agent/agent', () => ({ sweepPendingAgentTurns: async () => 0 }));
-vi.mock('@/lib/support-agent/report', () => ({ maybeSendDailyReport: async () => false }));
+vi.mock('@/features/support-agent/agent', () => ({ sweepPendingAgentTurns: async () => 0 }));
+vi.mock('@/features/support-agent/report', () => ({ maybeSendDailyReport: async () => false }));
 vi.mock('@/features/support/tickets', () => ({ sweepTicketSla: async () => 0 }));
 
 const settleBooking = vi.fn(async () => 'success' as string);

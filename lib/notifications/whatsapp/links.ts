@@ -1,6 +1,6 @@
 import type { Locale } from '@/lib/i18n';
 import { SITE_URL } from '@/lib/site';
-import { BOOKING_LINK_TOKEN_PARAM, bookingLinkToken } from '@/features/bookings/lib/link-token';
+import { BOOKING_LINK_TOKEN_PARAM, bookingLinkToken } from '@/lib/booking-link-token';
 
 /**
  * Deep links for WhatsApp buttons. Every function returns the PATH

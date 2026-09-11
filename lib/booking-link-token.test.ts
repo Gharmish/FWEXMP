@@ -5,7 +5,7 @@ import {
   bookingLinkToken,
   bookingLinkTokenValid,
   bookingManageUrl,
-} from './link-token';
+} from './booking-link-token';
 
 const REFERENCE = '550e8400-e29b-41d4-a716-446655440000';
 const OTHER_REFERENCE = '11111111-2222-4333-8444-555555555555';

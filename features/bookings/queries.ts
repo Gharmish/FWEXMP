@@ -11,7 +11,7 @@ import { bookings, experiences } from '@/db/schema';
 import type { Booking } from '@/db/schema';
 import { LAST_BOOKING_COOKIE, parseLastBookingCookie } from '@/features/account/cookie';
 import { bookingViewerCanAccess } from '@/features/bookings/lib/access';
-import { bookingLinkTokenValid } from '@/features/bookings/lib/link-token';
+import { bookingLinkTokenValid } from '@/lib/booking-link-token';
 import type { PolicySnapshot } from '@/features/bookings/lib/policy';
 import { reportError } from '@/lib/log';
 

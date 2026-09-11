@@ -21,7 +21,7 @@ import { Price } from '@/components/ui/price';
 import { PrintButton } from '@/components/ui/print-button';
 import { GharmishLogo } from '@/components/layout/gharmish-logo';
 import { getBookingViewForViewer } from '@/features/bookings/queries';
-import { BOOKING_LINK_TOKEN_PARAM, bookingInvoiceUrl } from '@/features/bookings/lib/link-token';
+import { BOOKING_LINK_TOKEN_PARAM, bookingInvoiceUrl } from '@/lib/booking-link-token';
 import { getExperienceBySlug } from '@/features/experiences/queries';
 import { toArabicText } from '@/features/experiences/lib/arabic-content';
 import { startInstant } from '@/features/bookings/lib/cancellation';

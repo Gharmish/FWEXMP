@@ -10,7 +10,7 @@ import { dispatchNotification } from '@/lib/notifications/dispatch';
 import { hostNotificationContact } from '@/lib/notifications/host-contact';
 import { SITE_URL } from '@/lib/site';
 import { renderReceiptEmail } from '@/features/bookings/lib/booking-email-render';
-import { bookingManageUrl } from '@/features/bookings/lib/link-token';
+import { bookingManageUrl } from '@/lib/booking-link-token';
 
 /** Brand wordmark for email headers — PNG (clients don't render SVG). */
 const EMAIL_LOGO_URL = `${SITE_URL}/images/gharmish-email-logo.png`;

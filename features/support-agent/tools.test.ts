@@ -15,7 +15,7 @@ vi.mock('@/features/bookings/queries', () => ({
   getBookingsForGuest: vi.fn(async () => []),
   getHostContactPhoneForBooking: vi.fn(async () => null),
 }));
-vi.mock('@/features/bookings/lib/link-token', () => ({ bookingManageUrl: () => 'https://x' }));
+vi.mock('@/lib/booking-link-token', () => ({ bookingManageUrl: () => 'https://x' }));
 const cancelBookingCore = vi.fn();
 vi.mock('@/features/bookings/lib/cancel-core', () => ({
   cancelBookingCore: (...args: unknown[]) => cancelBookingCore(...args),

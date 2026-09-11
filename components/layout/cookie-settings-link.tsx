@@ -1,6 +1,6 @@
 'use client';
 
-import { clearConsent } from '@/components/layout/consent';
+import { clearConsent } from '@/lib/consent-client';
 
 interface CookieSettingsLinkProps {
   label: string;

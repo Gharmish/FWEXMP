@@ -33,7 +33,7 @@ vi.mock('next/headers', () => ({
   }),
 }));
 
-import { bookingLinkToken } from './link-token';
+import { bookingLinkToken } from '@/lib/booking-link-token';
 import { bookingViewerCanAccess, checkoutViewerCanAccess } from './access';
 
 beforeEach(() => {

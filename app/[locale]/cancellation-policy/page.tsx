@@ -3,7 +3,7 @@ import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { routing } from '@/lib/i18n';
 import { SITE_URL } from '@/lib/site';
 import { InfoPage } from '@/components/layout/info-page';
-import { getCancellationTiers } from '@/lib/cancellation-policy';
+import { getCancellationTiers } from '@/features/bookings/lib/cancellation-policy';
 import { getPlatformSettings } from '@/lib/platform-settings';
 import { GRACE_MIN_LEAD_HOURS, POST_BOOKING_GRACE_HOURS } from '@/features/bookings/lib/policy';
 import { policyWindow, tierName } from '@/features/bookings/lib/policy-copy';

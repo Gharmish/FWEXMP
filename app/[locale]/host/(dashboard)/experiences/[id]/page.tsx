@@ -12,7 +12,7 @@ import { Badge } from '@/components/ui/badge';
 import { Price } from '@/components/ui/price';
 import { splitCommission } from '@/features/bookings/lib/commission';
 import { getCurrentUser } from '@/features/auth/queries';
-import { getCancellationTiers } from '@/lib/cancellation-policy';
+import { getCancellationTiers } from '@/features/bookings/lib/cancellation-policy';
 import { getEnabledCities } from '@/lib/cities';
 import { tierDescriptions, tierNames } from '@/features/bookings/lib/policy-copy';
 import { getHostDashboard } from '@/features/host-dashboard/queries';

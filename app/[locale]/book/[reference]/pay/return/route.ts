@@ -2,7 +2,7 @@ import { after, NextResponse, type NextRequest } from 'next/server';
 import { settleBooking } from '@/features/payments/settle';
 import { sendBookingReceiptEmail } from '@/features/bookings/lib/booking-email';
 import { reportError } from '@/lib/log';
-import { BOOKING_LINK_TOKEN_PARAM, bookingLinkToken } from '@/features/bookings/lib/link-token';
+import { BOOKING_LINK_TOKEN_PARAM, bookingLinkToken } from '@/lib/booking-link-token';
 import { getBookingByReference, getBookingByReferenceForViewer } from '@/features/bookings/queries';
 import { getCheckoutIdForReference } from '@/features/payments/queries';
 

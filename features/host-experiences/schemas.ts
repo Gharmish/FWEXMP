@@ -16,15 +16,8 @@ import { z } from 'zod';
  * `inclusions` / `whatToBring` arrive as multi-line textareas; the
  * schema splits on newlines and trims so the host can type naturally.
  */
-export const EXPERIENCE_CATEGORIES = [
-  'nature',
-  'heritage',
-  'food',
-  'wellness',
-  'adventure',
-  'family',
-  'women_only',
-] as const;
+export { EXPERIENCE_CATEGORIES } from '@/lib/categories';
+import { EXPERIENCE_CATEGORIES } from '@/lib/categories';
 
 /**
  * Booking-cutoff choices offered to the host, in hours before start.

@@ -39,7 +39,7 @@ import { toArabicText } from '@/features/experiences/lib/arabic-content';
 import { MIN_CHARGE_SAR } from '@/features/promo-codes/lib/discount';
 import { cn } from '@/lib/utils';
 import { reportError } from '@/lib/log';
-import { BOOKING_LINK_TOKEN_PARAM } from '@/features/bookings/lib/link-token';
+import { BOOKING_LINK_TOKEN_PARAM } from '@/lib/booking-link-token';
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 

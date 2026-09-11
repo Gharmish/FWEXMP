@@ -27,7 +27,7 @@ vi.mock('@/lib/env', () => ({
 vi.mock('@/lib/log', () => ({ reportError: vi.fn() }));
 vi.mock('@/lib/admin-alerts', () => ({ notifyAdmin: vi.fn() }));
 const sendConversationReply = vi.fn(async () => ({ ok: true }));
-vi.mock('@/lib/conversations/inbound', () => ({
+vi.mock('@/features/conversations/inbound', () => ({
   ACK_COPY: { en: 'ack', ar: 'ack' },
   sendConversationReply: (...args: unknown[]) => sendConversationReply(...(args as [])),
 }));

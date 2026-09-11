@@ -62,7 +62,7 @@ import {
   todayInRiyadh,
 } from '@/features/bookings/lib/availability';
 import { bookingOptions } from '@/features/bookings/lib/policy';
-import { getCancellationTiers } from '@/lib/cancellation-policy';
+import { getCancellationTiers } from '@/features/bookings/lib/cancellation-policy';
 import { policyWindow } from '@/features/bookings/lib/policy-copy';
 import { vatRatePercent } from '@/features/bookings/lib/vat';
 import { getPlatformSettings } from '@/lib/platform-settings';

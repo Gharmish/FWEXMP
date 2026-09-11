@@ -8,7 +8,7 @@ import { Link } from '@/lib/i18n';
 import type { Locale } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
 import { pickLocalized } from '@/lib/ar-placeholder';
-import { getCancellationTiers } from '@/lib/cancellation-policy';
+import { getCancellationTiers } from '@/features/bookings/lib/cancellation-policy';
 import { tierDescription } from '@/features/bookings/lib/policy-copy';
 import { Badge } from '@/components/ui/badge';
 import { formatDate } from '@/lib/format';

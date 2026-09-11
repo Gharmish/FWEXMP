@@ -1,7 +1,7 @@
 import 'server-only';
 
 import type { Locale } from '@/lib/i18n';
-import { bookingInvoiceUrl, bookingManageUrl, bookingPayUrl } from './link-token';
+import { bookingInvoiceUrl, bookingManageUrl, bookingPayUrl } from '@/lib/booking-link-token';
 
 /**
  * Every guest-facing URL an email may carry, in one place — ALL of them

@@ -56,9 +56,7 @@ function isCoherent(row: Omit<PolicySnapshot, 'policyTier'>): boolean {
  * snapshot falls back to the code defaults — the same numbers the guest
  * surfaces degrade to, so the pair stays consistent even mid-outage.
  */
-export async function getCancellationTiers(): Promise<
-  Record<CancellationTier, PolicySnapshot>
-> {
+export async function getCancellationTiers(): Promise<Record<CancellationTier, PolicySnapshot>> {
   if (!serverEnv.DATABASE_URL) return CANCELLATION_TIERS;
   try {
     // Deadline-bounded: read on public render paths — a pooler hang must

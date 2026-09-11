@@ -80,7 +80,7 @@ vi.mock('@/lib/platform-settings', () => ({
 
 // Snapshot source — serve the code defaults so the db mock below never
 // sees the tier read (the real module degrades identically on error).
-vi.mock('@/lib/cancellation-policy', async () => {
+vi.mock('@/features/bookings/lib/cancellation-policy', async () => {
   const { CANCELLATION_TIERS } = await import('@/features/bookings/lib/policy');
   return {
     getCancellationTiers: async () => CANCELLATION_TIERS,

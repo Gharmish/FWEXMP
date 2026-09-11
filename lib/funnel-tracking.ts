@@ -1,5 +1,5 @@
 import { clientEnv, hasMarketingPixels } from '@/lib/env-client';
-import { readConsent } from '@/components/layout/consent';
+import { readConsent } from '@/lib/consent-client';
 
 /**
  * Shopping-funnel events for the consent-gated trackers (TikTok, Snap,

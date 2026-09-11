@@ -6,7 +6,7 @@ import { Link } from '@/lib/i18n';
 import type { Locale } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
 import { isAdminAndDbReady, listHostsForSelect } from '@/features/admin/experiences/queries';
-import { getCancellationTiers } from '@/lib/cancellation-policy';
+import { getCancellationTiers } from '@/features/bookings/lib/cancellation-policy';
 import { getPlatformSettings } from '@/lib/platform-settings';
 import { tierDescriptions } from '@/features/bookings/lib/policy-copy';
 import { getEnabledCities } from '@/lib/cities';

@@ -13,7 +13,7 @@ import {
   type GuestBookingSummary,
 } from '@/features/bookings/queries';
 import { bookingOptions } from '@/features/bookings/lib/policy';
-import { bookingManageUrl } from '@/features/bookings/lib/link-token';
+import { bookingManageUrl } from '@/lib/booking-link-token';
 import { cancelBookingCore } from '@/features/bookings/lib/cancel-core';
 import { saveRefundBankDetails } from '@/features/bookings/lib/refund-bank-core';
 import { refundBankDetailsSchema, type RefundBankDetailsInput } from '@/features/bookings/schemas';

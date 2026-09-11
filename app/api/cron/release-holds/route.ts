@@ -46,9 +46,12 @@ import {
   sendHostHoldLapsedEmail,
 } from '@/features/bookings/lib/booking-email';
 import { expireStaleQueuedDeliveries, listRetryableDeliveries } from '@/lib/notifications/ledger';
-import { purgeExpiredConversations, sweepUnacknowledgedInbound } from '@/lib/conversations/inbound';
-import { sweepPendingAgentTurns } from '@/lib/support-agent/agent';
-import { maybeSendDailyReport } from '@/lib/support-agent/report';
+import {
+  purgeExpiredConversations,
+  sweepUnacknowledgedInbound,
+} from '@/features/conversations/inbound';
+import { sweepPendingAgentTurns } from '@/features/support-agent/agent';
+import { maybeSendDailyReport } from '@/features/support-agent/report';
 import { sweepTicketSla } from '@/features/support/tickets';
 import { sendRebookEmail, sendWinbackEmail } from '@/features/marketing/lifecycle-email';
 import { addDays, todayInRiyadh } from '@/features/bookings/lib/availability';

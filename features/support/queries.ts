@@ -13,7 +13,7 @@ import {
 import { reportError } from '@/lib/log';
 import { adminGuard } from '@/features/admin/guard';
 import { authKey, guestKey } from '@/features/admin/users/lib/keys';
-import { SERVICE_WINDOW_MS } from '@/lib/conversations/inbound';
+import { SERVICE_WINDOW_MS } from '@/features/conversations/inbound';
 import type {
   AdminConversationRow,
   AdminTicketRow,

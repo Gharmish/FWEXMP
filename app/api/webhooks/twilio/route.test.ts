@@ -42,7 +42,7 @@ vi.mock('@/lib/notifications/ledger', () => ({
 const recordInboundMessage = vi.fn();
 const acknowledgeInbound = vi.fn(async () => undefined);
 const pageAdminAboutInbound = vi.fn(async () => undefined);
-vi.mock('@/lib/conversations/inbound', () => ({
+vi.mock('@/features/conversations/inbound', () => ({
   recordInboundMessage: (...args: unknown[]) => recordInboundMessage(...(args as [])),
   acknowledgeInbound: (...args: unknown[]) => acknowledgeInbound(...(args as [])),
   pageAdminAboutInbound: (...args: unknown[]) => pageAdminAboutInbound(...(args as [])),
@@ -56,7 +56,7 @@ vi.mock('next/server', async (importOriginal) => {
 });
 
 const runAgentTurn = vi.fn(async () => ({ outcome: 'replied' }));
-vi.mock('@/lib/support-agent/agent', () => ({
+vi.mock('@/features/support-agent/agent', () => ({
   runAgentTurn: (...args: unknown[]) => runAgentTurn(...(args as [])),
 }));
 
@@ -297,7 +297,10 @@ describe('POST /api/webhooks/twilio — support line', () => {
     await POST(request(params, sign(params)));
 
     expect(recordInboundMessage).toHaveBeenCalledWith(
-      expect.objectContaining({ mediaUrl: 'https://api.twilio.com/media/1', mediaContentType: 'audio/ogg' }),
+      expect.objectContaining({
+        mediaUrl: 'https://api.twilio.com/media/1',
+        mediaContentType: 'audio/ogg',
+      }),
     );
   });
 

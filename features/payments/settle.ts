@@ -4,7 +4,7 @@ import { serverEnv, hasHyperpay } from '@/lib/env';
 import { bookings } from '@/db/schema';
 import { reportError } from '@/lib/log';
 import { reportTikTokPurchase } from '@/lib/analytics/server-events';
-import { grantReferralRewards } from '@/lib/marketing/referral';
+import { grantReferralRewards } from '@/features/marketing/referral';
 import { notifyAdmin } from '@/lib/admin-alerts';
 import { isArPlaceholder } from '@/lib/ar-placeholder';
 import { getPlatformSettingsStrict } from '@/lib/platform-settings';

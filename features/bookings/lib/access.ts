@@ -4,7 +4,7 @@ import { db } from '@/lib/db';
 import { guests } from '@/db/schema';
 import { getCurrentUser } from '@/features/auth/queries';
 import { LAST_BOOKING_COOKIE, parseLastBookingCookie } from '@/features/account/cookie';
-import { bookingLinkTokenValid } from '@/features/bookings/lib/link-token';
+import { bookingLinkTokenValid } from '@/lib/booking-link-token';
 
 /**
  * Authorize access to a booking addressed by its public reference (the

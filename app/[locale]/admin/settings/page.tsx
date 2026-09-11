@@ -7,7 +7,7 @@ import type { Locale } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
 import { EXPERIENCE_CATEGORIES } from '@/features/host-experiences/schemas';
 import { getPlatformSettings, isAdminAndDbReady } from '@/features/admin/settings/queries';
-import { getCancellationTiers } from '@/lib/cancellation-policy';
+import { getCancellationTiers } from '@/features/bookings/lib/cancellation-policy';
 import { tierDescriptions, tierName } from '@/features/bookings/lib/policy-copy';
 import { AdminSettingsForm } from '@/app/[locale]/admin/settings/admin-settings-form';
 import { AdminCancellationPoliciesForm } from '@/app/[locale]/admin/settings/admin-cancellation-policies-form';

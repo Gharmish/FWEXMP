@@ -1,6 +1,6 @@
 import type { NextRequest } from 'next/server';
 import { addSuppression } from '@/lib/notifications/ledger';
-import { unsubscribeTokenValid } from '@/lib/marketing/unsubscribe-token';
+import { unsubscribeTokenValid } from '@/features/marketing/unsubscribe-token';
 
 /**
  * One-tap marketing unsubscribe (2026-08-15 marketing audit). Writes a

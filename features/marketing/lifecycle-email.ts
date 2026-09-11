@@ -8,7 +8,7 @@ import { bookings } from '@/db/schema';
 import { SITE_URL } from '@/lib/site';
 import { renderReceiptEmail } from '@/features/bookings/lib/booking-email-render';
 import { dispatchNotification, notificationsConfigured } from '@/lib/notifications/dispatch';
-import { unsubscribeUrl } from '@/lib/marketing/unsubscribe-token';
+import { unsubscribeUrl } from '@/features/marketing/unsubscribe-token';
 import { getExperiences } from '@/features/experiences/queries';
 
 /**

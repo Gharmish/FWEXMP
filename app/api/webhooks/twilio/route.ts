@@ -14,8 +14,8 @@ import {
   canonicalPhone,
   pageAdminAboutInbound,
   recordInboundMessage,
-} from '@/lib/conversations/inbound';
-import { runAgentTurn } from '@/lib/support-agent/agent';
+} from '@/features/conversations/inbound';
+import { runAgentTurn } from '@/features/support-agent/agent';
 
 /**
  * Twilio webhook — two kinds of POSTs land here:

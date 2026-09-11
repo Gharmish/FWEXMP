@@ -72,7 +72,7 @@ const CATEGORY_PLACEHOLDER: Record<Category, string> = {
 
 /**
  * Category icons — same taxonomy as CATEGORY_ICON in category-strip.tsx
- * and TILE_ICON in components/marketing/category-tiles.tsx (each surface
+ * and TILE_ICON in features/experiences/components/category-tiles.tsx (each surface
  * holds its own copy by convention).
  */
 const CATEGORY_ICON: Record<Category, LucideIcon> = {

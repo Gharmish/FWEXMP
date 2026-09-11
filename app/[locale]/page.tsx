@@ -29,7 +29,7 @@ import { SocialProofStrip } from '@/features/reviews/components/social-proof-str
 import { WhyGharmish } from '@/components/marketing/why-gharmish';
 import { HostCta } from '@/components/marketing/host-cta';
 import { DestinationChapter } from '@/components/marketing/destination-chapter';
-import { CategoryTiles } from '@/components/marketing/category-tiles';
+import { CategoryTiles } from '@/features/experiences/components/category-tiles';
 import { HeroHighlands } from '@/components/marketing/hero-highlands';
 import { HeroHeadline } from '@/components/marketing/hero-headline';
 import { trackPageView, utmFromSearchParams } from '@/features/analytics/capture';

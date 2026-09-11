@@ -22,7 +22,8 @@ import { describe, expect, it } from 'vitest';
 process.env.COOKIE_SIGNING_SECRET = 'booking-email-links-test-secret';
 
 const { guestBookingUrls } = await import('./booking-email-links');
-const { BOOKING_LINK_TOKEN_PARAM, bookingLinkTokenValid } = await import('./link-token');
+const { BOOKING_LINK_TOKEN_PARAM, bookingLinkTokenValid } =
+  await import('@/lib/booking-link-token');
 
 const REFERENCE = '550e8400-e29b-41d4-a716-446655440000';
 const SLUG = 'juniper-forest-dawn-walk';

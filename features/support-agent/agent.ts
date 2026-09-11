@@ -7,7 +7,11 @@ import { hasSupportAgent, serverEnv } from '@/lib/env';
 import { conversationMessages, conversations } from '@/db/schema';
 import { reportError } from '@/lib/log';
 import { notifyAdmin } from '@/lib/admin-alerts';
-import { ACK_COPY, sendConversationReply, type RecordedInbound } from '@/lib/conversations/inbound';
+import {
+  ACK_COPY,
+  sendConversationReply,
+  type RecordedInbound,
+} from '@/features/conversations/inbound';
 import { openTicket } from '@/features/support/tickets';
 import { buildKnowledge } from './knowledge';
 import { readIdentityState } from './identity';

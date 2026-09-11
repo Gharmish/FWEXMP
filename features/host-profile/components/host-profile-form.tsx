@@ -1,6 +1,6 @@
 'use client';
 
-import { useSuccessToast } from '@/lib/hooks/use-success-toast';
+import { useSuccessToast } from '@/components/ui/use-success-toast';
 import { useActionState, useId } from 'react';
 import { useFormStatus } from 'react-dom';
 import { cn } from '@/lib/utils';

@@ -30,7 +30,7 @@ import { supportWhatsappE164 } from '@/lib/env';
 import { PrintButton } from '@/components/ui/print-button';
 import { ShareButton } from '@/components/ui/share-button';
 import { RelatedExperiences } from '@/features/experiences/components/related-experiences';
-import { ensureReferralCode } from '@/lib/marketing/referral';
+import { ensureReferralCode } from '@/features/marketing/referral';
 import { GharmishLogo } from '@/components/layout/gharmish-logo';
 import { ReportProblemForm } from '@/features/disputes/components/report-problem-form';
 import { ReviewForm } from '@/features/reviews/components/review-form';
@@ -46,7 +46,7 @@ import {
   googleMapsLink,
 } from '@/features/bookings/lib/calendar-links';
 import { startInstant } from '@/features/bookings/lib/cancellation';
-import { BOOKING_LINK_TOKEN_PARAM, bookingManageUrl } from '@/features/bookings/lib/link-token';
+import { BOOKING_LINK_TOKEN_PARAM, bookingManageUrl } from '@/lib/booking-link-token';
 import { VerifiedBadge } from '@/features/hosts/components/verified-badge';
 import { RescheduleBooking } from '@/features/bookings/components/reschedule-booking';
 import { RefundToCardButton } from '@/features/wallet/components/refund-to-card-button';

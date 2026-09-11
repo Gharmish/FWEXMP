@@ -17,7 +17,7 @@ import {
   sendConversationReply,
   sendSupportTemplate,
   SERVICE_WINDOW_MS,
-} from '@/lib/conversations/inbound';
+} from '@/features/conversations/inbound';
 import { openTicket } from '@/features/support/tickets';
 import { hasWhatsApp } from '@/lib/env';
 import {
