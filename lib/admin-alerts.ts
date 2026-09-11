@@ -1,5 +1,6 @@
 import 'server-only';
 
+import { and, eq, gte, sql } from 'drizzle-orm';
 import { hasEmail, serverEnv } from '@/lib/env';
 import { sendEmail } from '@/lib/email';
 import { dispatchNotification } from '@/lib/notifications/dispatch';
@@ -66,10 +67,52 @@ function formatDetail(key: string, value: string | number): string {
   return typeof value === 'number' && /sar$/i.test(key) ? `SAR ${value}` : String(value);
 }
 
+export interface NotifyAdminOptions {
+  /**
+   * Collapse repeats (2026-09 engineering audit OPS-02): while an alert of
+   * the same `kind` carrying this fingerprint was persisted within
+   * `quietWindowMs`, the new alert is still recorded (with
+   * `suppressed: 'quiet-window'` in its detail) but the email and WhatsApp
+   * rails stay silent. Use it for alerts an OUTSIDER can trigger — e.g. a
+   * webhook body that fails authentication — so a script cannot bury real
+   * alerts under thousands of identical pages or burn provider spend.
+   */
+  fingerprint?: string;
+  quietWindowMs?: number;
+}
+
 export async function notifyAdmin(
   kind: AdminAlertKind,
   detail: Record<string, string | number | null | undefined>,
+  options: NotifyAdminOptions = {},
 ): Promise<void> {
+  const fingerprint = options.fingerprint ?? null;
+  const quietWindowMs = options.quietWindowMs ?? 0;
+  let suppressed = false;
+  if (fingerprint && quietWindowMs > 0 && serverEnv.DATABASE_URL) {
+    try {
+      const since = new Date(Date.now() - quietWindowMs);
+      const recent = await db
+        .select({ id: adminAlerts.id })
+        .from(adminAlerts)
+        .where(
+          and(
+            eq(adminAlerts.kind, kind),
+            gte(adminAlerts.createdAt, since),
+            sql`${adminAlerts.detail}->>'fingerprint' = ${fingerprint}`,
+          ),
+        )
+        .limit(1);
+      suppressed = recent.length > 0;
+    } catch (error) {
+      // Fail OPEN: a broken quiet-window lookup must never silence a real alert.
+      reportError(error, { surface: 'admin-alerts:quiet-window', kind });
+    }
+  }
+  const persisted = fingerprint
+    ? { ...detail, fingerprint, ...(suppressed ? { suppressed: 'quiet-window' } : {}) }
+    : detail;
+
   // Persist first (2026-08-21): the rails below are fire-and-forget, so
   // this row is the only record that an alert ever happened — what the
   // admin acknowledges later and what SLA sweeps check. Best-effort.
@@ -79,13 +122,14 @@ export async function notifyAdmin(
       const ticketId = typeof detail.ticketId === 'string' ? detail.ticketId : null;
       const [row] = await db
         .insert(adminAlerts)
-        .values({ kind, subject: SUBJECTS[kind], detail, ticketId })
+        .values({ kind, subject: SUBJECTS[kind], detail: persisted, ticketId })
         .returning({ id: adminAlerts.id });
       alertId = row?.id ?? null;
     }
   } catch (error) {
     reportError(error, { surface: 'admin-alerts:persist', kind });
   }
+  if (suppressed) return;
 
   // Two independent rails, each best-effort (2026-08-02 ops audit P0-7).
   // Email alone meant every operational alert rode Resend — the vendor
@@ -107,8 +151,8 @@ export async function notifyAdmin(
             : kind.startsWith('support_ticket')
               ? `${SITE_URL}/en/admin/support`
               : 'bookingId' in detail || 'reference' in detail
-            ? `${SITE_URL}/en/admin/bookings`
-            : `${SITE_URL}/en/admin`;
+                ? `${SITE_URL}/en/admin/bookings`
+                : `${SITE_URL}/en/admin`;
       const subject = `[Gharmish admin] ${SUBJECTS[kind]}`;
       const text = [
         SUBJECTS[kind],
@@ -138,7 +182,13 @@ export async function notifyAdmin(
     // that could carry PII or secrets.
     const phone = serverEnv.ADMIN_ALERT_WHATSAPP;
     if (phone) {
-      const summary = [detail.ticket, detail.reference, detail.priority, detail.category, detail.job]
+      const summary = [
+        detail.ticket,
+        detail.reference,
+        detail.priority,
+        detail.category,
+        detail.job,
+      ]
         .filter((v): v is string | number => v != null && v !== '')
         .map(String)
         .join(' · ');

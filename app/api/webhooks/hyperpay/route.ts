@@ -44,10 +44,19 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     // the shared secret drifted (rotated on one side only) — every payment
     // notification is now being dropped and settlement is riding on the
     // daily cron. That's an ops emergency, not just a Sentry breadcrumb.
-    await notifyAdmin('settle_anomaly', {
-      source: 'hyperpay-webhook',
-      problem: 'notification failed decryption — check HYPERPAY_WEBHOOK_SECRET on both sides',
-    });
+    //
+    // Quiet window (2026-09 engineering audit OPS-02): this branch is
+    // reachable by ANYONE who posts a body with the two headers set, and
+    // each page is a paid email + WhatsApp. One alert per hour is enough
+    // to surface a real secret drift; the rest are recorded, not paged.
+    await notifyAdmin(
+      'settle_anomaly',
+      {
+        source: 'hyperpay-webhook',
+        problem: 'notification failed decryption — check HYPERPAY_WEBHOOK_SECRET on both sides',
+      },
+      { fingerprint: 'hyperpay-webhook:decrypt', quietWindowMs: 60 * 60_000 },
+    );
     return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
   }
 
