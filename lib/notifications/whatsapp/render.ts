@@ -42,10 +42,15 @@ export function renderWhatsApp(
   const clean: Record<string, string> = {};
   for (const [k, v] of Object.entries(vars)) {
     if (typeof v === 'number' && Number.isFinite(v)) clean[k] = String(v);
-    else if (isUsableValue(v)) clean[k] = v.trim();
+    // Meta rejects parameters containing newlines, tabs or 4+ consecutive
+    // spaces; host/guest-authored values (titles, place names) can carry
+    // them. Collapse to single spaces (2026-09 engineering audit GAPB-06).
+    else if (isUsableValue(v)) clean[k] = v.replace(/\s+/g, ' ').trim();
   }
 
-  const missing = template.variables.filter((v) => v.required && !isUsableValue(clean[v.name])).map((v) => v.name);
+  const missing = template.variables
+    .filter((v) => v.required && !isUsableValue(clean[v.name]))
+    .map((v) => v.name);
   if (missing.length > 0) {
     return { ok: false, error: `missing required variables: ${missing.join(', ')}`, missing };
   }
@@ -74,7 +79,11 @@ export function renderWhatsApp(
 }
 
 /** Twilio Content API payload for creating this template/locale (scripts/whatsapp-templates.ts). */
-export function providerContentPayload(template: WhatsAppTemplate, locale: Locale, friendlyName: string) {
+export function providerContentPayload(
+  template: WhatsAppTemplate,
+  locale: Locale,
+  friendlyName: string,
+) {
   const content = template.locales[locale];
   const body = compileBody(content.body, template);
   const variables: Record<string, string> = {};

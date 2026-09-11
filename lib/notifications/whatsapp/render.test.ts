@@ -78,8 +78,15 @@ describe('renderWhatsApp', () => {
 
   it('refuses to render when a required variable is missing or unusable', () => {
     const missing = renderWhatsApp('host_booking_confirmed', 'en', { ...base, payout: undefined });
-    expect(missing).toEqual({ ok: false, error: 'missing required variables: payout', missing: ['payout'] });
-    const invalid = renderWhatsApp('host_booking_confirmed', 'en', { ...base, date: 'Invalid Date' });
+    expect(missing).toEqual({
+      ok: false,
+      error: 'missing required variables: payout',
+      missing: ['payout'],
+    });
+    const invalid = renderWhatsApp('host_booking_confirmed', 'en', {
+      ...base,
+      date: 'Invalid Date',
+    });
     expect(invalid.ok).toBe(false);
     const nan = renderWhatsApp('host_booking_confirmed', 'en', { ...base, payout: 'NaN' });
     expect(nan.ok).toBe(false);
@@ -90,7 +97,27 @@ describe('renderWhatsApp', () => {
   });
 
   it('accepts finite numbers and drops extra keys silently', () => {
-    const out = renderWhatsApp('support_ticket_update', 'ar', { ticketReference: 'TK-1', extra: 'x' });
+    const out = renderWhatsApp('support_ticket_update', 'ar', {
+      ticketReference: 'TK-1',
+      extra: 'x',
+    });
     expect(out.ok && out.message.variables).toEqual({ '1': 'TK-1' });
+  });
+});
+
+describe('renderWhatsApp variable hygiene (2026-09 engineering audit GAPB-06)', () => {
+  it('collapses newlines, tabs and runs of spaces that Meta would reject', () => {
+    const out = renderWhatsApp('host_booking_confirmed', 'en', {
+      ...base,
+      experienceName: '  Sunrise   hike\n\tto the\r\n  ridge  ',
+    });
+    expect(out.ok).toBe(true);
+    if (!out.ok) return;
+    const values = Object.values(out.message.variables);
+    expect(values).toContain('Sunrise hike to the ridge');
+    for (const v of values) {
+      expect(v).not.toMatch(/[\n\r\t]/);
+      expect(v).not.toMatch(/ {2,}/);
+    }
   });
 });
