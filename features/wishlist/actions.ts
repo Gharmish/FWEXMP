@@ -117,22 +117,6 @@ async function syncDbWishlist(cookieSlugs: readonly string[], removeSlug?: strin
   }
 }
 
-export async function addToWishlist(slug: string): Promise<void> {
-  const current = await readCookie();
-  const next = isInWishlist(current, slug) ? current : addToWishlistList(current, slug);
-  await writeCookie(serializeWishlistCookie(next));
-  await syncDbWishlist(next);
-  revalidateWishlistSurfaces();
-}
-
-export async function removeFromWishlist(slug: string): Promise<void> {
-  const current = await readCookie();
-  const next = removeFromWishlistList(current, slug);
-  await writeCookie(serializeWishlistCookie(next));
-  await syncDbWishlist(next, slug);
-  revalidateWishlistSurfaces();
-}
-
 export async function toggleWishlist(slug: string): Promise<void> {
   const current = await readCookie();
   const removing = isInWishlist(current, slug);

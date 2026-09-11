@@ -1,4 +1,6 @@
-import { desc, eq, inArray, sql } from 'drizzle-orm';
+import 'server-only';
+
+import { desc, inArray, sql } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import { bookings, promoCodes } from '@/db/schema';
 import type { Booking, PromoCode } from '@/db/schema';
@@ -106,13 +108,4 @@ export async function wasPromoCodesListTruncated(): Promise<boolean> {
   if (block) return false;
   const [{ count }] = await db.select({ count: sql<number>`count(*)::int` }).from(promoCodes);
   return count > PROMO_CODES_LIST_LIMIT;
-}
-
-/** Does a normalized code already exist? Used to pre-empt the unique-constraint race. */
-export async function promoCodeExists(normalizedCode: string): Promise<boolean> {
-  const row = await db.query.promoCodes.findFirst({
-    where: eq(promoCodes.code, normalizedCode),
-    columns: { id: true },
-  });
-  return Boolean(row);
 }
