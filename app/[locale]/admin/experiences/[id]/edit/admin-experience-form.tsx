@@ -62,6 +62,8 @@ export interface AdminExperienceFormCopy {
   submit: string;
   pending: string;
   fieldInvalid: string;
+  /** Arabic field still carries a `TODO(ar)` marker (schema refine code `*_ar_placeholder`). */
+  fieldArPlaceholder: string;
   formValidation: string;
   formServer: string;
   formNotFound: string;
@@ -184,10 +186,16 @@ export function AdminExperienceForm({
   const errorPrefix = useId();
   const eid = (k: string) => `${errorPrefix}-${k}`;
 
+  // Field errors carry the zod issue code (features/admin/experiences/
+  // actions.ts). Most codes are length bounds and share one generic line;
+  // the `TODO(ar)` placeholder refusals get their own, because "check this
+  // field" on a 2–160-character Arabic title explains nothing.
+  const fieldMessage = (code: string) =>
+    code.endsWith('_ar_placeholder') ? copy.fieldArPlaceholder : copy.fieldInvalid;
   const err = (name: string) =>
     fields[name] ? (
       <p id={eid(name)} className="text-al-qatt-red-800 text-sm">
-        {copy.fieldInvalid}
+        {fieldMessage(fields[name])}
       </p>
     ) : null;
   const aria = (name: string) => ({

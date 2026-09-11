@@ -116,6 +116,7 @@ export default async function AdminExperienceNewPage({
     submit: tE('createSubmit'),
     pending: tE('createPending'),
     fieldInvalid: tE('fieldInvalid'),
+    fieldArPlaceholder: tE('fieldArPlaceholder'),
     formValidation: tE('formValidation'),
     formServer: tE('formServer'),
     formNotFound: tE('formNotFound'),

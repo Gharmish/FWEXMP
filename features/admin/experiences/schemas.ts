@@ -34,12 +34,24 @@ export const adminExperienceSchema = hostExperienceInputSchema
   .extend({
     // Arabic copy — admins may author/correct it directly (the no-AI-Arabic
     // rule is about the assistant, not the human operator).
-    titleAr: z.string().trim().min(2, 'title_ar_short').max(160, 'title_ar_long'),
+    // `TODO(ar)` markers are refused outright (2026-08-02 ops audit):
+    // this schema is the ONLY Arabic gate on the admin path — an admin
+    // can set `status: 'live'` directly, bypassing the moderation
+    // approve action's placeholder check, and settlement snapshots the
+    // raw titleAr onto IMMUTABLE invoices (`bookings.invoice_item_ar`).
+    // Length alone let the literal marker publish and get invoiced.
+    titleAr: z
+      .string()
+      .trim()
+      .min(2, 'title_ar_short')
+      .max(160, 'title_ar_long')
+      .refine((v) => !isArPlaceholder(v), 'title_ar_placeholder'),
     descriptionAr: z
       .string()
       .trim()
       .min(10, 'description_ar_short')
-      .max(5000, 'description_ar_long'),
+      .max(5000, 'description_ar_long')
+      .refine((v) => !isArPlaceholder(v), 'description_ar_placeholder'),
     // Optional editorial story ("The story behind this experience" on the
     // detail page). Blank = no story: the action stores NULL and the
     // guest-facing section hides itself. Bounds mirror the host-profile

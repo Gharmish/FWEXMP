@@ -794,6 +794,7 @@
       "submit": "Save changes",
       "pending": "Saving",
       "fieldInvalid": "Check this field.",
+      "fieldArPlaceholder": "Arabic copy still contains a TODO(ar) marker — replace it with real Arabic before saving.",
       "formValidation": "Some fields need attention — see the highlighted ones.",
       "formServer": "We couldn't save the changes. Try again in a moment.",
       "formNotFound": "This experience no longer exists.",
