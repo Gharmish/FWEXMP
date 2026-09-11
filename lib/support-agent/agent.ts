@@ -1,7 +1,7 @@
 import 'server-only';
 
 import Anthropic from '@anthropic-ai/sdk';
-import { and, desc, eq, isNull, lt, or } from 'drizzle-orm';
+import { and, desc, eq, gt, isNull, lt, or } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import { hasSupportAgent, serverEnv } from '@/lib/env';
 import { conversationMessages, conversations } from '@/db/schema';
@@ -25,8 +25,24 @@ import { runTool, toolsFor, type ToolContext } from './tools';
 
 const HISTORY_LIMIT = 30;
 const MAX_ITERATIONS = 6;
-/** A second message arriving mid-run is picked up by the re-check at the end of this run. */
+/**
+ * Per-conversation lock held for one turn. A message arriving mid-turn
+ * finds the lock held and its webhook leg returns `skipped`; the running
+ * turn answers it instead through the re-check after each reply (see
+ * `runAgentTurn`). The lock lapses on its own if the function dies.
+ */
 const LOCK_MS = 90 * 1000;
+/**
+ * Bounded number of model passes one lock acquisition may run, so a
+ * guest sending a burst of messages gets each one answered by the same
+ * turn instead of the later ones being dropped (2026-09 engineering
+ * audit AI-01: the "re-check" this comment used to promise did not exist,
+ * and the sweep skipped the conversation because the reply's timestamp
+ * was newer than the dropped message's). Whatever is still pending after
+ * the last pass is answered by the guest's next message, whose turn
+ * loads the full history.
+ */
+const MAX_TURN_PASSES = 3;
 
 let client: Anthropic | null = null;
 function anthropic(): Anthropic {
@@ -54,6 +70,8 @@ export interface ThreadMessage {
   direction: 'in' | 'out';
   body: string;
   mediaContentType?: string | null;
+  /** Row timestamp — lets a turn detect inbound messages that arrived while it ran. */
+  createdAt?: Date;
 }
 
 /** Thread → alternating user/assistant turns (consecutive same-role messages merge). */
@@ -191,6 +209,7 @@ async function loadThread(conversationId: string): Promise<ThreadMessage[]> {
       direction: conversationMessages.direction,
       body: conversationMessages.body,
       mediaContentType: conversationMessages.mediaContentType,
+      createdAt: conversationMessages.createdAt,
     })
     .from(conversationMessages)
     .where(eq(conversationMessages.conversationId, conversationId))
@@ -272,59 +291,96 @@ export async function runAgentTurn(
   if (locked.length === 0) return { outcome: 'skipped' };
   const { guestId, hostId, locale } = locked[0];
 
-  try {
-    const history = await loadThread(conversationId);
-    // Read per turn, never cached across turns: the challenge can be
-    // passed mid-conversation, and a conversation can be re-identified to
-    // a different guest between messages.
-    const identity = await readIdentityState(conversationId, guestId);
-    const output = await runAgentLoop({
-      history,
-      guestName: recorded.guestName,
-      ctx: {
-        conversationId,
-        address,
-        guestId,
-        hostId,
-        locale,
-        now,
-        lastInbound: history.at(-1)?.direction === 'in' ? (history.at(-1)?.body ?? '') : '',
-        identityVerified: identity.verified,
-        guestHasEmail: identity.hasEmail,
-      },
-    });
-
-    if (output.stopReason === 'refusal') return await failSafe(recorded, address, 'refusal');
-    if (!output.reply)
-      return await failSafe(
-        recorded,
-        address,
-        `empty reply (${output.stopReason ?? 'no stop reason'})`,
-      );
-
-    const sent = await sendConversationReply({
-      conversationId,
-      address,
-      body: output.reply,
-      author: 'agent',
-      type: 'support_agent',
-      locale,
-      dedupeKey: `support_agent:${recorded.messageId}:${output.toolCalls.length}`,
-      toolCalls: output.toolCalls,
-    });
-    if (!sent.ok && sent.error !== 'duplicate') {
-      return await failSafe(recorded, address, `send failed: ${sent.error}`);
-    }
-
-    await db
+  const releaseLock = () =>
+    db
       .update(conversations)
       .set({ agentLockUntil: null, updatedAt: new Date() })
       .where(eq(conversations.id, conversationId));
 
-    if (output.handedToHuman) {
-      return { outcome: 'handed_off', ticketReference: output.ticketReference };
+  // The inbound message this pass is answering — drives the reply's
+  // dedupe key, and advances to the newest unanswered message on re-check.
+  let messageId = recorded.messageId;
+
+  try {
+    for (let pass = 0; pass < MAX_TURN_PASSES; pass += 1) {
+      const history = await loadThread(conversationId);
+      // Read per turn, never cached across turns: the challenge can be
+      // passed mid-conversation, and a conversation can be re-identified to
+      // a different guest between messages.
+      const identity = await readIdentityState(conversationId, guestId);
+      const output = await runAgentLoop({
+        history,
+        guestName: recorded.guestName,
+        ctx: {
+          conversationId,
+          address,
+          guestId,
+          hostId,
+          locale,
+          now: new Date(),
+          lastInbound: history.at(-1)?.direction === 'in' ? (history.at(-1)?.body ?? '') : '',
+          identityVerified: identity.verified,
+          guestHasEmail: identity.hasEmail,
+        },
+      });
+
+      if (output.stopReason === 'refusal') return await failSafe(recorded, address, 'refusal');
+      if (!output.reply)
+        return await failSafe(
+          recorded,
+          address,
+          `empty reply (${output.stopReason ?? 'no stop reason'})`,
+        );
+
+      const sent = await sendConversationReply({
+        conversationId,
+        address,
+        body: output.reply,
+        author: 'agent',
+        type: 'support_agent',
+        locale,
+        dedupeKey: `support_agent:${messageId}:${output.toolCalls.length}`,
+        toolCalls: output.toolCalls,
+      });
+      if (!sent.ok && sent.error !== 'duplicate') {
+        return await failSafe(recorded, address, `send failed: ${sent.error}`);
+      }
+
+      if (output.handedToHuman) {
+        await releaseLock();
+        return { outcome: 'handed_off', ticketReference: output.ticketReference };
+      }
+
+      // Re-check: did the guest write again while this pass was running?
+      // Such a message found the lock held (its webhook leg `skipped`),
+      // so this turn must answer it — otherwise nothing ever will.
+      const lastSeenInboundAt =
+        [...history].reverse().find((m) => m.direction === 'in')?.createdAt ?? now;
+      const [newer] = await db
+        .select({ id: conversationMessages.id })
+        .from(conversationMessages)
+        .where(
+          and(
+            eq(conversationMessages.conversationId, conversationId),
+            eq(conversationMessages.direction, 'in'),
+            gt(conversationMessages.createdAt, lastSeenInboundAt),
+          ),
+        )
+        .orderBy(desc(conversationMessages.createdAt))
+        .limit(1);
+      if (!newer || pass === MAX_TURN_PASSES - 1) {
+        await releaseLock();
+        return { outcome: 'replied', ticketReference: output.ticketReference };
+      }
+      messageId = newer.id;
+      // Keep the lock alive for the extra pass.
+      await db
+        .update(conversations)
+        .set({ agentLockUntil: new Date(Date.now() + LOCK_MS) })
+        .where(eq(conversations.id, conversationId));
     }
-    return { outcome: 'replied', ticketReference: output.ticketReference };
+    await releaseLock();
+    return { outcome: 'replied' };
   } catch (error) {
     reportError(error, { surface: 'support-agent:turn', conversationId });
     return failSafe(recorded, address, error instanceof Error ? error.message : 'error');
