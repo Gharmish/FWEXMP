@@ -1,3 +1,4 @@
+import { todayInRiyadh } from '@/lib/riyadh-time';
 import { getTranslations } from 'next-intl/server';
 import type { Locale } from '@/lib/i18n';
 import { getScheduleData } from '@/features/availability/queries';
@@ -9,10 +10,6 @@ import {
 import { AvailabilityCalendar } from '@/features/availability/components/availability-calendar';
 
 const WEEKDAY_KEYS = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'] as const;
-
-function todayInRiyadh(): string {
-  return new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Riyadh' }).format(new Date());
-}
 
 /**
  * Drop-in availability calendar: resolves the month (from `?ym` or the

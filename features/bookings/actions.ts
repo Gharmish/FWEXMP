@@ -20,6 +20,8 @@ import {
   isHoldExpired,
   remainingCapacity,
   slotCloseInstantMs,
+  todayInRiyadh,
+  nowMinutesInRiyadh,
 } from '@/features/bookings/lib/availability';
 import { holdStillCounts } from '@/features/bookings/lib/capacity-sql';
 import { generateReferenceCode } from '@/features/bookings/lib/reference-code';
@@ -38,25 +40,6 @@ import {
 } from '@/features/bookings/lib/booking-email';
 import { getPlatformSettings } from '@/lib/platform-settings';
 import { releaseWalletReservation } from '@/features/wallet/reservation';
-
-/** Today as `YYYY-MM-DD` in the experience's local day (KSA at launch). */
-function todayInRiyadh(): string {
-  // en-CA renders ISO `YYYY-MM-DD`; the time zone pins it to the KSA day.
-  return new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Riyadh' }).format(new Date());
-}
-
-/** Current wall-clock time as minutes since midnight in the KSA day. */
-function nowMinutesInRiyadh(): number {
-  // hourCycle h23 forces 00–23 (dodges the legacy '24' hour bug).
-  const hm = new Intl.DateTimeFormat('en-GB', {
-    timeZone: 'Asia/Riyadh',
-    hourCycle: 'h23',
-    hour: '2-digit',
-    minute: '2-digit',
-  }).format(new Date());
-  const [h, m] = hm.split(':').map(Number);
-  return h * 60 + m;
-}
 
 const LAST_BOOKING_COOKIE_MAX_AGE_SECONDS = 60 * 60 * 24 * 90; // 90 days
 

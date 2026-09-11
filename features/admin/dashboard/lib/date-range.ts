@@ -16,9 +16,11 @@
  * (BRIEF §5 "lean stacks age better").
  */
 
-export const RIYADH_TZ = 'Asia/Riyadh';
-/** Riyadh is UTC+3 year-round. */
-const RIYADH_OFFSET = '+03:00';
+import { RIYADH_OFFSET, RIYADH_TZ, addDays, todayInRiyadh } from '@/lib/riyadh-time';
+
+// The market clock is defined once in lib/riyadh-time.ts (2026-09
+// engineering audit ARCH-04); re-exported for the dashboard callers.
+export { RIYADH_TZ, addDays, todayInRiyadh };
 
 export const DATE_PRESETS = ['today', '7d', '30d', 'month', '90d', 'custom'] as const;
 export type DatePreset = (typeof DATE_PRESETS)[number];
@@ -38,20 +40,6 @@ export interface DateRange {
 export type Granularity = 'day' | 'week' | 'month';
 
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
-
-/** Today as a `YYYY-MM-DD` string in Riyadh (en-CA yields ISO order). */
-export function todayInRiyadh(now: Date = new Date()): string {
-  return new Intl.DateTimeFormat('en-CA', { timeZone: RIYADH_TZ }).format(now);
-}
-
-/** Add `days` (may be negative) to a `YYYY-MM-DD`, returning a `YYYY-MM-DD`. */
-export function addDays(day: string, days: number): string {
-  // Anchor at Riyadh noon so the ±days arithmetic can never cross a DST/UTC
-  // edge into the wrong calendar day, then re-read the Riyadh date.
-  const d = new Date(`${day}T12:00:00${RIYADH_OFFSET}`);
-  d.setUTCDate(d.getUTCDate() + days);
-  return todayInRiyadh(d);
-}
 
 /** First day of `day`'s month, `YYYY-MM-DD`. */
 export function startOfMonth(day: string): string {

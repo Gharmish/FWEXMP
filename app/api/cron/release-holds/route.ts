@@ -51,7 +51,7 @@ import { sweepPendingAgentTurns } from '@/lib/support-agent/agent';
 import { maybeSendDailyReport } from '@/lib/support-agent/report';
 import { sweepTicketSla } from '@/features/support/tickets';
 import { sendRebookEmail, sendWinbackEmail } from '@/features/marketing/lifecycle-email';
-import { addDays } from '@/features/bookings/lib/availability';
+import { addDays, todayInRiyadh } from '@/features/bookings/lib/availability';
 import { startInstant } from '@/features/bookings/lib/cancellation';
 import { releaseWalletReservation } from '@/features/wallet/reservation';
 import {
@@ -656,9 +656,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     // an evening experience and a dawn one are each reminded on schedule.
     const nowMs = Date.now();
     const HOUR_MS = 60 * 60 * 1000;
-    const todayRiyadh = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Riyadh' }).format(
-      new Date(),
-    );
+    const todayRiyadh = todayInRiyadh();
     const tomorrowRiyadh = addDays(todayRiyadh, 1);
     // Anything within 24h of start falls on the Riyadh "today" or
     // "tomorrow" date; scoping to those two days keeps the scan small.

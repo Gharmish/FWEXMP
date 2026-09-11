@@ -64,6 +64,7 @@ vi.mock('@/features/bookings/lib/booking-email', () => ({
 
 vi.mock('@/features/bookings/lib/availability', () => ({
   addDays: (date: string) => date,
+  todayInRiyadh: () => '2026-09-11',
 }));
 
 // `startInstant` is used by the reminder pass to compute hours-until-start.

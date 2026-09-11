@@ -96,6 +96,9 @@ vi.mock('@/features/bookings/lib/availability', () => ({
     deadline !== null && deadline.getTime() <= now.getTime(),
   remainingCapacity: (max: number, booked: number) => Math.max(0, max - booked),
   slotCloseInstantMs: () => slotCloseMs,
+  // The market clock (lib/riyadh-time.ts) is re-exported through this module.
+  todayInRiyadh: () => '2026-09-11',
+  nowMinutesInRiyadh: () => 9 * 60,
 }));
 
 vi.mock('@/features/bookings/lib/reference-code', () => ({

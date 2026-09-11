@@ -679,7 +679,7 @@ export async function runTool(
       }
       case 'list_host_bookings': {
         if (!ctx.hostId) return { result: JSON.stringify({ error: 'not_a_host' }) };
-        const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Riyadh' }).format(ctx.now);
+        const today = todayInRiyadh(ctx.now);
         const rows = await db
           .select({
             referenceCode: bookings.referenceCode,

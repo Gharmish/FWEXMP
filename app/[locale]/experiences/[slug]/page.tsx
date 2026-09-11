@@ -53,7 +53,13 @@ import { MeetingPointMap } from '@/features/experiences/components/meeting-point
 import { hasMeetingPoint } from '@/features/host-experiences/schemas';
 import { trackExperienceView, utmFromSearchParams } from '@/features/analytics/capture';
 import { getScheduleDataBySlug } from '@/features/availability/queries';
-import { addDays, bookableDates, closedDates } from '@/features/bookings/lib/availability';
+import {
+  addDays,
+  bookableDates,
+  closedDates,
+  nowMinutesInRiyadh,
+  todayInRiyadh,
+} from '@/features/bookings/lib/availability';
 import { bookingOptions } from '@/features/bookings/lib/policy';
 import { getCancellationTiers } from '@/lib/cancellation-policy';
 import { policyWindow } from '@/features/bookings/lib/policy-copy';
@@ -250,20 +256,11 @@ export default async function ExperienceDetailPage({
   // schedule builds the guest date picker (open weekday, not
   // blackout/stop-sell/past, with capacity) over the next ~8 weeks.
   const BOOKING_HORIZON_DAYS = 60;
-  const todayRiyadh = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Riyadh' }).format(
-    new Date(),
-  );
+  const todayRiyadh = todayInRiyadh();
   // Current KSA wall-clock (minutes since midnight) so the picker greys out
   // today's slot once it's within the booking cutoff of its start time —
   // mirroring the same server-side gate in `requestBooking`.
-  const nowRiyadhHm = new Intl.DateTimeFormat('en-GB', {
-    timeZone: 'Asia/Riyadh',
-    hourCycle: 'h23',
-    hour: '2-digit',
-    minute: '2-digit',
-  }).format(new Date());
-  const [nowRiyadhH, nowRiyadhM] = nowRiyadhHm.split(':').map(Number);
-  const nowMinutesRiyadh = nowRiyadhH * 60 + nowRiyadhM;
+  const nowMinutesRiyadh = nowMinutesInRiyadh();
   // DB reads go out in WAVES OF ≤4, never one wide Promise.all — the same
   // rule the admin dashboard already follows. The postgres.js pool is
   // `max: 5` per lambda (lib/db.ts), and a `boundedQuery` deadline starts

@@ -1,3 +1,4 @@
+import { todayInRiyadh } from '@/lib/riyadh-time';
 import type { Metadata } from 'next';
 import { Banknote } from 'lucide-react';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
@@ -34,10 +35,6 @@ export async function generateMetadata({
 }
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
-
-function todayInRiyadh(): string {
-  return new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Riyadh' }).format(new Date());
-}
 
 /** `days`-wide window ending today (Riyadh), as a `from` date string. */
 function daysBack(todayStr: string, days: number): string {

@@ -127,9 +127,7 @@ export async function executeBookingTransition(
     //   2. the money must actually be collected: paid online, or a
     //      genuinely payment-off deployment (no gateway configured).
     if (to === 'completed') {
-      const todayRiyadh = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Riyadh' }).format(
-        new Date(),
-      );
+      const todayRiyadh = todayInRiyadh();
       if (booking.date > todayRiyadh) return 'too_early' as const;
       const collected =
         booking.paymentStatus === 'paid' || (!hasHyperpay() && booking.paymentDeadline === null);

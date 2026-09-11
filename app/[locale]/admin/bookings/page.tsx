@@ -1,3 +1,4 @@
+import { todayInRiyadh } from '@/lib/riyadh-time';
 import type { Metadata } from 'next';
 import { ArrowLeft } from 'lucide-react';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
@@ -37,10 +38,6 @@ export async function generateMetadata({
     title: t('bookingsTitle'),
     robots: { index: false, follow: false },
   };
-}
-
-function todayInRiyadh(): string {
-  return new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Riyadh' }).format(new Date());
 }
 
 const FILTERABLE_STATUSES: readonly AdminBookingStatus[] = [
