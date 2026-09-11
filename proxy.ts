@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import createMiddleware from 'next-intl/middleware';
+import { PATHNAME_HEADER } from '@/lib/site-chrome';
 import { createServerClient } from '@supabase/ssr';
 import { routing } from '@/lib/i18n';
 import { withDeadline } from '@/lib/deadline';
@@ -183,6 +184,10 @@ export default async function middleware(req: NextRequest) {
       return NextResponse.redirect(url, 307);
     }
   }
+  // next-intl copies the request headers into its NextResponse.next(), so
+  // the locale layout can read the pathname and skip the public shell on
+  // dashboard routes (2026-09 engineering audit REACT-05).
+  req.headers.set(PATHNAME_HEADER, req.nextUrl.pathname);
   const res = intlMiddleware(req);
   await refreshSupabaseSession(req, res);
   return res;

@@ -13,7 +13,7 @@ import { CheckoutTracking } from '@/features/bookings/components/checkout-tracki
 import { Price } from '@/components/ui/price';
 import { getBookingByReferenceForViewer } from '@/features/bookings/queries';
 import { getStoredBillingForBooking } from '@/features/payments/queries';
-import { vatPortionSar, vatRatePercent } from '@/features/bookings/lib/vat';
+import { halalasToSar, vatPortionHalalas, vatRatePercent } from '@/features/bookings/lib/vat';
 import { getPlatformSettings } from '@/lib/platform-settings';
 import { isHoldExpired } from '@/features/bookings/lib/availability';
 import { bookingOptions } from '@/features/bookings/lib/policy';
@@ -504,7 +504,10 @@ export default async function PaymentPage({ params, searchParams }: PageParams) 
               {vatEnabled && (
                 <p className="text-sarat-black-600 flex items-baseline justify-between gap-4 text-sm">
                   <span>{t('vatIncludedLabel', { pct: vatRatePercent(vatRateBps) })}</span>
-                  <Price amount={vatPortionSar(booking.totalAmountSar, vatRateBps)} locale={loc} />
+                  <Price
+                    amount={halalasToSar(vatPortionHalalas(booking.totalAmountSar, vatRateBps))}
+                    locale={loc}
+                  />
                 </p>
               )}
               {/* The explicit VAT line above already says taxes are inside

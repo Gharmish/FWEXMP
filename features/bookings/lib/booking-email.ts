@@ -14,7 +14,7 @@ import { SITE_URL, SELLER_LEGAL_NAME, COMMERCIAL_REGISTRATION } from '@/lib/site
 import { reportError } from '@/lib/log';
 import { hostApplications } from '@/db/schema';
 import { getBookingByReference } from '@/features/bookings/queries';
-import { vatPortionSar, vatRatePercent } from '@/features/bookings/lib/vat';
+import { halalasToSar, vatPortionHalalas, vatRatePercent } from '@/features/bookings/lib/vat';
 import { startInstant } from '@/features/bookings/lib/cancellation';
 import { bookingOptions } from '@/features/bookings/lib/policy';
 import { splitCommission } from '@/features/bookings/lib/commission';
@@ -185,7 +185,7 @@ export async function sendBookingReceiptEmail(reference: string): Promise<void> 
     booking.vatRateBps && booking.vatRegistrationNumber
       ? { rateBps: booking.vatRateBps, number: booking.vatRegistrationNumber }
       : null;
-  const vatSar = vat ? vatPortionSar(booking.totalAmountSar, vat.rateBps) : 0;
+  const vatSar = vat ? halalasToSar(vatPortionHalalas(booking.totalAmountSar, vat.rateBps)) : 0;
   const taxableSar = booking.totalAmountSar - vatSar;
   // Exact-only unit price, matching the invoice page (2026-08-01 ninth
   // audit): a rounded unit made qty × unit ≠ total on non-divisible

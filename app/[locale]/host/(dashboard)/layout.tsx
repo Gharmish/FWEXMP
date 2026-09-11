@@ -19,7 +19,7 @@ import { SignOutButton } from '@/components/layout/sign-out-button';
  * individual pages don't need to re-gate — they still call queries that
  * re-scope defensively (defence in depth), mirroring the admin layout.
  *
- * The shell (left rail + top bar) IS the chrome: the `<style>` below hides
+ * The shell (left rail + top bar) IS the chrome: the locale layout skips (via the proxy's x-pathname header, REACT-05)
  * the public marketing navbar + footer (rendered by the parent locale
  * layout) on host dashboard routes. Sign-out + language switch are lifted
  * from that navbar into the rail footer so hosts keep them.
@@ -57,7 +57,6 @@ export default async function HostDashboardLayout({ children }: { children: Reac
 
   return (
     <>
-      <style>{`[data-site-chrome]{display:none!important}`}</style>
       <HostShell
         userLabel={dashboard.host.name}
         pendingRequests={pendingRequests}

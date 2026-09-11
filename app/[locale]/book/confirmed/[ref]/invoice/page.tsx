@@ -25,7 +25,7 @@ import { BOOKING_LINK_TOKEN_PARAM, bookingInvoiceUrl } from '@/lib/booking-link-
 import { getExperienceBySlug } from '@/features/experiences/queries';
 import { toArabicText } from '@/features/experiences/lib/arabic-content';
 import { startInstant } from '@/features/bookings/lib/cancellation';
-import { vatPortionSar, vatRatePercent } from '@/features/bookings/lib/vat';
+import { halalasToSar, vatPortionHalalas, vatRatePercent } from '@/features/bookings/lib/vat';
 import { zatcaQrPayload } from '@/features/bookings/lib/zatca-qr';
 
 /** UUID v4 shape — the only thing we accept as a public reference. */
@@ -153,7 +153,7 @@ export default async function BookingInvoicePage({ params, searchParams }: PageP
     booking.vatRateBps && booking.vatRegistrationNumber
       ? { rateBps: booking.vatRateBps, registrationNumber: booking.vatRegistrationNumber }
       : null;
-  const vatSar = vat ? vatPortionSar(booking.totalAmountSar, vat.rateBps) : 0;
+  const vatSar = vat ? halalasToSar(vatPortionHalalas(booking.totalAmountSar, vat.rateBps)) : 0;
   const taxableSar = booking.totalAmountSar - vatSar;
   // Unit price only when it's EXACT (2026-08-01 ninth audit): a rounded
   // unit made qty × unit ≠ total on non-divisible totals (3 × 33 = 99
@@ -211,7 +211,7 @@ export default async function BookingInvoicePage({ params, searchParams }: PageP
   // Non-VAT refunds keep the plain refunded note above — no tax to
   // reverse.
   const refundedSar = reversedSar;
-  const creditVatSar = vat ? vatPortionSar(refundedSar, vat.rateBps) : 0;
+  const creditVatSar = vat ? halalasToSar(vatPortionHalalas(refundedSar, vat.rateBps)) : 0;
   const creditNote =
     hasRefund && vat && booking.refundedAt && refundedSar > 0
       ? {

@@ -21,7 +21,7 @@ import { SignOutButton } from '@/components/layout/sign-out-button';
  * defensively (defence in depth).
  *
  * The shell (left rail + top bar) wraps every admin page and IS the chrome:
- * the `<style>` below hides the public marketing navbar + footer (rendered by
+ * the locale layout skips (via the proxy's x-pathname header, REACT-05) the public marketing navbar + footer (rendered by
  * the parent locale layout) on admin routes, so the rail stands alone like the
  * mockup. Sign-out + language switch are lifted from that navbar into the rail
  * footer so admins keep them. The inner `max-w-6xl` content column preserves
@@ -52,7 +52,6 @@ export default async function AdminLayout({ children }: { children: React.ReactN
 
   return (
     <>
-      <style>{`[data-site-chrome]{display:none!important}`}</style>
       <AdminShell
         userLabel={user.phone || (user.email ?? 'Admin')}
         navCounts={navCounts}

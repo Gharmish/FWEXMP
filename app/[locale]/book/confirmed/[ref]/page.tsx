@@ -62,7 +62,7 @@ import {
 } from '@/features/bookings/lib/availability';
 import { getScheduleDataBySlug } from '@/features/availability/queries';
 import type { BookableOption } from '@/features/bookings/types';
-import { vatPortionSar, vatRatePercent } from '@/features/bookings/lib/vat';
+import { halalasToSar, vatPortionHalalas, vatRatePercent } from '@/features/bookings/lib/vat';
 import { PendingPaymentRefresh } from '@/features/payments/components/pending-payment-refresh';
 import { CheckoutProgress } from '@/features/payments/components/checkout-progress';
 import { PurchaseConversion } from '@/features/bookings/components/purchase-conversion';
@@ -579,7 +579,10 @@ export default async function BookingConfirmedPage({ params, searchParams }: Pag
       moneyRows.push({
         label: t('vatIncludedLabel', { pct: vatRatePercent(booking.vatRateBps) }),
         value: (
-          <Price amount={vatPortionSar(booking.totalAmountSar, booking.vatRateBps)} locale={loc} />
+          <Price
+            amount={halalasToSar(vatPortionHalalas(booking.totalAmountSar, booking.vatRateBps))}
+            locale={loc}
+          />
         ),
       });
     }

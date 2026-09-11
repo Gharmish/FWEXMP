@@ -11,7 +11,7 @@ import {
   type OpenBookingSummary,
 } from '@/features/bookings/actions';
 import { bookingRequestSchema } from '@/features/bookings/schemas';
-import { vatPortionSar } from '@/features/bookings/lib/vat';
+import { halalasToSar, vatPortionHalalas } from '@/features/bookings/lib/vat';
 import { Button } from '@/components/ui/button';
 import { FieldError as SpringFieldError } from '@/components/ui/field-error';
 import { Input } from '@/components/ui/input';
@@ -904,7 +904,10 @@ export function BookingRequestForm({
             {copy.vatIncluded && vatRateBps ? (
               <p className="text-sarat-black-600 flex items-baseline justify-between text-sm">
                 <span>{copy.vatIncluded}</span>
-                <Price amount={vatPortionSar(totalSar, vatRateBps)} locale={locale} />
+                <Price
+                  amount={halalasToSar(vatPortionHalalas(totalSar, vatRateBps))}
+                  locale={locale}
+                />
               </p>
             ) : null}
           </div>

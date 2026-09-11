@@ -23,3 +23,19 @@ export function vatPortionSar(totalSar: number, rateBps: number): number {
 export function vatRatePercent(rateBps: number): number {
   return rateBps / 100;
 }
+
+/**
+ * VAT portion in halalas (1/100 SAR) — the precision a tax invoice, the
+ * ZATCA QR and every on-screen VAT line need once VAT is enabled
+ * (2026-09 engineering audit MONEY-05). Whole-riyal `vatPortionSar` stays
+ * for the payout/commission split, which is settled in whole riyals.
+ */
+export function vatPortionHalalas(totalSar: number, rateBps: number): number {
+  if (totalSar <= 0 || rateBps <= 0) return 0;
+  return Math.round((totalSar * 100 * rateBps) / (10000 + rateBps));
+}
+
+/** Halalas → SAR with the fraction kept (formatters render two decimals). */
+export function halalasToSar(halalas: number): number {
+  return Math.round(halalas) / 100;
+}

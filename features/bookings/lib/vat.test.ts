@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { vatPortionSar, vatRatePercent } from '@/features/bookings/lib/vat';
+import {
+  halalasToSar,
+  vatPortionHalalas,
+  vatPortionSar,
+  vatRatePercent,
+} from '@/features/bookings/lib/vat';
 
 describe('vatPortionSar', () => {
   it('extracts the inclusive VAT portion at 15%', () => {
@@ -22,5 +27,19 @@ describe('vatRatePercent', () => {
   it('renders basis points as a percentage', () => {
     expect(vatRatePercent(1500)).toBe(15);
     expect(vatRatePercent(500)).toBe(5);
+  });
+});
+
+describe('vatPortionHalalas (MONEY-05)', () => {
+  it('keeps the halalas a whole-riyal split throws away', () => {
+    // 200 SAR inclusive at 15% → 26.0869… SAR of VAT.
+    expect(vatPortionHalalas(200, 1500)).toBe(2609);
+    expect(halalasToSar(vatPortionHalalas(200, 1500))).toBe(26.09);
+    expect(vatPortionSar(200, 1500)).toBe(26);
+  });
+
+  it('is zero without a rate or a positive total', () => {
+    expect(vatPortionHalalas(200, 0)).toBe(0);
+    expect(vatPortionHalalas(0, 1500)).toBe(0);
   });
 });
