@@ -26,7 +26,7 @@ function load(file: string): Promise<Buffer> {
   return readFile(join(FONT_DIR, file));
 }
 
-export async function loadOgFonts(): Promise<OgFont[]> {
+async function readAll(): Promise<OgFont[]> {
   const [bricolageRegular, bricolageSemibold, plexRegular, plexSemibold] = await Promise.all([
     load('bricolage-regular.ttf'),
     load('bricolage-semibold.ttf'),
@@ -40,4 +40,22 @@ export async function loadOgFonts(): Promise<OgFont[]> {
     { name: 'PlexArabic', data: plexRegular, weight: 400, style: 'normal' },
     { name: 'PlexArabic', data: plexSemibold, weight: 600, style: 'normal' },
   ];
+}
+
+/**
+ * Memoised per process (2026-09 engineering audit GAPB-05): the four TTFs
+ * never change at runtime, yet every social-preview fetch of the
+ * (uncached) opengraph-image convention route re-read them off disk. A
+ * failed read is not cached, so a transient ENOENT retries next call.
+ */
+let fontsPromise: Promise<OgFont[]> | null = null;
+
+export function loadOgFonts(): Promise<OgFont[]> {
+  if (!fontsPromise) {
+    fontsPromise = readAll().catch((error: unknown) => {
+      fontsPromise = null;
+      throw error;
+    });
+  }
+  return fontsPromise;
 }

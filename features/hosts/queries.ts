@@ -1,3 +1,6 @@
+import 'server-only';
+
+import { cache } from 'react';
 import { and, asc, eq, isNotNull, sql } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import { boundedQuery } from '@/lib/deadline';
@@ -37,7 +40,14 @@ function toProfile(row: Host): HostProfile {
   };
 }
 
-export async function getHostBySlug(slug: string): Promise<HostProfile | undefined> {
+/**
+ * Request-cached like its sibling getExperienceBySlug: generateMetadata,
+ * the page body and the legacy-slug redirect check all call this for the
+ * same slug in one render, which used to be two or three identical
+ * pooler round-trips per profile view (2026-09 engineering audit
+ * REACT-03 / PERF-09).
+ */
+export const getHostBySlug = cache(async (slug: string): Promise<HostProfile | undefined> => {
   if (!hasDb()) return sample.getHostBySlug(slug);
   // Public profile pages are verified-only: a pending host isn't part of
   // the curated marketplace yet, and a suspended host must not keep a
@@ -48,7 +58,7 @@ export async function getHostBySlug(slug: string): Promise<HostProfile | undefin
     }),
   );
   return row ? toProfile(row) : undefined;
-}
+});
 
 /** Trust stats for "Meet your host" — derived from real request handling. */
 export interface HostResponseStats {

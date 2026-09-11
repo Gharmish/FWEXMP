@@ -161,12 +161,16 @@ export async function generateMetadata({
       },
     },
     openGraph: {
-      // og:image is supplied by the co-located opengraph-image.tsx (dynamic,
-      // per-experience). Omitting it here lets the file convention win.
       title,
       description,
       url,
       type: 'website',
+      // Point og:image at the `.png` alias, not the opengraph-image
+      // convention route: both render the same card, but only the alias
+      // carries ISR + a long CDN cache, and the convention URL was the one
+      // every WhatsApp/X/Slack preview fetched — re-rendering Satori per
+      // fetch (2026-09 engineering audit GAPB-05).
+      images: [{ url: `${url}/card.png`, width: 1200, height: 630 }],
     },
     twitter: { card: 'summary_large_image', title, description },
   };
