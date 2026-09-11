@@ -14,7 +14,7 @@ import {
 } from 'lucide-react';
 import { getTranslations } from 'next-intl/server';
 import { Card } from '@/components/ui/card';
-import { durationHours, formatInteger } from '@/lib/format';
+import { durationHours, formatInteger, formatRating } from '@/lib/format';
 import { Price } from '@/components/ui/price';
 import { Link } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
@@ -140,11 +140,7 @@ export async function ExperienceCard({
 
   const ratingDisplay =
     experience.ratingAverage !== null
-      ? new Intl.NumberFormat(locale === 'ar' ? 'ar-SA' : 'en-SA', {
-          numberingSystem: 'latn',
-          minimumFractionDigits: 1,
-          maximumFractionDigits: 1,
-        }).format(experience.ratingAverage)
+      ? formatRating(experience.ratingAverage, locale)
       : null;
   const ratingCountDisplay = formatInteger(experience.ratingCount, locale);
 

@@ -2,7 +2,7 @@ import { Star } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import type { Locale } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
-import { formatInteger } from '@/lib/format';
+import { formatInteger, formatRating } from '@/lib/format';
 import type { ReviewAggregate } from '@/features/reviews/types';
 
 interface RatingSummaryProps {
@@ -37,11 +37,7 @@ export function RatingSummary({ aggregate, locale }: RatingSummaryProps) {
     );
   }
 
-  const averageDisplay = new Intl.NumberFormat(locale === 'ar' ? 'ar-SA' : 'en-SA', {
-    numberingSystem: 'latn',
-    minimumFractionDigits: 1,
-    maximumFractionDigits: 1,
-  }).format(average);
+  const averageDisplay = formatRating(average, locale);
 
   const fillPercent = (average / 5) * 100;
   const buckets: Array<1 | 2 | 3 | 4 | 5> = [5, 4, 3, 2, 1];

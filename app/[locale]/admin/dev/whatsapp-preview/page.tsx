@@ -98,7 +98,7 @@ export default async function WhatsAppPreviewPage({
                     </p>
                     <div
                       dir={loc === 'ar' ? 'rtl' : 'ltr'}
-                      className="bg-mist rounded-[20px] px-4 py-3 text-[15px] leading-relaxed whitespace-pre-line"
+                      className="bg-mist rounded-card px-4 py-3 text-[15px] leading-relaxed whitespace-pre-line"
                     >
                       {out.ok ? out.message.preview : out.error}
                     </div>
@@ -106,7 +106,7 @@ export default async function WhatsAppPreviewPage({
                       out.message.buttons.map((b) => (
                         <div
                           key={b.title}
-                          className="border-sarat-black/10 text-sarawat-blue rounded-[20px] [border-width:0.5px] py-2 text-center text-[15px] font-medium"
+                          className="border-sarat-black/10 text-sarawat-blue rounded-card [border-width:0.5px] py-2 text-center text-[15px] font-medium"
                           title={b.url}
                         >
                           {b.title}
@@ -139,19 +139,19 @@ export default async function WhatsAppPreviewPage({
             <div key={loc} className="flex flex-col gap-3">
               <div
                 dir={loc === 'ar' ? 'rtl' : 'ltr'}
-                className="bg-mist rounded-[20px] px-4 py-3 text-[15px] whitespace-pre-line"
+                className="bg-mist rounded-card px-4 py-3 text-[15px] whitespace-pre-line"
               >
                 {SUPPORT_SESSION_COPY.ack[loc]}
               </div>
               <div
                 dir={loc === 'ar' ? 'rtl' : 'ltr'}
-                className="bg-mist rounded-[20px] px-4 py-3 text-[15px] whitespace-pre-line"
+                className="bg-mist rounded-card px-4 py-3 text-[15px] whitespace-pre-line"
               >
                 {SUPPORT_SESSION_COPY.ticketOpened[loc]('TK-7K3M9X')}
               </div>
               <div
                 dir={loc === 'ar' ? 'rtl' : 'ltr'}
-                className="bg-mist rounded-[20px] px-4 py-3 text-[15px] whitespace-pre-line"
+                className="bg-mist rounded-card px-4 py-3 text-[15px] whitespace-pre-line"
               >
                 {SUPPORT_SESSION_COPY.ticketResolved[loc]('TK-7K3M9X')}
               </div>

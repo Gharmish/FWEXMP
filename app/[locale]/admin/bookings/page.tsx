@@ -293,7 +293,7 @@ export default async function AdminBookingsPage({
                   {t('bookingsList.filter.noMatches')}
                 </p>
               ) : (
-                <ul className="border-sarat-black/8 rounded-card flex flex-col divide-y divide-[var(--color-sarat-black)]/8 [border-width:0.5px]">
+                <ul className="border-sarat-black/8 rounded-card divide-hairline flex flex-col [border-width:0.5px]">
                   {filtered.map((row) => (
                     <li
                       key={row.id}

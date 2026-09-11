@@ -111,7 +111,7 @@ export function ConfirmSubmit({
               <AlertDialog.Popup
                 render={
                   <motion.div
-                    className="rounded-modal border-sarat-black/8 fixed inset-0 z-[60] m-auto h-fit w-[calc(100%-2rem)] max-w-sm [border-width:0.5px] bg-white p-6 shadow-[var(--shadow-overlay)]"
+                    className="rounded-modal border-sarat-black/8 fixed inset-0 z-[60] m-auto h-fit w-[calc(100%-2rem)] max-w-sm [border-width:0.5px] bg-white p-6 shadow-overlay"
                     initial={reduce ? false : { opacity: 0, scale: 0.96, y: 8 }}
                     animate={{ opacity: 1, scale: 1, y: 0 }}
                     exit={reduce ? undefined : { opacity: 0, scale: 0.98 }}

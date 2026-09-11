@@ -1,3 +1,4 @@
+import { StarRating } from '@/components/ui/star-rating';
 import type { Metadata } from 'next';
 import { Star } from 'lucide-react';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
@@ -149,21 +150,10 @@ export default async function HostReviewsPage({
                         {row.guestName} · {formatDate(new Date(row.createdAt), loc)}
                       </p>
                     </div>
-                    <div
-                      className="flex items-center gap-1"
-                      aria-label={t('ratingLabel', { rating: row.rating })}
-                    >
-                      {[1, 2, 3, 4, 5].map((i) => (
-                        <Star
-                          key={i}
-                          className={cn(
-                            'size-4 fill-current',
-                            i <= row.rating ? 'text-saffron-gold' : 'text-sarat-black/20',
-                          )}
-                          aria-hidden
-                        />
-                      ))}
-                    </div>
+                    <StarRating
+                      rating={row.rating}
+                      label={t('ratingLabel', { rating: row.rating })}
+                    />
                   </div>
                   {text && (
                     <p className="text-sarat-black max-w-2xl text-base leading-relaxed">{text}</p>

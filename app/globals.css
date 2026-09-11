@@ -195,6 +195,15 @@ body {
   line-height: 1.75;
 }
 
+/* Arabic is cursive: letter-spacing pulls joined glyphs apart and breaks
+ * the word. The eyebrow/caption tiers carry `tracking-[0.2em]` utilities
+ * that ~70 call sites guard with `locale === 'en'` and ~10 did not
+ * (2026-09 engineering audit DESIGN-01 / I18N-01). Neutralise EVERY
+ * tracking utility under RTL so the rule cannot be forgotten again. */
+[dir='rtl'] [class*='tracking-'] {
+  letter-spacing: 0;
+}
+
 [dir='rtl'] .font-display {
   font-family: var(--font-arabic);
   letter-spacing: 0;

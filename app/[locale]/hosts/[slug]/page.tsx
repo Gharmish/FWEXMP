@@ -1,3 +1,4 @@
+import { formatRating } from '@/lib/format';
 import type { Metadata } from 'next';
 import { ArrowLeft, Star } from 'lucide-react';
 import { notFound } from 'next/navigation';
@@ -132,15 +133,6 @@ export default async function HostProfilePage({
     'text-sarat-black-600 font-medium text-[11px]',
     loc === 'en' && 'tracking-[0.2em] uppercase',
   );
-
-  // One decimal, Latin digits in both locales (BRIEF §4) — same
-  // treatment as the experience cards.
-  const formatRating = (value: number, l: Locale): string =>
-    new Intl.NumberFormat(l === 'ar' ? 'ar-SA' : 'en-SA', {
-      numberingSystem: 'latn',
-      minimumFractionDigits: 1,
-      maximumFractionDigits: 1,
-    }).format(value);
 
   // Host-level rating: the count-weighted merge of each experience's
   // aggregate (already loaded for the cards) — no extra query.

@@ -86,7 +86,7 @@ export function SortSelect() {
               <Select.Popup
                 render={
                   <motion.div
-                    className="rounded-input border-sarat-black/8 min-w-[--anchor-width] [border-width:0.5px] bg-white py-1 shadow-[var(--shadow-overlay)]"
+                    className="rounded-input border-sarat-black/8 min-w-[--anchor-width] [border-width:0.5px] bg-white py-1 shadow-overlay"
                     initial={reduce ? false : { opacity: 0, scale: 0.97, y: -4 }}
                     animate={{ opacity: 1, scale: 1, y: 0 }}
                     exit={reduce ? undefined : { opacity: 0, scale: 0.98 }}

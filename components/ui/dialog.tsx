@@ -74,7 +74,7 @@ export function Dialog({
               render={
                 <motion.div
                   className={cn(
-                    'rounded-modal border-sarat-black/8 fixed inset-0 z-[60] m-auto h-fit w-[calc(100%-2rem)] max-w-md [border-width:0.5px] bg-white p-6 shadow-[var(--shadow-overlay)]',
+                    'rounded-modal border-sarat-black/8 fixed inset-0 z-[60] m-auto h-fit w-[calc(100%-2rem)] max-w-md [border-width:0.5px] bg-white p-6 shadow-overlay',
                     className,
                   )}
                   initial={reduce ? false : { opacity: 0, scale: 0.96, y: 8 }}

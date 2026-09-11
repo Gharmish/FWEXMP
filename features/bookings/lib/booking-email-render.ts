@@ -124,7 +124,7 @@ export function renderReceiptEmail(content: ReceiptContent): { html: string; tex
   // email clients render inconsistently.
   const bulletsHtml =
     content.bullets && content.bullets.items.length > 0
-      ? `<tr><td style="padding-top:20px"><div style="font-size:13px;font-weight:600;color:#0A0A0A;padding-bottom:8px">${esc(content.bullets.heading)}</div>${content.bullets.items
+      ? `<tr><td style="padding-top:20px"><div style="font-size:13px;font-weight:500;color:#0A0A0A;padding-bottom:8px">${esc(content.bullets.heading)}</div>${content.bullets.items
           .map(
             (item) =>
               `<div style="font-size:14px;color:#4A4A4A;line-height:1.6">— ${esc(item)}</div>`,
@@ -145,7 +145,7 @@ export function renderReceiptEmail(content: ReceiptContent): { html: string; tex
     ? content.note.html.replace(/<a /g, '<a style="color:#0A0A0A;font-weight:500" ')
     : '';
   const noteHtml = content.note
-    ? `<tr><td style="padding-top:20px"><div style="background:#FAFAFA;border:1px solid rgba(10,10,10,0.08);border-radius:12px;padding:13px 15px;font-size:13px;color:#4A4A4A;line-height:1.6">${noteInner}</div></td></tr>\n`
+    ? `<tr><td style="padding-top:20px"><div style="background:#FAFAFA;border:1px solid rgba(10,10,10,0.08);border-radius:12px;padding:12px 16px;font-size:13px;color:#4A4A4A;line-height:1.6">${noteInner}</div></td></tr>\n`
     : '';
 
   const lang = content.dir === 'rtl' ? 'ar' : 'en';

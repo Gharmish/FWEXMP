@@ -1,6 +1,7 @@
+import { StarRating } from '@/components/ui/star-rating';
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
-import { ArrowLeft, Star } from 'lucide-react';
+import { ArrowLeft } from 'lucide-react';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { Link } from '@/lib/i18n';
 import type { Locale } from '@/lib/i18n';
@@ -104,14 +105,10 @@ export default async function AdminReviewsPage({
                 <div className="flex flex-wrap items-start justify-between gap-4">
                   <div className="flex flex-col gap-1">
                     <div className="flex items-center gap-2">
-                      <span
-                        className="text-saffron-gold inline-flex items-center gap-1"
-                        aria-label={t('reviewsList.ratingValue', { rating: row.rating })}
-                      >
-                        {Array.from({ length: row.rating }).map((_, i) => (
-                          <Star key={i} className="size-4 fill-current" aria-hidden />
-                        ))}
-                      </span>
+                      <StarRating
+                        rating={row.rating}
+                        label={t('reviewsList.ratingValue', { rating: row.rating })}
+                      />
                       {row.hidden && (
                         <Badge className="bg-rijal-clay/15 text-rijal-clay">
                           {t('reviewsList.hiddenBadge')}

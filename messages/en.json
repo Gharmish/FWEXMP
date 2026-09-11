@@ -365,7 +365,8 @@
       "copyIban": "Copy IBAN",
       "noIban": "No IBAN on file — ask the host to add one on their earnings page.",
       "amountChanged": "The owed amount changed since the page loaded — refresh and try again.",
-      "hostSuspended": "This host is suspended — resolve their status before paying out."
+      "hostSuspended": "This host is suspended — resolve their status before paying out.",
+      "copiedIban": "IBAN copied"
     },
     "reviewsList": {
       "eyebrow": "Reviews",
@@ -1085,7 +1086,8 @@
       "refundBankBeneficiary": "Account holder",
       "refundBankIban": "IBAN",
       "refundBankSubmittedAt": "Entered by guest",
-      "refundBankCopy": "Copy IBAN"
+      "refundBankCopy": "Copy IBAN",
+      "refundBankCopied": "IBAN copied"
     },
     "emergencyCancel": {
       "heading": "Emergency cancellation",
@@ -2330,7 +2332,8 @@
         "minAge": "Minimum-age attestation"
       }
     },
-    "completeHint": "Happens automatically the day after — press only to count the payout now."
+    "completeHint": "Happens automatically the day after — press only to count the payout now.",
+    "copiedReference": "Reference copied"
   },
   "hostEarnings": {
     "meta": {

@@ -112,6 +112,19 @@ export function durationHours(minutes: number, locale: Locale): string {
   }).format(hours);
 }
 
+/**
+ * One-decimal rating (`4.8`), Latin digits in both locales — was
+ * re-implemented inline at five call sites (2026-09 engineering audit
+ * I18N-09), each a copy-paste away from forgetting `numberingSystem`.
+ */
+export function formatRating(value: number, locale: Locale): string {
+  return new Intl.NumberFormat(locale === 'ar' ? 'ar-SA' : 'en-SA', {
+    numberingSystem: 'latn',
+    minimumFractionDigits: 1,
+    maximumFractionDigits: 1,
+  }).format(value);
+}
+
 export function formatInteger(value: number, locale: Locale): string {
   return new Intl.NumberFormat(intlLocale[locale], {
     numberingSystem: 'latn',

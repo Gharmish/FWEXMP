@@ -225,6 +225,7 @@ export default async function AdminBookingDetailPage({
                   <CopyButton
                     value={booking.refundBank.iban}
                     label={t('bookingDetail.refundBankCopy')}
+                    copiedLabel={t('bookingDetail.refundBankCopied')}
                   />
                 </dd>
               </div>

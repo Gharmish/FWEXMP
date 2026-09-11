@@ -365,7 +365,8 @@
       "copyIban": "نسخ الآيبان",
       "noIban": "لا يوجد آيبان مسجّل — اطلب من المضيف إضافته في صفحة أرباحه.",
       "amountChanged": "تغيّر المبلغ المستحق منذ تحميل الصفحة — حدّث الصفحة وحاول مجددًا.",
-      "hostSuspended": "هذا المضيف موقوف — عالج حالته قبل التحويل."
+      "hostSuspended": "هذا المضيف موقوف — عالج حالته قبل التحويل.",
+      "copiedIban": "تم نسخ الآيبان"
     },
     "reviewsList": {
       "eyebrow": "التقييمات",
@@ -1085,7 +1086,8 @@
       "refundBankBeneficiary": "صاحب الحساب",
       "refundBankIban": "الآيبان",
       "refundBankSubmittedAt": "أدخلها الضيف في",
-      "refundBankCopy": "نسخ الآيبان"
+      "refundBankCopy": "نسخ الآيبان",
+      "refundBankCopied": "تم نسخ الآيبان"
     },
     "emergencyCancel": {
       "heading": "إلغاء طارئ",
@@ -1981,9 +1983,9 @@
     },
     "attention": {
       "title": "يحتاج انتباهك",
-      "moreRequests": "{count, plural, one {طلب آخر} two {طلبان آخران} few {# طلبات أخرى} other {# طلبًا آخر}} بانتظارك",
+      "moreRequests": "{count, plural, one {طلب آخر} two {طلبان آخران} few {# طلبات أخرى} many {# طلبًا آخر} other {# طلب آخر}} بانتظارك",
       "changesRequested": "طُلبت تعديلات على «{title}»",
-      "unrepliedReviews": "{count, plural, one {تقييم واحد} two {تقييمان} few {# تقييمات} other {# تقييمًا}} بانتظار ردّك",
+      "unrepliedReviews": "{count, plural, one {تقييم واحد} two {تقييمان} few {# تقييمات} many {# تقييمًا} other {# تقييم}} بانتظار ردّك",
       "ibanMissing": "لديك {amount} ر.س مستحقة، لكن لا يوجد آيبان مسجّل",
       "payBy": "الدفع قبل {date}"
     },
@@ -2007,7 +2009,7 @@
       "cancellationRate": "{pct, number}٪ من الحجوزات، آخر 12 شهرًا",
       "cancellationsHint": "آخر 12 شهرًا",
       "listings": "تجارب منشورة",
-      "listingsHint": "{total, plural, one {من تجربة واحدة} two {من تجربتين} few {من # تجارب} other {من # تجربة}}"
+      "listingsHint": "{total, plural, one {من تجربة واحدة} two {من تجربتين} few {من # تجارب} many {من # تجربة} other {من # تجربة}}"
     }
   },
   "hostProfileSettings": {
@@ -2237,19 +2239,19 @@
       "expired": "انتهت مهلة الرد"
     },
     "backToBookings": "كل الحجوزات",
-    "countLabel": "{count, plural, one {حجز واحد} two {حجزان} few {# حجوزات} other {# حجزًا}}",
+    "countLabel": "{count, plural, one {حجز واحد} two {حجزان} few {# حجوزات} many {# حجزًا} other {# حجز}}",
     "copyReference": "نسخ الرقم المرجعي {reference}",
     "cancelledByYou": "ألغيته أنت",
     "contactAfterAccept": "تظهر بيانات التواصل بعد القبول",
     "guestNote": "ملاحظة من الضيف",
     "seats": {
-      "request": "{taken} من {max} مقاعد محجوزة · {left, plural, =0 {لا مقاعد متبقية} one {مقعد واحد متبقٍ} two {مقعدان متبقيان} few {# مقاعد متبقية} other {# مقعدًا متبقيًا}}",
+      "request": "{taken} من {max} مقاعد محجوزة · {left, plural, =0 {لا مقاعد متبقية} one {مقعد واحد متبقٍ} two {مقعدان متبقيان} few {# مقاعد متبقية} many {# مقعدًا متبقيًا} other {# مقعد متبقيًا}}",
       "booked": "{taken} من {max} مقاعد في هذا التاريخ"
     },
     "approvalClosed": {
       "started": "بدأت هذه الجلسة بالفعل — لم يعد بالإمكان قبولها.",
       "cutoff": "ضمن مهلة الإغلاق — أقرب من أن يُقبل قبل البداية.",
-      "seats": "لم يتبقَّ سوى {left, plural, =0 {أي مقعد} one {مقعد واحد} two {مقعدين} few {# مقاعد} other {# مقعدًا}} في هذا التاريخ؛ يحتاج هذا الطلب إلى {needed}."
+      "seats": "لم يتبقَّ سوى {left, plural, =0 {أي مقعد} one {مقعد واحد} two {مقعدين} few {# مقاعد} many {# مقعدًا} other {# مقعد}} في هذا التاريخ؛ يحتاج هذا الطلب إلى {needed}."
     },
     "cancelReason": {
       "label": "لماذا تلغي؟",
@@ -2277,14 +2279,14 @@
       "open": "المفتوحة",
       "past": "السابقة",
       "calendar": "التقويم",
-      "pastLink": "{count, plural, one {حجز سابق واحد} two {حجزان سابقان} few {# حجوزات سابقة} other {# حجزًا سابقًا}} ←"
+      "pastLink": "{count, plural, one {حجز سابق واحد} two {حجزان سابقان} few {# حجوزات سابقة} many {# حجزًا سابقًا} other {# حجز سابقًا}} ←"
     },
     "calendar": {
       "previousMonth": "الشهر السابق",
       "nextMonth": "الشهر التالي",
       "gridLabel": "الحجوزات حسب اليوم",
       "cell": "{bookings}·{guests}",
-      "dayLabel": "{date}: {bookings, plural, one {حجز واحد} two {حجزان} few {# حجوزات} other {# حجزًا}}، {guests, plural, one {ضيف واحد} two {ضيفان} few {# ضيوف} other {# ضيفًا}}",
+      "dayLabel": "{date}: {bookings, plural, one {حجز واحد} two {حجزان} few {# حجوزات} many {# حجزًا} other {# حجز}}، {guests, plural, one {ضيف واحد} two {ضيفان} few {# ضيوف} many {# ضيفًا} other {# ضيف}}",
       "clearDay": "عرض الشهر كاملًا",
       "emptyDay": "لا شيء في هذا اليوم."
     },
@@ -2313,8 +2315,8 @@
         "payout": "مستحقاتك",
         "paymentBrand": "وسيلة الدفع",
         "rescheduled": "أُعيدت جدولته",
-        "rescheduledFrom": "{count, plural, one {مرة واحدة} two {مرتان} few {# مرات} other {# مرة}} — كان أصلًا في {date}",
-        "rescheduledTimes": "{count, plural, one {مرة واحدة} two {مرتان} few {# مرات} other {# مرة}}",
+        "rescheduledFrom": "{count, plural, one {مرة واحدة} two {مرتان} few {# مرات} many {# مرة} other {# مرة}} — كان أصلًا في {date}",
+        "rescheduledTimes": "{count, plural, one {مرة واحدة} two {مرتان} few {# مرات} many {# مرة} other {# مرة}}",
         "refunded": "أُعيد للضيف",
         "cancellationReason": "سبب الإلغاء",
         "attestations": "أقرّ الضيف بـ"
@@ -2330,7 +2332,8 @@
         "minAge": "إقرار الحد الأدنى للعمر"
       }
     },
-    "completeHint": "يتم تلقائيًا في اليوم التالي — اضغط فقط لاحتساب المستحقات الآن."
+    "completeHint": "يتم تلقائيًا في اليوم التالي — اضغط فقط لاحتساب المستحقات الآن.",
+    "copiedReference": "تم نسخ رقم الحجز"
   },
   "hostEarnings": {
     "meta": {
@@ -2381,7 +2384,7 @@
       "gross": "دفع الضيف <amount></amount>",
       "vat": "الضريبة (للهيئة) <amount></amount>",
       "commission": "عمولة غارميش {pct, number}٪ · <amount></amount>",
-      "countLabel": "{count, plural, one {حجز واحد} two {حجزان} few {# حجوزات} other {# حجزًا}}",
+      "countLabel": "{count, plural, one {حجز واحد} two {حجزان} few {# حجوزات} many {# حجزًا} other {# حجز}}",
       "scopeLabel": "نطاق السجل",
       "scope": {
         "completed": "المُكتسب",
@@ -2486,7 +2489,7 @@
       "cancelEdit": "إبقاؤه كما هو",
       "confirm": "يُنشر ردّك للعامة أسفل هذا التقييم ولا يمكن سحبه — يمكن تعديله فقط خلال 24 ساعة."
     },
-    "awaitingReply": "{count, plural, one {تقييم واحد بانتظار} two {تقييمان بانتظار} few {# تقييمات بانتظار} other {# تقييمًا بانتظار}} ردّك — تجده في الأعلى.",
+    "awaitingReply": "{count, plural, one {تقييم واحد بانتظار} two {تقييمان بانتظار} few {# تقييمات بانتظار} many {# تقييمًا بانتظار} other {# تقييم بانتظار}} ردّك — تجده في الأعلى.",
     "pagination": {
       "pageOf": "صفحة {page} من {pages}",
       "prev": "السابق",
@@ -2771,10 +2774,10 @@
       "title": "تجاربك",
       "intro": "كل ما تستضيفه في مكان واحد — المسوّدات، وما هو قيد المراجعة، وما هو منشور في الدليل.",
       "deletedNotice": "حُذفت المسوّدة.",
-      "bookings30d": "{count, plural, =0 {لا حجوزات خلال 30 يومًا} one {حجز واحد خلال 30 يومًا} two {حجزان خلال 30 يومًا} few {# حجوزات خلال 30 يومًا} other {# حجزًا خلال 30 يومًا}}",
+      "bookings30d": "{count, plural, =0 {لا حجوزات خلال 30 يومًا} one {حجز واحد خلال 30 يومًا} two {حجزان خلال 30 يومًا} few {# حجوزات خلال 30 يومًا} many {# حجزًا خلال 30 يومًا} other {# حجز خلال 30 يومًا}}",
       "noRating": "لا تقييم بعد",
       "noPhoto": "لا صورة رئيسية بعد",
-      "archivedFold": "{count, plural, one {تجربة مؤرشفة واحدة} two {تجربتان مؤرشفتان} few {# تجارب مؤرشفة} other {# تجربة مؤرشفة}}",
+      "archivedFold": "{count, plural, one {تجربة مؤرشفة واحدة} two {تجربتان مؤرشفتان} few {# تجارب مؤرشفة} many {# تجربة مؤرشفة} other {# تجربة مؤرشفة}}",
       "nextStep": {
         "changesRequested": "أعادها المراجع — افتحها لترى ما يلزم تعديله.",
         "pendingReview": "قيد المراجعة — نردّ عادةً خلال يومي عمل.",
@@ -3751,7 +3754,7 @@
     "emptyTitle": "لا توجد تقييمات بعد",
     "emptyBody": "هذه التجربة جديدة على غارميش. لا تُنشر التقييمات إلا من ضيوف أكملوا التجربة بأنفسهم، فكل ما تقرأه هنا تجربة حقيقية — احجزها وكن أول من يشارك رأيه.",
     "outOf": "من {max}",
-    "basedOn": "{n, plural, one {بناءً على تقييم واحد} two {بناءً على تقييمين} few {بناءً على {count} تقييمات} other {بناءً على {count} تقييمًا}}",
+    "basedOn": "{n, plural, one {بناءً على تقييم واحد} two {بناءً على تقييمين} few {بناءً على {count} تقييمات} many {بناءً على {count} تقييمًا} other {بناءً على {count} تقييم}}",
     "ratingLabel": "تقييم {rating} من 5",
     "ratingLabelWithCount": "تقييم {rating} من 5، {count, plural, zero {بلا تقييمات بعد} one {بناءً على تقييم واحد} two {بناءً على تقييمين} few {بناءً على # تقييمات} many {بناءً على # تقييمًا} other {بناءً على # تقييم}}",
     "charCount": "{count}/{max}",
@@ -4377,7 +4380,7 @@
     "host": {
       "verified": "مضيف موثّق",
       "unverified": "مضيف على غارميش",
-      "experienceCount": "{formatted} تجربة"
+      "experienceCount": "{formatted} {count, plural, one {تجربة} two {تجربتان} few {تجارب} many {تجربة} other {تجربة}}"
     }
   },
   "hostStatusEmail": {

@@ -113,7 +113,7 @@ function ToastCard({ item }: { item: ToastItem }) {
       animate={{ opacity: 1, y: 0, scale: 1 }}
       exit={reduce ? undefined : { opacity: 0, y: 8 }}
       transition={SPRING}
-      className="rounded-input border-sarat-black/8 pointer-events-auto flex w-full items-start gap-3 [border-width:0.5px] bg-white p-4 shadow-[var(--shadow-overlay)]"
+      className="rounded-input border-sarat-black/8 pointer-events-auto flex w-full items-start gap-3 [border-width:0.5px] bg-white p-4 shadow-overlay"
       onPointerEnter={pause}
       onPointerLeave={resume}
       onFocus={pause}

@@ -1,4 +1,4 @@
-import { Star } from 'lucide-react';
+import { StarRating } from '@/components/ui/star-rating';
 import { Link } from '@/lib/i18n';
 import type { Locale } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
@@ -39,28 +39,12 @@ export function FeedbackCard({
         return (
           <li key={r.id} className="flex flex-col gap-2 py-4 first:pt-0 last:pb-0">
             <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
-              <span
-                className={cn(
-                  'inline-flex items-center gap-1 text-sm font-medium tabular-nums',
-                  low ? 'text-error' : 'text-sarat-black',
-                )}
-                aria-label={`${r.rating}/5`}
-              >
-                {Array.from({ length: 5 }, (_, i) => (
-                  <Star
-                    key={i}
-                    className={cn(
-                      'size-3.5',
-                      i < r.rating
-                        ? low
-                          ? 'fill-al-qatt-red text-al-qatt-red'
-                          : 'fill-saffron-gold text-saffron-gold'
-                        : 'text-sarat-black/20',
-                    )}
-                    aria-hidden
-                  />
-                ))}
-              </span>
+              <StarRating
+                rating={r.rating}
+                label={`${r.rating}/5`}
+                size="sm"
+                tone={low ? 'low' : 'default'}
+              />
               <span className="text-sarat-black-600 text-xs">
                 {formatDate(r.createdAt, locale)} ·{' '}
                 <span className={cn(!r.hasHostReply && 'text-warning font-medium')}>

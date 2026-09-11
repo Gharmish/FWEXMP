@@ -416,7 +416,11 @@ export default async function AdminUserDetailPage({
               {user.host.payoutIban ? (
                 <dd className="inline-flex items-center gap-1 font-mono text-base font-medium">
                   <span dir="ltr">{maskIban(user.host.payoutIban)}</span>
-                  <CopyButton value={user.host.payoutIban} label={t('payoutsList.copyIban')} />
+                  <CopyButton
+                    value={user.host.payoutIban}
+                    label={t('payoutsList.copyIban')}
+                    copiedLabel={t('payoutsList.copiedIban')}
+                  />
                 </dd>
               ) : (
                 <dd className="text-warning text-base font-medium">{t('users.detail.noIban')}</dd>

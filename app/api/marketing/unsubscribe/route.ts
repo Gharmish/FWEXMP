@@ -38,7 +38,7 @@ export async function GET(request: NextRequest) {
             : 'This link could not be verified. Open it directly from our email, or write to hello@gharmish.com.',
         };
 
-  const html = `<!doctype html><html lang="${locale}" dir="${copy.dir}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="robots" content="noindex"><title>${copy.title}</title></head><body style="margin:0;background:#fff;color:#1a1812;font-family:system-ui,sans-serif;display:grid;min-height:100vh;place-items:center;padding:24px"><main style="max-width:28rem;text-align:center"><h1 style="font-size:1.25rem;margin:0 0 .75rem">${copy.title}</h1><p style="font-size:.95rem;line-height:1.6;color:#5c584c;margin:0">${copy.body}</p></main></body></html>`;
+  const html = `<!doctype html><html lang="${locale}" dir="${copy.dir}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="robots" content="noindex"><title>${copy.title}</title></head><body style="margin:0;background:#fff;color:#0A0A0A;font-family:'Bricolage Grotesque','IBM Plex Sans Arabic',system-ui,-apple-system,'Segoe UI',sans-serif;display:grid;min-height:100vh;place-items:center;padding:24px"><main style="max-width:28rem;text-align:center"><h1 style="font-size:1.25rem;margin:0 0 .75rem">${copy.title}</h1><p style="font-size:.95rem;line-height:1.6;color:#686868;margin:0">${copy.body}</p></main></body></html>`;
   return new Response(html, {
     status: valid ? 200 : 400,
     headers: { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' },

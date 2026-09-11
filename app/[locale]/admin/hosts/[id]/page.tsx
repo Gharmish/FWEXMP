@@ -186,7 +186,11 @@ export default async function AdminHostDetailPage({
           {host.payoutIban ? (
             <dd className="inline-flex items-center gap-1 font-mono text-base font-medium">
               <span dir="ltr">{maskIban(host.payoutIban)}</span>
-              <CopyButton value={host.payoutIban} label={t('payoutsList.copyIban')} />
+              <CopyButton
+                value={host.payoutIban}
+                label={t('payoutsList.copyIban')}
+                copiedLabel={t('payoutsList.copiedIban')}
+              />
             </dd>
           ) : (
             <dd className="text-warning text-base font-medium">{t('hostDetail.noIban')}</dd>

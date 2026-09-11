@@ -1,3 +1,4 @@
+import { formatRating } from '@/lib/format';
 import Image from 'next/image';
 import { ArrowRight, ImageOff, Star } from 'lucide-react';
 import { Link } from '@/lib/i18n';
@@ -53,11 +54,7 @@ interface HostListingRowProps {
 export function HostListingRow({ experience, stats, locale, copy }: HostListingRowProps) {
   const rating =
     stats && stats.ratingAverage !== null
-      ? new Intl.NumberFormat(locale === 'ar' ? 'ar-SA' : 'en-SA', {
-          numberingSystem: 'latn',
-          minimumFractionDigits: 1,
-          maximumFractionDigits: 1,
-        }).format(stats.ratingAverage)
+      ? formatRating(stats.ratingAverage, locale)
       : null;
   return (
     <li>
@@ -65,7 +62,7 @@ export function HostListingRow({ experience, stats, locale, copy }: HostListingR
         href={`/host/experiences/${experience.id}`}
         className="hover:bg-sarat-black/[0.02] flex items-center gap-4 p-4 transition-colors duration-200 sm:p-6"
       >
-        <span className="bg-mist relative size-16 shrink-0 overflow-hidden rounded-[10px] sm:size-20">
+        <span className="bg-mist relative size-16 shrink-0 overflow-hidden rounded-image sm:size-20">
           {experience.heroImage ? (
             <Image src={experience.heroImage} alt="" fill sizes="80px" className="object-cover" />
           ) : (

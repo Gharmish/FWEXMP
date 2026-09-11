@@ -7,7 +7,7 @@ import { cn } from '@/lib/utils';
 import { pickLocalized } from '@/lib/ar-placeholder';
 import { Badge } from '@/components/ui/badge';
 import { Price } from '@/components/ui/price';
-import { formatDate } from '@/lib/format';
+import { formatDate, formatRating } from '@/lib/format';
 import { SITE_URL } from '@/lib/site';
 import { HostShareCard } from '@/features/hosts/components/host-share-card';
 import { getHostResponseStatsById } from '@/features/hosts/queries';
@@ -110,11 +110,7 @@ export default async function HostDashboardPage({
     );
   const averageDisplay =
     reviewAggregate.average !== null
-      ? new Intl.NumberFormat(loc === 'ar' ? 'ar-SA' : 'en-SA', {
-          numberingSystem: 'latn',
-          minimumFractionDigits: 1,
-          maximumFractionDigits: 1,
-        }).format(reviewAggregate.average)
+      ? formatRating(reviewAggregate.average, loc)
       : null;
 
   // ---- Setup checklist: visible only while something is missing. ----

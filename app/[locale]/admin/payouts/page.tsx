@@ -136,7 +136,11 @@ export default async function AdminPayoutsPage({
                 {row.payoutIban ? (
                   <span className="text-sarat-black-600 inline-flex items-center gap-1 text-sm">
                     <span dir="ltr">{maskIban(row.payoutIban)}</span>
-                    <CopyButton value={row.payoutIban} label={t('payoutsList.copyIban')} />
+                    <CopyButton
+                      value={row.payoutIban}
+                      label={t('payoutsList.copyIban')}
+                      copiedLabel={t('payoutsList.copiedIban')}
+                    />
                   </span>
                 ) : (
                   <span className="text-warning text-sm font-medium">

@@ -117,7 +117,7 @@ export default async function AdminSupportThreadPage({
       <li key={m.id} className={cn('flex', inbound ? 'justify-start' : 'justify-end')}>
         <div
           className={cn(
-            'flex max-w-[80%] flex-col gap-1 rounded-[20px] px-4 py-3',
+            'flex max-w-[80%] flex-col gap-1 rounded-card px-4 py-3',
             inbound ? 'bg-mist text-sarat-black' : 'bg-sarat-black text-white',
           )}
         >

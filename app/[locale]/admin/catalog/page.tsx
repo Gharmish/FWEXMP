@@ -244,7 +244,7 @@ export default async function AdminCatalogPage({
             <table className="w-full min-w-[640px] border-collapse text-sm">
               <thead>
                 <tr className="bg-mist">
-                  <th scope="col" className="rounded-s-lg px-4 py-3 text-start font-medium">
+                  <th scope="col" className="rounded-s-input px-4 py-3 text-start font-medium">
                     {t('catalog.cityColumn')}
                   </th>
                   {overview.matrix.categories.map((category, i) => (
@@ -253,7 +253,7 @@ export default async function AdminCatalogPage({
                       key={category}
                       className={cn(
                         'px-4 py-3 text-center font-medium whitespace-nowrap',
-                        i === overview.matrix.categories.length - 1 && 'rounded-e-lg',
+                        i === overview.matrix.categories.length - 1 && 'rounded-e-input',
                       )}
                     >
                       <span className="inline-flex items-center gap-2">

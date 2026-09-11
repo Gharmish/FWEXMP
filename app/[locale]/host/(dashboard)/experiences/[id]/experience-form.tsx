@@ -1078,7 +1078,7 @@ export function ExperienceForm({
           className={cn(
             'flex flex-wrap items-center gap-x-4 gap-y-2 transition-[box-shadow,background-color] duration-200',
             dirty &&
-              'border-sarat-black/8 rounded-card sticky bottom-4 z-10 [border-width:0.5px] bg-white/95 p-4 shadow-[0_8px_32px_rgb(10_10_10_/_0.08)] backdrop-blur',
+              'border-sarat-black/8 rounded-card sticky bottom-4 z-10 [border-width:0.5px] bg-white/95 p-4 shadow-overlay backdrop-blur',
           )}
         >
           <SubmitButton label={copy.submitEdit} pendingLabel={copy.submitEditPending} />

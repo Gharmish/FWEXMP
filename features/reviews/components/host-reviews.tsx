@@ -1,4 +1,4 @@
-import { Star } from 'lucide-react';
+import { StarRating } from '@/components/ui/star-rating';
 import { getTranslations } from 'next-intl/server';
 import { cn } from '@/lib/utils';
 import { Link } from '@/lib/i18n';
@@ -45,21 +45,10 @@ export async function HostReviews({ slug, locale }: HostReviewsProps) {
               key={review.id}
               className="border-sarat-black/8 rounded-card flex flex-col gap-3 [border-width:0.5px] p-6"
             >
-              <div
-                className="flex items-center gap-1"
-                aria-label={tr('ratingLabel', { rating: review.rating })}
-              >
-                {Array.from({ length: 5 }, (_, i) => (
-                  <Star
-                    key={i}
-                    className={cn(
-                      'size-4 shrink-0',
-                      i < review.rating ? 'text-saffron-gold fill-current' : 'text-sarat-black-200',
-                    )}
-                    aria-hidden
-                  />
-                ))}
-              </div>
+              <StarRating
+                rating={review.rating}
+                label={tr('ratingLabel', { rating: review.rating })}
+              />
               {text && <p className="text-sarat-black-800 text-base leading-relaxed">“{text}”</p>}
               <p className="text-sarat-black-600 mt-auto text-sm">
                 {review.guestName}

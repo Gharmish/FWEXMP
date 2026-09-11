@@ -99,6 +99,7 @@ export async function BookingRow({
       <CopyButton
         value={row.referenceCode}
         label={t('copyReference', { reference: row.referenceCode })}
+        copiedLabel={t('copiedReference')}
         className="size-9"
       />
     </span>

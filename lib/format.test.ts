@@ -3,6 +3,7 @@ import {
   durationHours,
   formatDate,
   formatInteger,
+  formatRating,
   formatRiyalAmount,
   formatSAR,
   formatSaudiPhone,
@@ -209,5 +210,13 @@ describe('Riyadh time zone default', () => {
 
   it('formats a time in Riyadh, not the runtime zone', () => {
     expect(formatTime(justAfterMidnightRiyadh, 'en')).toMatch(/^1:00\s?AM$/i);
+  });
+});
+
+describe('formatRating', () => {
+  it('renders one decimal with Latin digits in both locales', () => {
+    expect(formatRating(4.75, 'en')).toBe('4.8');
+    expect(formatRating(4.75, 'ar')).toBe('4.8');
+    expect(formatRating(5, 'ar')).toBe('5.0');
   });
 });
