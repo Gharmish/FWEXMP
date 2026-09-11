@@ -11,7 +11,7 @@ import { getHostDashboard } from '@/features/host-dashboard/queries';
 import { getBookingForHost } from '@/features/host-bookings/queries';
 import { BookingRow } from '@/features/host-bookings/components/booking-row';
 import { OutcomeNotice } from '@/features/host-bookings/components/outcome-notice';
-import { buildTransitionCopy } from '@/features/host-bookings/components/booking-copy';
+import { buildTransitionCopy } from '@/features/host-bookings/lib/booking-copy';
 
 export async function generateMetadata({
   params,

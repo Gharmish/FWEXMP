@@ -13,9 +13,9 @@ import { availableTransitions } from '@/features/bookings/lib/transitions';
 import { todayInRiyadh } from '@/features/bookings/lib/availability';
 import { formatDate, formatTime } from '@/lib/format';
 import type { HostBookingRow } from '@/features/host-bookings/types';
-import { HostTransitionButton } from '@/app/[locale]/host/(dashboard)/bookings/host-transition-button';
-import { SlaCountdown } from '@/app/[locale]/host/(dashboard)/bookings/sla-countdown';
-import type { buildTransitionCopy } from '@/features/host-bookings/components/booking-copy';
+import { HostTransitionButton } from '@/features/host-bookings/components/host-transition-button';
+import { SlaCountdown } from '@/features/host-bookings/components/sla-countdown';
+import type { buildTransitionCopy } from '@/features/host-bookings/lib/booking-copy';
 
 export interface BookingRowProps {
   row: HostBookingRow;

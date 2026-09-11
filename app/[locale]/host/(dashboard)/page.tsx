@@ -22,7 +22,7 @@ import { getHostEarningsTotals } from '@/features/host-earnings/queries';
 import { getHostReviewAggregate, listReviewsForHost } from '@/features/reviews/queries';
 import { todayInRiyadh, addDays } from '@/features/bookings/lib/availability';
 import { BookingRow } from '@/features/host-bookings/components/booking-row';
-import { buildTransitionCopy } from '@/features/host-bookings/components/booking-copy';
+import { buildTransitionCopy } from '@/features/host-bookings/lib/booking-copy';
 import type { HostComingUpRow } from '@/features/host-bookings/types';
 
 /** Requests shown inline before "and N more". */

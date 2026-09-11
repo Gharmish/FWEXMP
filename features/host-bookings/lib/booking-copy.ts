@@ -1,5 +1,5 @@
 import type { getTranslations } from 'next-intl/server';
-import type { HostTransitionCopy } from '@/app/[locale]/host/(dashboard)/bookings/host-transition-button';
+import type { HostTransitionCopy } from '@/features/host-bookings/components/host-transition-button';
 import type { HostBookingActionError } from '@/features/host-bookings/actions';
 import type { BookingTransitionTarget } from '@/features/bookings/lib/transitions';
 

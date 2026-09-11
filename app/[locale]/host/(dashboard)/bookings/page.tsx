@@ -21,7 +21,7 @@ import type { HostBookingRow } from '@/features/host-bookings/types';
 import { BookingRow } from '@/features/host-bookings/components/booking-row';
 import { BookingsCalendar } from '@/features/host-bookings/components/bookings-calendar';
 import { OutcomeNotice } from '@/features/host-bookings/components/outcome-notice';
-import { buildTransitionCopy } from '@/features/host-bookings/components/booking-copy';
+import { buildTransitionCopy } from '@/features/host-bookings/lib/booking-copy';
 
 export async function generateMetadata({
   params,
