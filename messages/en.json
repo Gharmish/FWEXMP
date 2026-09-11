@@ -799,6 +799,7 @@
       "formServer": "We couldn't save the changes. Try again in a moment.",
       "formNotFound": "This experience no longer exists.",
       "formForbidden": "You're not authorised to edit this experience.",
+      "formScheduleHasBookings": "This listing has upcoming bookings that depend on its start time and weekdays. Stop-sell or cancel those dates first, then change the schedule.",
       "host": "Owner (host)",
       "createHeading": "Create experience",
       "createIntro": "Build a listing on a host's behalf. Pick the owning host, fill in the details, and choose a status — set it live now or leave it as a draft.",
@@ -2704,7 +2705,8 @@
           "titleEither": "Give the experience a name in Arabic or English."
         },
         "lockedReview": "This listing is under review and can't be edited right now.",
-        "archived": "This listing is archived and can't be edited."
+        "archived": "This listing is archived and can't be edited.",
+        "scheduleHasBookings": "Guests hold upcoming bookings at the current start time and weekdays. Stop-sell or cancel those dates first, then change the schedule."
       },
       "startTimeLabel": "Start time",
       "startTimeHint": "Local start time of every occurrence. Guests see it before booking and on their ticket.",

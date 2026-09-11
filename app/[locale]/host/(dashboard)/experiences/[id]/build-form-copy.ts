@@ -125,6 +125,7 @@ export function buildExperienceFormCopy(
       noDb: t('errors.noDb'),
       lockedReview: t('errors.lockedReview'),
       archived: t('errors.archived'),
+      scheduleHasBookings: t('errors.scheduleHasBookings'),
       fields: {
         titleShort: t('errors.fields.titleShort'),
         titleLong: t('errors.fields.titleLong'),

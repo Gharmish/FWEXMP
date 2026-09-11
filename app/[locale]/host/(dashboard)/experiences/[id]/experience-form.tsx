@@ -89,7 +89,8 @@ type FormMessageKey =
   | 'notFound'
   | 'noDb'
   | 'lockedReview'
-  | 'archived';
+  | 'archived'
+  | 'scheduleHasBookings';
 
 const FORM_MESSAGE_KEY: Partial<
   Record<NonNullable<HostExperienceState['message']>, FormMessageKey>
@@ -101,6 +102,7 @@ const FORM_MESSAGE_KEY: Partial<
   no_db: 'noDb',
   locked_review: 'lockedReview',
   archived: 'archived',
+  schedule_has_bookings: 'scheduleHasBookings',
 };
 
 export interface ExperienceFormCopy {
@@ -194,6 +196,8 @@ export interface ExperienceFormCopy {
     noDb: string;
     lockedReview: string;
     archived: string;
+    /** Start time / weekdays edit refused because upcoming bookings depend on them. */
+    scheduleHasBookings: string;
     fields: {
       titleShort: string;
       titleLong: string;

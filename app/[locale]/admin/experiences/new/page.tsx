@@ -121,6 +121,7 @@ export default async function AdminExperienceNewPage({
     formServer: tE('formServer'),
     formNotFound: tE('formNotFound'),
     formForbidden: tE('formForbidden'),
+    formScheduleHasBookings: tE('formScheduleHasBookings'),
     host: tE('host'),
     weekdays: WEEKDAY_KEYS.map((k) => tWeek(k)),
     categories: EXPERIENCE_CATEGORIES.filter((c) => settings.enabledCategories.includes(c)).map(

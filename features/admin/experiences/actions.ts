@@ -13,6 +13,7 @@ import {
   adminExperienceSchema,
 } from '@/features/admin/experiences/schemas';
 import { experienceSlugFromTitle } from '@/features/host-experiences/lib/slug';
+import { scheduleChangeBlocked } from '@/features/host-experiences/lib/schedule-guard';
 
 // Abha city centre — default location until the map picker lands
 // (mirrors the host create action).
@@ -32,7 +33,14 @@ const SLUG_INSERT_MAX_RETRIES = 5;
  */
 export interface AdminExperienceEditState {
   success: false;
-  message?: 'forbidden' | 'no_db' | 'not_found' | 'validation' | 'server';
+  message?:
+    | 'forbidden'
+    | 'no_db'
+    | 'not_found'
+    | 'validation'
+    /** Start time / operating weekdays changed while upcoming live bookings depend on them. */
+    | 'schedule_has_bookings'
+    | 'server';
   fields?: Record<string, string>;
   /**
    * Raw submitted strings echoed back on failure — React 19 resets
@@ -147,9 +155,25 @@ export async function adminUpdateExperience(
   try {
     const existing = await db.query.experiences.findFirst({
       where: eq(experiences.id, experienceId),
-      columns: { id: true, status: true },
+      columns: { id: true, status: true, startTime: true, availabilityWeekdays: true },
     });
     if (!existing) return { success: false, message: 'not_found' };
+
+    // Same guard as the host form (2026-09 engineering audit GAPA-01): an
+    // admin editing on a host's behalf must not strand live bookings either.
+    if (
+      await scheduleChangeBlocked(
+        experienceId,
+        { startTime: existing.startTime, availabilityWeekdays: existing.availabilityWeekdays },
+        { startTime: input.startTime, availabilityWeekdays: input.availabilityWeekdays },
+      )
+    ) {
+      return {
+        success: false,
+        message: 'schedule_has_bookings',
+        values: collectValues(formData),
+      };
+    }
 
     await db
       .update(experiences)

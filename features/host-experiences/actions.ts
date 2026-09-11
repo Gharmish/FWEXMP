@@ -30,6 +30,7 @@ import { getCurrentHostIdForWrite } from '@/features/host-experiences/queries';
 import { getPlatformSettings } from '@/lib/platform-settings';
 import { getSupabaseUserStorage } from '@/lib/supabase/server';
 import { PHOTO_BUCKET } from '@/features/host-experiences/lib/photo';
+import { scheduleChangeBlocked } from '@/features/host-experiences/lib/schedule-guard';
 
 /**
  * Host-side experience CRUD.
@@ -61,6 +62,8 @@ export interface HostExperienceState {
     | 'locked_review'
     | 'archived'
     | 'has_bookings'
+    /** Start time / operating weekdays changed while upcoming live bookings depend on them. */
+    | 'schedule_has_bookings'
     | 'suspended'
     | 'server'
     | 'no_db';
@@ -448,6 +451,27 @@ export async function updateHostExperience(
   }
   const input = parsed.data;
   const payload = payloadForWrite(input);
+
+  // Never move the clock or the calendar under a guest (2026-09
+  // engineering audit GAPA-01): bookings snapshot startTime and every
+  // guest surface reads that snapshot, so a changed start time or a
+  // dropped weekday would strand confirmed guests with nobody told. The
+  // host is pointed at stop-sell / cancellation instead, exactly like the
+  // blackout guard.
+  try {
+    if (
+      await scheduleChangeBlocked(
+        experienceId,
+        { startTime: current.startTime, availabilityWeekdays: current.availabilityWeekdays },
+        { startTime: payload.startTime, availabilityWeekdays: payload.availabilityWeekdays },
+      )
+    ) {
+      return { success: false, message: 'schedule_has_bookings', values: collectValues(formData) };
+    }
+  } catch (error) {
+    reportError(error, { surface: 'host-experiences:update:scheduleGuard', experienceId });
+    return { success: false, message: 'server', values: collectValues(formData) };
+  }
 
   // Material edits to a `live` listing pull it back into review. Paused
   // demotes like live: a paused listing has passed review, and

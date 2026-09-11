@@ -159,6 +159,7 @@ export default async function AdminExperienceEditPage({
     formServer: tE('formServer'),
     formNotFound: tE('formNotFound'),
     formForbidden: tE('formForbidden'),
+    formScheduleHasBookings: tE('formScheduleHasBookings'),
     weekdays: WEEKDAY_KEYS.map((k) => tWeek(k)),
     categories: EXPERIENCE_CATEGORIES.map((c) => ({ value: c, label: tCat(c) })),
     statuses: EXPERIENCE_STATUSES.map((s) => ({ value: s, label: tStatus(s) })),

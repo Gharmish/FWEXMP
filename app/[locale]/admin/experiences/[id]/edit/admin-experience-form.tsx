@@ -68,6 +68,8 @@ export interface AdminExperienceFormCopy {
   formServer: string;
   formNotFound: string;
   formForbidden: string;
+  /** Start time / weekdays edit refused because upcoming bookings depend on them. */
+  formScheduleHasBookings: string;
   /** Create mode only: the owner-host selector label. */
   host?: string;
   weekdays: string[];
@@ -209,13 +211,15 @@ export function AdminExperienceForm({
   const formError =
     state.message === 'server'
       ? copy.formServer
-      : state.message === 'not_found'
-        ? copy.formNotFound
-        : state.message === 'forbidden'
-          ? copy.formForbidden
-          : state.message === 'validation'
-            ? copy.formValidation
-            : undefined;
+      : state.message === 'schedule_has_bookings'
+        ? copy.formScheduleHasBookings
+        : state.message === 'not_found'
+          ? copy.formNotFound
+          : state.message === 'forbidden'
+            ? copy.formForbidden
+            : state.message === 'validation'
+              ? copy.formValidation
+              : undefined;
 
   const labelClass = 'text-sm font-medium';
   const hintClass = 'text-sarat-black-600 text-sm';
