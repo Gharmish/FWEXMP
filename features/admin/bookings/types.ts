@@ -35,6 +35,13 @@ export interface AdminBookingRow {
    */
   settleAnomalyAt?: string | null;
   settleAnomalyKind?: string | null;
+  /**
+   * The experience's host is currently SUSPENDED (2026-08-02 ops audit
+   * P0-1) — this booking needs an operator decision, because suspension
+   * pauses listings and reminders but never touches bookings. Populated
+   * by the list query (the only surface that filters on it).
+   */
+  hostSuspended?: boolean;
   /** Request-to-book: when the host's approve/decline window closes. */
   approvalDeadline: string | null;
   date: string;

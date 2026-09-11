@@ -107,3 +107,39 @@ describe('filterBookings', () => {
     expect(filterBookings(rows, { q: '999', todayStr: today })).toHaveLength(0);
   });
 });
+
+describe('filterBookings suspendedHost queue (2026-08-02 ops audit P0-1)', () => {
+  // `today` is 2026-05-29: a booking dated today still counts as upcoming.
+  const rows = [
+    row({ id: 's-pending', hostSuspended: true, status: 'pending', date: '2026-06-10' }),
+    row({ id: 's-today', hostSuspended: true, status: 'confirmed', date: today }),
+    row({ id: 's-completed', hostSuspended: true, status: 'completed', date: '2026-06-10' }),
+    row({ id: 's-cancelled', hostSuspended: true, status: 'cancelled', date: '2026-06-10' }),
+    row({ id: 's-past', hostSuspended: true, status: 'confirmed', date: '2026-05-28' }),
+    row({ id: 'live-host', hostSuspended: false, status: 'confirmed', date: '2026-06-10' }),
+    // Detail-query rows never populate hostSuspended — they must not leak in.
+    row({ id: 'unknown-host', status: 'confirmed', date: '2026-06-10' }),
+  ];
+
+  it('keeps only upcoming pending/confirmed rows whose host is suspended', () => {
+    const out = filterBookings(rows, { suspendedHost: true, todayStr: today });
+    expect(out.map((r) => r.id).sort()).toEqual(['s-pending', 's-today']);
+  });
+
+  it('composes with the status filter', () => {
+    const out = filterBookings(rows, { suspendedHost: true, status: 'confirmed', todayStr: today });
+    expect(out.map((r) => r.id)).toEqual(['s-today']);
+  });
+
+  it('composes with the upcoming view and its date ordering', () => {
+    const out = filterBookings(rows, { suspendedHost: true, view: 'upcoming', todayStr: today });
+    expect(out.map((r) => r.id)).toEqual(['s-today', 's-pending']);
+  });
+
+  it('is inert when the flag is off', () => {
+    expect(filterBookings(rows, { todayStr: today })).toHaveLength(rows.length);
+    expect(filterBookings(rows, { suspendedHost: false, todayStr: today })).toHaveLength(
+      rows.length,
+    );
+  });
+});

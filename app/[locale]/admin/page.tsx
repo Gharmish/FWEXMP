@@ -229,6 +229,13 @@ export default async function AdminIndexPage({
           }),
           count: dashboard.queue.refundsDueCount,
         },
+        {
+          // Guests holding plans on an emergency-takedown host — each row
+          // needs an operator decision (2026-08-02 ops audit P0-1).
+          href: '/admin/bookings?suspended=1',
+          label: t('dashboard.queue.suspendedHostBookings'),
+          count: dashboard.queue.suspendedHostBookings,
+        },
       ].filter((item) => item.count > 0)
     : [];
   if (dashboard && dashboard.queue.payoutsOwedSar > 0) {

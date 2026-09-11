@@ -34,7 +34,12 @@ export async function listBookingsForAdmin(): Promise<readonly AdminBookingRow[]
   try {
     const rows = await db.query.bookings.findMany({
       with: {
-        experience: { columns: { slug: true, titleEn: true, commissionBps: true } },
+        experience: {
+          columns: { slug: true, titleEn: true, commissionBps: true },
+          // Host status rides along so the list can queue "bookings on
+          // suspended hosts" (2026-08-02 ops audit P0-1).
+          with: { host: { columns: { verificationStatus: true } } },
+        },
         guest: { columns: { name: true, phone: true } },
       },
       orderBy: (b) => desc(b.createdAt),
@@ -57,12 +62,13 @@ export async function listBookingsForAdmin(): Promise<readonly AdminBookingRow[]
         status: row.status,
         paymentStatus: row.paymentStatus,
         refundDueSar: row.refundDueSar,
+        refundBankReady: Boolean(row.refundBankName && row.refundBeneficiaryName && row.refundIban),
+        hostSuspended: row.experience.host.verificationStatus === 'suspended',
         approvalDeadline: row.approvalDeadline?.toISOString() ?? null,
         date: row.date,
         startTime: row.startTime,
         partySize: row.partySize,
         totalAmountSar: row.totalAmount,
-        refundBankReady: Boolean(row.refundBankName && row.refundBeneficiaryName && row.refundIban),
         commissionSar,
         payoutSar,
         commissionBps: row.commissionBps,
@@ -203,12 +209,6 @@ export async function getAdminBookingById(id: string): Promise<AdminBookingRow |
       status: row.status,
       paymentStatus: row.paymentStatus,
       refundDueSar: row.refundDueSar,
-      /** Set = an unmatched capture blocks the guest from paying again. */
-      settleAnomalyAt: row.settleAnomalyAt?.toISOString() ?? null,
-      settleAnomalyKind: row.settleAnomalyKind,
-      approvalDeadline: row.approvalDeadline?.toISOString() ?? null,
-      date: row.date,
-      startTime: row.startTime,
       refundBankReady: Boolean(row.refundBankName && row.refundBeneficiaryName && row.refundIban),
       refundBank:
         row.refundBankName && row.refundBeneficiaryName && row.refundIban
@@ -219,6 +219,12 @@ export async function getAdminBookingById(id: string): Promise<AdminBookingRow |
               submittedAt: row.refundBankDetailsAt?.toISOString() ?? null,
             }
           : null,
+      /** Set = an unmatched capture blocks the guest from paying again. */
+      settleAnomalyAt: row.settleAnomalyAt?.toISOString() ?? null,
+      settleAnomalyKind: row.settleAnomalyKind,
+      approvalDeadline: row.approvalDeadline?.toISOString() ?? null,
+      date: row.date,
+      startTime: row.startTime,
       partySize: row.partySize,
       totalAmountSar: row.totalAmount,
       commissionSar,

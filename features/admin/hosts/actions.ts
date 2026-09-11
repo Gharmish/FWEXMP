@@ -1,10 +1,13 @@
 'use server';
 
-import { and, eq } from 'drizzle-orm';
+import { and, eq, gte, inArray } from 'drizzle-orm';
 import { revalidatePath } from 'next/cache';
+import { after } from 'next/server';
 import { revalidateExperienceCaches } from '@/lib/cache-tags';
 import { db } from '@/lib/db';
-import { experiences, hosts, hostStatusEvents } from '@/db/schema';
+import { bookings, experiences, hosts, hostStatusEvents } from '@/db/schema';
+import { todayInRiyadh } from '@/features/bookings/lib/availability';
+import { sendBookingOnHoldEmail } from '@/features/bookings/lib/booking-email';
 import { redirect } from '@/lib/i18n';
 import { reportError } from '@/lib/log';
 import { adminFailureMessage, adminGateRefused, requireAdminActor } from '@/features/admin/guard';
@@ -108,6 +111,46 @@ export async function suspendHost(
   } catch (error) {
     reportError(error, { surface: 'admin:suspendHost:email', hostId });
   }
+
+  // Tell every guest holding an upcoming active booking (2026-08-02 ops
+  // audit P0-1). Suspension deliberately silences reminders for exactly
+  // these bookings, so without this notice the guest's next signal was
+  // NOTHING — they'd show up to a withdrawn experience. The email is a
+  // hold notice, not an outcome: the cancel/refund decision stays with
+  // the operator, per booking, on the dashboard queue this same change
+  // adds.
+  //
+  // Runs AFTER the response (2026-09 engineering audit WIP-05): the
+  // host row is already suspended, so a host with dozens of upcoming
+  // bookings must not hold the operator's request open on a serial
+  // email fan-out. Each send is best-effort and ledgered; a provider
+  // failure is re-driven by the cron retry sweep
+  // (`RETRYABLE_BOOKING_SENDERS.booking_on_hold`), and the dedupe key
+  // makes that retry safe.
+  after(async () => {
+    try {
+      const affected = await db
+        .select({ reference: bookings.idempotencyKey })
+        .from(bookings)
+        .innerJoin(experiences, eq(bookings.experienceId, experiences.id))
+        .where(
+          and(
+            eq(experiences.hostId, hostId),
+            inArray(bookings.status, ['pending', 'confirmed']),
+            gte(bookings.date, todayInRiyadh()),
+          ),
+        );
+      for (const row of affected) {
+        try {
+          await sendBookingOnHoldEmail(row.reference);
+        } catch (error) {
+          reportError(error, { surface: 'admin:suspendHost:guestEmail', hostId });
+        }
+      }
+    } catch (error) {
+      reportError(error, { surface: 'admin:suspendHost:guestEmails', hostId });
+    }
+  });
 
   // Suspension bulk-demotes the host's live listings, so the TAGGED
   // catalog caches must be expired too (2026-07-28 fourth audit).

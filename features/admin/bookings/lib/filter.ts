@@ -16,6 +16,13 @@ export interface BookingFilter {
   view?: BookingView;
   /** Only bookings with a stamped refund_due_sar (money owed back). */
   refundDue?: boolean;
+  /**
+   * Only UPCOMING ACTIVE bookings whose host is suspended — the operator
+   * queue for emergency takedowns (2026-08-02 ops audit P0-1). Mirrors
+   * the dashboard tile's definition exactly: pending/confirmed, date not
+   * yet passed, host currently suspended.
+   */
+  suspendedHost?: boolean;
   /** Today, `YYYY-MM-DD`, for the "upcoming" cutoff. */
   todayStr: string;
 }
@@ -75,6 +82,16 @@ export function filterBookings(
 
   let out = rows.filter((row) => {
     if (filter.refundDue && row.refundDueSar === null) return false;
+    if (
+      filter.suspendedHost &&
+      !(
+        row.hostSuspended === true &&
+        UPCOMING_STATUSES.has(row.status) &&
+        row.date >= filter.todayStr
+      )
+    ) {
+      return false;
+    }
     if (status !== 'all' && row.status !== status) return false;
     if (view === 'upcoming') {
       if (!UPCOMING_STATUSES.has(row.status)) return false;

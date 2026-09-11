@@ -7,10 +7,27 @@ import {
   experiences,
   guests,
   hostApplications,
+  hosts,
   platformSettings,
 } from '@/db/schema';
-import { paymentCollected, payoutExpr } from '@/features/bookings/lib/payout-sql';
+import {
+  collectedRevenue,
+  paymentCollected,
+  payoutExpr,
+  platformTakeExpr,
+} from '@/features/bookings/lib/payout-sql';
 import { adminGuard } from '@/features/admin/guard';
+
+/**
+ * "Today" on the Riyadh calendar, evaluated in SQL. The queue tiles below
+ * and their /admin/bookings drill-downs must agree on what counts as
+ * upcoming: the list filters on `todayInRiyadh()`, so the tiles must not
+ * compare against the session's `current_date` (UTC on Supabase), or the
+ * count and the list disagree for three hours every night (2026-09
+ * engineering audit WIP-03). KSA has no DST, so the zone conversion is
+ * exact.
+ */
+const RIYADH_TODAY = sql`(now() at time zone 'Asia/Riyadh')::date`;
 
 /**
  * Lightweight aggregate for the admin landing page. A handful of cheap
@@ -55,6 +72,15 @@ export interface AdminDashboard {
     /** Bookings stamped refund_due_sar — money owed back to guests. */
     refundsDueCount: number;
     refundsDueSar: number;
+    /**
+     * Upcoming active bookings whose host is SUSPENDED (2026-08-02 ops
+     * audit P0-1). Suspension pauses listings and stops reminders but
+     * touches no booking — these guests hold plans the platform has
+     * withdrawn, and each needs an operator decision (cancel + refund,
+     * or wait out the review). Auto-complete skips them, so unresolved
+     * rows sit here forever rather than silently becoming payouts.
+     */
+    suspendedHostBookings: number;
     /** Completed-and-paid bookings not yet paid out to hosts. */
     payoutsOwedSar: number;
   };
@@ -72,11 +98,19 @@ export async function getAdminDashboard(): Promise<AdminDashboard | null> {
         .select({
           total: sql<number>`count(*)::int`,
           // GMV excludes refunded bookings (mirrors the analytics view).
-          gmv: sql<number>`coalesce(sum(${bookings.totalAmount}) filter (where ${bookings.status} <> 'refunded'), 0)::int`,
+          // GMV = money actually collected, via the shared
+          // `collectedRevenue()` (2026-08-04 ops audit). This filter used
+          // to be `status <> 'refunded'`, which counted cancelled,
+          // expired, declined, pending and never-paid bookings alike: on
+          // live data SAR 12,091 of CANCELLED rows sat inside a SAR
+          // 22,731 headline, and the figure disagreed with the
+          // correctly-gated /admin/analytics GMV for the same period.
+          gmv: sql<number>`coalesce(sum(${bookings.totalAmount}) filter (where ${collectedRevenue()}), 0)::int`,
           pending: sql<number>`count(*) filter (where ${bookings.status} = 'pending')::int`,
-          upcoming: sql<number>`count(*) filter (where ${bookings.date} >= current_date and ${bookings.status} in ('pending','confirmed'))::int`,
+          upcoming: sql<number>`count(*) filter (where ${bookings.date} >= ${RIYADH_TODAY} and ${bookings.status} in ('pending','confirmed'))::int`,
           refundsDueCount: sql<number>`count(*) filter (where ${bookings.refundDueSar} is not null)::int`,
           refundsDueSar: sql<number>`coalesce(sum(${bookings.refundDueSar}), 0)::int`,
+          suspendedHost: sql<number>`count(*) filter (where ${bookings.date} >= ${RIYADH_TODAY} and ${bookings.status} in ('pending','confirmed') and ${bookings.experienceId} in (select ${experiences.id} from ${experiences} join ${hosts} on ${hosts.id} = ${experiences.hostId} where ${hosts.verificationStatus} = 'suspended'))::int`,
         })
         .from(bookings),
       db.select({ n: sql<number>`count(*)::int` }).from(guests),
@@ -101,7 +135,15 @@ export async function getAdminDashboard(): Promise<AdminDashboard | null> {
       // (both platform-funded — the host is paid on the full base).
       db
         .select({
-          net: sql<number>`coalesce(sum((${bookings.totalAmount} * ${bookings.commissionBps} / 10000.0) - coalesce(${bookings.discountSar}, 0) - coalesce(${bookings.walletAppliedSar}, 0)) filter (where ${bookings.status} in ('confirmed','completed') and ${bookings.createdAt} >= now() - interval '30 days'), 0)::int`,
+          // Same two corrections as GMV above, on the tile beside it
+          // (2026-08-04 ops audit): gate on collected money, and take
+          // the figure from the shared `platformTakeExpr()` instead of
+          // hand-transcribing it. The inline formula here was the
+          // pre-VAT-era one — it took commission on the charged total
+          // rather than the full-price ex-VAT base, so it disagreed with
+          // /admin/analytics, with the payout math, and with the cron's
+          // negative-take alert on any VAT/promo/credit booking.
+          net: sql<number>`coalesce(sum(${platformTakeExpr()}) filter (where ${collectedRevenue()} and ${bookings.createdAt} >= now() - interval '30 days'), 0)::int`,
         })
         .from(bookings),
       db
@@ -138,6 +180,7 @@ export async function getAdminDashboard(): Promise<AdminDashboard | null> {
         openDisputes: disputeRow[0]?.n ?? 0,
         refundsDueCount: bookingRow[0]?.refundsDueCount ?? 0,
         refundsDueSar: bookingRow[0]?.refundsDueSar ?? 0,
+        suspendedHostBookings: bookingRow[0]?.suspendedHost ?? 0,
         payoutsOwedSar: payoutRow[0]?.owed ?? 0,
       },
     };
