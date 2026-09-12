@@ -1,844 +1,119 @@
 'use server';
 
-import { and, desc, eq, gte, inArray, isNull, ne, sql } from 'drizzle-orm';
-import { after } from 'next/server';
 import { readAdConsent } from '@/lib/consent-server';
-import { cookies, headers } from 'next/headers';
-import { db } from '@/lib/db';
 import { serverEnv, hasHyperpay } from '@/lib/env';
-import { bookings, experiences, guests } from '@/db/schema';
-import type { Guest } from '@/db/schema';
 import { redirect } from '@/lib/i18n';
 import { reportError } from '@/lib/log';
-import { bookingRequestSchema } from '@/features/bookings/schemas';
-import { getCurrentUser } from '@/features/auth/queries';
-import { isUniqueViolation, resolveGuestForUser } from '@/features/account/profile/guest-identity';
+import { currentValues, parseBookingRequest } from '@/features/bookings/lib/request/form';
+import { writeLastBookingCookie } from '@/features/bookings/lib/request/last-booking-cookie';
+import { isIdempotencyReplay, replayLanding } from '@/features/bookings/lib/request/replay';
 import {
-  ACTIVE_BOOKING_STATUSES,
-  PAYMENT_HOLD_MINUTES,
-  isDateBookable,
-  isHoldExpired,
-  remainingCapacity,
-  slotCloseInstantMs,
-  todayInRiyadh,
-  nowMinutesInRiyadh,
-} from '@/features/bookings/lib/availability';
-import { holdStillCounts } from '@/features/bookings/lib/capacity-sql';
-import { generateReferenceCode } from '@/features/bookings/lib/reference-code';
-import { bookingLinkTokenValid } from '@/lib/booking-link-token';
-import { getTierSnapshot } from '@/features/bookings/lib/cancellation-policy';
-import { CURRENT_TERMS_VERSION } from '@/lib/legal';
+  experienceGates,
+  loadBookableExperience,
+} from '@/features/bookings/lib/request/experience';
 import {
-  LAST_BOOKING_COOKIE,
-  parseLastBookingCookie,
-  serializeLastBookingCookie,
-} from '@/features/account/cookie';
-import {
-  sendBookingAwaitingPaymentEmail,
-  sendBookingRequestReceivedEmail,
-  sendHostNewBookingEmail,
-} from '@/features/bookings/lib/booking-email';
-import { getPlatformSettings } from '@/lib/platform-settings';
-import { releaseWalletReservation } from '@/features/wallet/reservation';
+  releaseSupersededHold,
+  resolveSupersededHold,
+} from '@/features/bookings/lib/request/supersede';
+import { holdThrottles } from '@/features/bookings/lib/request/throttle';
+import { resolveBookingGuest } from '@/features/bookings/lib/request/guest';
+import { bookingRowValues, insertBookingIfRoom } from '@/features/bookings/lib/request/insert';
+import { queueBookingEmails } from '@/features/bookings/lib/request/notify';
+import type { BookingRequestState } from '@/features/bookings/lib/request/types';
 
-const LAST_BOOKING_COOKIE_MAX_AGE_SECONDS = 60 * 60 * 24 * 90; // 90 days
-
-/**
- * Booking-spam throttles. Bookings need no account and no payment to
- * hold capacity (pending requests and instant payment holds), so
- * creation is rate-limited:
- *   - per phone: at most this many bookings still holding a spot
- *     without payment (`pending`, or `confirmed` and not yet paid);
- *   - per IP: at most this many bookings created in the last hour.
- */
-const MAX_ACTIVE_HOLDS_PER_PHONE = 3;
-const MAX_BOOKINGS_PER_IP_PER_HOUR = 10;
+export type {
+  BookingRequestState,
+  OpenBookingSummary,
+} from '@/features/bookings/lib/request/types';
 
 /**
- * Did this insert lose to an earlier booking with the same idempotency
- * key? postgres.js surfaces unique violations as code 23505 with the
- * constraint name; drizzle may wrap the driver error, so walk the cause
- * chain. Matched by name so a `reference_code` collision (also 23505)
- * still lands in the generic server-error path.
+ * Create a booking request (or an instant payment hold). The steps live
+ * in features/bookings/lib/request/* in the order they run here (2026-09
+ * engineering audit ARCH-07 — this action was a 650-line function):
+ *
+ *   1. parse         shape validation, per-field codes, value echo
+ *   2. replay        an already-used idempotency key lands on the existing booking
+ *   3. experience    only live listings from non-suspended hosts
+ *   4. gates         terms / women-only / min-age attestations, party size, date
+ *   5. supersede     a verified replacement of an unpaid instant hold
+ *   6. throttles     active unpaid holds per phone, creations per IP per hour
+ *   7. guest         the guest row (account-linked or anonymous), suspension check
+ *   8. values        the row, with policy/commission snapshots and consent stamps
+ *   9. insert        under the experience row lock, only if the date has room
+ *  10. release       free the superseded hold now that its replacement exists
+ *  11. notify        host + guest emails after the response has flushed
+ *
+ * Where the guest lands depends on the experience's booking mode
+ * (pay-after-approval model, owner decision 2026-06-10): instant with
+ * payment on → the payment step (the booking holds the spot while the
+ * guest pays; confirmed on settle); request → the confirmation page in
+ * its "pending host approval" state. The guest is NEVER charged before
+ * the host approves.
+ *
+ * The success path throws Next's `redirect()`, so the observable state
+ * is always a failure shape; `redirect()` is only ever called OUTSIDE
+ * the try below so its control-flow throw is never caught.
  */
-function isIdempotencyReplay(error: unknown): boolean {
-  for (let e: unknown = error; e && typeof e === 'object'; e = (e as { cause?: unknown }).cause) {
-    const pg = e as { code?: unknown; constraint_name?: unknown };
-    if (pg.code === '23505' && pg.constraint_name === 'bookings_idempotencyKey_unique') {
-      return true;
-    }
-  }
-  return false;
-}
-
-/** First hop of x-forwarded-for — the client IP on Vercel. Null locally. */
-async function clientIp(): Promise<string | null> {
-  const h = await headers();
-  const forwarded = h.get('x-forwarded-for');
-  const first = forwarded?.split(',')[0]?.trim();
-  return first && first.length > 0 ? first : null;
-}
-
-/**
- * The per-phone throttle's definition of a booking that still holds a
- * spot without payment. Shared by the count that trips `too_many` and
- * the lookup that shows the guest which bookings are holding it.
- */
-function activePhoneHolds(phone: string) {
-  return and(
-    // Counts on the BOOKING's contact phone, not the guest row's
-    // identity phone (2026-07-28 third audit). An email-OTP account's
-    // guest row deliberately carries no phone, so a guest-row match made
-    // those bookings invisible to the cap — one such account could hold
-    // unlimited unpaid seats and capacity-block an experience.
-    eq(bookings.contactPhone, phone),
-    inArray(bookings.status, ['pending', 'confirmed']),
-    ne(bookings.paymentStatus, 'paid'),
-    // Lapsed payment holds AND lapsed approval windows both stop
-    // counting here — the latter predicate moved into holdStillCounts
-    // (2026-08-02 ops audit) so capacity sums agree with this throttle.
-    holdStillCounts(),
-  );
-}
-
-/**
- * The open bookings behind a tripped throttle, but only when the caller
- * verifiably owns them: a signed-in account whose linked guest row holds
- * the submitted phone sees all of them; otherwise the device's
- * last-booking cookie vouches for (at most) the one booking it points
- * at. Anything less verified returns [] and the form stays generic —
- * typing someone else's phone number must never list their bookings.
- * Best-effort: any failure degrades to the generic message.
- */
-async function verifiedOpenBookings(
-  phone: string,
-  locale: 'en' | 'ar',
-): Promise<OpenBookingSummary[]> {
-  try {
-    const rows = await db
-      .select({
-        reference: bookings.idempotencyKey,
-        referenceCode: bookings.referenceCode,
-        experienceSlug: experiences.slug,
-        titleEn: experiences.titleEn,
-        titleAr: experiences.titleAr,
-        date: bookings.date,
-        status: bookings.status,
-        paymentDeadline: bookings.paymentDeadline,
-      })
-      .from(bookings)
-      .innerJoin(guests, eq(bookings.guestId, guests.id))
-      .innerJoin(experiences, eq(bookings.experienceId, experiences.id))
-      .where(activePhoneHolds(phone))
-      .orderBy(desc(bookings.createdAt))
-      .limit(5);
-    if (rows.length === 0) return [];
-
-    const toSummary = (row: (typeof rows)[number]): OpenBookingSummary => ({
-      reference: row.reference,
-      referenceCode: row.referenceCode,
-      experienceSlug: row.experienceSlug,
-      title: locale === 'ar' ? row.titleAr : row.titleEn,
-      date: row.date,
-      // A pending row awaits the host; a confirmed row with a payment
-      // deadline awaits payment; confirmed without one (payments off)
-      // just sits until its date — nothing to pay, only cancellable.
-      state:
-        row.status === 'pending'
-          ? 'approval'
-          : row.paymentDeadline !== null
-            ? 'payment'
-            : 'confirmed',
-    });
-
-    const user = await getCurrentUser();
-    if (user) {
-      const own = await db.query.guests.findFirst({
-        where: (g) => eq(g.authUserId, user.id),
-        columns: { phone: true },
-      });
-      if (own?.phone === phone) return rows.map(toSummary);
-    }
-
-    const store = await cookies();
-    const hint = parseLastBookingCookie(store.get(LAST_BOOKING_COOKIE)?.value);
-    const cookieRow = hint ? rows.find((row) => row.reference === hint.reference) : undefined;
-    return cookieRow ? [toSummary(cookieRow)] : [];
-  } catch (error) {
-    reportError(error, { surface: 'bookings:verifiedOpenBookings' });
-    return [];
-  }
-}
-
-async function writeLastBookingCookie(reference: string, experienceSlug: string): Promise<void> {
-  const store = await cookies();
-  store.set(LAST_BOOKING_COOKIE, serializeLastBookingCookie({ reference, experienceSlug }), {
-    httpOnly: true,
-    sameSite: 'lax',
-    secure: process.env.NODE_ENV === 'production',
-    path: '/',
-    maxAge: LAST_BOOKING_COOKIE_MAX_AGE_SECONDS,
-  });
-}
-
-/**
- * An open booking shown back to a throttled guest so the `too_many`
- * error is a way forward (finish or cancel it) instead of a dead end.
- * Only bookings whose ownership is verifiable server-side — the
- * signed-in account's own guest row, or this device's last-booking
- * cookie — are ever returned: the submitted phone alone is unverified
- * input and must not let anyone enumerate someone else's bookings.
- */
-export interface OpenBookingSummary {
-  /** Unguessable booking capability (idempotencyKey) — keys the /book/confirmed URL. */
-  reference: string;
-  /** Human reference (GH-XXXXXX), display only. */
-  referenceCode: string;
-  experienceSlug: string;
-  /** Experience title, already picked for the form's locale. */
-  title: string;
-  /** Experience date, `YYYY-MM-DD`. */
-  date: string;
-  /** What "open" means for this row — drives the status line in the form. */
-  state: 'payment' | 'approval' | 'confirmed';
-}
-
-/**
- * The success path throws (Next.js `redirect`) before the action ever
- * returns — so observable state is always one of the error shapes.
- * `success` is kept on the type only to satisfy the useActionState
- * initial value contract.
- */
-export interface BookingRequestState {
-  success: false;
-  message?: string;
-  /** Set with `message: 'too_many'` when ownership could be verified. */
-  openBookings?: OpenBookingSummary[];
-  // `womenOnly` / `minAge` flag a missing eligibility acknowledgment;
-  // `terms` flags the missing terms acceptance. None are echoed value
-  // fields in the FIELD_NAMES sense (checkbox state, not text inputs).
-  fields?: Partial<
-    Record<
-      | 'name'
-      | 'phone'
-      | 'preferredDate'
-      | 'partySize'
-      | 'email'
-      | 'womenOnly'
-      | 'terms'
-      | 'minAge'
-      | 'guestNote',
-      string
-    >
-  >;
-  // The checkbox values ('on' | '') are echoed too so an acknowledgment
-  // survives a failed-submit form reset (React 19 resets the form after
-  // the action).
-  values?: Partial<
-    Record<
-      | 'name'
-      | 'phone'
-      | 'preferredDate'
-      | 'partySize'
-      | 'email'
-      | 'womenOnly'
-      | 'terms'
-      | 'minAge'
-      | 'marketingConsent'
-      | 'guestNote',
-      string
-    >
-  >;
-}
-
-const FIELD_NAMES = ['name', 'phone', 'preferredDate', 'partySize', 'email', 'guestNote'] as const;
-
-function formValue(formData: FormData, key: string): string {
-  const value = formData.get(key);
-  return typeof value === 'string' ? value : '';
-}
-
-function currentValues(formData: FormData): BookingRequestState['values'] {
-  return {
-    ...Object.fromEntries(FIELD_NAMES.map((key) => [key, formValue(formData, key)])),
-    // Echo the raw acknowledgments so the checkboxes re-default to checked.
-    womenOnly: formValue(formData, 'womenOnly'),
-    terms: formValue(formData, 'terms'),
-    minAge: formValue(formData, 'minAge'),
-    marketingConsent: formValue(formData, 'marketingConsent'),
-  };
-}
-
 export async function requestBooking(
   _previousState: BookingRequestState,
   formData: FormData,
 ): Promise<BookingRequestState> {
-  const parsed = bookingRequestSchema.safeParse({
-    experienceSlug: formValue(formData, 'experienceSlug'),
-    locale: formValue(formData, 'locale'),
-    name: formValue(formData, 'name'),
-    phone: formValue(formData, 'phone'),
-    preferredDate: formValue(formData, 'preferredDate'),
-    partySize: formValue(formData, 'partySize'),
-    email: formValue(formData, 'email'),
-    idempotencyKey: formValue(formData, 'idempotencyKey'),
-    supersedes: formValue(formData, 'supersedes'),
-    supersedesToken: formValue(formData, 'supersedesToken'),
-    utmSource: formValue(formData, 'utmSource'),
-    utmMedium: formValue(formData, 'utmMedium'),
-    utmCampaign: formValue(formData, 'utmCampaign'),
-    gclid: formValue(formData, 'gclid'),
-    ttclid: formValue(formData, 'ttclid'),
-    fbclid: formValue(formData, 'fbclid'),
-    // Guest-to-guest referral code, posted by the form from the ?ref=
-    // landing param. Was missing from this parse input, so every booking
-    // since 2026-08-15 was stamped referralCode NULL and no referral
-    // reward could ever fire (2026-09 engineering audit ACTIONS-01).
-    referralCode: formValue(formData, 'referralCode'),
-    marketingConsent: formValue(formData, 'marketingConsent'),
-    guestNote: formValue(formData, 'guestNote'),
-  });
+  const parsed = parseBookingRequest(formData);
+  if ('state' in parsed) return parsed.state;
+  const input = parsed.input;
 
-  if (!parsed.success) {
-    const fields: BookingRequestState['fields'] = {};
-    for (const issue of parsed.error.issues) {
-      const key = issue.path[0];
-      if (typeof key === 'string' && FIELD_NAMES.includes(key as (typeof FIELD_NAMES)[number])) {
-        fields[key as keyof typeof fields] = issue.message;
-      }
-    }
-    return {
-      success: false,
-      message: 'validation',
-      fields,
-      values: currentValues(formData),
-    };
-  }
-
-  const input = parsed.data;
-  // Ad-platform click ids are personal data for the platforms that issued
-  // them: persist them only when the guest accepted marketing cookies, so
-  // the server-side conversion at settlement (which keys off ttclid) can
-  // never fire for a guest who chose "essential only" or never answered
-  // the banner (2026-09 engineering audit GAPB-01). Referral codes are
-  // not ad identifiers and are kept regardless.
   const adConsent = await readAdConsent();
   // The client mints the key when the form mounts (see schemas.ts) so a
   // retry re-sends the same one; server-minted fallback keeps keyless
   // posters working but without retry protection.
   const reference = input.idempotencyKey ?? crypto.randomUUID();
   const slugParam = `slug=${encodeURIComponent(input.experienceSlug)}`;
-  const confirmedPath = `/book/confirmed/${reference}?${slugParam}` as const;
-  // Where the guest lands depends on the experience's booking mode
-  // (pay-after-approval model, owner decision 2026-06-10):
-  //   instant + payment on  → the payment step (booking holds the spot
-  //                           while the guest pays; confirmed on settle)
-  //   request (any payment) → the confirmation page in its "pending host
-  //                           approval" state. The guest is NEVER charged
-  //                           before the host approves; approval stamps a
-  //                           payment deadline and emails a pay link.
-  // Resolved after the experience row is loaded; defaults to the
-  // confirmation page for the no-DB preview path.
+  const confirmedPath = `/book/confirmed/${reference}?${slugParam}`;
+  const payPath = `/book/${reference}/pay?${slugParam}`;
   let nextPath: string = confirmedPath;
 
   if (!serverEnv.DATABASE_URL) {
     // Preview mode: nothing is persisted, but we still navigate to the
     // confirmation page so the user lands somewhere real. The page
     // renders preview copy when getBookingByReference returns undefined.
-    // Stash the reference + slug so /me can show 'your last request'.
     await writeLastBookingCookie(reference, input.experienceSlug);
     redirect({ href: confirmedPath, locale: input.locale });
   }
 
-  // Idempotent-replay fast path: if this key already created a booking, a
-  // double-tap or network re-POST is re-delivering a request we already
-  // served. Land the guest on the existing booking BEFORE the throttles —
-  // the first insert now counts toward them, so re-running the checks
-  // would misreport `too_many` for the guest's own booking. Kept outside
-  // the main try so redirect()'s control-flow throw can't be caught below;
-  // the unique-constraint catch in the insert path is the race-proof
-  // backstop for two retries arriving at once.
   if (input.idempotencyKey) {
-    let existing:
-      | {
-          status: string;
-          paymentStatus: string;
-          paymentDeadline: Date | null;
-          settleAnomalyAt: Date | null;
-        }
-      | undefined;
-    try {
-      existing = await db.query.bookings.findFirst({
-        where: (b) => eq(b.idempotencyKey, reference),
-        columns: {
-          status: true,
-          paymentStatus: true,
-          paymentDeadline: true,
-          settleAnomalyAt: true,
-        },
-      });
-    } catch (error) {
-      // Lookup hiccup → proceed with the normal flow; the constraint
-      // backstop still dedupes.
-      reportError(error, { surface: 'booking-request:replayCheck', reference });
-    }
-    if (existing) {
+    const landing = await replayLanding(reference, { pay: payPath, confirmed: confirmedPath });
+    if (landing) {
       await writeLastBookingCookie(reference, input.experienceSlug);
-      // Land the replay where the WINNING submit landed (2026-08-02 ops
-      // audit P2 — the two dedupe layers used to disagree: the constraint
-      // backstop went to the pay page while this path always went to the
-      // confirmation page, so a double-tap's outcome depended on which
-      // millisecond the retry arrived). A confirmed hold still awaiting
-      // payment goes back to the pay step — same conditions createCheckout
-      // itself enforces (live hold, not paid, no unresolved settle
-      // anomaly). Every other state — paid, pending approval, expired,
-      // payments off, under review — belongs on the confirmation page,
-      // which renders all of them (incl. a pay link where relevant).
-      const awaitingPayment =
-        existing.status === 'confirmed' &&
-        existing.paymentStatus !== 'paid' &&
-        existing.settleAnomalyAt === null &&
-        existing.paymentDeadline !== null &&
-        !isHoldExpired(existing.paymentDeadline, new Date());
-      redirect({
-        href: awaitingPayment ? `/book/${reference}/pay?${slugParam}` : confirmedPath,
-        locale: input.locale,
-      });
+      redirect({ href: landing, locale: input.locale });
     }
   }
 
   try {
-    const experience = await db.query.experiences.findFirst({
-      where: (e) => eq(e.slug, input.experienceSlug),
-      columns: {
-        id: true,
-        status: true,
-        priceSar: true,
-        maxGroupSize: true,
-        startTime: true,
-        bookingCutoffHours: true,
-        bookingMode: true,
-        commissionBps: true,
-        cancellationTier: true,
-        category: true,
-        minAge: true,
-        availabilityWeekdays: true,
-        blackoutDates: true,
-        stopSellDates: true,
-      },
-      with: { host: { columns: { verificationStatus: true } } },
-    });
-
-    // Only live listings from non-suspended hosts are bookable
-    // (2026-08-02 ops audit): the catalog already hides the rest, but
-    // this action was reachable by direct POST with any slug, so
-    // draft/paused/archived supply — and suspended hosts' listings —
-    // could still take bookings that payment would dead-end later.
-    // `notFound` on purpose: a guest has no business learning that an
-    // unpublished slug exists.
-    if (
-      !experience ||
-      experience.status !== 'live' ||
-      experience.host.verificationStatus === 'suspended'
-    ) {
+    const experience = await loadBookableExperience(input.experienceSlug);
+    if (!experience) {
       return { success: false, message: 'notFound', values: currentValues(formData) };
     }
+    const gate = experienceGates(experience, input, formData);
+    if (gate) return gate;
 
-    // Terms/Privacy/Cancellation acceptance is required at the booking step,
-    // not only at checkout (2026-08-02 legal audit): request-to-book guests
-    // who are declined or lapse never reach the payment clickwrap, yet the
-    // conduct rules and data processing apply to them too. Enforced
-    // server-side so an absent/tampered checkbox can never create a booking.
-    if (formValue(formData, 'terms') !== 'on') {
-      return {
-        success: false,
-        message: 'validation',
-        fields: { terms: 'required' },
-        values: currentValues(formData),
-      };
-    }
+    const supersededHold = await resolveSupersededHold(input, reference);
+    const throttled = await holdThrottles(input, supersededHold, formData);
+    if (throttled.state) return throttled.state;
 
-    // Women-only experiences require an explicit eligibility acknowledgment
-    // before a booking can be created (owner decision 2026-07-08 category).
-    // Enforced server-side so an absent/tampered checkbox can never create a
-    // booking; the client gates on the same checkbox for instant feedback.
-    if (experience.category === 'women_only' && formValue(formData, 'womenOnly') !== 'on') {
-      return {
-        success: false,
-        message: 'validation',
-        fields: { womenOnly: 'required' },
-        values: currentValues(formData),
-      };
-    }
-
-    // Experiences with a minimum age require the guest to attest the whole
-    // party meets it — `minAge` was display-only before the 2026-08-02
-    // audit, so a "minimum age 16" listing accepted any party silently.
-    if (experience.minAge > 0 && formValue(formData, 'minAge') !== 'on') {
-      return {
-        success: false,
-        message: 'validation',
-        fields: { minAge: 'required' },
-        values: currentValues(formData),
-      };
-    }
-
-    if (input.partySize > experience.maxGroupSize) {
-      return {
-        success: false,
-        message: 'validation',
-        fields: { partySize: 'too_large' },
-        values: currentValues(formData),
-      };
-    }
-
-    // The requested day must be open on the calendar for both modes — a
-    // request for a day the experience never runs is not actionable. The
-    // startTime + now-minutes + cutoff inputs also close today's slot once
-    // we're within the lead time of (or past) its local start, so a payment
-    // can never be taken for an experience that has already begun.
-    const bookable = isDateBookable({
-      dateStr: input.preferredDate,
-      todayStr: todayInRiyadh(),
-      availabilityWeekdays: experience.availabilityWeekdays,
-      blackoutDates: experience.blackoutDates,
-      stopSellDates: experience.stopSellDates,
-      startTime: experience.startTime,
-      nowMinutes: nowMinutesInRiyadh(),
-      cutoffMinutes: experience.bookingCutoffHours * 60,
-    });
-    if (!bookable.ok) {
-      return {
-        success: false,
-        message: 'validation',
-        fields: { preferredDate: `date_${bookable.reason}` },
-        values: currentValues(formData),
-      };
-    }
-
-    // Throttle creation before any write. Bookings hold capacity with
-    // no account and no payment, so both axes are capped: active unpaid
-    // holds per phone, and creations per IP per hour. Lapsed holds are
-    // excluded the same way capacity sums exclude them (`holdStillCounts`,
-    // plus requests past their approval deadline): the release cron flips
-    // them to cancelled/expired only on its own cadence, and until then an
-    // abandoned checkout must not lock the guest out of booking again.
-    //
-    // The payment step's "change date or guests" path books a REPLACEMENT
-    // while the original unpaid instant hold still stands. When the form
-    // names that hold (`supersedes`) and the caller PROVES they hold its
-    // link — this device's last-booking cookie points at it, or a valid
-    // signed link token for that exact reference is presented — it stops
-    // counting toward the phone throttle here and is released after the
-    // new booking is created below. A matching contact phone is NOT proof
-    // (it is attacker-suppliable), so it never authorizes the release.
-    // Ownership in any doubt → leave the hold alone; the release cron
-    // reaps it at its deadline anyway.
-    let supersededHold: { id: string; walletAppliedSar: number; countsForPhone: boolean } | null =
-      null;
-    const supersedesRef = input.supersedes;
-    if (supersedesRef && supersedesRef !== reference) {
-      try {
-        const hold = await db.query.bookings.findFirst({
-          where: (b) => eq(b.idempotencyKey, supersedesRef),
-          columns: {
-            id: true,
-            contactPhone: true,
-            status: true,
-            paymentStatus: true,
-            paymentDeadline: true,
-            settleAnomalyAt: true,
-            walletAppliedSar: true,
-          },
-        });
-        // Only a LIVE unpaid instant hold qualifies: confirmed, no
-        // payment captured or in flight, not under settle review, and
-        // its pay window still open. Anything else (paid, pending
-        // approval, lapsed) is not this flow's to touch.
-        const live =
-          hold !== undefined &&
-          hold.status === 'confirmed' &&
-          (hold.paymentStatus === 'unpaid' || hold.paymentStatus === 'failed') &&
-          hold.settleAnomalyAt === null &&
-          hold.paymentDeadline !== null &&
-          hold.paymentDeadline.getTime() > Date.now();
-        if (hold && live) {
-          const store = await cookies();
-          const hint = parseLastBookingCookie(store.get(LAST_BOOKING_COOKIE)?.value);
-          // Proof of ownership: same-device cookie OR a valid signed link
-          // token for THIS reference (HMAC-bound, so a guessed/leaked bare
-          // reference can't forge it). Phone match is deliberately excluded.
-          const owned =
-            hint?.reference === supersedesRef ||
-            bookingLinkTokenValid(supersedesRef, input.supersedesToken);
-          if (owned) {
-            supersededHold = {
-              id: hold.id,
-              walletAppliedSar: hold.walletAppliedSar,
-              // Whether the hold sits inside THIS phone's `activePhoneHolds`
-              // count (a factual overlap, not an ownership claim) — so an
-              // authorized release can discount it from the throttle.
-              countsForPhone: hold.contactPhone === input.phone,
-            };
-          }
-        }
-      } catch (error) {
-        reportError(error, { surface: 'booking-request:supersedes', reference });
-      }
-    }
-
-    const ip = await clientIp();
-    const [{ activeForPhone }] = await db
-      .select({ activeForPhone: sql<number>`count(*)::int` })
-      .from(bookings)
-      .innerJoin(guests, eq(bookings.guestId, guests.id))
-      .where(activePhoneHolds(input.phone));
-    // A verified superseded hold is being replaced, not stacked — it
-    // must not consume one of the guest's allowed open holds.
-    const effectiveHoldsForPhone = activeForPhone - (supersededHold?.countsForPhone ? 1 : 0);
-    if (effectiveHoldsForPhone >= MAX_ACTIVE_HOLDS_PER_PHONE) {
-      return {
-        success: false,
-        message: 'too_many',
-        openBookings: await verifiedOpenBookings(input.phone, input.locale),
-        values: currentValues(formData),
-      };
-    }
-    if (ip) {
-      const [{ recentForIp }] = await db
-        .select({ recentForIp: sql<number>`count(*)::int` })
-        .from(bookings)
-        .where(
-          and(
-            eq(bookings.createdIp, ip),
-            gte(bookings.createdAt, new Date(Date.now() - 3_600_000)),
-          ),
-        );
-      if (recentForIp >= MAX_BOOKINGS_PER_IP_PER_HOUR) {
-        // Distinct code from the per-phone `too_many`: this branch is
-        // about the NETWORK (shared café/hotel NAT, not this guest's own
-        // open bookings), so the form renders neutral copy without the
-        // open-bookings list.
-        return { success: false, message: 'too_many_network', values: currentValues(formData) };
-      }
-    }
-
-    // Resolve the guest for this booking. Signed-in accounts resolve
-    // through the shared identity chokepoint (auth id first, then a claim
-    // by the session's OTP-VERIFIED phone only — see guest-identity.ts).
-    // The phone typed into the form is unverified and must never link a
-    // row to an account: the old phone-match + authUserId backfill here
-    // let anyone bind a stranger's bookings, PII, and wallet credit to
-    // their own session just by knowing the number.
-    // Anonymous bookings keep the phone-keyed lazy row, never linked.
-    const user = await getCurrentUser();
-
-    let guest: Pick<Guest, 'id' | 'authUserId' | 'phone' | 'email' | 'suspendedAt'> | undefined =
-      user
-        ? await resolveGuestForUser(user, {
-            name: input.name,
-            email: input.email || null,
-            preferredLanguage: input.locale,
-          })
-        : await db.query.guests.findFirst({
-            where: (g) => eq(g.phone, input.phone),
-            columns: { id: true, authUserId: true, phone: true, email: true, suspendedAt: true },
-          });
-
-    // Suspended guests can browse but not book (admin decision trail
-    // lives on the guest row). Checked before any insert so a banned
-    // phone can't route around the block by signing out.
-    if (guest?.suspendedAt) {
+    const resolved = await resolveBookingGuest(input);
+    if ('suspended' in resolved) {
       return { success: false, message: 'suspended', values: currentValues(formData) };
     }
 
-    if (!guest) {
-      // Anonymous first booking — `authUserId` stays null; accounts only
-      // ever link through a verified phone (guest-identity.ts).
-      [guest] = await db
-        .insert(guests)
-        .values({
-          name: input.name,
-          phone: input.phone,
-          email: input.email,
-          preferredLanguage: input.locale,
-          // Opt-in evidence for marketing messages — stamped only when the
-          // (optional, unchecked-by-default) checkbox was ticked.
-          marketingConsentAt: input.marketingConsent ? new Date() : null,
-        })
-        .returning({
-          id: guests.id,
-          authUserId: guests.authUserId,
-          phone: guests.phone,
-          email: guests.email,
-          suspendedAt: guests.suspendedAt,
-        });
-    } else {
-      // Backfill contact fields only — never identity fields, and NEVER
-      // a phone onto an account-linked row.
-      //
-      // 2026-07-28 re-audit: stamping the form phone on a row with an
-      // `authUserId` reopened the takeover from the other side. An
-      // email-OTP attacker whose row has no phone could write a
-      // victim's number onto their OWN account row; the anonymous
-      // branch above then matches that row by phone, so every later
-      // anonymous booking the victim makes lands in the ATTACKER's
-      // account (their /me, their cancel rights, their wallet on
-      // refund, their inbox for the emails). A phone only ever reaches
-      // an account row through a verified OTP sign-in
-      // (guest-identity.ts); an unverified form value never does.
-      //
-      // Anonymous rows (authUserId null) still take the phone: the row
-      // was created by this same form, hosts read `guests.phone` to
-      // reach the guest, and there is no account to hijack.
-      const patch: Partial<{ phone: string; email: string; marketingConsentAt: Date }> = {};
-      if (!guest.phone && !guest.authUserId) patch.phone = input.phone;
-      if (input.email && !guest.email) patch.email = input.email;
-      // A ticked box refreshes the consent stamp; an unticked one never
-      // clears it (withdrawal is an explicit flow, not a forgotten tick).
-      if (input.marketingConsent) patch.marketingConsentAt = new Date();
-      if (Object.keys(patch).length > 0) {
-        try {
-          await db.update(guests).set(patch).where(eq(guests.id, guest.id));
-        } catch (error) {
-          if (!isUniqueViolation(error) || !patch.phone) throw error;
-          // Another row owns this phone — keep the row phone-less; the
-          // booking itself still goes through.
-          const rest = { ...patch };
-          delete rest.phone;
-          if (Object.keys(rest).length > 0) {
-            await db.update(guests).set(rest).where(eq(guests.id, guest.id));
-          }
-        }
-      }
-    }
+    const values = await bookingRowValues(experience, input, {
+      guestId: resolved.guest.id,
+      reference,
+      ip: throttled.ip,
+      adConsent,
+    });
+    if (experience.bookingMode === 'instant' && hasHyperpay()) nextPath = payPath;
 
-    const bookingValues = {
-      guestId: guest.id,
-      // Per-booking contact snapshot: what the guest typed on THIS form.
-      // Hosts reach the guest through it and the hold throttle counts on
-      // it, so an account-linked identity row never has to take an
-      // unverified phone (see the guests.contactPhone note in schema.ts).
-      contactPhone: input.phone,
-      experienceId: experience.id,
-      date: input.preferredDate,
-      startTime: experience.startTime,
-      partySize: input.partySize,
-      totalAmount: experience.priceSar * input.partySize,
-      // Snapshots — a later commission or policy edit applies to future
-      // bookings only, never restating an existing booking's terms. The
-      // tier's parameters come from the DB source of truth (degrading to
-      // the code defaults exactly like the guest-facing surfaces do).
-      commissionBps: experience.commissionBps,
-      ...(await getTierSnapshot(experience.cancellationTier)),
-      idempotencyKey: reference,
-      // Human reference (GH-XXXXXX) — display identity only; the UUID
-      // above stays the URL capability. Unique-constraint collision is
-      // ~1/730M and lands in the generic server-error path.
-      referenceCode: generateReferenceCode(),
-      createdIp: ip,
-      // First-touch acquisition source; feeds only the admin dashboard.
-      utmSource: input.utmSource ?? null,
-      utmMedium: input.utmMedium ?? null,
-      utmCampaign: input.utmCampaign ?? null,
-      // Ad-platform click ids + guest referral code, captured with the
-      // same first-touch mechanism — offline conversion upload and
-      // referral rewards both hang off these at settlement.
-      gclid: adConsent ? (input.gclid ?? null) : null,
-      ttclid: adConsent ? (input.ttclid ?? null) : null,
-      fbclid: adConsent ? (input.fbclid ?? null) : null,
-      referralCode: input.referralCode ?? null,
-      // Per-booking snapshot of the marketing-consent checkbox; the
-      // durable per-guest grant is stamped on the guest row above.
-      marketingConsent: input.marketingConsent,
-      // The guest's message to the host — shown on the request card.
-      guestNote: input.guestNote ?? null,
-      // Consent evidence — the checkboxes above were enforced before this
-      // point, so a created booking always carries its acceptance stamps
-      // and the document version accepted (2026-08-02 legal audit).
-      termsAcceptedAt: new Date(),
-      termsVersion: CURRENT_TERMS_VERSION,
-      womenOnlyAttestedAt: experience.category === 'women_only' ? new Date() : null,
-      minAgeAttestedAt: experience.minAge > 0 ? new Date() : null,
-    } as const;
-
-    if (experience.bookingMode === 'instant' && hasHyperpay()) {
-      nextPath = `/book/${reference}/pay?${slugParam}`;
-    }
-
-    // Both modes insert only if the date still has room. Lock the
-    // experience row for the duration of the transaction so concurrent
-    // bookings for the same experience serialize: each re-sums active
-    // party sizes on the date and inserts only if there is room. This
-    // *closes* the overbook window (a read-then-write TOCTOU otherwise)
-    // rather than merely narrowing it. Capacity is derived from
-    // bookings, so the experience row is the lock anchor — the same
-    // anchor approve/reschedule take.
-    //
-    // Request mode used to skip this gate ("the host confirms, capacity
-    // is enforced there"), but a `pending` row consumes capacity the
-    // moment it exists (2026-08-02 ops audit): a request beyond the
-    // date's remaining room could never be approved anyway, and free
-    // anonymous requests could zero out a calendar for the whole
-    // approval window. Refusing at creation closes that hole and tells
-    // the guest the truth — the date is full.
-    const insertIfRoom = (row: typeof bookings.$inferInsert): Promise<'full' | 'ok'> =>
-      db.transaction(async (tx) => {
-        await tx.execute(
-          sql`select 1 from ${experiences} where ${experiences.id} = ${experience.id} for update`,
-        );
-        const [{ booked }] = await tx
-          .select({ booked: sql<number>`coalesce(sum(${bookings.partySize}), 0)::int` })
-          .from(bookings)
-          .where(
-            and(
-              eq(bookings.experienceId, experience.id),
-              eq(bookings.date, input.preferredDate),
-              inArray(bookings.status, [...ACTIVE_BOOKING_STATUSES]),
-              holdStillCounts(),
-            ),
-          );
-        if (remainingCapacity(experience.maxGroupSize, booked) < input.partySize) {
-          return 'full' as const;
-        }
-        await tx.insert(bookings).values(row);
-        return 'ok' as const;
-      });
-
-    let outcome: 'full' | 'ok';
-    if (experience.bookingMode === 'instant') {
-      // When online payment is required, stamp a hold deadline: the booking
-      // is created `confirmed` (so it holds the spot during payment) but the
-      // release job frees it if payment never completes. Null when payment is
-      // off — the booking is final on insert and never expires.
-      const paymentDeadline = hasHyperpay()
-        ? new Date(Date.now() + PAYMENT_HOLD_MINUTES * 60_000)
-        : null;
-      outcome = await insertIfRoom({ ...bookingValues, status: 'confirmed', paymentDeadline });
-    } else {
-      // Request mode: the host (or admin) confirms each request, and
-      // capacity is re-asserted there under the same lock. The approval
-      // window starts now; the cron expires undecided requests past the
-      // deadline.
-      const { approvalWindowHours } = await getPlatformSettings();
-      // Clamp the window to the slot itself (2026-08-02 ops audit P0-2):
-      // `now + 24h` unclamped let a request for tomorrow morning sit
-      // pending THROUGH the event while holding its seat. The deadline
-      // never extends past local start minus the booking cutoff — the
-      // same lead time the `isDateBookable` gate above just enforced —
-      // so an undecided request expires while the guest can still book
-      // elsewhere, and a decision always leaves room to pay and attend.
-      const windowEndMs = Date.now() + approvalWindowHours * 3_600_000;
-      const slotCloseMs = slotCloseInstantMs(
-        input.preferredDate,
-        experience.startTime,
-        experience.bookingCutoffHours * 60,
-      );
-      const approvalDeadline = new Date(
-        slotCloseMs === null ? windowEndMs : Math.min(windowEndMs, slotCloseMs),
-      );
-      outcome = await insertIfRoom({ ...bookingValues, status: 'pending', approvalDeadline });
-    }
+    const outcome = await insertBookingIfRoom(experience, input, values);
     if (outcome === 'full') {
       return {
         success: false,
@@ -847,37 +122,7 @@ export async function requestBooking(
         values: currentValues(formData),
       };
     }
-
-    // The replacement exists — release the verified superseded hold with
-    // the exact transition the release cron applies to lapsed holds, so
-    // its capacity frees now and `createCheckout` refuses the old pay
-    // link. The WHERE re-asserts every liveness guard: a payment that
-    // raced ahead (or a settle anomaly stamped meanwhile) leaves the row
-    // untouched. Best-effort — on any failure the hold simply lapses on
-    // its own deadline; the new booking must never fail here.
-    if (supersededHold) {
-      try {
-        const releasedHold = await db
-          .update(bookings)
-          .set({ status: 'cancelled', cancelledAt: new Date(), cancellationKind: 'system' })
-          .where(
-            and(
-              eq(bookings.id, supersededHold.id),
-              eq(bookings.status, 'confirmed'),
-              inArray(bookings.paymentStatus, ['unpaid', 'failed']),
-              isNull(bookings.settleAnomalyAt),
-            ),
-          )
-          .returning({ id: bookings.id });
-        // Checkout-applied credit on the old hold was only a reservation
-        // — hand it back, same as the cron does on release.
-        if (releasedHold.length > 0 && supersededHold.walletAppliedSar > 0) {
-          await releaseWalletReservation(supersededHold.id);
-        }
-      } catch (error) {
-        reportError(error, { surface: 'booking-request:supersededRelease', reference });
-      }
-    }
+    if (supersededHold) await releaseSupersededHold(supersededHold, reference);
   } catch (error) {
     // Race-proof replay backstop: two concurrent retries can both pass the
     // fast path above; the loser's insert hits the idempotency-key unique
@@ -891,35 +136,7 @@ export async function requestBooking(
     return { success: false, message: 'server', values: currentValues(formData) };
   }
 
-  // Tell the host and acknowledge the guest — best-effort (a mail hiccup
-  // must never fail a booking) AND after the response: each send re-loads
-  // the booking + experience and makes a Resend call, which used to sit
-  // between the insert and the redirect as pure user-perceived latency on
-  // the single most important conversion action. `after()` runs once the
-  // redirect has flushed; the function stays alive until it settles.
-  after(async () => {
-    try {
-      await sendHostNewBookingEmail(reference);
-    } catch (error) {
-      reportError(error, { surface: 'booking-request:hostEmail', reference });
-    }
-    // Request mode only; no-ops without an email on file.
-    try {
-      await sendBookingRequestReceivedEmail(reference);
-    } catch (error) {
-      reportError(error, { surface: 'booking-request:guestEmail', reference });
-    }
-    // Instant mode: "your spot is held until {deadline}" with the pay
-    // link, at creation time. The sender's own guards make this a no-op
-    // for request-mode bookings (no payment deadline yet), so it can be
-    // called unconditionally; the ledger dedupes any replay.
-    try {
-      await sendBookingAwaitingPaymentEmail(reference, 'created');
-    } catch (error) {
-      reportError(error, { surface: 'booking-request:holdEmail', reference });
-    }
-  });
-
+  queueBookingEmails(reference);
   await writeLastBookingCookie(reference, input.experienceSlug);
   redirect({ href: nextPath, locale: input.locale });
 }
