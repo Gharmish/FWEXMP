@@ -61,8 +61,12 @@ describe('guestBookingUrls', () => {
   });
 });
 
-describe('booking-email.ts source', () => {
-  const source = readFileSync(new URL('./booking-email.ts', import.meta.url), 'utf8');
+describe('booking-email sender sources', () => {
+  // The senders live in sibling modules behind the booking-email index
+  // (2026-09 engineering audit ARCH-07); scan every one of them.
+  const source = ['guest', 'host', 'reminders', 'receipt']
+    .map((part) => readFileSync(new URL(`./booking-email-${part}.ts`, import.meta.url), 'utf8'))
+    .join('\n');
 
   it('contains zero bare SITE_URL-interpolated /book/ links', () => {
     // The exact shape of the P0-1 regression. `/experiences/` and host

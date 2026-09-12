@@ -39,7 +39,9 @@ describe('renderReceiptEmail', () => {
       ...base,
       logoUrl: 'https://gharmish.com/images/gharmish-email-logo.png',
     });
-    expect(withLogo.html).toContain('img src="https://gharmish.com/images/gharmish-email-logo.png"');
+    expect(withLogo.html).toContain(
+      'img src="https://gharmish.com/images/gharmish-email-logo.png"',
+    );
     expect(withLogo.html).toContain('alt="Gharmish — Experiences Marketplace"');
     expect(renderReceiptEmail(base).html).not.toContain('<img');
   });
