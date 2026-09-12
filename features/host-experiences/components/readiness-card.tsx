@@ -75,7 +75,7 @@ export function ReadinessCard({ items, copy, compact = false }: ReadinessCardPro
 function ReadinessRow({ item, copy }: { item: ReadinessItem; copy: ReadinessCardCopy }) {
   const hint = !item.ok ? copy.hints[item.key] : undefined;
   return (
-    <li className="flex items-start gap-2.5 text-sm">
+    <li className="flex items-start gap-3 text-sm">
       {item.ok ? (
         <span className="bg-success-surface text-success mt-0.5 inline-flex size-4 shrink-0 items-center justify-center rounded-full">
           <Check className="size-3" strokeWidth={3} aria-hidden />

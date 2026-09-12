@@ -1187,7 +1187,7 @@ export function BookingRequestForm({
                       · {statusLabel(booking, copy)}
                     </span>
                   </span>
-                  <span className="inline-flex shrink-0 items-center gap-1.5 text-sm font-medium">
+                  <span className="inline-flex shrink-0 items-center gap-2 text-sm font-medium">
                     {copy.tooManyFinish}
                     <ArrowRight className="size-4 shrink-0 rtl:rotate-180" aria-hidden />
                   </span>

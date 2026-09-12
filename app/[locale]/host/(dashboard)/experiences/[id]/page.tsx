@@ -231,7 +231,7 @@ export default async function EditExperiencePage({
           <p
             role="status"
             className={cn(
-              'rounded-card mt-6 flex items-start gap-2.5 [border-width:0.5px] p-4 text-sm leading-relaxed',
+              'rounded-card mt-6 flex items-start gap-3 [border-width:0.5px] p-4 text-sm leading-relaxed',
               saved === 'review'
                 ? 'border-saffron-gold/40 bg-saffron-gold/10 text-sarat-black'
                 : 'border-juniper-green/30 bg-success-surface text-sarat-black',

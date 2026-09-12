@@ -8,7 +8,7 @@ import { serverEnv, hasSupabaseAuth } from '@/lib/env';
 import { guests } from '@/db/schema';
 import { reportError } from '@/lib/log';
 import { getCurrentUser } from '@/features/auth/queries';
-import { getSupabaseUserStorage } from '@/lib/supabase/server';
+import { getSupabaseUserStorage, uploadAsUser } from '@/lib/supabase/server';
 import { getMyProfile } from '@/features/account/profile/queries';
 import {
   profileSchema,
@@ -127,16 +127,18 @@ export async function updateAvatar(
     const profile = await getMyProfile();
     if (!profile) return { status: 'error', message: 'no_auth' };
 
-    const storage = await getSupabaseUserStorage();
-    if (!storage) return { status: 'error', message: 'no_auth' };
     const path = `${user.id}/${crypto.randomUUID()}.${AVATAR_EXTENSION[file.type]}`;
-    const { error: uploadError } = await storage
-      .from(AVATARS_BUCKET)
-      .upload(path, file, { contentType: file.type, upsert: false });
-    if (uploadError) {
-      reportError(uploadError, { surface: 'profile:updateAvatar:upload' });
-      return { status: 'error', message: 'server' };
-    }
+    // The guest's own token writes their own folder (SEC-06); the helper
+    // reports and falls back to the service key only on a policy refusal.
+    const uploaded = await uploadAsUser(AVATARS_BUCKET, {
+      key: path,
+      file,
+      contentType: file.type,
+      upsert: false,
+    });
+    if (uploaded.error === 'no_session') return { status: 'error', message: 'no_auth' };
+    if (uploaded.error) return { status: 'error', message: 'server' };
+    const storage = uploaded.storage;
 
     const {
       data: { publicUrl },

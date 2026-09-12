@@ -28,9 +28,12 @@ export async function resolveIsAdmin(userId: string, phone: string): Promise<boo
 
   try {
     // Any admin row for this user — live or revoked — makes the table the
-    // authority, so revoking an env-listed admin in the UI takes effect
-    // (2026-09 engineering audit SEC-07). Only a user with no row at all
-    // falls through to the bootstrap allowlist.
+    // authority, so revoking an env-listed admin takes effect (2026-09
+    // engineering audit SEC-07). Only a user with no row at all falls
+    // through to the bootstrap allowlist. Grants and revocations are
+    // hand-applied SQL today — nothing in the app writes user_roles yet
+    // (second-pass verification F19); the ordering below is what makes a
+    // future revoke/re-grant UI safe.
     // Re-granting after a revocation is a NEW row (see `user_roles_active_uq`),
     // so a user can hold several admin rows; a live one wins, then the
     // newest grant — never whichever row the planner happens to return

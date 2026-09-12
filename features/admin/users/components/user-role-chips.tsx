@@ -16,7 +16,7 @@ export interface UserRoleChipsProps {
 /** Coloured role chips shared by the directory row and the detail header. */
 export function UserRoleChips({ roles, labels }: UserRoleChipsProps) {
   return (
-    <div className="flex flex-wrap items-center gap-1.5">
+    <div className="flex flex-wrap items-center gap-2">
       {roles.map((role) => (
         <Badge key={role} className={ROLE_TONE[role]}>
           {labels[role]}

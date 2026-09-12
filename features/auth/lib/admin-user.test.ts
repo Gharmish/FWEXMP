@@ -15,7 +15,7 @@ describe('admin/auth', () => {
   });
 
   async function loadModule() {
-    return await import('./auth');
+    return await import('./admin-user');
   }
 
   it('returns an empty allowlist when ADMIN_PHONES is unset', async () => {

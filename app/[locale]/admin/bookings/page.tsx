@@ -104,7 +104,7 @@ export default async function AdminBookingsPage({
   const eyebrowClassName = cn('text-sarat-black-600 text-eyebrow');
 
   return (
-    <div className="flex flex-col gap-10">
+    <div className="flex flex-col gap-12">
       <div className="flex flex-col gap-4">
         <Link
           href="/admin"
@@ -121,7 +121,7 @@ export default async function AdminBookingsPage({
       </div>
 
       {block?.reason === 'no_db' ? (
-        <div className="border-sarat-black/8 rounded-card flex flex-col items-start gap-4 [border-width:0.5px] p-10">
+        <div className="border-sarat-black/8 rounded-card flex flex-col items-start gap-4 [border-width:0.5px] p-12">
           <p className={eyebrowClassName}>{t('noDb.eyebrow')}</p>
           <h2 className="text-h2">{t('noDb.title')}</h2>
           <p className="text-sarat-black-600 max-w-xl text-base">{t('noDb.description')}</p>
@@ -129,7 +129,7 @@ export default async function AdminBookingsPage({
       ) : (
         <>
           {/* Counts strip */}
-          <dl className="border-sarat-black/8 rounded-card grid grid-cols-2 gap-5 [border-width:0.5px] p-6 sm:grid-cols-4 lg:grid-cols-8">
+          <dl className="border-sarat-black/8 rounded-card grid grid-cols-2 gap-6 [border-width:0.5px] p-6 sm:grid-cols-4 lg:grid-cols-8">
             <Stat
               label={t('bookingsList.stats.total')}
               value={totals.total}
@@ -185,7 +185,7 @@ export default async function AdminBookingsPage({
           )}
 
           {nothingYet ? (
-            <div className="border-sarat-black/8 rounded-card flex flex-col items-start gap-4 [border-width:0.5px] p-10">
+            <div className="border-sarat-black/8 rounded-card flex flex-col items-start gap-4 [border-width:0.5px] p-12">
               <p className={eyebrowClassName}>{t('bookingsList.empty.eyebrow')}</p>
               <h2 className="text-h2">{t('bookingsList.empty.title')}</h2>
               <p className="text-sarat-black-600 max-w-xl text-base">
@@ -283,7 +283,7 @@ export default async function AdminBookingsPage({
                   {filtered.map((row) => (
                     <li
                       key={row.id}
-                      className="flex flex-col gap-2 p-5 sm:flex-row sm:items-center sm:justify-between sm:gap-6"
+                      className="flex flex-col gap-2 p-6 sm:flex-row sm:items-center sm:justify-between sm:gap-6"
                     >
                       <div className="flex min-w-0 flex-col gap-1">
                         <div className="flex flex-wrap items-center gap-3">

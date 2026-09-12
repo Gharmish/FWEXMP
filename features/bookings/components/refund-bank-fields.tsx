@@ -58,7 +58,7 @@ export function RefundBankFields({
 
   return (
     <div className="grid gap-4 sm:grid-cols-2">
-      <label htmlFor={id('bankName')} className="flex flex-col gap-1.5 text-sm font-medium">
+      <label htmlFor={id('bankName')} className="flex flex-col gap-2 text-sm font-medium">
         {copy.bankNameLabel}
         <Input
           id={id('bankName')}
@@ -72,7 +72,7 @@ export function RefundBankFields({
         />
         <FieldError id={`${id('bankName')}-error`}>{errorFor('bankName')}</FieldError>
       </label>
-      <label htmlFor={id('beneficiaryName')} className="flex flex-col gap-1.5 text-sm font-medium">
+      <label htmlFor={id('beneficiaryName')} className="flex flex-col gap-2 text-sm font-medium">
         {copy.beneficiaryNameLabel}
         <Input
           id={id('beneficiaryName')}
@@ -89,10 +89,7 @@ export function RefundBankFields({
         </span>
         <FieldError id={`${id('beneficiaryName')}-error`}>{errorFor('beneficiaryName')}</FieldError>
       </label>
-      <label
-        htmlFor={id('iban')}
-        className="flex flex-col gap-1.5 text-sm font-medium sm:col-span-2"
-      >
+      <label htmlFor={id('iban')} className="flex flex-col gap-2 text-sm font-medium sm:col-span-2">
         {copy.ibanLabel}
         <Input
           id={id('iban')}

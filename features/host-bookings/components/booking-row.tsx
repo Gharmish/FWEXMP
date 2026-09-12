@@ -208,7 +208,7 @@ export async function BookingRow({
           </div>
 
           <div className="text-sarat-black-600 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
-            <span className="inline-flex items-center gap-1.5">
+            <span className="inline-flex items-center gap-2">
               <Users className="size-4 shrink-0" aria-hidden />
               {t('partyOf', { count: row.partySize })}
             </span>

@@ -42,7 +42,7 @@ vi.mock('@/features/auth/queries', () => ({
 }));
 
 let isAdmin = false;
-vi.mock('@/features/admin/auth', () => ({
+vi.mock('@/features/auth/lib/admin-user', () => ({
   isAdminUser: () => isAdmin,
 }));
 

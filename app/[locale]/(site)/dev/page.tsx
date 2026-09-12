@@ -277,7 +277,7 @@ export default async function StyleGuidePage({ params }: { params: Promise<{ loc
           className="border-sarat-black/8 rounded-card mt-6 [border-width:0.5px] p-6"
         >
           <p className="text-sarat-black-600 text-eyebrow mb-3">Jump to</p>
-          <ul className="flex flex-wrap gap-x-4 gap-y-1.5 text-sm">
+          <ul className="flex flex-wrap gap-x-4 gap-y-2 text-sm">
             {TOC_SECTIONS.map((title) => (
               <li key={title}>
                 <a

@@ -66,7 +66,7 @@ export function EmergencyCancelButton({ bookingId, locale, copy }: EmergencyCanc
       <form action={action} className="flex flex-col gap-3">
         <input type="hidden" name="bookingId" value={bookingId} />
         <input type="hidden" name="locale" value={locale} />
-        <div className="flex flex-col gap-1.5">
+        <div className="flex flex-col gap-2">
           <label htmlFor={reasonId} className="text-sarat-black-600 text-sm font-medium">
             {copy.reasonLabel}
           </label>

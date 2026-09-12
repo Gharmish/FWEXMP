@@ -20,7 +20,7 @@ vi.mock('@/lib/db', () => ({
   },
 }));
 
-import { resolveIsAdmin } from './roles';
+import { resolveIsAdmin } from './admin-roles';
 
 const OWNER = '+966541104000';
 const OTHER = '+966500000001';

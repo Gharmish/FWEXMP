@@ -708,7 +708,7 @@ export default async function BookingConfirmedPage({ params, searchParams }: Pag
               {title}
             </p>
             {placeName && (
-              <p className="text-sarat-black-600 inline-flex items-center gap-1.5 text-sm">
+              <p className="text-sarat-black-600 inline-flex items-center gap-2 text-sm">
                 <MapPin className="size-4 shrink-0" aria-hidden />
                 {placeName}
               </p>
@@ -845,7 +845,7 @@ export default async function BookingConfirmedPage({ params, searchParams }: Pag
         placeName &&
         locationLine && (
           <section className="mt-12 flex flex-col gap-3 print:hidden">
-            <h2 className="text-h2 flex items-center gap-2.5">
+            <h2 className="text-h2 flex items-center gap-3">
               <MapPin className="text-sarat-black-600 size-5 shrink-0" aria-hidden />
               {tExp('meetingPoint.heading')}
             </h2>

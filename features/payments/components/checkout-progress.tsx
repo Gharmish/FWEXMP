@@ -46,13 +46,15 @@ export function CheckoutProgress({
                   className="bg-sarat-black/8 h-px w-3 shrink sm:w-10 sm:shrink-0"
                 />
               )}
-              <span className="flex min-w-0 items-center gap-1.5 sm:gap-2">
+              <span className="flex min-w-0 items-center gap-2 sm:gap-2">
                 <span
                   className={cn(
                     'flex size-5 shrink-0 items-center justify-center rounded-full text-[11px] sm:size-6 sm:text-xs',
                     done && 'bg-juniper-green-100 text-juniper-green-800',
                     active && 'bg-sarat-black font-medium text-white',
-                    !done && !active && 'border-sarat-black/8 text-sarat-black-600 [border-width:0.5px]',
+                    !done &&
+                      !active &&
+                      'border-sarat-black/8 text-sarat-black-600 [border-width:0.5px]',
                   )}
                 >
                   {done ? (

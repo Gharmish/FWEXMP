@@ -12,7 +12,7 @@ import { reportError } from '@/lib/log';
 import { notifyAdmin } from '@/lib/admin-alerts';
 import { sendApplicationReceivedEmail } from '@/features/host-applications/lib/application-email';
 import { getCurrentUser } from '@/features/auth/queries';
-import { getSupabaseUserStorage } from '@/lib/supabase/server';
+import { getSupabaseUserStorage, uploadAsUser } from '@/lib/supabase/server';
 import {
   HOST_APPLICATION_COOKIE,
   HOST_APPLICATION_COOKIE_MAX_AGE_SECONDS,
@@ -345,16 +345,20 @@ export async function submitHostApplication(
       staged = result.staged;
 
       if (staged.length > 0) {
-        const storage = await getSupabaseUserStorage();
-        if (!storage) {
-          return { success: false, message: 'auth_required', values: currentValues(formData) };
-        }
         for (const doc of staged) {
-          const { error: uploadError } = await storage
-            .from(KYC_DOCUMENTS_BUCKET)
-            .upload(doc.objectKey, doc.file, { contentType: doc.contentType });
-          if (uploadError) {
-            reportError(uploadError, {
+          // The applicant's own token writes their own KYC folder (SEC-06);
+          // the helper reports and falls back to the service key only on a
+          // policy refusal.
+          const uploaded = await uploadAsUser(KYC_DOCUMENTS_BUCKET, {
+            key: doc.objectKey,
+            file: doc.file,
+            contentType: doc.contentType,
+          });
+          if (uploaded.error === 'no_session') {
+            return { success: false, message: 'auth_required', values: currentValues(formData) };
+          }
+          if (uploaded.error) {
+            reportError(new Error('KYC document upload failed'), {
               surface: 'host-applications:uploadDocument',
               userId: user.id,
               documentType: doc.type,

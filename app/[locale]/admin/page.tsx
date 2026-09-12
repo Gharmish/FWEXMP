@@ -260,7 +260,7 @@ export default async function AdminIndexPage({
     return (
       <div className="flex flex-col gap-12">
         {header}
-        <div className={cn(card, 'flex flex-col items-start gap-4 p-10')}>
+        <div className={cn(card, 'flex flex-col items-start gap-4 p-12')}>
           <p className={eyebrowClassName}>{t('noDb.eyebrow')}</p>
           <h2 className="text-h2">{t('noDb.title')}</h2>
           <p className="text-sarat-black-600 max-w-xl text-base">{t('noDb.description')}</p>
@@ -281,7 +281,7 @@ export default async function AdminIndexPage({
       label: labelFor(r.label),
       magnitude: r.visitors,
       display: (
-        <span className="inline-flex items-baseline gap-1.5">
+        <span className="inline-flex items-baseline gap-2">
           {formatInteger(r.visitors, loc)} · {formatInteger(r.pageviews, loc)}
         </span>
       ),
@@ -336,7 +336,7 @@ export default async function AdminIndexPage({
     label: s.brand === 'unknown' ? t('dashboard.metrics.revenue.unknownBrand') : s.brand,
     magnitude: s.gmvSar,
     display: (
-      <span className="inline-flex items-baseline gap-1.5">
+      <span className="inline-flex items-baseline gap-2">
         <Price amount={s.gmvSar} locale={loc} /> · {formatInteger(s.bookings, loc)}
       </span>
     ),
@@ -381,7 +381,7 @@ export default async function AdminIndexPage({
     label: tCat(s.category),
     magnitude: s.gmvSar,
     display: (
-      <span className="inline-flex items-baseline gap-1.5">
+      <span className="inline-flex items-baseline gap-2">
         <Price amount={s.gmvSar} locale={loc} /> · {formatInteger(s.bookings, loc)}
       </span>
     ),
@@ -420,7 +420,7 @@ export default async function AdminIndexPage({
     label: r.source === 'organic' ? t('dashboard.metrics.demand.organic') : r.source,
     magnitude: r.gmvSar,
     display: (
-      <span className="inline-flex items-baseline gap-1.5">
+      <span className="inline-flex items-baseline gap-2">
         <Price amount={r.gmvSar} locale={loc} /> · {formatInteger(r.bookings, loc)}
       </span>
     ),
@@ -542,7 +542,7 @@ export default async function AdminIndexPage({
 
       {/* Revenue chart + current work queue */}
       <FadeIn className="grid gap-4 lg:grid-cols-3">
-        <section className={cn(card, 'flex flex-col gap-5 lg:col-span-2')}>
+        <section className={cn(card, 'flex flex-col gap-6 lg:col-span-2')}>
           <div className="flex flex-wrap items-baseline justify-between gap-3">
             <h2 className={sectionHeading}>{t('dashboard.metrics.revenueChart')}</h2>
             <p className="text-sarat-black-600 text-xs">{rangeLabel(range.from, range.to, loc)}</p>
@@ -558,7 +558,7 @@ export default async function AdminIndexPage({
         <section className="flex flex-col gap-4">
           <h2 className={sectionHeading}>{t('dashboard.queueHeading')}</h2>
           {cronStale && (
-            <p className="bg-error-surface text-error rounded-card px-5 py-4 text-sm font-medium">
+            <p className="bg-error-surface text-error rounded-card px-6 py-4 text-sm font-medium">
               {dashboard?.cronLastRunAt
                 ? t('dashboard.cronStale', { date: formatDate(dashboard.cronLastRunAt, loc) })
                 : t('dashboard.cronNever')}
@@ -727,7 +727,7 @@ export default async function AdminIndexPage({
             newLabel={newLabel}
           />
         </div>
-        <div className={cn(card, 'flex flex-col gap-5')}>
+        <div className={cn(card, 'flex flex-col gap-6')}>
           <div className="flex flex-wrap items-baseline justify-between gap-3">
             <div className="flex flex-col gap-1">
               <h3 className="text-sarat-black text-sm font-medium">
@@ -1100,7 +1100,7 @@ export default async function AdminIndexPage({
                 {t('dashboard.metrics.health.zeroBookingEmpty')}
               </p>
             ) : (
-              <ul className="flex flex-col gap-2.5">
+              <ul className="flex flex-col gap-3">
                 {m.zeroBookingListings.map((x) => (
                   <li key={x.id} className="flex items-baseline justify-between gap-3 text-sm">
                     <Link

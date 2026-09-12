@@ -12,6 +12,9 @@ import { describe, expect, it } from 'vitest';
  *                 data from the layout that renders them — ARCH-12)
  *   lib/        → never imports app/, features/ or components/: it is the
  *                 leaf layer every feature builds on
+ *   features/auth → never imports features/admin (ARCH-02): the identity
+ *                 layer (session, roles, MFA) sits under the admin feature,
+ *                 never beside it, so the pair cannot become a cycle
  *
  * Tests are exempt (they mock whatever they need). Add an entry to
  * ALLOWED only with a comment saying why the dependency is legitimate.
@@ -62,5 +65,15 @@ describe('import boundaries', () => {
 
   it('lib is a leaf: never imports app/, features/ or components/', () => {
     expect(violations('lib', ['app', 'features', 'components'])).toEqual([]);
+  });
+
+  it('features/auth never imports features/admin (ARCH-02)', () => {
+    const out: string[] = [];
+    for (const file of walk(join(ROOT, 'features/auth'))) {
+      for (const target of imports(file)) {
+        if (target.startsWith('features/admin/')) out.push(`${relative(ROOT, file)} → ${target}`);
+      }
+    }
+    expect(out).toEqual([]);
   });
 });

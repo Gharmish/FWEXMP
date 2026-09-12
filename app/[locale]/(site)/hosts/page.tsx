@@ -129,7 +129,7 @@ export default async function HostsIndexPage({ params }: { params: Promise<{ loc
                                 Link, so the tappable receipt lives on the
                                 profile page this card opens. */}
                             {host.verified && (
-                              <span className="text-juniper-green-800 inline-flex items-center gap-1.5 text-xs font-medium">
+                              <span className="text-juniper-green-800 inline-flex items-center gap-2 text-xs font-medium">
                                 <VerifiedSeal className="size-4" />
                                 {tv('lockup')}
                               </span>

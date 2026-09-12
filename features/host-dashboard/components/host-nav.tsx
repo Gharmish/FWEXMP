@@ -89,7 +89,7 @@ export function HostNav({ pendingRequests, onNavigate }: HostNavProps) {
                 <span className="truncate">{t(item.labelKey)}</span>
                 {item.showPending && pendingRequests > 0 && (
                   <span
-                    className="bg-saffron-gold/20 text-sarat-black ms-auto inline-flex min-w-6 items-center justify-center rounded-full px-1.5 py-0.5 text-xs font-medium tabular-nums"
+                    className="bg-saffron-gold/20 text-sarat-black ms-auto inline-flex min-w-6 items-center justify-center rounded-full px-2 py-0.5 text-xs font-medium tabular-nums"
                     aria-label={t('pendingBadge', { count: pendingRequests })}
                   >
                     {pendingRequests}

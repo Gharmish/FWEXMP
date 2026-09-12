@@ -1,4 +1,4 @@
-import { ADMIN_MFA_COOKIE } from '@/features/admin/mfa';
+import { ADMIN_MFA_COOKIE } from '@/features/auth/lib/admin-mfa';
 import { after } from 'next/server';
 import { cookies, headers } from 'next/headers';
 import { sql, type SQL } from 'drizzle-orm';

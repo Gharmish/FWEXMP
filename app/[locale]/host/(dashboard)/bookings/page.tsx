@@ -229,7 +229,7 @@ export default async function HostBookingsPage({
                   {count > 0 && (
                     <span
                       className={cn(
-                        'inline-flex min-w-5 items-center justify-center rounded-full px-1.5 text-xs tabular-nums',
+                        'inline-flex min-w-5 items-center justify-center rounded-full px-2 text-xs tabular-nums',
                         active ? 'bg-white/20 text-white' : 'bg-saffron-gold/20 text-sarat-black',
                       )}
                     >

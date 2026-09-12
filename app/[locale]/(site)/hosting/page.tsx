@@ -167,7 +167,7 @@ export default async function HostingPage({
             </p>
             <dl className="mt-2 grid gap-x-8 gap-y-6 sm:grid-cols-3">
               {pillarKeys.map((key) => (
-                <div key={key} className="flex flex-col gap-1.5">
+                <div key={key} className="flex flex-col gap-2">
                   <dt className="text-base font-medium">{t(`partnership.${key}.title`)}</dt>
                   <dd className="text-sarat-black-600 text-sm leading-relaxed">
                     {t(`partnership.${key}.body`)}

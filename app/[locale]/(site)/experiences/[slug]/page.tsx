@@ -720,7 +720,7 @@ export default async function ExperienceDetailPage({
         {ratingAggregate.count > 0 && ratingAggregate.average !== null && (
           <a
             href="#reviews"
-            className="flex items-center gap-1.5 self-start text-sm font-medium underline-offset-4 transition-opacity duration-200 hover:opacity-60"
+            className="flex items-center gap-2 self-start text-sm font-medium underline-offset-4 transition-opacity duration-200 hover:opacity-60"
           >
             <Star className="text-saffron-gold size-4 shrink-0 fill-current" aria-hidden />
             {t('ratingSummary', {
@@ -840,7 +840,7 @@ export default async function ExperienceDetailPage({
                     <li key={m.orderIndex}>
                       <StaggerItem className="grid grid-cols-[auto_1fr] gap-x-4">
                         <div className="flex flex-col items-center" aria-hidden>
-                          <span className="bg-saffron-gold ring-saffron-gold/15 mt-1.5 size-2.5 shrink-0 rounded-full ring-4" />
+                          <span className="bg-saffron-gold ring-saffron-gold/15 mt-2 size-2.5 shrink-0 rounded-full ring-4" />
                           {i < arr.length - 1 && (
                             <Draw className="mt-1 w-px flex-1">
                               <span className="bg-sarat-black/10 block size-full" />
@@ -873,9 +873,9 @@ export default async function ExperienceDetailPage({
           {inclusions.length > 0 && (
             <section className="flex flex-col gap-3">
               <h2 className="text-h2">{t('included')}</h2>
-              <ul className="text-sarat-black-600 flex flex-col gap-2.5 text-base">
+              <ul className="text-sarat-black-600 flex flex-col gap-3 text-base">
                 {inclusions.map((item) => (
-                  <li key={item} className="flex items-start gap-2.5">
+                  <li key={item} className="flex items-start gap-3">
                     <Check className="text-saffron-gold mt-0.5 size-4 shrink-0" aria-hidden />
                     <span>{item}</span>
                   </li>
@@ -886,13 +886,13 @@ export default async function ExperienceDetailPage({
 
           {whatToBring.length > 0 && (
             <section className="flex flex-col gap-3">
-              <h2 className="text-h2 flex items-center gap-2.5">
+              <h2 className="text-h2 flex items-center gap-3">
                 <Backpack className="text-sarat-black-600 size-5 shrink-0" aria-hidden />
                 {t('bring')}
               </h2>
-              <ul className="text-sarat-black-600 flex flex-col gap-2.5 text-base">
+              <ul className="text-sarat-black-600 flex flex-col gap-3 text-base">
                 {whatToBring.map((item) => (
-                  <li key={item} className="flex items-start gap-2.5">
+                  <li key={item} className="flex items-start gap-3">
                     <span
                       className="bg-sarat-black-400 mt-2 size-1.5 shrink-0 rounded-full"
                       aria-hidden
@@ -909,7 +909,7 @@ export default async function ExperienceDetailPage({
               of Guinea. Live listings always pass the readiness gate. */}
           {hasMeetingPoint(exp.lat, exp.lng) && (
             <section className="flex flex-col gap-3">
-              <h2 className="text-h2 flex items-center gap-2.5">
+              <h2 className="text-h2 flex items-center gap-3">
                 <MapPin className="text-sarat-black-600 size-5 shrink-0" aria-hidden />
                 {t('meetingPoint.heading')}
               </h2>
@@ -927,7 +927,7 @@ export default async function ExperienceDetailPage({
           )}
 
           <section className="flex flex-col gap-3">
-            <h2 className="text-h2 flex items-center gap-2.5">
+            <h2 className="text-h2 flex items-center gap-3">
               <ShieldCheck className="text-sarat-black-600 size-5 shrink-0" aria-hidden />
               {t('cancellation')}
             </h2>
@@ -994,7 +994,7 @@ export default async function ExperienceDetailPage({
             {ratingAggregate.count > 0 && ratingAggregate.average !== null && (
               <a
                 href="#reviews"
-                className="-mt-3 flex items-center gap-1.5 self-start text-sm font-medium underline-offset-4 transition-opacity duration-200 hover:opacity-60"
+                className="-mt-3 flex items-center gap-2 self-start text-sm font-medium underline-offset-4 transition-opacity duration-200 hover:opacity-60"
               >
                 <Star className="text-saffron-gold size-4 shrink-0 fill-current" aria-hidden />
                 {t('ratingSummary', {

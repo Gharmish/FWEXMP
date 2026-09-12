@@ -120,7 +120,7 @@ export default async function HostProfileSettingsPage({
               <p className="text-sarat-black-600 text-sm">{t('identity.publicLink')}</p>
               <Link
                 href={`/hosts/${host.slug}`}
-                className="text-sarat-black inline-flex min-h-11 items-center gap-1.5 text-sm font-medium transition-opacity duration-200 hover:opacity-60"
+                className="text-sarat-black inline-flex min-h-11 items-center gap-2 text-sm font-medium transition-opacity duration-200 hover:opacity-60"
               >
                 <span dir="ltr">{publicUrl}</span>
                 <ExternalLink className="size-4 shrink-0" aria-hidden />

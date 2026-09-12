@@ -2,7 +2,7 @@ import { getTranslations } from 'next-intl/server';
 import { LogIn, Store, User } from 'lucide-react';
 import { Link } from '@/lib/i18n';
 import type { Locale } from '@/lib/i18n';
-import { hostNavLinkClass, navLinkClass, phoneTail } from '@/components/layout/navbar';
+import { hostNavLinkClass, navLinkClass, phoneTail } from '@/components/layout/nav-link-styles';
 import { SignOutButton } from '@/components/layout/sign-out-button';
 import { getCurrentUser } from '@/features/auth/queries';
 import { currentUserIsHost } from '@/features/host-dashboard/queries';

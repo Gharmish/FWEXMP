@@ -39,6 +39,17 @@ Before doing anything, read `BRIEF.md` in the repo root. If the conversation con
 - Use logical properties (`ps-4`, `pe-2`, `border-inline-end`). Never `pl-`, `pr-`, `border-right`.
 - Use `cn()` from `lib/utils.ts` for conditional classes.
 
+### Copy in client components
+
+- A client component reads its own copy with `useTranslations` from a
+  namespace listed in `lib/client-messages.ts` (`CLIENT_NAMESPACES`); the
+  structural test there fails the build if a component reads a namespace
+  no layout ships. Copy PROPS are for the two cases a hook cannot serve:
+  strings the parent server component must compose from server data
+  (interpolated names, formatted money), and components rendered by pages
+  in different namespaces (the shared form primitives). Do not add a third
+  pattern (2026-09 engineering audit REACT-02).
+
 ### Data & validation
 
 - Every form uses `useActionState` + a zod schema validated in the server

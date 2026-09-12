@@ -88,7 +88,7 @@ export function BookingContactForm({ reference, locale, defaults, copy }: Bookin
       <form action={action} noValidate className="mt-3 flex max-w-md flex-col gap-3">
         <input type="hidden" name="reference" value={reference} />
         <input type="hidden" name="locale" value={locale} />
-        <label htmlFor={`${prefix}-email`} className="flex flex-col gap-1.5 text-sm font-medium">
+        <label htmlFor={`${prefix}-email`} className="flex flex-col gap-2 text-sm font-medium">
           {copy.emailLabel}
           <Input
             id={`${prefix}-email`}
@@ -102,7 +102,7 @@ export function BookingContactForm({ reference, locale, defaults, copy }: Bookin
           />
           <FieldError id={`${prefix}-email-error`}>{fieldError('email')}</FieldError>
         </label>
-        <label htmlFor={`${prefix}-phone`} className="flex flex-col gap-1.5 text-sm font-medium">
+        <label htmlFor={`${prefix}-phone`} className="flex flex-col gap-2 text-sm font-medium">
           {copy.phoneLabel}
           <PhoneInput
             id={`${prefix}-phone`}

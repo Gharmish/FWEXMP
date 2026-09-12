@@ -113,16 +113,13 @@ function ToastCard({ item }: { item: ToastItem }) {
       animate={{ opacity: 1, y: 0, scale: 1 }}
       exit={reduce ? undefined : { opacity: 0, y: 8 }}
       transition={SPRING}
-      className="rounded-input border-sarat-black/8 pointer-events-auto flex w-full items-start gap-3 [border-width:0.5px] bg-white p-4 shadow-overlay"
+      className="rounded-input border-sarat-black/8 shadow-overlay pointer-events-auto flex w-full items-start gap-3 [border-width:0.5px] bg-white p-4"
       onPointerEnter={pause}
       onPointerLeave={resume}
       onFocus={pause}
       onBlur={resume}
     >
-      <span
-        aria-hidden
-        className={cn('mt-1.5 size-2 shrink-0 rounded-full', TONE_DOT[item.tone])}
-      />
+      <span aria-hidden className={cn('mt-2 size-2 shrink-0 rounded-full', TONE_DOT[item.tone])} />
       <div className="min-w-0 flex-1">
         <p className="text-sarat-black text-sm font-medium">
           {/* The colored dot is aria-hidden; give AT the tone in words. */}

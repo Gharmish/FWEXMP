@@ -52,7 +52,7 @@ export function DateRangePicker({
   const pillBase =
     'rounded-button inline-flex h-11 items-center px-4 text-sm font-medium [border-width:0.5px] transition-colors duration-200';
   const inputClass =
-    'rounded-input border-sarat-black/20 text-sarat-black h-11 [border-width:0.5px] bg-white px-3.5 text-sm';
+    'rounded-input border-sarat-black/20 text-sarat-black h-11 [border-width:0.5px] bg-white px-4 text-sm';
 
   return (
     <div

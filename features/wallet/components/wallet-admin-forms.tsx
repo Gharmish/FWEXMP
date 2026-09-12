@@ -155,7 +155,7 @@ export function WalletAdminForms({ personKey, idempotencyKeys, copy }: WalletAdm
           {/* Goodwill (service recovery) vs promo (marketing-funded credit:
               win-back, referral rewards) — the ledger keeps them separable
               for finance, so the operator must choose deliberately. */}
-          <label className="flex flex-col gap-1.5">
+          <label className="flex flex-col gap-2">
             <span className="text-sarat-black-600 text-sm">{copy.reason}</span>
             <select
               name="reason"

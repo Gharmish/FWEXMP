@@ -478,7 +478,7 @@ export default async function HostDashboardPage({
           <dl className="grid grid-cols-2 gap-4">
             <div className="flex flex-col gap-1">
               <dt className="text-sarat-black-600 text-xs font-medium">{t('numbers.rating')}</dt>
-              <dd className="text-h2 flex items-center gap-1.5 tabular-nums">
+              <dd className="text-h2 flex items-center gap-2 tabular-nums">
                 <Star className="text-saffron-gold size-5 fill-current" aria-hidden />
                 {averageDisplay ?? '—'}
               </dd>

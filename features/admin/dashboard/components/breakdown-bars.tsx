@@ -39,7 +39,7 @@ export function BreakdownBars({ rows, emptyLabel }: BreakdownBarsProps) {
       {rows.map((row, i) => {
         const pct = Math.round((row.magnitude / max) * 100);
         return (
-          <li key={row.id} className="flex flex-col gap-1.5">
+          <li key={row.id} className="flex flex-col gap-2">
             <div className="flex items-baseline justify-between gap-3 text-sm">
               <span className="text-sarat-black truncate font-medium">{row.label}</span>
               <span className="text-sarat-black-600 shrink-0 tabular-nums">{row.display}</span>

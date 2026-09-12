@@ -1,7 +1,7 @@
 'use server';
 
 import { cookies } from 'next/headers';
-import { ADMIN_MFA_COOKIE } from '@/features/admin/mfa';
+import { ADMIN_MFA_COOKIE } from '@/features/auth/lib/admin-mfa';
 import { revalidatePath } from 'next/cache';
 import { hasSupabaseAuth, stubAuthAllowed } from '@/lib/env';
 import { getSupabaseServerClient } from '@/lib/supabase/server';

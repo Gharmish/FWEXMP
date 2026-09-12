@@ -19,7 +19,7 @@ import {
   savedExperiences,
   userProfileEvents,
 } from '@/db/schema';
-import { isAdminPhone } from '@/features/admin/auth';
+import { isAdminPhone } from '@/features/auth/lib/admin-user';
 import { adminGuard } from '@/features/admin/guard';
 import { authKey, guestKey, hostKey, parsePersonKey } from '@/features/admin/users/lib/keys';
 import { decryptPii } from '@/lib/pii-crypto';

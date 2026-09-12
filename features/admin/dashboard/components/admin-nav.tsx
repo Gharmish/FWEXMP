@@ -171,7 +171,7 @@ export function AdminNav({ onNavigate, counts }: AdminNavProps) {
                     <span className="flex-1 truncate">{label}</span>
                     {badgeCount > 0 && (
                       <span
-                        className="bg-saffron-gold/20 text-sarat-black inline-flex min-w-5 shrink-0 items-center justify-center rounded-full px-1.5 py-0.5 text-xs font-medium tabular-nums"
+                        className="bg-saffron-gold/20 text-sarat-black inline-flex min-w-5 shrink-0 items-center justify-center rounded-full px-2 py-0.5 text-xs font-medium tabular-nums"
                         aria-label={t('nav.attentionCount', { count: badgeCount })}
                       >
                         {formatInteger(badgeCount, locale)}

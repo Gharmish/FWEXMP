@@ -127,7 +127,7 @@ export default async function AdminBookingDetailPage({
   const canEmergencyCancel = booking.status === 'pending' || booking.status === 'confirmed';
 
   return (
-    <div className="flex flex-col gap-10">
+    <div className="flex flex-col gap-12">
       <div className="flex flex-col gap-4">
         <Link
           href="/admin/bookings"
@@ -237,7 +237,7 @@ export default async function AdminBookingDetailPage({
         </section>
       )}
 
-      <dl className="border-sarat-black/8 rounded-card grid gap-5 [border-width:0.5px] p-6 sm:grid-cols-2">
+      <dl className="border-sarat-black/8 rounded-card grid gap-6 [border-width:0.5px] p-6 sm:grid-cols-2">
         {rows.map((r) => (
           <div key={r.label} className="flex flex-col gap-1">
             <dt className={eyebrowClassName}>{r.label}</dt>

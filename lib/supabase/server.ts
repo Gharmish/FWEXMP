@@ -4,6 +4,7 @@ import { cookies } from 'next/headers';
 import { createServerClient } from '@supabase/ssr';
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import { clientEnv, serverEnv, hasSupabaseAuth } from '@/lib/env';
+import { reportError } from '@/lib/log';
 
 /**
  * Server-side Supabase client bound to the current request's cookies.
@@ -124,4 +125,88 @@ export async function getSupabaseUserStorage(): Promise<SupabaseClient['storage'
     },
   );
   return bound.storage;
+}
+
+/**
+ * Buckets whose storage policies grant a signed-in user their OWN folder
+ * (`storage.foldername(name)[1] = auth.uid()`): avatars and KYC documents.
+ * Their object keys start with the user id, so the user's own token is
+ * enough to write them — no service key needed on a request path.
+ */
+const USER_SCOPED_BUCKETS: ReadonlySet<string> = new Set(['avatars', 'kyc-documents']);
+
+export interface UserScopedUpload {
+  key: string;
+  file: Blob;
+  contentType: string;
+  upsert?: boolean;
+}
+
+export type UserScopedUploadResult =
+  | { storage: SupabaseClient['storage']; error: null }
+  | { storage: null; error: 'no_session' | 'upload_failed' };
+
+function looksLikeRls(error: { message?: string; statusCode?: string | number } | null): boolean {
+  if (!error) return false;
+  const code = String(error.statusCode ?? '');
+  return (
+    /row-level security|not authorized|unauthorized/i.test(error.message ?? '') || code === '403'
+  );
+}
+
+/**
+ * Upload on behalf of the signed-in user with the LEAST privilege that
+ * works (2026-09 engineering audit SEC-06). For a user-scoped bucket the
+ * user's own access token performs the write, so the bucket policy — not
+ * only the calling action — is the authorization; a policy gap surfaces
+ * as an RLS refusal, is reported, and the service key finishes the upload
+ * so the guest is never blocked by a misconfigured policy. Other buckets
+ * (`photos` has no per-user policy) go straight to the service key, as
+ * before. Returns the storage client that performed the upload so the
+ * caller can build public URLs / remove old objects with the same handle.
+ */
+export async function uploadAsUser(
+  bucket: string,
+  upload: UserScopedUpload,
+): Promise<UserScopedUploadResult> {
+  const supabase = await getSupabaseServerClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { storage: null, error: 'no_session' };
+  const options = { contentType: upload.contentType, upsert: upload.upsert ?? false };
+
+  if (USER_SCOPED_BUCKETS.has(bucket)) {
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+    if (session) {
+      const bound = createClient(
+        clientEnv.NEXT_PUBLIC_SUPABASE_URL,
+        clientEnv.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+        {
+          auth: { persistSession: false, autoRefreshToken: false },
+          global: { headers: { Authorization: `Bearer ${session.access_token}` } },
+        },
+      );
+      const { error } = await bound.storage.from(bucket).upload(upload.key, upload.file, options);
+      if (!error) return { storage: bound.storage, error: null };
+      if (!looksLikeRls(error) || !serverEnv.SUPABASE_SERVICE_ROLE_KEY) {
+        reportError(error, { surface: 'storage:uploadAsUser', bucket, key: upload.key });
+        return { storage: null, error: 'upload_failed' };
+      }
+      // The bucket policy refused the owner's own folder — that is a
+      // configuration defect worth a Sentry event, not a blocked user.
+      reportError(error, { surface: 'storage:uploadAsUser:rls-fallback', bucket, key: upload.key });
+    }
+  }
+
+  const storage = await getSupabaseUserStorage();
+  if (!storage) return { storage: null, error: 'no_session' };
+  const { error } = await storage.from(bucket).upload(upload.key, upload.file, options);
+  if (error) {
+    reportError(error, { surface: 'storage:uploadAsUser', bucket, key: upload.key });
+    return { storage: null, error: 'upload_failed' };
+  }
+  return { storage, error: null };
 }

@@ -7,8 +7,8 @@ import { hasSupabaseAuth, stubAuthAllowed } from '@/lib/env';
 import { getSupabaseServerClient } from '@/lib/supabase/server';
 import { reportError } from '@/lib/log';
 import { STUB_SESSION_COOKIE, parseStubSessionCookie } from '@/features/auth/lib/stub-session';
-import { resolveIsAdmin } from '@/features/admin/roles';
-import { NO_MFA, readAdminMfaState } from '@/features/admin/mfa';
+import { resolveIsAdmin } from '@/features/auth/lib/admin-roles';
+import { NO_MFA, readAdminMfaState } from '@/features/auth/lib/admin-mfa';
 import type { AuthUser, Session } from '@/features/auth/types';
 
 /**

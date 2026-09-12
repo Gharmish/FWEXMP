@@ -1,6 +1,6 @@
 import { serverEnv } from '@/lib/env';
 import { getCurrentUser } from '@/features/auth/queries';
-import { isAdminUser } from '@/features/admin/auth';
+import { isAdminUser } from '@/features/auth/lib/admin-user';
 
 /**
  * Canonical admin gate for every admin-facing query module and every

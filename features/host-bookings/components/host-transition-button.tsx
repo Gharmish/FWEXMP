@@ -75,7 +75,7 @@ function Submit({
         body={
           isCancel && copy.reason ? (
             <div className="flex flex-col gap-3">
-              <label className="flex flex-col gap-1.5 text-sm font-medium">
+              <label className="flex flex-col gap-2 text-sm font-medium">
                 {copy.reason.label}
                 <select
                   value={reason}
@@ -90,7 +90,7 @@ function Submit({
                   ))}
                 </select>
               </label>
-              <label className="flex flex-col gap-1.5 text-sm font-medium">
+              <label className="flex flex-col gap-2 text-sm font-medium">
                 {copy.reason.textLabel}
                 <textarea
                   value={reasonText}

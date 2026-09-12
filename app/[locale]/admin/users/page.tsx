@@ -119,7 +119,7 @@ export default async function AdminUsersPage({
                 href={`/admin/users/${row.key}`}
                 className="group flex items-center justify-between gap-4 p-6 transition-colors duration-200 hover:bg-[var(--color-sarat-black)]/[0.02]"
               >
-                <div className="flex min-w-0 flex-col gap-1.5">
+                <div className="flex min-w-0 flex-col gap-2">
                   <div className="flex flex-wrap items-center gap-2">
                     <span className="text-base font-medium">{row.name}</span>
                     <UserRoleChips roles={row.roles} labels={roleLabels} />

@@ -22,7 +22,6 @@ import { useCatalogFacets } from '@/features/experiences/components/catalog-face
 interface MobileSearchEntryProps {
   locale: Locale;
   categories: readonly CategoryMeta[];
-  /** Lightweight full-catalogue projection for the sheet's live count. */
 }
 
 /**

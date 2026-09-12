@@ -10,7 +10,7 @@ import {
   serializeAdminMfaCookie,
   verifyAdminMfaMarker,
   type AdminMfaState,
-} from './mfa';
+} from './admin-mfa';
 
 const USER = 'e3e4b350-66a7-46a4-b9ee-6b8ec350b68a';
 const OTHER_USER = '11111111-2222-4333-8444-555555555555';

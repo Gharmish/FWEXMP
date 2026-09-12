@@ -127,6 +127,8 @@ Arabic text is visually denser; bump each tier +1 step. Line-height for Arabic b
 
 Use the 8-point grid exclusively: `4, 8, 12, 16, 24, 32, 48, 64, 80, 120` (pixels). Configure in Tailwind as `space-1` through `space-30`. No arbitrary values.
 
+_Status 2026-09 (engineering audit DESIGN-04): the off-grid spacing utilities (`*-1.5`, `*-2.5`, `*-3.5`, `*-5`, `*-10`) were swept to the nearest step. Two deliberate exceptions remain: the 2px micro-step (`*-0.5`) for optical icon-to-text alignment, and the vertical padding of controls (`py-1.5`, `py-2.5`, `py-3.5`), which is tuned so inputs, buttons and chips reach the 44px touch target rather than a grid value._
+
 ### Border radius
 
 | Element         | Radius         |

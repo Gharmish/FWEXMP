@@ -286,7 +286,7 @@ export async function ExperienceCard({
                 <span aria-hidden>·</span>
                 <span>{durationLabel}</span>
               </div>
-              <div className="flex items-center gap-1.5">
+              <div className="flex items-center gap-2">
                 {t('withHost', { name: hostName })}
                 {/* Micro-seal, not the tappable lockup: the whole card is one
                     Link, so a nested button would be invalid — the card builds

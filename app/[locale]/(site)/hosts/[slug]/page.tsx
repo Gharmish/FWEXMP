@@ -231,7 +231,7 @@ export default async function HostProfilePage({
                     </Badge>
                   )}
                   {ratingAverage !== null && (
-                    <span className="inline-flex items-center gap-1.5 text-sm">
+                    <span className="inline-flex items-center gap-2 text-sm">
                       <Star className="text-saffron-gold size-4 fill-current" aria-hidden />
                       <span className="font-medium tabular-nums">
                         {formatRating(ratingAverage, loc)}

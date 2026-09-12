@@ -8,7 +8,7 @@ import { db } from '@/lib/db';
 import { serverEnv } from '@/lib/env';
 import { adminTotpFactors } from '@/db/schema';
 import { getCurrentUser } from '@/features/auth/queries';
-import { isAdminUser } from '@/features/admin/auth';
+import { isAdminUser } from '@/features/auth/lib/admin-user';
 import { reportError } from '@/lib/log';
 import { decryptPii, encryptPii } from '@/lib/pii-crypto';
 import { generateTotpSecret, totpUri, verifyTotp } from '@/lib/totp';
@@ -16,7 +16,7 @@ import {
   ADMIN_MFA_COOKIE,
   ADMIN_MFA_TTL_SECONDS,
   serializeAdminMfaCookie,
-} from '@/features/admin/mfa';
+} from '@/features/auth/lib/admin-mfa';
 import {
   authClientIp,
   otpVerifyAllowed,

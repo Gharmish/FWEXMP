@@ -63,13 +63,13 @@ export function RevenueChart({
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-1">
         <div className="flex items-center gap-x-6 text-xs">
-          <span className="inline-flex items-center gap-1.5">
+          <span className="inline-flex items-center gap-2">
             {/* P3-32: rounded-sm was a raw radius override; rounded-full matches
                 the token set already in use for status/legend dots. */}
             <span className="bg-juniper-green/85 size-2.5 rounded-full" aria-hidden />
             <span className="text-sarat-black-600">{gmvLabel}</span>
           </span>
-          <span className="inline-flex items-center gap-1.5">
+          <span className="inline-flex items-center gap-2">
             <span className="bg-sarat-black h-0.5 w-3.5 rounded-full" aria-hidden />
             <span className="text-sarat-black-600">{bookingsLabel}</span>
           </span>
@@ -171,7 +171,7 @@ export function RevenueChart({
           <div
             className={cn(
               'rounded-input border-sarat-black/10 pointer-events-none absolute bottom-full z-20 mb-2',
-              '[border-width:0.5px] bg-white px-2.5 py-1.5 text-[11px] whitespace-nowrap shadow-overlay',
+              'shadow-overlay [border-width:0.5px] bg-white px-3 py-1.5 text-[11px] whitespace-nowrap',
               tipTranslate,
             )}
             style={{ left: `${activeLeft}%` }}

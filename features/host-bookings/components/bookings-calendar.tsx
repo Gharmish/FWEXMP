@@ -117,7 +117,7 @@ export async function BookingsCalendar({
                 <span className="flex flex-col items-center gap-0.5">
                   <span
                     className={cn(
-                      'rounded-full px-1.5 text-[11px] font-medium tabular-nums',
+                      'rounded-full px-2 text-[11px] font-medium tabular-nums',
                       day.pending > 0
                         ? 'bg-pending-surface text-pending'
                         : 'bg-success-surface text-success',
