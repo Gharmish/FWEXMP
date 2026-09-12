@@ -1,6 +1,6 @@
 import 'server-only';
 
-import { and, asc, eq, inArray, isNull, isNotNull, lte, notInArray, or, sql } from 'drizzle-orm';
+import { and, eq, inArray, isNull, isNotNull, lte, notInArray, or, sql } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import { bookings, platformSettings } from '@/db/schema';
 import { reportError } from '@/lib/log';
