@@ -67,6 +67,7 @@ export async function setDayAvailability(formData: FormData): Promise<void> {
     return;
   }
 
+  let refusal: 'has_bookings' | null = null;
   try {
     const user = await getCurrentUser();
     if (!user) return;
@@ -96,7 +97,7 @@ export async function setDayAvailability(formData: FormData): Promise<void> {
     // booking creation serializes on this same row lock — a booking
     // committed between the count and the write could land on a
     // blacked-out day. Taking the same lock closes both.
-    const refusal = await db.transaction(async (tx) => {
+    refusal = await db.transaction(async (tx) => {
       const [experience] = await tx
         .select({
           blackoutDates: experiences.blackoutDates,
@@ -145,15 +146,18 @@ export async function setDayAvailability(formData: FormData): Promise<void> {
         .where(eq(experiences.id, experienceId));
       return null;
     });
-    if (refusal && returnTo && returnTo !== '/') {
-      redirect({ href: `${returnTo}?calendar=${refusal}`, locale });
-    }
   } catch (error) {
     reportError(error, {
       surface: 'availability:setDayAvailability',
       experienceId: String(experienceId),
     });
     return;
+  }
+  // Outside the try: Next's redirect() throws a control-flow error, and
+  // inside it the catch above swallowed the refusal as a server error, so
+  // the host saw the page re-render unchanged (2026-09 audit TEST-03 wave 1).
+  if (refusal && returnTo && returnTo !== '/') {
+    redirect({ href: `${returnTo}?calendar=${refusal}`, locale });
   }
 
   // The detail page reads blackout/stop-sell dates from the TAGGED data
