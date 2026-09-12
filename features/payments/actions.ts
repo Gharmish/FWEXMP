@@ -639,50 +639,69 @@ export async function createCheckout(
     // re-reads the winner and hands that id back when it is the same
     // channel; its own checkout is logged superseded and simply expires
     // at the gateway.
-    const claimed = await db
-      .update(bookings)
-      .set({
-        checkoutId: checkout.id,
-        checkoutIntegrity: checkout.integrity ?? null,
-        paymentStatus: 'processing',
-        // This checkout is FRESH, so the supersession marker from any
-        // earlier promo/credit change must clear with it (2026-07-28
-        // fifth audit). Left set, the reconcile pass — which skips
-        // superseded rows — excluded this booking permanently, so a
-        // capture whose browser died before /pay/return would never
-        // settle: guest charged, no receipt, seat released.
-        checkoutSupersededAt: null,
-        // A fresh checkout is a fresh attempt: clear the anomaly dedupe
-        // too, or an anomaly recorded against the PREVIOUS checkout
-        // silences the alert for a new one (2026-07-28 sixth audit).
-        settleAnomalyAt: null,
-        settleAnomalyKind: null,
-      })
-      .where(
-        and(
-          eq(bookings.id, booking.id),
-          booking.checkoutId === null
-            ? isNull(bookings.checkoutId)
-            : eq(bookings.checkoutId, booking.checkoutId),
-          // The checkout was prepared at THIS amount: a promo or credit
-          // applied during the gateway round-trip changes the total
-          // (keeping the id), and a widget priced at the old total would
-          // settle into an amount anomaly. Same arbiter settle uses.
-          eq(bookings.totalAmount, booking.totalAmount),
-          eq(bookings.walletAppliedSar, booking.walletAppliedSar),
-          // …and that the hold is STILL LIVE (2026-09 engineering audit
-          // MONEY-02). The liveness gates above ran before a full
-          // HyperPay round-trip; a cron release, a host/admin cancel or
-          // a supersede-release landing in that window used to let this
-          // write flip a cancelled row to `processing` with a live
-          // widget in the guest's browser.
-          eq(bookings.status, 'confirmed'),
-          inArray(bookings.paymentStatus, ['unpaid', 'failed', 'processing']),
-          isNull(bookings.settleAnomalyAt),
-          or(isNull(bookings.paymentDeadline), sql`${bookings.paymentDeadline} > now()`),
-        ),
-      )
-      .returning({ id: bookings.id });
+    const claimed = await db.transaction(async (tx) => {
+      const rows = await tx
+        .update(bookings)
+        .set({
+          checkoutId: checkout.id,
+          checkoutIntegrity: checkout.integrity ?? null,
+          paymentStatus: 'processing',
+          // This checkout is FRESH, so the supersession marker from any
+          // earlier promo/credit change must clear with it (2026-07-28
+          // fifth audit). Left set, the reconcile pass — which skips
+          // superseded rows — excluded this booking permanently, so a
+          // capture whose browser died before /pay/return would never
+          // settle: guest charged, no receipt, seat released.
+          checkoutSupersededAt: null,
+          // A fresh checkout is a fresh attempt: clear the anomaly dedupe
+          // too, or an anomaly recorded against the PREVIOUS checkout
+          // silences the alert for a new one (2026-07-28 sixth audit).
+          settleAnomalyAt: null,
+          settleAnomalyKind: null,
+        })
+        .where(
+          and(
+            eq(bookings.id, booking.id),
+            booking.checkoutId === null
+              ? isNull(bookings.checkoutId)
+              : eq(bookings.checkoutId, booking.checkoutId),
+            // The checkout was prepared at THIS amount: a promo or credit
+            // applied during the gateway round-trip changes the total
+            // (keeping the id), and a widget priced at the old total would
+            // settle into an amount anomaly. Same arbiter settle uses.
+            eq(bookings.totalAmount, booking.totalAmount),
+            eq(bookings.walletAppliedSar, booking.walletAppliedSar),
+            // …and that the hold is STILL LIVE (2026-09 engineering audit
+            // MONEY-02). The liveness gates above ran before a full
+            // HyperPay round-trip; a cron release, a host/admin cancel or
+            // a supersede-release landing in that window used to let this
+            // write flip a cancelled row to `processing` with a live
+            // widget in the guest's browser.
+            eq(bookings.status, 'confirmed'),
+            inArray(bookings.paymentStatus, ['unpaid', 'failed', 'processing']),
+            isNull(bookings.settleAnomalyAt),
+            or(isNull(bookings.paymentDeadline), sql`${bookings.paymentDeadline} > now()`),
+          ),
+        )
+        .returning({ id: bookings.id });
+      // The reuse window keys off this event's timestamp and the channel
+      // tag tells settle/refund which entity to query — so it commits
+      // with the claim, never without it (2026-09 engineering audit
+      // DATA-03).
+      if (rows.length > 0) {
+        await recordPaymentEvent(
+          {
+            bookingId: booking.id,
+            type: 'checkout_created',
+            amountSar: booking.totalAmount,
+            gatewayId: checkout.id,
+            resultCode: channelTag,
+          },
+          tx,
+        );
+      }
+      return rows;
+    });
     if (claimed.length === 0) {
       try {
         await recordPaymentEvent({
@@ -752,20 +771,6 @@ export async function createCheckout(
       // tap take the ordinary reuse/supersede path.
       return { status: 'error', message: 'server', values: echoValues(formData) };
     }
-    // The reuse window above keys off this event's timestamp, and the
-    // channel tag tells settle/refund which entity to query.
-    try {
-      await recordPaymentEvent({
-        bookingId: booking.id,
-        type: 'checkout_created',
-        amountSar: booking.totalAmount,
-        gatewayId: checkout.id,
-        resultCode: channelTag,
-      });
-    } catch (error) {
-      reportError(error, { surface: 'payment-create-checkout:ledger', reference: input.reference });
-    }
-
     return ready(checkout.id, checkout.integrity ?? null);
   } catch (error) {
     reportError(error, { surface: 'payment-create-checkout', reference: input.reference });

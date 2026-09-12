@@ -86,6 +86,9 @@ function columnNamesIn(
 }
 vi.mock('@/lib/db', () => ({
   db: {
+    // Money flips and their ledger rows run in one transaction (DATA-03);
+    // the fake hands itself back so the existing chains keep working.
+    transaction: async (cb: (tx: unknown) => Promise<unknown>) => cb((await import('@/lib/db')).db),
     query: {
       bookings: {
         findFirst: async () => {
@@ -465,9 +468,7 @@ describe('settleBooking', () => {
     expect(sendBookingPaymentFailedEmail).not.toHaveBeenCalled();
     // Same arbiters as the decline flip: only this checkout, only while
     // still processing.
-    expect(whereColumns[0]).toEqual(
-      expect.arrayContaining(['id', 'paymentStatus', 'checkoutId']),
-    );
+    expect(whereColumns[0]).toEqual(expect.arrayContaining(['id', 'paymentStatus', 'checkoutId']));
   });
 
   it('guards the failed flip on paid-ness AND the checkout it verified', async () => {
@@ -482,9 +483,7 @@ describe('settleBooking', () => {
     await settleBooking('ref-1');
 
     expect(whereColumns).toHaveLength(1);
-    expect(whereColumns[0]).toEqual(
-      expect.arrayContaining(['id', 'paymentStatus', 'checkoutId']),
-    );
+    expect(whereColumns[0]).toEqual(expect.arrayContaining(['id', 'paymentStatus', 'checkoutId']));
   });
 
   it('returns not_found for a reference matching no booking — permanent, so the webhook ACKs', async () => {

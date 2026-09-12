@@ -98,53 +98,50 @@ async function recordSettleAnomaly(
     // checkout permanently silenced a later, different anomaly — e.g. a
     // second real unmatched capture after a promo-superseded retry —
     // because nothing clears the stamp between checkouts.
-    const claimed = await db
-      .update(bookings)
-      .set({ settleAnomalyAt: new Date(), settleAnomalyKind: problem })
-      .where(
-        and(
-          eq(bookings.id, bookingId),
-          // `isDistinctFrom`, NOT `ne` (2026-07-28 seventh audit): SQL
-          // three-valued logic makes `NULL <> 'x'` evaluate to NULL, not
-          // true, so a row stamped by an earlier deploy — `settleAnomalyAt`
-          // set while `settleAnomalyKind` was still a fresh NULL column —
-          // matched nothing and had its alert suppressed permanently, for
-          // every anomaly kind. That is the exact failure this dedupe was
-          // built to prevent.
-          or(
-            isNull(bookings.settleAnomalyAt),
-            sql`${bookings.settleAnomalyKind} is distinct from ${problem}`,
+    firstTime = await db.transaction(async (tx) => {
+      const claimed = await tx
+        .update(bookings)
+        .set({ settleAnomalyAt: new Date(), settleAnomalyKind: problem })
+        .where(
+          and(
+            eq(bookings.id, bookingId),
+            // `isDistinctFrom`, NOT `ne` (2026-07-28 seventh audit): SQL
+            // three-valued logic makes `NULL <> 'x'` evaluate to NULL, not
+            // true, so a row stamped by an earlier deploy — `settleAnomalyAt`
+            // set while `settleAnomalyKind` was still a fresh NULL column —
+            // matched nothing and had its alert suppressed permanently, for
+            // every anomaly kind. That is the exact failure this dedupe was
+            // built to prevent.
+            or(
+              isNull(bookings.settleAnomalyAt),
+              sql`${bookings.settleAnomalyKind} is distinct from ${problem}`,
+            ),
           ),
-        ),
-      )
-      .returning({ id: bookings.id });
-    firstTime = claimed.length > 0;
+        )
+        .returning({ id: bookings.id });
+      if (claimed.length === 0) return false;
+      // A durable DB record of the anomaly, independent of email
+      // (2026-07-28 seventh audit) — but ONCE, inside the dedupe (2026-07-28
+      // eighth audit), and in the SAME transaction as the stamp (2026-09
+      // engineering audit DATA-03): stamp and ledger row commit together.
+      await recordPaymentEvent(
+        {
+          bookingId,
+          type: 'settle_failed',
+          amountSar: null,
+          gatewayId: null,
+          resultCode: `ANOMALY:${problem}`,
+          actorUserId: null,
+        },
+        tx,
+      );
+      return true;
+    });
   } catch (error) {
     // Couldn't stamp — alert anyway rather than swallow a real capture.
     reportError(error, { surface: 'payment-settle:anomalyStamp', bookingId });
   }
-  // A durable DB record of the anomaly, independent of email
-  // (2026-07-28 seventh audit) — but ONCE, inside the dedupe (2026-07-28
-  // eighth audit). Written unconditionally it landed on every hourly
-  // reconcile retry: ~24 rows per day per stuck booking, forever, into
-  // an append-only money ledger — and `settle_failed` feeds both the
-  // payment-success KPI and the failure funnel, so a single stuck row
-  // would have driven the headline success rate toward zero.
-  if (firstTime) {
-    try {
-      await recordPaymentEvent({
-        bookingId,
-        type: 'settle_failed',
-        amountSar: null,
-        gatewayId: null,
-        resultCode: `ANOMALY:${problem}`,
-        actorUserId: null,
-      });
-    } catch (error) {
-      reportError(error, { surface: 'payment-settle:anomalyLedger', bookingId });
-    }
-    await notifyAdmin('settle_anomaly', detail);
-  }
+  if (firstTime) await notifyAdmin('settle_anomaly', detail);
 }
 
 export async function settleBooking(reference: string): Promise<SettleOutcome> {
@@ -229,58 +226,75 @@ export async function settleBooking(reference: string): Promise<SettleOutcome> {
       // payment without VAT — under-declared output tax.
       const { vatEnabled, vatRateBps, vatRegistrationNumber } = await getPlatformSettingsStrict();
 
-      const won = await db
-        .update(bookings)
-        .set({
-          paymentStatus: 'paid',
-          paidAt: new Date(),
-          paymentReference: status.id,
-          paymentBrand: status.paymentBrand ?? null,
-          vatRateBps: vatEnabled ? vatRateBps : null,
-          vatRegistrationNumber: vatEnabled ? vatRegistrationNumber : null,
-          // A settle that succeeds resolves any earlier anomaly on this
-          // booking (2026-07-28 eighth audit) — e.g. a transient poll
-          // that omitted `currency`. Left set, the admin page showed a
-          // permanent "payment under review, guest cannot pay" banner on
-          // a fully-paid booking.
-          settleAnomalyAt: null,
-          settleAnomalyKind: null,
-          invoiceItemEn: booking.experience.titleEn,
-          // Never snapshot the `TODO(ar)` marker onto an immutable
-          // financial document (2026-08-02 ops audit): the admin editor
-          // could (re)introduce it on a live listing, and this snapshot
-          // is deliberately never re-read from the live row — so the
-          // marker would sit on the guest's receipt/tax invoice forever.
-          // English fallback beats scaffolding text on a ZATCA document.
-          invoiceItemAr: isArPlaceholder(booking.experience.titleAr)
-            ? booking.experience.titleEn
-            : booking.experience.titleAr,
-          billedName: booking.guest.name,
-          // Settlement never advances the lifecycle status. Pay-after-
-          // approval: `createCheckout` refuses anything but `confirmed`
-          // bookings, so payment can't confirm a request the host never
-          // approved.
-        })
-        .where(
-          and(
-            eq(bookings.id, booking.id),
-            ne(bookings.paymentStatus, 'paid'),
-            // The amount guard above compared the gateway capture to the
-            // total AS READ at the top of this call — but applyPromo /
-            // applyWalletCredit / their removals can legitimately change
-            // `totalAmount`/`walletAppliedSar` while the slow gateway
-            // fetch is in flight (guest with two tabs). Re-asserting both
-            // here makes guard-and-commit atomic: if the total the guest
-            // actually owes is no longer the total the card captured, the
-            // write loses and the anomaly path below takes over. Without
-            // this, a 100 SAR capture could settle a booking meanwhile
-            // reduced to 50 by applied credit — the guest pays 150 and
-            // the redeemed credit is never released.
-            eq(bookings.totalAmount, booking.totalAmount),
-            eq(bookings.walletAppliedSar, booking.walletAppliedSar),
-          ),
-        )
-        .returning({ id: bookings.id });
+      const won = await db.transaction(async (tx) => {
+        const rows = await tx
+          .update(bookings)
+          .set({
+            paymentStatus: 'paid',
+            paidAt: new Date(),
+            paymentReference: status.id,
+            paymentBrand: status.paymentBrand ?? null,
+            vatRateBps: vatEnabled ? vatRateBps : null,
+            vatRegistrationNumber: vatEnabled ? vatRegistrationNumber : null,
+            // A settle that succeeds resolves any earlier anomaly on this
+            // booking (2026-07-28 eighth audit) — e.g. a transient poll
+            // that omitted `currency`. Left set, the admin page showed a
+            // permanent "payment under review, guest cannot pay" banner on
+            // a fully-paid booking.
+            settleAnomalyAt: null,
+            settleAnomalyKind: null,
+            invoiceItemEn: booking.experience.titleEn,
+            // Never snapshot the `TODO(ar)` marker onto an immutable
+            // financial document (2026-08-02 ops audit): the admin editor
+            // could (re)introduce it on a live listing, and this snapshot
+            // is deliberately never re-read from the live row — so the
+            // marker would sit on the guest's receipt/tax invoice forever.
+            // English fallback beats scaffolding text on a ZATCA document.
+            invoiceItemAr: isArPlaceholder(booking.experience.titleAr)
+              ? booking.experience.titleEn
+              : booking.experience.titleAr,
+            billedName: booking.guest.name,
+            // Settlement never advances the lifecycle status. Pay-after-
+            // approval: `createCheckout` refuses anything but `confirmed`
+            // bookings, so payment can't confirm a request the host never
+            // approved.
+          })
+          .where(
+            and(
+              eq(bookings.id, booking.id),
+              ne(bookings.paymentStatus, 'paid'),
+              // The amount guard above compared the gateway capture to the
+              // total AS READ at the top of this call — but applyPromo /
+              // applyWalletCredit / their removals can legitimately change
+              // `totalAmount`/`walletAppliedSar` while the slow gateway
+              // fetch is in flight (guest with two tabs). Re-asserting both
+              // here makes guard-and-commit atomic: if the total the guest
+              // actually owes is no longer the total the card captured, the
+              // write loses and the anomaly path below takes over. Without
+              // this, a 100 SAR capture could settle a booking meanwhile
+              // reduced to 50 by applied credit — the guest pays 150 and
+              // the redeemed credit is never released.
+              eq(bookings.totalAmount, booking.totalAmount),
+              eq(bookings.walletAppliedSar, booking.walletAppliedSar),
+            ),
+          )
+          .returning({ id: bookings.id });
+        // The ledger row commits with the flip, never without it
+        // (2026-09 engineering audit DATA-03).
+        if (rows.length > 0) {
+          await recordPaymentEvent(
+            {
+              bookingId: booking.id,
+              type: 'settle_succeeded',
+              amountSar: booking.totalAmount,
+              gatewayId: status.id,
+              resultCode: status.result.code,
+            },
+            tx,
+          );
+        }
+        return rows;
+      });
 
       // Concurrent-settle guard: the return route, the webhook, and the
       // cron reconcile can race on the same reference, and the early
@@ -316,18 +330,6 @@ export async function settleBooking(reference: string): Promise<SettleOutcome> {
           },
         );
         return 'anomaly';
-      }
-
-      try {
-        await recordPaymentEvent({
-          bookingId: booking.id,
-          type: 'settle_succeeded',
-          amountSar: booking.totalAmount,
-          gatewayId: status.id,
-          resultCode: status.result.code,
-        });
-      } catch (error) {
-        reportError(error, { surface: 'payment-settle:ledger', reference });
       }
 
       // Cancel-during-3DS race: the charge landed on a booking that no
@@ -405,30 +407,32 @@ export async function settleBooking(reference: string): Promise<SettleOutcome> {
       // a wallet payment is refused before any transaction exists, so
       // a rise in these rows on the Apple Pay channel must stay
       // diagnosable rather than reading as guests wandering off.
-      const abandoned = await db
-        .update(bookings)
-        .set({ paymentStatus: 'unpaid', checkoutSupersededAt: new Date() })
-        .where(
-          and(
-            eq(bookings.id, booking.id),
-            eq(bookings.paymentStatus, 'processing'),
-            eq(bookings.checkoutId, booking.checkoutId),
-          ),
-        )
-        .returning({ id: bookings.id });
-      if (abandoned.length > 0) {
-        try {
-          await recordPaymentEvent({
-            bookingId: booking.id,
-            type: 'checkout_superseded',
-            amountSar: booking.totalAmount,
-            gatewayId: booking.checkoutId,
-            resultCode: `ABANDONED:${status.result.code}`,
-          });
-        } catch (error) {
-          reportError(error, { surface: 'payment-settle:ledger', reference });
+      const abandonedCheckoutId = booking.checkoutId;
+      await db.transaction(async (tx) => {
+        const abandoned = await tx
+          .update(bookings)
+          .set({ paymentStatus: 'unpaid', checkoutSupersededAt: new Date() })
+          .where(
+            and(
+              eq(bookings.id, booking.id),
+              eq(bookings.paymentStatus, 'processing'),
+              eq(bookings.checkoutId, abandonedCheckoutId),
+            ),
+          )
+          .returning({ id: bookings.id });
+        if (abandoned.length > 0) {
+          await recordPaymentEvent(
+            {
+              bookingId: booking.id,
+              type: 'checkout_superseded',
+              amountSar: booking.totalAmount,
+              gatewayId: abandonedCheckoutId,
+              resultCode: `ABANDONED:${status.result.code}`,
+            },
+            tx,
+          );
         }
-      }
+      });
       return outcome;
     }
 
@@ -444,30 +448,35 @@ export async function settleBooking(reference: string): Promise<SettleOutcome> {
       // flipped a PAID booking to `failed`; cron Pass 1 then cancelled
       // it at deadline and the real capture ended orphaned on a
       // cancelled booking with no alert.
-      const flipped = await db
-        .update(bookings)
-        .set({ paymentStatus: 'failed' })
-        .where(
-          and(
-            eq(bookings.id, booking.id),
-            ne(bookings.paymentStatus, 'failed'),
-            ne(bookings.paymentStatus, 'paid'),
-            eq(bookings.checkoutId, booking.checkoutId),
-          ),
-        )
-        .returning({ id: bookings.id });
-      if (flipped.length > 0) {
-        try {
-          await recordPaymentEvent({
-            bookingId: booking.id,
-            type: 'settle_failed',
-            amountSar: booking.totalAmount,
-            gatewayId: status.id,
-            resultCode: status.result.code,
-          });
-        } catch (error) {
-          reportError(error, { surface: 'payment-settle:ledger', reference });
+      const rejectedCheckoutId = booking.checkoutId;
+      const flipped = await db.transaction(async (tx) => {
+        const rows = await tx
+          .update(bookings)
+          .set({ paymentStatus: 'failed' })
+          .where(
+            and(
+              eq(bookings.id, booking.id),
+              ne(bookings.paymentStatus, 'failed'),
+              ne(bookings.paymentStatus, 'paid'),
+              eq(bookings.checkoutId, rejectedCheckoutId),
+            ),
+          )
+          .returning({ id: bookings.id });
+        if (rows.length > 0) {
+          await recordPaymentEvent(
+            {
+              bookingId: booking.id,
+              type: 'settle_failed',
+              amountSar: booking.totalAmount,
+              gatewayId: status.id,
+              resultCode: status.result.code,
+            },
+            tx,
+          );
         }
+        return rows;
+      });
+      if (flipped.length > 0) {
         // Tell the guest the payment didn't go through while the spot is
         // still held — deduped per booking, so repeated declines don't
         // repeat the mail. Best-effort, never fails settlement.

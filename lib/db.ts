@@ -134,6 +134,11 @@ export function resetDb(seenGeneration: number, drainSeconds = 10): boolean {
 }
 
 /** Ergonomic accessor — proxies to the lazily-created client. */
+/** A drizzle transaction handle, as passed to `db.transaction(async (tx) => …)`. */
+export type DbTransaction = Parameters<Parameters<Database['transaction']>[0]>[0];
+/** Anything a query can run on — the pool or a transaction (DATA-03). */
+export type DbExecutor = Database | DbTransaction;
+
 export const db = new Proxy({} as Database, {
   get(_target, prop) {
     return getDb()[prop as keyof Database];

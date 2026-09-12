@@ -1,7 +1,7 @@
 import 'server-only';
 
 import { and, count, desc, eq, gte, inArray } from 'drizzle-orm';
-import { db } from '@/lib/db';
+import { db, type DbExecutor } from '@/lib/db';
 import { paymentEvents, type NewPaymentEvent, type PaymentEvent } from '@/db/schema';
 import type { PaymentChannel } from '@/features/payments/types';
 
@@ -21,8 +21,17 @@ export type PaymentEventInput = Pick<
   'bookingId' | 'type' | 'amountSar' | 'gatewayId' | 'resultCode' | 'actorUserId'
 >;
 
-export async function recordPaymentEvent(input: PaymentEventInput): Promise<void> {
-  await db.insert(paymentEvents).values(input);
+/**
+ * Append one ledger row. Pass the transaction that flips the booking's
+ * money state so the row commits or rolls back WITH the flip (2026-09
+ * engineering audit DATA-03); events that stand alone (a refund attempt
+ * marker before a gateway call) use the pool.
+ */
+export async function recordPaymentEvent(
+  input: PaymentEventInput,
+  executor: DbExecutor = db,
+): Promise<void> {
+  await executor.insert(paymentEvents).values(input);
 }
 
 /** The refund lifecycle, newest-wins: attempted → succeeded | failed. */

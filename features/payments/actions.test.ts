@@ -110,6 +110,9 @@ const setCalls: Array<Record<string, unknown>> = [];
 const whereColumns: string[][] = [];
 vi.mock('@/lib/db', () => ({
   db: {
+    // Money flips and their ledger rows run in one transaction (DATA-03);
+    // the fake hands itself back so the existing chains keep working.
+    transaction: async (cb: (tx: unknown) => Promise<unknown>) => cb((await import('@/lib/db')).db),
     query: {
       bookings: {
         // The first read carries `with`; the lost-claim re-read is columns only.

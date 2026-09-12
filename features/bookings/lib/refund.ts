@@ -237,46 +237,49 @@ export async function executeRefund(
       });
       const { resultCode, refundId } = await refundPayment(paymentReference, cardShareSar, channel);
       if (isSuccessfulResult(resultCode)) {
-        try {
-          await recordPaymentEvent({
-            bookingId,
-            type: 'refund_succeeded',
-            amountSar: cardShareSar,
-            // The refund's OWN gateway id — the line item on HyperPay's
-            // settlement report. The original payment id only as a
-            // fallback for gateways that omit it.
-            gatewayId: refundId ?? paymentReference,
-            resultCode,
-            actorUserId: actorUserId ?? null,
-          });
-        } catch (error) {
-          // Money already moved — the event is best-effort at this point.
-          reportError(error, { surface: 'bookings:executeRefund:ledger', bookingId });
-        }
-        await db
-          .update(bookings)
-          .set({
-            status: 'refunded',
-            refundDueSar: null,
-            // `card_only` (refund-out) converts an ALREADY-stamped wallet
-            // refund into card money — restamping would double-count it.
-            // It also keeps the ORIGINAL refund's audit trail
-            // (2026-08-01 ninth audit): overwriting `refundedAt` moved a
-            // months-old refund into the current reporting window, and
-            // overwriting `refundMethod` erased the record that the
-            // refund was delivered as wallet credit.
-            ...(rails === 'auto'
-              ? {
-                  refundedAt: new Date(),
-                  refundMethod: 'gateway' as const,
-                  refundedAmountSar: journalRefund(amountSar),
-                  forfeitedSar: clearForfeitWhenFullyRefunded(amountSar),
-                }
-              : {
-                  refundedAt: sql`coalesce(${bookings.refundedAt}, now())`,
-                }),
-          })
-          .where(eq(bookings.id, bookingId));
+        // Money has moved: the ledger row and the booking's refunded flip
+        // commit together (2026-09 engineering audit DATA-03), so the two
+        // can never disagree about whether this refund happened.
+        await db.transaction(async (tx) => {
+          await recordPaymentEvent(
+            {
+              bookingId,
+              type: 'refund_succeeded',
+              amountSar: cardShareSar,
+              // The refund's OWN gateway id — the line item on HyperPay's
+              // settlement report. The original payment id only as a
+              // fallback for gateways that omit it.
+              gatewayId: refundId ?? paymentReference,
+              resultCode,
+              actorUserId: actorUserId ?? null,
+            },
+            tx,
+          );
+          await tx
+            .update(bookings)
+            .set({
+              status: 'refunded',
+              refundDueSar: null,
+              // `card_only` (refund-out) converts an ALREADY-stamped wallet
+              // refund into card money — restamping would double-count it.
+              // It also keeps the ORIGINAL refund's audit trail
+              // (2026-08-01 ninth audit): overwriting `refundedAt` moved a
+              // months-old refund into the current reporting window, and
+              // overwriting `refundMethod` erased the record that the
+              // refund was delivered as wallet credit.
+              ...(rails === 'auto'
+                ? {
+                    refundedAt: new Date(),
+                    refundMethod: 'gateway' as const,
+                    refundedAmountSar: journalRefund(amountSar),
+                    forfeitedSar: clearForfeitWhenFullyRefunded(amountSar),
+                  }
+                : {
+                    refundedAt: sql`coalesce(${bookings.refundedAt}, now())`,
+                  }),
+            })
+            .where(eq(bookings.id, bookingId));
+        });
         if (rails === 'auto') {
           await recordClawbackIfPaidOut(bookingId, 'refund (gateway) after host payout');
         }

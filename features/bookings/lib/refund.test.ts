@@ -61,6 +61,9 @@ let claimCalls = 0;
 let refundBooking: { guestId: string; totalAmount: number; walletAppliedSar: number } | undefined;
 vi.mock('@/lib/db', () => ({
   db: {
+    // Money flips and their ledger rows run in one transaction (DATA-03);
+    // the fake hands itself back so the existing chains keep working.
+    transaction: async (cb: (tx: unknown) => Promise<unknown>) => cb((await import('@/lib/db')).db),
     query: { bookings: { findFirst: async () => refundBooking } },
     update: () => ({
       set: (values: Record<string, unknown>) => {
