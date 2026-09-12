@@ -1,42 +1,15 @@
 import { describe, expect, it } from 'vitest';
+import { PgDialect } from 'drizzle-orm/pg-core';
+import type { SQL } from 'drizzle-orm';
 import {
-  filterBookings,
+  bookingFilterOrder,
+  bookingFilterWhere,
   normalizeStatus,
   normalizeView,
 } from '@/features/admin/bookings/lib/filter';
-import type { AdminBookingRow } from '@/features/admin/bookings/types';
 
-function row(over: Partial<AdminBookingRow>): AdminBookingRow {
-  return {
-    id: 'id',
-    reference: 'ref-abc',
-    referenceCode: 'GH-TEST22',
-    status: 'pending',
-    paymentStatus: 'unpaid',
-    refundDueSar: null,
-    approvalDeadline: null,
-    date: '2026-06-10',
-    startTime: '09:00',
-    partySize: 2,
-    totalAmountSar: 600,
-    commissionSar: 90,
-    payoutSar: 510,
-    commissionBps: 1500,
-    currency: 'SAR',
-    paymentReference: null,
-    createdAt: '2026-05-29T10:00:00.000Z',
-    cancellationKind: null,
-    cancellationReason: null,
-    refundMethod: null,
-    walletAppliedSar: 0,
-    experienceSlug: 'slug',
-    experienceTitleEn: 'Dawn walk',
-    guestName: 'Sara',
-    guestPhone: '+966 51 234 5678',
-    ...over,
-  };
-}
-
+const dialect = new PgDialect({ casing: 'snake_case' });
+const render = (q: SQL | undefined) => (q ? dialect.sqlToQuery(q) : { sql: '', params: [] });
 const today = '2026-05-29';
 
 describe('normalizeStatus / normalizeView', () => {
@@ -52,94 +25,64 @@ describe('normalizeStatus / normalizeView', () => {
   });
 });
 
-describe('filterBookings', () => {
-  const rows = [
-    row({
-      id: 'a',
-      status: 'pending',
-      date: '2026-06-10',
-      guestName: 'Sara',
-      reference: 'ref-aaa',
-    }),
-    row({ id: 'b', status: 'confirmed', date: '2026-05-20', reference: 'ref-bbb' }), // past
-    row({
-      id: 'c',
-      status: 'completed',
-      date: '2026-06-01',
-      guestName: 'Khalid',
-      reference: 'ref-ccc',
-    }),
-    row({ id: 'd', status: 'cancelled', date: '2026-07-01', reference: 'ref-ddd' }),
-  ];
-
-  it('returns all by default', () => {
-    expect(filterBookings(rows, { todayStr: today })).toHaveLength(4);
+describe('bookingFilterWhere (2026-09 engineering audit DATA-04)', () => {
+  it('is no filter by default', () => {
+    expect(bookingFilterWhere({ todayStr: today })).toBeUndefined();
   });
 
   it('filters by status', () => {
-    const out = filterBookings(rows, { status: 'completed', todayStr: today });
-    expect(out.map((r) => r.id)).toEqual(['c']);
+    const { sql, params } = render(bookingFilterWhere({ status: 'confirmed', todayStr: today }));
+    expect(sql).toContain('"bookings"."status" = $1');
+    expect(params).toEqual(['confirmed']);
   });
 
-  it('upcoming keeps only future pending/confirmed, sorted by date', () => {
-    const out = filterBookings(rows, { view: 'upcoming', todayStr: today });
-    // b is past (excluded), c is completed (excluded), d is cancelled (excluded)
-    expect(out.map((r) => r.id)).toEqual(['a']);
-  });
-
-  it('upcoming sorts soonest first', () => {
-    const future = [
-      row({ id: 'x', status: 'confirmed', date: '2026-07-01' }),
-      row({ id: 'y', status: 'pending', date: '2026-06-02' }),
-    ];
-    const out = filterBookings(future, { view: 'upcoming', todayStr: today });
-    expect(out.map((r) => r.id)).toEqual(['y', 'x']);
-  });
-
-  it('searches reference and guest name', () => {
-    expect(filterBookings(rows, { q: 'ref-ccc', todayStr: today }).map((r) => r.id)).toEqual(['c']);
-    expect(filterBookings(rows, { q: 'khalid', todayStr: today }).map((r) => r.id)).toEqual(['c']);
-  });
-
-  it('searches phone ignoring formatting', () => {
-    const out = filterBookings(rows, { q: '0512345678', todayStr: today });
-    expect(out.length).toBe(4); // all share the default phone
-    expect(filterBookings(rows, { q: '999', todayStr: today })).toHaveLength(0);
-  });
-});
-
-describe('filterBookings suspendedHost queue (2026-08-02 ops audit P0-1)', () => {
-  // `today` is 2026-05-29: a booking dated today still counts as upcoming.
-  const rows = [
-    row({ id: 's-pending', hostSuspended: true, status: 'pending', date: '2026-06-10' }),
-    row({ id: 's-today', hostSuspended: true, status: 'confirmed', date: today }),
-    row({ id: 's-completed', hostSuspended: true, status: 'completed', date: '2026-06-10' }),
-    row({ id: 's-cancelled', hostSuspended: true, status: 'cancelled', date: '2026-06-10' }),
-    row({ id: 's-past', hostSuspended: true, status: 'confirmed', date: '2026-05-28' }),
-    row({ id: 'live-host', hostSuspended: false, status: 'confirmed', date: '2026-06-10' }),
-    // Detail-query rows never populate hostSuspended — they must not leak in.
-    row({ id: 'unknown-host', status: 'confirmed', date: '2026-06-10' }),
-  ];
-
-  it('keeps only upcoming pending/confirmed rows whose host is suspended', () => {
-    const out = filterBookings(rows, { suspendedHost: true, todayStr: today });
-    expect(out.map((r) => r.id).sort()).toEqual(['s-pending', 's-today']);
-  });
-
-  it('composes with the status filter', () => {
-    const out = filterBookings(rows, { suspendedHost: true, status: 'confirmed', todayStr: today });
-    expect(out.map((r) => r.id)).toEqual(['s-today']);
-  });
-
-  it('composes with the upcoming view and its date ordering', () => {
-    const out = filterBookings(rows, { suspendedHost: true, view: 'upcoming', todayStr: today });
-    expect(out.map((r) => r.id)).toEqual(['s-today', 's-pending']);
-  });
-
-  it('is inert when the flag is off', () => {
-    expect(filterBookings(rows, { todayStr: today })).toHaveLength(rows.length);
-    expect(filterBookings(rows, { suspendedHost: false, todayStr: today })).toHaveLength(
-      rows.length,
+  it('upcoming keeps only future pending/confirmed rows, soonest first', () => {
+    const { sql, params } = render(bookingFilterWhere({ view: 'upcoming', todayStr: today }));
+    expect(sql).toContain('"bookings"."status" in ($1, $2)');
+    expect(sql).toContain('"bookings"."date" >= $3');
+    expect(params).toEqual(['pending', 'confirmed', today]);
+    const order = bookingFilterOrder({ view: 'upcoming', todayStr: today }).map(
+      (o) => render(o).sql,
     );
+    expect(order).toEqual(['"bookings"."date" asc', '"bookings"."start_time" asc']);
+    expect(bookingFilterOrder({ todayStr: today }).map((o) => render(o).sql)).toEqual([
+      '"bookings"."created_at" desc',
+    ]);
+  });
+
+  it('searches reference, short code, guest name and title case-insensitively', () => {
+    const { sql, params } = render(bookingFilterWhere({ q: 'Dawn', todayStr: today }));
+    expect(sql).toContain('"bookings"."idempotency_key" ilike $1');
+    expect(sql).toContain('"guests"."name" ilike $3');
+    expect(sql).toContain('"experiences"."title_en" ilike $4');
+    expect(params).toEqual(['%dawn%', '%dawn%', '%dawn%', '%dawn%']);
+  });
+
+  it('searches phones by digits, with and without the local leading zero', () => {
+    const { sql, params } = render(bookingFilterWhere({ q: '0512 345', todayStr: today }));
+    expect(sql).toContain(
+      'regexp_replace(coalesce("bookings"."contact_phone", "guests"."phone", \'\'), \'\\D\', \'\', \'g\') like',
+    );
+    expect(params).toContain('%0512345%');
+    expect(params).toContain('%512345%');
+  });
+
+  it('escapes LIKE metacharacters in the needle', () => {
+    const { params } = render(bookingFilterWhere({ q: '100%', todayStr: today }));
+    expect(params[0]).toBe('%100\\%%');
+  });
+
+  it('the suspended-host queue composes with status and upcoming', () => {
+    const { sql, params } = render(
+      bookingFilterWhere({
+        suspendedHost: true,
+        status: 'confirmed',
+        refundDue: true,
+        todayStr: today,
+      }),
+    );
+    expect(sql).toContain('"bookings"."refund_due_sar" is not null');
+    expect(sql).toContain('"hosts"."verification_status" = $1');
+    expect(params).toEqual(['suspended', 'pending', 'confirmed', today, 'confirmed']);
   });
 });

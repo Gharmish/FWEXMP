@@ -77,6 +77,7 @@ function toSummary(
 ): ExperienceSummary {
   const agg = ratings.get(row.slug);
   return {
+    id: row.id,
     slug: row.slug,
     titleEn: row.titleEn,
     titleAr: arOrFallback(row.titleEn, row.titleAr),

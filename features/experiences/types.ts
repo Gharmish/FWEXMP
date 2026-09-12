@@ -10,6 +10,8 @@ export type { Category };
  * home page. It will be sourced from `getDb()` once Supabase is live.
  */
 export interface ExperienceSummary {
+  /** Row id — lets the detail page's follow-up reads skip a slug lookup each (PERF-02). */
+  id: string;
   slug: string;
   titleEn: string;
   titleAr: string;

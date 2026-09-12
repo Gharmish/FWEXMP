@@ -283,8 +283,8 @@ export default async function ExperienceDetailPage({
   // is one connection at a time (getReviewAggregate/getScheduleDataBySlug
   // issue their lookup then their aggregate sequentially inside).
   const [ratingAggregate, schedule, settings, policyTiers] = await Promise.all([
-    getReviewAggregateForExperience(slug),
-    getScheduleDataBySlug(slug, todayRiyadh, addDays(todayRiyadh, BOOKING_HORIZON_DAYS)),
+    getReviewAggregateForExperience(slug, exp.id),
+    getScheduleDataBySlug(slug, todayRiyadh, addDays(todayRiyadh, BOOKING_HORIZON_DAYS), exp.id),
     getPlatformSettings(),
     // DB-backed tier parameters — the same rows booking creation snapshots.
     getCancellationTiers(),
@@ -292,7 +292,7 @@ export default async function ExperienceDetailPage({
   // Wave 2 — social proof and prefill. Nothing above depends on these, so
   // they are deferred rather than dropped.
   const [completedCount, hostResponseStats, knownGuest, wishlistSaved] = await Promise.all([
-    getCompletedBookingsCountForExperience(exp.slug),
+    getCompletedBookingsCountForExperience(exp.slug, exp.id),
     getHostResponseStats(exp.hostSlug),
     // Prefill for a returning/signed-in guest so they don't retype contact
     // details. Empty for a first-time visitor. Not needed in preview mode

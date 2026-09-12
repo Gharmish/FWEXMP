@@ -1,12 +1,18 @@
 import 'server-only';
 
-import { desc, eq } from 'drizzle-orm';
+import { desc, eq, sql } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import { decryptPii } from '@/lib/pii-crypto';
 import { reportError } from '@/lib/log';
 import { splitCommission } from '@/features/bookings/lib/commission';
 import type { AdminBookingRow } from '@/features/admin/bookings/types';
 import { adminGuard } from '@/features/admin/guard';
+import { bookings, experiences, guests, hosts } from '@/db/schema';
+import {
+  bookingFilterOrder,
+  bookingFilterWhere,
+  type BookingFilter,
+} from '@/features/admin/bookings/lib/filter';
 
 /**
  * Admin reads over bookings. Same two gates as the other admin
@@ -30,23 +36,58 @@ export const BOOKINGS_LIST_LIMIT = 500;
 export { isAdminAndDbReady } from '@/features/admin/guard';
 export type { AdminGuardFailure } from '@/features/admin/guard';
 
-export async function listBookingsForAdmin(): Promise<readonly AdminBookingRow[]> {
+/**
+ * The admin queue, filtered and ordered IN SQL (2026-09 engineering
+ * audit DATA-04 / PERF-06) and hydrating only the columns the list
+ * renders (DATA-05 — the relational query pulled every one of the
+ * table's ~95 columns, encrypted refund IBAN included). Capped at
+ * BOOKINGS_LIST_LIMIT after filtering, so a search reaches every
+ * booking, not the newest 500.
+ */
+export async function listBookingsForAdmin(
+  filter: BookingFilter = { todayStr: '0000-00-00' },
+): Promise<readonly AdminBookingRow[]> {
   const block = await adminGuard();
   if (block) return [];
   try {
-    const rows = await db.query.bookings.findMany({
-      with: {
-        experience: {
-          columns: { slug: true, titleEn: true, commissionBps: true },
-          // Host status rides along so the list can queue "bookings on
-          // suspended hosts" (2026-08-02 ops audit P0-1).
-          with: { host: { columns: { verificationStatus: true } } },
-        },
-        guest: { columns: { name: true, phone: true } },
-      },
-      orderBy: (b) => desc(b.createdAt),
-      limit: BOOKINGS_LIST_LIMIT,
-    });
+    const rows = await db
+      .select({
+        id: bookings.id,
+        idempotencyKey: bookings.idempotencyKey,
+        referenceCode: bookings.referenceCode,
+        status: bookings.status,
+        paymentStatus: bookings.paymentStatus,
+        refundDueSar: bookings.refundDueSar,
+        refundBankReady: sql<boolean>`(${bookings.refundBankName} is not null and ${bookings.refundBeneficiaryName} is not null and ${bookings.refundIban} is not null)`,
+        approvalDeadline: bookings.approvalDeadline,
+        date: bookings.date,
+        startTime: bookings.startTime,
+        partySize: bookings.partySize,
+        totalAmount: bookings.totalAmount,
+        commissionBps: bookings.commissionBps,
+        vatRateBps: bookings.vatRateBps,
+        discountSar: bookings.discountSar,
+        walletAppliedSar: bookings.walletAppliedSar,
+        currency: bookings.currency,
+        paymentReference: bookings.paymentReference,
+        createdAt: bookings.createdAt,
+        cancellationKind: bookings.cancellationKind,
+        cancellationReason: bookings.cancellationReason,
+        refundMethod: bookings.refundMethod,
+        contactPhone: bookings.contactPhone,
+        experienceSlug: experiences.slug,
+        experienceTitleEn: experiences.titleEn,
+        hostStatus: hosts.verificationStatus,
+        guestName: guests.name,
+        guestPhone: guests.phone,
+      })
+      .from(bookings)
+      .innerJoin(experiences, eq(bookings.experienceId, experiences.id))
+      .innerJoin(hosts, eq(experiences.hostId, hosts.id))
+      .innerJoin(guests, eq(bookings.guestId, guests.id))
+      .where(bookingFilterWhere(filter))
+      .orderBy(...bookingFilterOrder(filter))
+      .limit(BOOKINGS_LIST_LIMIT);
     return rows.map<AdminBookingRow>((row) => {
       // Snapshot on the booking — a later commission edit never restates
       // what this booking owes the host.
@@ -64,8 +105,8 @@ export async function listBookingsForAdmin(): Promise<readonly AdminBookingRow[]
         status: row.status,
         paymentStatus: row.paymentStatus,
         refundDueSar: row.refundDueSar,
-        refundBankReady: Boolean(row.refundBankName && row.refundBeneficiaryName && row.refundIban),
-        hostSuspended: row.experience.host.verificationStatus === 'suspended',
+        refundBankReady: row.refundBankReady,
+        hostSuspended: row.hostStatus === 'suspended',
         approvalDeadline: row.approvalDeadline?.toISOString() ?? null,
         date: row.date,
         startTime: row.startTime,
@@ -81,10 +122,10 @@ export async function listBookingsForAdmin(): Promise<readonly AdminBookingRow[]
         cancellationReason: row.cancellationReason,
         refundMethod: row.refundMethod,
         walletAppliedSar: row.walletAppliedSar,
-        experienceSlug: row.experience.slug,
-        experienceTitleEn: row.experience.titleEn,
-        guestName: row.guest.name,
-        guestPhone: row.contactPhone ?? row.guest.phone,
+        experienceSlug: row.experienceSlug,
+        experienceTitleEn: row.experienceTitleEn,
+        guestName: row.guestName,
+        guestPhone: row.contactPhone ?? row.guestPhone,
       };
     });
   } catch (error) {

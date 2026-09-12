@@ -19,11 +19,7 @@ import {
 } from '@/features/admin/bookings/queries';
 import type { AdminBookingStatus } from '@/features/admin/bookings/types';
 import { availableTransitions } from '@/features/bookings/lib/transitions';
-import {
-  filterBookings,
-  normalizeStatus,
-  normalizeView,
-} from '@/features/admin/bookings/lib/filter';
+import { normalizeStatus, normalizeView } from '@/features/admin/bookings/lib/filter';
 import { RefundButton } from '@/app/[locale]/admin/bookings/refund-button';
 import { TransitionButton } from '@/app/[locale]/admin/bookings/transition-button';
 
@@ -61,14 +57,7 @@ export default async function AdminBookingsPage({
   setRequestLocale(locale);
   const loc = locale as Locale;
 
-  const [block, rows, t, sp] = await Promise.all([
-    isAdminAndDbReady(),
-    listBookingsForAdmin(),
-    getTranslations('admin'),
-    searchParams,
-  ]);
-  const totals = totalsFromRows(rows);
-
+  const sp = await searchParams;
   const pick = (v: string | string[] | undefined): string | undefined =>
     Array.isArray(v) ? v[0] : v;
   const q = pick(sp.q)?.slice(0, 80) ?? '';
@@ -76,14 +65,15 @@ export default async function AdminBookingsPage({
   const view = normalizeView(pick(sp.view));
   const refundDue = pick(sp.refund_due) === '1';
   const suspendedHost = pick(sp.suspended) === '1';
-  const filtered = filterBookings(rows, {
-    q,
-    status,
-    view,
-    refundDue,
-    suspendedHost,
-    todayStr: todayInRiyadh(),
-  });
+  // Filtering happens in SQL (DATA-04): the list is the filtered set and
+  // the totals describe what is on screen.
+  const [block, rows, t] = await Promise.all([
+    isAdminAndDbReady(),
+    listBookingsForAdmin({ q, status, view, refundDue, suspendedHost, todayStr: todayInRiyadh() }),
+    getTranslations('admin'),
+  ]);
+  const totals = totalsFromRows(rows);
+  const filtered = rows;
 
   // Pending requests show how long the host's approval window has left —
   // the 24h SLA is unmanageable if the deadline is invisible.

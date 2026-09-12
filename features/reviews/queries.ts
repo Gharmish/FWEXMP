@@ -97,7 +97,11 @@ export async function getReviewsForExperience(
 
 const EMPTY_DISTRIBUTION: ReviewAggregate['distribution'] = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
 
-export async function getReviewAggregateForExperience(slug: string): Promise<ReviewAggregate> {
+export async function getReviewAggregateForExperience(
+  slug: string,
+  /** Skip the slug lookup when the caller already holds the row id (PERF-02). */
+  experienceId?: string,
+): Promise<ReviewAggregate> {
   if (!hasDb()) {
     return aggregateReviews(sample.getReviewsForExperience(slug));
   }
@@ -105,12 +109,14 @@ export async function getReviewAggregateForExperience(slug: string): Promise<Rev
   // (JSON-LD stars + the reviews header) and feeds the detail page's
   // parallel fan-out — a pooler hang here must not stall the whole render.
   try {
-    const exp = await boundedQuery('reviews:aggregate:lookup', () =>
-      db.query.experiences.findFirst({
-        where: (e) => eq(e.slug, slug),
-        columns: { id: true },
-      }),
-    );
+    const exp = experienceId
+      ? { id: experienceId }
+      : await boundedQuery('reviews:aggregate:lookup', () =>
+          db.query.experiences.findFirst({
+            where: (e) => eq(e.slug, slug),
+            columns: { id: true },
+          }),
+        );
     if (!exp) return { count: 0, average: null, distribution: { ...EMPTY_DISTRIBUTION } };
 
     // One bounded GROUP BY rating query (≤5 rows) for count + average +

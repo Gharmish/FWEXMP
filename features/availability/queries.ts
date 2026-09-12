@@ -42,9 +42,12 @@ export async function getScheduleDataBySlug(
   slug: string,
   fromStr: string,
   toStr: string,
+  /** Skip the slug lookup when the caller already holds the row id (PERF-02). */
+  experienceId?: string,
 ): Promise<ScheduleData | null> {
   if (!serverEnv.DATABASE_URL) return null;
   try {
+    if (experienceId) return scheduleDataById(experienceId, fromStr, toStr);
     // Deadline-bounded: this feeds the detail page's parallel fan-out, so a
     // pooler hang would otherwise stall the whole render (the catch below
     // only fires on rejection — a hang never rejects on its own).

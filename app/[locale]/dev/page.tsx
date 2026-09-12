@@ -112,6 +112,7 @@ function makeExperience(
   overrides: Partial<ExperienceSummary> & { slug: string },
 ): ExperienceSummary {
   return {
+    id: overrides.id ?? '00000000-0000-4000-8000-0000000000ff',
     slug: overrides.slug,
     titleEn: overrides.titleEn ?? 'Sample experience',
     titleAr: overrides.titleAr ?? 'تجربة عينة',

@@ -489,15 +489,24 @@ export async function getHostContactPhoneForBooking(reference: string): Promise<
  * Never throws; 0 on no-DB/error keeps public pages resilient
  * (memory: home-page-db-resilience).
  */
-export async function getCompletedBookingsCountForExperience(slug: string): Promise<number> {
+export async function getCompletedBookingsCountForExperience(
+  slug: string,
+  /** Skip the join when the caller already holds the row id (PERF-02). */
+  experienceId?: string,
+): Promise<number> {
   if (!hasDb()) return 0;
   try {
     const [row] = await boundedQuery('bookings:completedCount', () =>
-      db
-        .select({ count: sql<number>`count(*)::int` })
-        .from(bookings)
-        .innerJoin(experiences, eq(bookings.experienceId, experiences.id))
-        .where(and(eq(experiences.slug, slug), eq(bookings.status, 'completed'))),
+      experienceId
+        ? db
+            .select({ count: sql<number>`count(*)::int` })
+            .from(bookings)
+            .where(and(eq(bookings.experienceId, experienceId), eq(bookings.status, 'completed')))
+        : db
+            .select({ count: sql<number>`count(*)::int` })
+            .from(bookings)
+            .innerJoin(experiences, eq(bookings.experienceId, experiences.id))
+            .where(and(eq(experiences.slug, slug), eq(bookings.status, 'completed'))),
     );
     return row?.count ?? 0;
   } catch (error) {

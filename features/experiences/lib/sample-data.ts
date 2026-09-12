@@ -139,6 +139,7 @@ const heroFor = (slug: string): string =>
 
 const EXPERIENCES: readonly SampleExperience[] = [
   {
+    id: '00000000-0000-4000-8000-000000000001',
     slug: 'juniper-forest-dawn-walk-jabal-sawda',
     titleEn: 'Juniper forest dawn walk on Jabal Sawda',
     titleAr: 'مشي الفجر بين عرعر جبل السودة',
@@ -179,6 +180,7 @@ const EXPERIENCES: readonly SampleExperience[] = [
     ],
   },
   {
+    id: '00000000-0000-4000-8000-000000000002',
     slug: 'an-evening-with-the-flower-men',
     titleEn: 'An evening with the flower men of Habala',
     titleAr: 'أمسية مع رجال الزهور في الحبلة',
@@ -228,6 +230,7 @@ const EXPERIENCES: readonly SampleExperience[] = [
     ],
   },
   {
+    id: '00000000-0000-4000-8000-000000000003',
     slug: 'asiri-coffee-ritual-and-saleeg-lunch',
     titleEn: 'Aseeri coffee ritual and saleeg lunch',
     titleAr: 'طقوس القهوة العسيرية وغداء السليق',
@@ -268,6 +271,7 @@ const EXPERIENCES: readonly SampleExperience[] = [
     ],
   },
   {
+    id: '00000000-0000-4000-8000-000000000004',
     slug: 'sound-and-breath-wadi-mahala',
     titleEn: 'Sound and breath at Wadi Mahala',
     titleAr: 'الصوت والتنفس في وادي محالة',
@@ -308,6 +312,7 @@ const EXPERIENCES: readonly SampleExperience[] = [
     ],
   },
   {
+    id: '00000000-0000-4000-8000-000000000005',
     slug: 'soudah-cliff-via-ferrata',
     titleEn: 'Soudah cliff via ferrata and cable descent',
     titleAr: 'مسار فيا فيراتا على حافة السودة ونزول بالحبل',
@@ -348,6 +353,7 @@ const EXPERIENCES: readonly SampleExperience[] = [
     ],
   },
   {
+    id: '00000000-0000-4000-8000-000000000006',
     slug: 'al-qatt-painting-rijal-almaa',
     titleEn: 'Al-Qatt Al-Aseeri painting for families in Rijal Almaa',
     titleAr: 'رسم القط العسيري للعائلات في رجال ألمع',

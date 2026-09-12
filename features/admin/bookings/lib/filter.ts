@@ -1,10 +1,6 @@
-import type { AdminBookingRow, AdminBookingStatus } from '@/features/admin/bookings/types';
-
-/**
- * Pure client-of-the-DB filtering for the admin bookings list. At launch
- * scale we load the (capped) list once and filter in memory, which keeps
- * the query simple and these rules unit-testable.
- */
+import { and, asc, desc, eq, gte, ilike, inArray, isNotNull, or, sql, type SQL } from 'drizzle-orm';
+import { bookings, experiences, guests, hosts } from '@/db/schema';
+import type { AdminBookingStatus } from '@/features/admin/bookings/types';
 
 export type BookingView = 'all' | 'upcoming';
 export type BookingStatusFilter = AdminBookingStatus | 'all';
@@ -46,66 +42,72 @@ export function normalizeView(raw: string | undefined): BookingView {
   return raw === 'upcoming' ? 'upcoming' : 'all';
 }
 
-/** Statuses considered "live" for the upcoming view. */
-const UPCOMING_STATUSES = new Set<AdminBookingStatus>(['pending', 'confirmed']);
+const UPCOMING_STATUSES: readonly AdminBookingStatus[] = ['pending', 'confirmed'];
 
-function matchesQuery(row: AdminBookingRow, q: string): boolean {
-  const needle = q.trim().toLowerCase();
-  if (!needle) return true;
-  // Digits-only variant so a phone search ignores spaces / +966 formatting.
-  const digits = needle.replace(/\D/g, '');
-  const haystacks = [
-    row.reference.toLowerCase(),
-    row.guestName.toLowerCase(),
-    row.experienceTitleEn.toLowerCase(),
-  ];
-  if (haystacks.some((h) => h.includes(needle))) return true;
-  if (digits.length > 0) {
-    const phoneDigits = (row.guestPhone ?? '').replace(/\D/g, '');
-    // Match the E.164 store against a locally-typed number too: a guest
-    // saved as +966 51… should be found by "0512…" (strip the leading 0).
-    const localized = digits.replace(/^0+/, '');
-    if (phoneDigits.includes(digits) || (localized && phoneDigits.includes(localized))) {
-      return true;
-    }
-  }
-  return false;
+/** Escape the LIKE metacharacters in user input. */
+function likePattern(needle: string): string {
+  return `%${needle.replace(/[\\%_]/g, (c) => `\\${c}`)}%`;
 }
 
-export function filterBookings(
-  rows: readonly AdminBookingRow[],
-  filter: BookingFilter,
-): AdminBookingRow[] {
-  const view = filter.view ?? 'all';
+/**
+ * The free-text search as SQL (2026-09 engineering audit DATA-04 — the
+ * queue used to load the newest 500 rows and filter them in memory, so
+ * older bookings were invisible to every search). Reference, short code,
+ * guest name and experience title match case-insensitively; a phone
+ * search compares digits only, with and without the local leading zero,
+ * against the booking's contact phone or the guest's stored one.
+ */
+function searchWhere(q: string): SQL | undefined {
+  const needle = q.trim().toLowerCase();
+  if (!needle) return undefined;
+  const pattern = likePattern(needle);
+  const parts: SQL[] = [
+    ilike(bookings.idempotencyKey, pattern),
+    ilike(bookings.referenceCode, pattern),
+    ilike(guests.name, pattern),
+    ilike(experiences.titleEn, pattern),
+  ];
+  const digits = needle.replace(/\D/g, '');
+  if (digits.length > 0) {
+    const phoneDigits = sql`regexp_replace(coalesce(${bookings.contactPhone}, ${guests.phone}, ''), '\\D', '', 'g')`;
+    parts.push(sql`${phoneDigits} like ${`%${digits}%`}`);
+    const localized = digits.replace(/^0+/, '');
+    if (localized && localized !== digits) parts.push(sql`${phoneDigits} like ${`%${localized}%`}`);
+  }
+  return or(...parts);
+}
+
+/**
+ * WHERE for the admin queue. Expects `bookings` joined to `experiences`,
+ * `hosts` and `guests` (see listBookingsForAdmin). Undefined = no filter.
+ */
+export function bookingFilterWhere(filter: BookingFilter): SQL | undefined {
+  const clauses: SQL[] = [];
   const status = filter.status ?? 'all';
-  const q = filter.q ?? '';
-
-  let out = rows.filter((row) => {
-    if (filter.refundDue && row.refundDueSar === null) return false;
-    if (
-      filter.suspendedHost &&
-      !(
-        row.hostSuspended === true &&
-        UPCOMING_STATUSES.has(row.status) &&
-        row.date >= filter.todayStr
-      )
-    ) {
-      return false;
-    }
-    if (status !== 'all' && row.status !== status) return false;
-    if (view === 'upcoming') {
-      if (!UPCOMING_STATUSES.has(row.status)) return false;
-      if (row.date < filter.todayStr) return false;
-    }
-    if (!matchesQuery(row, q)) return false;
-    return true;
-  });
-
-  if (view === 'upcoming') {
-    // Soonest experience date first (then start time) — operational order.
-    out = [...out].sort(
-      (a, b) => a.date.localeCompare(b.date) || a.startTime.localeCompare(b.startTime),
+  const view = filter.view ?? 'all';
+  if (filter.refundDue) clauses.push(isNotNull(bookings.refundDueSar));
+  if (filter.suspendedHost) {
+    clauses.push(
+      eq(hosts.verificationStatus, 'suspended'),
+      inArray(bookings.status, [...UPCOMING_STATUSES]),
+      gte(bookings.date, filter.todayStr),
     );
   }
-  return out;
+  if (status !== 'all') clauses.push(eq(bookings.status, status));
+  if (view === 'upcoming') {
+    clauses.push(
+      inArray(bookings.status, [...UPCOMING_STATUSES]),
+      gte(bookings.date, filter.todayStr),
+    );
+  }
+  const search = searchWhere(filter.q ?? '');
+  if (search) clauses.push(search);
+  return clauses.length > 0 ? and(...clauses) : undefined;
+}
+
+/** Soonest experience first for the upcoming view; newest booking first otherwise. */
+export function bookingFilterOrder(filter: BookingFilter): SQL[] {
+  return (filter.view ?? 'all') === 'upcoming'
+    ? [asc(bookings.date), asc(bookings.startTime)]
+    : [desc(bookings.createdAt)];
 }
