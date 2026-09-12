@@ -293,9 +293,10 @@ describe('executeRefund', () => {
     expect(outcome).toBe('refunded');
     // The durable proof landed BEFORE the flip was attempted.
     expect(ledgerEvents.map((e) => e.type)).toEqual(['refund_attempted', 'refund_succeeded']);
-    // One retry, then a loud page — and no `refundDueSar` re-stamp, which
-    // is what used to put an already-refunded booking in the manual queue.
-    expect(setCalls.filter((c) => c.status === 'refunded')).toHaveLength(2);
+    // Three attempts over ~1s, then a loud page — and no `refundDueSar`
+    // re-stamp, which is what used to put an already-refunded booking in
+    // the manual queue.
+    expect(setCalls.filter((c) => c.status === 'refunded')).toHaveLength(3);
     expect(setCalls.at(-1)).not.toEqual({ refundDueSar: 75 });
     expect(notifyAdmin).toHaveBeenCalledWith(
       'payment_ledger_anomaly',

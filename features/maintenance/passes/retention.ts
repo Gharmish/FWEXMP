@@ -32,9 +32,17 @@ export async function pruneThrottleEvents(run: PassRunner) {
   await run.pass(
     '7-throttle-prune',
     async () => {
-      await db
-        .delete(authThrottleEvents)
-        .where(lte(authThrottleEvents.createdAt, new Date(Date.now() - 24 * 3_600_000)));
+      // Bounded per run like the other prunes (third-round R6): the vitals
+      // cap now writes one row per accepted beacon.
+      const cutoff = new Date(Date.now() - 24 * 3_600_000);
+      await db.delete(authThrottleEvents).where(
+        sql`${authThrottleEvents.id} in (
+          select id from ${authThrottleEvents}
+          where ${authThrottleEvents.createdAt} <= ${cutoff}
+          order by ${authThrottleEvents.createdAt} asc
+          limit 5000
+        )`,
+      );
     },
     undefined,
   );

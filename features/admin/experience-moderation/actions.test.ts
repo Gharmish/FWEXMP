@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { createDbFake } from '@/lib/test/db-fake';
+import { createDbFake, referencedColumns } from '@/lib/test/db-fake';
 
 vi.mock('next/cache', () => ({ revalidatePath: vi.fn() }));
 vi.mock('@/lib/cache-tags', () => ({ revalidateExperienceCaches: vi.fn() }));
@@ -109,6 +109,10 @@ describe('approveExperience', () => {
       `REDIRECT:/admin/experience-moderation/${ID}`,
     );
     expect(fake.current?.updates[0]).toMatchObject({ status: 'live' });
+    // The claim re-asserts pending_review so a decided listing cannot be re-decided.
+    expect(referencedColumns(fake.current?.updateConditions[0])).toEqual(
+      expect.arrayContaining(['id', 'status']),
+    );
     expect(fake.current?.inserts[0]).toMatchObject({
       experienceId: ID,
       event: 'approved',
@@ -137,11 +141,17 @@ describe('rejectExperience / requestExperienceChanges / updateExperienceArabicCo
       `REDIRECT:/admin/experience-moderation/${ID}`,
     );
     expect(fake.current?.updates[0]).toMatchObject({ status: 'draft' });
+    expect(referencedColumns(fake.current?.updateConditions[0])).toEqual(
+      expect.arrayContaining(['id', 'status']),
+    );
     expect(email).toHaveBeenCalledWith(ID, 'rejected');
     expect(await run(() => requestExperienceChanges(initial, form({ reviewerNotes: note })))).toBe(
       `REDIRECT:/admin/experience-moderation/${ID}`,
     );
     expect(fake.current?.updates[1]).toMatchObject({ status: 'changes_requested' });
+    expect(referencedColumns(fake.current?.updateConditions[1])).toEqual(
+      expect.arrayContaining(['id', 'status']),
+    );
     expect(fake.current?.inserts[1]).toMatchObject({
       event: 'changes_requested',
       reviewerNotes: note,

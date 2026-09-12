@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { createDbFake } from '@/lib/test/db-fake';
+import { createDbFake, relationalWhereColumns } from '@/lib/test/db-fake';
+import { experiences } from '@/db/schema';
 
 vi.mock('next/cache', () => ({ revalidatePath: vi.fn() }));
 vi.mock('@/lib/cache-tags', () => ({ revalidateExperienceCaches: vi.fn() }));
@@ -48,7 +49,19 @@ beforeEach(() => {
   experience = { id: EXP, hostId: 'h1', status: 'draft' };
   moment = { experienceId: EXP };
   fake.current = createDbFake({
-    query: { experiences: { findFirst: () => experience }, moments: { findFirst: () => moment } },
+    query: {
+      experiences: {
+        findFirst: (args) => {
+          // The guard reads by id and compares hostId in code — pin that the
+          // read is by id (the compare is covered by the other-host case).
+          if (!relationalWhereColumns(args, experiences).includes('id')) {
+            throw new Error('read must be by id');
+          }
+          return experience;
+        },
+      },
+      moments: { findFirst: () => moment },
+    },
     select: (shape) =>
       'next' in shape
         ? [{ next: 1 }]

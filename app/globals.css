@@ -25,6 +25,29 @@
   font-display: swap;
   src: url('/fonts/ibm-plex-sans-arabic-600.woff2') format('woff2');
 }
+/* Latin display + body face (BRIEF §3). Declared here rather than via
+ * next/font, which preloaded the ~100 KB file on Arabic pages where no
+ * glyph is drawn from it (second-pass verification F8): English pages
+ * preload it from app/[locale]/layout.tsx, Arabic pages never fetch it.
+ * Multi-axis (wght 200–800, opsz 12–96); `font-optical-sizing: auto`
+ * maps the optical-size axis to the rendered pixel size. */
+@font-face {
+  font-family: 'Bricolage Grotesque';
+  font-style: normal;
+  font-weight: 200 800;
+  font-display: swap;
+  src: url('/fonts/bricolage-grotesque-variable.woff2') format('woff2');
+}
+/* Its metric-adjusted fallback — the same values next/font emitted
+ * (Next's fontkit helper over the shipped file). */
+@font-face {
+  font-family: 'Bricolage Grotesque Fallback';
+  src: local('Arial');
+  ascent-override: 91.48%;
+  descent-override: 26.56%;
+  line-gap-override: 0%;
+  size-adjust: 101.66%;
+}
 /* Metric-adjusted fallback (2026-09 engineering audit PERF-05, second-pass
  * verification F7): next/font used to emit this automatically; moving the
  * Arabic face to hand-written @font-face dropped it, so Arabic text laid
@@ -188,10 +211,12 @@
   --shadow-overlay: 0 8px 32px rgb(10 10 10 / 0.1), 0 1px 2px rgb(10 10 10 / 0.04);
 
   /* Typography. Bricolage for Latin/display, IBM Plex Sans Arabic for RTL.
-   * Bricolage comes from next/font (lib/fonts.ts); the Arabic faces are
-   * declared at the top of this file and preloaded per locale (PERF-05). */
-  --font-display: var(--font-bricolage), ui-sans-serif, system-ui, sans-serif;
-  --font-sans: var(--font-bricolage), ui-sans-serif, system-ui, sans-serif;
+   * Both families are declared at the top of this file and preloaded per
+   * locale by app/[locale]/layout.tsx (PERF-05 / second-pass F8). */
+  --font-bricolage:
+    'Bricolage Grotesque', 'Bricolage Grotesque Fallback', ui-sans-serif, system-ui, sans-serif;
+  --font-display: var(--font-bricolage);
+  --font-sans: var(--font-bricolage);
   --font-arabic:
     'IBM Plex Sans Arabic', 'IBM Plex Sans Arabic Fallback', ui-sans-serif, system-ui, sans-serif;
 

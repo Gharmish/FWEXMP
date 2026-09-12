@@ -33,19 +33,8 @@ import { executeBookingTransition } from '@/features/bookings/lib/transition-exe
  * and what comes next — the row itself moves buckets silently.
  */
 
-export type HostBookingActionError =
-  | 'forbidden'
-  | 'suspended'
-  | 'no_db'
-  | 'not_found'
-  | 'wrong_state'
-  | 'over_capacity'
-  | 'too_early'
-  | 'too_late'
-  | 'unpaid'
-  | 'reason_required'
-  | 'validation'
-  | 'server';
+export type { HostBookingActionError } from '@/features/host-bookings/types';
+import type { HostBookingActionError } from '@/features/host-bookings/types';
 
 export interface HostBookingActionResult {
   success: false;

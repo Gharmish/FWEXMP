@@ -67,6 +67,7 @@ export interface AdminExperienceFormCopy {
   fieldInvalid: string;
   /** Arabic field still carries a `TODO(ar)` marker (schema refine code `*_ar_placeholder`). */
   fieldArPlaceholder: string;
+  fieldArRequired: string;
   formValidation: string;
   formServer: string;
   formNotFound: string;
@@ -198,7 +199,11 @@ export function AdminExperienceForm({
   // the `TODO(ar)` placeholder refusals get their own, because "check this
   // field" on a 2–160-character Arabic title explains nothing.
   const fieldMessage = (code: string) =>
-    code.endsWith('_ar_placeholder') ? copy.fieldArPlaceholder : copy.fieldInvalid;
+    code.endsWith('_ar_placeholder')
+      ? copy.fieldArPlaceholder
+      : code.endsWith('_ar_required')
+        ? copy.fieldArRequired
+        : copy.fieldInvalid;
   const err = (name: string) =>
     fields[name] ? (
       <p id={eid(name)} className="text-al-qatt-red-800 text-sm">

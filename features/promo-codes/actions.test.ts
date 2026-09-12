@@ -196,6 +196,16 @@ describe('applyPromo', () => {
 });
 
 describe('removePromo', () => {
+  it('a bare reference without ownership proof cannot strip a discount', async () => {
+    access.allowed = false;
+    locked = { ...locked, totalAmount: 270, discountSar: 30 };
+    expect(await removePromo(idle, form())).toMatchObject({
+      status: 'error',
+      message: 'not_found',
+    });
+    expect(fake.current?.updates).toEqual([]);
+  });
+
   it('is a no-op without a discount and otherwise restores the full total', async () => {
     expect(await removePromo(idle, form())).toEqual({ status: 'removed' });
     expect(fake.current?.updates).toEqual([]);

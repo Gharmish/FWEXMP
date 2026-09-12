@@ -6,7 +6,7 @@ import type { AuthUser } from '@/features/auth/types';
  * Admin gate — the synchronous read of a decision already made.
  *
  * Since the 2026-08-02 security audit the actual lookup lives in
- * `features/admin/roles.ts` (the `user_roles` table, with the
+ * `features/auth/lib/admin-roles.ts` (the `user_roles` table, with the
  * `ADMIN_PHONES` env allowlist as a bootstrap fallback) and runs ONCE
  * per request inside `getSession()`, which stamps `user.isAdmin`.
  *

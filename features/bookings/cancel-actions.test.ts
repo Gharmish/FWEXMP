@@ -3,13 +3,25 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 vi.mock('next/cache', () => ({ revalidatePath: vi.fn() }));
 const env = vi.hoisted(() => ({ DATABASE_URL: 'postgres://test' }));
 vi.mock('@/lib/env', () => ({ serverEnv: env }));
-vi.mock('@/features/bookings/lib/access', () => ({ bookingViewerCanAccess: async () => true }));
-const core = vi.fn<(input: unknown) => Promise<Record<string, unknown>>>(async () => ({
-  success: true as const,
-  refund: 'none' as const,
+const access = vi.hoisted(() => ({ allowed: true }));
+const canAccess = vi.fn<(reference: string, guestId: string) => Promise<boolean>>(
+  async () => access.allowed,
+);
+vi.mock('@/features/bookings/lib/access', () => ({
+  bookingViewerCanAccess: (reference: string, guestId: string) => canAccess(reference, guestId),
 }));
+interface CoreInput {
+  authorize: (guestId: string) => Promise<boolean>;
+}
+const core = vi.fn<(input: CoreInput) => Promise<Record<string, unknown>>>(async (input) =>
+  // The real core calls `authorize(booking.guestId)` and answers not_found
+  // when it refuses; the mock runs the closure so the wiring is pinned.
+  (await input.authorize('g-owner'))
+    ? { success: true as const, refund: 'none' as const }
+    : { success: false as const, message: 'not_found' },
+);
 vi.mock('@/features/bookings/lib/cancel-core', () => ({
-  cancelBookingCore: (input: unknown) => core(input),
+  cancelBookingCore: (input: CoreInput) => core(input),
 }));
 
 import { cancelBookingAsGuest } from './cancel-actions';
@@ -26,7 +38,9 @@ const initial = { success: false as const };
 
 beforeEach(() => {
   env.DATABASE_URL = 'postgres://test';
+  access.allowed = true;
   core.mockClear();
+  canAccess.mockClear();
 });
 
 describe('cancelBookingAsGuest', () => {
@@ -50,6 +64,16 @@ describe('cancelBookingAsGuest', () => {
     expect(await cancelBookingAsGuest(initial, form())).toEqual({
       success: false,
       message: 'no_db',
+    });
+  });
+
+  it('the authorize closure delegates to bookingViewerCanAccess for the booking owner, and a refusal is not_found', async () => {
+    expect(await cancelBookingAsGuest(initial, form())).toMatchObject({ success: true });
+    expect(canAccess).toHaveBeenCalledWith(REF, 'g-owner');
+    access.allowed = false;
+    expect(await cancelBookingAsGuest(initial, form())).toEqual({
+      success: false,
+      message: 'not_found',
     });
   });
 

@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { createDbFake } from '@/lib/test/db-fake';
+import { createDbFake, referencedColumns, relationalWhereColumns } from '@/lib/test/db-fake';
+import { experiences } from '@/db/schema';
 
 vi.mock('next/cache', () => ({ revalidatePath: vi.fn() }));
 vi.mock('@/lib/cache-tags', () => ({ revalidateExperienceCaches: vi.fn() }));
@@ -72,10 +73,22 @@ beforeEach(() => {
   env.DATABASE_URL = 'postgres://test';
   env.supabase = true;
   who.hostId = 'h1';
-  experience = { id: ID, slug: 'walk', status: 'draft', images: [OLD] };
+  experience = { id: ID, slug: 'walk', status: 'draft', images: [OLD], hostId: 'h1' };
   storage.uploaded.length = 0;
   storage.removed.length = 0;
-  fake.current = createDbFake({ query: { experiences: { findFirst: () => experience } } });
+  fake.current = createDbFake({
+    query: {
+      experiences: {
+        // Behave like the database: the row comes back only when the
+        // predicate the action built actually scopes it to this host.
+        findFirst: (args) => {
+          const cols = relationalWhereColumns(args, experiences);
+          if (!cols.includes('hostId')) throw new Error('ownership read must scope by hostId');
+          return experience && experience.hostId === who.hostId ? experience : undefined;
+        },
+      },
+    },
+  });
 });
 
 describe('uploadExperienceHero', () => {
@@ -90,7 +103,7 @@ describe('uploadExperienceHero', () => {
     expect(await uploadExperienceHero(initial, form({ photo: jpeg() }))).toMatchObject({
       message: 'not_found',
     });
-    experience = { id: ID, slug: 'walk', status: 'archived', images: [] };
+    experience = { id: ID, slug: 'walk', status: 'archived', images: [], hostId: 'h1' };
     expect(await uploadExperienceHero(initial, form({ photo: jpeg() }))).toMatchObject({
       message: 'locked_live',
     });
@@ -102,9 +115,30 @@ describe('uploadExperienceHero', () => {
       await run(() => uploadExperienceHero(initial, form({ photo: jpeg(), locale: 'ar' }))),
     ).toBe(`REDIRECT:/host/experiences/${ID}`);
     expect(storage.uploaded[0]).toMatch(/^experiences\/walk\//);
+    // The write re-asserts ownership too (a race with a transfer cannot land on another host's row).
+    expect(referencedColumns(fake.current?.updateConditions[0])).toEqual(
+      expect.arrayContaining(['id', 'hostId']),
+    );
     expect(String(fake.current?.updates[0]?.heroImage)).toMatch(
       /\/photos\/experiences\/walk\/.*\?v=\d+$/,
     );
+  });
+});
+
+describe('ownership', () => {
+  it("another host's listing is not_found, never overwritten", async () => {
+    experience = { id: ID, slug: 'walk', status: 'draft', images: [OLD], hostId: 'someone-else' };
+    expect(await uploadExperienceHero(initial, form({ photo: jpeg() }))).toMatchObject({
+      message: 'not_found',
+    });
+    expect(await uploadGalleryImageAsHost(initial, form({ photo: jpeg() }))).toMatchObject({
+      message: 'not_found',
+    });
+    expect(await removeGalleryImageAsHost(initial, form({ url: OLD }))).toMatchObject({
+      message: 'not_found',
+    });
+    expect(storage.uploaded).toEqual([]);
+    expect(fake.current?.updates).toEqual([]);
   });
 });
 

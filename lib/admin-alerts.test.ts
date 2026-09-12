@@ -36,6 +36,7 @@ vi.mock('@/lib/site', () => ({ SITE_URL: 'https://example.test' }));
 let recentRows: Array<{ id: string }> = [];
 let selectFailure: Error | null = null;
 let selects = 0;
+let lastWhere: unknown = null;
 const inserted: Array<Record<string, unknown>> = [];
 vi.mock('@/lib/db', () => ({
   db: {
@@ -43,8 +44,9 @@ vi.mock('@/lib/db', () => ({
       selects += 1;
       return {
         from: () => ({
-          where: () => ({
+          where: (condition: unknown) => ({
             limit: async () => {
+              lastWhere = condition;
               if (selectFailure) throw selectFailure;
               return recentRows;
             },
@@ -61,6 +63,8 @@ vi.mock('@/lib/db', () => ({
   },
 }));
 
+import { PgDialect } from 'drizzle-orm/pg-core';
+import type { SQL } from 'drizzle-orm';
 import { notifyAdmin } from './admin-alerts';
 
 beforeEach(() => {
@@ -113,6 +117,18 @@ describe('notifyAdmin quiet window', () => {
     });
     expect(sendEmail).not.toHaveBeenCalled();
     expect(dispatchNotification).not.toHaveBeenCalled();
+  });
+
+  it('a suppressed repeat never extends the window — the team is paged again once per window', async () => {
+    recentRows = [{ id: 'alert-earlier' }];
+    await notifyAdmin(
+      'cron_stale',
+      { lastRunAt: 'never' },
+      { fingerprint: 'cron-stale', quietWindowMs: 6 * 3_600_000 },
+    );
+    const { sql: rendered } = new PgDialect({ casing: 'snake_case' }).sqlToQuery(lastWhere as SQL);
+    expect(rendered).toContain(`->>'fingerprint' =`);
+    expect(rendered).toContain(`->>'suppressed' is null`);
   });
 
   it('fails open when the quiet-window lookup throws', async () => {

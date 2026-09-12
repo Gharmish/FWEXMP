@@ -2,7 +2,6 @@
 
 import { useEffect } from 'react';
 import { reportError } from '@/lib/log';
-import { bricolage } from '@/lib/fonts';
 import { buttonVariants } from '@/components/ui/button';
 import '@/app/globals.css';
 
@@ -27,7 +26,7 @@ export default function GlobalError({
   }, [error]);
 
   return (
-    <html lang="en" className={`${bricolage.variable} antialiased`}>
+    <html lang="en" className="antialiased">
       <body className="text-sarat-black bg-white">
         <main className="mx-auto flex min-h-screen w-full max-w-2xl flex-col justify-center gap-6 px-6 py-24">
           <p className="text-al-qatt-red-800 text-eyebrow">Something went wrong</p>

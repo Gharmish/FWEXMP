@@ -52,13 +52,19 @@ export type RefundRails = 'auto' | 'card_only';
  * the pool and BEFORE the booking flip — so even if the booking-row
  * update then fails, the ledger knows the money moved and the admin
  * refund action (`refundOutcomeUnknown` + `latestPaymentEvent`) won't
- * fire a second reversal. Once the gateway has said yes nothing on this
- * path can fall into the manual queue: a failed flip retries once, then
- * pages the team (`payment_ledger_anomaly`, "do NOT refund again") and
- * still reports `refunded` (2026-09 engineering audit, second-pass
+ * fire a second reversal. Once the gateway has said yes this path never
+ * re-queues the booking itself: the ledger row lands first, the flip
+ * retries over about a second, and any failure pages the team
+ * (`payment_ledger_anomaly`, "do NOT refund again") while still
+ * reporting `refunded` (2026-09 engineering audit, second-pass
  * verification F1/F27 — the first DATA-03 cut had put the ledger row and
  * the flip in one transaction, so a failing flip rolled the proof back
- * and re-queued money HyperPay had already returned).
+ * and re-queued money HyperPay had already returned). A database outage
+ * spanning the whole retry window can still leave the pre-gateway
+ * `refundDueSar` claim in place with only `refund_attempted` in the
+ * ledger — that dangling attempt is what `refundOutcomeUnknown` reads as
+ * "the reversal MAY have landed", which the admin action refuses to
+ * auto-refund and pages before a manual wire (third-round R1).
  * The credit leg is guarded by its own idempotency key
  * (`refund:<bookingId>`, inside `creditWalletRefund`) — a replay lands
  * on the unique index, never a second credit.
@@ -82,6 +88,30 @@ function journalRefund(amountSar: number): SQL<number> {
   return sql`least(coalesce(${bookings.refundedAmountSar}, 0) + ${amountSar}, ${bookings.totalAmount} + ${bookings.walletAppliedSar})`;
 }
 
+/**
+ * Backoff between attempts to record a refund the gateway has ALREADY
+ * confirmed: the 2026-08-21 production incident was a pooler blip of
+ * about a second, so a retry with no delay hit the same dead socket
+ * (third-round verification R1).
+ */
+const COMMIT_RETRY_DELAYS_MS = [250, 750] as const;
+
+async function withRetries(
+  attempt: () => Promise<void>,
+  onError: (error: unknown, index: number) => void,
+): Promise<boolean> {
+  for (let index = 0; ; index += 1) {
+    try {
+      await attempt();
+      return true;
+    } catch (error) {
+      onError(error, index);
+      if (index >= COMMIT_RETRY_DELAYS_MS.length) return false;
+      await new Promise((resolve) => setTimeout(resolve, COMMIT_RETRY_DELAYS_MS[index]));
+    }
+  }
+}
+
 interface GatewayRefundCommit {
   bookingId: string;
   cardShareSar: number;
@@ -103,19 +133,20 @@ interface GatewayRefundCommit {
 async function commitGatewayRefund(input: GatewayRefundCommit): Promise<void> {
   const { bookingId, cardShareSar, amountSar, rails, resultCode, gatewayId, actorUserId } = input;
   const problems: string[] = [];
-  try {
-    await recordPaymentEvent({
-      bookingId,
-      type: 'refund_succeeded',
-      amountSar: cardShareSar,
-      gatewayId,
-      resultCode,
-      actorUserId,
-    });
-  } catch (error) {
-    problems.push('refund_succeeded ledger row not written');
-    reportError(error, { surface: 'bookings:executeRefund:ledger', bookingId });
-  }
+  const ledgerWritten = await withRetries(
+    () =>
+      recordPaymentEvent({
+        bookingId,
+        type: 'refund_succeeded',
+        amountSar: cardShareSar,
+        gatewayId,
+        resultCode,
+        actorUserId,
+      }),
+    (error, attempt) =>
+      reportError(error, { surface: 'bookings:executeRefund:ledger', bookingId, attempt }),
+  );
+  if (!ledgerWritten) problems.push('refund_succeeded ledger row not written');
 
   const flip = () =>
     db
@@ -142,16 +173,16 @@ async function commitGatewayRefund(input: GatewayRefundCommit): Promise<void> {
             }),
       })
       .where(eq(bookings.id, bookingId));
-  let flipped = false;
-  for (let attempt = 0; attempt < 2 && !flipped; attempt += 1) {
-    try {
+  const flipped = await withRetries(
+    async () => {
       await flip();
-      flipped = true;
-    } catch (error) {
-      reportError(error, { surface: 'bookings:executeRefund:flip', bookingId, attempt });
-    }
+    },
+    (error, attempt) =>
+      reportError(error, { surface: 'bookings:executeRefund:flip', bookingId, attempt }),
+  );
+  if (!flipped) {
+    problems.push('booking still shows the pre-refund state (flip failed three times)');
   }
-  if (!flipped) problems.push('booking still shows the pre-refund state (flip failed twice)');
 
   if (problems.length > 0) {
     await notifyAdmin(

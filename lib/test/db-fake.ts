@@ -12,6 +12,8 @@
  * test can assert what was written.
  */
 
+import * as operators from 'drizzle-orm';
+
 type Row = Record<string, unknown>;
 
 export interface DbFakeOptions {
@@ -37,7 +39,7 @@ export interface SelectChain extends PromiseLike<unknown[]> {
   orderBy: (...args: unknown[]) => SelectChain;
   groupBy: (...args: unknown[]) => SelectChain;
   offset: (n?: number) => SelectChain;
-  limit: (n?: number) => Promise<unknown[]>;
+  limit: (n?: number) => SelectChain;
   for: (mode?: unknown) => Promise<unknown[]>;
 }
 
@@ -77,8 +79,10 @@ export interface DbFake {
   >;
   execute: (query: unknown) => Promise<unknown>;
   transaction: <T>(cb: (tx: DbFake) => Promise<T>) => Promise<T>;
-  /** Every `.set()` payload, in order. */
+  /** Every executed `.set()` payload, in order. */
   updates: Row[];
+  /** The `.where()` condition of each executed update, index-aligned with `updates`. */
+  updateConditions: unknown[];
   /** Every `.values()` payload, in order. */
   inserts: Array<Row | Row[]>;
   /**
@@ -99,6 +103,7 @@ function thenable<T>(value: () => T | Promise<T>): Promise<T> {
 
 export function createDbFake(options: DbFakeOptions = {}): DbFake {
   const updates: Row[] = [];
+  const updateConditions: unknown[] = [];
   const inserts: Array<Row | Row[]> = [];
   const upserts: UpsertRecord[] = [];
   let deletes = 0;
@@ -114,48 +119,105 @@ export function createDbFake(options: DbFakeOptions = {}): DbFake {
     chain.orderBy = link;
     chain.groupBy = link;
     chain.offset = link;
-    chain.limit = async () => rows();
+    // Both `.limit(n).offset(n)` and `.offset(n).limit(n)` are idioms the
+    // app uses (third-round R5), so limit stays chainable; the chain is
+    // thenable, so awaiting it after either still resolves the rows.
+    chain.limit = link;
     chain.for = async () => rows();
     chain.then = (onfulfilled, onrejected) => thenable(rows).then(onfulfilled, onrejected);
     return chain;
   };
 
+  /**
+   * A write is recorded when it is EXECUTED (awaited / `.returning()`),
+   * not when its builder is called (third-round R12): `updates` and
+   * `inserts` mean "writes that ran", and a transaction that throws rolls
+   * its recorded writes back. `run` is memoised so `.returning()` after
+   * `await` does not double-record.
+   */
+  const lazy = <T>(run: () => T): Promise<T> & { returning: () => Promise<unknown[]> } => {
+    let started: Promise<T> | null = null;
+    const start = () => (started ??= Promise.resolve().then(run));
+    const p = {
+      then: <R1, R2>(
+        onfulfilled?: ((value: T) => R1 | PromiseLike<R1>) | null,
+        onrejected?: ((reason: unknown) => R2 | PromiseLike<R2>) | null,
+      ) => start().then(onfulfilled, onrejected),
+      catch: <R>(onrejected?: ((reason: unknown) => R | PromiseLike<R>) | null) =>
+        start().catch(onrejected),
+      finally: (onfinally?: (() => void) | null) => start().finally(onfinally),
+      [Symbol.toStringTag]: 'Promise',
+      returning: async () => {
+        await start();
+        return [] as unknown[];
+      },
+    };
+    return p as Promise<T> & { returning: () => Promise<unknown[]> };
+  };
+
   const updateChain = (values: Row) => {
-    updates.push(values);
     const rows = () => options.update?.(values) ?? [];
-    const where = () => {
-      const p = thenable(() => ({ count: rows().length })) as Promise<unknown> & {
-        returning: () => Promise<unknown[]>;
+    const commit = (condition: unknown) => {
+      updates.push(values);
+      updateConditions.push(condition);
+    };
+    const where = (condition?: unknown) => {
+      const p = lazy(() => {
+        commit(condition);
+        return { count: rows().length };
+      }) as WriteResult;
+      p.returning = async () => {
+        await p;
+        return rows();
       };
-      p.returning = async () => rows();
       return p;
     };
-    return { where, returning: async () => rows() };
+    return {
+      where,
+      returning: async () => {
+        commit(undefined);
+        return rows();
+      },
+    };
   };
 
   const insertChain = (values: Row | Row[]) => {
-    inserts.push(values);
     const rows = () => options.insert?.(values) ?? [];
-    const p = thenable(() => undefined) as Promise<unknown> & {
-      returning: () => Promise<unknown[]>;
-      onConflictDoNothing: () => Promise<unknown> & { returning: () => Promise<unknown[]> };
-      onConflictDoUpdate: () => Promise<unknown>;
+    let recorded = false;
+    const commit = () => {
+      if (!recorded) inserts.push(values);
+      recorded = true;
     };
-    p.returning = async () => rows();
+    const p = lazy(() => {
+      commit();
+      return undefined;
+    }) as InsertResult;
+    p.returning = async () => {
+      await p;
+      return rows();
+    };
     p.onConflictDoNothing = () => {
-      upserts.push({ values, doNothing: true });
-      const q = thenable(() => undefined) as Promise<unknown> & {
-        returning: () => Promise<unknown[]>;
+      const q = lazy(() => {
+        commit();
+        upserts.push({ values, doNothing: true });
+        return undefined;
+      }) as WriteResult;
+      q.returning = async () => {
+        await q;
+        return rows();
       };
-      q.returning = async () => rows();
       return q;
     };
-    p.onConflictDoUpdate = async (options?: unknown) => {
+    p.onConflictDoUpdate = (conflict?: unknown) => {
       const set =
-        options && typeof options === 'object' && 'set' in options
-          ? ((options as { set?: Row }).set ?? undefined)
+        conflict && typeof conflict === 'object' && 'set' in conflict
+          ? ((conflict as { set?: Row }).set ?? undefined)
           : undefined;
-      upserts.push({ values, set });
+      return lazy(() => {
+        commit();
+        upserts.push({ values, set });
+        return undefined;
+      });
     };
     return p;
   };
@@ -179,8 +241,23 @@ export function createDbFake(options: DbFakeOptions = {}): DbFake {
     }),
     query,
     execute: async (q: unknown) => options.execute?.(q),
-    transaction: async (cb) => cb(fake),
+    // The fake hands itself back so chains keep working inside a
+    // transaction; a callback that throws rolls back what it recorded.
+    transaction: async <T>(cb: (tx: DbFake) => Promise<T>): Promise<T> => {
+      const mark = { u: updates.length, i: inserts.length, up: upserts.length, d: deletes };
+      try {
+        return await cb(fake);
+      } catch (error) {
+        updates.length = mark.u;
+        updateConditions.length = mark.u;
+        inserts.length = mark.i;
+        upserts.length = mark.up;
+        deletes = mark.d;
+        throw error;
+      }
+    },
     updates,
+    updateConditions,
     inserts,
     upserts,
     get deletes() {
@@ -188,4 +265,42 @@ export function createDbFake(options: DbFakeOptions = {}): DbFake {
     },
   };
   return fake;
+}
+
+/**
+ * Every column a drizzle SQL/Column tree references, by its TypeScript
+ * key (`hostId`, `status`). Lets a suite assert the predicate of a
+ * conditional write — the claim guards that make a decision idempotent
+ * (third-round R4) — instead of only its payload.
+ */
+export function referencedColumns(
+  node: unknown,
+  found: string[] = [],
+  seen = new WeakSet<object>(),
+): string[] {
+  if (!node || typeof node !== 'object') return found;
+  if (seen.has(node)) return found;
+  seen.add(node);
+  const candidate = node as { name?: unknown; columnType?: unknown };
+  if (typeof candidate.name === 'string' && typeof candidate.columnType === 'string') {
+    found.push(candidate.name);
+    return found; // never descend into the column's table back-reference
+  }
+  for (const value of Object.values(node as Record<string, unknown>)) {
+    if (Array.isArray(value)) value.forEach((v) => referencedColumns(v, found, seen));
+    else if (value && typeof value === 'object') referencedColumns(value, found, seen);
+  }
+  return found;
+}
+
+/**
+ * The columns a relational `findFirst`/`findMany` `where` references. The
+ * callback form is invoked with the real table so the predicate is built
+ * exactly as production builds it; a suite can then refuse a row whose
+ * owner column is not in the predicate (third-round R6).
+ */
+export function relationalWhereColumns(args: unknown, table: unknown): string[] {
+  const where = (args as { where?: unknown } | undefined)?.where;
+  if (typeof where === 'function') return referencedColumns(where(table, operators));
+  return referencedColumns(where);
 }

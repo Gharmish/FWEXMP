@@ -15,6 +15,10 @@ import { describe, expect, it } from 'vitest';
  *   features/auth → never imports features/admin (ARCH-02): the identity
  *                 layer (session, roles, MFA) sits under the admin feature,
  *                 never beside it, so the pair cannot become a cycle
+ *   features/<f>/lib/** → never imports features/<f>/*actions (ARCH-07):
+ *                 the step modules are leaves; a server-action module
+ *                 importing back into itself through a step is a cycle
+ *                 across the 'use server' boundary
  *
  * Tests are exempt (they mock whatever they need). Add an entry to
  * ALLOWED only with a comment saying why the dependency is legitimate.
@@ -65,6 +69,22 @@ describe('import boundaries', () => {
 
   it('lib is a leaf: never imports app/, features/ or components/', () => {
     expect(violations('lib', ['app', 'features', 'components'])).toEqual([]);
+  });
+
+  it("a feature's lib never imports that feature's actions (ARCH-07)", () => {
+    const out: string[] = [];
+    for (const feature of readdirSync(join(ROOT, 'features'))) {
+      const libDir = join(ROOT, 'features', feature, 'lib');
+      if (!statSync(libDir, { throwIfNoEntry: false })?.isDirectory()) continue;
+      for (const file of walk(libDir)) {
+        for (const target of imports(file)) {
+          if (new RegExp(`^features/${feature}/(?:[\\w-]*-)?actions$`).test(target)) {
+            out.push(`${relative(ROOT, file)} → ${target}`);
+          }
+        }
+      }
+    }
+    expect(out).toEqual([]);
   });
 
   it('features/auth never imports features/admin (ARCH-02)', () => {

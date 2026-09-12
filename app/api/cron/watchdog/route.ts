@@ -25,9 +25,11 @@ import { reportError } from '@/lib/log';
  * scheduled from BOTH sides — Vercel Cron daily (survives a pg_cron
  * outage within 24h) and Supabase pg_cron hourly at :30
  * (supabase/watchdog-hourly-cron.sql — catches a dead main job within
- * ~1.5h). While the stamp stays stale, every watchdog run re-alerts:
- * that repetition is intentional escalation, not noise — it stops the
- * moment the main job runs once.
+ * ~1.5h). While the stamp stays stale, every watchdog run records an
+ * alert row, and the team is paged again once per six-hour quiet window
+ * (second-pass verification F7/R2) — escalation without an hourly page on
+ * top of the hourly cron_failed alert. It stops the moment the main job
+ * runs once.
  *
  * Auth: identical to release-holds — `Authorization: Bearer
  * <CRON_SECRET>`; inert until the secret is configured.

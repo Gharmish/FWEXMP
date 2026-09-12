@@ -16,7 +16,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('server-only', () => ({}));
 
-let latestRow: { type: string; createdAt: Date } | undefined;
+let latestRow: { type: string; createdAt: Date; resultCode?: string | null } | undefined;
 let capturedOrderBy: unknown;
 vi.mock('@/lib/db', () => ({
   db: {
@@ -31,7 +31,7 @@ vi.mock('@/lib/db', () => ({
   },
 }));
 
-import { refundInFlight } from './ledger';
+import { refundInFlight, refundOutcomeUnknown } from './ledger';
 
 const minutesAgo = (n: number): Date => new Date(Date.now() - n * 60_000);
 
@@ -81,5 +81,26 @@ describe('refundInFlight', () => {
     // principle share a timestamp; the resolution must not be random.
     expect(Array.isArray(capturedOrderBy)).toBe(true);
     expect((capturedOrderBy as unknown[]).length).toBe(2);
+  });
+});
+
+describe('refundOutcomeUnknown', () => {
+  it('is true after a gateway exception — the reversal MAY have landed', async () => {
+    latestRow = { type: 'refund_failed', resultCode: 'EXCEPTION', createdAt: minutesAgo(1) };
+    await expect(refundOutcomeUnknown('b-1')).resolves.toBe(true);
+  });
+
+  it('is true for an attempt that never concluded once the in-flight window has passed', async () => {
+    latestRow = { type: 'refund_attempted', resultCode: null, createdAt: minutesAgo(11) };
+    await expect(refundOutcomeUnknown('b-1')).resolves.toBe(true);
+  });
+
+  it('is false while the attempt is still in flight, and after a clean outcome', async () => {
+    latestRow = { type: 'refund_attempted', resultCode: null, createdAt: minutesAgo(1) };
+    await expect(refundOutcomeUnknown('b-1')).resolves.toBe(false);
+    latestRow = { type: 'refund_succeeded', resultCode: '000.000.000', createdAt: minutesAgo(11) };
+    await expect(refundOutcomeUnknown('b-1')).resolves.toBe(false);
+    latestRow = { type: 'refund_failed', resultCode: '800.100.100', createdAt: minutesAgo(1) };
+    await expect(refundOutcomeUnknown('b-1')).resolves.toBe(false);
   });
 });

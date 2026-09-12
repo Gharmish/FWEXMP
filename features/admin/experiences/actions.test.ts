@@ -119,6 +119,27 @@ describe('adminUpdateExperience', () => {
     expect(fake.current?.updates).toEqual([]);
   });
 
+  it('a live listing needs the Arabic side of every list; a draft may leave it for later', async () => {
+    expect(
+      await adminUpdateExperience(initial, form({ inclusionsArRaw: '', whatToBringArRaw: '' })),
+    ).toMatchObject({
+      message: 'validation',
+      fields: {
+        inclusionsArRaw: 'inclusions_ar_required',
+        whatToBringArRaw: 'what_to_bring_ar_required',
+      },
+    });
+    expect(
+      await run(() =>
+        adminUpdateExperience(
+          initial,
+          form({ status: 'draft', inclusionsArRaw: '', whatToBringArRaw: '' }),
+        ),
+      ),
+    ).toBe(`REDIRECT:/admin/experience-moderation/${ID}`);
+    expect(fake.current?.updates[0]).toMatchObject({ status: 'draft', inclusionsAr: [] });
+  });
+
   it('is not_found for an unknown id and refuses a schedule change over live bookings', async () => {
     existing = undefined;
     expect(await adminUpdateExperience(initial, form())).toMatchObject({ message: 'not_found' });

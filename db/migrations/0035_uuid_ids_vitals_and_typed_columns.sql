@@ -28,7 +28,10 @@ ALTER TABLE "wallet_ledger" ALTER COLUMN "actor_user_id" SET DATA TYPE uuid USIN
 CREATE INDEX "web_vitals_created_idx" ON "web_vitals" USING btree ("created_at");--> statement-breakpoint
 CREATE INDEX "web_vitals_name_created_idx" ON "web_vitals" USING btree ("name","created_at");--> statement-breakpoint
 -- NOT VALID + VALIDATE: the constraint is enforced for new rows immediately and
--- existing rows are checked under a lighter lock (second-pass verification F26).
+-- existing rows are checked under a lighter lock — ONLY when the two statements
+-- run in separate transactions (e.g. two Supabase apply_migration calls).
+-- `pnpm db:migrate` wraps every pending migration in one transaction, so there
+-- the split is harmless but buys nothing (second-pass F26, third-round R7).
 ALTER TABLE "disputes" ADD CONSTRAINT "disputes_ticket_id_support_tickets_id_fk" FOREIGN KEY ("ticket_id") REFERENCES "public"."support_tickets"("id") ON DELETE set null ON UPDATE no action NOT VALID;
 ALTER TABLE "disputes" VALIDATE CONSTRAINT "disputes_ticket_id_support_tickets_id_fk";
 --> statement-breakpoint

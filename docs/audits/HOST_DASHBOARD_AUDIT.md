@@ -40,7 +40,7 @@ Verified against the local dev server signed in as the live host (3 live listing
 - Earnings math mirrors admin payouts to the riyal (snapshotted commission, VAT split out and labeled "to ZATCA", clawbacks shown as deductions), with printable per-transfer statements.
 - `getHostDashboard` is `cache()`d and **rethrows** on DB error — a transient outage renders the error boundary, not a redirect to `/host/apply`.
 - Auto-completion cron (date + 1) means payouts and reviews don't depend on hosts pressing "Mark completed".
-- Mobile drawer springs from the inline-start edge and flips in RTL; `[data-site-chrome]` hides the marketing nav so the rail _is_ the chrome.
+- Mobile drawer springs from the inline-start edge and flips in RTL; the marketing nav and footer belong to the `app/[locale]/(site)` route-group layout, so the dashboard segment never renders them and the rail _is_ the chrome (2026-09 engineering audit REACT-05).
 - No `TODO(ar)` leaked anywhere on the live host's Arabic pages; `dir="ltr"` isolation on phone, time, money, reference.
 
 ---

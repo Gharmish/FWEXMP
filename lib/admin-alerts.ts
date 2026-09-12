@@ -83,6 +83,11 @@ export async function notifyAdmin(
             eq(adminAlerts.kind, kind),
             gte(adminAlerts.createdAt, since),
             sql`${adminAlerts.detail}->>'fingerprint' = ${fingerprint}`,
+            // Only a PAGED alert opens a window. A suppressed row also
+            // carries the fingerprint; counting it let every hourly repeat
+            // extend the silence indefinitely, so an outage lasting days
+            // paged exactly once (third-round verification R2).
+            sql`${adminAlerts.detail}->>'suppressed' is null`,
           ),
         )
         .limit(1);

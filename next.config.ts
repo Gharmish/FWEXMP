@@ -57,7 +57,11 @@ const nextConfig: NextConfig = {
   // explicitly — otherwise the route 500s in production with ENOENT.
   outputFileTracingIncludes: {
     '/[locale]/opengraph-image': ['./lib/og/fonts/*.ttf'],
-    '/[locale]/experiences/[slug]/opengraph-image': ['./lib/og/fonts/*.ttf'],
+    // The experience card keeps the file convention, whose route gains a
+    // hash suffix inside the (site) route group — hence the glob (N2).
+    '/[locale]/experiences/[slug]/opengraph-image*': ['./lib/og/fonts/*.ttf'],
+    '/[locale]/experiences/[slug]/card.png': ['./lib/og/fonts/*.ttf'],
+    // The host card is a plain route handler at a stable URL (N1).
     '/[locale]/hosts/[slug]/opengraph-image': ['./lib/og/fonts/*.ttf'],
     // The booking-receipt email renders the invoice PDF (@react-pdf) with
     // the same brand TTFs off disk, plus the wordmark PNG in the header.

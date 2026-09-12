@@ -840,7 +840,7 @@ export default async function ExperienceDetailPage({
                     <li key={m.orderIndex}>
                       <StaggerItem className="grid grid-cols-[auto_1fr] gap-x-4">
                         <div className="flex flex-col items-center" aria-hidden>
-                          <span className="bg-saffron-gold ring-saffron-gold/15 mt-2 size-2.5 shrink-0 rounded-full ring-4" />
+                          <span className="bg-saffron-gold ring-saffron-gold/15 mt-1.5 size-2.5 shrink-0 rounded-full ring-4" />
                           {i < arr.length - 1 && (
                             <Draw className="mt-1 w-px flex-1">
                               <span className="bg-sarat-black/10 block size-full" />

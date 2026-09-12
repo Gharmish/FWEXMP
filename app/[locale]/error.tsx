@@ -1,14 +1,12 @@
 'use client';
 
-import { useEffect } from 'react';
-import { useLocale, useTranslations } from 'next-intl';
-import { Link } from '@/lib/i18n';
-import type { Locale } from '@/lib/i18n';
-import { buttonVariants } from '@/components/ui/button';
-import { MountFade } from '@/components/ui/motion';
-import { cn } from '@/lib/utils';
-import { reportError } from '@/lib/log';
+import { ErrorPage } from '@/components/layout/error-page';
 
+/**
+ * Locale-level error boundary: catches an error thrown inside the admin,
+ * host or (site) LAYOUT. It renders outside the (site) shell, so it brings
+ * its own <main> landmark for the skip link (third-round verification N3).
+ */
 export default function LocaleError({
   error,
   unstable_retry,
@@ -16,36 +14,9 @@ export default function LocaleError({
   error: Error & { digest?: string };
   unstable_retry: () => void;
 }) {
-  const locale = useLocale() as Locale;
-  const t = useTranslations('error');
-  const eyebrowClassName = cn('text-al-qatt-red-800 text-eyebrow');
-
-  useEffect(() => {
-    reportError(error, { surface: 'locale-error-boundary', locale, digest: error.digest });
-  }, [error, locale]);
-
   return (
-    <section className="mx-auto flex w-full max-w-6xl flex-1 items-center px-6 py-24">
-      <MountFade eager className="flex max-w-2xl flex-col gap-6">
-        <p className={eyebrowClassName}>{t('eyebrow')}</p>
-        <h1 className="text-h1-lg">{t('title')}</h1>
-        <p className="text-sarat-black-600 max-w-xl text-lg">{t('description')}</p>
-        <div className="flex flex-wrap gap-3">
-          <button
-            type="button"
-            onClick={() => unstable_retry()}
-            className={cn(buttonVariants({ variant: 'primary', size: 'lg' }))}
-          >
-            {t('retry')}
-          </button>
-          <Link
-            href="/experiences"
-            className={cn(buttonVariants({ variant: 'secondary', size: 'lg' }))}
-          >
-            {t('experiences')}
-          </Link>
-        </div>
-      </MountFade>
-    </section>
+    <main id="main-content" tabIndex={-1} className="flex flex-1 flex-col">
+      <ErrorPage error={error} retry={unstable_retry} surface="locale-error-boundary" />
+    </main>
   );
 }

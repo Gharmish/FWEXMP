@@ -102,9 +102,19 @@ export async function refundOutcomeUnknown(bookingId: string): Promise<boolean> 
       inArray(paymentEvents.type, [...REFUND_EVENT_TYPES]),
     ),
     orderBy: [desc(paymentEvents.createdAt), desc(paymentEvents.id)],
-    columns: { type: true, resultCode: true },
+    columns: { type: true, resultCode: true, createdAt: true },
   });
-  return latest?.type === 'refund_failed' && latest.resultCode === 'EXCEPTION';
+  if (!latest) return false;
+  if (latest.type === 'refund_failed' && latest.resultCode === 'EXCEPTION') return true;
+  // An attempt that never concluded is the same ambiguity once the
+  // in-flight window has passed: the executor writes a terminal row on
+  // every path it controls, so a dangling `refund_attempted` means the
+  // process or the database died right after the gateway call — the
+  // reversal MAY have landed (third-round verification R1).
+  return (
+    latest.type === 'refund_attempted' &&
+    Date.now() - latest.createdAt.getTime() >= REFUND_IN_FLIGHT_MAX_MS
+  );
 }
 
 /** Newest event of a given type for a booking, if any. */

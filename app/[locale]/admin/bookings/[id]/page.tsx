@@ -98,7 +98,12 @@ export default async function AdminBookingDetailPage({
   if (booking.cancellationKind) {
     rows.push({
       label: t('bookingDetail.cancellationKind'),
-      value: t(`bookingDetail.cancellationKinds.${booking.cancellationKind}`),
+      // Enum value straight from the DB: a member without copy shows its
+      // code rather than a raw key (third-round N4; the enum/catalog test
+      // in features/admin/bookings/enum-copy.test.ts keeps this rare).
+      value: t.has(`bookingDetail.cancellationKinds.${booking.cancellationKind}`)
+        ? t(`bookingDetail.cancellationKinds.${booking.cancellationKind}`)
+        : booking.cancellationKind,
     });
   }
   if (booking.cancellationReason) {
@@ -107,7 +112,9 @@ export default async function AdminBookingDetailPage({
   if (booking.refundMethod) {
     rows.push({
       label: t('bookingDetail.refundMethod'),
-      value: t(`bookingDetail.refundMethods.${booking.refundMethod}`),
+      value: t.has(`bookingDetail.refundMethods.${booking.refundMethod}`)
+        ? t(`bookingDetail.refundMethods.${booking.refundMethod}`)
+        : booking.refundMethod,
     });
   }
 

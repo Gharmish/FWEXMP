@@ -3,12 +3,23 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 vi.mock('next/cache', () => ({ revalidatePath: vi.fn() }));
 const env = vi.hoisted(() => ({ DATABASE_URL: 'postgres://test' }));
 vi.mock('@/lib/env', () => ({ serverEnv: env }));
-vi.mock('@/features/bookings/lib/access', () => ({ bookingViewerCanAccess: async () => true }));
-const core = vi.fn<(input: unknown) => Promise<Record<string, unknown>>>(async () => ({
-  success: true as const,
+const access = vi.hoisted(() => ({ allowed: true }));
+const canAccess = vi.fn<(reference: string, guestId: string) => Promise<boolean>>(
+  async () => access.allowed,
+);
+vi.mock('@/features/bookings/lib/access', () => ({
+  bookingViewerCanAccess: (reference: string, guestId: string) => canAccess(reference, guestId),
 }));
+interface CoreInput {
+  authorize: (guestId: string) => Promise<boolean>;
+}
+const core = vi.fn<(input: CoreInput) => Promise<Record<string, unknown>>>(async (input) =>
+  (await input.authorize('g-owner'))
+    ? { success: true as const }
+    : { success: false as const, message: 'not_found' },
+);
 vi.mock('@/features/bookings/lib/reschedule-core', () => ({
-  rescheduleBookingCore: (input: unknown) => core(input),
+  rescheduleBookingCore: (input: CoreInput) => core(input),
 }));
 
 import { rescheduleBookingAsGuest } from './reschedule-actions';
@@ -26,7 +37,9 @@ const initial = { success: false as const };
 
 beforeEach(() => {
   env.DATABASE_URL = 'postgres://test';
+  access.allowed = true;
   core.mockClear();
+  canAccess.mockClear();
 });
 
 describe('rescheduleBookingAsGuest', () => {
@@ -54,6 +67,16 @@ describe('rescheduleBookingAsGuest', () => {
     expect(core).toHaveBeenCalledWith(
       expect.objectContaining({ reference: REF, newDate: '2026-10-02', actor: 'guest' }),
     );
+  });
+
+  it('the authorize closure delegates to bookingViewerCanAccess; a refusal is not_found', async () => {
+    await rescheduleBookingAsGuest(initial, form());
+    expect(canAccess).toHaveBeenCalledWith(REF, 'g-owner');
+    access.allowed = false;
+    expect(await rescheduleBookingAsGuest(initial, form())).toEqual({
+      success: false,
+      message: 'not_found',
+    });
   });
 
   it('passes a core refusal straight through', async () => {

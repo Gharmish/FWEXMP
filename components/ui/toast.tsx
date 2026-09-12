@@ -119,7 +119,7 @@ function ToastCard({ item }: { item: ToastItem }) {
       onFocus={pause}
       onBlur={resume}
     >
-      <span aria-hidden className={cn('mt-2 size-2 shrink-0 rounded-full', TONE_DOT[item.tone])} />
+      <span aria-hidden className={cn('mt-1.5 size-2 shrink-0 rounded-full', TONE_DOT[item.tone])} />
       <div className="min-w-0 flex-1">
         <p className="text-sarat-black text-sm font-medium">
           {/* The colored dot is aria-hidden; give AT the tone in words. */}

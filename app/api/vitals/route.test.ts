@@ -66,18 +66,21 @@ describe('POST /api/vitals', () => {
     expect(fake.current?.inserts).toEqual([]);
   });
 
-  it('caps what one IP can insert', async () => {
-    recentFromIp = 60;
+  it('caps what one IP can insert — a request with no forwarded address shares one bucket', async () => {
+    recentFromIp = 240;
     expect((await post(valid)).status).toBe(429);
+    expect((await post(valid, { 'x-forwarded-for': '' })).status).toBe(429);
     expect(fake.current?.inserts).toEqual([]);
   });
 
-  it('re-collapses the path on the server, so a caller cannot file free text', async () => {
+  it('re-collapses the path on the server: known routes collapse, unknown ones share one bucket', async () => {
     await post({ ...valid, path: '/experiences/abha-sunrise-hike' });
     await post({ ...valid, path: '/admin/bookings/[id]' });
+    await post({ ...valid, path: '/wp-admin/setup-config.php' });
     expect(storedVitals().map((row) => row.path)).toEqual([
       '/experiences/[slug]',
       '/admin/bookings/[id]',
+      '/[other]',
     ]);
     expect((await post({ ...valid, path: '/x y<script>' })).status).toBe(400);
   });

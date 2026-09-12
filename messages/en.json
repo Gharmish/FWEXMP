@@ -803,6 +803,7 @@
       "pending": "Saving",
       "fieldInvalid": "Check this field.",
       "fieldArPlaceholder": "Arabic copy still contains a TODO(ar) marker — replace it with real Arabic before saving.",
+      "fieldArRequired": "A live listing needs the Arabic version of this list too — add it, or clear the English one.",
       "formValidation": "Some fields need attention — see the highlighted ones.",
       "formServer": "We couldn't save the changes. Try again in a moment.",
       "formNotFound": "This experience no longer exists.",

@@ -106,3 +106,18 @@ export interface HostCalendarDay {
   guests: number;
   pending: number;
 }
+
+/** Failure codes of the host booking transition action (the copy map in lib/booking-copy.ts keys on them). */
+export type HostBookingActionError =
+  | 'forbidden'
+  | 'suspended'
+  | 'no_db'
+  | 'not_found'
+  | 'wrong_state'
+  | 'over_capacity'
+  | 'too_early'
+  | 'too_late'
+  | 'unpaid'
+  | 'reason_required'
+  | 'validation'
+  | 'server';

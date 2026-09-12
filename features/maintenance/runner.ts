@@ -34,6 +34,8 @@ export const MONEY_PASSES: ReadonlySet<string> = new Set([
   '1d-refund-out-sweep',
   '2-reconcile',
   '2b-settle-aging',
+  // The blind-spot watch sees money nothing else can (third-round R4).
+  '2c-settle-blindspot',
 ]);
 
 export interface PassRunner {

@@ -21,11 +21,11 @@ import type {
  *     without payment (`pending`, or `confirmed` and not yet paid);
  *   - per IP: at most this many bookings created in the last hour.
  */
-export const MAX_ACTIVE_HOLDS_PER_PHONE = 3;
-export const MAX_BOOKINGS_PER_IP_PER_HOUR = 10;
+const MAX_ACTIVE_HOLDS_PER_PHONE = 3;
+const MAX_BOOKINGS_PER_IP_PER_HOUR = 10;
 
 /** First hop of x-forwarded-for — the client IP on Vercel. Null locally. */
-export async function clientIp(): Promise<string | null> {
+async function clientIp(): Promise<string | null> {
   const h = await headers();
   const forwarded = h.get('x-forwarded-for');
   const first = forwarded?.split(',')[0]?.trim();
@@ -37,7 +37,7 @@ export async function clientIp(): Promise<string | null> {
  * spot without payment. Shared by the count that trips `too_many` and
  * the lookup that shows the guest which bookings are holding it.
  */
-export function activePhoneHolds(phone: string) {
+function activePhoneHolds(phone: string) {
   return and(
     // Counts on the BOOKING's contact phone, not the guest row's
     // identity phone (2026-07-28 third audit). An email-OTP account's
@@ -63,7 +63,7 @@ export function activePhoneHolds(phone: string) {
  * typing someone else's phone number must never list their bookings.
  * Best-effort: any failure degrades to the generic message.
  */
-export async function verifiedOpenBookings(
+async function verifiedOpenBookings(
   phone: string,
   locale: 'en' | 'ar',
 ): Promise<OpenBookingSummary[]> {

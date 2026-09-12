@@ -47,7 +47,7 @@ export function ActivityTimeline({ items, locale, emptyLabel, t }: ActivityTimel
               <StaggerItem className="flex gap-4">
                 <div className="flex flex-col items-center">
                   <span
-                    className={`mt-2 size-2.5 shrink-0 rounded-full ${DOT_TONE[item.kind]}`}
+                    className={`mt-1.5 size-2.5 shrink-0 rounded-full ${DOT_TONE[item.kind]}`}
                     aria-hidden
                   />
                   {!last && (

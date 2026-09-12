@@ -190,6 +190,20 @@ export async function refundBooking(
     // second reversal on the card. Strict read: an unknown setting must
     // refuse (→ `server`) rather than guess a rail.
     const { refundsViaBankTransfer } = await getPlatformSettingsStrict();
+    // The unknown-outcome page must reach the operator on the bank-transfer
+    // rail too (third-round verification R1): the manual queue is where a
+    // booking whose gateway refund MAY already have landed ends up, and the
+    // wire happens by hand before this action records it.
+    if (gatewayOutcomeUnknown && refundsViaBankTransfer) {
+      await notifyAdmin('refund_due', {
+        bookingId: booking.id,
+        amountSar: owedSar,
+        problem:
+          'the last gateway refund attempt ended with an UNKNOWN outcome — check the ' +
+          'payment in the HyperPay console before wiring: the card may already have ' +
+          'been refunded. This action only records the refund.',
+      });
+    }
 
     // CLAIM FIRST, move money second. The conditional UPDATE is the
     // per-booking arbiter: two admins (or two tabs) racing on the same

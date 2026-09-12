@@ -9,12 +9,14 @@ import { collapseVitalsPath } from '@/features/analytics/vitals-path';
 /** One beacon is a few hundred bytes; anything larger is not ours. */
 const MAX_BODY_BYTES = 2048;
 /**
- * Per-IP ingest cap. A real visit sends at most five vitals per page and
- * only one visit in four reports at all, so sixty in ten minutes is far
- * above any human — and the ceiling on what a scripted caller can insert
- * (2026-09 engineering audit, second-pass verification F15).
+ * Per-IP ingest cap. A sampled visit sends up to five vitals per page
+ * view, and Saudi carriers put many visitors behind one CGNAT address
+ * (third-round verification R6), so the cap is sized for a busy shared
+ * egress — ~50 sampled page views in ten minutes — while still bounding
+ * what a scripted caller can insert (second-pass verification F15). A
+ * request with no forwarded address shares one 'unknown' bucket.
  */
-const PER_IP = { max: 60, windowMs: 10 * 60_000 };
+const PER_IP = { max: 240, windowMs: 10 * 60_000 };
 
 const vitalSchema = z.object({
   name: z.enum(WEB_VITAL_NAMES),
@@ -81,7 +83,7 @@ async function ipUnderCap(ip: string): Promise<boolean> {
 export async function POST(request: Request): Promise<Response> {
   if (!sameOrigin(request)) return new Response(null, { status: 403 });
   const text = await request.text();
-  if (text.length > MAX_BODY_BYTES) return new Response(null, { status: 413 });
+  if (Buffer.byteLength(text, 'utf8') > MAX_BODY_BYTES) return new Response(null, { status: 413 });
   let json: unknown;
   try {
     json = JSON.parse(text);
@@ -91,9 +93,9 @@ export async function POST(request: Request): Promise<Response> {
   const parsed = vitalSchema.safeParse(json);
   if (!parsed.success) return new Response(null, { status: 400 });
   if (!serverEnv.DATABASE_URL) return new Response(null, { status: 204 });
-  const ip = clientIp(request);
+  const ip = clientIp(request) ?? 'unknown';
   try {
-    if (ip && !(await ipUnderCap(ip))) return new Response(null, { status: 429 });
+    if (!(await ipUnderCap(ip))) return new Response(null, { status: 429 });
     await db.insert(webVitals).values({
       name: parsed.data.name,
       value: parsed.data.value,

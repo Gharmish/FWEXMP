@@ -27,7 +27,6 @@ import { getMessages, getTranslations, setRequestLocale } from 'next-intl/server
  */
 export const dynamic = 'force-dynamic';
 import { preload } from 'react-dom';
-import { bricolage } from '@/lib/fonts';
 import { routing, localeDirection, type Locale } from '@/lib/i18n';
 import { pickClientMessages } from '@/lib/client-messages';
 import { ScrollToTop } from '@/components/layout/scroll-to-top';
@@ -124,21 +123,21 @@ export default async function LocaleLayout({
   // full catalog. The public shell itself lives in (site)/layout.tsx.
   const clientMessages = pickClientMessages(await getMessages(), 'base');
 
-  // Arabic pages preload all three weights so headings paint in the brand
-  // face instead of swapping in after the CSS parse (PERF-05): 400 is the
-  // body, 500 every text-h2/h3 and font-medium label, 600 the display tier.
-  if (locale === 'ar') {
-    for (const weight of [400, 500, 600]) {
-      preload(`/fonts/ibm-plex-sans-arabic-${weight}.woff2`, {
-        as: 'font',
-        type: 'font/woff2',
-        crossOrigin: 'anonymous',
-      });
-    }
+  // Each locale preloads only the family it draws with (PERF-05, second-
+  // pass F8): Arabic pages the three Plex weights — 400 body, 500 every
+  // text-h2/h3 and font-medium label, 600 the display tier — and English
+  // pages the single variable Bricolage file. Nothing is fetched for the
+  // other script.
+  const fontFiles =
+    locale === 'ar'
+      ? [400, 500, 600].map((weight) => `/fonts/ibm-plex-sans-arabic-${weight}.woff2`)
+      : ['/fonts/bricolage-grotesque-variable.woff2'];
+  for (const href of fontFiles) {
+    preload(href, { as: 'font', type: 'font/woff2', crossOrigin: 'anonymous' });
   }
 
   return (
-    <html lang={locale} dir={dir} className={`${bricolage.variable} h-full antialiased`}>
+    <html lang={locale} dir={dir} className="h-full antialiased">
       <body className="flex min-h-full flex-col">
         <NextIntlClientProvider messages={clientMessages}>
           <DirectionProvider direction={dir}>

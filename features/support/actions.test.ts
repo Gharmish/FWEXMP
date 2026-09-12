@@ -119,6 +119,35 @@ describe('replyToConversation', () => {
   });
 });
 
+describe('admin perimeter', () => {
+  it('every action refuses a non-admin with no write and no send', async () => {
+    guard = { reason: 'not_admin' };
+    actor = { refused: true };
+    expect(await replyToConversation(initial, form({ conversationId: CID, body: 'hi' }))).toEqual({
+      success: false,
+      message: 'forbidden',
+    });
+    expect(
+      await setConversationState(initial, form({ conversationId: CID, state: 'closed' })),
+    ).toEqual({
+      success: false,
+      message: 'forbidden',
+    });
+    expect(await resolveTicket(initial, form({ ticketId: CID }))).toEqual({
+      success: false,
+      message: 'forbidden',
+    });
+    expect(await nudgeConversation(initial, form({ conversationId: CID }))).toEqual({
+      success: false,
+      message: 'forbidden',
+    });
+    expect(fake.current?.updates).toEqual([]);
+    expect(fake.current?.inserts).toEqual([]);
+    expect(reply).not.toHaveBeenCalled();
+    expect(template).not.toHaveBeenCalled();
+  });
+});
+
 describe('setConversationState / resolveTicket / nudgeConversation', () => {
   it('flips the state and clears the agent lock; unknown ids are not_found', async () => {
     expect(

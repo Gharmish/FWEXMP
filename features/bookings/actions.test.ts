@@ -62,7 +62,9 @@ vi.mock('next/headers', () => ({
     get: (name: string) =>
       name === 'gharmish_cookie_notice' && consentCookie
         ? { name, value: consentCookie }
-        : undefined,
+        : name === LAST_BOOKING_COOKIE && lastBookingCookie
+          ? { name, value: lastBookingCookie }
+          : undefined,
   }),
 }));
 
@@ -114,14 +116,25 @@ vi.mock('@/features/bookings/lib/reference-code', () => ({
 
 const sendHostNewBookingEmail = vi.fn(async () => undefined);
 const sendBookingRequestReceivedEmail = vi.fn(async () => undefined);
+const sendBookingAwaitingPaymentEmail = vi.fn(async () => undefined);
 vi.mock('@/features/bookings/lib/booking-email', () => ({
   sendHostNewBookingEmail: (...args: unknown[]) => sendHostNewBookingEmail(...(args as [])),
   sendBookingRequestReceivedEmail: (...args: unknown[]) =>
     sendBookingRequestReceivedEmail(...(args as [])),
+  sendBookingAwaitingPaymentEmail: (...args: unknown[]) =>
+    sendBookingAwaitingPaymentEmail(...(args as [])),
+}));
+vi.mock('@/lib/booking-link-token', () => ({
+  bookingLinkTokenValid: (_reference: string, token?: string) => token === 'valid-token',
+}));
+const releaseWalletReservation = vi.fn(async () => ({ released: true, amountSar: 50 }));
+vi.mock('@/features/wallet/reservation', () => ({
+  releaseWalletReservation: (...args: unknown[]) => releaseWalletReservation(...(args as [])),
 }));
 
 interface MockExperience {
   id: string;
+  category: string;
   priceSar: number;
   maxGroupSize: number;
   startTime: string;
@@ -145,6 +158,22 @@ let replayRow:
       settleAnomalyAt?: Date | null;
     }
   | undefined;
+/** The unpaid hold a `supersedes` post names (read by the same bookings.findFirst). */
+let holdRow:
+  | {
+      id: string;
+      contactPhone: string;
+      status: string;
+      paymentStatus: string;
+      paymentDeadline: Date | null;
+      settleAnomalyAt: Date | null;
+      walletAppliedSar: number;
+    }
+  | undefined;
+/** Rows the superseded-hold release UPDATE reports as flipped. */
+let releasedRows: Array<{ id: string }> = [];
+/** Value of this device's last-booking cookie (null = absent). */
+let lastBookingCookie: string | null = null;
 let guestRow:
   | {
       id: string;
@@ -197,7 +226,7 @@ vi.mock('@/lib/db', () => ({
   db: {
     query: {
       experiences: { findFirst: async () => experience },
-      bookings: { findFirst: async () => replayRow },
+      bookings: { findFirst: async () => replayRow ?? holdRow },
       guests: { findFirst: async () => guestRow },
     },
     select: (shape: Record<string, unknown>) => {
@@ -214,7 +243,11 @@ vi.mock('@/lib/db', () => ({
     update: () => ({
       set: (values: Record<string, unknown>) => {
         guestUpdates.push(values);
-        return { where: async () => undefined };
+        const where = () =>
+          Object.assign(Promise.resolve(undefined), {
+            returning: async () => releasedRows,
+          });
+        return { where };
       },
     }),
     insert: makeInsert(),
@@ -227,6 +260,7 @@ vi.mock('@/lib/db', () => ({
   },
 }));
 
+import { LAST_BOOKING_COOKIE, serializeLastBookingCookie } from '@/features/account/cookie';
 import { requestBooking, type BookingRequestState } from './actions';
 
 const IDEMPOTENCY_KEY = '3f1f2e6a-1111-4222-8333-444455556666';
@@ -275,6 +309,9 @@ beforeEach(() => {
   consentCookie = null;
   hyperpayOn = true;
   replayRow = undefined;
+  holdRow = undefined;
+  releasedRows = [];
+  lastBookingCookie = null;
   guestRow = undefined;
   phoneHolds = 0;
   ipRecent = 0;
@@ -282,6 +319,7 @@ beforeEach(() => {
   slotCloseMs = null;
   experience = {
     id: 'e-1',
+    category: 'food',
     priceSar: 260,
     maxGroupSize: 12,
     startTime: '09:00',
@@ -314,6 +352,9 @@ describe('requestBooking — happy paths', () => {
     expect(sendHostNewBookingEmail).not.toHaveBeenCalled();
     await afterCallbacks[0]();
     expect(sendHostNewBookingEmail).toHaveBeenCalledWith(IDEMPOTENCY_KEY);
+    // The "your spot is held until…" email with the pay link (third-round R9).
+    expect(sendBookingAwaitingPaymentEmail).toHaveBeenCalledWith(IDEMPOTENCY_KEY, 'created');
+    expect(reportError).not.toHaveBeenCalled();
   });
 
   it('request mode: inserts a pending request with an approval deadline and lands on the confirmation page', async () => {
@@ -553,6 +594,84 @@ describe('requestBooking — throttles & guards', () => {
 
     expect(insertedBookings).toHaveLength(1);
     expect(insertedBookings[0]).toMatchObject({ contactPhone: '+966555000333' });
+  });
+});
+
+describe('requestBooking — attestation gates (third-round R7)', () => {
+  it('the terms clickwrap is enforced server-side', async () => {
+    const out = await requestBooking(initial, form({ terms: '' }));
+    expect(out).toMatchObject({ message: 'validation', fields: { terms: 'required' } });
+    expect(insertedBookings).toEqual([]);
+  });
+
+  it('a women-only listing needs the eligibility acknowledgment', async () => {
+    experience = { ...experience!, category: 'women_only' };
+    expect(await requestBooking(initial, form())).toMatchObject({
+      fields: { womenOnly: 'required' },
+    });
+    const target = await runExpectingRedirect(form({ womenOnly: 'on' }));
+    expect(target.href).toContain('/pay');
+    expect(insertedBookings[0].womenOnlyAttestedAt).toBeInstanceOf(Date);
+  });
+
+  it('a minimum age needs the party attestation', async () => {
+    experience = { ...experience!, minAge: 16 };
+    expect(await requestBooking(initial, form())).toMatchObject({ fields: { minAge: 'required' } });
+    await runExpectingRedirect(form({ minAge: 'on' }));
+    expect(insertedBookings[0].minAgeAttestedAt).toBeInstanceOf(Date);
+  });
+});
+
+describe('requestBooking — superseding an unpaid hold (third-round R7)', () => {
+  const HOLD_REF = '9a9a9a9a-2222-4333-8444-555566667777';
+  const liveHold = () => ({
+    id: 'hold-1',
+    contactPhone: '+966512345678',
+    status: 'confirmed',
+    paymentStatus: 'unpaid',
+    paymentDeadline: new Date(Date.now() + 20 * 60_000),
+    settleAnomalyAt: null,
+    walletAppliedSar: 50,
+  });
+  /** No idempotency key so the replay fast path is skipped and the hold lookup is the only bookings read. */
+  const superseding = (extra: Record<string, string> = {}) =>
+    form({ idempotencyKey: '', supersedes: HOLD_REF, ...extra });
+
+  it('a bare reference is NOT proof: the hold keeps counting toward the throttle and is never released', async () => {
+    holdRow = liveHold();
+    phoneHolds = 3; // at the cap — only a proven supersede discounts one
+    expect(await requestBooking(initial, superseding())).toMatchObject({ message: 'too_many' });
+    expect(insertedBookings).toEqual([]);
+    expect(guestUpdates.some((u) => u.status === 'cancelled')).toBe(false);
+    expect(releaseWalletReservation).not.toHaveBeenCalled();
+  });
+
+  it('the device cookie proves ownership: the hold is discounted, released with its liveness re-asserted, and its credit returned', async () => {
+    holdRow = liveHold();
+    releasedRows = [{ id: 'hold-1' }];
+    lastBookingCookie = serializeLastBookingCookie({
+      reference: HOLD_REF,
+      experienceSlug: 'asiri-coffee',
+    });
+    phoneHolds = 3;
+    await runExpectingRedirect(superseding());
+    expect(insertedBookings).toHaveLength(1);
+    expect(guestUpdates.at(-1)).toMatchObject({ status: 'cancelled', cancellationKind: 'system' });
+    expect(releaseWalletReservation).toHaveBeenCalledWith('hold-1');
+  });
+
+  it('a signed link token proves ownership too; a lapsed hold is left alone', async () => {
+    holdRow = liveHold();
+    releasedRows = [{ id: 'hold-1' }];
+    phoneHolds = 3;
+    await runExpectingRedirect(superseding({ supersedesToken: 'valid-token' }));
+    expect(guestUpdates.at(-1)).toMatchObject({ status: 'cancelled' });
+    guestUpdates.length = 0;
+    insertedBookings.length = 0;
+    holdRow = { ...liveHold(), paymentDeadline: new Date(Date.now() - 1) };
+    phoneHolds = 0;
+    await runExpectingRedirect(superseding({ supersedesToken: 'valid-token' }));
+    expect(guestUpdates.some((u) => u.status === 'cancelled')).toBe(false);
   });
 });
 

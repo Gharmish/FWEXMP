@@ -1,7 +1,7 @@
 import { readdirSync, statSync } from 'node:fs';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { collapseVitalsPath } from './vitals-path';
+import { KNOWN_ROOTS, collapseVitalsPath } from './vitals-path';
 
 /**
  * Every dynamic route under app/ must collapse to a placeholder, so a
@@ -31,6 +31,22 @@ function routes(dir: string, segments: string[] = [], out: string[][] = []): str
   }
   return out;
 }
+
+describe('KNOWN_ROOTS covers every top-level route the app serves', () => {
+  it('lists each first segment under app/[locale] (route groups flattened)', () => {
+    const roots = new Set<string>();
+    const visit = (dir: string) => {
+      for (const entry of readdirSync(dir)) {
+        const full = path.join(dir, entry);
+        if (!statSync(full).isDirectory()) continue;
+        if (entry.startsWith('(')) visit(full);
+        else if (!entry.startsWith('[')) roots.add(entry);
+      }
+    };
+    visit(path.join(APP, '[locale]'));
+    expect([...roots].filter((r) => !KNOWN_ROOTS.has(r))).toEqual([]);
+  });
+});
 
 describe('collapseVitalsPath over every dynamic route in app/', () => {
   const dynamic = routes(APP).filter((segs) => segs.some((s) => s.startsWith('[')));

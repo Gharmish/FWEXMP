@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { createDbFake } from '@/lib/test/db-fake';
+import { createDbFake, referencedColumns } from '@/lib/test/db-fake';
 
 vi.mock('next/cache', () => ({ revalidatePath: vi.fn() }));
 vi.mock('@/lib/log', () => ({ reportError: vi.fn() }));
@@ -145,6 +145,11 @@ describe('approveApplication', () => {
     });
     expect(inserts[2]).toMatchObject({ applicationId: ID, event: 'approved', reviewerNotes: 'ok' });
     expect(fake.current?.updates[1]).toEqual({ hostId: 'h1' });
+    // The claim is conditional on the application still being pending —
+    // re-approving an approved application would mint a second host row.
+    expect(referencedColumns(fake.current?.updateConditions[0])).toEqual(
+      expect.arrayContaining(['id', 'status']),
+    );
     expect(approvedEmail).toHaveBeenCalledWith(
       expect.objectContaining({ contactEmail: 'sara@example.com', displayName: 'Sara Coffee' }),
     );
@@ -169,6 +174,9 @@ describe('rejectApplication / reviewDocument', () => {
       `REDIRECT:/admin/host-applications/${ID}`,
     );
     expect(fake.current?.inserts[0]).toMatchObject({ event: 'rejected', reviewerNotes: note });
+    expect(referencedColumns(fake.current?.updateConditions[0])).toEqual(
+      expect.arrayContaining(['id', 'status']),
+    );
     expect(rejectedEmail).toHaveBeenCalledTimes(1);
     claimed = [];
     expect(await rejectApplication(initial, form({ reviewerNotes: note }))).toMatchObject({

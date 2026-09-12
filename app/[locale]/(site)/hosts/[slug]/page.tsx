@@ -76,14 +76,21 @@ export async function generateMetadata({
       },
     },
     openGraph: {
-      // og:image is supplied by the co-located opengraph-image.tsx (dynamic,
-      // per-host). Omitting it here lets the file convention win.
+      // The host card is served by opengraph-image/route.ts at a STABLE
+      // URL (third-round N1): inside a route group the file convention
+      // would hash the path and break every preview already shared.
       title,
       description,
       url,
       type: 'profile',
+      images: [{ url: `${url}/opengraph-image`, width: 1200, height: 630 }],
     },
-    twitter: { card: 'summary_large_image', title, description },
+    twitter: {
+      card: 'summary_large_image',
+      title,
+      description,
+      images: [`${url}/opengraph-image`],
+    },
   };
 }
 

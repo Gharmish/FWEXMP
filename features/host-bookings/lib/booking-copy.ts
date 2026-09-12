@@ -1,6 +1,6 @@
 import type { getTranslations } from 'next-intl/server';
 import type { HostTransitionCopy } from '@/features/host-bookings/components/host-transition-button';
-import type { HostBookingActionError } from '@/features/host-bookings/actions';
+import type { HostBookingActionError } from '@/features/host-bookings/types';
 import type { BookingTransitionTarget } from '@/features/bookings/lib/transitions';
 
 type T = Awaited<ReturnType<typeof getTranslations<'hostBookings'>>>;
