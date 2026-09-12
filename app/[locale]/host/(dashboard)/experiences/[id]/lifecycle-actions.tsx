@@ -15,7 +15,7 @@ import {
   pauseHostExperience,
   type HostExperienceState,
 } from '@/features/host-experiences/actions';
-import type { ReadinessKey } from '@/features/host-experiences/lib/readiness';
+import type { ReadinessKey } from '@/features/listings/lib/readiness';
 
 type ErrorKey =
   | 'cannot_publish'

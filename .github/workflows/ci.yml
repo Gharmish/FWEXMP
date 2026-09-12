@@ -63,3 +63,45 @@ jobs:
           name: playwright-report
           path: playwright-report/
           retention-days: 7
+
+  # Database-backed end-to-end (2026-09 engineering audit TEST-09): a
+  # throwaway Postgres is migrated from db/migrations and seeded with the
+  # sample catalog, then Playwright books through the real server action
+  # and signs in to the DB-backed admin. No Supabase, no gateway, no
+  # notification keys — every provider degrades to its no-op path.
+  e2e-db:
+    needs: checks
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: gharmish
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd pg_isready --health-interval 10s --health-timeout 5s --health-retries 5
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/gharmish
+      DIRECT_URL: postgresql://postgres:postgres@localhost:5432/gharmish
+      E2E_DB: '1'
+      ADMIN_PHONES: '+966541104000'
+      SEED_ALLOW_DESTRUCTIVE: '1'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm db:migrate
+      - run: pnpm db:seed
+      - run: pnpm exec playwright install --with-deps chromium
+      - run: pnpm test:e2e e2e/db
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-report-db
+          path: playwright-report/
+          retention-days: 7

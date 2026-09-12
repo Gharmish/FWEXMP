@@ -4,7 +4,7 @@ import {
   newExperienceSchema,
   durationMinutesFromPair,
   normalizeDigits,
-} from '@/features/host-experiences/schemas';
+} from '@/features/listings/schemas';
 const base = {
   titleEn: '',
   titleAr: '',

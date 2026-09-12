@@ -8,7 +8,7 @@ import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { ConfirmSubmit } from '@/components/ui/confirm-dialog';
 import type { GalleryState } from '@/features/admin/experiences/gallery-actions';
-import { ACCEPTED_PHOTO_ATTR, validateSelectedPhoto } from '@/features/host-experiences/lib/photo';
+import { ACCEPTED_PHOTO_ATTR, validateSelectedPhoto } from '@/features/listings/lib/photo';
 import { readFileAsDataUrl } from '@/features/host-experiences/lib/image-process';
 import {
   HeroCropper,

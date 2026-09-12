@@ -10,7 +10,7 @@ import { redirect } from '@/lib/i18n';
 import { reportError } from '@/lib/log';
 import { getSupabaseUserStorage } from '@/lib/supabase/server';
 import { adminFailureMessage, adminGateRefused, requireAdminActor } from '@/features/admin/guard';
-import { heroObjectKey, validatePhoto } from '@/features/host-experiences/lib/photo';
+import { heroObjectKey, validatePhoto } from '@/features/listings/lib/photo';
 import type { UploadHeroState } from '@/features/host-experiences/photo-actions';
 
 const PHOTO_BUCKET = 'photos';

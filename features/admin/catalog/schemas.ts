@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { EXPERIENCE_CATEGORIES } from '@/features/host-experiences/schemas';
+import { EXPERIENCE_CATEGORIES } from '@/features/listings/schemas';
 
 /**
  * Zod for the admin catalog surface (categories × cities coverage).

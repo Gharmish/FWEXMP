@@ -1,6 +1,6 @@
 import { Check, Circle } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import type { ReadinessItem, ReadinessKey } from '@/features/host-experiences/lib/readiness';
+import type { ReadinessItem, ReadinessKey } from '@/features/listings/lib/readiness';
 
 export interface ReadinessCardCopy {
   heading: string;

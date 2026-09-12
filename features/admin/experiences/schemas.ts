@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { isArPlaceholder } from '@/lib/ar-placeholder';
-import { hostExperienceInputSchema } from '@/features/host-experiences/schemas';
+import { hostExperienceInputSchema } from '@/features/listings/schemas';
 
 /**
  * Admin experience editor schema. Admins can change *everything* a host

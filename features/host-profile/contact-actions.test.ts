@@ -47,7 +47,7 @@ vi.mock('@/features/auth/queries', () => ({
   getCurrentUser: async () => ({ id: 'user-1' }),
 }));
 vi.mock('@/lib/supabase/server', () => ({ getSupabaseUserStorage: async () => null }));
-vi.mock('@/features/host-experiences/lib/photo', () => ({
+vi.mock('@/features/listings/lib/photo', () => ({
   validatePhoto: () => ({ ok: true }),
   objectKeyFromPublicUrl: () => null,
 }));

@@ -17,7 +17,7 @@ import { getEnabledCities } from '@/lib/cities';
 import { tierDescriptions, tierNames } from '@/features/bookings/lib/policy-copy';
 import { getHostDashboard } from '@/features/host-dashboard/queries';
 import { getMyExperienceById, getMyExperienceMoments } from '@/features/host-experiences/queries';
-import { listingReadiness, publishBlockers } from '@/features/host-experiences/lib/readiness';
+import { listingReadiness, publishBlockers } from '@/features/listings/lib/readiness';
 import { ReadinessCard } from '@/features/host-experiences/components/readiness-card';
 import {
   addMomentAsHost,

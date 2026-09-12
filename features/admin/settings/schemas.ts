@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { EXPERIENCE_CATEGORIES } from '@/features/host-experiences/schemas';
+import { EXPERIENCE_CATEGORIES } from '@/features/listings/schemas';
 
 /**
  * Platform settings form schema. Commission is entered as a percentage in

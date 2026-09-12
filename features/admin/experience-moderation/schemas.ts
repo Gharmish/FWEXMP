@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { linesFromTextarea } from '@/features/host-experiences/schemas';
+import { linesFromTextarea } from '@/features/listings/schemas';
 
 /**
  * Admin moderation actions. Notes are optional on approve, required

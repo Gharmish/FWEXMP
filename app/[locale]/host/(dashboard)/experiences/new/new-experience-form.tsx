@@ -10,7 +10,7 @@ import {
   createDraftExperience,
   type HostExperienceState,
 } from '@/features/host-experiences/actions';
-import { EXPERIENCE_CATEGORIES } from '@/features/host-experiences/schemas';
+import { EXPERIENCE_CATEGORIES } from '@/features/listings/schemas';
 
 /**
  * Step one of a new listing: a name (in either language) and a

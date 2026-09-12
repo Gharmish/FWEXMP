@@ -1,5 +1,5 @@
 import { isArPlaceholder } from '@/lib/ar-placeholder';
-import { hasMeetingPoint, UNSET_NUMBER, UNSET_TEXT } from '@/features/host-experiences/schemas';
+import { hasMeetingPoint, UNSET_NUMBER, UNSET_TEXT } from '@/features/listings/schemas';
 
 /**
  * Listing readiness — ONE predicate behind both the host's checklist

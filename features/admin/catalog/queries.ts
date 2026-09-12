@@ -4,7 +4,7 @@ import { sql } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import { adminGuard } from '@/features/admin/guard';
 import { experiences } from '@/db/schema';
-import { EXPERIENCE_CATEGORIES } from '@/features/host-experiences/schemas';
+import { EXPERIENCE_CATEGORIES } from '@/features/listings/schemas';
 import { getPlatformSettings } from '@/lib/platform-settings';
 import { getCities, type City } from '@/lib/cities';
 import type { Category } from '@/lib/colors';

@@ -13,7 +13,7 @@ import {
   galleryObjectKey,
   objectKeyFromPublicUrl,
   validatePhoto,
-} from '@/features/host-experiences/lib/photo';
+} from '@/features/listings/lib/photo';
 
 const PHOTO_BUCKET = 'photos';
 

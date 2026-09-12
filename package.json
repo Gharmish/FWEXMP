@@ -30,6 +30,7 @@
     "scan": "node --import tsx scripts/scan.ts",
     "format": "prettier --write .",
     "db:generate": "drizzle-kit generate",
+    "db:migrate": "drizzle-kit migrate",
     "db:push": "drizzle-kit push",
     "db:studio": "drizzle-kit studio",
     "db:seed": "node --env-file-if-exists=.env --import tsx db/seed.ts",

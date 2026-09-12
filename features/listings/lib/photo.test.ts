@@ -6,7 +6,7 @@ import {
   objectKeyFromPublicUrl,
   validatePhoto,
   validateSelectedPhoto,
-} from '@/features/host-experiences/lib/photo';
+} from '@/features/listings/lib/photo';
 
 describe('validatePhoto', () => {
   it('accepts each supported type and maps it to an extension', () => {

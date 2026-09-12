@@ -12,8 +12,8 @@ import {
   adminCreateExperienceSchema,
   adminExperienceSchema,
 } from '@/features/admin/experiences/schemas';
-import { experienceSlugFromTitle } from '@/features/host-experiences/lib/slug';
-import { scheduleChangeBlocked } from '@/features/host-experiences/lib/schedule-guard';
+import { experienceSlugFromTitle } from '@/features/listings/lib/slug';
+import { scheduleChangeBlocked } from '@/features/listings/lib/schedule-guard';
 
 // Abha city centre — default location until the map picker lands
 // (mirrors the host create action).

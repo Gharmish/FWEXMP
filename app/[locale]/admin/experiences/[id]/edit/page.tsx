@@ -9,7 +9,7 @@ import { getAdminExperienceForEdit, isAdminAndDbReady } from '@/features/admin/e
 import { getCancellationTiers } from '@/features/bookings/lib/cancellation-policy';
 import { tierDescriptions } from '@/features/bookings/lib/policy-copy';
 import { BOOKING_MODES, EXPERIENCE_STATUSES } from '@/features/admin/experiences/schemas';
-import { EXPERIENCE_CATEGORIES } from '@/features/host-experiences/schemas';
+import { EXPERIENCE_CATEGORIES } from '@/features/listings/schemas';
 import { getEnabledCities } from '@/lib/cities';
 import { AdminExperienceForm } from '@/app/[locale]/admin/experiences/[id]/edit/admin-experience-form';
 import { GalleryManager } from '@/app/[locale]/admin/experiences/[id]/edit/gallery-manager';

@@ -7,21 +7,11 @@ import { serverEnv } from '@/lib/env';
 import { reportError } from '@/lib/log';
 import { bookings } from '@/db/schema';
 import { holdStillCounts } from '@/features/bookings/lib/capacity-sql';
+export type { ScheduleData } from '@/features/availability/types';
+import type { ScheduleData } from '@/features/availability/types';
 
 /** Statuses that occupy a spot for capacity display (mirrors the booking action). */
 const ACTIVE_STATUSES = ['pending', 'confirmed', 'completed'] as const;
-
-export interface ScheduleData {
-  availabilityWeekdays: number[];
-  blackoutDates: string[];
-  stopSellDates: string[];
-  maxGroupSize: number;
-  startTime: string;
-  /** Hours before start that bookings close for the day (host-settable). */
-  bookingCutoffHours: number;
-  /** date `YYYY-MM-DD` → spots already taken by active bookings. */
-  bookedByDate: Record<string, number>;
-}
 
 /**
  * Availability + per-day booked counts for one experience over a date

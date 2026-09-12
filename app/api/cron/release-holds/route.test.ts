@@ -31,6 +31,9 @@ vi.mock('@/lib/admin-alerts', () => ({
 
 const env = vi.hoisted(() => ({ CRON_SECRET: 'test-secret', DATABASE_URL: 'postgres://test' }));
 vi.mock('@/lib/env', () => ({ serverEnv: env, hasSupportAgent: () => false }));
+vi.mock('@/lib/supabase/server', () => ({
+  getSupabaseServiceStorage: () => (kycStorage ? { from: () => kycStorage } : null),
+}));
 
 // Support-line sweeps (phase 1/2) are DB-bound and covered by their own
 // modules; here they must simply not interfere with the booking passes.
@@ -115,6 +118,13 @@ let reminderStamps = 0;
 let finalStamps = 0;
 let heartbeats = 0;
 let updateFailure: Error | null = null;
+/** Pass 6 (wallet expiry) and pass 8 (KYC purge) fixtures — TEST-04. */
+let expiringLots: Array<{ id: string; guestId: string; amountSar: number }> = [];
+let walletBalance = { balance: 0, refundCredits: 0, refundOuts: 0 };
+let staleKycDocs: Array<{ id: string; objectKey: string }> = [];
+const removedObjects: string[] = [];
+let kycStorage: { remove: (keys: string[]) => Promise<{ error: null }> } | null = null;
+const inserted: Array<Record<string, unknown>> = [];
 
 function updateResult(rows: unknown[]) {
   const p = Promise.resolve(undefined) as Promise<unknown> & {
@@ -156,7 +166,21 @@ vi.mock('@/lib/db', () => ({
     // The reminder pass now joins experiences + hosts (to skip withdrawn
     // experiences) and orders before limiting, so the chain is deeper.
     // Chainable stub: every link returns itself until a terminal await.
-    select: () => {
+    // Chainable stub routed by the projected shape: the reminder pass
+    // (default), the wallet-expiry lots and balance, the KYC purge, and
+    // the settlement/VAT guards that only need an empty answer.
+    select: (shape: Record<string, unknown> = {}) => {
+      const rows = () => {
+        if ('amountSar' in shape && 'guestId' in shape) return expiringLots;
+        if ('balance' in shape) return [walletBalance];
+        if ('objectKey' in shape) return staleKycDocs;
+        if ('crossing' in shape) return [{ crossing: 0, total: 0 }];
+        if ('refs' in shape) return [{ n: 0, refs: '' }];
+        if ('alertedAt' in shape || 'vatEnabled' in shape) return [];
+        if ('netSar' in shape) return [{ netSar: 0 }];
+        if ('lossSar' in shape) return [{ count: 0, lossSar: 0 }];
+        return reminderRows;
+      };
       const chain: Record<string, unknown> = {};
       const link = () => chain;
       chain.from = link;
@@ -165,18 +189,26 @@ vi.mock('@/lib/db', () => ({
       chain.orderBy = link;
       chain.groupBy = link;
       chain.where = link;
-      chain.limit = async () => reminderRows;
+      chain.limit = async () => rows();
       // Some passes await `.where(...)` directly with no limit.
-      chain.then = (resolve: (v: unknown) => unknown) => resolve(reminderRows);
+      chain.then = (resolve: (v: unknown) => unknown) => resolve(rows());
       return chain;
     },
     insert: () => ({
-      values: () => ({
-        onConflictDoUpdate: async () => {
-          heartbeats += 1;
-        },
-      }),
+      values: (values: Record<string, unknown>) => {
+        inserted.push(values);
+        return {
+          onConflictDoUpdate: async () => {
+            heartbeats += 1;
+          },
+          onConflictDoNothing: async () => undefined,
+        };
+      },
     }),
+    // The wallet-expiry pass takes the guest's advisory lock inside a
+    // transaction; the fake hands itself back.
+    execute: async () => undefined,
+    transaction: async (cb: (tx: unknown) => Promise<unknown>) => cb((await import('@/lib/db')).db),
     // Retention passes (throttle events, analytics) — bounded deletes.
     delete: () => ({ where: async () => undefined }),
   },
@@ -192,6 +224,17 @@ function cronRequest(bearer = 'test-secret') {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  expiringLots = [];
+  walletBalance = { balance: 0, refundCredits: 0, refundOuts: 0 };
+  staleKycDocs = [];
+  removedObjects.length = 0;
+  inserted.length = 0;
+  kycStorage = {
+    remove: async (keys) => {
+      removedObjects.push(...keys);
+      return { error: null };
+    },
+  };
   expiredRows = [];
   releasedRows = [];
   completedRows = [];
@@ -415,5 +458,48 @@ describe('GET /api/cron/release-holds', () => {
       expect.objectContaining({ passes: '3c-support-inbound', heartbeat: 'stamped' }),
       expect.anything(),
     );
+  });
+});
+
+describe('wallet credit expiry (pass 6) — TEST-04 fixtures', () => {
+  it('expires a lapsed lot, floored at the unprotected balance, once', async () => {
+    expiringLots = [{ id: 'lot1', guestId: 'g1', amountSar: 100 }];
+    walletBalance = { balance: 60, refundCredits: 0, refundOuts: 0 };
+    const body = await (await GET(cronRequest())).json();
+    expect(body.expiredCreditSar).toBe(60);
+    expect(inserted.find((row) => row.type === 'expiry')).toMatchObject({
+      guestId: 'g1',
+      amountSar: -60,
+      idempotencyKey: 'expiry:lot1',
+    });
+  });
+
+  it("never spends the guest's own refund credit to expire a goodwill lot", async () => {
+    expiringLots = [{ id: 'lot1', guestId: 'g1', amountSar: 100 }];
+    walletBalance = { balance: 100, refundCredits: 100, refundOuts: 0 };
+    const body = await (await GET(cronRequest())).json();
+    expect(body.expiredCreditSar).toBe(0);
+    expect(inserted.some((row) => row.type === 'expiry')).toBe(false);
+  });
+});
+
+describe('KYC document retention (pass 8) — TEST-04 fixtures', () => {
+  it('removes the storage objects first, then the rows', async () => {
+    staleKycDocs = [
+      { id: 'd1', objectKey: 'kyc/u1/id.pdf' },
+      { id: 'd2', objectKey: 'kyc/u1/iban.pdf' },
+    ];
+    const body = await (await GET(cronRequest())).json();
+    expect(removedObjects).toEqual(['kyc/u1/id.pdf', 'kyc/u1/iban.pdf']);
+    expect(body.kycDocumentsPurged).toBe(2);
+    expect(body.failedPasses).not.toContain('8-kyc-retention');
+  });
+
+  it('skips the purge entirely without a service-role storage client', async () => {
+    staleKycDocs = [{ id: 'd1', objectKey: 'kyc/u1/id.pdf' }];
+    kycStorage = null;
+    const body = await (await GET(cronRequest())).json();
+    expect(removedObjects).toEqual([]);
+    expect(body.kycDocumentsPurged).toBe(0);
   });
 });

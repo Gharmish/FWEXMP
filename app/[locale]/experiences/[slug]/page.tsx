@@ -50,7 +50,7 @@ import {
 } from '@/features/experiences/queries';
 import { PhotoGallery } from '@/features/experiences/components/photo-gallery';
 import { MeetingPointMap } from '@/features/experiences/components/meeting-point-map';
-import { hasMeetingPoint } from '@/features/host-experiences/schemas';
+import { hasMeetingPoint } from '@/features/listings/schemas';
 import { trackExperienceView, utmFromSearchParams } from '@/features/analytics/capture';
 import { getScheduleDataBySlug } from '@/features/availability/queries';
 import {

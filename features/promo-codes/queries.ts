@@ -3,8 +3,10 @@ import 'server-only';
 import { desc, inArray, sql } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import { bookings, promoCodes } from '@/db/schema';
-import type { Booking, PromoCode } from '@/db/schema';
+import type { Booking } from '@/db/schema';
 import { adminGuard } from '@/features/admin/guard';
+export type { PromoCodeRow } from '@/features/promo-codes/types';
+import type { PromoCodeRow } from '@/features/promo-codes/types';
 
 /**
  * Read side for promo codes. The admin overview derives each code's
@@ -32,26 +34,6 @@ export const PROMO_REDEEMED_STATUSES = [
  * by another package).
  */
 export const PROMO_CODES_LIST_LIMIT = 500;
-
-export interface PromoCodeRow {
-  id: string;
-  code: string;
-  label: string | null;
-  discountType: PromoCode['discountType'];
-  discountValue: number;
-  minTotalSar: number | null;
-  maxRedemptions: number | null;
-  /** Per-guest redemption cap. Null = unlimited (legacy/explicit). */
-  maxRedemptionsPerGuest: number | null;
-  startsAt: string | null;
-  endsAt: string | null;
-  active: boolean;
-  createdAt: string;
-  /** Live redemptions (bookings in a redeemed status referencing this code). */
-  redemptions: number;
-  /** Whole-SAR discount funded on paid bookings for this code. */
-  discountFundedSar: number;
-}
 
 export async function getPromoCodesForAdmin(): Promise<readonly PromoCodeRow[]> {
   const block = await adminGuard();

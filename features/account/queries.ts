@@ -2,11 +2,13 @@ import 'server-only';
 
 import { cookies } from 'next/headers';
 import { LAST_BOOKING_COOKIE, parseLastBookingCookie } from '@/features/account/cookie';
-import type { LastBookingHint } from '@/features/account/cookie';
-import { getBookingByReference, type BookingDetail } from '@/features/bookings/queries';
+
+import { getBookingByReference } from '@/features/bookings/queries';
 import { getReviewForBooking } from '@/features/reviews/queries';
 import { getExperienceBySlug } from '@/features/experiences/queries';
-import type { ExperienceSummary } from '@/features/experiences/types';
+
+export type { LastBookingReview, LastBookingView } from '@/features/account/types';
+import type { LastBookingView } from '@/features/account/types';
 
 /**
  * Account-page read model. Resolves the last-booking cookie hint into
@@ -18,18 +20,6 @@ import type { ExperienceSummary } from '@/features/experiences/types';
  * looked up once the booking is completed, so /me can show the rating
  * instead of the "leave a review" form.
  */
-
-export type LastBookingReview = NonNullable<Awaited<ReturnType<typeof getReviewForBooking>>> & {
-  /** True while the 24h edit window is open — computed here, not in render. */
-  editable: boolean;
-};
-
-export interface LastBookingView {
-  hint: LastBookingHint;
-  booking: BookingDetail | undefined;
-  experience: ExperienceSummary | undefined;
-  review: LastBookingReview | null;
-}
 
 export async function getLastBookingView(): Promise<LastBookingView | null> {
   const store = await cookies();

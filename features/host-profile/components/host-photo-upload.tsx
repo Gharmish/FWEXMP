@@ -4,7 +4,7 @@ import { useActionState, useRef } from 'react';
 import { Camera, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { updateHostPhoto, removeHostPhoto } from '@/features/host-profile/actions';
-import { ACCEPTED_PHOTO_ATTR } from '@/features/host-experiences/lib/photo';
+import { ACCEPTED_PHOTO_ATTR } from '@/features/listings/lib/photo';
 import type { HostPhotoActionState, HostPhotoErrorKey } from '@/features/host-profile/types';
 
 export interface HostPhotoUploadCopy {

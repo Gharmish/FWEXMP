@@ -8,7 +8,18 @@ import type { Host } from '@/db/schema';
 import { bookings, experiences } from '@/db/schema';
 import { reportError } from '@/lib/log';
 import { getCurrentUser } from '@/features/auth/queries';
-import type { HostProfile } from '@/features/hosts/types';
+
+export type {
+  HostDashboardData,
+  HostNotificationPrefs,
+  CurrentHostRef,
+  HostTodayFacts,
+} from '@/features/host-dashboard/types';
+import type {
+  HostDashboardData,
+  CurrentHostRef,
+  HostTodayFacts,
+} from '@/features/host-dashboard/types';
 
 /**
  * Host dashboard data access. Reads are scoped to the signed-in user's
@@ -20,28 +31,6 @@ import type { HostProfile } from '@/features/hosts/types';
  * dashboard built on Supabase-Auth-only identity is meaningless without
  * the `hosts` row, so the page renders the "complete onboarding" surface.
  */
-
-export interface HostDashboardData {
-  host: HostProfile & {
-    id: string;
-    verificationStatus: 'pending' | 'verified' | 'suspended';
-    /** Whether a payout IBAN is on file — the setup checklist's money step. */
-    payoutIbanSet: boolean;
-    /** Notification contact — editable on /host/profile, never public. */
-    contactPhone: string | null;
-    contactEmail: string | null;
-    /** A new phone awaiting its verification code (within the window), if any. */
-    pendingContactPhone: string | null;
-    notificationPrefs: HostNotificationPrefs;
-  };
-}
-
-export interface HostNotificationPrefs {
-  email: boolean;
-  whatsapp: boolean;
-  reminders: boolean;
-  reviews: boolean;
-}
 
 /** How long a pending phone change stays actionable (Twilio Verify codes live 10 min). */
 export const PENDING_PHONE_WINDOW_MS = 15 * 60 * 1000;
@@ -132,12 +121,6 @@ export const getHostDashboard = cache(
   },
 );
 
-/** The signed-in host's id + status, or null (signed out / not a host / no DB). */
-export interface CurrentHostRef {
-  id: string;
-  verificationStatus: HostDashboardData['host']['verificationStatus'];
-}
-
 /**
  * Request-memoised host resolver for every host-scoped query (2026-08-22
  * dashboard audit P1-5). Before this, each of the six overview queries
@@ -168,26 +151,6 @@ export const getCurrentHostRef = cache(
 export async function getCurrentHostId(): Promise<string | null> {
   const ref = await getCurrentHostRef();
   return ref?.id ?? null;
-}
-
-/** Listing + cancellation facts behind the Today page's checklist and "Your numbers". */
-export interface HostTodayFacts {
-  listings: {
-    total: number;
-    live: number;
-    draft: number;
-    pendingReview: number;
-    changesRequested: number;
-    paused: number;
-    /** Listings with a hero photo — the photography step of the checklist. */
-    withHero: number;
-  };
-  /** Listings the reviewer sent back, for the attention card. */
-  changesRequested: readonly { id: string; titleEn: string; titleAr: string }[];
-  /** Host-initiated cancellations in the trailing 12 months. */
-  cancellations12m: number;
-  /** Bookings that reached confirmed-or-later in the same window — the rate's denominator. */
-  bookings12m: number;
 }
 
 /**

@@ -25,7 +25,7 @@ import { AR_PLACEHOLDER } from '@/lib/ar-placeholder';
 import { reportError } from '@/lib/log';
 import { getCurrentUser } from '@/features/auth/queries';
 import { getSupabaseUserStorage } from '@/lib/supabase/server';
-import { validatePhoto, objectKeyFromPublicUrl } from '@/features/host-experiences/lib/photo';
+import { validatePhoto, objectKeyFromPublicUrl } from '@/features/listings/lib/photo';
 import {
   hostContactCodeSchema,
   hostContactSchema,

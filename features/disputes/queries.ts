@@ -9,41 +9,14 @@ import { reportError } from '@/lib/log';
 import { adminGuard } from '@/features/admin/guard';
 import { authKey, guestKey } from '@/features/admin/users/lib/keys';
 import { isDisputeRefundable } from '@/features/disputes/lib/refundable';
+export type { AdminDisputeRow } from '@/features/disputes/types';
+import type { AdminDisputeRow } from '@/features/disputes/types';
 
 /**
  * Dispute reads. The admin queue is the only list surface; the guest
  * side only needs "is there an open dispute on this booking?" to swap
  * the report form for a "we're on it" note.
  */
-
-export interface AdminDisputeRow {
-  id: string;
-  status: 'open' | 'resolved';
-  message: string;
-  adminNotes: string | null;
-  createdAt: string;
-  resolvedAt: string | null;
-  bookingId: string;
-  bookingReference: string;
-  bookingDate: string;
-  experienceTitleEn: string;
-  experienceTitleAr: string;
-  experienceSlug: string;
-  guestName: string;
-  guestPhone: string | null;
-  /** User-360 key: auth_<id> for claimed accounts, guest_<id> otherwise. */
-  guestPersonKey: string;
-  /** Whether resolving may offer the full-refund checkbox. */
-  refundable: boolean;
-  /**
-   * Full paid base (card + redeemed credit) — labels the refund
-   * checkbox with the same amount the resolve action refunds and the
-   * guest notice reports.
-   */
-  bookingAmountSar: number;
-  /** Refund granted at resolution time; null = resolved without one. */
-  resolutionRefundSar: number | null;
-}
 
 export const DISPUTES_LIST_LIMIT = 500;
 

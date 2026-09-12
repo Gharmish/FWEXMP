@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
 import { parsePastedCoords } from '@/features/host-experiences/lib/coords';
-import { hasMeetingPoint, SAUDI_BOX } from '@/features/host-experiences/schemas';
+import { hasMeetingPoint, SAUDI_BOX } from '@/features/listings/schemas';
 
 const LAT_MIN = SAUDI_BOX.latMin;
 const LAT_MAX = SAUDI_BOX.latMax;

@@ -26,7 +26,7 @@ import {
   normalizeDigits,
   UNSET_NUMBER,
   UNSET_TEXT,
-} from '@/features/host-experiences/schemas';
+} from '@/features/listings/schemas';
 import type { HostExperienceRow } from '@/features/host-experiences/queries';
 
 /**

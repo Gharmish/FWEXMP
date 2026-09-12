@@ -17,7 +17,7 @@ import {
   heroObjectKey,
   objectKeyFromPublicUrl,
   validatePhoto,
-} from '@/features/host-experiences/lib/photo';
+} from '@/features/listings/lib/photo';
 import type { GalleryState } from '@/features/admin/experiences/gallery-actions';
 
 /**

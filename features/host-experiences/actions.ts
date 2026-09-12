@@ -19,18 +19,18 @@ import {
   UNSET_NUMBER,
   UNSET_TEXT,
   type HostExperienceDraftInput,
-} from '@/features/host-experiences/schemas';
-import { experienceSlugFromTitle } from '@/features/host-experiences/lib/slug';
+} from '@/features/listings/schemas';
+import { experienceSlugFromTitle } from '@/features/listings/lib/slug';
 import {
   listingReadiness,
   publishBlockers,
   type ReadinessKey,
-} from '@/features/host-experiences/lib/readiness';
+} from '@/features/listings/lib/readiness';
 import { getCurrentHostIdForWrite } from '@/features/host-experiences/queries';
 import { getPlatformSettings } from '@/lib/platform-settings';
 import { getSupabaseUserStorage } from '@/lib/supabase/server';
-import { PHOTO_BUCKET } from '@/features/host-experiences/lib/photo';
-import { scheduleChangeBlocked } from '@/features/host-experiences/lib/schedule-guard';
+import { PHOTO_BUCKET } from '@/features/listings/lib/photo';
+import { scheduleChangeBlocked } from '@/features/listings/lib/schedule-guard';
 
 /**
  * Host-side experience CRUD.

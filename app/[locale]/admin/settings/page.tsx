@@ -5,7 +5,7 @@ import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { Link } from '@/lib/i18n';
 import type { Locale } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
-import { EXPERIENCE_CATEGORIES } from '@/features/host-experiences/schemas';
+import { EXPERIENCE_CATEGORIES } from '@/features/listings/schemas';
 import { getPlatformSettings, isAdminAndDbReady } from '@/features/admin/settings/queries';
 import { getCancellationTiers } from '@/features/bookings/lib/cancellation-policy';
 import { tierDescriptions, tierName } from '@/features/bookings/lib/policy-copy';

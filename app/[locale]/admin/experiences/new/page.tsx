@@ -11,7 +11,7 @@ import { getPlatformSettings } from '@/lib/platform-settings';
 import { tierDescriptions } from '@/features/bookings/lib/policy-copy';
 import { getEnabledCities } from '@/lib/cities';
 import { BOOKING_MODES, EXPERIENCE_STATUSES } from '@/features/admin/experiences/schemas';
-import { EXPERIENCE_CATEGORIES } from '@/features/host-experiences/schemas';
+import { EXPERIENCE_CATEGORIES } from '@/features/listings/schemas';
 import { AdminExperienceForm } from '@/app/[locale]/admin/experiences/[id]/edit/admin-experience-form';
 
 export async function generateMetadata({
