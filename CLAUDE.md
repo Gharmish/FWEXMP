@@ -121,6 +121,7 @@ pnpm db:studio     # open Drizzle Studio in browser
 pnpm db:seed       # run the seed script
 pnpm db:generate   # generate migration from schema diff (run after EVERY db/schema.ts change; db/schema-snapshot.test.ts fails otherwise)
 pnpm db:check      # connectivity/health probe (scripts/db-check.ts)
+pnpm db:preflight  # is the LIVE schema ready for HEAD? read-only (scripts/db-preflight.ts)
 pnpm whatsapp:templates   # sync the WhatsApp template registry with Twilio (scripts/whatsapp-templates.ts)
 pnpm auth:emails:install  # install Supabase auth email templates (needs SUPABASE_ACCESS_TOKEN + SUPABASE_PROJECT_REF)
 pnpm auth:emails:doctor   # check auth-email DNS (SPF/DKIM)
@@ -139,6 +140,14 @@ Several Claude sessions (and I) often work in this ONE checkout at the same time
 - Commit with explicit pathspecs (`git commit <your files> -m ...`) — never a bare `git commit`, even right after `git add`; another session can stage files in between.
 - If a shared file (especially `db/schema.ts`) contains hunks that aren't yours, stage only your hunks (`git apply --cached` with a filtered patch).
 - After committing, verify with `git show --stat HEAD` that nothing foreign was swept in.
+- Before deploying a SHA that adds migrations, run `pnpm db:preflight` with
+  the production `DATABASE_URL` (read-only): it lists every migration the
+  live database has not recorded and the schema facts HEAD depends on. All
+  green or no deploy — a missing enum value or table fails at runtime, not
+  at build (2026-09 engineering audit, second-pass verification F22/F23).
+  Apply migrations with `pnpm db:migrate` (once the journal baseline in
+  `supabase/2026-09-12-drizzle-journal-baseline.sql` has been run) or via
+  Supabase MCP `apply_migration` plus a journal row.
 - Deploy only a SHA whose CI run is green — check with
   `gh run list --commit <sha> --json status,conclusion` (or the Actions tab)
   before `vercel deploy --prod`. The local pre-commit hook is skippable with

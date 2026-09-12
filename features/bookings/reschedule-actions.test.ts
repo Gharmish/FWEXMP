@@ -4,7 +4,9 @@ vi.mock('next/cache', () => ({ revalidatePath: vi.fn() }));
 const env = vi.hoisted(() => ({ DATABASE_URL: 'postgres://test' }));
 vi.mock('@/lib/env', () => ({ serverEnv: env }));
 vi.mock('@/features/bookings/lib/access', () => ({ bookingViewerCanAccess: async () => true }));
-const core = vi.fn(async () => ({ success: true as const }));
+const core = vi.fn<(input: unknown) => Promise<Record<string, unknown>>>(async () => ({
+  success: true as const,
+}));
 vi.mock('@/features/bookings/lib/reschedule-core', () => ({
   rescheduleBookingCore: (input: unknown) => core(input),
 }));

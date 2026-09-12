@@ -48,9 +48,17 @@ export type RefundRails = 'auto' | 'card_only';
  *
  * Ledger discipline: `refund_attempted` is written BEFORE the gateway
  * call (if that write fails, no money moves — we fall to the manual
- * queue), and `refund_succeeded` immediately AFTER gateway success —
- * so even if the booking-row update then fails, the ledger knows the
- * money moved and the admin refund action won't fire a second reversal.
+ * queue), and `refund_succeeded` immediately AFTER gateway success, on
+ * the pool and BEFORE the booking flip — so even if the booking-row
+ * update then fails, the ledger knows the money moved and the admin
+ * refund action (`refundOutcomeUnknown` + `latestPaymentEvent`) won't
+ * fire a second reversal. Once the gateway has said yes nothing on this
+ * path can fall into the manual queue: a failed flip retries once, then
+ * pages the team (`payment_ledger_anomaly`, "do NOT refund again") and
+ * still reports `refunded` (2026-09 engineering audit, second-pass
+ * verification F1/F27 — the first DATA-03 cut had put the ledger row and
+ * the flip in one transaction, so a failing flip rolled the proof back
+ * and re-queued money HyperPay had already returned).
  * The credit leg is guarded by its own idempotency key
  * (`refund:<bookingId>`, inside `creditWalletRefund`) — a replay lands
  * on the unique index, never a second credit.
@@ -72,6 +80,99 @@ export type RefundRails = 'auto' | 'card_only';
  */
 function journalRefund(amountSar: number): SQL<number> {
   return sql`least(coalesce(${bookings.refundedAmountSar}, 0) + ${amountSar}, ${bookings.totalAmount} + ${bookings.walletAppliedSar})`;
+}
+
+interface GatewayRefundCommit {
+  bookingId: string;
+  cardShareSar: number;
+  amountSar: number;
+  rails: 'auto' | 'card_only';
+  resultCode: string;
+  /** The refund's OWN gateway id — the line item on HyperPay's settlement report. */
+  gatewayId: string;
+  actorUserId: string | null;
+}
+
+/**
+ * Record a gateway refund that has ALREADY succeeded. Never throws: the
+ * ledger row lands first (the durable proof, kept even when the flip
+ * fails), the booking flip follows with one retry, and any failure pages
+ * the team with an explicit "do not refund again" — the booking must
+ * never fall back into the manual queue from here.
+ */
+async function commitGatewayRefund(input: GatewayRefundCommit): Promise<void> {
+  const { bookingId, cardShareSar, amountSar, rails, resultCode, gatewayId, actorUserId } = input;
+  const problems: string[] = [];
+  try {
+    await recordPaymentEvent({
+      bookingId,
+      type: 'refund_succeeded',
+      amountSar: cardShareSar,
+      gatewayId,
+      resultCode,
+      actorUserId,
+    });
+  } catch (error) {
+    problems.push('refund_succeeded ledger row not written');
+    reportError(error, { surface: 'bookings:executeRefund:ledger', bookingId });
+  }
+
+  const flip = () =>
+    db
+      .update(bookings)
+      .set({
+        status: 'refunded',
+        refundDueSar: null,
+        // `card_only` (refund-out) converts an ALREADY-stamped wallet
+        // refund into card money — restamping would double-count it.
+        // It also keeps the ORIGINAL refund's audit trail
+        // (2026-08-01 ninth audit): overwriting `refundedAt` moved a
+        // months-old refund into the current reporting window, and
+        // overwriting `refundMethod` erased the record that the
+        // refund was delivered as wallet credit.
+        ...(rails === 'auto'
+          ? {
+              refundedAt: new Date(),
+              refundMethod: 'gateway' as const,
+              refundedAmountSar: journalRefund(amountSar),
+              forfeitedSar: clearForfeitWhenFullyRefunded(amountSar),
+            }
+          : {
+              refundedAt: sql`coalesce(${bookings.refundedAt}, now())`,
+            }),
+      })
+      .where(eq(bookings.id, bookingId));
+  let flipped = false;
+  for (let attempt = 0; attempt < 2 && !flipped; attempt += 1) {
+    try {
+      await flip();
+      flipped = true;
+    } catch (error) {
+      reportError(error, { surface: 'bookings:executeRefund:flip', bookingId, attempt });
+    }
+  }
+  if (!flipped) problems.push('booking still shows the pre-refund state (flip failed twice)');
+
+  if (problems.length > 0) {
+    await notifyAdmin(
+      'payment_ledger_anomaly',
+      {
+        bookingId,
+        amountSar: cardShareSar,
+        gatewayRefundId: gatewayId,
+        problem: `gateway refund SUCCEEDED but: ${problems.join('; ')}`,
+        action: 'verify on HyperPay, then repair the row by hand — do NOT refund again',
+      },
+      { fingerprint: `refund-commit:${bookingId}`, quietWindowMs: 6 * 3_600_000 },
+    );
+  }
+  if (rails === 'auto') {
+    try {
+      await recordClawbackIfPaidOut(bookingId, 'refund (gateway) after host payout');
+    } catch (error) {
+      reportError(error, { surface: 'bookings:executeRefund:clawback', bookingId });
+    }
+  }
 }
 
 /**
@@ -237,52 +338,18 @@ export async function executeRefund(
       });
       const { resultCode, refundId } = await refundPayment(paymentReference, cardShareSar, channel);
       if (isSuccessfulResult(resultCode)) {
-        // Money has moved: the ledger row and the booking's refunded flip
-        // commit together (2026-09 engineering audit DATA-03), so the two
-        // can never disagree about whether this refund happened.
-        await db.transaction(async (tx) => {
-          await recordPaymentEvent(
-            {
-              bookingId,
-              type: 'refund_succeeded',
-              amountSar: cardShareSar,
-              // The refund's OWN gateway id — the line item on HyperPay's
-              // settlement report. The original payment id only as a
-              // fallback for gateways that omit it.
-              gatewayId: refundId ?? paymentReference,
-              resultCode,
-              actorUserId: actorUserId ?? null,
-            },
-            tx,
-          );
-          await tx
-            .update(bookings)
-            .set({
-              status: 'refunded',
-              refundDueSar: null,
-              // `card_only` (refund-out) converts an ALREADY-stamped wallet
-              // refund into card money — restamping would double-count it.
-              // It also keeps the ORIGINAL refund's audit trail
-              // (2026-08-01 ninth audit): overwriting `refundedAt` moved a
-              // months-old refund into the current reporting window, and
-              // overwriting `refundMethod` erased the record that the
-              // refund was delivered as wallet credit.
-              ...(rails === 'auto'
-                ? {
-                    refundedAt: new Date(),
-                    refundMethod: 'gateway' as const,
-                    refundedAmountSar: journalRefund(amountSar),
-                    forfeitedSar: clearForfeitWhenFullyRefunded(amountSar),
-                  }
-                : {
-                    refundedAt: sql`coalesce(${bookings.refundedAt}, now())`,
-                  }),
-            })
-            .where(eq(bookings.id, bookingId));
+        // Money has moved. Nothing from here may reach the catch below:
+        // that path stamps `refundDueSar` and queues a SECOND reversal of
+        // money the gateway has already returned.
+        await commitGatewayRefund({
+          bookingId,
+          cardShareSar,
+          amountSar,
+          rails,
+          resultCode,
+          gatewayId: refundId ?? paymentReference,
+          actorUserId: actorUserId ?? null,
         });
-        if (rails === 'auto') {
-          await recordClawbackIfPaidOut(bookingId, 'refund (gateway) after host payout');
-        }
         return 'refunded';
       }
       try {

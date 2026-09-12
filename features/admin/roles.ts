@@ -31,9 +31,14 @@ export async function resolveIsAdmin(userId: string, phone: string): Promise<boo
     // authority, so revoking an env-listed admin in the UI takes effect
     // (2026-09 engineering audit SEC-07). Only a user with no row at all
     // falls through to the bootstrap allowlist.
+    // Re-granting after a revocation is a NEW row (see `user_roles_active_uq`),
+    // so a user can hold several admin rows; a live one wins, then the
+    // newest grant — never whichever row the planner happens to return
+    // first (second-pass verification F18).
     const row = await db.query.userRoles.findFirst({
       where: and(eq(userRoles.userId, userId), eq(userRoles.role, 'admin')),
       columns: { revokedAt: true },
+      orderBy: (r, { desc, sql }) => [sql`${r.revokedAt} is null desc`, desc(r.grantedAt)],
     });
     if (row) return row.revokedAt === null;
     return envAllowlistMatches(phone);

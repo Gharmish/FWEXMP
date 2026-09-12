@@ -65,6 +65,7 @@ export interface ReleaseHoldsSummary {
   kycDocumentsPurged: number;
   failedPasses: string[];
   skippedPasses: string[];
+  truncatedPasses: string[];
   truncated: boolean;
   heartbeat: boolean;
   elapsedMs: number;
@@ -159,7 +160,8 @@ export async function runReleaseHolds(): Promise<ReleaseHoldsSummary> {
     kycDocumentsPurged,
     failedPasses: run.failedPasses,
     skippedPasses: run.skippedPasses,
-    truncated: run.skippedPasses.length > 0,
+    truncatedPasses: run.truncatedPasses,
+    truncated: run.skippedPasses.length > 0 || run.truncatedPasses.length > 0,
     heartbeat: !moneyFailed,
     elapsedMs: Date.now() - run.startedAt,
   };

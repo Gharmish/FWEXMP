@@ -42,6 +42,7 @@ const SUBJECTS: Record<AdminAlertKind, string> = {
   support_ticket_sla_breached: 'Support ticket past its SLA',
   config_missing: 'Production configuration is missing required secrets',
   support_daily_report: 'Daily support report',
+  payment_ledger_anomaly: 'Money moved but the record did not — check before acting',
 };
 
 /** Amounts arrive as bare integers under `…Sar` keys; label the unit. */

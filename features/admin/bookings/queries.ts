@@ -2,6 +2,7 @@ import 'server-only';
 
 import { desc, eq, sql } from 'drizzle-orm';
 import { db } from '@/lib/db';
+import { todayInRiyadh } from '@/lib/riyadh-time';
 import { decryptPii } from '@/lib/pii-crypto';
 import { reportError } from '@/lib/log';
 import { splitCommission } from '@/features/bookings/lib/commission';
@@ -45,7 +46,7 @@ export type { AdminGuardFailure } from '@/features/admin/guard';
  * booking, not the newest 500.
  */
 export async function listBookingsForAdmin(
-  filter: BookingFilter = { todayStr: '0000-00-00' },
+  filter: BookingFilter = { todayStr: todayInRiyadh() },
 ): Promise<readonly AdminBookingRow[]> {
   const block = await adminGuard();
   if (block) return [];
@@ -58,7 +59,9 @@ export async function listBookingsForAdmin(
         status: bookings.status,
         paymentStatus: bookings.paymentStatus,
         refundDueSar: bookings.refundDueSar,
-        refundBankReady: sql<boolean>`(${bookings.refundBankName} is not null and ${bookings.refundBeneficiaryName} is not null and ${bookings.refundIban} is not null)`,
+        // `nullif(…, '')` keeps this the same truth table as the detail
+        // page's JS truthiness check (second-pass verification F13).
+        refundBankReady: sql<boolean>`(nullif(${bookings.refundBankName}, '') is not null and nullif(${bookings.refundBeneficiaryName}, '') is not null and nullif(${bookings.refundIban}, '') is not null)`,
         approvalDeadline: bookings.approvalDeadline,
         date: bookings.date,
         startTime: bookings.startTime,

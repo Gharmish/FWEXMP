@@ -9,7 +9,9 @@ const settings = vi.hoisted(() => ({ refundsViaBankTransfer: false }));
 vi.mock('@/lib/platform-settings', () => ({ getPlatformSettings: async () => settings }));
 const session = vi.hoisted(() => ({ guestId: 'g1' as string | null }));
 vi.mock('@/features/wallet/queries', () => ({ getSessionGuestId: async () => session.guestId }));
-const debit = vi.fn(async (): Promise<'ok' | 'insufficient_balance'> => 'ok');
+const debit = vi.fn<(tx: unknown, input: unknown) => Promise<'ok' | 'insufficient_balance'>>(
+  async () => 'ok',
+);
 vi.mock('@/features/wallet/ledger', () => ({
   debitWalletTx: (tx: unknown, input: unknown) => debit(tx, input),
 }));

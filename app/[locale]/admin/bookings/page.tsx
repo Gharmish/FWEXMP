@@ -74,6 +74,11 @@ export default async function AdminBookingsPage({
   ]);
   const totals = totalsFromRows(rows);
   const filtered = rows;
+  // An empty FILTERED list keeps the filter bar on screen (second-pass
+  // verification F11): only a platform with no bookings at all gets the
+  // "nothing yet" card. And a filtered strip says what it counts (F12).
+  const filtering = q !== '' || status !== 'all' || view !== 'all' || refundDue || suspendedHost;
+  const nothingYet = rows.length === 0 && !filtering;
 
   // Pending requests show how long the host's approval window has left —
   // the 24h SLA is unmanageable if the deadline is invisible.
@@ -166,6 +171,9 @@ export default async function AdminBookingsPage({
               eyebrowClassName={eyebrowClassName}
             />
           </dl>
+          {filtering && (
+            <p className="text-sarat-black-600 text-sm">{t('bookingsList.filteredTotals')}</p>
+          )}
 
           {/* The list (and therefore the stats strip and the GET-form
               search, which both run over these rows) is capped — say so
@@ -176,7 +184,7 @@ export default async function AdminBookingsPage({
             </p>
           )}
 
-          {rows.length === 0 ? (
+          {nothingYet ? (
             <div className="border-sarat-black/8 rounded-card flex flex-col items-start gap-4 [border-width:0.5px] p-10">
               <p className={eyebrowClassName}>{t('bookingsList.empty.eyebrow')}</p>
               <h2 className="text-h2">{t('bookingsList.empty.title')}</h2>

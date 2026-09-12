@@ -86,7 +86,18 @@ export async function reconcileStuckHolds(run: PassRunner) {
 
       let settled = 0;
       let anomalies = 0;
+      let reconciled = 0;
       for (const row of stuck) {
+        // Up to two gateway round-trips per row: a slow gateway day can
+        // outlast the function on this loop alone, killing the run before
+        // the heartbeat (second-pass verification F8). Stop at the budget
+        // and report the remainder as truncated; the next hour resumes
+        // from the oldest deadline.
+        if (run.overBudget()) {
+          run.truncate('2-reconcile');
+          break;
+        }
+        reconciled += 1;
         const outcome = await settleBooking(row.idempotencyKey);
         if (outcome === 'success') {
           settled += 1;
@@ -111,7 +122,7 @@ export async function reconcileStuckHolds(run: PassRunner) {
         // is settle's job, via the anomaly stamp.
         if (outcome === 'anomaly') anomalies += 1;
       }
-      return { reconciled: stuck.length, settled, anomalies };
+      return { reconciled, settled, anomalies };
     },
     { reconciled: 0, settled: 0, anomalies: 0 },
   );
@@ -156,7 +167,16 @@ export async function watchSettlementAging(run: PassRunner) {
             'check HyperPay + /admin/bookings processing rows; money may be captured but unrecorded',
         });
       }
+    },
+    undefined,
+  );
 
+  // Its own pass (second-pass verification F9): a throw in the aging
+  // query above must not stop the blind-spot watch — 2c is the pass that
+  // sees money nothing else can.
+  await run.pass(
+    '2c-settle-blindspot',
+    async () => {
       // Pass 2c — the reconcile BLIND SPOT (2026-07-28 sixth audit).
       // Pass 2 and the aging alert above both require a non-null,
       // elapsed `paymentDeadline` and a non-terminal status. A booking

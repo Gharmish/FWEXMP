@@ -42,6 +42,7 @@ export const ADMIN_ALERT_KINDS = [
   'support_ticket_sla_breached',
   'config_missing',
   'support_daily_report',
+  'payment_ledger_anomaly',
 ] as const;
 export type AdminAlertKind = (typeof ADMIN_ALERT_KINDS)[number];
 
@@ -334,6 +335,8 @@ export const disputeStatusEnum = pgEnum('dispute_status', ['open', 'resolved']);
 export const authThrottleKindEnum = pgEnum('auth_throttle_kind', [
   'send',
   'verify_failed',
+  /** One `/api/vitals` beacon accepted from an IP (per-IP ingest cap). */
+  'vital',
   // Promo-code attempt (2026-07-28 audit) — same abuse-event table, see
   // features/promo-codes/lib/throttle.ts. Identifier = guest id.
   'promo_attempt',

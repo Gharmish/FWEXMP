@@ -1073,7 +1073,7 @@ export default async function BookingConfirmedPage({ params, searchParams }: Pag
           (2026-09 engineering audit REACT-04): its dispute, host-phone and
           schedule reads no longer hold up the page's first byte. */}
       {booking && (
-        <Suspense fallback={null}>
+        <Suspense fallback={<div className="min-h-64" aria-hidden />}>
           <BookingManageSections
             booking={booking}
             reference={ref}

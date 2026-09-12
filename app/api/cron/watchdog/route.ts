@@ -64,11 +64,19 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     const stale = ageMs === null || ageMs > STALE_AFTER_MS;
 
     if (stale) {
-      await notifyAdmin('cron_stale', {
-        lastRunAt: lastRunAt ? lastRunAt.toISOString() : 'never',
-        ageHours: ageMs === null ? null : Math.round(ageMs / 3_600_000),
-        thresholdHours: STALE_AFTER_MS / 3_600_000,
-      });
+      // Same quiet window as `cron_failed`: the heartbeat is deliberately
+      // withheld while a money pass keeps failing, so without dedupe every
+      // watchdog run paged on top of the hourly failure alert (second-pass
+      // verification F7). Recorded every run; emailed once per window.
+      await notifyAdmin(
+        'cron_stale',
+        {
+          lastRunAt: lastRunAt ? lastRunAt.toISOString() : 'never',
+          ageHours: ageMs === null ? null : Math.round(ageMs / 3_600_000),
+          thresholdHours: STALE_AFTER_MS / 3_600_000,
+        },
+        { fingerprint: 'cron-stale', quietWindowMs: 6 * 3_600_000 },
+      );
     }
 
     return NextResponse.json({

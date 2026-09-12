@@ -242,14 +242,17 @@ export async function maskIbansAtRest(run: PassRunner) {
       const rows = await db
         .update(conversationMessages)
         .set({
-          body: sql`regexp_replace(${conversationMessages.body}, '(SA)\\s?(?:\\d\\s?){18}((?:\\d\\s?){4})', '\\1…\\2', 'gi')`,
+          // `\m` = start of a word: only a standalone IBAN, never a
+          // 22-digit run that happens to follow the letters "sa" inside
+          // another token (second-pass verification F10).
+          body: sql`regexp_replace(${conversationMessages.body}, '\\m(SA)\\s?(?:\\d\\s?){18}((?:\\d\\s?){4})', '\\1…\\2', 'gi')`,
         })
         .where(
           sql`${conversationMessages.id} in (
             select id from ${conversationMessages}
             where ${conversationMessages.direction} = 'in'
               and ${conversationMessages.createdAt} <= now() - interval '48 hours'
-              and ${conversationMessages.body} ~* 'SA\\s?(\\d\\s?){22}'
+              and ${conversationMessages.body} ~* '\\mSA\\s?(\\d\\s?){22}'
             limit ${RETRY_LIMIT}
           )`,
         )

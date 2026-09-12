@@ -114,22 +114,24 @@ describe('cron watchdog — staleness', () => {
     const res = await GET(request('Bearer test-secret'));
     expect((await res.json()).stale).toBe(true);
     expect(notifyAdmin).toHaveBeenCalledTimes(1);
-    expect(notifyAdmin).toHaveBeenCalledWith('cron_stale', {
-      lastRunAt: at.toISOString(),
-      ageHours: 4,
-      thresholdHours: 3,
-    });
+    expect(notifyAdmin).toHaveBeenCalledWith(
+      'cron_stale',
+      { lastRunAt: at.toISOString(), ageHours: 4, thresholdHours: 3 },
+      // Deduped like `cron_failed`: a withheld heartbeat must not page on
+      // every watchdog run on top of the hourly failure alert.
+      { fingerprint: 'cron-stale', quietWindowMs: 6 * 3_600_000 },
+    );
   });
 
   it('counts a never-stamped heartbeat as stale', async () => {
     stampRows = [{ at: null }];
     const res = await GET(request('Bearer test-secret'));
     expect(await res.json()).toEqual({ stale: true, lastRunAt: null });
-    expect(notifyAdmin).toHaveBeenCalledWith('cron_stale', {
-      lastRunAt: 'never',
-      ageHours: null,
-      thresholdHours: 3,
-    });
+    expect(notifyAdmin).toHaveBeenCalledWith(
+      'cron_stale',
+      { lastRunAt: 'never', ageHours: null, thresholdHours: 3 },
+      expect.objectContaining({ fingerprint: 'cron-stale' }),
+    );
   });
 
   it('counts a missing settings row as stale', async () => {

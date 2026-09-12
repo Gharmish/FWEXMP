@@ -253,6 +253,13 @@
       "when": 1789151299289,
       "tag": "0035_uuid_ids_vitals_and_typed_columns",
       "breakpoints": true
+    },
+    {
+      "idx": 36,
+      "version": "7",
+      "when": 1789235808109,
+      "tag": "0036_vital_throttle_kind",
+      "breakpoints": true
     }
   ]
 }

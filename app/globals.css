@@ -230,6 +230,15 @@ body {
 [dir='rtl'] [class*='tracking-'] {
   letter-spacing: 0;
 }
+/* …except inside an explicit `dir="ltr"` run (a GH-XXXXXX reference, a
+ * promo code, a mono id): those keep the tracking the utility asked for.
+ * `revert-layer` from an unlayered rule falls back to the utilities layer.
+ * Note the substring match above: a future class whose NAME merely
+ * contains `tracking-` would be reset too — keep such names out. */
+[dir='rtl'] [dir='ltr'] [class*='tracking-'],
+[dir='rtl'] [class*='tracking-'][dir='ltr'] {
+  letter-spacing: revert-layer;
+}
 
 [dir='rtl']
   :is(

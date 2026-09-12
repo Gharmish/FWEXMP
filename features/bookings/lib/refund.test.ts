@@ -42,9 +42,14 @@ vi.mock('@/features/payments/lib/hyperpay', () => ({
 
 const ledgerEvents: Array<Record<string, unknown>> = [];
 let ledgerShouldThrow = false;
+/** Throws only for the post-gateway `refund_succeeded` row. */
+let ledgerAfterGatewayThrows = false;
 vi.mock('@/features/payments/ledger', () => ({
   recordPaymentEvent: async (input: Record<string, unknown>) => {
     if (ledgerShouldThrow) throw new Error('ledger down');
+    if (ledgerAfterGatewayThrows && input.type === 'refund_succeeded') {
+      throw new Error('ledger down after gateway');
+    }
     ledgerEvents.push(input);
   },
   resolvePaymentChannel: async () => 'card' as const,
@@ -110,6 +115,7 @@ beforeEach(() => {
   bankTransfersOn = false;
   updateShouldThrow = false;
   ledgerShouldThrow = false;
+  ledgerAfterGatewayThrows = false;
   claimLost = false;
   claimThrowOnCall = null;
   claimCalls = 0;
@@ -278,16 +284,44 @@ describe('executeRefund', () => {
     expect(refundPayment).toHaveBeenCalledWith('pay-ref-11', 100);
   });
 
-  it('falls back to the manual queue when the DB write fails after a gateway success (known double-refund window — closed by the payment ledger in Phase 3)', async () => {
+  it('never re-queues money the gateway already returned: a failed flip after success alerts and still reports refunded', async () => {
     refundPayment.mockResolvedValue({ resultCode: '000.000.000' });
     updateShouldThrow = true;
 
     const outcome = await executeRefund('b-6', 'pay-ref-6', 75);
 
-    expect(outcome).toBe('refund_pending');
-    expect(reportError).toHaveBeenCalled();
-    // The fallback stamp still lands so the money is never silently lost.
-    expect(setCalls.at(-1)).toEqual({ refundDueSar: 75 });
+    expect(outcome).toBe('refunded');
+    // The durable proof landed BEFORE the flip was attempted.
+    expect(ledgerEvents.map((e) => e.type)).toEqual(['refund_attempted', 'refund_succeeded']);
+    // One retry, then a loud page — and no `refundDueSar` re-stamp, which
+    // is what used to put an already-refunded booking in the manual queue.
+    expect(setCalls.filter((c) => c.status === 'refunded')).toHaveLength(2);
+    expect(setCalls.at(-1)).not.toEqual({ refundDueSar: 75 });
+    expect(notifyAdmin).toHaveBeenCalledWith(
+      'payment_ledger_anomaly',
+      expect.objectContaining({
+        bookingId: 'b-6',
+        amountSar: 75,
+        action: expect.stringContaining('do NOT refund again'),
+      }),
+      expect.objectContaining({ fingerprint: 'refund-commit:b-6' }),
+    );
+    expect(notifyAdmin).not.toHaveBeenCalledWith('refund_due', expect.anything());
+  });
+
+  it('a failed refund_succeeded write still flips the booking and pages the team', async () => {
+    refundPayment.mockResolvedValue({ resultCode: '000.000.000' });
+    ledgerAfterGatewayThrows = true;
+
+    const outcome = await executeRefund('b-6b', 'pay-ref-6b', 75);
+
+    expect(outcome).toBe('refunded');
+    expect(setCalls.at(-1)).toMatchObject({ status: 'refunded', refundDueSar: null });
+    expect(notifyAdmin).toHaveBeenCalledWith(
+      'payment_ledger_anomaly',
+      expect.objectContaining({ problem: expect.stringContaining('ledger row not written') }),
+      expect.anything(),
+    );
   });
 });
 

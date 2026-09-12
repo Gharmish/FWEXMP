@@ -33,7 +33,10 @@ export function collapseVitalsPath(pathname: string): { locale: 'en' | 'ar' | nu
   for (let i = 0; i < segments.length; i += 1) {
     const seg = segments[i];
     const parent = segments[i - 1];
-    if (UUID.test(seg) || BOOKING_REF.test(seg)) out.push('[id]');
+    // Already a placeholder (the server re-collapses what the browser
+    // sent): keep it, so `/bookings/[id]` never becomes `/bookings/[slug]`.
+    if (/^\[[a-z.]+\]$/i.test(seg)) out.push(seg);
+    else if (UUID.test(seg) || BOOKING_REF.test(seg)) out.push('[id]');
     else if (parent && SLUG_PARENTS.has(parent) && !STATIC_CHILDREN.has(seg)) out.push('[slug]');
     else out.push(seg);
   }

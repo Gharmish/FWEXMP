@@ -77,7 +77,13 @@ const IDENTICAL_ALLOWLIST = new Set([
 ]);
 
 /** Keys whose Arabic deliberately drops an argument (shorter titles). */
-const ARG_DIFF_ALLOWLIST = new Set(['hostProfile.meta.title', 'ogImage.host.unverified']);
+const ARG_DIFF_ALLOWLIST = new Set([
+  'hostProfile.meta.title',
+  'ogImage.host.unverified',
+  // Arabic nests `{formatted}` inside the plural so the dual form
+  // (تجربتان already means "two") prints without a redundant digit.
+  'ogImage.host.experienceCount',
+]);
 
 describe('messages/en.json vs messages/ar.json', () => {
   it('have identical key sets', () => {
@@ -122,9 +128,13 @@ describe('messages/en.json vs messages/ar.json', () => {
     expect(same).toEqual([]);
   });
 
-  it('Arabic plurals that distinguish few (3–10) also distinguish many (11–99)', () => {
+  it('every Arabic plural distinguishes few (3–10) and many (11–99)', () => {
+    // A plural with only `one`/`other` reads "5 تجربة" where Arabic needs
+    // "5 تجارب"; CLDR Arabic has six categories and the two mid ones are
+    // the ones an English-first author forgets.
     const incomplete = Object.entries(AR)
-      .filter(([, v]) => /,\s*plural,/.test(v) && /\bfew\s*\{/.test(v) && !/\bmany\s*\{/.test(v))
+      .filter(([, v]) => /,\s*plural,/.test(v))
+      .filter(([, v]) => !/\bfew\s*\{/.test(v) || !/\bmany\s*\{/.test(v))
       .map(([k]) => k);
     expect(incomplete).toEqual([]);
   });
@@ -144,5 +154,7 @@ describe('Arabic number rendering through next-intl', () => {
   it('renders the host card experience count for the common host size', () => {
     const text = t('ogImage.host.experienceCount', { formatted: '3', count: 3 });
     expect(text).toBe('3 تجارب');
+    // The dual form carries its own "two" — no digit in front of it.
+    expect(t('ogImage.host.experienceCount', { formatted: '2', count: 2 })).toBe('تجربتان');
   });
 });

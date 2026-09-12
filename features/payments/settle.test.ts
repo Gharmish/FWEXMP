@@ -134,8 +134,11 @@ vi.mock('@/features/payments/lib/hyperpay', () => ({
 }));
 
 const ledgerEvents: Array<Record<string, unknown>> = [];
+/** When set, the ledger insert of this event type throws (a deterministic fault). */
+let ledgerThrowsFor: string | null = null;
 vi.mock('@/features/payments/ledger', () => ({
   recordPaymentEvent: async (input: Record<string, unknown>) => {
+    if (ledgerThrowsFor && input.type === ledgerThrowsFor) throw new Error('ledger fault');
     ledgerEvents.push(input);
   },
   resolvePaymentChannel: async () => 'card' as const,
@@ -170,6 +173,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   setCalls.length = 0;
   ledgerEvents.length = 0;
+  ledgerThrowsFor = null;
   whereColumns.length = 0;
   updateReturns = [{ id: 'b-1' }];
   recheck = undefined;
@@ -220,6 +224,21 @@ describe('settleBooking', () => {
     expect(ledgerEvents.map((e) => e.type)).toEqual(['settle_succeeded']);
     expect(sendHostPaymentReceivedEmail).toHaveBeenCalledTimes(1);
     expect(executeRefund).not.toHaveBeenCalled();
+  });
+
+  it('a failing settle_succeeded row never holds a captured card in processing: the flip commits and the gap is paged', async () => {
+    ledgerThrowsFor = 'settle_succeeded';
+
+    const outcome = await settleBooking('ref-1');
+
+    expect(outcome).toBe('success');
+    expect(setCalls[0]).toMatchObject({ paymentStatus: 'paid' });
+    expect(sendHostPaymentReceivedEmail).toHaveBeenCalledTimes(1);
+    expect(notifyAdmin).toHaveBeenCalledWith(
+      'payment_ledger_anomaly',
+      expect.objectContaining({ reference: 'ref-1', bookingId: 'b-1', gatewayId: 'pay-1' }),
+      expect.objectContaining({ fingerprint: 'settle-ledger:b-1' }),
+    );
   });
 
   it('stamps the VAT snapshot at the tax point when VAT is on', async () => {
@@ -307,6 +326,24 @@ describe('settleBooking', () => {
     expect(notifyAdmin).toHaveBeenCalledWith(
       'settle_anomaly',
       expect.objectContaining({ problem: 'amounts changed while settling (promo/credit race)' }),
+    );
+  });
+
+  it('a failing anomaly ledger row still stamps the booking, so the alert fires once, not hourly', async () => {
+    gatewayStatus.amount = '9999.00';
+    ledgerThrowsFor = 'settle_failed';
+
+    const outcome = await settleBooking('ref-1');
+
+    expect(outcome).toBe('anomaly');
+    // The stamp landed (the conditional UPDATE ran and claimed the row)…
+    expect(setCalls.some((c) => 'settleAnomalyAt' in c && c.settleAnomalyAt !== null)).toBe(true);
+    // …the alert fired for the first-time stamp…
+    expect(notifyAdmin).toHaveBeenCalledWith('settle_anomaly', expect.anything());
+    // …and the ledger fault was reported rather than swallowed.
+    expect(reportError).toHaveBeenCalledWith(
+      expect.any(Error),
+      expect.objectContaining({ surface: 'payment-settle:anomalyLedger' }),
     );
   });
 

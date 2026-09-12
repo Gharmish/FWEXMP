@@ -1061,6 +1061,7 @@
       "refundDueFilter": "Showing bookings with refunds owed",
       "suspendedHostFilter": "Showing upcoming bookings whose host is suspended",
       "truncated": "Showing the latest {count} bookings — the counts above and the search cover only this window.",
+      "filteredTotals": "The counts above describe the bookings matching the current filters.",
       "refundBankReady": "Bank details ready",
       "refundBankMissing": "Awaiting bank details"
     },
@@ -1086,6 +1087,7 @@
         "operator": "Host / admin",
         "emergency": "Admin — emergency",
         "system": "System (payment hold lapsed)",
+        "host": "Host",
         "agent": "Guest via WhatsApp support agent"
       },
       "cancellationReason": "Cancellation reason",
@@ -1213,6 +1215,25 @@
       "acknowledgedAt": "Acknowledged {date}",
       "suppressed": "Quiet window — not paged",
       "ticket": "Open the support inbox",
+      "kinds": {
+        "host_application_submitted": "New host application",
+        "dispute_opened": "Dispute opened",
+        "refund_due": "Refund owed — manual reversal required",
+        "payout_clawback": "Refund after payout — host clawback recorded",
+        "settle_anomaly": "Payment settlement anomaly",
+        "settle_stuck": "Payments stuck in processing for over 24h",
+        "cron_failed": "Scheduled job failed",
+        "cron_stale": "Maintenance job has stopped running",
+        "vat_stamp_missing": "Settled payments without a VAT stamp",
+        "vat_threshold": "VAT registration threshold approaching",
+        "negative_take": "Bookings settled at a negative platform take",
+        "guest_whatsapp_inbound": "New WhatsApp message from a guest",
+        "support_ticket_opened": "Support ticket opened",
+        "support_ticket_sla_breached": "Support ticket past its SLA",
+        "config_missing": "Production configuration is missing required secrets",
+        "support_daily_report": "Daily support report",
+        "payment_ledger_anomaly": "Money moved but the record did not — check before acting"
+      },
       "empty": {
         "eyebrow": "All clear",
         "title": "Nothing needs your attention.",

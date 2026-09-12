@@ -9,7 +9,7 @@ const access = vi.hoisted(() => ({ allowed: true }));
 vi.mock('@/features/bookings/lib/access', () => ({
   bookingViewerCanAccess: async () => access.allowed,
 }));
-const save = vi.fn(async () => true);
+const save = vi.fn<(id: string, payee: unknown) => Promise<boolean>>(async () => true);
 vi.mock('@/features/bookings/lib/refund-bank-core', () => ({
   saveRefundBankDetails: (id: string, payee: unknown) => save(id, payee),
 }));

@@ -30,6 +30,7 @@ const CRITICAL = new Set([
   'vat_stamp_missing',
   'payout_clawback',
   'refund_due',
+  'payment_ledger_anomaly',
 ]);
 
 export async function generateMetadata({
@@ -69,7 +70,9 @@ export default async function AdminAlertsPage({ params }: { params: Promise<{ lo
       className="border-sarat-black/8 rounded-card flex flex-col gap-3 [border-width:0.5px] p-6"
     >
       <div className="flex flex-wrap items-center gap-3">
-        <span className="text-sarat-black text-base font-medium">{row.subject}</span>
+        <span className="text-sarat-black text-base font-medium">
+          {t.has(`alerts.kinds.${row.kind}`) ? t(`alerts.kinds.${row.kind}`) : row.subject}
+        </span>
         <Badge
           className={
             CRITICAL.has(row.kind) ? 'bg-error-surface text-error' : 'bg-info-surface text-info'

@@ -123,18 +123,28 @@ async function recordSettleAnomaly(
       // A durable DB record of the anomaly, independent of email
       // (2026-07-28 seventh audit) — but ONCE, inside the dedupe (2026-07-28
       // eighth audit), and in the SAME transaction as the stamp (2026-09
-      // engineering audit DATA-03): stamp and ledger row commit together.
-      await recordPaymentEvent(
-        {
-          bookingId,
-          type: 'settle_failed',
-          amountSar: null,
-          gatewayId: null,
-          resultCode: `ANOMALY:${problem}`,
-          actorUserId: null,
-        },
-        tx,
-      );
+      // engineering audit DATA-03) so the two commit together — behind a
+      // SAVEPOINT, so a failing ledger insert can never roll the stamp
+      // back: without the stamp `firstTime` stays true and this alert
+      // fires again on every hourly reconcile (second-pass verification
+      // F3), the exact storm the stamp exists to stop.
+      try {
+        await tx.transaction(async (inner) => {
+          await recordPaymentEvent(
+            {
+              bookingId,
+              type: 'settle_failed',
+              amountSar: null,
+              gatewayId: null,
+              resultCode: `ANOMALY:${problem}`,
+              actorUserId: null,
+            },
+            inner,
+          );
+        });
+      } catch (error) {
+        reportError(error, { surface: 'payment-settle:anomalyLedger', bookingId });
+      }
       return true;
     });
   } catch (error) {
@@ -226,6 +236,7 @@ export async function settleBooking(reference: string): Promise<SettleOutcome> {
       // payment without VAT — under-declared output tax.
       const { vatEnabled, vatRateBps, vatRegistrationNumber } = await getPlatformSettingsStrict();
 
+      let ledgerFailed = false;
       const won = await db.transaction(async (tx) => {
         const rows = await tx
           .update(bookings)
@@ -280,21 +291,47 @@ export async function settleBooking(reference: string): Promise<SettleOutcome> {
           )
           .returning({ id: bookings.id });
         // The ledger row commits with the flip, never without it
-        // (2026-09 engineering audit DATA-03).
+        // (2026-09 engineering audit DATA-03) — behind a SAVEPOINT, so the
+        // flip is authoritative: a deterministic ledger fault (enum, uuid
+        // cast, FK) must not hold a captured card in `processing` until
+        // the cron cancels the hold (second-pass verification F2). The
+        // gap is paged below instead of silently accepted.
         if (rows.length > 0) {
-          await recordPaymentEvent(
-            {
-              bookingId: booking.id,
-              type: 'settle_succeeded',
-              amountSar: booking.totalAmount,
-              gatewayId: status.id,
-              resultCode: status.result.code,
-            },
-            tx,
-          );
+          try {
+            await tx.transaction(async (inner) => {
+              await recordPaymentEvent(
+                {
+                  bookingId: booking.id,
+                  type: 'settle_succeeded',
+                  amountSar: booking.totalAmount,
+                  gatewayId: status.id,
+                  resultCode: status.result.code,
+                },
+                inner,
+              );
+            });
+          } catch (error) {
+            ledgerFailed = true;
+            reportError(error, { surface: 'payment-settle:ledger', reference });
+          }
         }
         return rows;
       });
+      if (ledgerFailed && won.length > 0) {
+        await notifyAdmin(
+          'payment_ledger_anomaly',
+          {
+            reference,
+            bookingId: booking.id,
+            amountSar: booking.totalAmount,
+            gatewayId: status.id,
+            problem: 'booking flipped to paid but the settle_succeeded ledger row was not written',
+            action:
+              'insert the ledger row by hand from the HyperPay capture — the payment itself is fine',
+          },
+          { fingerprint: `settle-ledger:${booking.id}`, quietWindowMs: 6 * 3_600_000 },
+        );
+      }
 
       // Concurrent-settle guard: the return route, the webhook, and the
       // cron reconcile can race on the same reference, and the early

@@ -51,7 +51,13 @@ export interface PassRunner {
   ): Promise<T>;
   readonly failedPasses: string[];
   readonly skippedPasses: string[];
+  /** Passes that stopped early because the run budget ran out mid-loop. */
+  readonly truncatedPasses: string[];
   readonly startedAt: number;
+  /** True once the run has used its budget — long loops check this per item. */
+  overBudget(): boolean;
+  /** Record that `name` stopped early; the pass still returns its partial result. */
+  truncate(name: string): void;
 }
 
 /**
@@ -64,11 +70,17 @@ export function createPassRunner(budgetMs: number = RUN_BUDGET_MS): PassRunner {
   const startedAt = Date.now();
   const failedPasses: string[] = [];
   const skippedPasses: string[] = [];
+  const truncatedPasses: string[] = [];
   const overBudget = (): boolean => Date.now() - startedAt > budgetMs;
   return {
     startedAt,
     failedPasses,
     skippedPasses,
+    truncatedPasses,
+    overBudget,
+    truncate(name) {
+      if (!truncatedPasses.includes(name)) truncatedPasses.push(name);
+    },
     async pass(name, fn, fallback, opts = {}) {
       if (opts.bestEffort && overBudget()) {
         skippedPasses.push(name);
