@@ -18,6 +18,50 @@ import {
   uuid,
 } from 'drizzle-orm/pg-core';
 
+/*
+ * Auth user ids: every column that references auth.users.id is `uuid()`
+ * (2026-09 engineering audit DATA-07 — five were `text()`). There is no FK
+ * because Drizzle does not model the auth schema; the type is the rule.
+ */
+
+/** The alert vocabulary lib/admin-alerts.ts pages on (DATA-08: typed column). */
+export const ADMIN_ALERT_KINDS = [
+  'host_application_submitted',
+  'dispute_opened',
+  'refund_due',
+  'payout_clawback',
+  'settle_anomaly',
+  'settle_stuck',
+  'cron_failed',
+  'cron_stale',
+  'vat_stamp_missing',
+  'vat_threshold',
+  'negative_take',
+  'guest_whatsapp_inbound',
+  'support_ticket_opened',
+  'support_ticket_sla_breached',
+  'config_missing',
+  'support_daily_report',
+] as const;
+export type AdminAlertKind = (typeof ADMIN_ALERT_KINDS)[number];
+
+/** Free-form alert context — an object, rendered as a key/value list (nested values are JSON-stringified). */
+export type AdminAlertDetail = Record<string, unknown>;
+
+export const SUPPORT_TICKET_EVENT_KINDS = ['opened', 'resolved', 'sla_breached'] as const;
+
+/** One tool call the support agent made while composing a reply. */
+export interface ToolCallLog {
+  name: string;
+  input: unknown;
+  ok: boolean;
+}
+
+export const WEB_VITAL_NAMES = ['LCP', 'INP', 'CLS', 'TTFB', 'FCP'] as const;
+export type WebVitalName = (typeof WEB_VITAL_NAMES)[number];
+export const WEB_VITAL_RATINGS = ['good', 'needs-improvement', 'poor'] as const;
+export type WebVitalRating = (typeof WEB_VITAL_RATINGS)[number];
+
 /**
  * Gharmish database schema (BRIEF.md section 8).
  *
@@ -414,7 +458,7 @@ export const guests = pgTable('guests', {
    * created lazily at booking time by phone, then claimed by the account
    * on first profile visit (see features/account/profile/queries.ts).
    */
-  authUserId: text().unique(),
+  authUserId: uuid().unique(),
   email: text(),
   name: text().notNull(),
   /** Public URL of the profile photo in the Supabase Storage `avatars` bucket. */
@@ -1341,10 +1385,10 @@ export const disputes = pgTable(
     /**
      * The support ticket this report also lives as (2026-08-21 phase 3):
      * web "report a problem" and WhatsApp complaints share one queue.
-     * Nullable for rows filed before tickets existed. No FK — tickets
-     * are declared later in this file; resolution keeps both in step.
+     * Nullable for rows filed before tickets existed. FK added 2026-09
+     * (engineering audit DATA-08): a deleted ticket unlinks, never dangles.
      */
-    ticketId: uuid(),
+    ticketId: uuid().references(() => supportTickets.id, { onDelete: 'set null' }),
     createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [
@@ -1413,7 +1457,7 @@ export const paymentEvents = pgTable(
     /** Raw OPPWA result code, when the event came from a gateway response. */
     resultCode: text(),
     /** Auth user id of the admin who drove the event; null for guest/system flows. */
-    actorUserId: text(),
+    actorUserId: uuid(),
     createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [
@@ -1442,7 +1486,7 @@ export const payouts = pgTable(
     payoutIban: text(),
     bankReference: text(),
     /** Auth user id of the admin who marked the batch paid. */
-    markedByUserId: text().notNull(),
+    markedByUserId: uuid().notNull(),
     createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [index('payouts_host_idx').on(t.hostId, t.createdAt)],
@@ -1529,7 +1573,7 @@ export const walletLedger = pgTable(
     /** Whole SAR. Positive = credit, negative = debit; never zero (SQL CHECK). */
     amountSar: integer().notNull(),
     /** Auth user id of the admin actor; null for guest/system flows. Not a FK — mirrors payment_events. */
-    actorUserId: text(),
+    actorUserId: uuid(),
     note: text(),
     /** Credit-lot expiry. Recorded from P0, enforced once redemption/sweep ship. */
     expiresAt: timestamp({ withTimezone: true }),
@@ -1843,11 +1887,11 @@ export const userProfileEvents = pgTable(
   {
     id: uuid().defaultRandom().primaryKey(),
     /** Supabase auth id of the edited person, when they have an account. */
-    subjectAuthUserId: text(),
+    subjectAuthUserId: uuid(),
     subjectGuestId: uuid().references(() => guests.id, { onDelete: 'set null' }),
     subjectHostId: uuid().references(() => hosts.id, { onDelete: 'set null' }),
     /** Supabase auth id of the admin who made the change. */
-    actorUserId: text().notNull(),
+    actorUserId: uuid().notNull(),
     /** Dotted field key, e.g. `guest.name`, `host.payoutIban`. */
     field: text().notNull(),
     /** Prior value, masked for sensitive fields; null when it was unset. */
@@ -2064,7 +2108,7 @@ export const conversationMessages = pgTable(
     /** Twilio Message SID (inbound `MessageSid`, outbound send result). */
     providerMessageId: text(),
     deliveryId: uuid().references(() => notificationDeliveries.id, { onDelete: 'set null' }),
-    toolCalls: jsonb(),
+    toolCalls: jsonb().$type<ToolCallLog[]>(),
     createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [
@@ -2143,7 +2187,7 @@ export const supportTicketEvents = pgTable(
     ticketId: uuid()
       .notNull()
       .references(() => supportTickets.id, { onDelete: 'cascade' }),
-    kind: text().notNull(),
+    kind: text({ enum: SUPPORT_TICKET_EVENT_KINDS }).notNull(),
     /** `agent` / `admin` / `system`. */
     actor: text().notNull(),
     note: text(),
@@ -2163,14 +2207,41 @@ export const adminAlerts = pgTable(
   'admin_alerts',
   {
     id: uuid().defaultRandom().primaryKey(),
-    kind: text().notNull(),
+    kind: text({ enum: ADMIN_ALERT_KINDS }).notNull(),
     subject: text().notNull(),
-    detail: jsonb().notNull().default({}),
+    detail: jsonb().$type<AdminAlertDetail>().notNull().default({}),
     ticketId: uuid().references(() => supportTickets.id, { onDelete: 'set null' }),
     acknowledgedAt: timestamp({ withTimezone: true }),
     createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [index('admin_alerts_created_idx').on(t.createdAt)],
+);
+
+/**
+ * Real-user web vitals (2026-09 engineering audit ROADMAP-06 — BRIEF §6
+ * "track real-user metrics, not lab"). A 25% sample of page loads posts
+ * LCP/INP/CLS/TTFB/FCP with the route template (never a full URL, never
+ * an identifier); /admin/analytics shows the p75s. Pruned after 90 days
+ * by the maintenance cron.
+ */
+export const webVitals = pgTable(
+  'web_vitals',
+  {
+    id: uuid().defaultRandom().primaryKey(),
+    name: text({ enum: WEB_VITAL_NAMES }).notNull(),
+    /** Milliseconds, except CLS which is unitless. */
+    value: doublePrecision().notNull(),
+    rating: text({ enum: WEB_VITAL_RATINGS }).notNull(),
+    /** Route template with ids/slugs collapsed, e.g. `/experiences/[slug]`. */
+    path: text().notNull(),
+    locale: text(),
+    navigationType: text(),
+    createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index('web_vitals_created_idx').on(t.createdAt),
+    index('web_vitals_name_created_idx').on(t.name, t.createdAt),
+  ],
 );
 
 /**

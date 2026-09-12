@@ -40,15 +40,25 @@ function stubAdminFlags(phone: string): Pick<AuthUser, 'isAdmin' | 'mfa'> {
   };
 }
 
+/**
+ * Lay 32 hex digits out as a canonical uuid. Every auth-user-id column is
+ * `uuid` (DATA-07); Postgres would accept the bare hex but hand back the
+ * hyphenated form, and equality checks against the session id must hold.
+ */
+function asUuid(hex: string): string {
+  const h = hex.slice(0, 32);
+  return `${h.slice(0, 8)}-${h.slice(8, 12)}-${h.slice(12, 16)}-${h.slice(16, 20)}-${h.slice(20, 32)}`;
+}
+
 /** Derive a stable AuthUser from a canonical phone string. */
 export function stubUserFromPhone(phone: string): AuthUser {
-  const id = createHash('sha256').update(phone).digest('hex').slice(0, 32);
+  const id = asUuid(createHash('sha256').update(phone).digest('hex'));
   return { id, phone, email: undefined, isStub: true, ...stubAdminFlags(phone) };
 }
 
 /** Derive a stable AuthUser from an email. Cookie value is `email:<addr>`. */
 export function stubUserFromEmail(email: string): AuthUser {
-  const id = createHash('sha256').update(`email:${email}`).digest('hex').slice(0, 32);
+  const id = asUuid(createHash('sha256').update(`email:${email}`).digest('hex'));
   return { id, phone: '', email, isStub: true, ...stubAdminFlags('') };
 }
 

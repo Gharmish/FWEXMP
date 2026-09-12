@@ -1,3 +1,5 @@
+import type { ToolCallLog } from '@/db/schema';
+export type { ToolCallLog };
 import 'server-only';
 
 import Anthropic from '@anthropic-ai/sdk';
@@ -71,12 +73,6 @@ function anthropic(): Anthropic {
 /** Test seam: swap the client without an API key. */
 export function setAnthropicClientForTests(instance: Anthropic | null): void {
   client = instance;
-}
-
-export interface ToolCallLog {
-  name: string;
-  input: unknown;
-  ok: boolean;
 }
 
 export interface AgentTurnResult {

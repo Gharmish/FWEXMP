@@ -26,8 +26,10 @@ describe('stubUserFromPhone', () => {
     expect(u.email).toBeUndefined();
   });
 
-  it('returns a 32-char id', () => {
-    expect(stubUserFromPhone('+966512345678').id).toHaveLength(32);
+  it('returns a canonical uuid (every auth-id column is uuid — DATA-07)', () => {
+    expect(stubUserFromPhone('+966512345678').id).toMatch(
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/,
+    );
   });
 });
 
@@ -70,7 +72,7 @@ describe('stubUserFromEmail', () => {
     const a = stubUserFromEmail('sara@example.com');
     const b = stubUserFromEmail('sara@example.com');
     expect(a.id).toBe(b.id);
-    expect(a.id).toHaveLength(32);
+    expect(a.id).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/);
     expect(a.id).not.toBe(stubUserFromPhone('+966512345678').id);
   });
 });

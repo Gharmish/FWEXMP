@@ -72,6 +72,8 @@ const IDENTICAL_ALLOWLIST = new Set([
   'notFound.eyebrow',
   'reviews.charCount',
   'footer.brandApplePay',
+  // A statistics label, identical in both scripts.
+  'admin.analytics.vitals.p75',
 ]);
 
 /** Keys whose Arabic deliberately drops an argument (shorter titles). */

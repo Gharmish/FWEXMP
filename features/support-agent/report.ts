@@ -161,7 +161,7 @@ export async function maybeSendDailyReport(now = new Date()): Promise<boolean> {
     const { text, html } = renderDailyReport(stats, dateLabel);
     await db
       .insert(adminAlerts)
-      .values({ kind: REPORT_KIND, subject: 'Daily support report', detail: stats });
+      .values({ kind: REPORT_KIND, subject: 'Daily support report', detail: { ...stats } });
     await sendEmail({
       to: serverEnv.ADMIN_ALERT_EMAIL,
       subject: `[Gharmish admin] Support line — ${dateLabel}`,

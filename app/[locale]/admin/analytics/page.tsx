@@ -7,6 +7,9 @@ import { cn } from '@/lib/utils';
 import { formatDate } from '@/lib/format';
 import { Price } from '@/components/ui/price';
 import { getAnalyticsSnapshot, isAdminAndDbReady } from '@/features/admin/analytics/queries';
+import { getWebVitalsSummary } from '@/features/admin/analytics/vitals-queries';
+import { formatVital } from '@/features/admin/analytics/vitals';
+import { Badge } from '@/components/ui/badge';
 import type { AnalyticsWindowStats } from '@/features/admin/analytics/types';
 import { SummaryChart } from '@/features/admin/dashboard/components/summary-chart';
 
@@ -32,10 +35,11 @@ export default async function AdminAnalyticsPage({
   setRequestLocale(locale);
   const loc = locale as Locale;
 
-  const [block, snapshot, t] = await Promise.all([
+  const [block, snapshot, t, vitals] = await Promise.all([
     isAdminAndDbReady(),
     getAnalyticsSnapshot(),
     getTranslations('admin'),
+    getWebVitalsSummary(),
   ]);
 
   const eyebrowClassName = cn('text-sarat-black-600 text-eyebrow');
@@ -169,6 +173,73 @@ export default async function AdminAnalyticsPage({
         <div className="border-sarat-black/8 rounded-card [border-width:0.5px] p-6">
           <SummaryChart points={snapshot.sparkline} locale={loc} />
         </div>
+      </section>
+
+      {/* Real-user web vitals (ROADMAP-06) */}
+      <section className="flex flex-col gap-4">
+        <div className="flex flex-wrap items-baseline justify-between gap-3">
+          <h2 className={eyebrowClassName}>{t('analytics.vitals.heading')}</h2>
+          <p className="text-sarat-black-600 text-xs">{t('analytics.vitals.subtitle')}</p>
+        </div>
+        {vitals === null || vitals.last7d.every((r) => r.samples === 0) ? (
+          <p className="text-sarat-black-600 text-sm">{t('analytics.vitals.empty')}</p>
+        ) : (
+          <div className="border-sarat-black/8 rounded-card overflow-x-auto [border-width:0.5px]">
+            <table className="w-full text-sm">
+              <thead className="bg-mist text-sarat-black-600 text-start text-[13px]">
+                <tr>
+                  <th className="px-4 py-3 text-start font-medium">
+                    {t('analytics.vitals.metric')}
+                  </th>
+                  <th className="px-4 py-3 text-start font-medium">{t('analytics.vitals.p75')}</th>
+                  <th className="px-4 py-3 text-start font-medium">
+                    {t('analytics.vitals.rating')}
+                  </th>
+                  <th className="px-4 py-3 text-start font-medium">
+                    {t('analytics.vitals.samples')}
+                  </th>
+                  <th className="px-4 py-3 text-start font-medium">
+                    {t('analytics.vitals.p75Month')}
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="divide-hairline">
+                {vitals.last7d.map((row, i) => {
+                  const month = vitals.last28d[i];
+                  return (
+                    <tr key={row.name}>
+                      <td className="px-4 py-3 font-mono text-[13px]" dir="ltr">
+                        {row.name}
+                      </td>
+                      <td className="px-4 py-3 tabular-nums" dir="ltr">
+                        {row.p75 === null ? '—' : formatVital(row.name, row.p75)}
+                      </td>
+                      <td className="px-4 py-3">
+                        {row.rating && (
+                          <Badge
+                            className={
+                              row.rating === 'good'
+                                ? 'bg-success-surface text-success'
+                                : row.rating === 'poor'
+                                  ? 'bg-error-surface text-error'
+                                  : 'bg-pending-surface text-pending'
+                            }
+                          >
+                            {t(`analytics.vitals.ratings.${row.rating}`)}
+                          </Badge>
+                        )}
+                      </td>
+                      <td className="px-4 py-3 tabular-nums">{row.samples}</td>
+                      <td className="px-4 py-3 tabular-nums" dir="ltr">
+                        {month?.p75 == null ? '—' : formatVital(month.name, month.p75)}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
       </section>
 
       {/* Top experiences + hosts */}

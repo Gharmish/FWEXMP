@@ -951,6 +951,21 @@
       "sparkSubtitle": "One bar per day. Confirmed + completed bookings only.",
       "topExperiencesHeading": "Top experiences (last 30 days)",
       "topHostsHeading": "Top hosts (last 30 days)",
+      "vitals": {
+        "heading": "Real-user speed (last 7 days)",
+        "subtitle": "p75 of a 25% sample of page loads — what three quarters of visitors did better than.",
+        "metric": "Metric",
+        "p75": "p75",
+        "rating": "Rating",
+        "samples": "Samples",
+        "p75Month": "p75, 28 days",
+        "empty": "No samples yet — vitals arrive as visitors load pages.",
+        "ratings": {
+          "good": "Good",
+          "needs-improvement": "Needs work",
+          "poor": "Poor"
+        }
+      },
       "windows": {
         "7d": "Last 7 days",
         "30d": "Last 30 days",

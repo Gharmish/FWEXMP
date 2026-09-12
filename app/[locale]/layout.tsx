@@ -39,6 +39,7 @@ import { Footer } from '@/components/layout/footer';
 import { ScrollToTop } from '@/components/layout/scroll-to-top';
 import { CookieNotice } from '@/components/layout/cookie-notice';
 import { MarketingPixels } from '@/components/layout/marketing-pixels';
+import { WebVitalsReporter } from '@/features/analytics/web-vitals-reporter';
 import { Analytics } from '@vercel/analytics/next';
 import { UtmCapture } from '@/features/analytics/utm-capture';
 import { MotionProvider } from '@/components/ui/motion';
@@ -181,6 +182,7 @@ export default async function LocaleLayout({
                 {chrome && <Footer />}
                 <CookieNotice />
                 <MarketingPixels />
+                <WebVitalsReporter />
                 {/* Vercel Web Analytics: cookieless, no cross-site identifier, so
                     it sits outside the consent gate like the first-party
                     analytics_events capture. Site-level visitors/referrers/

@@ -98,8 +98,11 @@ cannot be edited, and slots are additive-only (never renumber). Do not rewrite
 them here. But every template authored from v3 onward follows the brand voice
 (BRIEF.md §2 — calm, restrained, never loud):
 
-- **No emoji.** The `✅` / `🎉` in v2 bodies are grandfathered, not precedent;
-  no other brand channel (email, product, SMS) uses them.
+- **No emoji from the next template version on.** The v2 `✅` / `🎉` AND the
+  v3 bodies Meta approved on 2026-08-21 carry emoji (~150 across the
+  registry — 2026-09 engineering audit DESIGN-02). Stripping them means
+  re-submitting every template; the owner has not decided to. v4+ bodies
+  add none; no other brand channel (email, product, SMS) uses them.
 - **No exclamation marks.** "your booking is confirmed." carries the same news
   as "confirmed!" — the register is a host, not a promoter.
 - **Close with the brand, not a bare URL.** End on branded copy or a labelled

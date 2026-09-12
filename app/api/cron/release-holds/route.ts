@@ -28,6 +28,7 @@ import {
   paymentEvents,
   platformSettings,
   walletLedger,
+  webVitals,
 } from '@/db/schema';
 import { getSupabaseServiceStorage } from '@/lib/supabase/server';
 import { KYC_DOCUMENTS_BUCKET } from '@/features/host-applications/lib/documents';
@@ -1250,6 +1251,27 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       { bestEffort: true },
     );
 
+    // Pass 7c — web-vitals retention (2026-09 engineering audit ROADMAP-06).
+    // Ninety days answers "did last month's release slow the site down";
+    // older samples have no reader. Bounded per run.
+    const vitalsPruned = await pass(
+      '7c-vitals-retention',
+      async () => {
+        const cutoff = new Date(Date.now() - 90 * 24 * 3_600_000);
+        await db.delete(webVitals).where(
+          sql`${webVitals.id} in (
+            select id from ${webVitals}
+            where ${webVitals.createdAt} <= ${cutoff}
+            order by ${webVitals.createdAt} asc
+            limit 5000
+          )`,
+        );
+        return true;
+      },
+      false,
+      { bestEffort: true },
+    );
+
     // Pass 8 — KYC document retention (2026-08-02 legal audit, PDPL).
     // Identity documents on applications REJECTED more than
     // KYC_RETENTION_DAYS ago have no remaining purpose: the privacy
@@ -1362,6 +1384,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       marketed,
       expiredCreditSar,
       analyticsPruned,
+      vitalsPruned,
       kycDocumentsPurged,
       failedPasses,
       skippedPasses,

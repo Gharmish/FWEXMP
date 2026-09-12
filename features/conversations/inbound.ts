@@ -1,3 +1,4 @@
+import type { ToolCallLog } from '@/db/schema';
 import 'server-only';
 
 import { and, desc, eq, inArray, isNotNull, isNull, lt, or, sql } from 'drizzle-orm';
@@ -338,7 +339,7 @@ export interface OutboundReply {
   locale: Locale;
   /** Idempotency key for the ledger row. */
   dedupeKey: string;
-  toolCalls?: unknown;
+  toolCalls?: ToolCallLog[] | null;
 }
 
 /**

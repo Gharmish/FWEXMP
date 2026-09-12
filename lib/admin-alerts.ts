@@ -22,22 +22,8 @@ import { adminAlerts } from '@/db/schema';
  * Resend and the alert inbox are configured.
  */
 
-export type AdminAlertKind =
-  | 'host_application_submitted'
-  | 'dispute_opened'
-  | 'refund_due'
-  | 'payout_clawback'
-  | 'settle_anomaly'
-  | 'settle_stuck'
-  | 'cron_failed'
-  | 'cron_stale'
-  | 'vat_stamp_missing'
-  | 'vat_threshold'
-  | 'negative_take'
-  | 'guest_whatsapp_inbound'
-  | 'support_ticket_opened'
-  | 'support_ticket_sla_breached'
-  | 'config_missing';
+export type { AdminAlertKind } from '@/db/schema';
+import type { AdminAlertKind } from '@/db/schema';
 
 const SUBJECTS: Record<AdminAlertKind, string> = {
   host_application_submitted: 'New host application',
@@ -55,6 +41,7 @@ const SUBJECTS: Record<AdminAlertKind, string> = {
   support_ticket_opened: 'Support ticket opened',
   support_ticket_sla_breached: 'Support ticket past its SLA',
   config_missing: 'Production configuration is missing required secrets',
+  support_daily_report: 'Daily support report',
 };
 
 /** Amounts arrive as bare integers under `…Sar` keys; label the unit. */
