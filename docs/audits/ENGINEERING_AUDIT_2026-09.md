@@ -797,46 +797,48 @@ Roadmap-level investments synthesised across all reviewers, deduplicated and seq
 
 **Not covered.** Live database state, Vercel/Supabase configuration, DNS, and third-party dashboards were out of scope (code only, no production access). No load testing or Lighthouse run was performed; performance findings are code-derived.
 
-## 9. Remediation status (2026-09-12)
+## 9. Remediation status (2026-09-13)
 
-Remediation ran on 2026-09-11 and 2026-09-12 on `main` in 51 reviewable pathspec commits (f39aba1..dc18686) with the type-check, lint and the full Vitest suite green after every batch and a production build verified at the end. Nothing was pushed or deployed: a push to `main` auto-deploys, and the release remains the owner's call. Every fix that changes behaviour carries a test.
+Remediation ran on 2026-09-11, 12 and 13 on `main` in 58 reviewable pathspec commits (f39aba1..88b2fa4) with the type-check, lint and the full Vitest suite green after every batch and a production build verified at each structural step. Nothing was pushed or deployed: a push to `main` auto-deploys, and the release remains the owner's call. Every fix that changes behaviour carries a test.
 
-*Fixed* means the finding is closed on `main`. *Partially fixed* means the live risk is removed but a follow-up remains (named in the note). *Deferred* items are the few refactors judged riskier than their payoff without a second engineer (named in the note). *Owner decision* items need a one-off SQL statement run as the database owner, or a product or brand decision — everything the code side can prepare for them is committed.
+**Independent verification.** The session ran on Claude Fable 5.1. After the first 52 commits, two Opus-tier reviewers independently re-verified the whole range against the code, the installed framework sources and the live database (read-only) — 36 confirmed findings, listed in §9.1 with their outcomes; every code finding was fixed in the five commits that followed, and three further Opus-tier reviewers then re-verified those (§9.2).
+
+*Fixed* means the finding is closed on `main`. *Owner decision* items need a one-off SQL statement run as the database owner, or a product or brand decision — everything the code side can prepare for them is committed. One item is deliberately deferred (§9.1, UI-F8).
 
 | Outcome | P0 | P1 | P2 | P3 | Total |
 |---|---|---|---|---|---|
-| **Fixed** | 1 | 12 | 67 | 64 | **144** |
-| **Partially fixed** | 0 | 1 | 2 | 0 | **3** |
-| **Deferred** | 0 | 0 | 1 | 2 | **3** |
+| **Fixed** | 1 | 13 | 70 | 66 | **150** |
+| **Partially fixed** | 0 | 0 | 0 | 0 | **0** |
+| **Deferred** | 0 | 0 | 0 | 0 | **0** |
 | **Owner decision** | 0 | 0 | 2 | 3 | **5** |
 | **Not a bug** | 0 | 0 | 1 | 0 | **1** |
 
 | ID | Sev | Outcome | Commit | Note |
 |---|---|---|---|---|
 | DEPS-01 | P0 | Fixed | `1fd9711` | Next.js 16.3.4, eslint-config-next in lockstep; audit gate green. |
-| DATA-01 | P1 | Fixed | `26ef08a` | Catch-up migration 0032 + snapshot; schema-vs-snapshot test guards the journal. |
+| DATA-01 | P1 | Fixed | `26ef08a, 145cd91` | Catch-up migration 0032 + snapshot; schema-vs-snapshot test guards the journal. Second pass: supabase/2026-09-12-drizzle-journal-baseline.sql records 0000–0032 in drizzle's journal table (the live DB had none) and pnpm db:preflight checks the live schema for every migration HEAD needs before a deploy. |
 | DATA-02 | P1 | Fixed | `6a993af` | db:seed refuses remote hosts unless SEED_ALLOW_DESTRUCTIVE=1; runs in one transaction. |
 | AI-01 | P1 | Fixed | `af6bcb4` | runAgentTurn re-checks for newer inbound under the same lock (≤3 passes); tested. |
 | ACTIONS-01 | P1 | Fixed | `49290b1` | referralCode parsed from the form. |
 | TEST-01 | P1 | Fixed | `171a29e` | e2e needs the checks job; CLAUDE.md requires green CI before a prod deploy. |
 | TEST-02 | P1 | Fixed | `5d5132d` | 11 tests on createCheckout gates and the liveness CAS. |
-| TEST-03 | P1 | Partially fixed | `3bf0a2c` | markHostPaid, emergencyCancelBooking, refundBooking gates, suspendHost, the host listing guards and the alerts actions are covered; other action files remain untested. |
-| OPS-01 | P1 | Fixed | `d17ad8c` | Watchdog route, test and vercel.json schedule committed. Apply supabase/watchdog-hourly-cron.sql only AFTER the route is live. |
+| TEST-03 | P1 | Fixed | `3855af5, bd0cc6f` | Every server-action module has a unit suite on lib/test/db-fake — 29 new suites over five waves; 165 files / 1,979 tests. Writing them surfaced two live bugs: the admin experience editor failed every save on two Arabic list fields the form never posted, and a refused calendar blackout threw its redirect inside its own catch. |
+| OPS-01 | P1 | Fixed | `d17ad8c, 145cd91` | Watchdog route, test and vercel.json schedule committed; the stale alert shares cron_failed's 6h quiet window. Apply supabase/watchdog-hourly-cron.sql only AFTER the route is live. |
 | OPS-02 | P1 | Fixed | `8ff9716` | Same-fingerprint alerts collapse into a quiet window; the row is still persisted. |
 | DEPS-02 | P1 | Fixed | `1fd9711` | Overrides raised: sharp ≥0.35.4, fast-uri ≥3.1.6; engines + .nvmrc pin Node 22. |
 | GAPA-01 | P1 | Fixed | `31a472b` | Host and admin listing edits refuse schedule changes that strand live bookings (schedule_has_bookings). |
 | GAPB-01 | P1 | Fixed | `49290b1` | Click ids stored only with ad consent; server-side TikTok purchase fires only when a ttclid was consented. |
 | WIP-01 | P1 | Fixed | `a25b1e6` | Event-clock guard on approve and checkout landed. |
 | ARCH-01 | P2 | Fixed | `c3f84b5, 01e7178` | Route = auth + one call; features/maintenance/release-holds.ts orchestrates 22 passes across seven modules under one PassRunner. |
-| ARCH-02 | P2 | Partially fixed | `321ee9d` | lib/import-boundaries.test.ts pins the layer rules (features never import app; components never import app/features; lib imports neither). The auth↔admin folder pair remains — breaking it needs a neutral session module. |
+| ARCH-02 | P2 | Fixed | `db039d6` | features/admin/{roles,mfa,auth} live under features/auth/lib as admin-roles / admin-mfa / admin-user; the boundary test refuses any features/auth → features/admin import, so the pair cannot re-form. |
 | ARCH-03 | P2 | Fixed | `53f3cb5` | host-transition-button, sla-countdown and booking-copy moved into features/host-bookings. |
 | ARCH-04 | P2 | Fixed | `b951425` | lib/riyadh-time.ts is the one market clock; ten copies removed (also closes DATA-09, GAPA-06). |
 | ARCH-05 | P2 | Fixed | `321ee9d` | support-agent, conversations and marketing moved under features/; link-token, cancellation-policy and the category vocabulary re-homed so lib is a leaf. |
 | ARCH-06 | P2 | Fixed | `dc18686` | confirmationView() derives the sixteen status flags in a tested module; the manage tail streams behind Suspense. Page 1,602 → 1,141 lines. |
-| ARCH-07 | P2 | Partially fixed | `e5143f2` | booking-email split by lifecycle behind a re-exporting index (2,092 → five modules ≤ 860 lines). requestBooking (641 lines) is still one action. |
+| ARCH-07 | P2 | Fixed | `e5143f2, 88b2fa4` | booking-email split by lifecycle behind an index; requestBooking is a 140-line orchestrator over eleven step modules in features/bookings/lib/request/, pinned by its unchanged 26-test suite. |
 | ARCH-09 | P2 | Fixed | `a759140` | features/listings owns the draft schema, slug, photo, readiness and schedule guard; the three writers depend on it, not on each other. |
-| DATA-03 | P2 | Fixed | `ca11430` | recordPaymentEvent takes the transaction; settle flips, the anomaly stamp, refund_succeeded and the checkout claim commit with their ledger rows. |
-| DATA-04 | P2 | Fixed | `ebaf8ad` | listBookingsForAdmin filters, searches and orders in SQL (rendered-SQL tests); the 500 cap applies after filtering. |
+| DATA-03 | P2 | Fixed | `ca11430, 145cd91` | recordPaymentEvent takes the transaction. Second pass: the paid flip and the anomaly stamp are authoritative with their ledger rows behind a SAVEPOINT; refund_succeeded lands on the pool BEFORE the flip and a failed flip pages payment_ledger_anomaly instead of re-queueing money the gateway already returned. |
+| DATA-04 | P2 | Fixed | `ebaf8ad, 145cd91` | listBookingsForAdmin filters, searches and orders in SQL (rendered-SQL tests); the 500 cap applies after filtering; a filtered search that finds nothing keeps the filter bar and the strip says what it counts. |
 | DATA-05 | P2 | Fixed | `ebaf8ad` | The queue selects the 28 columns it renders; refundBankReady is computed in SQL. |
 | DATA-06 | P2 | Owner decision | `66ca181` | supabase/2026-09-11-app-role-timeouts.sql carries statement/idle/lock timeouts for the app role — apply once as the DB owner. |
 | MONEY-01 | P2 | Fixed | `aa7ea62` | Cancel flips re-assert paymentStatus; a mid-cancel settle now loses the race. |
@@ -849,7 +851,7 @@ Remediation ran on 2026-09-11 and 2026-09-12 on `main` in 51 reviewable pathspec
 | AI-02 | P2 | Fixed | `f6f6e04` | Budget: 40 turns/conversation/day, 800/day; over budget hands the thread to a person. |
 | AI-03 | P2 | Fixed | `8ff9716, f6f6e04` | Inbound paging collapses per conversation into a 30-minute quiet window. |
 | AI-04 | P2 | Fixed | `f6f6e04` | Verification expires after 24h; bank-detail actions need a verification under 1h old. |
-| AI-05 | P2 | Fixed | `f6f6e04, e6d80bf` | Tool inputs redacted in logs; cron pass masks IBANs persisted in conversation_messages. |
+| AI-05 | P2 | Fixed | `f6f6e04, e6d80bf, 145cd91` | Tool inputs redacted in logs; cron pass masks IBANs persisted in conversation_messages (word-anchored pattern). |
 | AI-06 | P2 | Fixed | `5fa8cbd` | Agent cancellations write cancellation_kind = 'agent' (migration 0033 — apply before deploy). |
 | AI-07 | P2 | Fixed | `f6f6e04` | max_tokens 8000; a max_tokens stop is never sent as a reply. |
 | AI-08 | P2 | Fixed | `f6f6e04` | 70s turn budget via AbortSignal, 25s per-call timeout. |
@@ -858,15 +860,15 @@ Remediation ran on 2026-09-11 and 2026-09-12 on `main` in 51 reviewable pathspec
 | ACTIONS-03 | P2 | Fixed | `fb3bf37` | Availability, host-profile and admin user writers flush the tagged caches. |
 | ACTIONS-04 | P2 | Fixed | `fb3bf37` | setDayAvailability redirects with ?calendar=has_bookings and the section explains the refusal. |
 | ACTIONS-05 | P2 | Fixed | `fb3bf37` | Ownership reads run inside the guarded try. |
-| REACT-01 | P2 | Fixed | `3942f92` | NextIntlClientProvider gets only the namespaces client components read on the route; a structural test scans every client component. |
-| REACT-02 | P2 | Deferred | — | Copy-prop vs useTranslations convergence (also ARCH-11); large, behaviour-neutral. |
+| REACT-01 | P2 | Fixed | `3942f92, b8a0e08` | The locale layout ships the base namespaces; each dashboard layout nests its own NextIntlClientProvider with its group; a structural test scans every client component and pins which layout provides which group. |
+| REACT-02 | P2 | Fixed | `db039d6` | Convergence rule in CLAUDE.md: client components read copy with useTranslations from CLIENT_NAMESPACES (structurally tested); copy props only for server-composed strings or namespace-crossing primitives. |
 | REACT-03 | P2 | Fixed | `1955715` | getHostBySlug wrapped in React cache(). |
 | REACT-04 | P2 | Fixed | `dc18686` | BookingManageSections streams behind Suspense with the reads only it needs. |
-| REACT-05 | P2 | Fixed | `3942f92` | The proxy forwards x-pathname; the locale layout renders no public shell (and no auth fan-out) on dashboard routes. |
+| REACT-05 | P2 | Fixed | `3942f92, b8a0e08` | Public routes live in an app/[locale]/(site) route group whose layout owns the navbar and footer; the dashboards are siblings, so the shell swaps on navigation. (The first cut read an x-pathname header in a layout Next does not re-render on soft navigation — caught by the second-pass review.) |
 | I18N-02 | P2 | Not a bug | `a8469a3` | The English inclusions/what-to-bring fields deliberately show English examples in both locales; allowlisted in the catalog test. |
 | DESIGN-01 | P2 | Fixed | `a8469a3` | [dir=rtl] [class*=tracking-] resets letter-spacing app-wide. |
 | DESIGN-02 | P2 | Owner decision | `b6d0b41` | BRIEF §3 and the WhatsApp runbook now state the v3 exception honestly; stripping ~150 emoji means Meta re-approval — decision pending. |
-| DESIGN-03 | P2 | Fixed | `66ca181` | text-h1/h2/h3/eyebrow utilities (+ responsive variants) replace 58/86/28 copied strings; eyebrow steps up under RTL. |
+| DESIGN-03 | P2 | Fixed | `66ca181, 145cd91` | text-h1/h2/h3/eyebrow utilities replace 58/86/28 copied strings; eyebrow steps up under RTL; cn() teaches tailwind-merge the utilities so a colour next to them is no longer deleted (81 call sites). |
 | TEST-04 | P2 | Fixed | `a759140` | The cron suite routes its select stub by projection and fixtures the wallet-expiry and KYC-purge passes. |
 | TEST-05 | P2 | Fixed | `5d5132d` | 9 tests on the webhook status contract. |
 | TEST-06 | P2 | Fixed | `d17ad8c` | Watchdog route tested (auth compare, staleness, re-alert). |
@@ -879,7 +881,7 @@ Remediation ran on 2026-09-11 and 2026-09-12 on `main` in 51 reviewable pathspec
 | PERF-02 | P2 | Fixed | `ebaf8ad` | ExperienceSummary.id lets the schedule, review-aggregate and completed-count reads skip their slug lookups. |
 | PERF-03 | P2 | Fixed | `5d5132d` | Host dashboard runs two deadline-bounded waves. |
 | PERF-04 | P2 | Fixed | `e6d80bf` | maxDuration 300, 240s run budget, money passes first, truncation reported. |
-| PERF-05 | P2 | Fixed | `5fa8cbd` | IBM Plex Sans Arabic self-declared and preloaded only on Arabic pages; immutable caching. |
+| PERF-05 | P2 | Fixed | `5fa8cbd, bd0cc6f` | IBM Plex Sans Arabic self-declared, preloaded (400/500/600) only on Arabic pages, immutable caching, and a metric-adjusted fallback face so Arabic text no longer reflows on swap. |
 | OPS-03 | P2 | Fixed | `e6d80bf` | Every pass isolated with pass(); failed/skipped passes reported; heartbeat withheld when a money pass fails. |
 | OPS-05 | P2 | Fixed | `f75f23c` | Sentry environment/release in both inits; setUser({id, segment}) on the session read. |
 | OPS-06 | P2 | Fixed | `f75f23c` | assertProductionConfig at instrumentation names missing secrets and alerts. |
@@ -914,8 +916,8 @@ Remediation ran on 2026-09-11 and 2026-09-12 on `main` in 51 reviewable pathspec
 | SEC-03 | P3 | Fixed | `38e427b` | signOut deletes the admin MFA marker. |
 | SEC-04 | P3 | Fixed | `5fa8cbd` | Production never derives the shopper-return origin from request headers. |
 | SEC-05 | P3 | Fixed | `66ca181` | Magic-byte sniffing on photo, avatar and KYC uploads (lib/file-signature.ts). |
-| SEC-06 | P3 | Deferred | — | Per-user storage handles — design change. |
-| SEC-07 | P3 | Fixed | `38e427b` | user_roles consulted first; a revoked row beats the env allowlist; tested. |
+| SEC-06 | P3 | Fixed | `db039d6` | uploadAsUser() writes avatars and KYC documents with the signed-in user's own token against the bucket's own-folder policy; a policy refusal is reported and finished with the service key. photos keeps the service key (no per-user policy). Unit-tested. |
+| SEC-07 | P3 | Fixed | `38e427b, 145cd91` | user_roles consulted first; a revoked row beats the env allowlist; the lookup orders live rows first so a revoke-then-regrant cannot lock an admin out; tested. |
 | AI-10 | P3 | Fixed | `f6f6e04` | Prompt frames tool results as data. |
 | AI-11 | P3 | Fixed | `f6f6e04` | toolResultOk() parses the JSON. |
 | AI-12 | P3 | Fixed | `f6f6e04` | Fail-safe ticket carries the guest id. |
@@ -930,12 +932,12 @@ Remediation ran on 2026-09-11 and 2026-09-12 on `main` in 51 reviewable pathspec
 | REACT-09 | P3 | Fixed | `5fa8cbd` | Sign-in form focuses through refs; PhoneInput exposes inputRef. |
 | I18N-03 | P3 | Fixed | `a8469a3` | CopyButton announces the copied state via a live region. |
 | I18N-04 | P3 | Fixed | `a8469a3` | createTranslator smoke test pins Latin digits in Arabic plurals. |
-| I18N-05 | P3 | Fixed | `a8469a3` | messages/catalog.test.ts guards parity, ICU args, digits, brand spelling, untranslated values. |
+| I18N-05 | P3 | Fixed | `a8469a3, 145cd91` | messages/catalog.test.ts guards parity, ICU args, digits, brand spelling, untranslated values, and that every Arabic plural declares few and many. |
 | I18N-06 | P3 | Fixed | `a8469a3` | 15 Arabic plurals gained the many form; test enforces it. |
 | I18N-07 | P3 | Fixed | `66ca181` | <Localized> marks an English fallback inside an Arabic page with lang/dir. |
 | I18N-08 | P3 | Fixed | `a8469a3` | StarRating meets the 3:1 floor (stroke + 40% empties). |
 | I18N-09 | P3 | Fixed | `a8469a3` | formatRating in lib/format.ts. |
-| DESIGN-04 | P3 | Deferred | — | Off-grid spacing sweep. |
+| DESIGN-04 | P3 | Fixed | `db039d6` | 63 off-grid spacing utilities across 34 components snapped to the 8-point grid; BRIEF records the two exceptions (2px micro-step; control vertical padding tuned for 44px targets). |
 | DESIGN-05 | P3 | Fixed | `a8469a3` | Unsubscribe page on palette tokens and the brand fonts. |
 | DESIGN-06 | P3 | Fixed | `a8469a3` | Email sub-heading weight and padding on the scale. |
 | DESIGN-07 | P3 | Fixed | `66ca181` | BRIEF §3 records the pending tone, badge radius, border alpha and font-loading facts. |
@@ -968,7 +970,65 @@ Remediation ran on 2026-09-11 and 2026-09-12 on `main` in 51 reviewable pathspec
 | WIP-08 | P3 | Fixed | `913322b` | Admin form names the TODO(ar) cause. |
 | ROADMAP-04 | P3 | Owner decision | `b6d0b41` | Review photos: BRIEF §8 now records "column exists, not implemented, not scheduled". |
 | ROADMAP-05 | P3 | Owner decision | `b6d0b41` | Hijri toggle: BRIEF §4 now records "formatter supports it, no toggle, not scheduled". |
-| ROADMAP-06 | P3 | Fixed | `b6d0b41` | Real-user Core Web Vitals sampled to /api/vitals (web_vitals table, migration 0035) and shown as 7/28-day p75s on /admin/analytics; pruned after 90 days. |
+| ROADMAP-06 | P3 | Fixed | `b6d0b41, 145cd91` | Real-user Core Web Vitals sampled to /api/vitals (web_vitals, migration 0035) as 7/28-day p75s on /admin/analytics, pruned after 90 days. Second pass: same-origin check, a per-IP cap (auth_throttle_events kind 'vital', migration 0036), server-side path collapsing and a test over every dynamic route. |
+
+### 9.1 Second-pass verification (2026-09-12) — 36 confirmed findings
+
+Two Opus-tier reviewers re-verified the first 52 remediation commits independently of the author. Outcomes as of the final tree:
+
+**Money/cron/auth reviewer**
+
+| ID | Sev | Finding | Outcome | Commit |
+|---|---|---|---|---|
+| F1 | P1 | A gateway refund that SUCCEEDED could be re-queued for a manual wire when the booking flip failed | fixed | `145cd91` |
+| F2 | P2 | A failing settle_succeeded ledger row held a captured card in processing | fixed | `145cd91` |
+| F3 | P3 | A failing anomaly ledger row rolled the dedupe stamp back → hourly re-alerts | fixed | `145cd91` |
+| F4 | — | checkout_created inside the claim transaction | verified good | — |
+| F5 | P3 | CreateCheckoutState.error → message rename is a public contract change | accepted (harmless during the deploy window) | — |
+| F6 | P2 | Server-side TikTok purchase narrowed to bookings with a stored click id | accepted — privacy-first; the comment now states the trade-off | *(this tree)* |
+| F7 | P2 | A persistently failing money pass turned the watchdog into a permanent pager | fixed | `145cd91` |
+| F8 | P3 | The run budget could not interrupt the reconcile loop | fixed | `145cd91` |
+| F9 | P3 | The settle blind-spot watch shared a pass with the aging alert | fixed | `145cd91` |
+| F10 | P3 | IBAN masking pattern was not word-anchored | fixed | `145cd91` |
+| F11 | P2 | An admin search with no results hid the search box | fixed | `145cd91` |
+| F12 | P3 | Filtered KPI totals were unlabelled | fixed | `145cd91` |
+| F13 | P3 | refundBankReady truth table diverged between list and detail | fixed | `145cd91` |
+| F14 | P3 | listBookingsForAdmin defaulted todayStr to '0000-00-00' | fixed | `145cd91` |
+| F15 | P1 | /api/vitals was an unauthenticated, unthrottled public INSERT | fixed | `145cd91` |
+| F16 | P2 | The vitals path was attacker-controlled free text | fixed | `145cd91` |
+| F17 | P3 | No test proved every dynamic route collapses | fixed | `145cd91` |
+| F18 | P2 | Admin role lookup had no ORDER BY over a table that keeps revoked rows | fixed | `145cd91` |
+| F19 | P3 | Nothing in the app writes user_roles yet | documented | `db039d6` |
+| F20/F21 | — | MFA cookie on sign-out; uuid-shaped stub ids | verified good | — |
+| F22 | P0 | Migrations 0033–0035 are not applied in production and HEAD requires them | owner — pnpm db:preflight now proves it before any deploy | `145cd91` |
+| F23 | P1 | drizzle's journal table does not exist in production; db:migrate would replay from 0000 | owner — baseline SQL prepared; db:preflight checks it | `145cd91` |
+| F24/F25 | — | uuid casts safe against live data; ALTER TYPE ordering | verified good | — |
+| F26 | P3 | disputes FK added validating rather than NOT VALID + VALIDATE | fixed | `145cd91` |
+| F27 | P2 | refund.ts's documented safety invariant no longer held | fixed | `145cd91` |
+| F28/F29 | — | wallet spendable balance; refund-out bank-transfer gate | verified good | — |
+
+**UI/i18n/structure reviewer**
+
+| ID | Sev | Finding | Outcome | Commit |
+|---|---|---|---|---|
+| F1 | P1 | tailwind-merge deleted the new text-* type utilities or the colour next to them at 81 call sites | fixed | `145cd91` |
+| F2/F3 | P3 | The RTL tracking reset also killed deliberate tracking on dir=ltr runs | fixed | `145cd91` |
+| F4 | P1 | The public shell was decided in a layout Next does not re-render on soft navigation | fixed | `b8a0e08` |
+| F5 | P1 | The client message subset went stale after a soft navigation into a dashboard | fixed | `b8a0e08` |
+| F6 | P3 | x-pathname was client-controllable on unmatched paths | fixed (header removed) | `b8a0e08` |
+| F7 | P2 | Moving off next/font dropped the metric-adjusted Arabic fallback; weight 500 not preloaded | fixed | `bd0cc6f` |
+| F8 | P3 | Bricolage (~100 KB) is preloaded on Arabic pages where no glyph uses it | deferred — next/font cannot preload per locale; the file is immutable-cached | — |
+| F9 | P3 | Suspense fallback reserved no height for the streamed booking sections | fixed | `145cd91` |
+| F10 | P2 | cancellationKind 'host' had no message in either catalog | fixed | `145cd91` |
+| F11 | P3 | The Arabic dual experience count printed a redundant digit | fixed | `145cd91` |
+| F12 | P3 | catalog.test.ts missed Arabic plurals with neither few nor many | fixed | `145cd91` |
+| F13 | P3 | admin.sections.alerts written as \u escapes | fixed | `145cd91` |
+| F14 | P3 | The alerts inbox printed untranslated kinds | fixed | `145cd91` |
+| nits | P3 | auth-nav-links imported the shell; dead data-site-chrome attributes; orphaned JSDoc | fixed | `b8a0e08, db039d6` |
+
+### 9.2 Third-round verification (2026-09-13)
+
+Three further Opus-tier reviewers then re-verified the five fix commits (145cd91..88b2fa4) — money/cron/vitals, UI/routes/i18n, and the refactors and new test suites — read-only, against the code, the installed framework sources and the live database. Their outcome is recorded below once the run completes.
 
 ## Appendix A — per-dimension assessments and strengths
 
@@ -1377,16 +1437,16 @@ The shipped product covers far more of BRIEF §6/§8 than the brief's own status
 | ID | Sev | Status | Outcome | Title | Where |
 |---|---|---|---|---|---|
 | ARCH-01 | P2 | verifier: confirmed | Fixed | release-holds cron route is a 1,130-line, 19-pass god handler spanning eight domains | `app/api/cron/release-holds/route.ts:141` |
-| ARCH-02 | P2 | verified by lead | Partially fixed | 14 two-way import cycles between feature folders; auth↔admin is a genuine module cycle | `features/auth/queries.ts:7` |
+| ARCH-02 | P2 | verified by lead | Fixed | 14 two-way import cycles between feature folders; auth↔admin is a genuine module cycle | `features/auth/queries.ts:7` |
 | ARCH-03 | P2 | verified by lead | Fixed | Feature code imports React components out of an app/ route folder (layer inversion) | `features/host-bookings/components/booking-row.tsx:16` |
 | ARCH-04 | P2 | verified by lead | Fixed | Riyadh date/time primitives duplicated three times with divergent implementations | `features/bookings/actions.ts:42` |
 | ARCH-05 | P2 | verifier: confirmed | Fixed | lib/ is no longer a leaf layer: 20 imports from lib into features; support-agent/marketing/conversations are features living in lib | `lib/support-agent/tools.ts:7` |
 | ARCH-06 | P2 | verifier: confirmed | Fixed | Booking-confirmation page is one 1,480-line component computing a status view-model inline in JSX | `app/[locale]/book/confirmed/[ref]/page.tsx:132` |
-| ARCH-07 | P2 | verifier: confirmed | Partially fixed | requestBooking is a single 641-line server action; booking-email.ts is 2,092 lines with 20 senders | `features/bookings/actions.ts:288` |
+| ARCH-07 | P2 | verifier: confirmed | Fixed | requestBooking is a single 641-line server action; booking-email.ts is 2,092 lines with 20 senders | `features/bookings/actions.ts:288` |
 | ARCH-08 | P3 | verifier: confirmed | Fixed | Dead exports include two unused server actions that remain callable endpoints | `features/wishlist/actions.ts:120` |
 | ARCH-09 | P2 | verifier: confirmed | Fixed | Experience listing has three owners (host-experiences, admin/experiences, admin/experience-moderation) that import each other's types | `features/host-experiences/queries.ts:167` |
 | ARCH-10 | P3 | finder-reported | Fixed | types.ts-per-feature convention holds in fewer than half of features | `features/host-earnings/queries.ts:1` |
-| ARCH-11 | → REACT-02 | merged | Deferred | 46 hand-assembled `*Copy` prop interfaces and eight near-identical admin action buttons | `app/[locale]/admin/bookings/refund-button.tsx:10` |
+| ARCH-11 | → REACT-02 | merged | Fixed | 46 hand-assembled `*Copy` prop interfaces and eight near-identical admin action buttons | `app/[locale]/admin/bookings/refund-button.tsx:10` |
 | ARCH-12 | P3 | finder-reported | Fixed | Shared layout component depends on three feature modules; a non-component .ts sits in a components/ folder | `components/layout/navbar.tsx:13` |
 | DATA-01 | P1 | verified by lead | Fixed | Drizzle migration history is no longer authoritative — 8 tables and 11 bookings columns exist only in ad-hoc SQL or markdown | `db/migrations/meta/_journal.json:189` |
 | DATA-02 | P1 | verified by lead | Fixed | db/seed.ts deletes hosts/experiences/moments with no environment guard against the live database | `db/seed.ts:17` |
@@ -1413,7 +1473,7 @@ The shipped product covers far more of BRIEF §6/§8 than the brief's own status
 | SEC-03 | P3 | finder-reported | Fixed | signOut() does not clear the admin MFA marker cookie, so the 12h second-factor proof outlives the session it was issued for | `features/auth/actions.ts:458` |
 | SEC-04 | P3 | finder-reported | Fixed | HyperPay shopperResultUrl origin falls back to x-forwarded-host / Host when NEXT_PUBLIC_SITE_URL is unset, and the docs disagree on whether it is set in production | `features/payments/actions.ts:209` |
 | SEC-05 | P3 | finder-reported | Fixed | Upload validation trusts the browser-declared MIME type for photos, avatars and KYC documents (no magic-byte check) | `features/host-experiences/lib/photo.ts:47` |
-| SEC-06 | P3 | finder-reported | Deferred | Every storage write for any signed-in user goes through an unrestricted service-role handle; bucket RLS provides no defence in depth | `lib/supabase/server.ts:105` |
+| SEC-06 | P3 | finder-reported | Fixed | Every storage write for any signed-in user goes through an unrestricted service-role handle; bucket RLS provides no defence in depth | `lib/supabase/server.ts:105` |
 | SEC-07 | P3 | finder-reported | Fixed | ADMIN_PHONES env allowlist short-circuits before the user_roles revocation check, so revoking an env-listed admin in the UI has no effect | `features/admin/roles.ts:27` |
 | AI-01 | P1 | verified by lead | Fixed | A second WhatsApp message arriving during an agent turn is dropped and never swept | `lib/support-agent/agent.ts:28` |
 | AI-02 | P2 | finder-reported | Fixed | No per-number or global ceiling on agent turns — a stranger can spend Opus tokens at will | `lib/support-agent/agent.ts:136` |
@@ -1440,7 +1500,7 @@ The shipped product covers far more of BRIEF §6/§8 than the brief's own status
 | ACTIONS-10 | → GAPA-08 | merged | Fixed | Wishlist actions accept a raw `slug: string` argument with no zod validation before writing it into the cookie | `features/wishlist/actions.ts:136` |
 | ACTIONS-11 | P3 | finder-reported | Fixed | A handful of forms disable the submit during pending instead of using Button's `pending` prop, dropping focus mid-submit | `app/[locale]/admin/support/[id]/reply-form.tsx:91` |
 | REACT-01 | P2 | verified by lead | Fixed | Entire message catalog (237–313 KB) is serialized into every page's RSC payload | `app/[locale]/layout.tsx:126` |
-| REACT-02 | P2 | finder-reported | Deferred | Two parallel client-translation mechanisms: server-built `copy` props plus useTranslations | `features/bookings/components/booking-request-form.tsx:360` |
+| REACT-02 | P2 | finder-reported | Fixed | Two parallel client-translation mechanisms: server-built `copy` props plus useTranslations | `features/bookings/components/booking-request-form.tsx:360` |
 | REACT-03 | P2 | finder-reported | Fixed | getHostBySlug is not request-cached, so host profile pages query the DB twice (three times on legacy slugs) | `features/hosts/queries.ts:40` |
 | REACT-04 | P2 | finder-reported | Fixed | Booking-confirmation page: 1,611 lines, two serial DB waves and an inline async section with no Suspense | `app/[locale]/book/confirmed/[ref]/page.tsx:658` |
 | REACT-05 | P2 | finder-reported | Fixed | Admin and host dashboards render the marketing navbar's auth DB fan-out and footer on every page, then hide them with an injected <style> | `app/[locale]/admin/layout.tsx:55` |
@@ -1460,7 +1520,7 @@ The shipped product covers far more of BRIEF §6/§8 than the brief's own status
 | DESIGN-01 | P2 | verified by lead | Fixed | Nine bilingual eyebrows apply 0.2em letter-spacing to Arabic text (no `locale === 'en'` guard) | `app/[locale]/about/page.tsx:85` |
 | DESIGN-02 | P2 | finder-reported | Owner decision | WhatsApp v3 template registry carries ~150 emoji against BRIEF §3 and the locked no-emoji voice rule | `lib/notifications/whatsapp/templates/host.ts:72` |
 | DESIGN-03 | P2 | finder-reported | Fixed | Type scale is not tokenised: H1 class string duplicated 58×, eyebrow 28×, H2 tracking drifts across three values | `app/[locale]/admin/bookings/page.tsx:128` |
-| DESIGN-04 | P3 | finder-reported | Deferred | Off-grid spacing sub-steps remain after the 2026-09 sweep (136 utilities, ~5% of spacing) | `components/ui/button.tsx:25` |
+| DESIGN-04 | P3 | finder-reported | Fixed | Off-grid spacing sub-steps remain after the 2026-09 sweep (136 utilities, ~5% of spacing) | `components/ui/button.tsx:25` |
 | DESIGN-05 | P3 | finder-reported | Fixed | Unsubscribe confirmation page uses off-palette hex and system-ui, the only true palette violation in app code | `app/api/marketing/unsubscribe/route.ts:41` |
 | DESIGN-06 | P3 | finder-reported | Fixed | Transactional email renderer uses weight 600 on a 13px sub-heading and 13px/15px padding | `features/bookings/lib/booking-email-render.ts:127` |
 | DESIGN-07 | P3 | finder-reported | Fixed | Token definitions deviate from the BRIEF table for good reasons that were never written back into the brief | `app/globals.css:142` |
@@ -1469,7 +1529,7 @@ The shipped product covers far more of BRIEF §6/§8 than the brief's own status
 | DESIGN-10 | P3 | finder-reported | Fixed | Host experience-form sticky save bar hand-rolls its shadow instead of the overlay token | `app/[locale]/host/(dashboard)/experiences/[id]/experience-form.tsx:1077` |
 | TEST-01 | P1 | verified by lead | Fixed | CI is not a release gate: production deploys bypass the green-build check | `.github/workflows/ci.yml:9` |
 | TEST-02 | P1 | verified by lead | Fixed | createCheckout — the only action that opens a charge — has no tests, and the new clock gate is added blind | `features/payments/actions.ts:384` |
-| TEST-03 | P1 | verified by lead | Partially fixed | 33 of 40 server-action files are untested, including every admin money action (refund, emergency cancel, mark-paid, approve host) | `features/admin/bookings/actions.ts:85` |
+| TEST-03 | P1 | verified by lead | Fixed | 33 of 40 server-action files are untested, including every admin money action (refund, emergency cancel, mark-paid, approve host) | `features/admin/bookings/actions.ts:85` |
 | TEST-04 | P2 | finder-reported | Fixed | release-holds cron: 12 tests for 17 passes; wallet-expiry, orphaned-refund, completion and KYC-purge run against a SELECT stub that returns the reminder fixture for every query | `app/api/cron/release-holds/route.test.ts:154` |
 | TEST-05 | P2 | finder-reported | Fixed | HyperPay webhook route has no test for its retry-controlling status codes | `app/api/webhooks/hyperpay/route.ts:80` |
 | TEST-06 | P2 | finder-reported | Fixed | New watchdog cron route ships untested (auth compare, staleness threshold, re-alert) | `app/api/cron/watchdog/route.ts:42` |

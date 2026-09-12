@@ -403,11 +403,15 @@ export async function settleBooking(reference: string): Promise<SettleOutcome> {
       //
       // Only with a stored click id (2026-09 engineering audit GAPB-01): a
       // click id is persisted only when the guest accepted marketing
-      // cookies, so its presence IS the consent snapshot. A consented guest
-      // without a TikTok click is reported by the confirmation-page pixel
-      // under the same event_id and could not be attributed server-side
-      // anyway, so skipping the call loses nothing — and a guest who chose
-      // "essential only" is never reported, as the privacy policy promises.
+      // cookies, so its presence IS the consent snapshot — the booking row
+      // carries no other record of the cookie choice. The trade-off is
+      // deliberate (second-pass verification F6): a consented guest who
+      // arrived WITHOUT a TikTok click and never reaches the confirmation
+      // page (webhook- or cron-settled after a dead browser) is reported
+      // by neither the pixel nor this call. Reporting them would need the
+      // ad-consent choice stored on the booking; until then privacy wins
+      // over attribution, and a guest who chose "essential only" is never
+      // reported, as the privacy policy promises.
       if (booking.ttclid) {
         await reportTikTokPurchase({
           reference,
