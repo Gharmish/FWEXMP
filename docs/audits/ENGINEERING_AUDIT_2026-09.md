@@ -799,9 +799,9 @@ Roadmap-level investments synthesised across all reviewers, deduplicated and seq
 
 ## 9. Remediation status (2026-09-13)
 
-Remediation ran on 2026-09-11, 12 and 13 on `main` in 58 reviewable pathspec commits (f39aba1..88b2fa4) with the type-check, lint and the full Vitest suite green after every batch and a production build verified at each structural step. Nothing was pushed or deployed: a push to `main` auto-deploys, and the release remains the owner's call. Every fix that changes behaviour carries a test.
+Remediation ran on 2026-09-11, 12 and 13 on `main` in 63 reviewable pathspec commits (f39aba1..HEAD) with the type-check, lint and the full Vitest suite green after every batch and a production build verified at each structural step. Nothing was pushed or deployed: a push to `main` auto-deploys, and the release remains the owner's call. Every fix that changes behaviour carries a test.
 
-**Independent verification.** The session ran on Claude Fable 5.1. After the first 52 commits, two Opus-tier reviewers independently re-verified the whole range against the code, the installed framework sources and the live database (read-only) — 36 confirmed findings, listed in §9.1 with their outcomes; every code finding was fixed in the five commits that followed, and three further Opus-tier reviewers then re-verified those (§9.2).
+**Independent verification.** The session ran on Claude Fable 5.1. After the first 52 commits, two Opus-tier reviewers independently re-verified the whole range against the code, the installed framework sources and the live database (read-only) — 36 confirmed findings, listed in §9.1 with their outcomes; every code finding was fixed in the five commits that followed, and three further Opus-tier reviewers then re-verified those (§9.2) — their 32 findings were closed in one more commit, so the tree carries three rounds of independent verification.
 
 *Fixed* means the finding is closed on `main`. *Owner decision* items need a one-off SQL statement run as the database owner, or a product or brand decision — everything the code side can prepare for them is committed. One item is deliberately deferred (§9.1, UI-F8).
 
@@ -1028,7 +1028,52 @@ Two Opus-tier reviewers re-verified the first 52 remediation commits independent
 
 ### 9.2 Third-round verification (2026-09-13)
 
-Three further Opus-tier reviewers then re-verified the five fix commits (145cd91..88b2fa4) — money/cron/vitals, UI/routes/i18n, and the refactors and new test suites — read-only, against the code, the installed framework sources and the live database. Their outcome is recorded below once the run completes.
+Three further Opus-tier reviewers re-verified the five fix commits (145cd91..88b2fa4) read-only — money/cron/vitals, UI/routes/i18n, and the refactors and new test suites — against the code, the installed framework sources and the live database, including mutation testing of the new suites. 32 confirmed findings (1 P0 deploy gate, 0 P1, 11 P2, 20 P3); every code finding is closed in the commit that followed.
+
+**Money / cron / vitals reviewer**
+
+| ID | Sev | Finding | Outcome |
+|---|---|---|---|
+| R1 | P2 | A database outage across the whole retry window could still leave a gateway-confirmed refund in the manual queue | fixed — retries over ~1s; a dangling refund_attempted counts as UNKNOWN; the bank-transfer operator is paged too |
+| R2 | P2 | A suppressed alert row extended the quiet window, so cron_stale paged once per outage | fixed |
+| R3 | P3 | Watchdog docstring contradicted the dedupe | fixed |
+| R4 | P3 | The settle blind-spot pass fell out of MONEY_PASSES | fixed |
+| R5 | P3 | Unknown vitals paths were still stored verbatim | fixed — KNOWN_ROOTS / [other], pinned by a test over app/ |
+| R6 | P3 | Per-IP vitals cap shared across CGNAT; missing IP skipped the cap; unbounded throttle prune | fixed |
+| R7 | P3 | NOT VALID + VALIDATE buys nothing inside the one-transaction migrator | documented |
+| R8 | P0 | Deploy gate: 0033–0036 not applied in production (db:preflight 7/7 red) | owner — apply the journal baseline + migrations, re-run pnpm db:preflight |
+
+**UI / routes / i18n reviewer**
+
+| ID | Sev | Finding | Outcome |
+|---|---|---|---|
+| N1 | P2 | The (site) move hashed the host OG image URL; shared previews would 404 | fixed — stable route handler + explicit og:image |
+| N2 | P3 | outputFileTracingIncludes keys no longer matched the hashed routes | fixed |
+| N3 | P3 | Locale-level 404/error rendered without a <main> landmark | fixed |
+| N4 | P3 | Enum values interpolated into copy without a t.has() guard | fixed |
+| N5 | P3 | Spacing sweep moved three optical dot offsets | fixed — restored and recorded in BRIEF |
+| N6 | P3 | Admin rail badge stopped being a circle | fixed |
+| N7 | P3 | The working admin editor could publish live with empty Arabic lists | fixed — schema refinement mirrors the moderation gate |
+| N8/N9/N10 | P3 | Redundant sm:gap-2; off-grid tooltip; stale doc reference | fixed |
+| F8 | P3 | Bricolage still preloaded on Arabic pages (unresolved from the second pass) | fixed — hand-declared face + fallback, preloaded per locale |
+
+**Refactors / tests reviewer**
+
+| ID | Sev | Finding | Outcome |
+|---|---|---|---|
+| R1 | P2 | db fake modelled upserts as a no-op (mutation-proved) | fixed (49644bd) |
+| R2 | P2 | Support suite never exercised a non-admin | fixed |
+| R3 | P2 | removePromo's ownership check untested | fixed |
+| R4 | P2 | db fake discarded update predicates, hiding claim guards | fixed — updateConditions + referencedColumns |
+| R5 | P3 | db fake limit() ended the chain | fixed |
+| R6 | P2 | Host photo ownership perimeter unpinned | fixed — ownership lives in the predicate the fake evaluates |
+| R7 | P2 | ARCH-07 moved three perimeters the booking suite could not see | fixed — attestation gates + supersede proof rules pinned |
+| R8 | P2 | Guest cancel/reschedule suites mocked away the authorize closure | fixed |
+| R9 | P3 | Awaiting-payment email absent from the booking-email mock | fixed |
+| R10 | P3 | No rule stopped a step module importing back into its action | fixed — boundary rule (moved one type to types.ts) |
+| R11 | P3 | Stale pre-move path in a docblock | fixed |
+| R12 | P3 | db fake recorded writes at builder time with no rollback | fixed |
+| R13 | P3 | Four step-module symbols exported without an importer | fixed |
 
 ## Appendix A — per-dimension assessments and strengths
 
