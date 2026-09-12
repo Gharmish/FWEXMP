@@ -4,9 +4,12 @@ import type { AbstractIntlMessages } from 'next-intl';
  * Which message namespaces reach the browser (2026-09 engineering audit
  * REACT-01). The whole catalog (237–313 KB) used to be serialised into
  * every page's RSC payload; client components only ever call
- * `useTranslations` on the namespaces below, and the admin/host ones are
- * needed only on their own routes. lib/client-messages.test.ts scans every
- * `'use client'` component so a new namespace cannot be silently dropped.
+ * `useTranslations` on the namespaces below. `base` ships from the locale
+ * layout; `admin` and `host` ship from the dashboards' own layouts through
+ * a nested provider — those layouts re-render on navigation, the locale
+ * layout does not (second-pass verification F5). lib/client-messages.test.ts
+ * scans every `'use client'` component so a new namespace cannot be
+ * silently dropped, and pins which layout provides which group.
  */
 export const CLIENT_NAMESPACES = {
   base: [
@@ -25,24 +28,20 @@ export const CLIENT_NAMESPACES = {
   host: ['hostDashboard', 'hostBookings'],
 } as const;
 
-const ADMIN = /^\/(?:en|ar)\/admin(?:\/|$)/;
-const HOST = /^\/(?:en|ar)\/host(?:\/|$)/;
+export type ClientNamespaceGroup = keyof typeof CLIENT_NAMESPACES;
 
-export function clientNamespacesFor(pathname: string | null | undefined): readonly string[] {
-  const out: string[] = [...CLIENT_NAMESPACES.base];
-  // No pathname (a render outside the proxy) ships everything the client
-  // could need rather than risk a raw key.
-  if (!pathname || ADMIN.test(pathname)) out.push(...CLIENT_NAMESPACES.admin);
-  if (!pathname || HOST.test(pathname)) out.push(...CLIENT_NAMESPACES.host);
-  return out;
+export function clientNamespacesFor(...groups: readonly ClientNamespaceGroup[]): readonly string[] {
+  const out = new Set<string>(CLIENT_NAMESPACES.base);
+  for (const group of groups) for (const ns of CLIENT_NAMESPACES[group]) out.add(ns);
+  return [...out];
 }
 
 export function pickClientMessages(
   messages: AbstractIntlMessages,
-  pathname: string | null | undefined,
+  ...groups: readonly ClientNamespaceGroup[]
 ): AbstractIntlMessages {
   const out: AbstractIntlMessages = {};
-  for (const ns of clientNamespacesFor(pathname)) {
+  for (const ns of clientNamespacesFor(...groups)) {
     if (ns in messages) out[ns] = messages[ns];
   }
   return out;

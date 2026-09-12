@@ -59,9 +59,9 @@ function err(error: WalletCheckoutErrorCode): WalletCheckoutActionState {
 }
 
 function revalidateWalletSurfaces(): void {
-  revalidatePath('/[locale]/book/[reference]/pay', 'page');
-  revalidatePath('/[locale]/book/confirmed/[ref]', 'page');
-  revalidatePath('/[locale]/me/profile', 'page');
+  revalidatePath('/[locale]/(site)/book/[reference]/pay', 'page');
+  revalidatePath('/[locale]/(site)/book/confirmed/[ref]', 'page');
+  revalidatePath('/[locale]/(site)/me/profile', 'page');
 }
 
 type Superseded = { bookingId: string; checkoutId: string; amountSar: number };

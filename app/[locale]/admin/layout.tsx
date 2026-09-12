@@ -1,6 +1,8 @@
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
-import { getLocale, getTranslations } from 'next-intl/server';
+import { NextIntlClientProvider } from 'next-intl';
+import { getLocale, getMessages, getTranslations } from 'next-intl/server';
+import { pickClientMessages } from '@/lib/client-messages';
 import type { Locale } from '@/lib/i18n';
 import { getCurrentUser } from '@/features/auth/queries';
 import { isAdminUser } from '@/features/admin/auth';
@@ -21,11 +23,13 @@ import { SignOutButton } from '@/components/layout/sign-out-button';
  * defensively (defence in depth).
  *
  * The shell (left rail + top bar) wraps every admin page and IS the chrome:
- * the locale layout skips (via the proxy's x-pathname header, REACT-05) the public marketing navbar + footer (rendered by
- * the parent locale layout) on admin routes, so the rail stands alone like the
- * mockup. Sign-out + language switch are lifted from that navbar into the rail
+ * the public navbar + footer belong to the (site) route group's layout, a
+ * sibling of this segment, so they are never rendered here (REACT-05).
+ * Sign-out + language switch are lifted from that navbar into the rail
  * footer so admins keep them. The inner `max-w-6xl` content column preserves
- * the width pages were authored for.
+ * the width pages were authored for. The nested NextIntlClientProvider
+ * ships the admin namespaces to client components from a layout that
+ * re-renders on navigation (REACT-01, second-pass verification F5).
  */
 // Belt for the gate above: even if a gate regression ever served admin
 // HTML to a crawler, the pages stay out of the index (robots.txt already
@@ -44,14 +48,14 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   const requirement = user.isStub ? 'ok' : mfaRequirement(user.mfa);
 
   const locale = (await getLocale()) as Locale;
-  const t = await getTranslations('nav');
+  const [t, messages] = await Promise.all([getTranslations('nav'), getMessages()]);
 
   // Rail attention badges (P2-19) — fetched only past the MFA gate, since an
   // admin who hasn't verified this session shouldn't get counts either.
   const navCounts = requirement === 'ok' ? await getAdminNavCounts() : {};
 
   return (
-    <>
+    <NextIntlClientProvider messages={pickClientMessages(messages, 'admin')}>
       <AdminShell
         userLabel={user.phone || (user.email ?? 'Admin')}
         navCounts={navCounts}
@@ -64,6 +68,6 @@ export default async function AdminLayout({ children }: { children: React.ReactN
       >
         {requirement === 'ok' ? children : <AdminMfaGate mode={requirement} />}
       </AdminShell>
-    </>
+    </NextIntlClientProvider>
   );
 }

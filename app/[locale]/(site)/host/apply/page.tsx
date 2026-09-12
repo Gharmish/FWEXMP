@@ -7,7 +7,7 @@ import { buttonVariants } from '@/components/ui/button';
 import { serverEnv, hasSupabaseAuth } from '@/lib/env';
 import { getCurrentUser } from '@/features/auth/queries';
 import { getCurrentUserHostApplication } from '@/features/host-applications/queries';
-import { HostApplyForm } from '@/app/[locale]/host/apply/host-apply-form';
+import { HostApplyForm } from '@/app/[locale]/(site)/host/apply/host-apply-form';
 import { HOST_LANGUAGE_OPTIONS } from '@/features/host-applications/types';
 import { todayInRiyadh, yearsBefore } from '@/lib/riyadh-time';
 

@@ -167,5 +167,5 @@ export async function setDayAvailability(formData: FormData): Promise<void> {
   revalidateExperienceCaches();
   revalidatePath('/[locale]/host/(dashboard)/experiences/[id]', 'page');
   revalidatePath('/[locale]/admin/experiences/[id]/edit', 'page');
-  revalidatePath('/[locale]/experiences/[slug]', 'page');
+  revalidatePath('/[locale]/(site)/experiences/[slug]', 'page');
 }

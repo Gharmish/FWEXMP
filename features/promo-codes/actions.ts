@@ -89,8 +89,8 @@ async function clientIp(): Promise<string | null> {
 }
 
 function revalidateBookingSurfaces(): void {
-  revalidatePath('/[locale]/book/[reference]/pay', 'page');
-  revalidatePath('/[locale]/book/confirmed/[ref]', 'page');
+  revalidatePath('/[locale]/(site)/book/[reference]/pay', 'page');
+  revalidatePath('/[locale]/(site)/book/confirmed/[ref]', 'page');
 }
 
 export async function applyPromo(

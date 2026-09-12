@@ -1,6 +1,5 @@
 import type { Metadata, Viewport } from 'next';
 import { Suspense } from 'react';
-import { cookies, headers } from 'next/headers';
 import { notFound } from 'next/navigation';
 import { NextIntlClientProvider, hasLocale } from 'next-intl';
 import { getMessages, getTranslations, setRequestLocale } from 'next-intl/server';
@@ -30,12 +29,7 @@ export const dynamic = 'force-dynamic';
 import { preload } from 'react-dom';
 import { bricolage } from '@/lib/fonts';
 import { routing, localeDirection, type Locale } from '@/lib/i18n';
-import { Navbar } from '@/components/layout/navbar';
-import { PATHNAME_HEADER, showsSiteChrome } from '@/lib/site-chrome';
 import { pickClientMessages } from '@/lib/client-messages';
-import { AuthNavLinks } from '@/features/auth/components/auth-nav-links';
-import { WISHLIST_COOKIE, parseWishlistCookie } from '@/features/wishlist/cookie';
-import { Footer } from '@/components/layout/footer';
 import { ScrollToTop } from '@/components/layout/scroll-to-top';
 import { CookieNotice } from '@/components/layout/cookie-notice';
 import { MarketingPixels } from '@/components/layout/marketing-pixels';
@@ -122,19 +116,13 @@ export default async function LocaleLayout({
 
   const dir = localeDirection[locale as Locale];
   const t = await getTranslations('nav');
-  // The admin and host dashboards bring their own rail: skip the public
-  // shell and its auth fan-out entirely instead of rendering it hidden
-  // (2026-09 engineering audit REACT-05). The proxy forwards the pathname.
-  const pathname = (await headers()).get(PATHNAME_HEADER);
-  const chrome = showsSiteChrome(pathname);
-  // Cookie-only read (no DB): the heart entry point shows once this
-  // device has saved anything — an empty wishlist earns no nav slot.
-  const cookieStore = await cookies();
-  const hasWishlist =
-    chrome && parseWishlistCookie(cookieStore.get(WISHLIST_COOKIE)?.value).length > 0;
-  // Only the namespaces client components read on this route reach the
-  // browser (REACT-01); server components keep the full catalog.
-  const clientMessages = pickClientMessages(await getMessages(), pathname);
+  // Only the namespaces every client component may read reach the browser
+  // (REACT-01). The admin and host dashboards nest their own provider with
+  // their namespaces in a layout that re-renders on navigation — this one
+  // does not, so a per-route subset here went stale on the first soft
+  // navigation (second-pass verification F5). Server components keep the
+  // full catalog. The public shell itself lives in (site)/layout.tsx.
+  const clientMessages = pickClientMessages(await getMessages(), 'base');
 
   // Arabic pages preload the body and heading weights so the H1 paints in
   // the brand face instead of swapping in after the CSS parse (PERF-05).
@@ -163,23 +151,7 @@ export default async function LocaleLayout({
                 >
                   {t('skipToContent')}
                 </a>
-                {chrome && (
-                  <Navbar
-                    hasWishlist={hasWishlist}
-                    authLinks={
-                      // Streams behind its own boundary so first byte never
-                      // waits on the auth round-trips; the page stays OUTSIDE
-                      // any boundary so notFound()/redirect() codes hold.
-                      <Suspense fallback={<span className="min-h-11 min-w-11" aria-hidden />}>
-                        <AuthNavLinks locale={locale as Locale} />
-                      </Suspense>
-                    }
-                  />
-                )}
-                <main id="main-content" tabIndex={-1} className="flex flex-1 flex-col">
-                  {children}
-                </main>
-                {chrome && <Footer />}
+                {children}
                 <CookieNotice />
                 <MarketingPixels />
                 <WebVitalsReporter />

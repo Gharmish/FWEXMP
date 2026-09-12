@@ -88,8 +88,8 @@ export async function updateProfile(
     return { status: 'error', message: 'server', values: raw };
   }
 
-  revalidatePath('/[locale]/me/profile', 'page');
-  revalidatePath('/[locale]/me', 'page');
+  revalidatePath('/[locale]/(site)/me/profile', 'page');
+  revalidatePath('/[locale]/(site)/me', 'page');
   return { status: 'success' };
 }
 
@@ -151,8 +151,8 @@ export async function updateAvatar(
       await storage.from(AVATARS_BUCKET).remove([previousPath]);
     }
 
-    revalidatePath('/[locale]/me/profile', 'page');
-    revalidatePath('/[locale]/me', 'page');
+    revalidatePath('/[locale]/(site)/me/profile', 'page');
+    revalidatePath('/[locale]/(site)/me', 'page');
     return { status: 'success', avatarUrl: publicUrl };
   } catch (error) {
     reportError(error, { surface: 'profile:updateAvatar' });
@@ -187,8 +187,8 @@ export async function removeAvatar(): Promise<AvatarActionState> {
 
     await db.update(guests).set({ avatarUrl: null }).where(eq(guests.id, profile.id));
 
-    revalidatePath('/[locale]/me/profile', 'page');
-    revalidatePath('/[locale]/me', 'page');
+    revalidatePath('/[locale]/(site)/me/profile', 'page');
+    revalidatePath('/[locale]/(site)/me', 'page');
     return { status: 'success', avatarUrl: null };
   } catch (error) {
     reportError(error, { surface: 'profile:removeAvatar' });

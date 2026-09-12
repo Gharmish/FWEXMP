@@ -59,8 +59,8 @@ function fieldErrors(issues: { path: PropertyKey[]; message: string }[]): Record
 function revalidateCatalogSurfaces(): void {
   revalidatePath('/[locale]/admin/catalog', 'page');
   revalidatePath('/[locale]/admin', 'page');
-  revalidatePath('/[locale]', 'page');
-  revalidatePath('/[locale]/experiences/(catalog)', 'page');
+  revalidatePath('/[locale]/(site)', 'page');
+  revalidatePath('/[locale]/(site)/experiences/(catalog)', 'page');
 }
 
 export async function addCity(

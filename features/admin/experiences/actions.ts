@@ -224,8 +224,8 @@ export async function adminUpdateExperience(
   revalidatePath('/[locale]/admin/experiences/[id]/edit', 'page');
   revalidatePath('/[locale]/host/(dashboard)', 'page');
   revalidatePath('/[locale]/host/(dashboard)/experiences/[id]', 'page');
-  revalidatePath('/[locale]/experiences/(catalog)', 'page');
-  revalidatePath('/[locale]/experiences/[slug]', 'page');
+  revalidatePath('/[locale]/(site)/experiences/(catalog)', 'page');
+  revalidatePath('/[locale]/(site)/experiences/[slug]', 'page');
   redirect({ href: `/admin/experience-moderation/${experienceId}`, locale });
 }
 
@@ -345,6 +345,6 @@ export async function adminCreateExperience(
 
   revalidateExperienceCaches();
   revalidatePath('/[locale]/admin/experience-moderation', 'page');
-  revalidatePath('/[locale]/experiences/(catalog)', 'page');
+  revalidatePath('/[locale]/(site)/experiences/(catalog)', 'page');
   redirect({ href: `/admin/experiences/${newId}/edit`, locale });
 }

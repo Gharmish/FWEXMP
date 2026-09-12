@@ -103,9 +103,9 @@ function revalidateHostSurfaces() {
   // engineering audit ACTIONS-03).
   revalidateExperienceCaches();
   revalidatePath('/[locale]/host/(dashboard)', 'layout');
-  revalidatePath('/[locale]/hosts', 'page');
-  revalidatePath('/[locale]/hosts/[slug]', 'page');
-  revalidatePath('/[locale]/experiences/[slug]', 'page');
+  revalidatePath('/[locale]/(site)/hosts', 'page');
+  revalidatePath('/[locale]/(site)/hosts/[slug]', 'page');
+  revalidatePath('/[locale]/(site)/experiences/[slug]', 'page');
 }
 
 /**

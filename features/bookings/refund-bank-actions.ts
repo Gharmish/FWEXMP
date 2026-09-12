@@ -95,7 +95,7 @@ export async function submitRefundBankDetails(
     return { success: false, message: 'server', values };
   }
 
-  revalidatePath('/[locale]/book/confirmed/[ref]', 'page');
+  revalidatePath('/[locale]/(site)/book/confirmed/[ref]', 'page');
   revalidatePath('/[locale]/admin/bookings', 'page');
   revalidatePath('/[locale]/admin/bookings/[id]', 'page');
   return { success: true };

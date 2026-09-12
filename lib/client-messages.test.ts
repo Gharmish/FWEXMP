@@ -68,13 +68,30 @@ describe('client message namespaces', () => {
     expect([...ALL].filter((ns) => !(ns in en))).toEqual([]);
   });
 
-  it('a public page gets neither dashboard namespace; dashboards get theirs', () => {
-    expect(clientNamespacesFor('/en/experiences')).not.toContain('admin');
-    expect(clientNamespacesFor('/ar/admin/bookings')).toContain('admin');
-    expect(clientNamespacesFor('/en/host/bookings')).toContain('hostDashboard');
-    expect(clientNamespacesFor(null)).toEqual(expect.arrayContaining(['admin', 'hostDashboard']));
-    const picked = pickClientMessages(en, '/en/experiences');
+  it('base carries neither dashboard namespace; each dashboard group adds its own', () => {
+    expect(clientNamespacesFor()).not.toContain('admin');
+    expect(clientNamespacesFor('admin')).toContain('admin');
+    expect(clientNamespacesFor('admin')).not.toContain('hostDashboard');
+    expect(clientNamespacesFor('host')).toContain('hostDashboard');
+    const picked = pickClientMessages(en, 'base');
     expect(Object.keys(picked)).not.toContain('admin');
     expect(picked.common).toBe(en.common);
+    expect(Object.keys(pickClientMessages(en, 'admin'))).toContain('adminMfa');
+  });
+
+  it('each group is provided by a layout Next re-renders when the route changes', () => {
+    // The locale layout never re-renders on a soft navigation within a
+    // locale, so it may ship only `base`; the dashboards nest their own
+    // provider (second-pass verification F5).
+    const read = (file: string) => readFileSync(join(ROOT, file), 'utf8');
+    const locale = read('app/[locale]/layout.tsx');
+    expect(locale).toMatch(/pickClientMessages\([\s\S]*?'base'\)/);
+    expect(locale).not.toMatch(/pickClientMessages\([\s\S]*?'(admin|host)'\)/);
+    const admin = read('app/[locale]/admin/layout.tsx');
+    expect(admin).toContain('<NextIntlClientProvider');
+    expect(admin).toMatch(/pickClientMessages\([\s\S]*?'admin'\)/);
+    const host = read('app/[locale]/host/(dashboard)/layout.tsx');
+    expect(host).toContain('<NextIntlClientProvider');
+    expect(host).toMatch(/pickClientMessages\([\s\S]*?'host'\)/);
   });
 });

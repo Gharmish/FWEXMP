@@ -49,7 +49,7 @@ export async function setReviewHidden(
   revalidatePath('/[locale]/admin/reviews', 'page');
   // The experience detail + catalog rating change when visibility flips.
   revalidateReviewCaches();
-  revalidatePath('/[locale]/experiences/(catalog)', 'page');
-  revalidatePath('/[locale]/experiences/[slug]', 'page');
+  revalidatePath('/[locale]/(site)/experiences/(catalog)', 'page');
+  revalidatePath('/[locale]/(site)/experiences/[slug]', 'page');
   return { success: true };
 }

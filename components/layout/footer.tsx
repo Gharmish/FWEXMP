@@ -119,7 +119,7 @@ export async function Footer() {
   );
 
   return (
-    <footer data-site-chrome className="border-sarat-black/8 [border-top-width:0.5px] print:hidden">
+    <footer className="border-sarat-black/8 [border-top-width:0.5px] print:hidden">
       <div className="mx-auto flex max-w-6xl flex-col gap-12 px-6 py-12">
         <Stagger className="flex flex-col gap-12 sm:flex-row sm:justify-between">
           <StaggerItem className="flex flex-col gap-3">

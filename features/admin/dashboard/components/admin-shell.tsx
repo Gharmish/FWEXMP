@@ -117,7 +117,11 @@ export function AdminShell({ children, userLabel, navCounts, actions }: AdminShe
           </div>
         </header>
 
-        <main className="flex-1 px-4 py-8 sm:px-6 lg:px-12 lg:py-12">
+        <main
+          id="main-content"
+          tabIndex={-1}
+          className="flex-1 px-4 py-8 sm:px-6 lg:px-12 lg:py-12"
+        >
           <div className="mx-auto w-full max-w-6xl">{children}</div>
         </main>
       </div>

@@ -264,8 +264,8 @@ export async function approveApplication(
   // Next.js stored at render time. `/[locale]/admin/host-applications/${id}`
   // mixes a templated and a concrete segment — Next won't match it.
   revalidatePath('/[locale]/admin/host-applications/[id]', 'page');
-  revalidatePath('/[locale]/host/apply', 'page');
-  revalidatePath('/[locale]/hosts', 'page');
+  revalidatePath('/[locale]/(site)/host/apply', 'page');
+  revalidatePath('/[locale]/(site)/hosts', 'page');
   redirect({ href: `/admin/host-applications/${applicationId}`, locale });
 }
 
@@ -358,7 +358,7 @@ export async function rejectApplication(
   // Next.js stored at render time. `/[locale]/admin/host-applications/${id}`
   // mixes a templated and a concrete segment — Next won't match it.
   revalidatePath('/[locale]/admin/host-applications/[id]', 'page');
-  revalidatePath('/[locale]/host/apply', 'page');
+  revalidatePath('/[locale]/(site)/host/apply', 'page');
   redirect({ href: `/admin/host-applications/${applicationId}`, locale });
 }
 
@@ -419,6 +419,6 @@ export async function reviewDocument(
 
   revalidatePath('/[locale]/admin/host-applications/[id]', 'page');
   // The host sees per-document verdicts on their apply/status surface.
-  revalidatePath('/[locale]/host/apply', 'page');
+  revalidatePath('/[locale]/(site)/host/apply', 'page');
   return { success: true };
 }

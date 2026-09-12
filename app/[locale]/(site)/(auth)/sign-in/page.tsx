@@ -6,7 +6,7 @@ import { cn } from '@/lib/utils';
 import { stubAuthAllowed } from '@/lib/env';
 import { getCurrentUser } from '@/features/auth/queries';
 import { sanitizeNextPath } from '@/features/auth/lib/next-path';
-import { SignInForm } from '@/app/[locale]/(auth)/sign-in/sign-in-form';
+import { SignInForm } from '@/app/[locale]/(site)/(auth)/sign-in/sign-in-form';
 
 export async function generateMetadata({
   params,

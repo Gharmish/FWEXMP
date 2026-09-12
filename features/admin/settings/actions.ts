@@ -151,11 +151,11 @@ export async function updateSettings(
   // Settings drive the dashboard KPIs and the public category facets.
   revalidatePath('/[locale]/admin/settings', 'page');
   revalidatePath('/[locale]/admin', 'page');
-  revalidatePath('/[locale]', 'page');
-  revalidatePath('/[locale]/experiences/(catalog)', 'page');
+  revalidatePath('/[locale]/(site)', 'page');
+  revalidatePath('/[locale]/(site)/experiences/(catalog)', 'page');
   // VAT disclosure lines render on the detail + payment surfaces.
-  revalidatePath('/[locale]/experiences/[slug]', 'page');
-  revalidatePath('/[locale]/book/[reference]/pay', 'page');
+  revalidatePath('/[locale]/(site)/experiences/[slug]', 'page');
+  revalidatePath('/[locale]/(site)/book/[reference]/pay', 'page');
 
   return { success: true };
 }
@@ -244,8 +244,8 @@ export async function updateCancellationPolicies(
 
   // Every surface that renders the tier parameters.
   revalidatePath('/[locale]/admin/settings', 'page');
-  revalidatePath('/[locale]/experiences/[slug]', 'page');
-  revalidatePath('/[locale]/cancellation-policy', 'page');
+  revalidatePath('/[locale]/(site)/experiences/[slug]', 'page');
+  revalidatePath('/[locale]/(site)/cancellation-policy', 'page');
 
   return { success: true };
 }

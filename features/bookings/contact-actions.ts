@@ -176,6 +176,6 @@ export async function updateBookingContact(
     return { success: false, message: 'server', values };
   }
 
-  revalidatePath('/[locale]/book/confirmed/[ref]', 'page');
+  revalidatePath('/[locale]/(site)/book/confirmed/[ref]', 'page');
   return { success: true };
 }

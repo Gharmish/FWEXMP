@@ -111,7 +111,7 @@ async function experienceIdOfMoment(momentId: string): Promise<string | null> {
 function revalidate(): void {
   revalidateExperienceCaches();
   revalidatePath('/[locale]/host/(dashboard)/experiences/[id]', 'page');
-  revalidatePath('/[locale]/experiences/[slug]', 'page');
+  revalidatePath('/[locale]/(site)/experiences/[slug]', 'page');
 }
 
 function parseFields(

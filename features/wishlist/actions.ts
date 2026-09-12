@@ -52,11 +52,11 @@ async function readCookie(): Promise<string[]> {
 
 function revalidateWishlistSurfaces(): void {
   // Pages that render saved-state badges or the wishlist itself.
-  revalidatePath('/[locale]/wishlist', 'page');
-  revalidatePath('/[locale]', 'page');
-  revalidatePath('/[locale]/experiences/(catalog)', 'page');
-  revalidatePath('/[locale]/experiences/[slug]', 'page');
-  revalidatePath('/[locale]/hosts/[slug]', 'page');
+  revalidatePath('/[locale]/(site)/wishlist', 'page');
+  revalidatePath('/[locale]/(site)', 'page');
+  revalidatePath('/[locale]/(site)/experiences/(catalog)', 'page');
+  revalidatePath('/[locale]/(site)/experiences/[slug]', 'page');
+  revalidatePath('/[locale]/(site)/hosts/[slug]', 'page');
 }
 
 /** Guest id for the signed-in caller, or null (signed out / no DB). */

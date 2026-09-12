@@ -52,7 +52,7 @@ function revalidate(experienceId: string): void {
   revalidateExperienceCaches();
   revalidatePath('/[locale]/admin/experiences/[id]/moments', 'page');
   revalidatePath('/[locale]/admin/experiences/[id]/edit', 'page');
-  revalidatePath('/[locale]/experiences/[slug]', 'page');
+  revalidatePath('/[locale]/(site)/experiences/[slug]', 'page');
   void experienceId;
 }
 

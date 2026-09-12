@@ -18,10 +18,7 @@ export function NavShell({ children }: { children: ReactNode }) {
   useMotionValueEvent(scrollY, 'change', (y) => setScrolled(y > 8));
 
   return (
-    <header
-      data-site-chrome
-      className="border-sarat-black/8 sticky top-0 z-50 [border-bottom-width:0.5px] bg-white/70 backdrop-blur-md print:hidden"
-    >
+    <header className="border-sarat-black/8 sticky top-0 z-50 [border-bottom-width:0.5px] bg-white/70 backdrop-blur-md print:hidden">
       <motion.span
         aria-hidden
         className="absolute inset-0 bg-white"

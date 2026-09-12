@@ -284,7 +284,7 @@ export async function submitHostApplication(
       path: '/',
       maxAge: HOST_APPLICATION_COOKIE_MAX_AGE_SECONDS,
     });
-    revalidatePath('/[locale]/host/apply', 'page');
+    revalidatePath('/[locale]/(site)/host/apply', 'page');
     redirect({ href: '/host/apply/submitted', locale: input.locale });
   }
 
@@ -511,6 +511,6 @@ export async function submitHostApplication(
     reportError(error, { surface: 'host-applications:receivedEmail', userId: user.id });
   }
 
-  revalidatePath('/[locale]/host/apply', 'page');
+  revalidatePath('/[locale]/(site)/host/apply', 'page');
   redirect({ href: '/host/apply/submitted', locale: input.locale });
 }

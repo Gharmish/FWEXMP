@@ -167,8 +167,8 @@ export async function approveExperience(
   revalidatePath('/[locale]/host/(dashboard)', 'page');
   revalidatePath('/[locale]/host/(dashboard)/experiences/[id]', 'page');
   // The public detail page renders by slug — invalidate the bucket.
-  revalidatePath('/[locale]/experiences/(catalog)', 'page');
-  revalidatePath('/[locale]/experiences/[slug]', 'page');
+  revalidatePath('/[locale]/(site)/experiences/(catalog)', 'page');
+  revalidatePath('/[locale]/(site)/experiences/[slug]', 'page');
   redirect({ href: `/admin/experience-moderation/${experienceId}`, locale });
 }
 
@@ -237,8 +237,8 @@ export async function updateExperienceArabicCopy(
   // Dynamic-segment template — mixing a templated `[locale]` with a
   // concrete id wouldn't match the cached entry.
   revalidatePath('/[locale]/admin/experience-moderation/[id]', 'page');
-  revalidatePath('/[locale]/experiences/(catalog)', 'page');
-  revalidatePath('/[locale]/experiences/[slug]', 'page');
+  revalidatePath('/[locale]/(site)/experiences/(catalog)', 'page');
+  revalidatePath('/[locale]/(site)/experiences/[slug]', 'page');
   redirect({ href: `/admin/experience-moderation/${experienceId}`, locale });
 }
 

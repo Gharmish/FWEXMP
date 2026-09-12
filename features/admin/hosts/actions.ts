@@ -164,8 +164,8 @@ export async function suspendHost(
   // Use the dynamic-segment template so Next matches the cached entry.
   revalidatePath('/[locale]/admin/hosts/[id]', 'page');
   revalidatePath('/[locale]/admin/analytics', 'page');
-  revalidatePath('/[locale]/experiences/(catalog)', 'page');
-  revalidatePath('/[locale]/hosts', 'page');
+  revalidatePath('/[locale]/(site)/experiences/(catalog)', 'page');
+  revalidatePath('/[locale]/(site)/hosts', 'page');
   revalidatePath('/[locale]/host/(dashboard)', 'page');
   redirect({ href: `/admin/hosts/${hostId}`, locale });
 }
@@ -226,7 +226,7 @@ export async function unsuspendHost(
   // Use the dynamic-segment template so Next matches the cached entry.
   revalidatePath('/[locale]/admin/hosts/[id]', 'page');
   revalidatePath('/[locale]/admin/analytics', 'page');
-  revalidatePath('/[locale]/hosts', 'page');
+  revalidatePath('/[locale]/(site)/hosts', 'page');
   revalidatePath('/[locale]/host/(dashboard)', 'page');
   redirect({ href: `/admin/hosts/${hostId}`, locale });
 }

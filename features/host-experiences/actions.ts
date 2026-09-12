@@ -564,11 +564,11 @@ export async function updateHostExperience(
   revalidatePath('/[locale]/host/(dashboard)', 'page');
   revalidatePath('/[locale]/host/(dashboard)/experiences/[id]', 'page');
   // The public detail page renders by slug — invalidate the bucket.
-  revalidatePath('/[locale]/experiences/[slug]', 'page');
+  revalidatePath('/[locale]/(site)/experiences/[slug]', 'page');
   if (demoted) {
     // Newly demoted listings need to disappear from the catalog index
     // and show up in the admin moderation queue.
-    revalidatePath('/[locale]/experiences/(catalog)', 'page');
+    revalidatePath('/[locale]/(site)/experiences/(catalog)', 'page');
     revalidatePath('/[locale]/admin/experience-moderation', 'page');
   }
   redirect({
@@ -707,7 +707,7 @@ export async function publishHostExperience(
   revalidatePath('/[locale]/host/(dashboard)', 'page');
   revalidatePath('/[locale]/host/(dashboard)/experiences/[id]', 'page');
   revalidatePath('/[locale]/admin/experience-moderation', 'page');
-  revalidatePath('/[locale]/experiences/(catalog)', 'page');
+  revalidatePath('/[locale]/(site)/experiences/(catalog)', 'page');
   redirect({ href: `/host/experiences/${experienceId}`, locale });
 }
 
@@ -745,7 +745,7 @@ export async function pauseHostExperience(
   revalidateExperienceCaches();
   revalidatePath('/[locale]/host/(dashboard)', 'page');
   revalidatePath('/[locale]/host/(dashboard)/experiences/[id]', 'page');
-  revalidatePath('/[locale]/experiences/(catalog)', 'page');
+  revalidatePath('/[locale]/(site)/experiences/(catalog)', 'page');
   redirect({ href: `/host/experiences/${experienceId}`, locale });
 }
 

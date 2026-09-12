@@ -56,7 +56,7 @@ async function requireAdmin(): Promise<{ ok: true } | { error: GalleryState }> {
 function revalidate(): void {
   revalidateExperienceCaches();
   revalidatePath('/[locale]/admin/experiences/[id]/edit', 'page');
-  revalidatePath('/[locale]/experiences/[slug]', 'page');
+  revalidatePath('/[locale]/(site)/experiences/[slug]', 'page');
 }
 
 export async function uploadGalleryImage(

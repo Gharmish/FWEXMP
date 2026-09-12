@@ -85,9 +85,9 @@ export async function cancelBookingAsGuest(
       : outcome;
   }
 
-  revalidatePath('/[locale]/book/confirmed/[ref]', 'page');
-  revalidatePath('/[locale]/me', 'page');
-  revalidatePath('/[locale]/me/profile', 'page');
+  revalidatePath('/[locale]/(site)/book/confirmed/[ref]', 'page');
+  revalidatePath('/[locale]/(site)/me', 'page');
+  revalidatePath('/[locale]/(site)/me/profile', 'page');
   revalidatePath('/[locale]/admin/bookings', 'page');
   revalidatePath('/[locale]/host/(dashboard)/bookings', 'page');
   return outcome;

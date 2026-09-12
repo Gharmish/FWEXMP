@@ -72,7 +72,7 @@ function fieldFlags(issues: readonly { path: readonly PropertyKey[] }[]): Record
 
 function revalidateWallet(): void {
   revalidatePath('/[locale]/admin/users/[key]', 'page');
-  revalidatePath('/[locale]/me/profile', 'page');
+  revalidatePath('/[locale]/(site)/me/profile', 'page');
 }
 
 export async function issueWalletCredit(

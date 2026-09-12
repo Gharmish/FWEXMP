@@ -533,7 +533,7 @@ export async function emergencyCancelBooking(
 
   revalidatePath('/[locale]/admin/bookings', 'page');
   revalidatePath('/[locale]/admin/analytics', 'page');
-  revalidatePath('/[locale]/me/profile', 'page');
+  revalidatePath('/[locale]/(site)/me/profile', 'page');
   redirect({ href: '/admin/bookings', locale });
 }
 
@@ -665,7 +665,7 @@ export async function resolveSettleAnomaly(
   }
 
   revalidatePath('/[locale]/admin/bookings/[id]', 'page');
-  revalidatePath('/[locale]/book/[reference]/pay', 'page');
+  revalidatePath('/[locale]/(site)/book/[reference]/pay', 'page');
   // P3-34 — this is the success path; it was returning `success: false`,
   // inverting the codebase's discriminated-state convention (harmless
   // today since the button only reads `.message`, but fix it anyway).

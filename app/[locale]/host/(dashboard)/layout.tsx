@@ -1,5 +1,7 @@
 import type { Metadata } from 'next';
-import { getLocale, getTranslations } from 'next-intl/server';
+import { NextIntlClientProvider } from 'next-intl';
+import { getLocale, getMessages, getTranslations } from 'next-intl/server';
+import { pickClientMessages } from '@/lib/client-messages';
 import { redirect } from '@/lib/i18n';
 import type { Locale } from '@/lib/i18n';
 import { getCurrentUser } from '@/features/auth/queries';
@@ -19,10 +21,12 @@ import { SignOutButton } from '@/components/layout/sign-out-button';
  * individual pages don't need to re-gate — they still call queries that
  * re-scope defensively (defence in depth), mirroring the admin layout.
  *
- * The shell (left rail + top bar) IS the chrome: the locale layout skips (via the proxy's x-pathname header, REACT-05)
- * the public marketing navbar + footer (rendered by the parent locale
- * layout) on host dashboard routes. Sign-out + language switch are lifted
- * from that navbar into the rail footer so hosts keep them.
+ * The shell (left rail + top bar) IS the chrome: the public navbar + footer
+ * belong to the (site) route group's layout, a sibling of this segment, so
+ * they are never rendered here (REACT-05). Sign-out + language switch are
+ * lifted from that navbar into the rail footer so hosts keep them. The
+ * nested NextIntlClientProvider ships the host namespaces from a layout that
+ * re-renders on navigation (REACT-01, second-pass verification F5).
  */
 // Belt for the gate above: even if a gate regression ever served dashboard
 // HTML to a crawler, the pages stay out of the index (robots.txt already
@@ -41,10 +45,11 @@ export default async function HostDashboardLayout({ children }: { children: Reac
     redirect({ href: '/host/apply', locale });
   }
 
-  const [t, tHost, pendingRequests] = await Promise.all([
+  const [t, tHost, pendingRequests, messages] = await Promise.all([
     getTranslations('nav'),
     getTranslations('hostDashboard.nav'),
     countPendingRequestsForHost(),
+    getMessages(),
   ]);
 
   // Help goes to the WhatsApp support line (agent-staffed) with the host
@@ -56,7 +61,7 @@ export default async function HostDashboardLayout({ children }: { children: Reac
     : null;
 
   return (
-    <>
+    <NextIntlClientProvider messages={pickClientMessages(messages, 'host')}>
       <HostShell
         userLabel={dashboard.host.name}
         pendingRequests={pendingRequests}
@@ -71,6 +76,6 @@ export default async function HostDashboardLayout({ children }: { children: Reac
       >
         {children}
       </HostShell>
-    </>
+    </NextIntlClientProvider>
   );
 }

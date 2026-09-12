@@ -143,7 +143,7 @@ export async function submitReview(
 
   // The catalog/detail rating aggregates are cached cross-request.
   revalidateReviewCaches();
-  revalidatePath('/[locale]/book/confirmed/[ref]', 'page');
+  revalidatePath('/[locale]/(site)/book/confirmed/[ref]', 'page');
 
   // Tell the host they have a new review to read (and reply to) —
   // best-effort, never blocks the submission.
@@ -233,9 +233,9 @@ export async function updateReview(
     if (updated.length === 0) return { success: false, message: 'expired', values };
 
     revalidateReviewCaches();
-    revalidatePath('/[locale]/me', 'page');
-    revalidatePath('/[locale]/experiences/[slug]', 'page');
-    revalidatePath('/[locale]/book/confirmed/[ref]', 'page');
+    revalidatePath('/[locale]/(site)/me', 'page');
+    revalidatePath('/[locale]/(site)/experiences/[slug]', 'page');
+    revalidatePath('/[locale]/(site)/book/confirmed/[ref]', 'page');
   } catch (error) {
     reportError(error, { surface: 'reviews:updateReview', bookingReference });
     return { success: false, message: 'server', values };
@@ -308,7 +308,7 @@ export async function replyToReview(
 
     revalidateReviewCaches();
     revalidatePath('/[locale]/host/(dashboard)/reviews', 'page');
-    revalidatePath('/[locale]/experiences/[slug]', 'page');
+    revalidatePath('/[locale]/(site)/experiences/[slug]', 'page');
   } catch (error) {
     reportError(error, { surface: 'reviews:replyToReview', reviewId });
     return { success: false, message: 'server', values };
@@ -385,7 +385,7 @@ export async function updateHostReply(
 
     revalidateReviewCaches();
     revalidatePath('/[locale]/host/(dashboard)/reviews', 'page');
-    revalidatePath('/[locale]/experiences/[slug]', 'page');
+    revalidatePath('/[locale]/(site)/experiences/[slug]', 'page');
   } catch (error) {
     reportError(error, { surface: 'reviews:updateHostReply', reviewId });
     return { success: false, message: 'server', values };

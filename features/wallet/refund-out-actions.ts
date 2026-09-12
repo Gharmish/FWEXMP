@@ -161,8 +161,8 @@ export async function requestRefundToCard(
       'card_only',
     );
 
-    revalidatePath('/[locale]/book/confirmed/[ref]', 'page');
-    revalidatePath('/[locale]/me/profile', 'page');
+    revalidatePath('/[locale]/(site)/book/confirmed/[ref]', 'page');
+    revalidatePath('/[locale]/(site)/me/profile', 'page');
     return { status: 'done', outcome: refund, amountSar: booking.totalAmount };
   } catch (error) {
     reportError(error, { surface: 'wallet:refundToCard', reference });
