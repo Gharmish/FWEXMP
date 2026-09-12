@@ -797,18 +797,18 @@ Roadmap-level investments synthesised across all reviewers, deduplicated and seq
 
 **Not covered.** Live database state, Vercel/Supabase configuration, DNS, and third-party dashboards were out of scope (code only, no production access). No load testing or Lighthouse run was performed; performance findings are code-derived.
 
-## 9. Remediation status (2026-09-11)
+## 9. Remediation status (2026-09-12)
 
-Remediation ran on 2026-09-11, the same day as the audit, on `main` in 37 reviewable pathspec commits with the type-check, lint and the full Vitest suite green after every batch and a production build verified at the end. Nothing was pushed or deployed: a push to `main` auto-deploys, and the release remains the owner's call. Every fix that changes behaviour carries a test.
+Remediation ran on 2026-09-11 and 2026-09-12 on `main` in 51 reviewable pathspec commits (f39aba1..dc18686) with the type-check, lint and the full Vitest suite green after every batch and a production build verified at the end. Nothing was pushed or deployed: a push to `main` auto-deploys, and the release remains the owner's call. Every fix that changes behaviour carries a test.
 
-*Fixed* means the finding is closed on `main`. *Partially fixed* means the live risk is removed but a follow-up remains (named in the note). *Deferred* items are refactors or measurement work that would not have been safe to bundle into an audit-remediation pass. *Owner decision* items need DDL against the live database, a product or brand decision, or a dependency approval.
+*Fixed* means the finding is closed on `main`. *Partially fixed* means the live risk is removed but a follow-up remains (named in the note). *Deferred* items are the few refactors judged riskier than their payoff without a second engineer (named in the note). *Owner decision* items need a one-off SQL statement run as the database owner, or a product or brand decision — everything the code side can prepare for them is committed.
 
 | Outcome | P0 | P1 | P2 | P3 | Total |
 |---|---|---|---|---|---|
-| **Fixed** | 1 | 12 | 42 | 38 | **93** |
-| **Partially fixed** | 0 | 1 | 5 | 4 | **10** |
-| **Deferred** | 0 | 0 | 19 | 21 | **40** |
-| **Owner decision** | 0 | 0 | 6 | 6 | **12** |
+| **Fixed** | 1 | 12 | 67 | 64 | **144** |
+| **Partially fixed** | 0 | 1 | 2 | 0 | **3** |
+| **Deferred** | 0 | 0 | 1 | 2 | **3** |
+| **Owner decision** | 0 | 0 | 2 | 3 | **5** |
 | **Not a bug** | 0 | 0 | 1 | 0 | **1** |
 
 | ID | Sev | Outcome | Commit | Note |
@@ -820,37 +820,37 @@ Remediation ran on 2026-09-11, the same day as the audit, on `main` in 37 review
 | ACTIONS-01 | P1 | Fixed | `49290b1` | referralCode parsed from the form. |
 | TEST-01 | P1 | Fixed | `171a29e` | e2e needs the checks job; CLAUDE.md requires green CI before a prod deploy. |
 | TEST-02 | P1 | Fixed | `5d5132d` | 11 tests on createCheckout gates and the liveness CAS. |
-| TEST-03 | P1 | Partially fixed | `5d5132d, b299b14` | markHostPaid covered; every host action pinned to the session resolver. Refund / emergency-cancel / approve-host actions still untested. |
+| TEST-03 | P1 | Partially fixed | `3bf0a2c` | markHostPaid, emergencyCancelBooking, refundBooking gates, suspendHost, the host listing guards and the alerts actions are covered; other action files remain untested. |
 | OPS-01 | P1 | Fixed | `d17ad8c` | Watchdog route, test and vercel.json schedule committed. Apply supabase/watchdog-hourly-cron.sql only AFTER the route is live. |
 | OPS-02 | P1 | Fixed | `8ff9716` | Same-fingerprint alerts collapse into a quiet window; the row is still persisted. |
 | DEPS-02 | P1 | Fixed | `1fd9711` | Overrides raised: sharp ≥0.35.4, fast-uri ≥3.1.6; engines + .nvmrc pin Node 22. |
 | GAPA-01 | P1 | Fixed | `31a472b` | Host and admin listing edits refuse schedule changes that strand live bookings (schedule_has_bookings). |
 | GAPB-01 | P1 | Fixed | `49290b1` | Click ids stored only with ad consent; server-side TikTok purchase fires only when a ttclid was consented. |
 | WIP-01 | P1 | Fixed | `a25b1e6` | Event-clock guard on approve and checkout landed. |
-| ARCH-01 | P2 | Deferred | — | Splitting the 19-pass handler is a week of refactor; every pass is now isolated and budgeted (e6d80bf), which removes the live risk. |
-| ARCH-02 | P2 | Deferred | — | Coupling, not a runtime hazard (zero file-level cycles). Needs an import-boundary lint rule and a features/auth split — schedule with ARCH-05. |
+| ARCH-01 | P2 | Fixed | `c3f84b5, 01e7178` | Route = auth + one call; features/maintenance/release-holds.ts orchestrates 22 passes across seven modules under one PassRunner. |
+| ARCH-02 | P2 | Partially fixed | `321ee9d` | lib/import-boundaries.test.ts pins the layer rules (features never import app; components never import app/features; lib imports neither). The auth↔admin folder pair remains — breaking it needs a neutral session module. |
 | ARCH-03 | P2 | Fixed | `53f3cb5` | host-transition-button, sla-countdown and booking-copy moved into features/host-bookings. |
 | ARCH-04 | P2 | Fixed | `b951425` | lib/riyadh-time.ts is the one market clock; ten copies removed (also closes DATA-09, GAPA-06). |
-| ARCH-05 | P2 | Deferred | — | Moving support-agent / marketing / conversations out of lib is a directory-level refactor; no behaviour at stake. |
-| ARCH-06 | P2 | Deferred | — | Confirmation-page view-model extraction; pair with REACT-04. |
-| ARCH-07 | P2 | Deferred | — | requestBooking / booking-email split; large, behaviour-neutral, needs its own review. |
-| ARCH-09 | P2 | Deferred | — | Listing-ownership consolidation across three features. |
-| DATA-03 | P2 | Deferred | — | Ledger-in-transaction needs the payment_events writers to accept a tx handle; touches every money path — separate reviewed change. |
-| DATA-04 | P2 | Deferred | — | SQL-side filtering of the admin bookings queue (also PERF-06); a query rewrite with its own tests. |
-| DATA-05 | P2 | Deferred | — | Column projections for list queries; behaviour-neutral, do with DATA-04. |
-| DATA-06 | P2 | Owner decision | — | ALTER ROLE gharmish_app SET statement_timeout / idle_in_transaction_session_timeout — live DDL, owner applies. |
+| ARCH-05 | P2 | Fixed | `321ee9d` | support-agent, conversations and marketing moved under features/; link-token, cancellation-policy and the category vocabulary re-homed so lib is a leaf. |
+| ARCH-06 | P2 | Fixed | `dc18686` | confirmationView() derives the sixteen status flags in a tested module; the manage tail streams behind Suspense. Page 1,602 → 1,141 lines. |
+| ARCH-07 | P2 | Partially fixed | `e5143f2` | booking-email split by lifecycle behind a re-exporting index (2,092 → five modules ≤ 860 lines). requestBooking (641 lines) is still one action. |
+| ARCH-09 | P2 | Fixed | `a759140` | features/listings owns the draft schema, slug, photo, readiness and schedule guard; the three writers depend on it, not on each other. |
+| DATA-03 | P2 | Fixed | `ca11430` | recordPaymentEvent takes the transaction; settle flips, the anomaly stamp, refund_succeeded and the checkout claim commit with their ledger rows. |
+| DATA-04 | P2 | Fixed | `ebaf8ad` | listBookingsForAdmin filters, searches and orders in SQL (rendered-SQL tests); the 500 cap applies after filtering. |
+| DATA-05 | P2 | Fixed | `ebaf8ad` | The queue selects the 28 columns it renders; refundBankReady is computed in SQL. |
+| DATA-06 | P2 | Owner decision | `66ca181` | supabase/2026-09-11-app-role-timeouts.sql carries statement/idle/lock timeouts for the app role — apply once as the DB owner. |
 | MONEY-01 | P2 | Fixed | `aa7ea62` | Cancel flips re-assert paymentStatus; a mid-cancel settle now loses the race. |
 | MONEY-02 | P2 | Fixed | `aa7ea62` | createCheckout CAS re-asserts status/paymentStatus/anomaly/deadline; lost claim → underReview/expired. |
 | MONEY-03 | P2 | Fixed | `5d5132d` | Webhook parses ndc/result/id/amount and alerts a human on a capture for a superseded checkout. |
 | MONEY-04 | P2 | Fixed | `5d5132d` | Refund-out to card refused and hidden while refunds_via_bank_transfer is on. |
-| MONEY-05 | P2 | Owner decision | — | Halala precision needs a VAT-base decision with the ZATCA advisor and a column change before VAT is enabled. |
+| MONEY-05 | P2 | Fixed | `3942f92` | vatPortionHalalas feeds every VAT line, the tax invoice and the ZATCA QR; the payout split keeps whole-riyal accounting. |
 | SEC-01 | P2 | Fixed | `f75f23c` | redactQuery/redactUrl scrub ?k= and reference ids from Sentry URLs, tags and contexts. |
 | SEC-02 | P2 | Fixed | `bfc661a` | Return route mints a token only when the gateway checkout id matches the current one. |
 | AI-02 | P2 | Fixed | `f6f6e04` | Budget: 40 turns/conversation/day, 800/day; over budget hands the thread to a person. |
 | AI-03 | P2 | Fixed | `8ff9716, f6f6e04` | Inbound paging collapses per conversation into a 30-minute quiet window. |
 | AI-04 | P2 | Fixed | `f6f6e04` | Verification expires after 24h; bank-detail actions need a verification under 1h old. |
 | AI-05 | P2 | Fixed | `f6f6e04, e6d80bf` | Tool inputs redacted in logs; cron pass masks IBANs persisted in conversation_messages. |
-| AI-06 | P2 | Owner decision | — | A cancellation_kind = agent value is a schema/enum change; owner decides the audit-trail shape. |
+| AI-06 | P2 | Fixed | `5fa8cbd` | Agent cancellations write cancellation_kind = 'agent' (migration 0033 — apply before deploy). |
 | AI-07 | P2 | Fixed | `f6f6e04` | max_tokens 8000; a max_tokens stop is never sent as a reply. |
 | AI-08 | P2 | Fixed | `f6f6e04` | 70s turn budget via AbortSignal, 25s per-call timeout. |
 | AI-09 | P2 | Fixed | `f6f6e04` | Disabled agent fails safe: ack + ticket instead of silence. |
@@ -858,38 +858,38 @@ Remediation ran on 2026-09-11, the same day as the audit, on `main` in 37 review
 | ACTIONS-03 | P2 | Fixed | `fb3bf37` | Availability, host-profile and admin user writers flush the tagged caches. |
 | ACTIONS-04 | P2 | Fixed | `fb3bf37` | setDayAvailability redirects with ?calendar=has_bookings and the section explains the refusal. |
 | ACTIONS-05 | P2 | Fixed | `fb3bf37` | Ownership reads run inside the guarded try. |
-| REACT-01 | P2 | Deferred | — | Per-route message namespaces — a cross-cutting change to every page; measure first. |
+| REACT-01 | P2 | Fixed | `3942f92` | NextIntlClientProvider gets only the namespaces client components read on the route; a structural test scans every client component. |
 | REACT-02 | P2 | Deferred | — | Copy-prop vs useTranslations convergence (also ARCH-11); large, behaviour-neutral. |
 | REACT-03 | P2 | Fixed | `1955715` | getHostBySlug wrapped in React cache(). |
-| REACT-04 | P2 | Deferred | — | Confirmation-page Suspense/streaming rework; pair with ARCH-06. |
-| REACT-05 | P2 | Deferred | — | Dashboard layouts without the marketing shell — layout-tree change, needs design review. |
+| REACT-04 | P2 | Fixed | `dc18686` | BookingManageSections streams behind Suspense with the reads only it needs. |
+| REACT-05 | P2 | Fixed | `3942f92` | The proxy forwards x-pathname; the locale layout renders no public shell (and no auth fan-out) on dashboard routes. |
 | I18N-02 | P2 | Not a bug | `a8469a3` | The English inclusions/what-to-bring fields deliberately show English examples in both locales; allowlisted in the catalog test. |
 | DESIGN-01 | P2 | Fixed | `a8469a3` | [dir=rtl] [class*=tracking-] resets letter-spacing app-wide. |
-| DESIGN-02 | P2 | Owner decision | — | Removing ~150 emoji from approved WhatsApp templates means re-submitting them to Meta — brand-voice call. |
-| DESIGN-03 | P2 | Deferred | — | Type-scale utilities (h1/eyebrow) — mechanical but 86 call sites; own sweep. |
-| TEST-04 | P2 | Partially fixed | `e6d80bf` | Cron tests cover isolation, budget, heartbeat withholding and the paid-only reminder; per-pass fixtures for wallet-expiry/KYC remain. |
+| DESIGN-02 | P2 | Owner decision | `b6d0b41` | BRIEF §3 and the WhatsApp runbook now state the v3 exception honestly; stripping ~150 emoji means Meta re-approval — decision pending. |
+| DESIGN-03 | P2 | Fixed | `66ca181` | text-h1/h2/h3/eyebrow utilities (+ responsive variants) replace 58/86/28 copied strings; eyebrow steps up under RTL. |
+| TEST-04 | P2 | Fixed | `a759140` | The cron suite routes its select stub by projection and fixtures the wallet-expiry and KYC-purge passes. |
 | TEST-05 | P2 | Fixed | `5d5132d` | 9 tests on the webhook status contract. |
 | TEST-06 | P2 | Fixed | `d17ad8c` | Watchdog route tested (auth compare, staleness, re-alert). |
 | TEST-07 | P2 | Fixed | `5d5132d` | 9 tests on the edge gate, cookie detection, refresh and next= convention. |
-| TEST-08 | P2 | Partially fixed | `26ef08a` | vitest include now matches .test.tsx and components/**; no component tests written yet. |
-| TEST-09 | P2 | Deferred | — | DB-backed e2e needs a disposable database in CI — infrastructure decision. |
-| TEST-10 | P2 | Partially fixed | `b299b14` | Structural test pins every host action to the session resolver; cross-tenant negative tests still to write. |
-| TEST-11 | P2 | Deferred | — | Shared db fake/builders — do alongside the next test-heavy change. |
+| TEST-08 | P2 | Fixed | `3bf0a2c` | vitest includes .test.tsx; Localized, StarRating and Button render through react-dom/server. |
+| TEST-09 | P2 | Fixed | `a759140` | CI job e2e-db migrates a service Postgres, seeds it and books through the real action (self-skipping spec). Not runnable locally — no Postgres on this Mac — so its first proof is the next CI run. |
+| TEST-10 | P2 | Fixed | `3bf0a2c` | pause/delete/update refuse a foreign experience, a suspended host and no database before writing. |
+| TEST-11 | P2 | Fixed | `3bf0a2c` | lib/test/db-fake.ts is the shared chainable fake; every new suite uses it (legacy suites untouched). |
 | PERF-01 | P2 | Fixed | `5d5132d` | Admin exclusion reads the MFA marker cookie; no auth round-trip on the critical path. |
-| PERF-02 | P2 | Deferred | — | Detail-page slug→id resolution once; query-chain rewrite with its own tests. |
+| PERF-02 | P2 | Fixed | `ebaf8ad` | ExperienceSummary.id lets the schedule, review-aggregate and completed-count reads skip their slug lookups. |
 | PERF-03 | P2 | Fixed | `5d5132d` | Host dashboard runs two deadline-bounded waves. |
 | PERF-04 | P2 | Fixed | `e6d80bf` | maxDuration 300, 240s run budget, money passes first, truncation reported. |
-| PERF-05 | P2 | Deferred | — | Arabic font preload — measure CLS first; next/font change. |
+| PERF-05 | P2 | Fixed | `5fa8cbd` | IBM Plex Sans Arabic self-declared and preloaded only on Arabic pages; immutable caching. |
 | OPS-03 | P2 | Fixed | `e6d80bf` | Every pass isolated with pass(); failed/skipped passes reported; heartbeat withheld when a money pass fails. |
 | OPS-05 | P2 | Fixed | `f75f23c` | Sentry environment/release in both inits; setUser({id, segment}) on the session read. |
 | OPS-06 | P2 | Fixed | `f75f23c` | assertProductionConfig at instrumentation names missing secrets and alerts. |
 | OPS-07 | P2 | Fixed | `e6d80bf` | Stale queued deliveries re-queued or expired by the cron; counted in the summary. |
-| OPS-08 | P2 | Partially fixed | `8ff9716` | Quiet-window dedupe via detail.fingerprint. An acknowledged_at column and admin surface need DDL — owner. |
+| OPS-08 | P2 | Fixed | `7a39174` | /admin/alerts lists, badges and acknowledges the ledger (conditional UPDATE); quiet windows dedupe repeats. |
 | OPS-09 | P2 | Fixed | `f75f23c` | /api/health: DB probe + heartbeat age, 503 when stale; tested. |
 | OPS-10 | P2 | Fixed | `bfc661a` | Twilio route returns 500 when persisting inbound fails so Twilio retries; 204 for status callbacks. |
 | DEPS-04 | P2 | Fixed | `5d5132d` | withSentryConfig when SENTRY_AUTH_TOKEN is present; source maps + release. |
-| DEPS-05 | P2 | Partially fixed | `ea9706f` | Every features/**/queries.ts imports server-only; import-boundary lint still to add. |
-| DEPS-06 | P2 | Owner decision | — | bodySizeLimit 25mb vs Vercel cap — needs the upload-size product decision recorded. |
+| DEPS-05 | P2 | Fixed | `321ee9d` | Every features/**/queries.ts is server-only; the import-boundaries test enforces the layers. |
+| DEPS-06 | P2 | Fixed | `66ca181` | bodySizeLimit tells the truth about Vercel's 4.5MB cap; the KYC form refuses an over-cap submission with the reason. |
 | GAPA-02 | P2 | Fixed | `e6d80bf` | Reminder query requires paymentCollected(). |
 | GAPA-03 | P2 | Fixed | `aa7ea62` | Payment window clamped to the slot close; too late → too_late. |
 | GAPA-04 | P2 | Fixed | `e6d80bf` | analytics_events retention pass; schema comment corrected. |
@@ -897,55 +897,55 @@ Remediation ran on 2026-09-11, the same day as the audit, on `main` in 37 review
 | GAPB-03 | P2 | Fixed | `f75f23c` | Cron route added to outputFileTracingIncludes. |
 | WIP-03 | P2 | Fixed | `5a9e636` | Tile and list share the Riyadh today. |
 | WIP-04 | P2 | Fixed | `a25b1e6…0e6b76a` | The tree landed as nine pathspec commits. |
-| WIP-05 | P2 | Deferred | — | Hold-notice emails should go through the notification ledger for retry — small follow-up. |
+| WIP-05 | P2 | Fixed | `5a9e636` | Hold-notice sends run after the response, are ledgered and re-driven by the retry sweep. |
 | WIP-06 | P2 | Fixed | `5a9e636` | suspendedHost branch covered in filter.test.ts. |
-| ROADMAP-01 | P2 | Owner decision | — | Record a decision per promised component (Meilisearch, pgvector, MCP, OpenAPI, PostHog, Axiom) in BRIEF §5/§6. |
+| ROADMAP-01 | P2 | Fixed | `66ca181` | BRIEF §5/§6 record the status of every promised component (Meilisearch, pgvector, MCP, OpenAPI, PostHog, Axiom, react-hook-form, TanStack, date-fns). |
 | ARCH-08 | P3 | Fixed | `c5505c8` | Dead wishlist actions, promoCodeExists, fileToWebp, ExperienceListRow, supabase/client removed. |
-| ARCH-10 | P3 | Deferred | — | types.ts convention sweep. |
-| ARCH-12 | P3 | Partially fixed | `53f3cb5` | booking-copy.ts moved out of components/; layout→feature imports remain. |
-| DATA-07 | P3 | Deferred | — | text→uuid column type change is DDL; owner schedules. |
-| DATA-08 | P3 | Deferred | — | jsonb typing / enum constraints / FK are DDL; owner schedules. |
+| ARCH-10 | P3 | Fixed | `a759140` | Seven features gained types.ts; queries re-export so no importer changed. |
+| ARCH-12 | P3 | Fixed | `321ee9d` | Navbar takes hasWishlist + authLinks from the layout; AuthNavLinks lives in features/auth; enforced by the boundaries test. |
+| DATA-07 | P3 | Fixed | `b6d0b41` | Five text auth-id columns are uuid (production values verified uuid-shaped read-only); stub ids are canonical uuids. Migration 0035 — apply before deploy. |
+| DATA-08 | P3 | Fixed | `b6d0b41` | Typed enums for admin_alerts.kind / support_ticket_events.kind, $type on both jsonb columns, disputes.ticket_id FK (migration 0035). |
 | DATA-10 | P3 | Fixed | `5d5132d` | Sitemap slug reads run through boundedQuery. |
-| DATA-11 | P3 | Owner decision | — | CREATE INDEX on bookings(promo_code_id) — live DDL. |
+| DATA-11 | P3 | Fixed | `66ca181` | Migration 0034 adds bookings_promo_code_idx. |
 | MONEY-06 | P3 | Fixed | `aa7ea62` | IBAN required only when refunds_via_bank_transfer is on. |
 | MONEY-07 | P3 | Fixed | `5d5132d` | Spendable balance excludes expired-unswept lots (protected refund remainder honoured). |
 | MONEY-08 | P3 | Owner decision | — | Returning a withheld remainder is a policy decision. |
 | MONEY-09 | P3 | Fixed | `aa7ea62` | Claim and queue stamp wrapped; failure → refund_pending. |
 | SEC-03 | P3 | Fixed | `38e427b` | signOut deletes the admin MFA marker. |
-| SEC-04 | P3 | Deferred | — | Drop the Host-header fallback once NEXT_PUBLIC_SITE_URL is confirmed set in every environment. |
-| SEC-05 | P3 | Deferred | — | Magic-byte sniffing on uploads — small, needs fixtures. |
+| SEC-04 | P3 | Fixed | `5fa8cbd` | Production never derives the shopper-return origin from request headers. |
+| SEC-05 | P3 | Fixed | `66ca181` | Magic-byte sniffing on photo, avatar and KYC uploads (lib/file-signature.ts). |
 | SEC-06 | P3 | Deferred | — | Per-user storage handles — design change. |
 | SEC-07 | P3 | Fixed | `38e427b` | user_roles consulted first; a revoked row beats the env allowlist; tested. |
 | AI-10 | P3 | Fixed | `f6f6e04` | Prompt frames tool results as data. |
 | AI-11 | P3 | Fixed | `f6f6e04` | toolResultOk() parses the JSON. |
 | AI-12 | P3 | Fixed | `f6f6e04` | Fail-safe ticket carries the guest id. |
-| AI-13 | P3 | Partially fixed | `b1b0ba8, f6f6e04` | Lock, re-check loop, budget and fail-safe tested; identity challenge DB path still untested. |
-| ACTIONS-06 | P3 | Deferred | — | Action-state dialect convergence. |
-| ACTIONS-07 | P3 | Deferred | — | Return invalid instead of server on schema failure in two admin actions. |
-| ACTIONS-08 | P3 | Deferred | — | Hoist UUID_RE / isUniqueViolation into lib. |
+| AI-13 | P3 | Fixed | `3bf0a2c` | Identity challenge DB path covered: throttle, no email on file, mismatch (failure recorded), verified stamp, DB error. |
+| ACTIONS-06 | P3 | Fixed | `66ca181` | Status-machine actions carry their failure code under message; CLAUDE.md records the two shapes. |
+| ACTIONS-07 | P3 | Fixed | `5d5132d` | markHostPaid reports a stale/tampered id as validation, not server; the second action had already been corrected. |
+| ACTIONS-08 | P3 | Fixed | `5fa8cbd` | lib/uuid.ts and lib/db-errors.ts (cause-walking — three copies were blind to drizzle 0.45 wrapping). |
 | ACTIONS-09 | P3 | Fixed | `fb3bf37` | resolveTicket uses requireAdminActor. |
-| ACTIONS-11 | P3 | Deferred | — | Button pending prop on the remaining forms. |
-| REACT-07 | P3 | Deferred | — | Pass max from the server. |
-| REACT-08 | P3 | Partially fixed | `a8469a3` | StarRating primitive replaces six copies; toast and beforeunload hooks remain. |
-| REACT-09 | P3 | Deferred | — | Refs instead of getElementById. |
+| ACTIONS-11 | P3 | Fixed | `5fa8cbd` | Pending buttons stay focusable via aria-disabled. |
+| REACT-07 | P3 | Fixed | `5fa8cbd` | Date-of-birth cut-off computed on the server clock. |
+| REACT-08 | P3 | Fixed | `66ca181` | useSuccessToast, useBeforeUnloadGuard and StarRating replace the copied idioms. |
+| REACT-09 | P3 | Fixed | `5fa8cbd` | Sign-in form focuses through refs; PhoneInput exposes inputRef. |
 | I18N-03 | P3 | Fixed | `a8469a3` | CopyButton announces the copied state via a live region. |
 | I18N-04 | P3 | Fixed | `a8469a3` | createTranslator smoke test pins Latin digits in Arabic plurals. |
 | I18N-05 | P3 | Fixed | `a8469a3` | messages/catalog.test.ts guards parity, ICU args, digits, brand spelling, untranslated values. |
 | I18N-06 | P3 | Fixed | `a8469a3` | 15 Arabic plurals gained the many form; test enforces it. |
-| I18N-07 | P3 | Deferred | — | lang/dir on English fallbacks inside Arabic pages. |
+| I18N-07 | P3 | Fixed | `66ca181` | <Localized> marks an English fallback inside an Arabic page with lang/dir. |
 | I18N-08 | P3 | Fixed | `a8469a3` | StarRating meets the 3:1 floor (stroke + 40% empties). |
 | I18N-09 | P3 | Fixed | `a8469a3` | formatRating in lib/format.ts. |
 | DESIGN-04 | P3 | Deferred | — | Off-grid spacing sweep. |
 | DESIGN-05 | P3 | Fixed | `a8469a3` | Unsubscribe page on palette tokens and the brand fonts. |
 | DESIGN-06 | P3 | Fixed | `a8469a3` | Email sub-heading weight and padding on the scale. |
-| DESIGN-07 | P3 | Owner decision | — | Write the token deviations back into BRIEF §3. |
+| DESIGN-07 | P3 | Fixed | `66ca181` | BRIEF §3 records the pending tone, badge radius, border alpha and font-loading facts. |
 | DESIGN-08 | P3 | Fixed | `a8469a3` | Hairline utilities replace the 1px borders. |
 | DESIGN-09 | P3 | Fixed | `a8469a3` | rounded-card / rounded-input / rounded-image replace the one-off radii. |
 | DESIGN-10 | P3 | Fixed | `a8469a3` | Sticky save bar uses shadow-overlay. |
-| TEST-12 | P3 | Deferred | — | Coverage baseline in CI. |
-| TEST-13 | P3 | Deferred | — | Fake timers in clock-dependent suites. |
-| TEST-14 | P3 | Deferred | — | booking-email sender tests. |
-| PERF-07 | P3 | Deferred | — | Catalog facet projection serialised once. |
+| TEST-12 | P3 | Fixed | `5fa8cbd` | Coverage thresholds at the measured baseline gate CI; the report is an artifact. |
+| TEST-13 | P3 | Fixed | `66ca181` | Seven suites freeze Date (timers stay real). |
+| TEST-14 | P3 | Fixed | `3bf0a2c` | All 20 senders pinned on their gates and dispatch contract. |
+| PERF-07 | P3 | Fixed | `5fa8cbd` | The facet projection is serialised once through CatalogFacetsProvider. |
 | OPS-11 | P3 | Fixed | `f75f23c` | Timeouts on Vercel Analytics and Twilio Verify fetches. |
 | OPS-12 | P3 | Fixed | `bfc661a` | Receipt failures reported to Sentry with the reference. |
 | OPS-13 | P3 | Fixed | `f75f23c` | .env.example complete; stub-session reads serverEnv; agent model default current. |
@@ -953,22 +953,22 @@ Remediation ran on 2026-09-11, the same day as the audit, on `main` in 37 review
 | DEPS-08 | P3 | Fixed | `424ed90` | z.uuid() everywhere. |
 | DEPS-09 | P3 | Fixed | `2da2536` | CLAUDE.md command block current. |
 | DEPS-10 | P3 | Fixed | `26ef08a` | db/migrations/meta ignored by prettier. |
-| DEPS-11 | P3 | Owner decision | — | Moving the pitch deck and audit reports out of the root is the owner's repo-hygiene call. |
+| DEPS-11 | P3 | Fixed | `66ca181` | Audit reports under docs/audits/ (with an index), pitch deck under docs/pitch/. |
 | GAPA-05 | P3 | Fixed | `38e427b` | isDateBookable enforces the 60-day horizon (too_far); tested. |
-| GAPA-07 | P3 | Deferred | — | Aliased holdStillCounts builder. |
+| GAPA-07 | P3 | Fixed | `5fa8cbd` | holdStillCounts renders against an aliased table; the raw-SQL copy is gone. |
 | GAPA-08 | P3 | Fixed | `38e427b` | toggleWishlist validates the slug shape. |
-| GAPA-10 | P3 | Deferred | — | Review edit re-checks hiddenAt — small follow-up. |
+| GAPA-10 | P3 | Fixed | `5fa8cbd` | Editing a hidden review is refused. |
 | GAPB-05 | P3 | Fixed | `1955715` | og:image points at the cached card.png alias; fonts memoised. |
 | GAPB-06 | P3 | Fixed | `4f08baa` | Renderer collapses whitespace in variables. |
 | GAPB-07 | P3 | Fixed | `fe13b85` | TikTok feed uses csvCell (formula-defused). |
 | GAPB-08 | P3 | Fixed | `fe13b85` | llms.txt place-agnostic with Cache-Control. |
 | GAPB-09 | P3 | Fixed | `38e427b` | Email hero absolutised. |
-| GAPB-10 | P3 | Partially fixed | `38e427b` | One bidiIsolate; the HTML-escape triplication remains. |
+| GAPB-10 | P3 | Fixed | `5fa8cbd` | One bidiIsolate, one escapeHtml. |
 | WIP-07 | P3 | Fixed | `11e223f` | OPS_AUDIT records the resolved P0s. |
 | WIP-08 | P3 | Fixed | `913322b` | Admin form names the TODO(ar) cause. |
-| ROADMAP-04 | P3 | Owner decision | — | Review photos — product scope. |
-| ROADMAP-05 | P3 | Owner decision | — | Hijri toggle — product scope. |
-| ROADMAP-06 | P3 | Deferred | — | Real-user web vitals means a new dependency (Speed Insights) — owner approves first. |
+| ROADMAP-04 | P3 | Owner decision | `b6d0b41` | Review photos: BRIEF §8 now records "column exists, not implemented, not scheduled". |
+| ROADMAP-05 | P3 | Owner decision | `b6d0b41` | Hijri toggle: BRIEF §4 now records "formatter supports it, no toggle, not scheduled". |
+| ROADMAP-06 | P3 | Fixed | `b6d0b41` | Real-user Core Web Vitals sampled to /api/vitals (web_vitals table, migration 0035) and shown as 7/28-day p75s on /admin/analytics; pruned after 90 days. |
 
 ## Appendix A — per-dimension assessments and strengths
 
@@ -1376,34 +1376,34 @@ The shipped product covers far more of BRIEF §6/§8 than the brief's own status
 
 | ID | Sev | Status | Outcome | Title | Where |
 |---|---|---|---|---|---|
-| ARCH-01 | P2 | verifier: confirmed | Deferred | release-holds cron route is a 1,130-line, 19-pass god handler spanning eight domains | `app/api/cron/release-holds/route.ts:141` |
-| ARCH-02 | P2 | verified by lead | Deferred | 14 two-way import cycles between feature folders; auth↔admin is a genuine module cycle | `features/auth/queries.ts:7` |
+| ARCH-01 | P2 | verifier: confirmed | Fixed | release-holds cron route is a 1,130-line, 19-pass god handler spanning eight domains | `app/api/cron/release-holds/route.ts:141` |
+| ARCH-02 | P2 | verified by lead | Partially fixed | 14 two-way import cycles between feature folders; auth↔admin is a genuine module cycle | `features/auth/queries.ts:7` |
 | ARCH-03 | P2 | verified by lead | Fixed | Feature code imports React components out of an app/ route folder (layer inversion) | `features/host-bookings/components/booking-row.tsx:16` |
 | ARCH-04 | P2 | verified by lead | Fixed | Riyadh date/time primitives duplicated three times with divergent implementations | `features/bookings/actions.ts:42` |
-| ARCH-05 | P2 | verifier: confirmed | Deferred | lib/ is no longer a leaf layer: 20 imports from lib into features; support-agent/marketing/conversations are features living in lib | `lib/support-agent/tools.ts:7` |
-| ARCH-06 | P2 | verifier: confirmed | Deferred | Booking-confirmation page is one 1,480-line component computing a status view-model inline in JSX | `app/[locale]/book/confirmed/[ref]/page.tsx:132` |
-| ARCH-07 | P2 | verifier: confirmed | Deferred | requestBooking is a single 641-line server action; booking-email.ts is 2,092 lines with 20 senders | `features/bookings/actions.ts:288` |
+| ARCH-05 | P2 | verifier: confirmed | Fixed | lib/ is no longer a leaf layer: 20 imports from lib into features; support-agent/marketing/conversations are features living in lib | `lib/support-agent/tools.ts:7` |
+| ARCH-06 | P2 | verifier: confirmed | Fixed | Booking-confirmation page is one 1,480-line component computing a status view-model inline in JSX | `app/[locale]/book/confirmed/[ref]/page.tsx:132` |
+| ARCH-07 | P2 | verifier: confirmed | Partially fixed | requestBooking is a single 641-line server action; booking-email.ts is 2,092 lines with 20 senders | `features/bookings/actions.ts:288` |
 | ARCH-08 | P3 | verifier: confirmed | Fixed | Dead exports include two unused server actions that remain callable endpoints | `features/wishlist/actions.ts:120` |
-| ARCH-09 | P2 | verifier: confirmed | Deferred | Experience listing has three owners (host-experiences, admin/experiences, admin/experience-moderation) that import each other's types | `features/host-experiences/queries.ts:167` |
-| ARCH-10 | P3 | finder-reported | Deferred | types.ts-per-feature convention holds in fewer than half of features | `features/host-earnings/queries.ts:1` |
+| ARCH-09 | P2 | verifier: confirmed | Fixed | Experience listing has three owners (host-experiences, admin/experiences, admin/experience-moderation) that import each other's types | `features/host-experiences/queries.ts:167` |
+| ARCH-10 | P3 | finder-reported | Fixed | types.ts-per-feature convention holds in fewer than half of features | `features/host-earnings/queries.ts:1` |
 | ARCH-11 | → REACT-02 | merged | Deferred | 46 hand-assembled `*Copy` prop interfaces and eight near-identical admin action buttons | `app/[locale]/admin/bookings/refund-button.tsx:10` |
-| ARCH-12 | P3 | finder-reported | Partially fixed | Shared layout component depends on three feature modules; a non-component .ts sits in a components/ folder | `components/layout/navbar.tsx:13` |
+| ARCH-12 | P3 | finder-reported | Fixed | Shared layout component depends on three feature modules; a non-component .ts sits in a components/ folder | `components/layout/navbar.tsx:13` |
 | DATA-01 | P1 | verified by lead | Fixed | Drizzle migration history is no longer authoritative — 8 tables and 11 bookings columns exist only in ad-hoc SQL or markdown | `db/migrations/meta/_journal.json:189` |
 | DATA-02 | P1 | verified by lead | Fixed | db/seed.ts deletes hosts/experiences/moments with no environment guard against the live database | `db/seed.ts:17` |
-| DATA-03 | P2 | finder-reported | Deferred | Payment ledger rows are written outside the transaction that changes booking money state | `features/payments/ledger.ts:24` |
-| DATA-04 | P2 | finder-reported | Deferred | Admin bookings queue filters in memory after LIMIT 500 while dashboard tiles count in SQL over the whole table | `features/admin/bookings/queries.ts:26` |
-| DATA-05 | P2 | finder-reported | Deferred | bookings is a ~95-column table and list queries hydrate every column, encrypted refund IBAN included | `db/schema.ts:536` |
+| DATA-03 | P2 | finder-reported | Fixed | Payment ledger rows are written outside the transaction that changes booking money state | `features/payments/ledger.ts:24` |
+| DATA-04 | P2 | finder-reported | Fixed | Admin bookings queue filters in memory after LIMIT 500 while dashboard tiles count in SQL over the whole table | `features/admin/bookings/queries.ts:26` |
+| DATA-05 | P2 | finder-reported | Fixed | bookings is a ~95-column table and list queries hydrate every column, encrypted refund IBAN included | `db/schema.ts:536` |
 | DATA-06 | P2 | finder-reported | Owner decision | No server-side statement or idle-in-transaction timeout on the app role; stuck statements are cleaned by a pg_cron killer instead | `lib/deadline.ts:4` |
-| DATA-07 | P3 | finder-reported | Deferred | The same auth.users.id is stored as text in some tables and uuid in others | `db/schema.ts:412` |
-| DATA-08 | P3 | finder-reported | Deferred | Loosely typed columns: untyped jsonb, text pseudo-enums with closed TS sets, and a missing FK justified by an incorrect assumption | `db/schema.ts:2055` |
+| DATA-07 | P3 | finder-reported | Fixed | The same auth.users.id is stored as text in some tables and uuid in others | `db/schema.ts:412` |
+| DATA-08 | P3 | finder-reported | Fixed | Loosely typed columns: untyped jsonb, text pseudo-enums with closed TS sets, and a missing FK justified by an incorrect assumption | `db/schema.ts:2055` |
 | DATA-09 | → ARCH-04 | merged | Fixed | Four independent 'Riyadh date + HH:MM to instant' implementations | `lib/notifications/whatsapp/format.ts:21` |
 | DATA-10 | P3 | finder-reported | Fixed | Sitemap slug queries are not deadline-bounded although they run at request time on a public path | `features/experiences/queries.ts:300` |
-| DATA-11 | P3 | finder-reported | Owner decision | bookings.promo_code_id is counted under the promo row's FOR UPDATE lock with no supporting index | `features/promo-codes/actions.ts:214` |
+| DATA-11 | P3 | finder-reported | Fixed | bookings.promo_code_id is counted under the promo row's FOR UPDATE lock with no supporting index | `features/promo-codes/actions.ts:214` |
 | MONEY-01 | P2 | verified by lead | Fixed | Cancel flips do not re-assert paymentStatus, so a settle landing mid-cancel leaves cancelled+paid with no refund | `features/bookings/lib/cancel-core.ts:177` |
 | MONEY-02 | P2 | verified by lead | Fixed | createCheckout's compare-and-swap does not re-assert that the hold is still live, so a cancelled/released booking can be flipped to processing and charged | `features/payments/actions.ts:661` |
 | MONEY-03 | P2 | finder-reported | Fixed | HyperPay webhook discards the notification's checkout/payment id, so a capture on a superseded checkout stays invisible once a newer checkout exists | `app/api/webhooks/hyperpay/route.ts:63` |
 | MONEY-04 | P2 | finder-reported | Fixed | With refunds_via_bank_transfer ON, 'Move it back to my card' converts wallet credit into a bank transfer to a guest-supplied IBAN, contradicting the refund-to-source doctrine | `features/wallet/refund-out-actions.ts:156` |
-| MONEY-05 | P2 | finder-reported | Owner decision | VAT portion is rounded to whole riyals, which cannot produce a compliant ZATCA tax invoice once VAT is enabled | `features/bookings/lib/vat.ts:19` |
+| MONEY-05 | P2 | finder-reported | Fixed | VAT portion is rounded to whole riyals, which cannot produce a compliant ZATCA tax invoice once VAT is enabled | `features/bookings/lib/vat.ts:19` |
 | MONEY-06 | P3 | finder-reported | Fixed | Guest cancel hard-requires an IBAN regardless of the refunds_via_bank_transfer toggle | `features/bookings/lib/cancel-core.ts:129` |
 | MONEY-07 | P3 | finder-reported | Fixed | Wallet apply can spend credit lots that have already expired but not yet been swept | `features/wallet/checkout-actions.ts:158` |
 | MONEY-08 | P3 | finder-reported | Owner decision | After a partial-policy refund there is no path to return the withheld remainder except hand-issued wallet credit | `features/bookings/lib/refund.ts:243` |
@@ -1411,8 +1411,8 @@ The shipped product covers far more of BRIEF §6/§8 than the brief's own status
 | SEC-01 | P2 | finder-reported | Fixed | Sentry scrubbing leaves request URLs intact, so non-expiring booking link tokens (?k=) and reference UUIDs can land in Sentry events | `lib/sentry-scrub.ts:50` |
 | SEC-02 | P2 | verified by lead | Fixed | Pay-return route mints a permanent ?k= token for any bare reference UUID while the booking is in `processing` or a failed-but-open hold | `app/[locale]/book/[reference]/pay/return/route.ts:57` |
 | SEC-03 | P3 | finder-reported | Fixed | signOut() does not clear the admin MFA marker cookie, so the 12h second-factor proof outlives the session it was issued for | `features/auth/actions.ts:458` |
-| SEC-04 | P3 | finder-reported | Deferred | HyperPay shopperResultUrl origin falls back to x-forwarded-host / Host when NEXT_PUBLIC_SITE_URL is unset, and the docs disagree on whether it is set in production | `features/payments/actions.ts:209` |
-| SEC-05 | P3 | finder-reported | Deferred | Upload validation trusts the browser-declared MIME type for photos, avatars and KYC documents (no magic-byte check) | `features/host-experiences/lib/photo.ts:47` |
+| SEC-04 | P3 | finder-reported | Fixed | HyperPay shopperResultUrl origin falls back to x-forwarded-host / Host when NEXT_PUBLIC_SITE_URL is unset, and the docs disagree on whether it is set in production | `features/payments/actions.ts:209` |
+| SEC-05 | P3 | finder-reported | Fixed | Upload validation trusts the browser-declared MIME type for photos, avatars and KYC documents (no magic-byte check) | `features/host-experiences/lib/photo.ts:47` |
 | SEC-06 | P3 | finder-reported | Deferred | Every storage write for any signed-in user goes through an unrestricted service-role handle; bucket RLS provides no defence in depth | `lib/supabase/server.ts:105` |
 | SEC-07 | P3 | finder-reported | Fixed | ADMIN_PHONES env allowlist short-circuits before the user_roles revocation check, so revoking an env-listed admin in the UI has no effect | `features/admin/roles.ts:27` |
 | AI-01 | P1 | verified by lead | Fixed | A second WhatsApp message arriving during an agent turn is dropped and never swept | `lib/support-agent/agent.ts:28` |
@@ -1420,74 +1420,74 @@ The shipped product covers far more of BRIEF §6/§8 than the brief's own status
 | AI-03 | P2 | finder-reported | Fixed | Every inbound message on a human-owned conversation pages the admin's email and WhatsApp with no rate limit | `app/api/webhooks/twilio/route.ts:157` |
 | AI-04 | P2 | finder-reported | Fixed | Identity verification never expires and the conversation→guest binding is sticky for 12 months | `lib/support-agent/identity.ts:113` |
 | AI-05 | P2 | finder-reported | Fixed | IBANs collected over WhatsApp are stored in plaintext in conversation_messages while the same IBAN is encrypted on bookings | `lib/support-agent/agent.ts:177` |
-| AI-06 | P2 | finder-reported | Owner decision | Agent-driven cancellations and IBAN changes are indistinguishable from web self-service in the audit trail | `features/bookings/lib/cancel-core.ts:161` |
+| AI-06 | P2 | finder-reported | Fixed | Agent-driven cancellations and IBAN changes are indistinguishable from web self-service in the audit trail | `features/bookings/lib/cancel-core.ts:161` |
 | AI-07 | P2 | finder-reported | Fixed | max_tokens 2000 shared with adaptive thinking; a max_tokens stop is sent to the guest as a truncated reply | `lib/support-agent/agent.ts:139` |
 | AI-08 | P2 | finder-reported | Fixed | 90s lock is shorter than a plausible worst-case turn and there is no overall deadline on the model calls | `lib/support-agent/agent.ts:29` |
 | AI-09 | P2 | finder-reported | Fixed | Turning the agent off (unsetting ANTHROPIC_API_KEY) leaves existing 'bot' conversations silent | `lib/support-agent/agent.ts:252` |
 | AI-10 | P3 | finder-reported | Fixed | Tool result contents are not framed as untrusted data in the system prompt (only guest messages are) | `lib/support-agent/prompt.ts:41` |
 | AI-11 | P3 | finder-reported | Fixed | Tool success flag is a substring heuristic on the JSON result | `lib/support-agent/agent.ts:177` |
 | AI-12 | P3 | finder-reported | Fixed | Fail-safe ticket drops the known guest id | `lib/support-agent/agent.ts:219` |
-| AI-13 | P3 | finder-reported | Partially fixed | Identity challenge DB path, lock, and fail-safe are untested | `lib/support-agent/identity.test.ts:3` |
+| AI-13 | P3 | finder-reported | Fixed | Identity challenge DB path, lock, and fail-safe are untested | `lib/support-agent/identity.test.ts:3` |
 | ACTIONS-01 | P1 | verified by lead | Fixed | requestBooking never reads `referralCode` from the form — referral attribution silently dropped on every booking | `features/bookings/actions.ts:292` |
 | ACTIONS-02 | P2 | verified by lead | Fixed | 25 revalidatePath calls target host-dashboard routes without the `(dashboard)` route group (plus un-prefixed `/me/profile` and template-literal admin/support paths) — all silent no-ops | `features/host-bookings/actions.ts:163` |
 | ACTIONS-03 | P2 | finder-reported | Fixed | Three content writers skip `revalidateExperienceCaches()` — calendar exceptions and host identity can serve stale from the tagged data cache for up to 60s | `features/availability/actions.ts:138` |
 | ACTIONS-04 | P2 | finder-reported | Fixed | `setDayAvailability` returns void and swallows every failure — a refused blackout, an auth miss or a DB error all look identical to success | `features/availability/actions.ts:41` |
 | ACTIONS-05 | P2 | finder-reported | Fixed | Host-experience ownership guard and the pre-read in updateHostExperience run DB queries outside try/catch — a DB error becomes an unhandled action throw | `features/host-experiences/actions.ts:251` |
-| ACTIONS-06 | P3 | finder-reported | Deferred | Three action-state dialects coexist: `{success:false,message}`, `{status:'error',message}` and `{status:'error',error}` | `features/payments/actions.ts:169` |
-| ACTIONS-07 | P3 | finder-reported | Deferred | Two admin actions report schema-validation failure as `'server'`, so a tampered/missing id renders 'something went wrong' | `features/admin/payouts/actions.ts:65` |
-| ACTIONS-08 | P3 | finder-reported | Deferred | Primitive helpers duplicated across action files: UUID_RE ×6, isUniqueViolation ×4, and a schema defined inline in actions.ts | `features/payments/actions.ts:77` |
+| ACTIONS-06 | P3 | finder-reported | Fixed | Three action-state dialects coexist: `{success:false,message}`, `{status:'error',message}` and `{status:'error',error}` | `features/payments/actions.ts:169` |
+| ACTIONS-07 | P3 | finder-reported | Fixed | Two admin actions report schema-validation failure as `'server'`, so a tampered/missing id renders 'something went wrong' | `features/admin/payouts/actions.ts:65` |
+| ACTIONS-08 | P3 | finder-reported | Fixed | Primitive helpers duplicated across action files: UUID_RE ×6, isUniqueViolation ×4, and a schema defined inline in actions.ts | `features/payments/actions.ts:77` |
 | ACTIONS-09 | P3 | finder-reported | Fixed | support/actions.ts gates with `adminGuard()` then re-resolves the actor via `getCurrentUser()`, bypassing `requireAdminActor` and allowing a null `resolvedByUserId` | `features/support/actions.ts:141` |
 | ACTIONS-10 | → GAPA-08 | merged | Fixed | Wishlist actions accept a raw `slug: string` argument with no zod validation before writing it into the cookie | `features/wishlist/actions.ts:136` |
-| ACTIONS-11 | P3 | finder-reported | Deferred | A handful of forms disable the submit during pending instead of using Button's `pending` prop, dropping focus mid-submit | `app/[locale]/admin/support/[id]/reply-form.tsx:91` |
-| REACT-01 | P2 | verified by lead | Deferred | Entire message catalog (237–313 KB) is serialized into every page's RSC payload | `app/[locale]/layout.tsx:126` |
+| ACTIONS-11 | P3 | finder-reported | Fixed | A handful of forms disable the submit during pending instead of using Button's `pending` prop, dropping focus mid-submit | `app/[locale]/admin/support/[id]/reply-form.tsx:91` |
+| REACT-01 | P2 | verified by lead | Fixed | Entire message catalog (237–313 KB) is serialized into every page's RSC payload | `app/[locale]/layout.tsx:126` |
 | REACT-02 | P2 | finder-reported | Deferred | Two parallel client-translation mechanisms: server-built `copy` props plus useTranslations | `features/bookings/components/booking-request-form.tsx:360` |
 | REACT-03 | P2 | finder-reported | Fixed | getHostBySlug is not request-cached, so host profile pages query the DB twice (three times on legacy slugs) | `features/hosts/queries.ts:40` |
-| REACT-04 | P2 | finder-reported | Deferred | Booking-confirmation page: 1,611 lines, two serial DB waves and an inline async section with no Suspense | `app/[locale]/book/confirmed/[ref]/page.tsx:658` |
-| REACT-05 | P2 | finder-reported | Deferred | Admin and host dashboards render the marketing navbar's auth DB fan-out and footer on every page, then hide them with an injected <style> | `app/[locale]/admin/layout.tsx:55` |
+| REACT-04 | P2 | finder-reported | Fixed | Booking-confirmation page: 1,611 lines, two serial DB waves and an inline async section with no Suspense | `app/[locale]/book/confirmed/[ref]/page.tsx:658` |
+| REACT-05 | P2 | finder-reported | Fixed | Admin and host dashboards render the marketing navbar's auth DB fan-out and footer on every page, then hide them with an injected <style> | `app/[locale]/admin/layout.tsx:55` |
 | REACT-06 | → ACTIONS-02 | merged | Fixed | revalidatePath called with un-prefixed '/me' paths that match no route under localePrefix 'always' | `features/account/profile/actions.ts:90` |
-| REACT-07 | P3 | finder-reported | Deferred | Render-time `new Date()` in a client form produces a timezone-dependent `max` attribute that can differ between server and client | `app/[locale]/host/apply/host-apply-form.tsx:227` |
-| REACT-08 | P3 | finder-reported | Partially fixed | Copy-pasted effect idioms: success toast (6 files), beforeunload guard (2 files), five-star row (6 files) | `features/account/profile/components/profile-form.tsx:54` |
-| REACT-09 | P3 | finder-reported | Deferred | Sign-in form focuses fields via document.getElementById instead of refs | `app/[locale]/(auth)/sign-in/sign-in-form.tsx:186` |
+| REACT-07 | P3 | finder-reported | Fixed | Render-time `new Date()` in a client form produces a timezone-dependent `max` attribute that can differ between server and client | `app/[locale]/host/apply/host-apply-form.tsx:227` |
+| REACT-08 | P3 | finder-reported | Fixed | Copy-pasted effect idioms: success toast (6 files), beforeunload guard (2 files), five-star row (6 files) | `features/account/profile/components/profile-form.tsx:54` |
+| REACT-09 | P3 | finder-reported | Fixed | Sign-in form focuses fields via document.getElementById instead of refs | `app/[locale]/(auth)/sign-in/sign-in-form.tsx:186` |
 | I18N-01 | → DESIGN-01 | merged | Fixed | Letter-spaced uppercase eyebrows are applied to Arabic text on several pages; the RTL letter-spacing reset only covers .font-display | `app/[locale]/about/page.tsx:85` |
 | I18N-02 | P2 | finder-reported | Not a bug | Two host-form placeholders ship in English to Arabic hosts (ar.json value identical to en.json) | `messages/ar.json:1` |
 | I18N-03 | P3 | finder-reported | Fixed | CopyButton's 'copied' confirmation is visual-only — no live-region or label change for assistive tech | `components/ui/copy-button.tsx:36` |
 | I18N-04 | P3 | finder-reported | Fixed | Latin digits inside ICU plurals (#) and {n, number} arguments depend on the ICU default for bare 'ar', which is not pinned anywhere | `lib/request.ts:13` |
 | I18N-05 | P3 | finder-reported | Fixed | Catalog parity (keys, placeholders, digits, untranslated values) is perfect today but unguarded by any test | `messages/en.json:1` |
 | I18N-06 | P3 | finder-reported | Fixed | A handful of Arabic count messages have incomplete plural grammar | `messages/ar.json:4376` |
-| I18N-07 | P3 | finder-reported | Deferred | pickLocalized's English fallback is rendered inside Arabic pages with no lang/dir marking | `lib/ar-placeholder.ts:22` |
+| I18N-07 | P3 | finder-reported | Fixed | pickLocalized's English fallback is rendered inside Arabic pages with no lang/dir marking | `lib/ar-placeholder.ts:22` |
 | I18N-08 | P3 | finder-reported | Fixed | Rating star glyphs use saffron-gold (#f5b800) on white at ~1.8:1 with empty stars at sarat-black/20 — below the 3:1 non-text contrast floor | `app/[locale]/host/(dashboard)/reviews/page.tsx:161` |
 | I18N-09 | P3 | finder-reported | Fixed | One-decimal rating formatter is re-implemented inline in five files instead of living in lib/format.ts | `features/experiences/components/experience-card.tsx:143` |
 | DESIGN-01 | P2 | verified by lead | Fixed | Nine bilingual eyebrows apply 0.2em letter-spacing to Arabic text (no `locale === 'en'` guard) | `app/[locale]/about/page.tsx:85` |
 | DESIGN-02 | P2 | finder-reported | Owner decision | WhatsApp v3 template registry carries ~150 emoji against BRIEF §3 and the locked no-emoji voice rule | `lib/notifications/whatsapp/templates/host.ts:72` |
-| DESIGN-03 | P2 | finder-reported | Deferred | Type scale is not tokenised: H1 class string duplicated 58×, eyebrow 28×, H2 tracking drifts across three values | `app/[locale]/admin/bookings/page.tsx:128` |
+| DESIGN-03 | P2 | finder-reported | Fixed | Type scale is not tokenised: H1 class string duplicated 58×, eyebrow 28×, H2 tracking drifts across three values | `app/[locale]/admin/bookings/page.tsx:128` |
 | DESIGN-04 | P3 | finder-reported | Deferred | Off-grid spacing sub-steps remain after the 2026-09 sweep (136 utilities, ~5% of spacing) | `components/ui/button.tsx:25` |
 | DESIGN-05 | P3 | finder-reported | Fixed | Unsubscribe confirmation page uses off-palette hex and system-ui, the only true palette violation in app code | `app/api/marketing/unsubscribe/route.ts:41` |
 | DESIGN-06 | P3 | finder-reported | Fixed | Transactional email renderer uses weight 600 on a 13px sub-heading and 13px/15px padding | `features/bookings/lib/booking-email-render.ts:127` |
-| DESIGN-07 | P3 | finder-reported | Owner decision | Token definitions deviate from the BRIEF table for good reasons that were never written back into the brief | `app/globals.css:142` |
+| DESIGN-07 | P3 | finder-reported | Fixed | Token definitions deviate from the BRIEF table for good reasons that were never written back into the brief | `app/globals.css:142` |
 | DESIGN-08 | P3 | finder-reported | Fixed | Residual 1px borders: two `border` classes and one `divide-y` inside hairline cards | `app/[locale]/admin/bookings/page.tsx:296` |
 | DESIGN-09 | P3 | finder-reported | Fixed | Off-table radii: six `rounded-[20px]` where `rounded-card` exists, plus 10px/8px/4px one-offs | `app/[locale]/admin/support/[id]/page.tsx:120` |
 | DESIGN-10 | P3 | finder-reported | Fixed | Host experience-form sticky save bar hand-rolls its shadow instead of the overlay token | `app/[locale]/host/(dashboard)/experiences/[id]/experience-form.tsx:1077` |
 | TEST-01 | P1 | verified by lead | Fixed | CI is not a release gate: production deploys bypass the green-build check | `.github/workflows/ci.yml:9` |
 | TEST-02 | P1 | verified by lead | Fixed | createCheckout — the only action that opens a charge — has no tests, and the new clock gate is added blind | `features/payments/actions.ts:384` |
 | TEST-03 | P1 | verified by lead | Partially fixed | 33 of 40 server-action files are untested, including every admin money action (refund, emergency cancel, mark-paid, approve host) | `features/admin/bookings/actions.ts:85` |
-| TEST-04 | P2 | finder-reported | Partially fixed | release-holds cron: 12 tests for 17 passes; wallet-expiry, orphaned-refund, completion and KYC-purge run against a SELECT stub that returns the reminder fixture for every query | `app/api/cron/release-holds/route.test.ts:154` |
+| TEST-04 | P2 | finder-reported | Fixed | release-holds cron: 12 tests for 17 passes; wallet-expiry, orphaned-refund, completion and KYC-purge run against a SELECT stub that returns the reminder fixture for every query | `app/api/cron/release-holds/route.test.ts:154` |
 | TEST-05 | P2 | finder-reported | Fixed | HyperPay webhook route has no test for its retry-controlling status codes | `app/api/webhooks/hyperpay/route.ts:80` |
 | TEST-06 | P2 | finder-reported | Fixed | New watchdog cron route ships untested (auth compare, staleness threshold, re-alert) | `app/api/cron/watchdog/route.ts:42` |
 | TEST-07 | P2 | finder-reported | Fixed | proxy.ts edge gate is tested only through the 23-line rules file; cookie detection, refresh and the `next=` convention are unpinned | `proxy.ts:178` |
-| TEST-08 | P2 | finder-reported | Partially fixed | Zero component tests for 116 client components, and vitest's include pattern would silently ignore any .test.tsx or components/** test | `vitest.config.ts:34` |
-| TEST-09 | P2 | finder-reported | Deferred | Playwright runs 63 lines of read-only smoke in sample-data mode; no DB query, booking, payment, host or admin flow is ever exercised end-to-end in CI | `playwright.config.ts:27` |
-| TEST-10 | P2 | finder-reported | Partially fixed | No negative (cross-tenant) tests for host ownership guards on 890 lines of host listing mutations | `features/host-experiences/actions.ts:252` |
-| TEST-11 | P2 | finder-reported | Deferred | 22 files hand-roll their own chainable `vi.mock('@/lib/db')`; no shared fake, builders or clock helper | `features/payments/settle.test.ts:87` |
-| TEST-12 | P3 | finder-reported | Deferred | Coverage is configured 'visibility only', never run in CI, and no baseline has been taken | `vitest.config.ts:39` |
-| TEST-13 | P3 | finder-reported | Deferred | Only 2 of 95 test files use fake timers; 7 compute fixtures from the real clock | `app/api/cron/release-holds/route.ts:564` |
-| TEST-14 | P3 | finder-reported | Deferred | booking-email.ts (2092 lines, 20 senders) has 7 tests, all for renderReceiptEmail | `features/bookings/lib/booking-email.test.ts:18` |
+| TEST-08 | P2 | finder-reported | Fixed | Zero component tests for 116 client components, and vitest's include pattern would silently ignore any .test.tsx or components/** test | `vitest.config.ts:34` |
+| TEST-09 | P2 | finder-reported | Fixed | Playwright runs 63 lines of read-only smoke in sample-data mode; no DB query, booking, payment, host or admin flow is ever exercised end-to-end in CI | `playwright.config.ts:27` |
+| TEST-10 | P2 | finder-reported | Fixed | No negative (cross-tenant) tests for host ownership guards on 890 lines of host listing mutations | `features/host-experiences/actions.ts:252` |
+| TEST-11 | P2 | finder-reported | Fixed | 22 files hand-roll their own chainable `vi.mock('@/lib/db')`; no shared fake, builders or clock helper | `features/payments/settle.test.ts:87` |
+| TEST-12 | P3 | finder-reported | Fixed | Coverage is configured 'visibility only', never run in CI, and no baseline has been taken | `vitest.config.ts:39` |
+| TEST-13 | P3 | finder-reported | Fixed | Only 2 of 95 test files use fake timers; 7 compute fixtures from the real clock | `app/api/cron/release-holds/route.ts:564` |
+| TEST-14 | P3 | finder-reported | Fixed | booking-email.ts (2092 lines, 20 senders) has 7 tests, all for renderReceiptEmail | `features/bookings/lib/booking-email.test.ts:18` |
 | PERF-01 | P2 | verified by lead | Fixed | Analytics capture blocks first byte on a Supabase auth HTTPS round-trip for signed-in visitors | `features/analytics/capture.ts:100` |
-| PERF-02 | P2 | finder-reported | Deferred | Experience detail page re-resolves slug->id in four separate query chains (3 sequential round-trips on the critical wave) | `features/availability/queries.ts:49` |
+| PERF-02 | P2 | finder-reported | Fixed | Experience detail page re-resolves slug->id in four separate query chains (3 sequential round-trips on the critical wave) | `features/availability/queries.ts:49` |
 | PERF-03 | P2 | finder-reported | Fixed | Host dashboard fans out ~13 unbounded statements at once against a 5-connection pool, breaking the app's own wave/deadline rule | `app/[locale]/host/(dashboard)/page.tsx:83` |
 | PERF-04 | P2 | finder-reported | Fixed | release-holds cron: no maxDuration or elapsed-time budget across 17 sequential passes with per-row external I/O | `app/api/cron/release-holds/route.ts:427` |
-| PERF-05 | P2 | finder-reported | Deferred | Arabic fonts are not preloaded on the Arabic-first market's pages (FOUT/CLS on the H1) | `lib/fonts.ts:57` |
-| PERF-06 | → DATA-04 | merged | Deferred | Admin bookings list is hard-capped at the newest 500 rows and filtered in JS — older bookings become invisible to search/filters | `features/admin/bookings/queries.ts:46` |
-| PERF-07 | P3 | finder-reported | Deferred | Catalog page serialises the full catalog facet projection twice into the RSC payload on every filter change | `app/[locale]/experiences/(catalog)/page.tsx:161` |
+| PERF-05 | P2 | finder-reported | Fixed | Arabic fonts are not preloaded on the Arabic-first market's pages (FOUT/CLS on the H1) | `lib/fonts.ts:57` |
+| PERF-06 | → DATA-04 | merged | Fixed | Admin bookings list is hard-capped at the newest 500 rows and filtered in JS — older bookings become invisible to search/filters | `features/admin/bookings/queries.ts:46` |
+| PERF-07 | P3 | finder-reported | Fixed | Catalog page serialises the full catalog facet projection twice into the RSC payload on every filter change | `app/[locale]/experiences/(catalog)/page.tsx:161` |
 | PERF-08 | → GAPB-02 | merged | Fixed | HyperPay webhook renders the invoice PDF and sends the receipt inline before acknowledging OPPWA | `app/api/webhooks/hyperpay/route.ts:72` |
 | PERF-09 | → REACT-03 | merged | Fixed | getHostBySlug is not request-cached, so host profile pages query it twice (generateMetadata + page) plus once more for the legacy-slug check | `features/hosts/queries.ts:40` |
 | OPS-01 | P1 | verified by lead | Fixed | Cron watchdog and its Vercel schedule have been uncommitted — and therefore undeployed — since 2026-08-02 | `app/api/cron/watchdog/route.ts:38` |
@@ -1497,7 +1497,7 @@ The shipped product covers far more of BRIEF §6/§8 than the brief's own status
 | OPS-05 | P2 | finder-reported | Fixed | Sentry events carry no user, environment or release context (BRIEF §7 requires user context) | `instrumentation.ts:17` |
 | OPS-06 | P2 | finder-reported | Fixed | Every production secret defaults to '' — a dropped CRON_SECRET, webhook secret or PII key silently degrades instead of alerting | `lib/env.ts:140` |
 | OPS-07 | P2 | finder-reported | Fixed | Notification rows stuck at 'queued' are invisible to the retry sweep and to any alert; the ledger has no admin surface | `lib/notifications/ledger.ts:227` |
-| OPS-08 | P2 | finder-reported | Partially fixed | admin_alerts rows are written but never read, acknowledged or deduplicated — recurring alerts re-page hourly with no quiet window | `lib/admin-alerts.ts:73` |
+| OPS-08 | P2 | finder-reported | Fixed | admin_alerts rows are written but never read, acknowledged or deduplicated — recurring alerts re-page hourly with no quiet window | `lib/admin-alerts.ts:73` |
 | OPS-09 | P2 | finder-reported | Fixed | No health endpoint — a DB outage renders as a healthy 200 because public pages degrade to defaults | `lib/db-health.ts:23` |
 | OPS-10 | P2 | finder-reported | Fixed | Twilio webhook ACKs inbound guest messages with 204 even when persisting them failed — the message is lost with no retry | `app/api/webhooks/twilio/route.ts:168` |
 | OPS-11 | P3 | finder-reported | Fixed | Vercel Analytics and Twilio Verify fetches have no timeout, unlike every other outbound client | `features/admin/dashboard/vercel-analytics.ts:71` |
@@ -1507,23 +1507,23 @@ The shipped product covers far more of BRIEF §6/§8 than the brief's own status
 | DEPS-02 | P1 | verified by lead | Fixed | pnpm.overrides security floors have gone stale — sharp 0.35.3 and fast-uri 3.1.5 still vulnerable; no automated dependency updates | `package.json:12` |
 | DEPS-03 | → DATA-01 | merged | Fixed | Drizzle migrations abandoned after 0031 — 8 schema tables have no migration and 3 have no DDL anywhere in the repo | `db/schema.ts:2182` |
 | DEPS-04 | P2 | finder-reported | Fixed | Sentry SDK is initialised but next.config.ts is not wrapped in withSentryConfig — no source maps, releases or tunnel | `next.config.ts:117` |
-| DEPS-05 | P2 | finder-reported | Partially fixed | No import-boundary lint and none of the 31 features/**/queries.ts modules import 'server-only' | `eslint.config.mjs:11` |
-| DEPS-06 | P2 | finder-reported | Owner decision | experimental.serverActions.bodySizeLimit '25mb' exceeds Vercel's function request-body cap; open question left unresolved since the fifth audit | `next.config.ts:60` |
+| DEPS-05 | P2 | finder-reported | Fixed | No import-boundary lint and none of the 31 features/**/queries.ts modules import 'server-only' | `eslint.config.mjs:11` |
+| DEPS-06 | P2 | finder-reported | Fixed | experimental.serverActions.bodySizeLimit '25mb' exceeds Vercel's function request-body cap; open question left unresolved since the fifth audit | `next.config.ts:60` |
 | DEPS-07 | P3 | finder-reported | Fixed | Toolchain versions are out of lockstep: eslint-config-next 16.2.6 vs next 16.2.12, @types/node ^20 on Node 22, no engines/.nvmrc | `package.json:87` |
 | DEPS-08 | P3 | finder-reported | Fixed | zod 4 migration leaves ~20 deprecated z.string().uuid() call sites | `features/bookings/schemas.ts:156` |
 | DEPS-09 | P3 | finder-reported | Fixed | Command and env documentation lags the scripts: pnpm scan, db:check, whatsapp:templates, auth:emails:* and the Python metrics script are undocumented; CLAUDE.md still says 'Vitest (when added)' | `CLAUDE.md:111` |
 | DEPS-10 | P3 | finder-reported | Fixed | lint-staged reformats drizzle-kit's generated migration snapshots (not prettier-formatted, not ignored) | `.prettierignore:1` |
-| DEPS-11 | P3 | finder-reported | Owner decision | 578 KB pitch-deck binary and nine audit reports (~330 KB) live at the repo root | `Gharmish-Pitch-Deck.pptx:1` |
+| DEPS-11 | P3 | finder-reported | Fixed | 578 KB pitch-deck binary and nine audit reports (~330 KB) live at the repo root | `Gharmish-Pitch-Deck.pptx:1` |
 | GAPA-01 | P1 | verified by lead | Fixed | Host/admin can change a live listing's start time or operating weekdays while bookings exist — no guard, no re-snapshot, no notification | `features/host-experiences/actions.ts:381` |
 | GAPA-02 | P2 | verified by lead | Fixed | Reminder pass mails 'get ready' / 'see you soon' to confirmed bookings that are still unpaid | `app/api/cron/release-holds/route.ts:586` |
 | GAPA-03 | P2 | finder-reported | Fixed | Post-approval payment window is not clamped to the slot, unlike the approval window — guests are told a pay-by time after the experience starts | `features/bookings/lib/transition-executor.ts:207` |
 | GAPA-04 | P2 | finder-reported | Fixed | analytics_events grows without bound — no retention pass, and a stale schema comment | `db/schema.ts:1604` |
 | GAPA-05 | P3 | finder-reported | Fixed | Booking request accepts any future date — no booking horizon enforced server-side | `features/bookings/schemas.ts:61` |
 | GAPA-06 | → ARCH-04 | merged | Fixed | Riyadh clock helpers are re-implemented in at least six places | `features/availability/components/schedule-calendar-section.tsx:13` |
-| GAPA-07 | P3 | finder-reported | Deferred | `holdStillCounts` is duplicated as a raw SQL string for the aliased host-bookings subquery | `features/host-bookings/queries.ts:99` |
+| GAPA-07 | P3 | finder-reported | Fixed | `holdStillCounts` is duplicated as a raw SQL string for the aliased host-bookings subquery | `features/host-bookings/queries.ts:99` |
 | GAPA-08 | P3 | finder-reported | Fixed | Wishlist toggles revalidate global public routes and accept unvalidated slugs into the cookie | `features/wishlist/actions.ts:51` |
 | GAPA-09 | → ACTIONS-04 | merged | Fixed | Blackout refusal is silent and counts lapsed holds as blocking | `features/availability/actions.ts:96` |
-| GAPA-10 | P3 | finder-reported | Deferred | Guest review edit does not re-check `hiddenAt` | `features/reviews/actions.ts:205` |
+| GAPA-10 | P3 | finder-reported | Fixed | Guest review edit does not re-check `hiddenAt` | `features/reviews/actions.ts:205` |
 | GAPB-01 | P1 | verified by lead | Fixed | Server-side TikTok purchase conversion (with stored ttclid) fires regardless of the guest's cookie consent, contradicting the published privacy policy | `features/payments/settle.ts:364` |
 | GAPB-02 | P2 | finder-reported | Fixed | HyperPay webhook awaits the full receipt pipeline (PDF render + QR + Resend + Twilio) inline, unlike the return route which defers it with after() | `app/api/webhooks/hyperpay/route.ts:72` |
 | GAPB-03 | P2 | finder-reported | Fixed | Invoice-PDF fonts and logo are file-traced for only two of the three routes that render the receipt — the cron reconcile/retry path is missing, so cron-sent receipts silently drop the tax-invoice PDF | `next.config.ts:67` |
@@ -1533,20 +1533,20 @@ The shipped product covers far more of BRIEF §6/§8 than the brief's own status
 | GAPB-07 | P3 | finder-reported | Fixed | TikTok catalog feed hand-rolls CSV quoting without formula defusing and bypasses lib/csv.ts; its `revalidate` export is inert because the handler reads searchParams | `app/api/catalog/tiktok.csv/route.ts:32` |
 | GAPB-08 | P3 | finder-reported | Fixed | llms.txt hard-codes 'Abha, Aseer' onto every experience and the site blurb although the data model and brand narrative are now place-agnostic; no cache headers | `app/llms.txt/route.ts:65` |
 | GAPB-09 | P3 | finder-reported | Fixed | Email hero image uses the raw heroImage value; a relative `/images/...` path (the shape JSON-LD and the TikTok feed both guard against) renders as a broken image in every mail client | `features/bookings/lib/booking-email.ts:71` |
-| GAPB-10 | P3 | finder-reported | Partially fixed | Duplicated helpers across the comms layer: `bidiIsolate` defined twice and HTML-escape implemented three times | `features/bookings/lib/booking-email.ts:58` |
+| GAPB-10 | P3 | finder-reported | Fixed | Duplicated helpers across the comms layer: `bidiIsolate` defined twice and HTML-escape implemented three times | `features/bookings/lib/booking-email.ts:58` |
 | WIP-01 | P1 | verified by lead | Fixed | P0-2 event-clock guard on approve and checkout has been uncommitted for ~5 weeks while its dependents shipped — production still allows a late approval and a charge for a slot that already started | `features/bookings/lib/transition-executor.ts:153` |
 | WIP-02 | → OPS-01 | merged | Fixed | Cron watchdog (P0-7) is complete but unshipped; if the hourly pg_cron SQL is applied before the route + vercel.json land it will 404 every hour and alert nobody | `app/api/cron/watchdog/route.ts:67` |
 | WIP-03 | P2 | finder-reported | Fixed | Suspended-host queue tile and its drill-down use different 'today' clocks, so the count and the list can disagree for same-day bookings | `features/admin/dashboard/queries.ts:102` |
 | WIP-04 | P2 | finder-reported | Fixed | One bare commit of this tree would sweep at least six unrelated changes (and a comment-only edit) into a single history entry, against the shared-checkout rule | `vercel.json:9` |
-| WIP-05 | P2 | finder-reported | Deferred | Guest hold-notice emails on suspension are sent serially inside the server action with no retry path — a partial send can never be completed | `features/admin/hosts/actions.ts:135` |
+| WIP-05 | P2 | finder-reported | Fixed | Guest hold-notice emails on suspension are sent serially inside the server action with no retry path — a partial send can never be completed | `features/admin/hosts/actions.ts:135` |
 | WIP-06 | P2 | finder-reported | Fixed | New suspendedHost filter branch has no unit test although filter.test.ts and its row() fixture builder already exist | `features/admin/bookings/lib/filter.ts:85` |
 | WIP-07 | P3 | finder-reported | Fixed | OPS_AUDIT.md (untracked) still lists P0-1, P0-2 and P0-7 as open while this same tree implements them; only the GMV row was struck through | `OPS_AUDIT.md:75` |
 | WIP-08 | P3 | finder-reported | Fixed | New TODO(ar) placeholder refusals surface to the admin as a generic 'invalid field' with no hint about the cause | `features/admin/experiences/schemas.ts:48` |
-| ROADMAP-01 | P2 | finder-reported | Owner decision | BRIEF §5/§6 still promises Meilisearch, pgvector, MCP server, OpenAPI 3.1, PostHog and Axiom with no implementation and no recorded decision | `BRIEF.md:310` |
-| ROADMAP-02 | → TEST-09 | merged | Deferred | CI end-to-end coverage never touches the database, booking, payment, host or admin paths | `.github/workflows/ci.yml:32` |
+| ROADMAP-01 | P2 | finder-reported | Fixed | BRIEF §5/§6 still promises Meilisearch, pgvector, MCP server, OpenAPI 3.1, PostHog and Axiom with no implementation and no recorded decision | `BRIEF.md:310` |
+| ROADMAP-02 | → TEST-09 | merged | Fixed | CI end-to-end coverage never touches the database, booking, payment, host or admin paths | `.github/workflows/ci.yml:32` |
 | ROADMAP-03 | → GAPB-08 | merged | Fixed | /llms.txt hardcodes 'Abha, Aseer' for every experience and in the About block, ignoring the row's own city | `app/llms.txt/route.ts:65` |
 | ROADMAP-04 | P3 | finder-reported | Owner decision | reviews.photos column exists but nothing writes or renders it — BRIEF §8 review photos are unimplemented | `db/schema.ts:1022` |
 | ROADMAP-05 | P3 | finder-reported | Owner decision | Hijri calendar toggle promised in BRIEF §4 does not exist; lib/format.ts documents a settings toggle that has no UI or caller | `lib/format.ts:87` |
-| ROADMAP-06 | P3 | finder-reported | Deferred | No real-user web-vitals measurement despite BRIEF §6 'Track real-user metrics, not lab' | `package.json:55` |
+| ROADMAP-06 | P3 | finder-reported | Fixed | No real-user web-vitals measurement despite BRIEF §6 'Track real-user metrics, not lab' | `package.json:55` |
 
 *Generated 2026-09-11 from the reviewers' structured outputs plus lead verification; regenerate with `scratchpad/audit/build_report.py`.*
