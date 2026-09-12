@@ -100,6 +100,11 @@ describe('startAdminMfaEnrollment', () => {
       qrCode: expect.stringContaining('data:image/png'),
     });
     expect(fake.current?.inserts[0]).toEqual({ userId: 'u-admin', secret: 'enc:SECRET' });
+    // Re-enrolment rotates the secret of an UNCONFIRMED factor in place.
+    expect(fake.current?.upserts[0]?.set).toMatchObject({
+      secret: 'enc:SECRET',
+      lastUsedStep: null,
+    });
   });
 });
 

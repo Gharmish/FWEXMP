@@ -50,6 +50,8 @@ describe('addCity', () => {
     expect(await addCity(initial, form({ nameEn: 'Abha', nameAr: 'أبها' }))).toMatchObject({
       message: 'duplicate_city',
     });
+    // Duplicate detection relies on ON CONFLICT DO NOTHING returning no row.
+    expect(fake.current?.upserts.at(-1)).toMatchObject({ doNothing: true });
   });
 
   it('slugifies the English name and defaults the region', async () => {
@@ -92,6 +94,9 @@ describe('updateCity / setCategoryEnabled', () => {
       id: 'platform',
       enabledCategories: ['nature', 'food', 'heritage'],
       updatedByAdminId: 'admin-1',
+    });
+    expect(fake.current?.upserts[0]?.set).toMatchObject({
+      enabledCategories: ['nature', 'food', 'heritage'],
     });
   });
 });

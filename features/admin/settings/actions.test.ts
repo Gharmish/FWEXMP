@@ -93,6 +93,13 @@ describe('updateSettings', () => {
       enabledCategories: ['nature', 'food'],
       updatedByAdminId: 'admin-1',
     });
+    // The singleton row always exists: without the on-conflict UPDATE
+    // every save would be a guaranteed primary-key conflict.
+    expect(fake.current?.upserts[0]?.set).toMatchObject({
+      defaultCommissionBps: 1250,
+      vatRateBps: 1500,
+      refundsViaBankTransfer: true,
+    });
   });
 });
 
@@ -118,5 +125,6 @@ describe('updateCancellationPolicies', () => {
       partialRefundBps: 5000,
       partialRefundHours: 24,
     });
+    expect(fake.current?.upserts.map((u) => u.set?.partialRefundBps)).toEqual([5000, 5000, 5000]);
   });
 });

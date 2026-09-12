@@ -50,6 +50,14 @@ export interface InsertResult extends WriteResult {
   onConflictDoUpdate: (options?: unknown) => Promise<unknown>;
 }
 
+/** One `insert().values().onConflict…()` call — the upsert clause made observable. */
+export interface UpsertRecord {
+  values: Row | Row[];
+  /** The `set` payload of onConflictDoUpdate; absent for onConflictDoNothing. */
+  set?: Row;
+  doNothing?: boolean;
+}
+
 export interface DbFake {
   select: (shape?: Row) => SelectChain;
   update: (table: unknown) => {
@@ -73,6 +81,14 @@ export interface DbFake {
   updates: Row[];
   /** Every `.values()` payload, in order. */
   inserts: Array<Row | Row[]>;
+  /**
+   * Every on-conflict clause, in order. A suite that covers an upsert
+   * asserts the `set` payload here — without it, deleting the clause from
+   * a singleton-row write (platform_settings, cancellation_policies) kept
+   * every test green while production hit a guaranteed PK conflict
+   * (third-round verification R1).
+   */
+  upserts: UpsertRecord[];
   /** How many `delete().where()` calls ran. */
   deletes: number;
 }
@@ -84,6 +100,7 @@ function thenable<T>(value: () => T | Promise<T>): Promise<T> {
 export function createDbFake(options: DbFakeOptions = {}): DbFake {
   const updates: Row[] = [];
   const inserts: Array<Row | Row[]> = [];
+  const upserts: UpsertRecord[] = [];
   let deletes = 0;
 
   const selectChain = (shape: Row): SelectChain => {
@@ -126,13 +143,20 @@ export function createDbFake(options: DbFakeOptions = {}): DbFake {
     };
     p.returning = async () => rows();
     p.onConflictDoNothing = () => {
+      upserts.push({ values, doNothing: true });
       const q = thenable(() => undefined) as Promise<unknown> & {
         returning: () => Promise<unknown[]>;
       };
       q.returning = async () => rows();
       return q;
     };
-    p.onConflictDoUpdate = async () => undefined;
+    p.onConflictDoUpdate = async (options?: unknown) => {
+      const set =
+        options && typeof options === 'object' && 'set' in options
+          ? ((options as { set?: Row }).set ?? undefined)
+          : undefined;
+      upserts.push({ values, set });
+    };
     return p;
   };
 
@@ -158,6 +182,7 @@ export function createDbFake(options: DbFakeOptions = {}): DbFake {
     transaction: async (cb) => cb(fake),
     updates,
     inserts,
+    upserts,
     get deletes() {
       return deletes;
     },
