@@ -8,11 +8,14 @@ import { z } from 'zod';
  */
 export const profileSchema = z.object({
   name: z.string().trim().min(2).max(80),
+  // Lower-cased like every other email the app stores (sign-in, booking
+  // contact) so a guest row is never matched case-sensitively.
   email: z
     .string()
     .trim()
     .email()
     .max(160)
+    .transform((v) => v.toLowerCase())
     .optional()
     .or(z.literal('').transform(() => undefined)),
   preferredLanguage: z.enum(['en', 'ar']),

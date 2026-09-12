@@ -52,8 +52,10 @@ export interface AdminExperienceFormCopy {
   region: string;
   inclusions: string;
   inclusionsHint: string;
+  inclusionsAr: string;
   whatToBring: string;
   whatToBringHint: string;
+  whatToBringAr: string;
   cancellationPolicy: string;
   /** Plain-language label per policy preset, keyed by tier value. */
   cancellationTiers: Record<'flexible' | 'moderate' | 'strict', string>;
@@ -96,7 +98,9 @@ const BLANK: Omit<AdminExperienceEdit, 'id' | 'slug' | 'heroImage' | 'images'> =
   city: 'Abha',
   region: 'Aseer',
   inclusions: [],
+  inclusionsAr: [],
   whatToBring: [],
+  whatToBringAr: [],
   cancellationTier: 'moderate',
   availabilityWeekdays: [],
   blackoutDates: [],
@@ -585,6 +589,23 @@ export function AdminExperienceForm({
           />
           <p className={hintClass}>{copy.inclusionsHint}</p>
         </div>
+        {/* The Arabic lists live in the same schema as the English ones —
+            without these fields every admin save failed validation on two
+            inputs the form never rendered (2026-09 audit TEST-03). */}
+        <div className="flex flex-col gap-2">
+          <label htmlFor="ex-inclusions-ar" className={labelClass}>
+            {copy.inclusionsAr}
+          </label>
+          <textarea
+            id="ex-inclusions-ar"
+            name="inclusionsArRaw"
+            rows={4}
+            dir="rtl"
+            defaultValue={v?.inclusionsArRaw ?? ex.inclusionsAr.join('\n')}
+            className={TEXTAREA_CLASS}
+          />
+          <p className={hintClass}>{copy.inclusionsHint}</p>
+        </div>
         <div className="flex flex-col gap-2">
           <label htmlFor="ex-bring" className={labelClass}>
             {copy.whatToBring}
@@ -594,6 +615,20 @@ export function AdminExperienceForm({
             name="whatToBringRaw"
             rows={4}
             defaultValue={v?.whatToBringRaw ?? ex.whatToBring.join('\n')}
+            className={TEXTAREA_CLASS}
+          />
+          <p className={hintClass}>{copy.whatToBringHint}</p>
+        </div>
+        <div className="flex flex-col gap-2">
+          <label htmlFor="ex-bring-ar" className={labelClass}>
+            {copy.whatToBringAr}
+          </label>
+          <textarea
+            id="ex-bring-ar"
+            name="whatToBringArRaw"
+            rows={4}
+            dir="rtl"
+            defaultValue={v?.whatToBringArRaw ?? ex.whatToBringAr.join('\n')}
             className={TEXTAREA_CLASS}
           />
           <p className={hintClass}>{copy.whatToBringHint}</p>

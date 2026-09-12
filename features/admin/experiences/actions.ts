@@ -79,7 +79,9 @@ const ECHO_KEYS = [
   'city',
   'region',
   'inclusionsRaw',
+  'inclusionsArRaw',
   'whatToBringRaw',
+  'whatToBringArRaw',
   'cancellationTier',
   'startTime',
   'bookingMode',
@@ -125,7 +127,12 @@ export async function adminUpdateExperience(
     city: formValue(formData, 'city') || 'Abha',
     region: formValue(formData, 'region') || 'Aseer',
     inclusionsRaw: formValue(formData, 'inclusionsRaw'),
+    // The shared listing schema requires the Arabic lists too; the admin
+    // editor never posted them, so every save failed validation on two
+    // fields the form did not render (2026-09 engineering audit TEST-03).
+    inclusionsArRaw: formValue(formData, 'inclusionsArRaw'),
     whatToBringRaw: formValue(formData, 'whatToBringRaw'),
+    whatToBringArRaw: formValue(formData, 'whatToBringArRaw'),
     cancellationTier: formValue(formData, 'cancellationTier'),
     availabilityWeekdays: formValues(formData, 'availabilityWeekdays'),
     locale: formValue(formData, 'locale'),
@@ -194,7 +201,9 @@ export async function adminUpdateExperience(
         city: input.city,
         region: input.region,
         inclusions: input.inclusionsRaw,
+        inclusionsAr: input.inclusionsArRaw,
         whatToBring: input.whatToBringRaw,
+        whatToBringAr: input.whatToBringArRaw,
         cancellationTier: input.cancellationTier,
         availabilityWeekdays: input.availabilityWeekdays,
         startTime: input.startTime,
@@ -254,7 +263,12 @@ export async function adminCreateExperience(
     city: formValue(formData, 'city') || 'Abha',
     region: formValue(formData, 'region') || 'Aseer',
     inclusionsRaw: formValue(formData, 'inclusionsRaw'),
+    // The shared listing schema requires the Arabic lists too; the admin
+    // editor never posted them, so every save failed validation on two
+    // fields the form did not render (2026-09 engineering audit TEST-03).
+    inclusionsArRaw: formValue(formData, 'inclusionsArRaw'),
     whatToBringRaw: formValue(formData, 'whatToBringRaw'),
+    whatToBringArRaw: formValue(formData, 'whatToBringArRaw'),
     cancellationTier: formValue(formData, 'cancellationTier'),
     availabilityWeekdays: formValues(formData, 'availabilityWeekdays'),
     locale: formValue(formData, 'locale'),
@@ -309,7 +323,9 @@ export async function adminCreateExperience(
             city: input.city,
             region: input.region,
             inclusions: input.inclusionsRaw,
+            inclusionsAr: input.inclusionsArRaw,
             whatToBring: input.whatToBringRaw,
+            whatToBringAr: input.whatToBringArRaw,
             cancellationTier: input.cancellationTier,
             availabilityWeekdays: input.availabilityWeekdays,
             startTime: input.startTime,

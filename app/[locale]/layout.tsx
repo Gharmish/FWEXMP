@@ -124,11 +124,11 @@ export default async function LocaleLayout({
   // full catalog. The public shell itself lives in (site)/layout.tsx.
   const clientMessages = pickClientMessages(await getMessages(), 'base');
 
-  // Arabic pages preload the body and heading weights so the H1 paints in
-  // the brand face instead of swapping in after the CSS parse (PERF-05).
-  // 500 (labels, buttons) rides on the CSS discovery path.
+  // Arabic pages preload all three weights so headings paint in the brand
+  // face instead of swapping in after the CSS parse (PERF-05): 400 is the
+  // body, 500 every text-h2/h3 and font-medium label, 600 the display tier.
   if (locale === 'ar') {
-    for (const weight of [400, 600]) {
+    for (const weight of [400, 500, 600]) {
       preload(`/fonts/ibm-plex-sans-arabic-${weight}.woff2`, {
         as: 'font',
         type: 'font/woff2',

@@ -73,7 +73,9 @@ export interface AdminExperienceEdit {
   city: string;
   region: string;
   inclusions: string[];
+  inclusionsAr: string[];
   whatToBring: string[];
+  whatToBringAr: string[];
   cancellationTier: 'flexible' | 'moderate' | 'strict';
   availabilityWeekdays: number[];
   blackoutDates: string[];
@@ -114,7 +116,9 @@ export async function getAdminExperienceForEdit(
     city: row.city,
     region: row.region,
     inclusions: [...row.inclusions],
+    inclusionsAr: [...row.inclusionsAr],
     whatToBring: [...row.whatToBring],
+    whatToBringAr: [...row.whatToBringAr],
     cancellationTier: row.cancellationTier,
     availabilityWeekdays: [...row.availabilityWeekdays],
     blackoutDates: [...row.blackoutDates],
