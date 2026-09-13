@@ -35,14 +35,14 @@ works) · Vercel project `gharmish` · Supabase `gharmish-experiences`
 
 ### What works **without** any further credentials (soft-launch surface)
 
-| Journey                                             | Needs login?     | Status                                          |
-| --------------------------------------------------- | ---------------- | ----------------------------------------------- |
-| Browse / search / experience detail / host profiles | No               | ✅ Live                                         |
-| **Guest requests a booking** (name + phone)         | **No**           | ✅ Live                                         |
-| Operator confirms/cancels/refunds bookings          | Admin (Test OTP) | ✅ Live                                         |
-| Guest account (`/me`, wishlist, leave review)       | Yes (email OTP)  | ✅ Live via email OTP (§2b); SMS optional (§2)  |
-| Host self-service (apply, manage listings, upload)  | Yes (email OTP)  | ✅ Live via email OTP (§2b); SMS optional (§2)  |
-| Online card/Mada payment                            | — → §3           | 🟡 HyperPay wired (test); needs token + go-live |
+| Journey                                             | Needs login?     | Status                                                                |
+| --------------------------------------------------- | ---------------- | --------------------------------------------------------------------- |
+| Browse / search / experience detail / host profiles | No               | ✅ Live                                                               |
+| **Guest requests a booking** (name + phone)         | **No**           | ✅ Live                                                               |
+| Operator confirms/cancels/refunds bookings          | Admin (Test OTP) | ✅ Live                                                               |
+| Guest account (`/me`, wishlist, leave review)       | Yes (email OTP)  | ✅ Live via email OTP (§2b); SMS optional (§2)                        |
+| Host self-service (apply, manage listings, upload)  | Yes (email OTP)  | ✅ Live via email OTP (§2b); SMS optional (§2)                        |
+| Online card/Mada payment                            | — → §3           | 🟡 HyperPay LIVE creds set 2026-09-13; SAR ≥5 settlement test pending |
 
 **Implication:** Gharmish can soft-launch today as a _request-to-book_
 marketplace — guests request, the operator confirms and arranges payment
@@ -107,6 +107,22 @@ localize emails to AR/EN via a Send Email Hook (needs human Arabic copy).
 integrating **HyperPay / OPPWA** (not Moyasar — see the dated decision at
 the bottom). This supersedes the original BRIEF §5 choice; BRIEF §5 should
 be updated to match once confirmed.
+
+**LIVE SERVER SWITCHED 2026-09-13.** HyperPay sent the production
+credentials (entity `8acda4d9a03d17e801a051e63fe24b5d`, Visa/Master/mada,
+DB, SAR). Vercel Production now carries the live token + entity and
+`HYPERPAY_MODE=live` (redeploy `dpl_98PvYeZi…` of `3465b94`, aliased to
+gharmish.com). No code change was needed: `HYPERPAY_MODE` alone selects
+`eu-prod.oppwa.com`, drops `testMode=EXTERNAL` + `3DS2_enrolled`, and the
+mandatory 3DS2 fields (merchantTransactionId, customer._, billing._) were
+already sent. `HYPERPAY_APPLEPAY_ENTITY_ID` was REMOVED from Production:
+the live entity covers cards only, so Apple Pay is not offered until
+HyperPay issues a live Apple Pay entity. Still open: (1) the owner must
+pay a real SAR ≥5 booking with a card and confirm the amount settles to the
+merchant bank within ~72h, then confirm back to HyperPay; (2) configure
+the notification webhook in the merchant area (gate2play.ctpe.info) and
+set `HYPERPAY_WEBHOOK_SECRET`; (3) rotate the access token — it was
+pasted into a chat transcript when it arrived.
 
 Default flow stays **request-to-book** until HyperPay env vars arrive —
 the integration is gated behind `hasHyperpay()` (`lib/env.ts`), exactly
