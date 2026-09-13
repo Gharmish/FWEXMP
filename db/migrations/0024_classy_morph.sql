@@ -12,4 +12,12 @@ CREATE TABLE "cities" (
 	CONSTRAINT "cities_nameEn_unique" UNIQUE("name_en")
 );
 --> statement-breakpoint
-ALTER TABLE "platform_settings" ALTER COLUMN "enabled_categories" SET DEFAULT ARRAY['nature','heritage','food','wellness','adventure','family','women_only']::category[];
+-- The default names the enum value added at the top of this file. Postgres
+-- refuses to *use* a value added by ALTER TYPE ... ADD VALUE until the
+-- transaction that added it commits ("unsafe use of new value"), and
+-- `pnpm db:migrate` runs every pending migration in ONE transaction — so a
+-- fresh database died here (CI e2e-db, 2026-09-13). Casting the literals
+-- through text[] stores the same default but defers the enum lookup to
+-- INSERT time, by which point the value is committed. Production already
+-- carries the plain ARRAY[...]::category[] form; same values.
+ALTER TABLE "platform_settings" ALTER COLUMN "enabled_categories" SET DEFAULT (ARRAY['nature','heritage','food','wellness','adventure','family','women_only']::text[])::category[];
