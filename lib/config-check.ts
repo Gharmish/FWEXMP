@@ -1,7 +1,6 @@
 import 'server-only';
 
 import { hasHyperpay, serverEnv } from '@/lib/env';
-import { notifyAdmin } from '@/lib/admin-alerts';
 import { reportError } from '@/lib/log';
 
 /**
@@ -13,8 +12,14 @@ import { reportError } from '@/lib/log';
  * every scheduled run (the literal 2026-07-08 three-week incident), an
  * empty webhook secret leaves settlement riding on the reconcile pass, an
  * empty PII key stores IBANs in plaintext. This lists what production
- * must have and pages once per process when something is missing.
+ * must have and logs it once per process when something is missing.
  * Never throws — a misconfigured site must stay up.
+ *
+ * Paging (the admin_alerts row + email) moved to the hourly cron
+ * (features/maintenance/passes/config.ts): from the cold-start path it
+ * cost every new instance two undeadlined round trips to the pooler,
+ * which raced the first request's own handshake and filled the runtime
+ * logs with CONNECT_TIMEOUT / EAUTHTIMEOUT (2026-09-13 log review).
  */
 
 const ALWAYS_REQUIRED = [
@@ -49,14 +54,5 @@ export async function assertProductionConfig(): Promise<string[]> {
   if (missing.length === 0) return [];
   const error = new Error(`Production configuration missing: ${missing.join(', ')}`);
   reportError(error, { surface: 'config-check' });
-  try {
-    await notifyAdmin(
-      'config_missing',
-      { missing: missing.join(', '), count: missing.length },
-      { fingerprint: 'config-check', quietWindowMs: 6 * 3_600_000 },
-    );
-  } catch (err) {
-    reportError(err, { surface: 'config-check:notify' });
-  }
   return missing;
 }

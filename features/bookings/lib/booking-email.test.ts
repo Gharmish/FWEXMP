@@ -34,6 +34,18 @@ describe('renderReceiptEmail', () => {
     expect(text).toContain('Gharmish');
   });
 
+  it('keeps the note link in the plain-text part as "label: url"', () => {
+    const { html, text } = renderReceiptEmail({
+      ...base,
+      note: {
+        html: 'Plans changed? <a href="https://gharmish.com/en/book/GH-1?k=t&amp;slug=x">Manage your booking</a>',
+      },
+    });
+    expect(html).toContain('<a style="color:#0A0A0A;font-weight:500" href="https://gharmish.com/en/book/GH-1?k=t&amp;slug=x">');
+    expect(text).toContain('Plans changed? Manage your booking: https://gharmish.com/en/book/GH-1?k=t&slug=x');
+    expect(text).not.toContain('<a');
+  });
+
   it('renders the brand logo only when a URL is provided', () => {
     const withLogo = renderReceiptEmail({
       ...base,

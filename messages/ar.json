@@ -441,8 +441,7 @@
       },
       "promoCodes": {
         "title": "رموز الخصم",
-        "description": "أنشئ رموز خصم للدفع وتابع استخدامها.",
-        "truncated": "يُعرض أحدث {count} رمز — الرموز الأقدم غير مدرجة."
+        "description": "أنشئ رموز خصم للدفع وتابع استخدامها."
       },
       "support": {
         "title": "صندوق الدعم",
@@ -1518,7 +1517,8 @@
         "formServer": "حدث خطأ ما. حاول مرة أخرى.",
         "formForbidden": "ليست لديك صلاحية للقيام بذلك.",
         "formValidation": "صحّح الحقول المحدّدة."
-      }
+      },
+      "truncated": "يُعرض أحدث {count} رمز — الرموز الأقدم غير مدرجة."
     },
     "support": {
       "eyebrow": "صندوق الدعم",
@@ -3630,8 +3630,8 @@
     "whatToBringHeading": "ماذا تُحضِر معك",
     "hostReminderNote": "مضيفك",
     "arriveEarly": "احضر قبل الموعد بـ 10 دقائق",
-    "reminderManageWithDeadline": "تغيّرت خططك؟ الإلغاء مجاني حتى {deadline}. <a href=\"{url}\">إدارة الحجز</a>",
-    "reminderManageNoDeadline": "تغيّرت خططك؟ <a href=\"{url}\">إدارة الحجز</a>",
+    "reminderManageWithDeadline": "تغيّرت خططك؟ الإلغاء مجاني حتى {deadline}. <a>إدارة الحجز</a>",
+    "reminderManageNoDeadline": "تغيّرت خططك؟ <a>إدارة الحجز</a>",
     "hostNewRequestSubject": "طلب حجز جديد: {experience}",
     "hostNewBookingSubject": "حجز مؤكد جديد: {experience}",
     "hostNewGreeting": "مرحبًا،",

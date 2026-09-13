@@ -177,8 +177,20 @@ ${ctaHtml}${bulletsHtml}${hostHtml}${noteHtml}<tr><td style="border-top:1px soli
 <tr><td style="padding-top:24px;font-size:12px;color:#A3A3A3">${esc(content.footer)}</td></tr>
 </table></td></tr></table></body></html>`;
 
-  // Strip tags from the (trusted) note markup for the plain-text part.
-  const noteText = content.note ? content.note.html.replace(/<[^>]*>/g, '').trim() : '';
+  // Plain-text twin of the (trusted) note markup: anchors become
+  // "label: url" (entities decoded) so a text-only reader keeps the manage
+  // link — stripping tags alone dropped the href (2026-09-13 review) — then
+  // the remaining tags go.
+  const noteText = content.note
+    ? content.note.html
+        .replace(
+          /<a\s+href="([^"]*)"[^>]*>([^<]*)<\/a>/g,
+          (_match, href: string, label: string) =>
+            `${label}: ${href.replace(/&amp;/g, '&').replace(/&quot;/g, '"')}`,
+        )
+        .replace(/<[^>]*>/g, '')
+        .trim()
+    : '';
 
   const text = [
     ...(content.sellerLines?.length ? [...content.sellerLines, ''] : []),

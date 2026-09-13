@@ -1,6 +1,7 @@
 import 'server-only';
 
 import { getTranslations } from 'next-intl/server';
+import { escapeHtml } from '@/lib/html';
 import { hasHyperpay } from '@/lib/env';
 import type { Locale } from '@/lib/i18n';
 import { formatDate, formatInteger, formatTime } from '@/lib/format';
@@ -148,12 +149,20 @@ export async function sendBookingPrepareReminderEmail(
   const manageUrl = guestBookingUrls(locale, reference, booking.experienceSlug).manage;
   const note = deadline
     ? {
-        html: t('reminderManageWithDeadline', {
+        // `t.markup`, not `t()`: the message carries an <a> tag, and a tag
+        // with an attribute is not ICU — plain t() threw INVALID_MESSAGE and
+        // the email shipped the raw key instead of the link (2026-07-15 →
+        // 2026-09-13, seen on /pay/return in the production runtime logs).
+        html: t.markup('reminderManageWithDeadline', {
           deadline: `${formatDate(deadline, locale, 'gregory', KSA_DATE)}, ${formatTime(deadline, locale, KSA_TIME)}`,
-          url: manageUrl,
+          a: (chunks) => `<a href="${escapeHtml(manageUrl)}">${chunks}</a>`,
         }),
       }
-    : { html: t('reminderManageNoDeadline', { url: manageUrl }) };
+    : {
+        html: t.markup('reminderManageNoDeadline', {
+          a: (chunks) => `<a href="${escapeHtml(manageUrl)}">${chunks}</a>`,
+        }),
+      };
 
   const { html, text } = renderReceiptEmail({
     logoUrl: EMAIL_LOGO_URL,

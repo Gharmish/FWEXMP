@@ -2,7 +2,6 @@ import { describe, expect, it, vi } from 'vitest';
 
 vi.mock('server-only', () => ({}));
 vi.mock('@/lib/env', () => ({ serverEnv: {}, hasHyperpay: () => false }));
-vi.mock('@/lib/admin-alerts', () => ({ notifyAdmin: vi.fn() }));
 vi.mock('@/lib/log', () => ({ reportError: vi.fn() }));
 
 import { missingProductionConfig } from './config-check';

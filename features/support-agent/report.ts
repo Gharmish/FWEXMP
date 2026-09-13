@@ -62,6 +62,9 @@ export async function collectDailyStats(now: Date): Promise<DailyReportStats> {
         .select({ n: count })
         .from(supportTickets)
         .where(and(ne(supportTickets.status, 'resolved'), lt(supportTickets.slaDueAt, now))),
+      // Raw sql`` params get no column encoder: pass the ISO string, never the
+      // Date (postgres-js ERR_INVALID_ARG_TYPE — the 2026-09-13 cron failures;
+      // this query is one arm of the Promise.all, so it sank the whole report).
       db.execute<{ median: number | null }>(sql`
         select percentile_cont(0.5) within group (order by extract(epoch from (o.created_at - i.created_at)))::float as median
         from conversation_messages o
@@ -70,7 +73,7 @@ export async function collectDailyStats(now: Date): Promise<DailyReportStats> {
           where i.conversation_id = o.conversation_id and i.direction = 'in' and i.created_at < o.created_at
           order by i.created_at desc limit 1
         ) i on true
-        where o.author = 'agent' and o.created_at >= ${since}
+        where o.author = 'agent' and o.created_at >= ${since.toISOString()}::timestamptz
       `),
     ]);
   const medianRow = (Array.isArray(latency) ? latency[0] : latency) as

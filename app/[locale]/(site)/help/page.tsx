@@ -5,7 +5,7 @@ import { SITE_URL } from '@/lib/site';
 import { routing } from '@/lib/i18n';
 import { InfoPage } from '@/components/layout/info-page';
 import { JsonLd } from '@/components/seo/json-ld';
-import { getPlatformSettings } from '@/lib/platform-settings';
+import { faqSettingsValues, getPlatformSettings } from '@/lib/platform-settings';
 import { getCancellationTiers } from '@/features/bookings/lib/cancellation-policy';
 import { GRACE_MIN_LEAD_HOURS, POST_BOOKING_GRACE_HOURS } from '@/features/bookings/lib/policy';
 import { tierDescriptions } from '@/features/bookings/lib/policy-copy';
@@ -110,10 +110,10 @@ export default async function HelpPage({ params }: { params: Promise<{ locale: s
   // so the FAQ (and its JSON-LD twin) can never drift from the real rules.
   const tierDesc = tierDescriptions(tiers, tTiers);
   const values = {
-    approvalHours: settings.approvalWindowHours,
-    // Guest refunds are wired by hand while the bank-transfer rail is on;
-    // the host-cancel answer selects its wording on this (P1-5).
-    refundRail: settings.refundsViaBankTransfer ? 'bank' : 'card',
+    // approvalHours + refundRail (the host-cancel answer selects its
+    // wording on the refund rail, P1-5) — shared with /hosting and the
+    // support agent so the three consumers cannot drift.
+    ...faqSettingsValues(settings),
     flexDesc: tierDesc.flexible,
     modDesc: tierDesc.moderate,
     strictDesc: tierDesc.strict,

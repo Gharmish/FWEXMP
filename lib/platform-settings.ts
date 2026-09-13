@@ -188,3 +188,20 @@ export async function getPlatformSettingsStrict(): Promise<PlatformSettings> {
 export async function getEnabledCategories(): Promise<readonly Category[]> {
   return (await getPlatformSettings()).enabledCategories;
 }
+
+/**
+ * The ICU arguments the `helpFaq.items.*` copy derives from platform
+ * settings — shared by /help, /hosting and the support agent's knowledge
+ * base so no consumer can drift from the catalog. `hostCancel.a` selects
+ * its refund wording on `refundRail`: guest refunds are wired by hand
+ * while the bank-transfer rail is on (2026-09-13: two of the three
+ * consumers had shipped without it and rendered the raw key).
+ */
+export function faqSettingsValues(
+  settings: Pick<PlatformSettings, 'approvalWindowHours' | 'refundsViaBankTransfer'>,
+): { approvalHours: number; refundRail: 'bank' | 'card' } {
+  return {
+    approvalHours: settings.approvalWindowHours,
+    refundRail: settings.refundsViaBankTransfer ? 'bank' : 'card',
+  };
+}

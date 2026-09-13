@@ -441,8 +441,7 @@
       },
       "promoCodes": {
         "title": "Promo codes",
-        "description": "Create checkout discount codes and track how they're redeemed.",
-        "truncated": "Showing the newest {count} codes — older ones are not listed."
+        "description": "Create checkout discount codes and track how they're redeemed."
       },
       "support": {
         "title": "Support inbox",
@@ -1518,7 +1517,8 @@
         "formServer": "Something went wrong. Try again.",
         "formForbidden": "You don't have permission to do that.",
         "formValidation": "Fix the highlighted fields."
-      }
+      },
+      "truncated": "Showing the newest {count} codes — older ones are not listed."
     },
     "support": {
       "eyebrow": "Support inbox",
@@ -3630,8 +3630,8 @@
     "whatToBringHeading": "What to bring",
     "hostReminderNote": "Your host",
     "arriveEarly": "arrive 10 minutes early",
-    "reminderManageWithDeadline": "Plans changed? Free cancellation until {deadline}. <a href=\"{url}\">Manage your booking</a>",
-    "reminderManageNoDeadline": "Plans changed? <a href=\"{url}\">Manage your booking</a>",
+    "reminderManageWithDeadline": "Plans changed? Free cancellation until {deadline}. <a>Manage your booking</a>",
+    "reminderManageNoDeadline": "Plans changed? <a>Manage your booking</a>",
     "hostNewRequestSubject": "New booking request: {experience}",
     "hostNewBookingSubject": "New confirmed booking: {experience}",
     "hostNewGreeting": "Hello,",

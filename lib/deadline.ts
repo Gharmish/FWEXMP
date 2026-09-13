@@ -40,11 +40,17 @@ export async function withDeadline<T>(label: string, ms: number, promise: Promis
 /**
  * Per-attempt budgets for public render paths. Every app statement runs
  * in <50ms server-side (pg_stat_statements, 2026-08-21), so a first
- * attempt past 5s is a dead socket, not a slow query — waiting the full
- * 8s only delays the retry. The retry runs on a fresh pool and gets the
- * admin waves' 8s so a cold Supavisor tenant pool has room to spin up.
+ * attempt past a few seconds is a dead socket, not a slow query — waiting
+ * the full 8s only delays the retry. The retry runs on a fresh pool and
+ * gets the admin waves' 8s so a cold Supavisor tenant pool has room to
+ * spin up. The first attempt must outlive postgres.js's `connect_timeout`
+ * (5s on Vercel, lib/db.ts): with the two equal, this deadline — armed
+ * synchronously — always won the race, so a stalled cold handshake
+ * surfaced as a DeadlineError that discarded a pool which was merely
+ * connecting, instead of the retryable CONNECT_TIMEOUT the driver raises
+ * one tick later (2026-09-13 production log review).
  */
-const FIRST_ATTEMPT_MS = 5_000;
+const FIRST_ATTEMPT_MS = 6_000;
 const RETRY_ATTEMPT_MS = 8_000;
 
 /** postgres.js / Node / SQLSTATE codes that mean "the socket, not the SQL". */

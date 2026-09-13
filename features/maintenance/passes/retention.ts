@@ -35,10 +35,16 @@ export async function pruneThrottleEvents(run: PassRunner) {
       // Bounded per run like the other prunes (third-round R6): the vitals
       // cap now writes one row per accepted beacon.
       const cutoff = new Date(Date.now() - 24 * 3_600_000);
+      // `${cutoff}` inside a raw sql`` fragment reaches postgres-js as a
+      // bare Date — no column encoder maps it, and the driver throws
+      // ERR_INVALID_ARG_TYPE ("Received an instance of Date"), which failed
+      // all three prunes on every hourly run after the 2026-09-13 deploy.
+      // Column comparisons (`lte(col, date)`) map through the column; raw
+      // fragments must pass the ISO string themselves.
       await db.delete(authThrottleEvents).where(
         sql`${authThrottleEvents.id} in (
           select id from ${authThrottleEvents}
-          where ${authThrottleEvents.createdAt} <= ${cutoff}
+          where ${authThrottleEvents.createdAt} <= ${cutoff.toISOString()}::timestamptz
           order by ${authThrottleEvents.createdAt} asc
           limit 5000
         )`,
@@ -61,7 +67,7 @@ export async function pruneAnalytics(run: PassRunner) {
       await db.delete(analyticsEvents).where(
         sql`${analyticsEvents.id} in (
           select id from ${analyticsEvents}
-          where ${analyticsEvents.createdAt} <= ${cutoff}
+          where ${analyticsEvents.createdAt} <= ${cutoff.toISOString()}::timestamptz
           order by ${analyticsEvents.createdAt} asc
           limit 5000
         )`,
@@ -85,7 +91,7 @@ export async function pruneVitals(run: PassRunner) {
       await db.delete(webVitals).where(
         sql`${webVitals.id} in (
           select id from ${webVitals}
-          where ${webVitals.createdAt} <= ${cutoff}
+          where ${webVitals.createdAt} <= ${cutoff.toISOString()}::timestamptz
           order by ${webVitals.createdAt} asc
           limit 5000
         )`,

@@ -6,6 +6,7 @@ import { getPlatformSettings } from '@/lib/platform-settings';
 import { getCancellationTiers } from '@/features/bookings/lib/cancellation-policy';
 import { GRACE_MIN_LEAD_HOURS, POST_BOOKING_GRACE_HOURS } from '@/features/bookings/lib/policy';
 import { tierDescriptions } from '@/features/bookings/lib/policy-copy';
+import { KNOWLEDGE_FAQ_KEYS, knowledgeFaqValues } from './knowledge-faq';
 
 /**
  * The agent's knowledge base, rendered from the SAME strings the public
@@ -16,19 +17,6 @@ import { tierDescriptions } from '@/features/bookings/lib/policy-copy';
  * in the cached prefix of the prompt, so it must also be byte-stable
  * between requests.
  */
-
-const FAQ_KEYS = [
-  'booking',
-  'payment',
-  'pending',
-  'cancel',
-  'contactHost',
-  'becomeHost',
-  'payout',
-  'hostCancel',
-  'requestWindow',
-  'editListing',
-] as const;
 
 let cached: { at: number; text: string } | null = null;
 const TTL_MS = 10 * 60 * 1000;
@@ -43,15 +31,13 @@ export async function buildKnowledge(): Promise<string> {
       getTranslations({ locale, namespace: 'cancellationTiers' }),
     ]);
     const tierDesc = tierDescriptions(tiers, tTiers);
-    const values = {
-      approvalHours: settings.approvalWindowHours,
-      flexDesc: tierDesc.flexible,
-      modDesc: tierDesc.moderate,
-      strictDesc: tierDesc.strict,
+    const values = knowledgeFaqValues({
+      settings,
+      tierDesc,
       graceHours: POST_BOOKING_GRACE_HOURS,
       graceLead: GRACE_MIN_LEAD_HOURS,
-    };
-    const lines = FAQ_KEYS.map(
+    });
+    const lines = KNOWLEDGE_FAQ_KEYS.map(
       (key) => `Q: ${t(`items.${key}.q`, values)}\nA: ${t(`items.${key}.a`, values)}`,
     );
     sections.push(`## FAQ (${locale === 'en' ? 'English' : 'Arabic'})\n\n${lines.join('\n\n')}`);

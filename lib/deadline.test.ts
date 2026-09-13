@@ -51,7 +51,7 @@ describe('boundedQuery', () => {
       .mockImplementationOnce(() => hang<string>())
       .mockImplementationOnce(() => Promise.resolve('recovered'));
     const p = boundedQuery('q', run);
-    await vi.advanceTimersByTimeAsync(5_000);
+    await vi.advanceTimersByTimeAsync(6_000);
     await expect(p).resolves.toBe('recovered');
     expect(run).toHaveBeenCalledTimes(2);
   });
@@ -62,7 +62,7 @@ describe('boundedQuery', () => {
       .mockImplementationOnce(() => hang<string>())
       .mockImplementationOnce(() => Promise.resolve('fresh pool'));
     const p = boundedQuery('q', run);
-    await vi.advanceTimersByTimeAsync(5_000);
+    await vi.advanceTimersByTimeAsync(6_000);
     await expect(p).resolves.toBe('fresh pool');
     expect(resetDb).toHaveBeenCalledWith(7);
   });
@@ -82,7 +82,7 @@ describe('boundedQuery', () => {
     const run = vi.fn(() => hang<string>());
     const p = boundedQuery('q', run);
     const assertion = expect(p).rejects.toBeInstanceOf(DeadlineError);
-    await vi.advanceTimersByTimeAsync(5_000);
+    await vi.advanceTimersByTimeAsync(6_000);
     await vi.advanceTimersByTimeAsync(8_000);
     await assertion;
     expect(run).toHaveBeenCalledTimes(2);

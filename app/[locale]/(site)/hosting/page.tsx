@@ -9,6 +9,7 @@ import { JsonLd } from '@/components/seo/json-ld';
 import { getPlatformSettings } from '@/lib/platform-settings';
 import { SITE_URL } from '@/lib/site';
 import { trackPageView, utmFromSearchParams } from '@/features/analytics/capture';
+import { HOSTING_FAQ_KEYS, hostingFaqValues } from '@/features/hosting/faq';
 
 /**
  * Public, indexable host-recruitment landing page. Unlike `/host/apply`
@@ -60,9 +61,6 @@ export async function generateMetadata({
   };
 }
 
-/** FAQ keys reused from the host-facing help entries so answers never drift. */
-const FAQ_KEYS = ['becomeHost', 'requestWindow', 'payout', 'hostCancel', 'editListing'] as const;
-
 export default async function HostingPage({
   params,
   searchParams,
@@ -79,7 +77,9 @@ export default async function HostingPage({
     getTranslations('helpFaq'),
     getPlatformSettings(),
   ]);
-  const faqValues = { approvalHours: settings.approvalWindowHours };
+  // Every argument the FAQ items and the stages copy interpolate — pinned to
+  // the catalogs by features/hosting/faq.test.ts.
+  const faqValues = hostingFaqValues(settings);
 
   const eyebrowClassName = cn('text-sarat-black-600 text-eyebrow');
   const darkEyebrowClassName = cn('text-saffron-gold-800 text-eyebrow');
@@ -93,7 +93,7 @@ export default async function HostingPage({
   const faqJsonLd = {
     '@context': 'https://schema.org',
     '@type': 'FAQPage',
-    mainEntity: FAQ_KEYS.map((key) => ({
+    mainEntity: HOSTING_FAQ_KEYS.map((key) => ({
       '@type': 'Question',
       name: tFaq(`items.${key}.q`, faqValues),
       acceptedAnswer: {
@@ -246,7 +246,7 @@ export default async function HostingPage({
           <div className="border-sarat-black/8 flex flex-col gap-6 [border-top-width:0.5px] pt-12">
             <h2 className="text-h2-responsive">{t('faq.heading')}</h2>
             <div className="border-sarat-black/8 flex flex-col [border-top-width:0.5px]">
-              {FAQ_KEYS.map((key) => (
+              {HOSTING_FAQ_KEYS.map((key) => (
                 <details
                   key={key}
                   className="border-sarat-black/8 group [border-bottom-width:0.5px]"

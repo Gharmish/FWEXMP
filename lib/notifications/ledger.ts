@@ -354,6 +354,8 @@ export async function expireStaleQueuedDeliveries(
 ): Promise<number> {
   try {
     const cutoff = new Date(Date.now() - olderThanMs);
+    // Raw sql`` params get no column encoder: pass the ISO string, never the
+    // Date (postgres-js ERR_INVALID_ARG_TYPE, 2026-09-13 cron failures).
     const rows = await db
       .update(notificationDeliveries)
       .set({
@@ -365,7 +367,7 @@ export async function expireStaleQueuedDeliveries(
         sql`${notificationDeliveries.id} in (
           select id from ${notificationDeliveries}
           where ${notificationDeliveries.status} = 'queued'
-            and ${notificationDeliveries.createdAt} <= ${cutoff}
+            and ${notificationDeliveries.createdAt} <= ${cutoff.toISOString()}::timestamptz
           order by ${notificationDeliveries.createdAt} asc
           limit ${limit}
         )`,

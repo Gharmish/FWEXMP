@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { createTranslator } from 'next-intl';
 import en from './en.json';
 import ar from './ar.json';
+import { icuArgs, icuDummyArgValues, icuDummyTagValues, icuTags } from '@/test/icu';
 
 /**
  * Message-catalog integrity (2026-09 engineering audit I18N-04 / I18N-05).
@@ -27,25 +28,6 @@ function flatten(
 }
 const EN = flatten(en);
 const AR = flatten(ar);
-
-/** Top-level ICU argument names: `{name}` / `{name, plural, …}` at brace depth 0. */
-function icuArgs(message: string): Set<string> {
-  const args = new Set<string>();
-  let depth = 0;
-  for (let i = 0; i < message.length; i += 1) {
-    const ch = message[i];
-    if (ch === '{') {
-      if (depth === 0) {
-        const m = /^\{\s*([A-Za-z_][\w-]*)/.exec(message.slice(i));
-        if (m) args.add(m[1]);
-      }
-      depth += 1;
-    } else if (ch === '}') {
-      depth = Math.max(0, depth - 1);
-    }
-  }
-  return args;
-}
 
 /** Values that are legitimately identical in both locales. */
 const IDENTICAL_ALLOWLIST = new Set([
@@ -156,5 +138,32 @@ describe('Arabic number rendering through next-intl', () => {
     expect(text).toBe('3 تجارب');
     // The dual form carries its own "two" — no digit in front of it.
     expect(t('ogImage.host.experienceCount', { formatted: '2', count: 2 })).toBe('تجربتان');
+  });
+});
+
+describe('every message formats', () => {
+  // INVALID_MESSAGE (a placeholder the ICU parser rejects) and
+  // FORMATTING_ERROR (an argument or tag the message needs) only ever
+  // surfaced at runtime — /hosting rendered one on every view for a week
+  // (2026-09-13 runtime logs). Format each key with values derived from
+  // its own placeholders so the catalog itself cannot ship a broken string.
+  it.each([
+    ['en', EN],
+    ['ar', AR],
+  ] as const)('%s', (locale, flat) => {
+    const errors: string[] = [];
+    for (const [key, message] of Object.entries(flat)) {
+      // One single-message translator per key keeps the key a literal for
+      // next-intl's typed API and attributes every error to its key.
+      const t = createTranslator({
+        locale,
+        messages: { m: message },
+        onError: (error) => errors.push(`${key}: ${error.message}`),
+      });
+      const args = icuDummyArgValues(message);
+      if (icuTags(message).size > 0) t.rich('m', { ...args, ...icuDummyTagValues(message) });
+      else t('m', args);
+    }
+    expect(errors).toEqual([]);
   });
 });
