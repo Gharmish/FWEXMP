@@ -114,7 +114,7 @@ DB, SAR). Vercel Production now carries the live token + entity and
 `HYPERPAY_MODE=live` (redeploy `dpl_98PvYeZi…` of `3465b94`, aliased to
 gharmish.com). No code change was needed: `HYPERPAY_MODE` alone selects
 `eu-prod.oppwa.com`, drops `testMode=EXTERNAL` + `3DS2_enrolled`, and the
-mandatory 3DS2 fields (merchantTransactionId, customer._, billing._) were
+mandatory 3DS2 fields (`merchantTransactionId`, `customer.*`, `billing.*`) were
 already sent. `HYPERPAY_APPLEPAY_ENTITY_ID` was REMOVED from Production:
 the live entity covers cards only, so Apple Pay is not offered until
 HyperPay issues a live Apple Pay entity. Still open: (1) the owner must
