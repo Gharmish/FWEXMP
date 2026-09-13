@@ -15,7 +15,9 @@
  * anything but a local host unless `SEED_ALLOW_DESTRUCTIVE=1` is set
  * explicitly for that one invocation.
  */
-import { getDb } from '@/lib/db';
+import { drizzle } from 'drizzle-orm/postgres-js';
+import postgres from 'postgres';
+import * as schema from '@/db/schema';
 import { hosts, experiences, moments, type NewExperience } from '@/db/schema';
 
 function isLocalDatabase(url: string): boolean {
@@ -29,7 +31,7 @@ function isLocalDatabase(url: string): boolean {
   }
 }
 
-function assertSeedAllowed(): void {
+function assertSeedAllowed(): string {
   const url = process.env.DIRECT_URL ?? process.env.DATABASE_URL ?? '';
   if (!url) {
     console.error('db:seed: DATABASE_URL is not set.');
@@ -43,11 +45,17 @@ function assertSeedAllowed(): void {
     );
     process.exit(1);
   }
+  return url;
 }
 
 async function seed() {
-  assertSeedAllowed();
-  const database = getDb();
+  const url = assertSeedAllowed();
+  // Own connection rather than lib/db: that module imports lib/env, which
+  // imports `server-only` — a package Next's compiler aliases away but plain
+  // Node (tsx, CI's `pnpm db:seed`) cannot resolve. Found by the first
+  // e2e-db run on 2026-09-13; the seed had never run outside Next before.
+  const client = postgres(url, { max: 1, prepare: false });
+  const database = drizzle(client, { schema, casing: 'snake_case' });
 
   await database.transaction(async (db) => {
     console.warn('Clearing existing data…');
@@ -307,6 +315,7 @@ async function seed() {
 
     console.warn(`Seeded ${inserted.length} experiences. Done.`);
   });
+  await client.end();
 }
 
 seed()

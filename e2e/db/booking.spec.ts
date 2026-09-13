@@ -6,7 +6,10 @@ import { test, expect } from '@playwright/test';
  * and seeds the sample catalog (`E2E_DB=1`); the read-only smoke tests
  * next door keep covering sample-data mode. Exercises what those never
  * could: a DB-served catalog, a booking request written through the
- * server action, and the stub sign-in reaching a DB-backed dashboard.
+ * server action, and a verified host profile assembled from seeded rows.
+ * (The stub sign-in is deliberately unavailable here: `stubAuthAllowed()`
+ * refuses production builds, and this job runs `pnpm build && pnpm start`
+ * — found by the first local rehearsal of the job on 2026-09-13.)
  */
 test.skip(!process.env.E2E_DB, 'needs the migrated + seeded database (CI job e2e-db)');
 
@@ -21,8 +24,9 @@ test('a guest can submit a booking request against the seeded calendar', async (
   await page.goto(`/en/experiences/${SEEDED_SLUG}`);
   await expect(page.locator('h1')).toBeVisible();
 
-  // The first open day on the calendar grid.
-  const day = page.locator('[role="grid"] button[role="gridcell"]:not([disabled])').first();
+  // The first open day on the calendar grid: cells are `gridcell` wrappers
+  // around a `button`; closed days carry aria-disabled, not `disabled`.
+  const day = page.getByRole('grid').getByRole('button', { disabled: false }).first();
   await expect(day).toBeVisible();
   await day.click();
 
@@ -31,6 +35,10 @@ test('a guest can submit a booking request against the seeded calendar', async (
   // The phone field is a country picker + national number (default +966).
   await page.locator('input[type="tel"]').fill('512345678');
   await page.locator('input[name="terms"]').check();
+  // Experiences with a minimum age (the seeded walk: 12) also require the
+  // group-age attestation before the action accepts the request.
+  const minAge = page.locator('input[name="minAge"]');
+  if ((await minAge.count()) > 0) await minAge.check();
   const form = page.locator('form').filter({ has: page.locator('input[name="terms"]') });
   await form
     .getByRole('button', { name: /request|book/i })
@@ -42,15 +50,10 @@ test('a guest can submit a booking request against the seeded calendar', async (
   await expect(page).toHaveURL(/\/en\/book\/(confirmed\/)?[0-9a-f-]{36}/, { timeout: 30_000 });
 });
 
-test('the stub sign-in reaches the database-backed admin dashboard', async ({ page }) => {
-  await page.goto('/en/sign-in?next=/admin');
-  await page.getByLabel(/mobile number/i).fill('541104000');
-  await page.getByRole('button', { name: /send code/i }).click();
-  await page.getByLabel(/code/i).fill('000000');
-  await page
-    .getByRole('button', { name: /verify|sign in|continue/i })
-    .first()
-    .click();
-  await expect(page).toHaveURL(/\/en\/admin/, { timeout: 30_000 });
-  await expect(page.locator('h1')).toBeVisible();
+test('a verified host profile is served from the seeded database', async ({ page }) => {
+  await page.goto('/en/hosts/abdulaziz-alasmari');
+  await expect(page.locator('h1')).toContainText('Abdulaziz Alasmari');
+  // The profile lists the host's live experiences — rows joined from the
+  // seeded hosts + experiences tables, not the sample catalog.
+  await expect(page.locator(`a[href="/en/experiences/${SEEDED_SLUG}"]`).first()).toBeVisible();
 });

@@ -54,6 +54,6 @@ FROM (VALUES
   ('aea5062eadd2d3fe3f739542593ef7769721d94979f5e02576bfdd05a0be7802', 1784451551833), -- 0029_spicy_morg
   ('0e32e0b1788a1707fe8b4ecc27adc78177560a414ca0c9162232bb2729cdfc1a', 1784479092234), -- 0030_fantastic_bill_hollister
   ('9bb307b18266bd1ec48b23df1a290c4865a52c83ca4811c09e47e120ec0175d2', 1785644576191), -- 0031_magical_norman_osborn
-  ('604848a8fbd8a2192c29e1251298c327a8a65cf82d758cebd4a5d29685cb9572', 1789126882020) -- 0032_catch_up_2026_09
+  ('55ab1c6cdb8d4f9331f79e3c0180ed7d5ad66d6c7fa914b0313d9c6629db0317', 1789126882020) -- 0032_catch_up_2026_09
 ) AS v(hash, created_at)
 WHERE NOT EXISTS (SELECT 1 FROM "drizzle"."__drizzle_migrations");
