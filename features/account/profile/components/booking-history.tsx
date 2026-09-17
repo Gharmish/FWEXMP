@@ -43,7 +43,7 @@ export function BookingHistory({ bookings, locale, copy }: BookingHistoryProps) 
         return (
           <li
             key={booking.id}
-            className="border-sarat-black/8 rounded-card flex flex-col gap-3 [border-width:0.5px] p-6 sm:flex-row sm:items-center sm:justify-between"
+            className="border-sarat-black/12 rounded-card flex flex-col gap-3 border p-6 sm:flex-row sm:items-center sm:justify-between"
           >
             <div className="flex flex-col gap-1">
               <Link

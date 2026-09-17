@@ -59,13 +59,13 @@ export default async function AdminHostsPage({ params }: { params: Promise<{ loc
       </div>
 
       {block?.reason === 'no_db' ? (
-        <div className="border-sarat-black/8 rounded-card flex flex-col items-start gap-4 [border-width:0.5px] p-12">
+        <div className="border-sarat-black/12 rounded-card flex flex-col items-start gap-4 border p-12">
           <p className={eyebrowClassName}>{t('noDb.eyebrow')}</p>
           <h2 className="text-h2">{t('noDb.title')}</h2>
           <p className="text-sarat-black-600 max-w-xl text-base">{t('noDb.description')}</p>
         </div>
       ) : rows.length === 0 ? (
-        <div className="border-sarat-black/8 rounded-card flex flex-col items-start gap-4 [border-width:0.5px] p-12">
+        <div className="border-sarat-black/12 rounded-card flex flex-col items-start gap-4 border p-12">
           <p className={eyebrowClassName}>{t('hostsList.empty.eyebrow')}</p>
           <h2 className="text-h2">{t('hostsList.empty.title')}</h2>
           <p className="text-sarat-black-600 max-w-xl text-base">
@@ -73,7 +73,7 @@ export default async function AdminHostsPage({ params }: { params: Promise<{ loc
           </p>
         </div>
       ) : (
-        <ul className="border-sarat-black/8 rounded-card divide-hairline flex flex-col divide-[var(--color-sarat-black)]/8 [border-width:0.5px]">
+        <ul className="border-sarat-black/12 rounded-card divide-sarat-black/12 flex flex-col divide-y border">
           {rows.map((row) => (
             <li key={row.id}>
               <Link

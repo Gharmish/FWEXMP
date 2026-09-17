@@ -127,7 +127,7 @@ export default async function AdminIndexPage({
 
   const eyebrowClassName = cn('text-sarat-black-600 text-eyebrow');
   const sectionHeading = 'text-h2';
-  const card = 'border-sarat-black/8 rounded-card [border-width:0.5px] p-6';
+  const card = 'border-sarat-black/12 rounded-card border p-6';
   const newLabel = t('dashboard.kpi.new');
 
   // KpiTile trend from a Delta (up = green; used where "up = good").
@@ -176,7 +176,7 @@ export default async function AdminIndexPage({
           settingsLabel={t('dashboard.actions.settings')}
         />
       </div>
-      <div className="border-sarat-black/8 rounded-card flex flex-col gap-3 [border-width:0.5px] p-4">
+      <div className="border-sarat-black/12 rounded-card flex flex-col gap-3 border p-4">
         {picker}
         <p className="text-sarat-black-600 text-xs">
           {t('dashboard.filter.comparedTo', {

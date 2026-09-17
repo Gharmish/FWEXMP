@@ -157,7 +157,7 @@ export function GuestEditForm({ personKey, guest, copy }: GuestEditFormProps) {
                 {LANGS.map((value) => (
                   <label
                     key={value}
-                    className="border-sarat-black/15 rounded-input has-[:checked]:border-sarat-black has-[:checked]:bg-sarat-black flex min-h-11 flex-1 cursor-pointer items-center justify-center [border-width:0.5px] px-4 text-sm font-medium transition-colors duration-200 has-[:checked]:text-white"
+                    className="border-sarat-black/15 rounded-input has-[:checked]:border-sarat-black has-[:checked]:bg-sarat-black flex min-h-11 flex-1 cursor-pointer items-center justify-center border px-4 text-sm font-medium transition-colors duration-200 has-[:checked]:text-white"
                   >
                     <input
                       type="radio"
@@ -173,7 +173,7 @@ export function GuestEditForm({ personKey, guest, copy }: GuestEditFormProps) {
             </fieldset>
           </div>
 
-          <fieldset className="border-sarat-black/8 rounded-card flex flex-col gap-6 [border-width:0.5px] p-6">
+          <fieldset className="border-sarat-black/12 rounded-card flex flex-col gap-6 border p-6">
             <legend className="text-sarat-black-600 text-eyebrow px-2">{copy.billing}</legend>
             <Field
               label={copy.street1}

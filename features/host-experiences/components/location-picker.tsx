@@ -276,7 +276,7 @@ export function LocationPicker({
           ref={mapEl}
           role="application"
           aria-label={copy.previewTitle}
-          className="rounded-image border-sarat-black/8 bg-mist relative z-0 aspect-[16/9] w-full overflow-hidden [border-width:0.5px]"
+          className="rounded-image border-sarat-black/12 bg-mist relative z-0 aspect-[16/9] w-full overflow-hidden border"
         />
         <p
           className={cn(

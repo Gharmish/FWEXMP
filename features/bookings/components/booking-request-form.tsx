@@ -793,7 +793,7 @@ export function BookingRequestForm({
           <div
             role="group"
             aria-labelledby="booking-party-size-label"
-            className="border-sarat-black/8 flex flex-col gap-2 [border-top-width:0.5px] pt-4"
+            className="border-sarat-black/12 flex flex-col gap-2 border-t pt-4"
           >
             <span id="booking-party-size-label" className="text-sm font-medium">
               {copy.partySize}
@@ -802,7 +802,7 @@ export function BookingRequestForm({
                 keyboard. Functional updates so rapid taps each count (a
                 stale derived value dropped every second tap). */}
             <div className="flex items-center gap-2">
-              <div className="border-sarat-black/20 rounded-input flex h-11 flex-1 items-center justify-between [border-width:0.5px] px-1">
+              <div className="border-sarat-black/20 rounded-input flex h-11 flex-1 items-center justify-between border px-1">
                 <button
                   type="button"
                   aria-label={copy.decrease}
@@ -859,7 +859,7 @@ export function BookingRequestForm({
                     setPartySize(Math.min(maxGuests, Math.max(1, Number(digits))));
                   }}
                   onBlur={() => setPartyDraft(null)}
-                  className="border-sarat-black/20 rounded-input h-11 w-16 shrink-0 [border-width:0.5px] bg-white text-center text-base font-medium tabular-nums"
+                  className="border-sarat-black/20 rounded-input h-11 w-16 shrink-0 border bg-white text-center text-base font-medium tabular-nums"
                 />
               )}
             </div>
@@ -883,7 +883,7 @@ export function BookingRequestForm({
           </div>
 
           {/* 3 — Live total + breakdown. The amount pops on change. */}
-          <div className="border-sarat-black/8 flex flex-col gap-1 [border-top-width:0.5px] pt-4">
+          <div className="border-sarat-black/12 flex flex-col gap-1 border-t pt-4">
             <p className="text-sarat-black-600 flex items-baseline justify-between text-sm">
               <span dir="ltr">
                 <Price amount={priceSar} locale={locale} /> × {effectiveParty}
@@ -916,10 +916,10 @@ export function BookingRequestForm({
               we already know; the fields (prefilled) reappear on Edit or if
               any of them is rejected. Hidden inputs carry the known values
               while collapsed so the summary still posts a complete form. */}
-          <div className="border-sarat-black/8 flex flex-col gap-4 [border-top-width:0.5px] pt-4">
+          <div className="border-sarat-black/12 flex flex-col gap-4 border-t pt-4">
             {detailsCollapsed ? (
               <>
-                <div className="border-sarat-black/8 rounded-input flex items-center justify-between gap-4 [border-width:0.5px] px-4 py-3">
+                <div className="border-sarat-black/12 rounded-input flex items-center justify-between gap-4 border px-4 py-3">
                   <div className="flex min-w-0 flex-col gap-0.5 text-sm">
                     <span className="font-medium">{detailValue('name')}</span>
                     <span dir="ltr" className="text-sarat-black-600 truncate">
@@ -1048,7 +1048,7 @@ export function BookingRequestForm({
                 maxLength={500}
                 defaultValue={values.guestNote}
                 placeholder={copy.notePlaceholder}
-                className="rounded-input border-sarat-black/20 text-sarat-black placeholder:text-sarat-black-600 aria-invalid:border-al-qatt-red w-full [border-width:0.5px] bg-white px-4 py-3 text-base"
+                className="rounded-input border-sarat-black/20 text-sarat-black placeholder:text-sarat-black-600 aria-invalid:border-al-qatt-red w-full border bg-white px-4 py-3 text-base"
                 {...fieldProps('guestNote')}
               />
               <p id={hintId('guestNote')} className="text-sarat-black-600 text-sm">
@@ -1062,7 +1062,7 @@ export function BookingRequestForm({
           </div>
 
           {requireWomenOnly && (
-            <div className="border-sarat-black/8 flex flex-col gap-2 [border-top-width:0.5px] pt-4">
+            <div className="border-sarat-black/12 flex flex-col gap-2 border-t pt-4">
               <label className="flex cursor-pointer items-start gap-3">
                 <input
                   ref={womenOnlyRef}
@@ -1087,7 +1087,7 @@ export function BookingRequestForm({
           )}
 
           {requireMinAge && (
-            <div className="border-sarat-black/8 flex flex-col gap-2 [border-top-width:0.5px] pt-4">
+            <div className="border-sarat-black/12 flex flex-col gap-2 border-t pt-4">
               <label className="flex cursor-pointer items-start gap-3">
                 <input
                   ref={minAgeRef}
@@ -1114,7 +1114,7 @@ export function BookingRequestForm({
           {/* Terms/Privacy/Cancellation acceptance — required at the booking
               step, not only at checkout, so request-to-book guests are also
               covered (2026-08-02 legal audit). */}
-          <div className="border-sarat-black/8 flex flex-col gap-2 [border-top-width:0.5px] pt-4">
+          <div className="border-sarat-black/12 flex flex-col gap-2 border-t pt-4">
             <label className="flex cursor-pointer items-start gap-3">
               <input
                 ref={termsRef}
@@ -1175,7 +1175,7 @@ export function BookingRequestForm({
                 <Link
                   key={booking.reference}
                   href={`/book/confirmed/${booking.reference}?slug=${encodeURIComponent(booking.experienceSlug)}`}
-                  className="border-sarat-black/8 rounded-input hover:bg-sarat-black/5 flex items-center justify-between gap-3 [border-width:0.5px] px-4 py-3 transition-colors duration-200"
+                  className="border-sarat-black/12 rounded-input hover:bg-sarat-black/5 flex items-center justify-between gap-3 border px-4 py-3 transition-colors duration-200"
                 >
                   <span className="flex min-w-0 flex-col gap-0.5">
                     <span className="truncate text-sm font-medium">{booking.title}</span>
@@ -1215,7 +1215,7 @@ export function BookingRequestForm({
             animate={{ y: stickyBarVisible ? 0 : '110%' }}
             transition={reduce ? { duration: 0 } : SPRING}
             className={cn(
-              'border-sarat-black/8 fixed inset-x-0 bottom-0 z-40 [border-top-width:0.5px] bg-white/95 px-6 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] backdrop-blur lg:hidden',
+              'border-sarat-black/12 fixed inset-x-0 bottom-0 z-40 border-t bg-white/95 px-6 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] backdrop-blur lg:hidden',
               !stickyBarVisible && 'pointer-events-none',
             )}
           >

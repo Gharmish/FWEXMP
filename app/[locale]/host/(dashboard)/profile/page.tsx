@@ -115,7 +115,7 @@ export default async function HostProfileSettingsPage({
         {/* Public link — only verified hosts resolve on /hosts/[slug]
             (queries gate the public page to verified). */}
         {host.verified && (
-          <div className="border-sarat-black/8 mt-6 flex flex-col gap-1 [border-top-width:0.5px] pt-6">
+          <div className="border-sarat-black/12 mt-6 flex flex-col gap-1 border-t pt-6">
             <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
               <p className="text-sarat-black-600 text-sm">{t('identity.publicLink')}</p>
               <Link

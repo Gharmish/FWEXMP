@@ -253,12 +253,12 @@ function numText(value: number): string {
 }
 
 const TEXTAREA_CLASS = cn(
-  'rounded-input border-sarat-black/20 bg-white text-sarat-black w-full resize-y [border-width:0.5px] px-4 py-3 text-base',
+  'rounded-input border-sarat-black/20 bg-white text-sarat-black w-full resize-y border px-4 py-3 text-base',
   'placeholder:text-sarat-black-600 disabled:pointer-events-none disabled:opacity-50',
   'aria-invalid:border-al-qatt-red',
 );
 const SELECT_CLASS = cn(
-  'rounded-input border-sarat-black/20 bg-white text-sarat-black h-11 w-full [border-width:0.5px] px-3 text-base',
+  'rounded-input border-sarat-black/20 bg-white text-sarat-black h-11 w-full border px-3 text-base',
   'disabled:pointer-events-none disabled:opacity-50',
 );
 
@@ -474,7 +474,7 @@ export function ExperienceForm({
       {locked && (
         <p
           role="status"
-          className="border-saffron-gold/40 bg-saffron-gold/10 text-sarat-black rounded-card [border-width:0.5px] p-4 text-sm leading-relaxed"
+          className="border-saffron-gold/40 bg-saffron-gold/10 text-sarat-black rounded-card border p-4 text-sm leading-relaxed"
         >
           {experience.status === 'archived' ? copy.lockedArchived : copy.lockedReview}
         </p>
@@ -614,7 +614,7 @@ export function ExperienceForm({
         </fieldset>
 
         {/* ----- Logistics ----- */}
-        <fieldset className="border-sarat-black/8 grid gap-6 [border-top-width:0.5px] pt-12 sm:grid-cols-2">
+        <fieldset className="border-sarat-black/12 grid gap-6 border-t pt-12 sm:grid-cols-2">
           <legend className="sr-only">{copy.sectionPracticalities}</legend>
           <p aria-hidden className={cn(sectionClassName, 'sm:col-span-2')}>
             {copy.sectionPracticalities}
@@ -805,7 +805,7 @@ export function ExperienceForm({
         </fieldset>
 
         {/* ----- Place ----- */}
-        <fieldset className="border-sarat-black/8 grid gap-6 [border-top-width:0.5px] pt-12 sm:grid-cols-2">
+        <fieldset className="border-sarat-black/12 grid gap-6 border-t pt-12 sm:grid-cols-2">
           <legend className="sr-only">{copy.sectionPlace}</legend>
           <p aria-hidden className={cn(sectionClassName, 'sm:col-span-2')}>
             {copy.sectionPlace}
@@ -900,7 +900,7 @@ export function ExperienceForm({
         </fieldset>
 
         {/* ----- What's included ----- */}
-        <fieldset className="border-sarat-black/8 flex flex-col gap-6 [border-top-width:0.5px] pt-12">
+        <fieldset className="border-sarat-black/12 flex flex-col gap-6 border-t pt-12">
           <legend className="sr-only">{copy.sectionDetail}</legend>
           <p aria-hidden className={sectionClassName}>
             {copy.sectionDetail}
@@ -1009,7 +1009,7 @@ export function ExperienceForm({
         </fieldset>
 
         {/* ----- Availability ----- */}
-        <fieldset className="border-sarat-black/8 flex flex-col gap-3 [border-top-width:0.5px] pt-12">
+        <fieldset className="border-sarat-black/12 flex flex-col gap-3 border-t pt-12">
           <legend className="sr-only">{copy.sectionAvailability}</legend>
           <p aria-hidden className={cn(sectionClassName, 'mb-3')}>
             {copy.sectionAvailability}
@@ -1022,7 +1022,7 @@ export function ExperienceForm({
                 <label
                   key={idx}
                   className={cn(
-                    'rounded-button border-sarat-black/20 inline-flex min-h-11 cursor-pointer items-center gap-2 [border-width:0.5px] px-4 text-sm font-medium transition-colors duration-200',
+                    'rounded-button border-sarat-black/20 inline-flex min-h-11 cursor-pointer items-center gap-2 border px-4 text-sm font-medium transition-colors duration-200',
                     'text-sarat-black hover:border-sarat-black/40',
                     // Style from the live :checked state, not the initial
                     // value — a className branch on `defaultChecked` never
@@ -1069,7 +1069,7 @@ export function ExperienceForm({
           className={cn(
             'flex flex-wrap items-center gap-x-4 gap-y-2 transition-[box-shadow,background-color] duration-200',
             dirty &&
-              'border-sarat-black/8 rounded-card shadow-overlay sticky bottom-4 z-10 [border-width:0.5px] bg-white/95 p-4 backdrop-blur',
+              'border-sarat-black/12 rounded-card shadow-overlay sticky bottom-4 z-10 border bg-white/95 p-4 backdrop-blur',
           )}
         >
           <SubmitButton label={copy.submitEdit} pendingLabel={copy.submitEditPending} />

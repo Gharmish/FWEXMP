@@ -53,7 +53,7 @@ export function InfoPage({
       {sections.map((section) => (
         <section
           key={section.heading}
-          className="border-sarat-black/8 flex flex-col gap-3 [border-top-width:0.5px] pt-12"
+          className="border-sarat-black/12 flex flex-col gap-3 border-t pt-12"
         >
           <h2 className="text-h2">{section.heading}</h2>
           <div className="text-sarat-black-600 flex flex-col gap-3 text-base leading-relaxed">
@@ -67,7 +67,7 @@ export function InfoPage({
       {related && related.length > 0 && relatedLabel ? (
         <nav
           aria-label={relatedLabel}
-          className="border-sarat-black/8 flex flex-col gap-3 [border-top-width:0.5px] pt-12"
+          className="border-sarat-black/12 flex flex-col gap-3 border-t pt-12"
         >
           <p className={eyebrowClassName}>{relatedLabel}</p>
           <ul className="flex flex-wrap items-center gap-x-8 gap-y-1">

@@ -66,13 +66,13 @@ export default async function AdminHostApplicationsPage({
       </div>
 
       {block?.reason === 'no_db' ? (
-        <div className="border-sarat-black/8 rounded-card flex flex-col items-start gap-4 [border-width:0.5px] p-12">
+        <div className="border-sarat-black/12 rounded-card flex flex-col items-start gap-4 border p-12">
           <p className={eyebrowClassName}>{t('noDb.eyebrow')}</p>
           <h2 className="text-h2">{t('noDb.title')}</h2>
           <p className="text-sarat-black-600 max-w-xl text-base">{t('noDb.description')}</p>
         </div>
       ) : applications.length === 0 ? (
-        <div className="border-sarat-black/8 rounded-card flex flex-col items-start gap-4 [border-width:0.5px] p-12">
+        <div className="border-sarat-black/12 rounded-card flex flex-col items-start gap-4 border p-12">
           <p className={eyebrowClassName}>{t('hostApplicationsList.empty.eyebrow')}</p>
           <h2 className="text-h2">{t('hostApplicationsList.empty.title')}</h2>
           <p className="text-sarat-black-600 max-w-xl text-base">
@@ -80,7 +80,7 @@ export default async function AdminHostApplicationsPage({
           </p>
         </div>
       ) : (
-        <ul className="border-sarat-black/8 rounded-card divide-hairline flex flex-col divide-[var(--color-sarat-black)]/8 [border-width:0.5px]">
+        <ul className="border-sarat-black/12 rounded-card divide-sarat-black/12 flex flex-col divide-y border">
           {applications.map((application) => (
             <li key={application.id ?? application.userId}>
               <Link

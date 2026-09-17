@@ -274,7 +274,7 @@ export default async function HostProfilePage({
       {/* Their story — optional long-form prose (hosts.story_en/ar); the
           section exists only when the host has actually written one. */}
       {story && (
-        <div className="border-sarat-black/8 [border-bottom-width:0.5px]">
+        <div className="border-sarat-black/12 border-b">
           <div className="mx-auto w-full max-w-6xl px-6 py-12">
             <section className="flex flex-col gap-4">
               <h2 className="text-h2">{t('storyHeading', { name })}</h2>
@@ -296,7 +296,7 @@ export default async function HostProfilePage({
           </div>
 
           {experiences.length === 0 ? (
-            <div className="border-sarat-black/8 rounded-card [border-width:0.5px] p-12">
+            <div className="border-sarat-black/12 rounded-card border p-12">
               <p className="text-sarat-black-600 text-base">{t('noExperiences')}</p>
             </div>
           ) : (

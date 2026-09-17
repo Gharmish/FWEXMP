@@ -50,9 +50,9 @@ export function DateRangePicker({
 
   // 44px controls (h-11), matching the Button system + BRIEF.md touch targets.
   const pillBase =
-    'rounded-button inline-flex h-11 items-center px-4 text-sm font-medium [border-width:0.5px] transition-colors duration-200';
+    'rounded-button inline-flex h-11 items-center px-4 text-sm font-medium border transition-colors duration-200';
   const inputClass =
-    'rounded-input border-sarat-black/20 text-sarat-black h-11 [border-width:0.5px] bg-white px-4 text-sm';
+    'rounded-input border-sarat-black/20 text-sarat-black h-11 border bg-white px-4 text-sm';
 
   return (
     <div

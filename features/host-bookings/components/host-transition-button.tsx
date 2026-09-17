@@ -80,7 +80,7 @@ function Submit({
                 <select
                   value={reason}
                   onChange={(event) => onReason(event.target.value as HostCancelReason | '')}
-                  className="rounded-input border-sarat-black/20 text-sarat-black h-11 w-full [border-width:0.5px] bg-white px-3 text-base font-normal"
+                  className="rounded-input border-sarat-black/20 text-sarat-black h-11 w-full border bg-white px-3 text-base font-normal"
                 >
                   <option value="">{copy.reason.placeholder}</option>
                   {HOST_CANCEL_REASONS.map((key) => (
@@ -98,7 +98,7 @@ function Submit({
                   maxLength={300}
                   rows={2}
                   placeholder={copy.reason.textPlaceholder}
-                  className="rounded-input border-sarat-black/20 text-sarat-black placeholder:text-sarat-black-600 w-full [border-width:0.5px] bg-white px-3 py-2 text-base font-normal"
+                  className="rounded-input border-sarat-black/20 text-sarat-black placeholder:text-sarat-black-600 w-full border bg-white px-3 py-2 text-base font-normal"
                 />
               </label>
             </div>

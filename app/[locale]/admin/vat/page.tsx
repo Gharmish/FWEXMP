@@ -58,7 +58,7 @@ export default async function AdminVatPage({
   const report = block ? null : await getVatReport(range);
 
   const eyebrowClassName = cn('text-sarat-black-600 text-eyebrow');
-  const card = 'border-sarat-black/8 rounded-card flex flex-col gap-2 [border-width:0.5px] p-6';
+  const card = 'border-sarat-black/12 rounded-card flex flex-col gap-2 border p-6';
   const labelClass = 'text-sarat-black-600 text-sm';
 
   const presetLabels = Object.fromEntries(
@@ -195,7 +195,7 @@ export default async function AdminVatPage({
 
       {/* Integrity guard: while VAT is on, every settled payment must be stamped. */}
       {report.vatEnabled && report.unstampedPaidCount > 0 && (
-        <div className="border-al-qatt-red/40 bg-error-surface text-error rounded-card flex items-start gap-3 [border-width:0.5px] p-4 text-sm">
+        <div className="border-al-qatt-red/40 bg-error-surface text-error rounded-card flex items-start gap-3 border p-4 text-sm">
           <TriangleAlert className="mt-0.5 size-4 shrink-0" aria-hidden />
           <p>{t('vat.unstampedWarning', { count: report.unstampedPaidCount })}</p>
         </div>
@@ -269,7 +269,7 @@ export default async function AdminVatPage({
         {report.rows.length === 0 ? (
           <p className={labelClass}>{t('vat.emptyDetail')}</p>
         ) : (
-          <div className="border-sarat-black/8 rounded-card overflow-x-auto [border-width:0.5px]">
+          <div className="border-sarat-black/12 rounded-card overflow-x-auto border">
             <table className="w-full min-w-160 text-sm">
               <thead>
                 <tr className="bg-mist text-sarat-black-600 text-start">
@@ -283,10 +283,7 @@ export default async function AdminVatPage({
               </thead>
               <tbody>
                 {report.rows.map((row) => (
-                  <tr
-                    key={row.referenceCode}
-                    className="border-sarat-black/8 [border-top-width:0.5px]"
-                  >
+                  <tr key={row.referenceCode} className="border-sarat-black/12 border-t">
                     <td className="p-3 font-medium" dir="ltr">
                       {row.referenceCode}
                     </td>
@@ -331,7 +328,7 @@ export default async function AdminVatPage({
               label={t('vat.downloadCreditCsv')}
             />
           </div>
-          <div className="border-sarat-black/8 rounded-card overflow-x-auto [border-width:0.5px]">
+          <div className="border-sarat-black/12 rounded-card overflow-x-auto border">
             <table className="w-full min-w-160 text-sm">
               <thead>
                 <tr className="bg-mist text-sarat-black-600 text-start">
@@ -344,10 +341,7 @@ export default async function AdminVatPage({
               </thead>
               <tbody>
                 {report.creditRows.map((row) => (
-                  <tr
-                    key={row.referenceCode}
-                    className="border-sarat-black/8 [border-top-width:0.5px]"
-                  >
+                  <tr key={row.referenceCode} className="border-sarat-black/12 border-t">
                     <td className="p-3 font-medium" dir="ltr">
                       CN-{row.referenceCode}
                     </td>

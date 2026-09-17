@@ -29,7 +29,7 @@ export function ReviewCard({ review, locale }: ReviewCardProps) {
   });
 
   return (
-    <article className="border-sarat-black/8 rounded-card flex flex-col gap-3 [border-width:0.5px] p-6">
+    <article className="border-sarat-black/12 rounded-card flex flex-col gap-3 border p-6">
       <header className="flex flex-wrap items-baseline justify-between gap-2">
         <div className="flex flex-col gap-1">
           <p className="text-base font-medium">{review.guestName}</p>
@@ -58,7 +58,7 @@ export function ReviewCard({ review, locale }: ReviewCardProps) {
       {body && <p className="text-sarat-black text-base leading-relaxed">{body}</p>}
 
       {review.hostReply && (
-        <div className="border-sarat-black/8 mt-2 flex flex-col gap-1 [border-inline-start-width:0.5px] ps-4">
+        <div className="border-sarat-black/12 mt-2 flex flex-col gap-1 border-s ps-4">
           <p className={cn('text-sarat-black-600 text-eyebrow')}>{t('hostReply')}</p>
           <p className="text-sarat-black-600 text-sm leading-relaxed">{review.hostReply}</p>
         </div>

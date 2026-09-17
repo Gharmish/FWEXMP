@@ -39,11 +39,17 @@ const PRIORITY_CLASS: Record<AdminTicketRow['priority'], string> = {
   normal: 'bg-info-surface text-info',
 };
 
-export function TicketCard({ ticket, locale, copy, showThreadLink = true, children }: TicketCardProps) {
+export function TicketCard({
+  ticket,
+  locale,
+  copy,
+  showThreadLink = true,
+  children,
+}: TicketCardProps) {
   return (
     <li
       className={cn(
-        'border-sarat-black/8 rounded-card flex flex-col gap-3 [border-width:0.5px] p-6',
+        'border-sarat-black/12 rounded-card flex flex-col gap-3 border p-6',
         ticket.overdue && 'border-al-qatt-red/40',
       )}
     >
@@ -52,7 +58,9 @@ export function TicketCard({ ticket, locale, copy, showThreadLink = true, childr
           {ticket.reference}
         </span>
         <Badge className={PRIORITY_CLASS[ticket.priority]}>{copy.priority[ticket.priority]}</Badge>
-        <Badge className="bg-mist-deep text-sarat-black-600">{copy.category(ticket.category)}</Badge>
+        <Badge className="bg-mist-deep text-sarat-black-600">
+          {copy.category(ticket.category)}
+        </Badge>
         <Badge
           className={
             ticket.status === 'resolved'

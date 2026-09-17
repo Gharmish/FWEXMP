@@ -231,7 +231,7 @@ export default async function EditExperiencePage({
           <p
             role="status"
             className={cn(
-              'rounded-card mt-6 flex items-start gap-3 [border-width:0.5px] p-4 text-sm leading-relaxed',
+              'rounded-card mt-6 flex items-start gap-3 border p-4 text-sm leading-relaxed',
               saved === 'review'
                 ? 'border-saffron-gold/40 bg-saffron-gold/10 text-sarat-black'
                 : 'border-juniper-green/30 bg-success-surface text-sarat-black',
@@ -257,7 +257,7 @@ export default async function EditExperiencePage({
         {hostSuspended && (
           <section
             role="status"
-            className="border-al-qatt-red/40 bg-al-qatt-red/5 text-sarat-black rounded-card mt-6 [border-width:0.5px] p-4 text-sm leading-relaxed"
+            className="border-al-qatt-red/40 bg-al-qatt-red/5 text-sarat-black rounded-card mt-6 border p-4 text-sm leading-relaxed"
           >
             {t('suspendedHostBanner')}
           </section>
@@ -265,7 +265,7 @@ export default async function EditExperiencePage({
 
         {latestDecision &&
           (latestDecision.event === 'changes_requested' || latestDecision.event === 'rejected') && (
-            <section className="border-rijal-clay/30 bg-rijal-clay/5 rounded-card mt-8 flex flex-col gap-2 [border-width:0.5px] p-6">
+            <section className="border-rijal-clay/30 bg-rijal-clay/5 rounded-card mt-8 flex flex-col gap-2 border p-6">
               <p className={eyebrowClassName}>
                 {latestDecision.event === 'changes_requested'
                   ? t('reviewerFeedback.changesRequestedEyebrow')
@@ -350,12 +350,12 @@ export default async function EditExperiencePage({
         </div>
 
         {/* Listing details — the form the host came here to fill. */}
-        <div className="border-sarat-black/8 mt-12 [border-top-width:0.5px] pt-12">
+        <div className="border-sarat-black/12 mt-12 border-t pt-12">
           <h2 className={eyebrowClassName}>{t('edit.formHeading')}</h2>
           {isPublic && (
             <p
               role="status"
-              className="border-saffron-gold/40 bg-saffron-gold/10 text-sarat-black rounded-card mt-4 [border-width:0.5px] p-4 text-sm leading-relaxed"
+              className="border-saffron-gold/40 bg-saffron-gold/10 text-sarat-black rounded-card mt-4 border p-4 text-sm leading-relaxed"
             >
               {t('edit.liveEditWarning')}
             </p>
@@ -375,7 +375,7 @@ export default async function EditExperiencePage({
           </div>
         </div>
 
-        <div className="border-sarat-black/8 mt-12 [border-top-width:0.5px] pt-12">
+        <div className="border-sarat-black/12 mt-12 border-t pt-12">
           <PhotoUpload
             experienceId={experience.id}
             locale={loc}
@@ -417,7 +417,7 @@ export default async function EditExperiencePage({
 
         {/* Gallery — the public detail mosaic wants 5+ photos; hosts were
             hero-only until this section. Same lock rules as the hero. */}
-        <div className="border-sarat-black/8 mt-12 [border-top-width:0.5px] pt-12">
+        <div className="border-sarat-black/12 mt-12 border-t pt-12">
           <GalleryManager
             experienceId={experience.id}
             images={experience.images}
@@ -452,7 +452,7 @@ export default async function EditExperiencePage({
         </div>
 
         {/* Timeline (moments) — editable everywhere except mid-review. */}
-        <div className="border-sarat-black/8 mt-12 [border-top-width:0.5px] pt-12">
+        <div className="border-sarat-black/12 mt-12 border-t pt-12">
           <h2 className={eyebrowClassName}>{t('moments.heading')}</h2>
           <p className="text-sarat-black-600 mt-2 max-w-2xl text-sm leading-relaxed">
             {t('moments.intro')}
@@ -460,7 +460,7 @@ export default async function EditExperiencePage({
           {momentsLocked ? (
             <p
               role="status"
-              className="border-saffron-gold/40 bg-saffron-gold/10 text-sarat-black rounded-card mt-4 [border-width:0.5px] p-4 text-sm leading-relaxed"
+              className="border-saffron-gold/40 bg-saffron-gold/10 text-sarat-black rounded-card mt-4 border p-4 text-sm leading-relaxed"
             >
               {t('moments.lockedLive')}
             </p>
@@ -491,7 +491,7 @@ export default async function EditExperiencePage({
           )}
         </div>
 
-        <div className="border-sarat-black/8 mt-12 [border-top-width:0.5px] pt-12">
+        <div className="border-sarat-black/12 mt-12 border-t pt-12">
           <ScheduleCalendarSection
             experienceId={experience.id}
             locale={loc}
@@ -506,7 +506,7 @@ export default async function EditExperiencePage({
             here. The live per-guest figure also sits under the price
             input; this block is the fuller explanation. Bookings snapshot
             the rate, so a later change never restates existing earnings. */}
-        <div className="border-sarat-black/8 mt-12 [border-top-width:0.5px] pt-12">
+        <div className="border-sarat-black/12 mt-12 border-t pt-12">
           <h2 className={eyebrowClassName}>{t('commission.heading')}</h2>
           <p className="text-sarat-black-600 mt-2 max-w-2xl text-sm leading-relaxed">
             {t('commission.intro')}

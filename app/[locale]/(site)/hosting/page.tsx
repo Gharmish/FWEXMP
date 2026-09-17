@@ -137,7 +137,7 @@ export default async function HostingPage({
 
         {/* Who can host */}
         <section className="mx-auto w-full max-w-3xl px-6 py-16">
-          <div className="border-sarat-black/8 flex flex-col gap-6 [border-top-width:0.5px] pt-12">
+          <div className="border-sarat-black/12 flex flex-col gap-6 border-t pt-12">
             <h2 className="text-h2-responsive">{t('audience.heading')}</h2>
             <p className="text-sarat-black-600 max-w-2xl text-base leading-relaxed">
               {t('audience.intro')}
@@ -146,7 +146,7 @@ export default async function HostingPage({
               {audienceKeys.map((key) => (
                 <div
                   key={key}
-                  className="border-sarat-black/8 rounded-card flex flex-col gap-2 [border-width:0.5px] p-6"
+                  className="border-sarat-black/12 rounded-card flex flex-col gap-2 border p-6"
                 >
                   <h3 className="text-base font-medium">{t(`audience.${key}.title`)}</h3>
                   <p className="text-sarat-black-600 text-sm leading-relaxed">
@@ -160,7 +160,7 @@ export default async function HostingPage({
 
         {/* How the partnership works */}
         <section className="mx-auto w-full max-w-3xl px-6 py-16">
-          <div className="border-sarat-black/8 flex flex-col gap-6 [border-top-width:0.5px] pt-12">
+          <div className="border-sarat-black/12 flex flex-col gap-6 border-t pt-12">
             <h2 className="text-h2-responsive">{t('partnership.heading')}</h2>
             <p className="text-sarat-black-600 max-w-2xl text-base leading-relaxed">
               {t('partnership.intro')}
@@ -180,13 +180,13 @@ export default async function HostingPage({
 
         {/* How applying works — numbered stages */}
         <section className="mx-auto w-full max-w-3xl px-6 py-16">
-          <div className="border-sarat-black/8 flex flex-col gap-6 [border-top-width:0.5px] pt-12">
+          <div className="border-sarat-black/12 flex flex-col gap-6 border-t pt-12">
             <h2 className="text-h2-responsive">{t('stages.heading')}</h2>
             <ol className="flex list-none flex-col gap-6">
               {stageKeys.map((key, i) => (
                 <li key={key} className="flex items-start gap-4">
                   <span
-                    className="border-sarat-black/8 text-sarat-black flex size-8 shrink-0 items-center justify-center rounded-full [border-width:0.5px] text-sm font-medium"
+                    className="border-sarat-black/12 text-sarat-black flex size-8 shrink-0 items-center justify-center rounded-full border text-sm font-medium"
                     aria-hidden
                   >
                     {i + 1}
@@ -205,17 +205,14 @@ export default async function HostingPage({
 
         {/* What you'll need — documents */}
         <section className="mx-auto w-full max-w-3xl px-6 py-16">
-          <div className="border-sarat-black/8 flex flex-col gap-6 [border-top-width:0.5px] pt-12">
+          <div className="border-sarat-black/12 flex flex-col gap-6 border-t pt-12">
             <h2 className="text-h2-responsive">{t('documents.heading')}</h2>
             <p className="text-sarat-black-600 max-w-2xl text-base leading-relaxed">
               {t('documents.intro')}
             </p>
             <ul className="mt-2 flex flex-col gap-4">
               {documentKeys.map((key) => (
-                <li
-                  key={key}
-                  className="border-sarat-black/8 flex flex-col gap-1 [border-bottom-width:0.5px] pb-4"
-                >
+                <li key={key} className="border-sarat-black/12 flex flex-col gap-1 border-b pb-4">
                   <span className="text-base font-medium">{t(`documents.${key}.title`)}</span>
                   <span className="text-sarat-black-600 text-sm leading-relaxed">
                     {t(`documents.${key}.body`)}
@@ -231,7 +228,7 @@ export default async function HostingPage({
 
         {/* Payouts & liability */}
         <section className="mx-auto w-full max-w-3xl px-6 py-16">
-          <div className="border-sarat-black/8 flex flex-col gap-6 [border-top-width:0.5px] pt-12">
+          <div className="border-sarat-black/12 flex flex-col gap-6 border-t pt-12">
             <h2 className="text-h2-responsive">{t('payout.heading')}</h2>
             <div className="text-sarat-black-600 flex flex-col gap-3 text-base leading-relaxed">
               <p>{t('payout.revenueShare')}</p>
@@ -243,14 +240,11 @@ export default async function HostingPage({
 
         {/* FAQ */}
         <section className="mx-auto w-full max-w-3xl px-6 py-16">
-          <div className="border-sarat-black/8 flex flex-col gap-6 [border-top-width:0.5px] pt-12">
+          <div className="border-sarat-black/12 flex flex-col gap-6 border-t pt-12">
             <h2 className="text-h2-responsive">{t('faq.heading')}</h2>
-            <div className="border-sarat-black/8 flex flex-col [border-top-width:0.5px]">
+            <div className="border-sarat-black/12 flex flex-col border-t">
               {HOSTING_FAQ_KEYS.map((key) => (
-                <details
-                  key={key}
-                  className="border-sarat-black/8 group [border-bottom-width:0.5px]"
-                >
+                <details key={key} className="border-sarat-black/12 group border-b">
                   <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-4 py-6 text-lg font-medium [&::-webkit-details-marker]:hidden">
                     {tFaq(`items.${key}.q`, faqValues)}
                     <ChevronDown

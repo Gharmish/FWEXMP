@@ -69,10 +69,10 @@ export function Sheet({
               render={
                 <motion.div
                   className={cn(
-                    'border-sarat-black/8 fixed z-[60] bg-white shadow-overlay',
+                    'border-sarat-black/12 shadow-overlay fixed z-[60] bg-white',
                     side === 'bottom'
-                      ? 'rounded-t-modal inset-x-0 bottom-0 max-h-[85dvh] overflow-y-auto [border-top-width:0.5px]'
-                      : 'inset-y-0 start-0 w-80 max-w-[85vw] overflow-y-auto [border-inline-end-width:0.5px]',
+                      ? 'rounded-t-modal inset-x-0 bottom-0 max-h-[85dvh] overflow-y-auto border-t'
+                      : 'inset-y-0 start-0 w-80 max-w-[85vw] overflow-y-auto border-e',
                     className,
                   )}
                   initial={reduce ? false : hidden}

@@ -170,7 +170,7 @@ export function ReviewForm({
           onChange={(e) => setTextLength(e.target.value.length)}
           placeholder={copy.commentPlaceholder}
           aria-describedby={charCountId}
-          className="rounded-input border-sarat-black/12 placeholder:text-sarat-black-600 focus:border-sarat-black/30 w-full resize-y [border-width:0.5px] bg-transparent p-3 text-base"
+          className="rounded-input border-sarat-black/12 placeholder:text-sarat-black-600 focus:border-sarat-black/30 w-full resize-y border bg-transparent p-3 text-base"
         />
         {/* M16: character counter, quiet until the guest is close to the
             limit. */}

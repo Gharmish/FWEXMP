@@ -76,9 +76,9 @@ function FaqList({
   values: Record<string, string | number>;
 }) {
   return (
-    <div className="border-sarat-black/8 flex flex-col [border-top-width:0.5px]">
+    <div className="border-sarat-black/12 flex flex-col border-t">
       {keys.map((key) => (
-        <details key={key} className="border-sarat-black/8 group [border-bottom-width:0.5px]">
+        <details key={key} className="border-sarat-black/12 group border-b">
           <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-4 py-6 text-lg font-medium [&::-webkit-details-marker]:hidden">
             {t(`items.${key}.q`, values)}
             <ChevronDown

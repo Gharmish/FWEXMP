@@ -59,7 +59,7 @@ export default async function HostPayoutStatementPage({
 
   const t = await getTranslations('hostEarnings.statement');
   const labelClass = 'text-sarat-black-600 text-sm';
-  const hairline = 'border-sarat-black/8 [border-top-width:0.5px]';
+  const hairline = 'border-sarat-black/12 border-t';
   const hasVat = statement.rows.some((row) => row.vatSar > 0);
 
   const headerFacts: Array<{ label: string; value: string }> = [
@@ -102,7 +102,7 @@ export default async function HostPayoutStatementPage({
       </dl>
 
       <section className={cn('mt-8 pt-6', hairline)}>
-        <div className="border-sarat-black/8 rounded-card overflow-x-auto [border-width:0.5px]">
+        <div className="border-sarat-black/12 rounded-card overflow-x-auto border">
           <table className="w-full min-w-160 text-sm">
             <thead>
               <tr className="bg-mist text-sarat-black-600">
@@ -116,10 +116,7 @@ export default async function HostPayoutStatementPage({
             </thead>
             <tbody>
               {statement.rows.map((row) => (
-                <tr
-                  key={row.referenceCode}
-                  className="border-sarat-black/8 [border-top-width:0.5px]"
-                >
+                <tr key={row.referenceCode} className="border-sarat-black/12 border-t">
                   <td className="p-3">
                     <span className="block font-medium" dir="ltr">
                       {row.referenceCode}
@@ -149,7 +146,7 @@ export default async function HostPayoutStatementPage({
           </table>
         </div>
         {statement.deductions.length > 0 && (
-          <div className="border-al-qatt-red/30 rounded-card mt-4 flex flex-col gap-2 [border-width:0.5px] p-4">
+          <div className="border-al-qatt-red/30 rounded-card mt-4 flex flex-col gap-2 border p-4">
             <p className="text-sm font-medium">{t('deductionsTitle')}</p>
             {statement.deductions.map((deduction) => (
               <div

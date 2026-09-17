@@ -486,7 +486,7 @@ export function HostApplyForm({
             maxLength={1200}
             defaultValue={values.bioEn ?? initial?.bioEn}
             className={cn(
-              'rounded-input border-sarat-black/20 text-sarat-black w-full resize-y [border-width:0.5px] bg-white px-4 py-3 text-base',
+              'rounded-input border-sarat-black/20 text-sarat-black w-full resize-y border bg-white px-4 py-3 text-base',
               'placeholder:text-sarat-black-600 disabled:pointer-events-none disabled:opacity-50',
             )}
             {...fieldProps('bioEn')}
@@ -511,7 +511,7 @@ export function HostApplyForm({
             dir="rtl"
             lang="ar"
             className={cn(
-              'rounded-input border-sarat-black/20 text-sarat-black w-full resize-y [border-width:0.5px] bg-white px-4 py-3 text-base',
+              'rounded-input border-sarat-black/20 text-sarat-black w-full resize-y border bg-white px-4 py-3 text-base',
               'placeholder:text-sarat-black-600 disabled:pointer-events-none disabled:opacity-50',
             )}
             {...fieldProps('bioAr')}
@@ -532,7 +532,7 @@ export function HostApplyForm({
                   <label
                     key={value}
                     className={cn(
-                      'rounded-button border-sarat-black/20 inline-flex min-h-11 cursor-pointer items-center gap-2 [border-width:0.5px] px-4 text-sm font-medium transition-colors duration-200',
+                      'rounded-button border-sarat-black/20 inline-flex min-h-11 cursor-pointer items-center gap-2 border px-4 text-sm font-medium transition-colors duration-200',
                       checked
                         ? 'bg-sarat-black border-sarat-black text-white'
                         : 'text-sarat-black hover:border-sarat-black/40',
@@ -563,7 +563,7 @@ export function HostApplyForm({
       </fieldset>
 
       {/* ----- Identity ----- */}
-      <fieldset className="border-sarat-black/8 flex flex-col gap-6 [border-top-width:0.5px] pt-12">
+      <fieldset className="border-sarat-black/12 flex flex-col gap-6 border-t pt-12">
         <legend className={sectionLabel}>{copy.sectionIdentity}</legend>
 
         <div className="flex flex-col gap-2">
@@ -586,7 +586,7 @@ export function HostApplyForm({
                 <label
                   key={value}
                   className={cn(
-                    'rounded-button border-sarat-black/20 inline-flex min-h-11 cursor-pointer items-center gap-2 [border-width:0.5px] px-4 text-sm font-medium transition-colors duration-200',
+                    'rounded-button border-sarat-black/20 inline-flex min-h-11 cursor-pointer items-center gap-2 border px-4 text-sm font-medium transition-colors duration-200',
                     checked
                       ? 'bg-sarat-black border-sarat-black text-white'
                       : 'text-sarat-black hover:border-sarat-black/40',
@@ -698,7 +698,7 @@ export function HostApplyForm({
       </fieldset>
 
       {/* ----- Payout account ----- */}
-      <fieldset className="border-sarat-black/8 flex flex-col gap-6 [border-top-width:0.5px] pt-12">
+      <fieldset className="border-sarat-black/12 flex flex-col gap-6 border-t pt-12">
         <legend className={sectionLabel}>{copy.sectionPayout}</legend>
 
         <div className="flex flex-col gap-2">
@@ -761,7 +761,7 @@ export function HostApplyForm({
 
       {/* ----- Documents ----- */}
       {documentsEnabled && (
-        <fieldset className="border-sarat-black/8 flex flex-col gap-6 [border-top-width:0.5px] pt-12">
+        <fieldset className="border-sarat-black/12 flex flex-col gap-6 border-t pt-12">
           <legend className={sectionLabel}>{copy.sectionDocuments}</legend>
           <p className="text-sarat-black-600 text-sm">{copy.documentsIntro}</p>
           {documentsTooLarge && (
@@ -811,7 +811,7 @@ export function HostApplyForm({
                   aria-describedby={errorCode ? errId : undefined}
                   onChange={(e) => onFileChange(type, e.target.files?.[0] ?? null)}
                   className={cn(
-                    'rounded-input border-sarat-black/20 text-sarat-black w-full [border-width:0.5px] bg-white px-4 py-3 text-sm',
+                    'rounded-input border-sarat-black/20 text-sarat-black w-full border bg-white px-4 py-3 text-sm',
                     'file:me-3 file:cursor-pointer file:border-0 file:bg-transparent file:p-0 file:text-sm file:font-medium',
                   )}
                 />
@@ -826,7 +826,7 @@ export function HostApplyForm({
       )}
 
       {/* ----- Contact ----- */}
-      <fieldset className="border-sarat-black/8 flex flex-col gap-6 [border-top-width:0.5px] pt-12">
+      <fieldset className="border-sarat-black/12 flex flex-col gap-6 border-t pt-12">
         <legend className={sectionLabel}>{copy.sectionContact}</legend>
 
         <div className="flex flex-col gap-2">
@@ -862,7 +862,7 @@ export function HostApplyForm({
       </fieldset>
 
       {/* ----- Consent ----- */}
-      <div className="border-sarat-black/8 flex flex-col gap-3 [border-top-width:0.5px] pt-12">
+      <div className="border-sarat-black/12 flex flex-col gap-3 border-t pt-12">
         <label className="flex cursor-pointer items-start gap-3">
           <input
             type="checkbox"

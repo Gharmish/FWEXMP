@@ -80,8 +80,7 @@ export default async function AdminUserDetailPage({
   };
 
   const sectionHeading = 'text-h2';
-  const factGrid =
-    'border-sarat-black/8 rounded-card grid gap-6 [border-width:0.5px] p-6 sm:grid-cols-2';
+  const factGrid = 'border-sarat-black/12 rounded-card grid gap-6 border p-6 sm:grid-cols-2';
 
   const fact = (label: string, value: ReactNode, dir?: 'ltr') => (
     <div className="flex flex-col gap-1">
@@ -219,7 +218,7 @@ export default async function AdminUserDetailPage({
               {wallet.entries.length === 0 ? (
                 <p className="text-sarat-black-600 text-sm">{t('users.wallet.empty')}</p>
               ) : (
-                <ol className="border-sarat-black/8 rounded-card divide-hairline flex flex-col divide-[var(--color-sarat-black)]/8 [border-width:0.5px]">
+                <ol className="border-sarat-black/12 rounded-card divide-sarat-black/12 flex flex-col divide-y border">
                   {wallet.entries.map((e) => (
                     <li
                       key={e.id}
@@ -271,7 +270,7 @@ export default async function AdminUserDetailPage({
             {user.guest.bookings.length === 0 ? (
               <p className="text-sarat-black-600 text-sm">{t('users.detail.noBookings')}</p>
             ) : (
-              <ul className="border-sarat-black/8 rounded-card divide-hairline flex flex-col divide-[var(--color-sarat-black)]/8 [border-width:0.5px]">
+              <ul className="border-sarat-black/12 rounded-card divide-sarat-black/12 flex flex-col divide-y border">
                 {user.guest.bookings.map((b) => (
                   <li key={b.id} className="flex flex-wrap items-center justify-between gap-4 p-6">
                     <div className="flex min-w-0 flex-col gap-1">
@@ -307,7 +306,7 @@ export default async function AdminUserDetailPage({
             {user.guest.reviews.length === 0 ? (
               <p className="text-sarat-black-600 text-sm">{t('users.detail.noReviews')}</p>
             ) : (
-              <ul className="border-sarat-black/8 rounded-card divide-hairline flex flex-col divide-[var(--color-sarat-black)]/8 [border-width:0.5px]">
+              <ul className="border-sarat-black/12 rounded-card divide-sarat-black/12 flex flex-col divide-y border">
                 {user.guest.reviews.map((r) => (
                   <li key={r.id} className="flex flex-col gap-1 p-6">
                     <div className="flex flex-wrap items-center gap-3">
@@ -339,7 +338,7 @@ export default async function AdminUserDetailPage({
             {user.guest.disputes.length === 0 ? (
               <p className="text-sarat-black-600 text-sm">{t('users.detail.noDisputes')}</p>
             ) : (
-              <ul className="border-sarat-black/8 rounded-card divide-hairline flex flex-col divide-[var(--color-sarat-black)]/8 [border-width:0.5px]">
+              <ul className="border-sarat-black/12 rounded-card divide-sarat-black/12 flex flex-col divide-y border">
                 {user.guest.disputes.map((d) => (
                   <li key={d.id} className="flex flex-col gap-1 p-6">
                     <div className="flex flex-wrap items-center gap-3">
@@ -370,7 +369,7 @@ export default async function AdminUserDetailPage({
 
       {/* ---------------- HOST FACET ---------------- */}
       {user.host && (
-        <section className="border-sarat-black/8 flex flex-col gap-6 [border-top-width:0.5px] pt-12">
+        <section className="border-sarat-black/12 flex flex-col gap-6 border-t pt-12">
           <div className="flex flex-wrap items-center gap-3">
             <h2 className={sectionHeading}>{t('users.detail.hostHeading')}</h2>
             <Badge className={HOST_STATUS_TONE[user.host.verificationStatus]}>
@@ -461,7 +460,7 @@ export default async function AdminUserDetailPage({
             {user.host.experiences.length === 0 ? (
               <p className="text-sarat-black-600 text-sm">{t('users.detail.noExperiences')}</p>
             ) : (
-              <ul className="border-sarat-black/8 rounded-card divide-hairline flex flex-col divide-[var(--color-sarat-black)]/8 [border-width:0.5px]">
+              <ul className="border-sarat-black/12 rounded-card divide-sarat-black/12 flex flex-col divide-y border">
                 {user.host.experiences.map((e) => (
                   <li key={e.id} className="flex items-center justify-between gap-4 p-4">
                     <Link
@@ -483,7 +482,7 @@ export default async function AdminUserDetailPage({
           {user.host.payouts.length > 0 && (
             <div className="flex flex-col gap-3">
               <h3 className={eyebrow}>{t('users.detail.payoutsHeading')}</h3>
-              <ul className="border-sarat-black/8 rounded-card divide-hairline flex flex-col divide-[var(--color-sarat-black)]/8 [border-width:0.5px]">
+              <ul className="border-sarat-black/12 rounded-card divide-sarat-black/12 flex flex-col divide-y border">
                 {user.host.payouts.map((p) => (
                   <li key={p.id} className="flex items-center justify-between gap-4 p-4">
                     <span className="text-sarat-black-600 text-sm">
@@ -520,7 +519,7 @@ export default async function AdminUserDetailPage({
 
           {/* Status history */}
           {user.host.statusEvents.length > 0 && (
-            <div className="border-sarat-black/8 rounded-card flex flex-col gap-4 [border-width:0.5px] p-6">
+            <div className="border-sarat-black/12 rounded-card flex flex-col gap-4 border p-6">
               <h3 className={eyebrow}>{t('users.detail.statusHistoryHeading')}</h3>
               <ol className="flex flex-col gap-4">
                 {user.host.statusEvents.map((e) => (
@@ -554,7 +553,7 @@ export default async function AdminUserDetailPage({
 
       {/* ---------------- APPLICATION FACET ---------------- */}
       {user.application && (
-        <section className="border-sarat-black/8 flex flex-col gap-6 [border-top-width:0.5px] pt-12">
+        <section className="border-sarat-black/12 flex flex-col gap-6 border-t pt-12">
           <div className="flex flex-wrap items-center gap-3">
             <h2 className={sectionHeading}>{t('users.detail.applicationHeading')}</h2>
             <Badge
@@ -623,12 +622,12 @@ export default async function AdminUserDetailPage({
       )}
 
       {/* ---------------- ADMIN EDIT AUDIT ---------------- */}
-      <section className="border-sarat-black/8 flex flex-col gap-4 [border-top-width:0.5px] pt-12">
+      <section className="border-sarat-black/12 flex flex-col gap-4 border-t pt-12">
         <h2 className={sectionHeading}>{t('users.detail.auditHeading')}</h2>
         {user.profileEdits.length === 0 ? (
           <p className="text-sarat-black-600 text-sm">{t('users.detail.auditEmpty')}</p>
         ) : (
-          <ol className="border-sarat-black/8 rounded-card divide-hairline flex flex-col divide-[var(--color-sarat-black)]/8 [border-width:0.5px]">
+          <ol className="border-sarat-black/12 rounded-card divide-sarat-black/12 flex flex-col divide-y border">
             {user.profileEdits.map((e) => (
               <li key={e.id} className="flex flex-wrap items-center justify-between gap-3 p-4">
                 <div className="flex min-w-0 flex-col gap-0.5">

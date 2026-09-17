@@ -62,7 +62,7 @@ export async function BookingsCalendar({
   while (cells.length % 7 !== 0) cells.push(null);
 
   return (
-    <section className="border-sarat-black/8 rounded-card flex flex-col gap-4 [border-width:0.5px] p-4 sm:p-6">
+    <section className="border-sarat-black/12 rounded-card flex flex-col gap-4 border p-4 sm:p-6">
       <div className="flex items-center justify-between gap-3">
         <Link
           href={hrefFor({ month: shiftMonth(month, -1) })}

@@ -65,7 +65,7 @@ export function AvailabilityCalendar({
   const href = (y: number, m: number) => `${basePath}?ym=${formatYearMonth(y, m)}`;
 
   return (
-    <section className="border-sarat-black/8 rounded-card flex flex-col gap-6 [border-width:0.5px] p-6">
+    <section className="border-sarat-black/12 rounded-card flex flex-col gap-6 border p-6">
       <div className="flex flex-col gap-1">
         <h2 className="text-h3">{copy.heading}</h2>
         <p className="text-sarat-black-600 text-sm leading-relaxed">{copy.intro}</p>
@@ -75,7 +75,7 @@ export function AvailabilityCalendar({
         <Link
           href={href(prev.year, prev.month)}
           aria-label={copy.prev}
-          className="border-sarat-black/20 inline-flex size-11 items-center justify-center rounded-full [border-width:0.5px] transition-opacity hover:opacity-60"
+          className="border-sarat-black/20 inline-flex size-11 items-center justify-center rounded-full border transition-opacity hover:opacity-60"
         >
           <ChevronLeft className="size-4 rtl:rotate-180" aria-hidden />
         </Link>
@@ -83,7 +83,7 @@ export function AvailabilityCalendar({
         <Link
           href={href(next.year, next.month)}
           aria-label={copy.next}
-          className="border-sarat-black/20 inline-flex size-11 items-center justify-center rounded-full [border-width:0.5px] transition-opacity hover:opacity-60"
+          className="border-sarat-black/20 inline-flex size-11 items-center justify-center rounded-full border transition-opacity hover:opacity-60"
         >
           <ChevronRight className="size-4 rtl:rotate-180" aria-hidden />
         </Link>
@@ -126,7 +126,7 @@ export function AvailabilityCalendar({
           );
 
           const cellClass = cn(
-            'rounded-input flex aspect-square flex-col items-center justify-center gap-1 [border-width:0.5px] border-transparent',
+            'rounded-input flex aspect-square flex-col items-center justify-center gap-1 border border-transparent',
             tone,
           );
 

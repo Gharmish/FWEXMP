@@ -166,7 +166,7 @@ export default async function HomePage({
       <JsonLd data={jsonLd} />
       {/* Admin announcement band — plain text, dismiss-free by design. */}
       {announcement && (
-        <p className="border-habala-mist-200 bg-info-surface text-info [border-bottom-width:0.5px] px-6 py-3 text-center text-sm leading-relaxed">
+        <p className="border-habala-mist-200 bg-info-surface text-info border-b px-6 py-3 text-center text-sm leading-relaxed">
           {announcement}
         </p>
       )}
@@ -228,7 +228,7 @@ export default async function HomePage({
             // (the catalog focuses the input on that param) — the pill
             // promises a search box, not the top of a listing page.
             href="/experiences?focus=search"
-            className="rounded-button border-sarat-black/12 hover:border-sarat-black/30 text-sarat-black-600 flex min-h-12 w-full max-w-xl items-center gap-3 [border-width:0.5px] px-6 py-3 transition-colors duration-200"
+            className="rounded-button border-sarat-black/12 hover:border-sarat-black/30 text-sarat-black-600 flex min-h-12 w-full max-w-xl items-center gap-3 border px-6 py-3 transition-colors duration-200"
           >
             <Search className="size-5 shrink-0" strokeWidth={1.5} aria-hidden />
             <span className="text-base">{t('searchPrompt')}</span>
@@ -433,7 +433,7 @@ function CatalogSectionsFallback() {
 /** Section-shaped placeholder for the hosts row — no pop-in on stream. */
 function HostsRowFallback() {
   return (
-    <section className="border-sarat-black/8 [border-top-width:0.5px]" aria-busy="true">
+    <section className="border-sarat-black/12 border-t" aria-busy="true">
       <div className="mx-auto w-full max-w-6xl px-6 py-20">
         <div className="mb-8 flex flex-col gap-2">
           <Skeleton className="h-8 w-72 max-w-full" />
@@ -443,7 +443,7 @@ function HostsRowFallback() {
           {Array.from({ length: 2 }).map((_, i) => (
             <div
               key={i}
-              className="rounded-card border-sarat-black/8 flex items-start gap-4 [border-width:0.5px] p-6"
+              className="rounded-card border-sarat-black/12 flex items-start gap-4 border p-6"
             >
               <Skeleton className="size-12 shrink-0 rounded-full" />
               <div className="flex flex-1 flex-col gap-2">
@@ -471,7 +471,7 @@ function SocialProofFallback() {
           {Array.from({ length: 3 }).map((_, i) => (
             <div
               key={i}
-              className="border-sarat-black/8 rounded-card flex flex-col gap-3 [border-width:0.5px] bg-white p-6"
+              className="border-sarat-black/12 rounded-card flex flex-col gap-3 border bg-white p-6"
             >
               <Skeleton className="h-4 w-24" />
               <Skeleton className="h-4 w-full" />
@@ -495,7 +495,7 @@ async function HostsRow({ locale }: { locale: Locale }) {
   const visibleHosts = hosts.slice(0, HOME_HOSTS_LIMIT);
 
   return (
-    <section className="border-sarat-black/8 [border-top-width:0.5px]">
+    <section className="border-sarat-black/12 border-t">
       <div className="mx-auto w-full max-w-6xl px-6 py-20">
         <FadeIn className="mb-8 flex flex-wrap items-end justify-between gap-4">
           <div className="flex flex-col gap-2">
@@ -521,7 +521,7 @@ async function HostsRow({ locale }: { locale: Locale }) {
                   <StaggerItem className="h-full">
                     <Link
                       href={`/hosts/${host.slug}`}
-                      className="rounded-card border-sarat-black/8 group flex h-full items-start gap-4 [border-width:0.5px] p-6 transition-transform duration-200 hover:-translate-y-0.5 focus-visible:-translate-y-0.5"
+                      className="rounded-card border-sarat-black/12 group flex h-full items-start gap-4 border p-6 transition-transform duration-200 hover:-translate-y-0.5 focus-visible:-translate-y-0.5"
                     >
                       <Avatar name={name} src={host.photoUrl ?? undefined} size="lg" />
                       <div className="flex flex-1 flex-col gap-2">

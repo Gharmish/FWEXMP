@@ -21,7 +21,7 @@ interface LeaderboardProps {
 
 /**
  * Ranked top-N list (top experiences / top hosts) — rank, name, booking
- * count, GMV. One hairline card, rows divided by 0.5px rules (BRIEF §3).
+ * count, GMV. One hairline card, rows divided by 1px rules (BRIEF §3).
  */
 export function Leaderboard({ rows, locale, emptyLabel, bookingsLabel }: LeaderboardProps) {
   if (rows.length === 0) {
@@ -29,7 +29,7 @@ export function Leaderboard({ rows, locale, emptyLabel, bookingsLabel }: Leaderb
   }
 
   return (
-    <ol className="border-sarat-black/8 rounded-card divide-hairline flex flex-col divide-[var(--color-sarat-black)]/8 [border-width:0.5px]">
+    <ol className="border-sarat-black/12 rounded-card divide-sarat-black/12 flex flex-col divide-y border">
       {rows.map((row, i) => (
         <li key={row.id} className="flex items-center justify-between gap-4 p-4">
           <div className="flex min-w-0 items-center gap-3">

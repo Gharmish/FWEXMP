@@ -97,7 +97,7 @@ export default async function HostReviewsPage({
         {unreplied > 0 && (
           <p
             role="status"
-            className="border-saffron-gold/50 bg-saffron-gold/10 text-sarat-black rounded-card [border-width:0.5px] p-4 text-sm leading-relaxed"
+            className="border-saffron-gold/50 bg-saffron-gold/10 text-sarat-black rounded-card border p-4 text-sm leading-relaxed"
           >
             {t('awaitingReply', { count: unreplied })}
           </p>
@@ -115,7 +115,7 @@ export default async function HostReviewsPage({
         <>
           {/* Average + 1–5 histogram — the same aggregate block guests
               see on the public detail page, scoped to this host. */}
-          <div className="border-sarat-black/8 rounded-card [border-width:0.5px] p-6">
+          <div className="border-sarat-black/12 rounded-card border p-6">
             <RatingSummary aggregate={aggregate} locale={loc} />
           </div>
           <ul className="flex flex-col gap-6">
@@ -129,7 +129,7 @@ export default async function HostReviewsPage({
                 <li
                   key={row.id}
                   className={cn(
-                    'border-sarat-black/8 rounded-card flex flex-col gap-3 [border-width:0.5px] p-6',
+                    'border-sarat-black/12 rounded-card flex flex-col gap-3 border p-6',
                     row.hostReply === null && 'border-saffron-gold/50',
                   )}
                 >
@@ -158,7 +158,7 @@ export default async function HostReviewsPage({
                     <p className="text-sarat-black max-w-2xl text-base leading-relaxed">{text}</p>
                   )}
                   {row.hostReply ? (
-                    <div className="border-sarat-black/8 bg-sarat-black/[0.02] rounded-input flex flex-col gap-1 [border-width:0.5px] p-4">
+                    <div className="border-sarat-black/12 bg-sarat-black/[0.02] rounded-input flex flex-col gap-1 border p-4">
                       <p className={eyebrowClassName}>{t('yourReply')}</p>
                       <p className="text-sarat-black text-base leading-relaxed whitespace-pre-line">
                         {row.hostReply}

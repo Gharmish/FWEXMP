@@ -99,7 +99,7 @@ export function WishlistButton({ slug, isSaved, surface = 'light' }: WishlistBut
 
   const buttonClassName = cn(
     'inline-flex size-11 items-center justify-center rounded-full transition-transform duration-200 hover:-translate-y-px active:translate-y-0',
-    'border-sarat-black/10 [border-width:0.5px]',
+    'border-sarat-black/12 border',
     optimisticSaved ? savedBg : baseBg,
     isPending && 'opacity-80',
   );

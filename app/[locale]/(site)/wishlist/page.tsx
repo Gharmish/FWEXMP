@@ -64,7 +64,7 @@ export default async function WishlistPage({ params }: { params: Promise<{ local
         </div>
       </section>
 
-      <section className="border-sarat-black/8 [border-top-width:0.5px]">
+      <section className="border-sarat-black/12 border-t">
         <div className="mx-auto w-full max-w-6xl px-6 py-16 sm:py-20">
           {experiences.length === 0 ? (
             <EmptyState

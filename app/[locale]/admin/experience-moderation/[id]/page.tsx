@@ -81,7 +81,7 @@ export default async function AdminExperienceModerationDetailPage({
           <ArrowLeft className="size-4 shrink-0 rtl:rotate-180" aria-hidden />
           {t('experienceModerationList.title')}
         </Link>
-        <div className="border-sarat-black/8 rounded-card flex flex-col items-start gap-4 [border-width:0.5px] p-12">
+        <div className="border-sarat-black/12 rounded-card flex flex-col items-start gap-4 border p-12">
           <p className={eyebrowClassName}>{t('noDb.eyebrow')}</p>
           <h2 className="text-h2">{t('noDb.title')}</h2>
           <p className="text-sarat-black-600 max-w-xl text-base">{t('noDb.description')}</p>
@@ -125,7 +125,7 @@ export default async function AdminExperienceModerationDetailPage({
 
         <Link
           href={`/admin/experiences/${detail.id}/edit`}
-          className="border-sarat-black/20 rounded-button text-sarat-black inline-flex min-h-11 items-center gap-2 self-start [border-width:0.5px] px-4 text-sm font-medium transition-transform duration-200 hover:-translate-y-px"
+          className="border-sarat-black/20 rounded-button text-sarat-black inline-flex min-h-11 items-center gap-2 self-start border px-4 text-sm font-medium transition-transform duration-200 hover:-translate-y-px"
         >
           <Pencil className="size-4 shrink-0" aria-hidden />
           {t('experienceModerationDetail.editDetails')}
@@ -163,7 +163,7 @@ export default async function AdminExperienceModerationDetailPage({
       )}
 
       {/* Hero photo — admin can replace it on any listing */}
-      <section className="border-sarat-black/8 rounded-card [border-width:0.5px] p-6">
+      <section className="border-sarat-black/12 rounded-card border p-6">
         <PhotoUpload
           experienceId={detail.id}
           locale={loc}
@@ -207,7 +207,7 @@ export default async function AdminExperienceModerationDetailPage({
       </section>
 
       {/* Quick facts */}
-      <dl className="border-sarat-black/8 rounded-card grid gap-6 [border-width:0.5px] p-6 sm:grid-cols-2">
+      <dl className="border-sarat-black/12 rounded-card grid gap-6 border p-6 sm:grid-cols-2">
         <div className="flex flex-col gap-1">
           <dt className={eyebrowClassName}>{t('experienceModerationDetail.price')}</dt>
           <dd className="text-base font-medium">
@@ -252,7 +252,7 @@ export default async function AdminExperienceModerationDetailPage({
       </section>
 
       {/* Arabic copy — editable inline; the year-1 audience reads this */}
-      <section className="border-sarat-black/8 rounded-card [border-width:0.5px] p-6">
+      <section className="border-sarat-black/12 rounded-card border p-6">
         <ArabicEditor
           experienceId={detail.id}
           locale={loc}
@@ -322,7 +322,7 @@ export default async function AdminExperienceModerationDetailPage({
 
       {/* History */}
       {detail.events.length > 0 && (
-        <section className="border-sarat-black/8 rounded-card flex flex-col gap-4 [border-width:0.5px] p-6">
+        <section className="border-sarat-black/12 rounded-card flex flex-col gap-4 border p-6">
           <h2 className={eyebrowClassName}>{t('experienceModerationDetail.history')}</h2>
           <ol className="flex flex-col gap-4">
             {detail.events.map((event) => (

@@ -28,7 +28,7 @@ export async function HostReviews({ slug, locale }: HostReviewsProps) {
   const eyebrowClassName = cn('text-sarat-black-600 text-eyebrow');
 
   return (
-    <section className="border-sarat-black/8 mt-12 flex flex-col gap-8 [border-top-width:0.5px] pt-12">
+    <section className="border-sarat-black/12 mt-12 flex flex-col gap-8 border-t pt-12">
       <div className="flex flex-col gap-3">
         <p className={eyebrowClassName}>{t('eyebrow')}</p>
         <h2 className="text-h2">{t('title')}</h2>
@@ -40,7 +40,7 @@ export async function HostReviews({ slug, locale }: HostReviewsProps) {
           return (
             <li
               key={review.id}
-              className="border-sarat-black/8 rounded-card flex flex-col gap-3 [border-width:0.5px] p-6"
+              className="border-sarat-black/12 rounded-card flex flex-col gap-3 border p-6"
             >
               <StarRating
                 rating={review.rating}

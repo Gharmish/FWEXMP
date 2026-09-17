@@ -63,7 +63,7 @@ export default async function AdminActivityPage({
     return (
       <div className="flex flex-col gap-12">
         {backLink}
-        <div className="border-sarat-black/8 rounded-card flex flex-col items-start gap-4 [border-width:0.5px] p-12">
+        <div className="border-sarat-black/12 rounded-card flex flex-col items-start gap-4 border p-12">
           <p className={eyebrowClassName}>{t('noDb.eyebrow')}</p>
           <h2 className="text-h2">{t('noDb.title')}</h2>
           <p className="text-sarat-black-600 max-w-xl text-base">{t('noDb.description')}</p>
@@ -88,7 +88,7 @@ export default async function AdminActivityPage({
       {items.length === 0 ? (
         <p className="text-sarat-black-600 text-base">{t('activityLog.empty')}</p>
       ) : (
-        <ol className="border-sarat-black/8 rounded-card divide-hairline flex flex-col divide-[var(--color-sarat-black)]/8 [border-width:0.5px]">
+        <ol className="border-sarat-black/12 rounded-card divide-sarat-black/12 flex flex-col divide-y border">
           {items.map((item) => (
             <li key={`${item.kind}-${item.id}`} className="flex flex-col gap-2 p-6">
               <div className="flex flex-wrap items-center gap-3">

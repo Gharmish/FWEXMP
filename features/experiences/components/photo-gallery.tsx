@@ -193,7 +193,7 @@ export function PhotoGallery({
   // The count pill / "view all" affordance. Always offered when there's more
   // than one photo, so the lightbox is discoverable on every viewport.
   const countPill = total > 1 && (
-    <span className="text-sarat-black border-sarat-black/10 pointer-events-none absolute end-4 bottom-4 z-10 inline-flex items-center gap-2 rounded-full [border-width:0.5px] bg-white/90 px-4 py-2 text-sm font-medium transition-transform duration-200 group-hover:-translate-y-px">
+    <span className="text-sarat-black border-sarat-black/12 pointer-events-none absolute end-4 bottom-4 z-10 inline-flex items-center gap-2 rounded-full border bg-white/90 px-4 py-2 text-sm font-medium transition-transform duration-200 group-hover:-translate-y-px">
       <Images className="size-4 shrink-0" aria-hidden />
       {formatInteger(total, locale)} {copy.count}
     </span>

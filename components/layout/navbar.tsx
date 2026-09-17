@@ -11,7 +11,7 @@ import { LanguageSwitcher } from '@/components/layout/language-switcher';
 
 /**
  * Sticky, blurred top nav. Restraint-first (BRIEF §3): no shadow, a
- * single 0.5px bottom hairline, brand tokens only. Logical spacing so
+ * single 1px bottom hairline, brand tokens only. Logical spacing so
  * it mirrors cleanly in RTL. Links are intentionally minimal — no dead
  * links until the routes exist.
  */

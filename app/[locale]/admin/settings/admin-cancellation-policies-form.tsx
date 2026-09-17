@@ -120,7 +120,7 @@ export function AdminCancellationPoliciesForm({
       {TIERS.map((tier) => (
         <fieldset
           key={tier}
-          className="border-sarat-black/8 rounded-card flex flex-col gap-4 [border-width:0.5px] p-6"
+          className="border-sarat-black/12 rounded-card flex flex-col gap-4 border p-6"
         >
           <legend className="px-1 text-sm font-medium">{copy.tierNames[tier]}</legend>
           <p className="text-sarat-black-600 text-sm">{copy.tierDescriptions[tier]}</p>

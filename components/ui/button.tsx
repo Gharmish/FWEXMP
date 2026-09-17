@@ -17,7 +17,7 @@ const buttonVariants = cva(
     variants: {
       variant: {
         primary: 'bg-sarat-black text-white',
-        secondary: 'border-sarat-black/20 bg-transparent text-sarat-black [border-width:0.5px]',
+        secondary: 'border-sarat-black/20 bg-transparent text-sarat-black border',
         premium: 'bg-saffron-gold text-sarat-black',
       },
       size: {

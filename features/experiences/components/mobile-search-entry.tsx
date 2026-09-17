@@ -97,7 +97,7 @@ export function MobileSearchEntry({ locale, categories }: MobileSearchEntryProps
           aria-label={t('filtersButton')}
           aria-haspopup="dialog"
           aria-expanded={sheetOpen}
-          className="border-sarat-black/20 text-sarat-black hover:border-sarat-black/40 inline-flex h-11 shrink-0 items-center gap-2 rounded-full [border-width:0.5px] ps-4 pe-4 text-sm font-medium transition-colors duration-200"
+          className="border-sarat-black/20 text-sarat-black hover:border-sarat-black/40 inline-flex h-11 shrink-0 items-center gap-2 rounded-full border ps-4 pe-4 text-sm font-medium transition-colors duration-200"
         >
           <SlidersHorizontal className="size-4" aria-hidden />
           {advancedCount > 0 && (
@@ -118,7 +118,7 @@ export function MobileSearchEntry({ locale, categories }: MobileSearchEntryProps
       {/* Sticky from here down — same treatment as the desktop rail's
           tier-1 bar, so the primary discovery axis stays reachable while
           scrolling the Featured section and the main grid. */}
-      <div className="border-sarat-black/8 sticky top-16 z-30 -mx-6 [border-bottom-width:0.5px] bg-white/90 px-6 py-3 backdrop-blur-md">
+      <div className="border-sarat-black/12 sticky top-16 z-30 -mx-6 border-b bg-white/90 px-6 py-3 backdrop-blur-md">
         <CategoryStrip
           locale={locale}
           categories={categories}

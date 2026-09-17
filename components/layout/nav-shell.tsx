@@ -18,7 +18,7 @@ export function NavShell({ children }: { children: ReactNode }) {
   useMotionValueEvent(scrollY, 'change', (y) => setScrolled(y > 8));
 
   return (
-    <header className="border-sarat-black/8 sticky top-0 z-50 [border-bottom-width:0.5px] bg-white/70 backdrop-blur-md print:hidden">
+    <header className="border-sarat-black/12 sticky top-0 z-50 border-b bg-white/70 backdrop-blur-md print:hidden">
       <motion.span
         aria-hidden
         className="absolute inset-0 bg-white"
@@ -28,7 +28,7 @@ export function NavShell({ children }: { children: ReactNode }) {
       />
       <motion.span
         aria-hidden
-        className="bg-sarat-black/15 absolute inset-x-0 bottom-0 h-[0.5px]"
+        className="bg-sarat-black/15 absolute inset-x-0 bottom-0 h-px"
         initial={false}
         animate={{ opacity: scrolled ? 1 : 0 }}
         transition={reduce ? { duration: 0 } : SPRING}

@@ -76,7 +76,7 @@ export default async function AdminSupportPage({
     <li key={row.id}>
       <Link
         href={`/admin/support/${row.id}`}
-        className="border-sarat-black/8 rounded-card hover:bg-mist flex flex-col gap-2 [border-width:0.5px] p-6 transition-colors duration-200"
+        className="border-sarat-black/12 rounded-card hover:bg-mist flex flex-col gap-2 border p-6 transition-colors duration-200"
       >
         <div className="flex flex-wrap items-center gap-3">
           <span className="text-sarat-black text-base font-medium">
@@ -139,7 +139,7 @@ export default async function AdminSupportPage({
       </div>
 
       {rows === null ? (
-        <div className="border-sarat-black/8 rounded-card flex flex-col items-start gap-4 [border-width:0.5px] p-12">
+        <div className="border-sarat-black/12 rounded-card flex flex-col items-start gap-4 border p-12">
           <p className={eyebrowClassName}>{t('noDb.eyebrow')}</p>
           <h2 className="text-h2">{t('noDb.title')}</h2>
           <p className="text-sarat-black-600 max-w-xl text-base">{t('noDb.description')}</p>

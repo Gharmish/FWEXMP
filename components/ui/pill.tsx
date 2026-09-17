@@ -7,7 +7,7 @@ import type { Category } from '@/lib/colors';
  * Badge is a static status label, Pill is an interactive toggle (search
  * filters, category facets). Renders a real <button> with `aria-pressed`.
  *
- * Unselected pills are a neutral 0.5px hairline. Selected pills fill: the
+ * Unselected pills are a neutral 1px hairline. Selected pills fill: the
  * neutral fill for plain filters, or the immutable category tint
  * (BRIEF §3 category→color map) when a `category` is given. Category
  * classes are enumerated statically so Tailwind can see them — never
@@ -31,7 +31,7 @@ const pillVariants = cva(
       selected: {
         true: '',
         false:
-          'border-sarat-black/20 bg-transparent text-sarat-black [border-width:0.5px] hover:border-sarat-black/40',
+          'border-sarat-black/20 bg-transparent text-sarat-black border hover:border-sarat-black/40',
       },
     },
     compoundVariants: [

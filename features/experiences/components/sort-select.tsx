@@ -59,7 +59,7 @@ export function SortSelect() {
       <Select.Trigger
         aria-label={t('label')}
         className={cn(
-          'rounded-input border-sarat-black/20 text-sarat-black inline-flex h-11 cursor-pointer items-center gap-2 [border-width:0.5px] bg-white ps-4 pe-3 text-sm select-none',
+          'rounded-input border-sarat-black/20 text-sarat-black inline-flex h-11 cursor-pointer items-center gap-2 border bg-white ps-4 pe-3 text-sm select-none',
           isPending && 'opacity-70 transition-opacity',
         )}
       >
@@ -86,7 +86,7 @@ export function SortSelect() {
               <Select.Popup
                 render={
                   <motion.div
-                    className="rounded-input border-sarat-black/8 min-w-[--anchor-width] [border-width:0.5px] bg-white py-1 shadow-overlay"
+                    className="rounded-input border-sarat-black/12 shadow-overlay min-w-[--anchor-width] border bg-white py-1"
                     initial={reduce ? false : { opacity: 0, scale: 0.97, y: -4 }}
                     animate={{ opacity: 1, scale: 1, y: 0 }}
                     exit={reduce ? undefined : { opacity: 0, scale: 0.98 }}

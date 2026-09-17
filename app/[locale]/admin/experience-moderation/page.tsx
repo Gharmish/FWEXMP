@@ -114,7 +114,7 @@ export default async function AdminExperienceModerationPage({
                   'rounded-button min-h-11 px-4 py-2 text-sm font-medium transition-colors duration-200',
                   active
                     ? 'bg-sarat-black text-white'
-                    : 'border-sarat-black/20 text-sarat-black [border-width:0.5px] hover:-translate-y-px',
+                    : 'border-sarat-black/20 text-sarat-black border hover:-translate-y-px',
                 )}
               >
                 {filterLabel(f)}
@@ -125,13 +125,13 @@ export default async function AdminExperienceModerationPage({
       )}
 
       {block?.reason === 'no_db' ? (
-        <div className="border-sarat-black/8 rounded-card flex flex-col items-start gap-4 [border-width:0.5px] p-12">
+        <div className="border-sarat-black/12 rounded-card flex flex-col items-start gap-4 border p-12">
           <p className={eyebrowClassName}>{t('noDb.eyebrow')}</p>
           <h2 className="text-h2">{t('noDb.title')}</h2>
           <p className="text-sarat-black-600 max-w-xl text-base">{t('noDb.description')}</p>
         </div>
       ) : queue.length === 0 ? (
-        <div className="border-sarat-black/8 rounded-card flex flex-col items-start gap-4 [border-width:0.5px] p-12">
+        <div className="border-sarat-black/12 rounded-card flex flex-col items-start gap-4 border p-12">
           <p className={eyebrowClassName}>{t('experienceModerationList.empty.eyebrow')}</p>
           <h2 className="text-h2">{t('experienceModerationList.empty.title')}</h2>
           <p className="text-sarat-black-600 max-w-xl text-base">
@@ -139,7 +139,7 @@ export default async function AdminExperienceModerationPage({
           </p>
         </div>
       ) : (
-        <ul className="border-sarat-black/8 rounded-card divide-hairline flex flex-col divide-[var(--color-sarat-black)]/8 [border-width:0.5px]">
+        <ul className="border-sarat-black/12 rounded-card divide-sarat-black/12 flex flex-col divide-y border">
           {queue.map((row) => (
             <li key={row.id}>
               <Link

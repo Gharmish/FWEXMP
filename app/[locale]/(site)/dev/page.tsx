@@ -238,7 +238,7 @@ function Section({ title, children }: { title: string; children: React.ReactNode
   return (
     <section
       id={sectionId(title)}
-      className="border-sarat-black/8 flex scroll-mt-12 flex-col gap-6 [border-top-width:0.5px] py-12"
+      className="border-sarat-black/12 flex scroll-mt-12 flex-col gap-6 border-t py-12"
     >
       <h2 className="text-h2-lg">
         <a
@@ -272,10 +272,7 @@ export default async function StyleGuidePage({ params }: { params: Promise<{ loc
         <p className="text-sarat-black-600 text-base">
           Living reference for tokens and primitives. Locale: {locale}.
         </p>
-        <nav
-          aria-label="Sections"
-          className="border-sarat-black/8 rounded-card mt-6 [border-width:0.5px] p-6"
-        >
+        <nav aria-label="Sections" className="border-sarat-black/12 rounded-card mt-6 border p-6">
           <p className="text-sarat-black-600 text-eyebrow mb-3">Jump to</p>
           <ul className="flex flex-wrap gap-x-4 gap-y-2 text-sm">
             {TOC_SECTIONS.map((title) => (
@@ -307,7 +304,7 @@ export default async function StyleGuidePage({ params }: { params: Promise<{ loc
                 <div className="grid grid-cols-4 gap-2 sm:grid-cols-8">
                   <div className="flex flex-col gap-1">
                     <div
-                      className="rounded-image border-sarat-black/8 h-16 [border-width:0.5px]"
+                      className="rounded-image border-sarat-black/12 h-16 border"
                       style={{ backgroundColor: entry.base }}
                     />
                     <span className="text-sarat-black-600 text-[11px]">base</span>
@@ -315,7 +312,7 @@ export default async function StyleGuidePage({ params }: { params: Promise<{ loc
                   {RAMP_STOPS.map((stop) => (
                     <div key={stop} className="flex flex-col gap-1">
                       <div
-                        className="rounded-image border-sarat-black/8 h-16 [border-width:0.5px]"
+                        className="rounded-image border-sarat-black/12 h-16 border"
                         style={{ backgroundColor: entry.ramp[stop] }}
                       />
                       <span className="text-sarat-black-600 text-[11px]">{stop}</span>
@@ -347,7 +344,7 @@ export default async function StyleGuidePage({ params }: { params: Promise<{ loc
           {TYPE_SCALE.map((t) => (
             <div
               key={t.role}
-              className="border-sarat-black/8 grid grid-cols-1 gap-2 [border-bottom-width:0.5px] pb-6 sm:grid-cols-[120px_1fr_1fr]"
+              className="border-sarat-black/12 grid grid-cols-1 gap-2 border-b pb-6 sm:grid-cols-[120px_1fr_1fr]"
             >
               <span className="text-sarat-black-600 text-eyebrow">{t.role}</span>
               <span className={`font-display ${t.cls}`}>{t.en}</span>
@@ -385,7 +382,7 @@ export default async function StyleGuidePage({ params }: { params: Promise<{ loc
           <Card className="p-6">
             <h3 className="text-h2">Default card</h3>
             <p className="text-sarat-black-600 mt-2 text-base">
-              Fog White surface, 0.5px hairline, no shadow.
+              Fog White surface, 1px hairline, no shadow.
             </p>
           </Card>
           <Card variant="dark" className="p-6">
@@ -541,7 +538,7 @@ export default async function StyleGuidePage({ params }: { params: Promise<{ loc
         <div className="grid gap-6 sm:grid-cols-2">
           <div className="flex flex-col gap-3">
             <span className="text-sarat-black-600 text-eyebrow">Light surface</span>
-            <div className="border-sarat-black/8 rounded-card flex items-center gap-4 [border-width:0.5px] bg-white p-6">
+            <div className="border-sarat-black/12 rounded-card flex items-center gap-4 border bg-white p-6">
               <WishlistButton slug="dev-light-unsaved" isSaved={false} surface="light" />
               <WishlistButton slug="dev-light-saved" isSaved surface="light" />
             </div>

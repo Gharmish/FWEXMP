@@ -132,7 +132,7 @@ export function GalleryManager({
     : serverError;
 
   return (
-    <section className="border-sarat-black/8 rounded-card flex flex-col gap-6 [border-width:0.5px] p-6">
+    <section className="border-sarat-black/12 rounded-card flex flex-col gap-6 border p-6">
       <div className="flex flex-col gap-1">
         <h2 className="text-h3">{copy.heading}</h2>
         <p className="text-sarat-black-600 text-sm leading-relaxed">{copy.description}</p>
@@ -164,7 +164,7 @@ export function GalleryManager({
         <label
           htmlFor={inputId}
           className={cn(
-            'border-sarat-black/20 text-sarat-black rounded-button inline-flex min-h-11 w-fit cursor-pointer items-center gap-2 [border-width:0.5px] px-4 text-sm font-medium transition-transform duration-200 hover:-translate-y-px',
+            'border-sarat-black/20 text-sarat-black rounded-button inline-flex min-h-11 w-fit cursor-pointer items-center gap-2 border px-4 text-sm font-medium transition-transform duration-200 hover:-translate-y-px',
           )}
         >
           <ImageUp className="size-4" aria-hidden />

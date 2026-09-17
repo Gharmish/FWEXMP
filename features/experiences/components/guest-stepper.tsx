@@ -40,7 +40,7 @@ export function GuestStepper({ value, onChange, min = 1, max = 50 }: GuestSteppe
         onClick={decrement}
         disabled={atFloor}
         aria-label={t('groupDecrease')}
-        className="border-sarat-black/20 text-sarat-black hover:border-sarat-black/40 inline-flex size-11 items-center justify-center rounded-full [border-width:0.5px] transition-colors duration-200 disabled:pointer-events-none disabled:opacity-40"
+        className="border-sarat-black/20 text-sarat-black hover:border-sarat-black/40 inline-flex size-11 items-center justify-center rounded-full border transition-colors duration-200 disabled:pointer-events-none disabled:opacity-40"
       >
         <Minus className="size-4" aria-hidden />
       </button>
@@ -58,7 +58,7 @@ export function GuestStepper({ value, onChange, min = 1, max = 50 }: GuestSteppe
         onClick={increment}
         disabled={atCeiling}
         aria-label={t('groupIncrease')}
-        className="border-sarat-black/20 text-sarat-black hover:border-sarat-black/40 inline-flex size-11 items-center justify-center rounded-full [border-width:0.5px] transition-colors duration-200 disabled:pointer-events-none disabled:opacity-40"
+        className="border-sarat-black/20 text-sarat-black hover:border-sarat-black/40 inline-flex size-11 items-center justify-center rounded-full border transition-colors duration-200 disabled:pointer-events-none disabled:opacity-40"
       >
         <Plus className="size-4" aria-hidden />
       </button>

@@ -58,10 +58,7 @@ export default async function AdminDisputesPage({
   };
 
   const renderRow = (row: NonNullable<typeof rows>[number]) => (
-    <li
-      key={row.id}
-      className="border-sarat-black/8 rounded-card flex flex-col gap-3 [border-width:0.5px] p-6"
-    >
+    <li key={row.id} className="border-sarat-black/12 rounded-card flex flex-col gap-3 border p-6">
       <div className="flex flex-wrap items-center gap-3">
         <Link
           href={`/experiences/${row.experienceSlug}`}
@@ -132,7 +129,7 @@ export default async function AdminDisputesPage({
             </p>
           )}
           {row.adminNotes && (
-            <div className="border-sarat-black/8 bg-sarat-black/[0.02] rounded-input flex flex-col gap-1 [border-width:0.5px] p-4">
+            <div className="border-sarat-black/12 bg-sarat-black/[0.02] rounded-input flex flex-col gap-1 border p-4">
               <p className={eyebrowClassName}>{t('disputes.resolutionNotes')}</p>
               <p className="text-sarat-black-600 text-sm leading-relaxed whitespace-pre-line">
                 {row.adminNotes}
@@ -163,7 +160,7 @@ export default async function AdminDisputesPage({
 
       {rows === null ? (
         // No DB configured — an explicit notice, never a reassuring "all clear".
-        <div className="border-sarat-black/8 rounded-card flex flex-col items-start gap-4 [border-width:0.5px] p-12">
+        <div className="border-sarat-black/12 rounded-card flex flex-col items-start gap-4 border p-12">
           <p className={eyebrowClassName}>{t('noDb.eyebrow')}</p>
           <h2 className="text-h2">{t('noDb.title')}</h2>
           <p className="text-sarat-black-600 max-w-xl text-base">{t('noDb.description')}</p>

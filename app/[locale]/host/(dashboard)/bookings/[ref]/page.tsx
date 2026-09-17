@@ -155,7 +155,7 @@ export default async function HostBookingDetailPage({
         currentHref={currentHref}
       />
 
-      <ul className="border-sarat-black/8 rounded-card flex flex-col [border-width:0.5px]">
+      <ul className="border-sarat-black/12 rounded-card flex flex-col border">
         <BookingRow
           row={booking}
           locale={loc}
@@ -167,7 +167,7 @@ export default async function HostBookingDetailPage({
       </ul>
 
       <div className="grid gap-6 lg:grid-cols-2">
-        <section className="border-sarat-black/8 rounded-card flex flex-col gap-4 [border-width:0.5px] p-6">
+        <section className="border-sarat-black/12 rounded-card flex flex-col gap-4 border p-6">
           <h2 className="text-h3">{t('detail.timeline.title')}</h2>
           <ol className="flex flex-col gap-3">
             {timeline.map((event) => (
@@ -182,7 +182,7 @@ export default async function HostBookingDetailPage({
           </ol>
         </section>
 
-        <section className="border-sarat-black/8 rounded-card flex flex-col gap-4 [border-width:0.5px] p-6">
+        <section className="border-sarat-black/12 rounded-card flex flex-col gap-4 border p-6">
           <h2 className="text-h3">{t('detail.facts.title')}</h2>
           <dl className="flex flex-col gap-3">
             {facts.map((fact) => (

@@ -154,7 +154,7 @@ export function PromoCodeField({
         {linkToken && <input type="hidden" name="token" value={linkToken} />}
         <input type="hidden" name="slug" value={slug} />
         <input type="hidden" name="locale" value={locale} />
-        <div className="border-juniper-green/30 bg-juniper-green-50 rounded-input flex flex-wrap items-center gap-3 [border-width:0.5px] px-4 py-3">
+        <div className="border-juniper-green/30 bg-juniper-green-50 rounded-input flex flex-wrap items-center gap-3 border px-4 py-3">
           <Check className="text-juniper-green size-4 shrink-0" aria-hidden />
           <span className="text-sm font-medium">
             {copy.appliedPrefix}{' '}

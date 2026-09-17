@@ -246,7 +246,7 @@ export default async function BookingInvoicePage({ params, searchParams }: PageP
   );
 
   const labelClass = 'text-sarat-black-600 text-sm';
-  const hairline = 'border-sarat-black/8 [border-top-width:0.5px]';
+  const hairline = 'border-sarat-black/12 border-t';
 
   const identityRows: Array<{ label: string; value: string }> = [
     { label: t('invoiceNumberLabel'), value: booking.referenceCode },
@@ -274,7 +274,7 @@ export default async function BookingInvoicePage({ params, searchParams }: PageP
           <h1 className="text-h2">{vat ? t('taxInvoiceTitle') : t('receiptTitle')}</h1>
           {/* Stamp is FULL reversals only — see the two gates above. */}
           {fullyRefunded && (
-            <p className="text-al-qatt-red-800 border-al-qatt-red/40 rounded-full [border-width:0.5px] px-3 py-0.5 text-sm font-medium">
+            <p className="text-al-qatt-red-800 border-al-qatt-red/40 rounded-full border px-3 py-0.5 text-sm font-medium">
               {t('refundedStamp')}
             </p>
           )}
@@ -394,7 +394,7 @@ export default async function BookingInvoicePage({ params, searchParams }: PageP
 
       {/* Credit note — full reversal of a refunded tax invoice. */}
       {creditNote && (
-        <section className="border-al-qatt-red/30 rounded-card mt-12 flex flex-col gap-4 [border-width:0.5px] p-6 print:break-inside-avoid">
+        <section className="border-al-qatt-red/30 rounded-card mt-12 flex flex-col gap-4 border p-6 print:break-inside-avoid">
           <div className="flex flex-wrap items-baseline justify-between gap-3">
             <h2 className="font-display text-xl font-medium tracking-[-0.025em]">
               {t('creditNoteTitle')}

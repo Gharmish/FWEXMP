@@ -94,7 +94,7 @@ export default async function AboutPage({ params }: { params: Promise<{ locale: 
 
       <section
         aria-label={t('contactHeading')}
-        className="border-sarat-black/8 mt-12 flex flex-col gap-4 [border-top-width:0.5px] pt-8"
+        className="border-sarat-black/12 mt-12 flex flex-col gap-4 border-t pt-8"
       >
         <h2 className="text-h2">{t('contactHeading')}</h2>
         <p className="text-sarat-black-600 text-base leading-relaxed">{t('contactBody')}</p>

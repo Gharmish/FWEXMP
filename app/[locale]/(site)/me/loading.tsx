@@ -14,7 +14,7 @@ export default function MeLoading() {
           <Skeleton className="h-3 w-16" />
           <Skeleton className="h-12 w-72" radius="sm" />
           <Skeleton className="h-6 w-full max-w-xl" />
-          <div className="border-sarat-black/8 rounded-card mt-2 flex flex-wrap items-center gap-6 [border-width:0.5px] p-6 sm:p-6">
+          <div className="border-sarat-black/12 rounded-card mt-2 flex flex-wrap items-center gap-6 border p-6 sm:p-6">
             <Skeleton className="size-16 shrink-0 rounded-full" />
             <div className="flex min-w-0 flex-1 basis-48 flex-col gap-2">
               <Skeleton className="h-5 w-40" />
@@ -24,7 +24,7 @@ export default function MeLoading() {
         </div>
       </section>
 
-      <section className="border-sarat-black/8 [border-top-width:0.5px]">
+      <section className="border-sarat-black/12 border-t">
         <div className="mx-auto w-full max-w-6xl px-6 py-16 sm:py-20">
           <div className="mb-8 flex flex-col gap-2">
             <Skeleton className="h-3 w-24" />

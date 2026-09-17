@@ -125,7 +125,7 @@ export default async function HostEarningsPage({
         <>
           {/* Totals strip — always all-time (a status snapshot), and in
               the same order as the Today page: now → next → history. */}
-          <section className="border-sarat-black/8 rounded-card flex flex-col gap-4 [border-width:0.5px] p-6">
+          <section className="border-sarat-black/12 rounded-card flex flex-col gap-4 border p-6">
             <p className={eyebrowClassName}>{t('stats.allTime')}</p>
             <dl className="grid grid-cols-1 gap-6 sm:grid-cols-3">
               {(
@@ -162,7 +162,7 @@ export default async function HostEarningsPage({
                     'rounded-button inline-flex min-h-11 items-center px-4 text-sm font-medium transition-colors duration-200',
                     isPresetActive(preset.from)
                       ? 'bg-sarat-black text-white'
-                      : 'border-sarat-black/20 text-sarat-black hover:border-sarat-black/40 [border-width:0.5px]',
+                      : 'border-sarat-black/20 text-sarat-black hover:border-sarat-black/40 border',
                   )}
                 >
                   {t(`filter.presets.${preset.key}`)}
@@ -180,7 +180,7 @@ export default async function HostEarningsPage({
                   name="from"
                   defaultValue={from}
                   dir="ltr"
-                  className="rounded-input border-sarat-black/20 text-sarat-black h-11 [border-width:0.5px] bg-white px-3 text-sm"
+                  className="rounded-input border-sarat-black/20 text-sarat-black h-11 border bg-white px-3 text-sm"
                 />
               </div>
               <div className="flex flex-col gap-1">
@@ -193,7 +193,7 @@ export default async function HostEarningsPage({
                   name="to"
                   defaultValue={to}
                   dir="ltr"
-                  className="rounded-input border-sarat-black/20 text-sarat-black h-11 [border-width:0.5px] bg-white px-3 text-sm"
+                  className="rounded-input border-sarat-black/20 text-sarat-black h-11 border bg-white px-3 text-sm"
                 />
               </div>
               <button
@@ -210,12 +210,12 @@ export default async function HostEarningsPage({
               sizes to the rows' nowrap `truncate` titles and the page
               scrolled sideways at 375px (2026-09 UX audit P1-1). */}
           <section className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-            <div className="border-sarat-black/8 rounded-card flex flex-col gap-4 [border-width:0.5px] p-6">
+            <div className="border-sarat-black/12 rounded-card flex flex-col gap-4 border p-6">
               <h2 className="text-h2">{t('breakdown.title')}</h2>
               {earnings.breakdown.length === 0 ? (
                 <p className="text-sarat-black-600 text-base">{t('breakdown.empty')}</p>
               ) : (
-                <ul className="divide-sarat-black/8 divide-hairline flex flex-col">
+                <ul className="divide-sarat-black/12 flex flex-col divide-y">
                   {earnings.breakdown.map((row) => (
                     <li
                       key={row.experienceId}
@@ -242,12 +242,12 @@ export default async function HostEarningsPage({
               )}
             </div>
 
-            <div className="border-sarat-black/8 rounded-card flex flex-col gap-4 [border-width:0.5px] p-6">
+            <div className="border-sarat-black/12 rounded-card flex flex-col gap-4 border p-6">
               <h2 className="text-h2">{t('monthly.title')}</h2>
               {earnings.monthly.length === 0 ? (
                 <p className="text-sarat-black-600 text-base">{t('monthly.empty')}</p>
               ) : (
-                <ul className="divide-sarat-black/8 divide-hairline flex flex-col">
+                <ul className="divide-sarat-black/12 flex flex-col divide-y">
                   {earnings.monthly.map((row) => (
                     <li
                       key={row.month}
@@ -307,7 +307,7 @@ export default async function HostEarningsPage({
             <section className="flex flex-col gap-4">
               <h2 className="text-h2">{t('statements.title')}</h2>
               <p className="text-sarat-black-600 max-w-2xl text-sm">{t('statements.intro')}</p>
-              <ul className="border-sarat-black/8 rounded-card divide-sarat-black/8 divide-hairline flex flex-col [border-width:0.5px]">
+              <ul className="border-sarat-black/12 rounded-card divide-sarat-black/12 flex flex-col divide-y border">
                 {payoutBatches.map((batch) => (
                   <li
                     key={batch.id}
@@ -374,7 +374,7 @@ export default async function HostEarningsPage({
                     'rounded-button inline-flex min-h-11 items-center px-4 text-sm font-medium transition-colors duration-200',
                     scope === s
                       ? 'bg-sarat-black text-white'
-                      : 'border-sarat-black/20 text-sarat-black hover:border-sarat-black/40 [border-width:0.5px]',
+                      : 'border-sarat-black/20 text-sarat-black hover:border-sarat-black/40 border',
                   )}
                 >
                   {t(`history.scope.${s}`)}
@@ -386,7 +386,7 @@ export default async function HostEarningsPage({
                 {scope === 'upcoming' ? t('history.emptyUpcoming') : t('history.empty')}
               </p>
             ) : (
-              <ul className="border-sarat-black/8 rounded-card divide-sarat-black/8 divide-hairline flex flex-col [border-width:0.5px]">
+              <ul className="border-sarat-black/12 rounded-card divide-sarat-black/12 flex flex-col divide-y border">
                 {earnings.history.map((row) => (
                   <li
                     key={row.id}

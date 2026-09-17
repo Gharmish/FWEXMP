@@ -58,7 +58,7 @@ interface FilterSheetProps {
 
 function Section({ legend, children }: { legend: string; children: ReactNode }) {
   return (
-    <fieldset className="border-sarat-black/8 flex flex-col gap-3 [border-top-width:0.5px] py-6 first:border-t-0 first:pt-0">
+    <fieldset className="border-sarat-black/12 flex flex-col gap-3 border-t py-6 first:border-t-0 first:pt-0">
       <legend className="text-sarat-black float-none text-base font-medium">{legend}</legend>
       {children}
     </fieldset>
@@ -187,7 +187,7 @@ function FilterSheetBody({
       {/* Sticky footer needs its own safe-area padding + opaque background:
           while stuck it floats over content at the sheet's bottom edge,
           where the iOS home indicator would otherwise cover the buttons. */}
-      <div className="border-sarat-black/8 sticky bottom-0 -mx-4 mt-2 flex items-center justify-between gap-4 [border-top-width:0.5px] bg-white px-4 pt-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
+      <div className="border-sarat-black/12 sticky bottom-0 -mx-4 mt-2 flex items-center justify-between gap-4 border-t bg-white px-4 pt-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
         <button
           type="button"
           onClick={() => setDraft(EMPTY_ADVANCED)}

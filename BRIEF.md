@@ -143,11 +143,11 @@ _Status 2026-09 (engineering audit DESIGN-04): the off-grid spacing utilities (`
 
 ### Borders
 
-`0.5px` hairlines, never `1px+`. Alpha guidance (written back 2026-09 from `app/globals.css`): `rgba(10,10,10,0.06)`–`0.12` for separation (cards, dividers, table rules); `0.20`–`0.45` where a 3:1 boundary is required against white (inputs, secondary buttons, focus-adjacent controls).
+`1px` hairlines (Tailwind `border`, `border-t`, `divide-y`), never `2px+`. Alpha guidance (written back 2026-09 from `app/globals.css`): `rgba(10,10,10,0.12)` for separation (cards, dividers, table rules, `border-sarat-black/12`); `0.20`–`0.45` where a 3:1 boundary is required against white (inputs, secondary buttons, focus-adjacent controls). _Status 2026-09-17: the owner found the previous `0.5px` at `0.06`–`0.08` hairlines too faint to read as boundaries on most screens (a half-pixel line on a 2×/3× display draws at half ink), so every hairline moved to 1px and separation alpha to the 0.12 ceiling. Do not reintroduce sub-pixel borders._
 
 ### Shadows
 
-**None on inline UI components** — cards, buttons, inputs stay shadowless; 0.5px borders do the separation. One exception (premium redesign 2026-06): the single `--shadow-overlay` token (`0 8px 32px rgb(10 10 10 / 0.10), 0 1px 2px rgb(10 10 10 / 0.04)`) is allowed on floating layers only: modals, dropdowns, popovers, and the sticky booking bar. Shadows in imagery remain reserved for real light in hero photography.
+**None on inline UI components** — cards, buttons, inputs stay shadowless; 1px borders do the separation. One exception (premium redesign 2026-06): the single `--shadow-overlay` token (`0 8px 32px rgb(10 10 10 / 0.10), 0 1px 2px rgb(10 10 10 / 0.04)`) is allowed on floating layers only: modals, dropdowns, popovers, and the sticky booking bar. Shadows in imagery remain reserved for real light in hero photography.
 
 ### Motion
 

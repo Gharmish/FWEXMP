@@ -223,7 +223,7 @@ export function PhotoCarousel({
                 halt(e);
                 goTo(active - 1);
               }}
-              className="text-sarat-black border-sarat-black/10 absolute start-3 top-1/2 z-10 hidden -translate-y-1/2 rounded-full [border-width:0.5px] bg-white/90 p-3 opacity-0 transition-opacity duration-200 outline-none group-hover/carousel:opacity-100 focus-visible:opacity-100 sm:flex"
+              className="text-sarat-black border-sarat-black/12 absolute start-3 top-1/2 z-10 hidden -translate-y-1/2 rounded-full border bg-white/90 p-3 opacity-0 transition-opacity duration-200 outline-none group-hover/carousel:opacity-100 focus-visible:opacity-100 sm:flex"
             >
               <ChevronLeft className="size-5 rtl:rotate-180" aria-hidden />
             </button>
@@ -236,7 +236,7 @@ export function PhotoCarousel({
                 halt(e);
                 goTo(active + 1);
               }}
-              className="text-sarat-black border-sarat-black/10 absolute end-3 top-1/2 z-10 hidden -translate-y-1/2 rounded-full [border-width:0.5px] bg-white/90 p-3 opacity-0 transition-opacity duration-200 outline-none group-hover/carousel:opacity-100 focus-visible:opacity-100 sm:flex"
+              className="text-sarat-black border-sarat-black/12 absolute end-3 top-1/2 z-10 hidden -translate-y-1/2 rounded-full border bg-white/90 p-3 opacity-0 transition-opacity duration-200 outline-none group-hover/carousel:opacity-100 focus-visible:opacity-100 sm:flex"
             >
               <ChevronRight className="size-5 rtl:rotate-180" aria-hidden />
             </button>

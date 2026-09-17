@@ -32,7 +32,7 @@ export default function CatalogLoading() {
         </div>
       </section>
 
-      <section className="border-sarat-black/8 [border-top-width:0.5px]">
+      <section className="border-sarat-black/12 border-t">
         <div className="mx-auto flex w-full max-w-6xl flex-col gap-8 px-6 py-12 sm:gap-12 sm:py-20">
           <div className="flex flex-col gap-6">
             {/* "All experiences" heading */}

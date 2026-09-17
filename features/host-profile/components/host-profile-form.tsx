@@ -137,7 +137,7 @@ export function HostProfileForm({ profile, copy }: HostProfileFormProps) {
           // out-of-band), so keep it LTR inside the RTL layout.
           dir="ltr"
           className={cn(
-            'rounded-input border-sarat-black/20 text-sarat-black w-full resize-y [border-width:0.5px] bg-white px-4 py-3 text-base',
+            'rounded-input border-sarat-black/20 text-sarat-black w-full resize-y border bg-white px-4 py-3 text-base',
             'placeholder:text-sarat-black-600 disabled:pointer-events-none disabled:opacity-50',
           )}
           aria-invalid={bioError ? true : undefined}
@@ -168,7 +168,7 @@ export function HostProfileForm({ profile, copy }: HostProfileFormProps) {
           dir="rtl"
           lang="ar"
           className={cn(
-            'rounded-input border-sarat-black/20 text-sarat-black w-full resize-y [border-width:0.5px] bg-white px-4 py-3 text-base',
+            'rounded-input border-sarat-black/20 text-sarat-black w-full resize-y border bg-white px-4 py-3 text-base',
             'placeholder:text-sarat-black-600 disabled:pointer-events-none disabled:opacity-50',
           )}
           aria-invalid={bioArError ? true : undefined}
@@ -199,7 +199,7 @@ export function HostProfileForm({ profile, copy }: HostProfileFormProps) {
           defaultValue={errored?.values?.storyEn ?? profile.storyEn}
           dir="ltr"
           className={cn(
-            'rounded-input border-sarat-black/20 text-sarat-black w-full resize-y [border-width:0.5px] bg-white px-4 py-3 text-base',
+            'rounded-input border-sarat-black/20 text-sarat-black w-full resize-y border bg-white px-4 py-3 text-base',
             'placeholder:text-sarat-black-600 disabled:pointer-events-none disabled:opacity-50',
           )}
           aria-invalid={storyError ? true : undefined}
@@ -229,7 +229,7 @@ export function HostProfileForm({ profile, copy }: HostProfileFormProps) {
           dir="rtl"
           lang="ar"
           className={cn(
-            'rounded-input border-sarat-black/20 text-sarat-black w-full resize-y [border-width:0.5px] bg-white px-4 py-3 text-base',
+            'rounded-input border-sarat-black/20 text-sarat-black w-full resize-y border bg-white px-4 py-3 text-base',
             'placeholder:text-sarat-black-600 disabled:pointer-events-none disabled:opacity-50',
           )}
           aria-invalid={storyArError ? true : undefined}
@@ -258,7 +258,7 @@ export function HostProfileForm({ profile, copy }: HostProfileFormProps) {
               <label
                 key={value}
                 className={cn(
-                  'rounded-button border-sarat-black/20 inline-flex min-h-11 cursor-pointer items-center gap-2 [border-width:0.5px] px-4 text-sm font-medium transition-colors duration-200',
+                  'rounded-button border-sarat-black/20 inline-flex min-h-11 cursor-pointer items-center gap-2 border px-4 text-sm font-medium transition-colors duration-200',
                   'text-sarat-black hover:border-sarat-black/40',
                   'has-[:checked]:bg-sarat-black has-[:checked]:border-sarat-black has-[:checked]:text-white',
                 )}
@@ -288,7 +288,7 @@ export function HostProfileForm({ profile, copy }: HostProfileFormProps) {
         </p>
       )}
 
-      <div className="border-sarat-black/8 flex items-center gap-3 [border-top-width:0.5px] pt-6">
+      <div className="border-sarat-black/12 flex items-center gap-3 border-t pt-6">
         <Submit copy={copy} />
       </div>
     </form>

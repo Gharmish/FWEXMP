@@ -55,7 +55,7 @@ export interface HostEditFormProps {
 const initialState: AdminUserEditState = { success: false };
 
 const textareaClass = cn(
-  'rounded-input border-sarat-black/20 text-sarat-black w-full resize-y [border-width:0.5px] bg-white px-4 py-3 text-base',
+  'rounded-input border-sarat-black/20 text-sarat-black w-full resize-y border bg-white px-4 py-3 text-base',
   'placeholder:text-sarat-black-600',
 );
 
@@ -192,7 +192,7 @@ export function HostEditForm({ personKey, host, copy }: HostEditFormProps) {
                 <label
                   key={value}
                   className={cn(
-                    'rounded-button border-sarat-black/20 inline-flex min-h-11 cursor-pointer items-center [border-width:0.5px] px-4 text-sm font-medium transition-colors duration-200',
+                    'rounded-button border-sarat-black/20 inline-flex min-h-11 cursor-pointer items-center border px-4 text-sm font-medium transition-colors duration-200',
                     'has-[:checked]:bg-sarat-black has-[:checked]:border-sarat-black has-[:checked]:text-white',
                   )}
                 >
@@ -212,7 +212,7 @@ export function HostEditForm({ personKey, host, copy }: HostEditFormProps) {
             </div>
           </fieldset>
 
-          <fieldset className="border-sarat-black/8 rounded-card flex flex-col gap-6 [border-width:0.5px] p-6">
+          <fieldset className="border-sarat-black/12 rounded-card flex flex-col gap-6 border p-6">
             <legend className="text-sarat-black-600 text-eyebrow px-2">KYC</legend>
             <div className="grid gap-6 sm:grid-cols-2">
               <div className="flex flex-col gap-2">

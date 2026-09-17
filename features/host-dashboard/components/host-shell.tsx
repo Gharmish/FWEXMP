@@ -50,7 +50,7 @@ const TABS = [
  * The host application shell — the sibling of `AdminShell`: a persistent
  * left rail (logo + nav + signed-in footer) beside a content column with a
  * sticky top bar carrying the "new experience" CTA. Skinned in Gharmish
- * brand — white surfaces, 0.5px hairlines, no shadow on the rail (BRIEF §3).
+ * brand — white surfaces, 1px hairlines, no shadow on the rail (BRIEF §3).
  * The rail sits on the inline-start side, so it lands on the right
  * automatically in the RTL (Arabic) locale.
  *
@@ -109,13 +109,13 @@ export function HostShell({
           <span className="truncate">{t('backToSite')}</span>
         </Link>
       </div>
-      <div className="border-sarat-black/8 rounded-card flex flex-col gap-3 [border-width:0.5px] p-4">
+      <div className="border-sarat-black/12 rounded-card flex flex-col gap-3 border p-4">
         <div className="flex flex-col gap-0.5">
           <p className="text-sarat-black-600 text-eyebrow">{t('roleLabel')}</p>
           <p className="text-sarat-black truncate text-sm font-medium">{userLabel}</p>
         </div>
         {actions && (
-          <div className="border-sarat-black/8 flex items-center justify-between gap-2 [border-block-start-width:0.5px] pt-3">
+          <div className="border-sarat-black/12 flex items-center justify-between gap-2 border-t pt-3">
             {actions}
           </div>
         )}
@@ -126,7 +126,7 @@ export function HostShell({
   return (
     <div className="flex min-h-dvh w-full">
       {/* Static rail (lg+) */}
-      <aside className="border-sarat-black/8 sticky top-0 hidden h-dvh w-64 shrink-0 border-e [border-inline-end-width:0.5px] bg-white lg:block">
+      <aside className="border-sarat-black/12 sticky top-0 hidden h-dvh w-64 shrink-0 border-e bg-white lg:block">
         {railBody}
       </aside>
 
@@ -146,7 +146,7 @@ export function HostShell({
 
       {/* Content column */}
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="border-sarat-black/8 sticky top-0 z-30 flex items-center gap-3 [border-block-end-width:0.5px] border-b bg-white/90 px-4 py-3 backdrop-blur sm:px-6">
+        <header className="border-sarat-black/12 sticky top-0 z-30 flex items-center gap-3 border-b bg-white/90 px-4 py-3 backdrop-blur sm:px-6">
           <button
             type="button"
             onClick={() => setOpen(true)}
@@ -203,7 +203,7 @@ export function HostShell({
         <nav
           aria-label={t('tabsLabel')}
           data-bottom-dock
-          className="border-sarat-black/8 fixed inset-x-0 bottom-0 z-30 grid grid-cols-5 [border-block-start-width:0.5px] bg-white/95 pb-[env(safe-area-inset-bottom)] backdrop-blur lg:hidden"
+          className="border-sarat-black/12 fixed inset-x-0 bottom-0 z-30 grid grid-cols-5 border-t bg-white/95 pb-[env(safe-area-inset-bottom)] backdrop-blur lg:hidden"
         >
           {TABS.map((tab) => {
             const active =

@@ -207,7 +207,7 @@
 
   /* Elevation. The single shadow in the system, reserved for floating
    * layers only (modals, dropdowns, popovers, sticky booking bar). Cards
-   * and inline components stay shadowless with 0.5px hairlines. */
+   * and inline components stay shadowless with 1px hairlines. */
   --shadow-overlay: 0 8px 32px rgb(10 10 10 / 0.1), 0 1px 2px rgb(10 10 10 / 0.04);
 
   /* Typography. Bricolage for Latin/display, IBM Plex Sans Arabic for RTL.
@@ -410,10 +410,10 @@ body {
   width: 100%;
 }
 .payment-widget-mount .wpwl-control {
-  height: 2.75rem; /* input tokens: h-11 / rounded-input / 0.5px hairline */
+  height: 2.75rem; /* input tokens: h-11 / rounded-input / 1px hairline */
   width: 100%;
   padding-inline: 1rem;
-  border: 0.5px solid color-mix(in srgb, var(--color-sarat-black) 20%, transparent);
+  border: 1px solid color-mix(in srgb, var(--color-sarat-black) 20%, transparent);
   border-radius: var(--radius-input);
   background: var(--color-white);
   box-shadow: none;
@@ -519,12 +519,6 @@ body {
   }
 }
 
-/* P2-21: Tailwind's `divide-y` sets a 1px border-top on `> * + *`, twice
- * the weight of the 0.5px hairline our cards use for their own edge. Use
- * `divide-hairline` instead of `divide-y` on any list inside a
- * [border-width:0.5px] card so internal row dividers match the card
- * border weight. Not swept at every call site in this package — other
- * feature owners adopt it in their own files. */
 /* ---- Type scale (2026-09 engineering audit DESIGN-03) ------------------
  * BRIEF §3's tiers as utilities, so a heading is `text-h1` rather than a
  * six-token string copied 58×. Sizes/line-heights come from Tailwind's
@@ -650,19 +644,6 @@ body {
     font-size: 13px;
     letter-spacing: 0;
     text-transform: none;
-  }
-}
-
-@utility divide-hairline {
-  /* Mirrors Tailwind v4's own `divide-y` rule (style + reverse support)
-     at the brief's 0.5px hairline instead of 1px, so it is a drop-in
-     replacement, not an add-on. */
-  & > :not(:last-child) {
-    --tw-divide-y-reverse: 0;
-    border-bottom-style: var(--tw-border-style);
-    border-top-style: var(--tw-border-style);
-    border-top-width: calc(0.5px * var(--tw-divide-y-reverse));
-    border-bottom-width: calc(0.5px * calc(1 - var(--tw-divide-y-reverse)));
   }
 }
 

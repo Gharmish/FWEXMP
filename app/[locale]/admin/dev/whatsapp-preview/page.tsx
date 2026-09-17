@@ -45,7 +45,7 @@ export default async function WhatsAppPreviewPage({
           <a
             href="?"
             className={cn(
-              'rounded-button border-sarat-black/20 [border-width:0.5px] px-3 py-1',
+              'rounded-button border-sarat-black/20 border px-3 py-1',
               !audience && 'bg-sarat-black text-white',
             )}
           >
@@ -56,7 +56,7 @@ export default async function WhatsAppPreviewPage({
               key={a}
               href={`?audience=${a}`}
               className={cn(
-                'rounded-button border-sarat-black/20 [border-width:0.5px] px-3 py-1',
+                'rounded-button border-sarat-black/20 border px-3 py-1',
                 audience === a && 'bg-sarat-black text-white',
               )}
             >
@@ -70,7 +70,7 @@ export default async function WhatsAppPreviewPage({
         {templates.map((template) => (
           <li
             key={template.id}
-            className="border-sarat-black/8 rounded-card flex flex-col gap-4 [border-width:0.5px] p-6"
+            className="border-sarat-black/12 rounded-card flex flex-col gap-4 border p-6"
           >
             <div className="flex flex-wrap items-baseline gap-3">
               <h2 className="font-mono text-base">{template.id}</h2>
@@ -102,7 +102,7 @@ export default async function WhatsAppPreviewPage({
                       out.message.buttons.map((b) => (
                         <div
                           key={b.title}
-                          className="border-sarat-black/10 text-sarawat-blue rounded-card [border-width:0.5px] py-2 text-center text-[15px] font-medium"
+                          className="border-sarat-black/12 text-sarawat-blue rounded-card border py-2 text-center text-[15px] font-medium"
                           title={b.url}
                         >
                           {b.title}
@@ -128,7 +128,7 @@ export default async function WhatsAppPreviewPage({
         ))}
       </ul>
 
-      <section className="border-sarat-black/8 rounded-card flex flex-col gap-4 [border-width:0.5px] p-6">
+      <section className="border-sarat-black/12 rounded-card flex flex-col gap-4 border p-6">
         <h2 className="font-mono text-base">support · in-session copy (free-form, no approval)</h2>
         <div className="grid gap-4 md:grid-cols-2">
           {(['ar', 'en'] as const).map((loc) => (

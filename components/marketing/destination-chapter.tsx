@@ -38,7 +38,7 @@ export function DestinationChapter({
   const eyebrowClassName = cn('text-sarat-black-600 font-medium', 'text-eyebrow');
 
   return (
-    <section className="border-sarat-black/8 [border-top-width:0.5px]">
+    <section className="border-sarat-black/12 border-t">
       <div className="mx-auto w-full max-w-6xl px-6 py-20">
         <div className="grid gap-12 lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)] lg:gap-16">
           <FadeIn className="flex flex-col gap-4">

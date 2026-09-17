@@ -105,7 +105,7 @@ export default async function HostsIndexPage({ params }: { params: Promise<{ loc
         </div>
       </section>
 
-      <section className="border-sarat-black/8 [border-top-width:0.5px]">
+      <section className="border-sarat-black/12 border-t">
         <div className="mx-auto w-full max-w-6xl px-6 py-16 sm:py-20">
           {hosts.length === 0 ? (
             <EmptyState icon={Users} title={t('empty')} />
@@ -119,7 +119,7 @@ export default async function HostsIndexPage({ params }: { params: Promise<{ loc
                     <HoverLift className="h-full">
                       <Link
                         href={`/hosts/${host.slug}`}
-                        className="rounded-card border-sarat-black/8 group flex h-full flex-col gap-4 [border-width:0.5px] p-6"
+                        className="rounded-card border-sarat-black/12 group flex h-full flex-col gap-4 border p-6"
                       >
                         <div className="flex items-center gap-4">
                           <Avatar name={name} src={host.photoUrl ?? undefined} size="lg" />

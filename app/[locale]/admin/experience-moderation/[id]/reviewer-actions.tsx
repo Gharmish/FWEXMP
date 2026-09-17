@@ -78,7 +78,7 @@ function errorMessage(result: AdminModerationResult, copy: Copy): string | undef
 }
 
 const TEXTAREA_CLASS = cn(
-  'rounded-input border-sarat-black/20 bg-white text-sarat-black w-full resize-y [border-width:0.5px] px-4 py-3 text-base',
+  'rounded-input border-sarat-black/20 bg-white text-sarat-black w-full resize-y border px-4 py-3 text-base',
   'placeholder:text-sarat-black-600 disabled:pointer-events-none disabled:opacity-50',
 );
 
@@ -99,7 +99,7 @@ export function ReviewerActions({ experienceId, locale, copy }: ReviewerActionsP
   const rejectNotesId = useId();
 
   return (
-    <div className="border-sarat-black/8 rounded-card flex flex-col gap-8 [border-width:0.5px] p-6">
+    <div className="border-sarat-black/12 rounded-card flex flex-col gap-8 border p-6">
       {/* Approve */}
       <form action={approveAction} className="flex flex-col gap-4">
         <input type="hidden" name="experienceId" value={experienceId} />
@@ -132,7 +132,7 @@ export function ReviewerActions({ experienceId, locale, copy }: ReviewerActionsP
       {/* Request changes */}
       <form
         action={requestAction}
-        className="border-sarat-black/8 flex flex-col gap-4 [border-top-width:0.5px] pt-8"
+        className="border-sarat-black/12 flex flex-col gap-4 border-t pt-8"
       >
         <input type="hidden" name="experienceId" value={experienceId} />
         <input type="hidden" name="locale" value={locale} />
@@ -173,7 +173,7 @@ export function ReviewerActions({ experienceId, locale, copy }: ReviewerActionsP
       {/* Reject */}
       <form
         action={rejectAction}
-        className="border-sarat-black/8 flex flex-col gap-4 [border-top-width:0.5px] pt-8"
+        className="border-sarat-black/12 flex flex-col gap-4 border-t pt-8"
       >
         <input type="hidden" name="experienceId" value={experienceId} />
         <input type="hidden" name="locale" value={locale} />

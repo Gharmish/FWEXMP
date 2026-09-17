@@ -68,7 +68,7 @@ export async function OutcomeNotice({
   return (
     <p
       role="status"
-      className="border-juniper-green/40 bg-juniper-green/5 text-sarat-black rounded-card flex items-start gap-3 [border-width:0.5px] p-4 text-sm leading-relaxed"
+      className="border-juniper-green/40 bg-juniper-green/5 text-sarat-black rounded-card flex items-start gap-3 border p-4 text-sm leading-relaxed"
     >
       <CheckCircle2 className="text-juniper-green mt-0.5 size-4 shrink-0" aria-hidden />
       <span className="flex-1">{message}</span>

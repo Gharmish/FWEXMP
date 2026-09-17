@@ -65,7 +65,7 @@ export default async function HostApplyPage({ params }: { params: Promise<{ loca
             </p>
           </div>
 
-          <dl className="border-sarat-black/8 rounded-card mt-12 grid gap-6 [border-width:0.5px] p-6 sm:grid-cols-2">
+          <dl className="border-sarat-black/12 rounded-card mt-12 grid gap-6 border p-6 sm:grid-cols-2">
             <div className="flex flex-col gap-1">
               <dt className={eyebrowClassName}>{t('summary.displayName')}</dt>
               <dd className="text-base font-medium">{existing.displayName}</dd>
@@ -91,7 +91,7 @@ export default async function HostApplyPage({ params }: { params: Promise<{ loca
           </dl>
 
           {existing.documents.length > 0 && (
-            <section className="border-sarat-black/8 rounded-card mt-6 flex flex-col gap-4 [border-width:0.5px] p-6">
+            <section className="border-sarat-black/12 rounded-card mt-6 flex flex-col gap-4 border p-6">
               <h2 className={eyebrowClassName}>{t('summary.documents')}</h2>
               <ul className="flex flex-col gap-3">
                 {existing.documents.map((doc) => (
@@ -139,7 +139,7 @@ export default async function HostApplyPage({ params }: { params: Promise<{ loca
           <p className="text-sarat-black-600 max-w-2xl text-sm leading-relaxed">{t('introMeta')}</p>
         </div>
 
-        <div className="border-sarat-black/8 mt-12 [border-top-width:0.5px] pt-12">
+        <div className="border-sarat-black/12 mt-12 border-t pt-12">
           <HostApplyForm
             locale={loc}
             contactPhone={user.phone}

@@ -33,7 +33,7 @@ function DemoLabel({ children }: { children: string }) {
 }
 
 const demoCard =
-  'border-sarat-black/8 rounded-card flex h-24 items-center justify-center [border-width:0.5px] px-4 text-sm font-medium';
+  'border-sarat-black/12 rounded-card flex h-24 items-center justify-center border px-4 text-sm font-medium';
 
 export function MotionDemos() {
   const [round, setRound] = useState(0);
@@ -142,10 +142,7 @@ export function MotionDemos() {
 
       <div className="flex flex-col gap-2">
         <DemoLabel>EmptyState — Pop icon + FadeIn body</DemoLabel>
-        <div
-          key={`empty-${round}`}
-          className="border-sarat-black/8 rounded-card [border-width:0.5px]"
-        >
+        <div key={`empty-${round}`} className="border-sarat-black/12 rounded-card border">
           <EmptyState
             icon={Compass}
             title="Nothing here yet"
@@ -165,7 +162,7 @@ export function OverlayDemos() {
     <div className="flex flex-col gap-8">
       <p className="text-sarat-black-600 max-w-xl text-sm">
         Base UI overlays (focus trap, Esc, scroll lock) animated on the one spring. Floating layers
-        carry the single --shadow-overlay token and 0.5px hairlines.
+        carry the single --shadow-overlay token and 1px hairlines.
       </p>
 
       <div className="flex flex-wrap gap-3">

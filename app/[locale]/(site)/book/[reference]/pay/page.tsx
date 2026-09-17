@@ -419,7 +419,7 @@ export default async function PaymentPage({ params, searchParams }: PageParams) 
       <div className="mt-8 grid items-start gap-8 lg:grid-cols-[minmax(0,1fr)_24rem] lg:gap-12">
         <aside className="flex flex-col lg:sticky lg:top-24 lg:col-start-2 lg:row-start-1">
           <section
-            className="border-sarat-black/8 rounded-card flex flex-col gap-4 [border-width:0.5px] p-6"
+            className="border-sarat-black/12 rounded-card flex flex-col gap-4 border p-6"
             aria-label={t('summaryLabel')}
           >
             {title && (
@@ -442,7 +442,7 @@ export default async function PaymentPage({ params, searchParams }: PageParams) 
             <dl
               className={cn(
                 'grid grid-cols-2 gap-3',
-                title && 'border-sarat-black/8 [border-top-width:0.5px] pt-4',
+                title && 'border-sarat-black/12 border-t pt-4',
               )}
             >
               {facts.map((row) => (
@@ -452,7 +452,7 @@ export default async function PaymentPage({ params, searchParams }: PageParams) 
                 </div>
               ))}
             </dl>
-            <div className="border-sarat-black/8 flex flex-col gap-2 [border-top-width:0.5px] pt-4">
+            <div className="border-sarat-black/12 flex flex-col gap-2 border-t pt-4">
               {/* The money block always opens with verifiable arithmetic:
                   unit price × party when the pre-reduction base divides
                   cleanly, otherwise a plain "{party} guests" subtotal —
@@ -518,7 +518,7 @@ export default async function PaymentPage({ params, searchParams }: PageParams) 
             </div>
             {/* Trust block beside the money: the hard charge cap and this
                 booking's cancellation deadline, one line each. */}
-            <div className="border-sarat-black/8 flex flex-col gap-2 [border-top-width:0.5px] pt-4">
+            <div className="border-sarat-black/12 flex flex-col gap-2 border-t pt-4">
               <p className="inline-flex items-center gap-2 text-sm font-medium">
                 <Lock className="text-juniper-green-800 size-4 shrink-0" aria-hidden />
                 {t('trust.heading')}
@@ -531,7 +531,7 @@ export default async function PaymentPage({ params, searchParams }: PageParams) 
               </p>
             </div>
             {showWalletField && (
-              <div className="border-sarat-black/8 [border-top-width:0.5px] pt-4">
+              <div className="border-sarat-black/12 border-t pt-4">
                 <WalletCheckoutField
                   reference={reference}
                   locale={loc}
@@ -583,7 +583,7 @@ export default async function PaymentPage({ params, searchParams }: PageParams) 
                 (never a balance, never an assumption) so a signed-out
                 credit holder learns the credit is applicable here. */}
             {sessionGuestId === null && (
-              <div className="border-sarat-black/8 [border-top-width:0.5px] pt-4">
+              <div className="border-sarat-black/12 border-t pt-4">
                 <p className="text-sarat-black-600 text-sm">
                   {t.rich('walletCredit.signInHint', {
                     link: (chunks) => (
@@ -598,7 +598,7 @@ export default async function PaymentPage({ params, searchParams }: PageParams) 
                 </p>
               </div>
             )}
-            <div className="border-sarat-black/8 [border-top-width:0.5px] pt-4">
+            <div className="border-sarat-black/12 border-t pt-4">
               <PromoCodeField
                 reference={reference}
                 slug={experienceSlug ?? ''}
@@ -659,7 +659,7 @@ export default async function PaymentPage({ params, searchParams }: PageParams) 
           {/* Secure-checkout reassurance — PCI posture in plain language plus
               the accepted schemes as the real brand marks (same badges as the
               footer, mirroring the card logos the widget shows). */}
-          <section className="border-sarat-black/8 mt-8 flex flex-col gap-3 [border-top-width:0.5px] pt-6">
+          <section className="border-sarat-black/12 mt-8 flex flex-col gap-3 border-t pt-6">
             {/* Verified-host trust line at the money moment — tappable, opens
                 the same four-check receipt as the badge on the host block. */}
             {experience?.host.verified && (

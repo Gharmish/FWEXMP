@@ -104,7 +104,7 @@ export function RevenueChart({
           <div
             key={g}
             aria-hidden
-            className="border-sarat-black/[0.06] absolute inset-x-0 [border-top-width:0.5px]"
+            className="border-sarat-black/[0.06] absolute inset-x-0 border-t"
             style={{ top: `${g * 100}%` }}
           />
         ))}
@@ -170,8 +170,8 @@ export function RevenueChart({
         {activePoint && (
           <div
             className={cn(
-              'rounded-input border-sarat-black/10 pointer-events-none absolute bottom-full z-20 mb-2',
-              'shadow-overlay [border-width:0.5px] bg-white px-3 py-2 text-[11px] whitespace-nowrap',
+              'rounded-input border-sarat-black/12 pointer-events-none absolute bottom-full z-20 mb-2',
+              'shadow-overlay border bg-white px-3 py-2 text-[11px] whitespace-nowrap',
               tipTranslate,
             )}
             style={{ left: `${activeLeft}%` }}

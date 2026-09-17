@@ -53,7 +53,7 @@ function Steps({ items }: { items: readonly string[] }) {
       {items.map((item, i) => (
         <li key={item} className="flex items-start gap-3">
           <span
-            className="border-sarat-black/8 text-sarat-black flex size-7 shrink-0 items-center justify-center rounded-full [border-width:0.5px] text-sm font-medium"
+            className="border-sarat-black/12 text-sarat-black flex size-7 shrink-0 items-center justify-center rounded-full border text-sm font-medium"
             aria-hidden
           >
             {i + 1}

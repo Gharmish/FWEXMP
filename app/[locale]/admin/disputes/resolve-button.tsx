@@ -50,7 +50,7 @@ export function ResolveDisputeButton({ disputeId, refundLabel, copy }: ResolveDi
         rows={2}
         maxLength={2000}
         placeholder={copy.notesPlaceholder}
-        className="rounded-input border-sarat-black/20 text-sarat-black w-full [border-width:0.5px] bg-white p-3 text-sm"
+        className="rounded-input border-sarat-black/20 text-sarat-black w-full border bg-white p-3 text-sm"
       />
       {refundLabel && (
         <label className="text-sarat-black inline-flex min-h-11 cursor-pointer items-center gap-2 text-sm">

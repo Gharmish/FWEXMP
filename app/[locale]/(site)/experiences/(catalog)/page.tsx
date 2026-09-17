@@ -219,7 +219,7 @@ export default async function ExperiencesIndexPage({
           </section>
 
           {showFeatured && featured.length > 0 && (
-            <section className="border-sarat-black/8 [border-top-width:0.5px]">
+            <section className="border-sarat-black/12 border-t">
               <div className="mx-auto w-full max-w-6xl px-6 py-12 sm:py-16">
                 <h2 className="text-h2-lg mb-8">{t('featured')}</h2>
                 <Stagger className="grid gap-4 sm:grid-cols-2">
@@ -243,7 +243,7 @@ export default async function ExperiencesIndexPage({
             </section>
           )}
 
-          <section className="border-sarat-black/8 [border-top-width:0.5px]">
+          <section className="border-sarat-black/12 border-t">
             <div className="mx-auto flex w-full max-w-6xl flex-col gap-8 px-6 py-12 sm:gap-12 sm:py-20">
               <div className="flex flex-col gap-6">
                 <h2 className="text-h2-lg">{t('all')}</h2>

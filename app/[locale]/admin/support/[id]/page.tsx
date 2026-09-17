@@ -249,7 +249,7 @@ export default async function AdminSupportThreadPage({
         </section>
       )}
 
-      <section className="border-sarat-black/8 rounded-card [border-width:0.5px] p-6">
+      <section className="border-sarat-black/12 rounded-card border p-6">
         {messages.length === 0 ? (
           <p className="text-sarat-black-600 text-base">{t('support.noMessages')}</p>
         ) : (

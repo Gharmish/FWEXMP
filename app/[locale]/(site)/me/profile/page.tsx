@@ -224,7 +224,7 @@ export default async function ProfilePage({ params }: { params: Promise<{ locale
         {reviewsWritten.length === 0 ? (
           <p className="text-sarat-black-600 text-sm leading-relaxed">{t('reviews.empty')}</p>
         ) : (
-          <ul className="border-sarat-black/8 rounded-card divide-hairline flex flex-col divide-[var(--color-sarat-black)]/8 [border-width:0.5px]">
+          <ul className="border-sarat-black/12 rounded-card divide-sarat-black/12 flex flex-col divide-y border">
             {reviewsWritten.map((r) => (
               <li key={r.id} className="flex flex-col gap-1 p-6">
                 <div className="flex flex-wrap items-center gap-3">
@@ -256,7 +256,7 @@ export default async function ProfilePage({ params }: { params: Promise<{ locale
         {disputesFiled.length === 0 ? (
           <p className="text-sarat-black-600 text-sm leading-relaxed">{t('disputes.empty')}</p>
         ) : (
-          <ul className="border-sarat-black/8 rounded-card divide-hairline flex flex-col divide-[var(--color-sarat-black)]/8 [border-width:0.5px]">
+          <ul className="border-sarat-black/12 rounded-card divide-sarat-black/12 flex flex-col divide-y border">
             {disputesFiled.map((d) => (
               <li key={d.id} className="flex flex-col gap-1 p-6">
                 <div className="flex flex-wrap items-center gap-3">

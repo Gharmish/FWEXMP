@@ -164,7 +164,7 @@ export function PhotoUpload({
           <label
             htmlFor={inputId}
             className={cn(
-              'border-sarat-black/20 hover:border-sarat-black/40 text-sarat-black rounded-button inline-flex min-h-11 w-fit cursor-pointer items-center gap-2 [border-width:0.5px] px-4 text-sm font-medium transition-transform duration-200 hover:-translate-y-px active:translate-y-0',
+              'border-sarat-black/20 hover:border-sarat-black/40 text-sarat-black rounded-button inline-flex min-h-11 w-fit cursor-pointer items-center gap-2 border px-4 text-sm font-medium transition-transform duration-200 hover:-translate-y-px active:translate-y-0',
             )}
           >
             <ImageUp className="size-4" aria-hidden />

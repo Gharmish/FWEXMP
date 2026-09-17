@@ -644,7 +644,7 @@ export function PaymentDetailsForm({
             words: when the checkout was prepared automatically the guest
             never chose a method, so the Apple Pay button (or card form)
             must explain itself. */}
-        <div className="border-sarat-black/8 rounded-input flex items-start justify-between gap-4 [border-width:0.5px] px-4 py-3">
+        <div className="border-sarat-black/12 rounded-input flex items-start justify-between gap-4 border px-4 py-3">
           <div className="flex min-w-0 flex-col gap-0.5 text-sm">
             <span className="font-medium">{displayName()}</span>
             <span dir="ltr" className="text-sarat-black-600 truncate">
@@ -795,7 +795,7 @@ export function PaymentDetailsForm({
         <section className="flex flex-col gap-3" aria-label={copy.yourDetails}>
           <h3 className="text-base font-medium">{copy.yourDetails}</h3>
           {identityCollapsed ? (
-            <div className="border-sarat-black/8 rounded-input flex items-center justify-between gap-4 [border-width:0.5px] px-4 py-3">
+            <div className="border-sarat-black/12 rounded-input flex items-center justify-between gap-4 border px-4 py-3">
               <div className="flex min-w-0 flex-col gap-0.5 text-sm">
                 <span className="font-medium">{displayName()}</span>
                 <span dir="ltr" className="text-sarat-black-600 truncate">
@@ -832,7 +832,7 @@ export function PaymentDetailsForm({
             <div
               role="group"
               aria-label={copy.methodHeading}
-              className="border-sarat-black/8 rounded-input grid grid-cols-2 gap-1 [border-width:0.5px] p-1"
+              className="border-sarat-black/12 rounded-input grid grid-cols-2 gap-1 border p-1"
             >
               <button
                 type="button"
@@ -876,7 +876,7 @@ export function PaymentDetailsForm({
               <p className="text-sarat-black-600 text-sm">{copy.billingWhy}</p>
             </div>
             {addressCollapsed ? (
-              <div className="border-sarat-black/8 rounded-input flex items-center justify-between gap-4 [border-width:0.5px] px-4 py-3">
+              <div className="border-sarat-black/12 rounded-input flex items-center justify-between gap-4 border px-4 py-3">
                 <div className="flex min-w-0 flex-col gap-0.5 text-sm">
                   <span className="font-medium">{fieldValue('street1')}</span>
                   <span className="text-sarat-black-600 truncate">
@@ -925,7 +925,7 @@ export function PaymentDetailsForm({
                     aria-invalid={state.fields?.country ? true : undefined}
                     aria-describedby={state.fields?.country ? 'pay-country-error' : undefined}
                     className={cn(
-                      'rounded-input border-sarat-black/20 text-sarat-black h-11 w-full [border-width:0.5px] bg-white px-4 text-base',
+                      'rounded-input border-sarat-black/20 text-sarat-black h-11 w-full border bg-white px-4 text-base',
                       'aria-invalid:border-al-qatt-red',
                     )}
                   >

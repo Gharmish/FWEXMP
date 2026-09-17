@@ -45,7 +45,7 @@ export function EmptyState({
       <div
         data-slot="empty-state"
         className={cn(
-          'border-sarat-black/8 rounded-card flex flex-col items-start gap-4 [border-width:0.5px] p-12',
+          'border-sarat-black/12 rounded-card flex flex-col items-start gap-4 border p-12',
           className,
         )}
       >

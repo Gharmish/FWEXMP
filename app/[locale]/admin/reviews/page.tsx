@@ -51,7 +51,7 @@ export default async function AdminReviewsPage({
     return (
       <div className="flex flex-col gap-12">
         {backLink}
-        <div className="border-sarat-black/8 rounded-card flex flex-col items-start gap-4 [border-width:0.5px] p-12">
+        <div className="border-sarat-black/12 rounded-card flex flex-col items-start gap-4 border p-12">
           <p className={eyebrowClassName}>{t('noDb.eyebrow')}</p>
           <h2 className="text-h2">{t('noDb.title')}</h2>
           <p className="text-sarat-black-600 max-w-xl text-base">{t('noDb.description')}</p>
@@ -74,7 +74,7 @@ export default async function AdminReviewsPage({
       </div>
 
       {rows.length === 0 ? (
-        <div className="border-sarat-black/8 rounded-card flex flex-col items-start gap-2 [border-width:0.5px] p-12">
+        <div className="border-sarat-black/12 rounded-card flex flex-col items-start gap-2 border p-12">
           <p className={eyebrowClassName}>{t('reviewsList.empty.eyebrow')}</p>
           <h2 className="text-h2">{t('reviewsList.empty.title')}</h2>
           <p className="text-sarat-black-600 max-w-xl text-base">
@@ -89,7 +89,7 @@ export default async function AdminReviewsPage({
               <li
                 key={row.id}
                 className={cn(
-                  'border-sarat-black/8 rounded-card flex flex-col gap-3 [border-width:0.5px] p-6',
+                  'border-sarat-black/12 rounded-card flex flex-col gap-3 border p-6',
                   row.hidden && 'opacity-60',
                 )}
               >

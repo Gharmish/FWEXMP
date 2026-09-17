@@ -2,14 +2,14 @@ import { cva, type VariantProps } from 'class-variance-authority';
 import { cn } from '@/lib/utils';
 
 /**
- * Gharmish Card — rounded-card, 0.5px hairline border, no shadow (BRIEF §3).
+ * Gharmish Card — rounded-card, 1px hairline border, no shadow (BRIEF §3).
  * `default` is the white surface (premium redesign 2026-06 retired Fog
  * White); `dark` is the Sarat Black surface used for the Originals tier.
  */
-const cardVariants = cva('rounded-card [border-width:0.5px] overflow-hidden', {
+const cardVariants = cva('rounded-card border overflow-hidden', {
   variants: {
     variant: {
-      default: 'border-sarat-black/8 bg-white text-sarat-black',
+      default: 'border-sarat-black/12 bg-white text-sarat-black',
       dark: 'border-white/10 bg-sarat-black text-white',
     },
   },

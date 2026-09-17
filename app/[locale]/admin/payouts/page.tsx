@@ -51,7 +51,7 @@ export default async function AdminPayoutsPage({
     return (
       <div className="flex flex-col gap-12">
         {backLink}
-        <div className="border-sarat-black/8 rounded-card flex flex-col items-start gap-4 [border-width:0.5px] p-12">
+        <div className="border-sarat-black/12 rounded-card flex flex-col items-start gap-4 border p-12">
           <p className={eyebrowClassName}>{t('noDb.eyebrow')}</p>
           <h2 className="text-h2">{t('noDb.title')}</h2>
           <p className="text-sarat-black-600 max-w-xl text-base">{t('noDb.description')}</p>
@@ -82,7 +82,7 @@ export default async function AdminPayoutsPage({
       </div>
 
       {rows.length === 0 ? (
-        <div className="border-sarat-black/8 rounded-card flex flex-col items-start gap-2 [border-width:0.5px] p-12">
+        <div className="border-sarat-black/12 rounded-card flex flex-col items-start gap-2 border p-12">
           <p className={eyebrowClassName}>{t('payoutsList.empty.eyebrow')}</p>
           <h2 className="text-h2">{t('payoutsList.empty.title')}</h2>
           <p className="text-sarat-black-600 max-w-xl text-base">
@@ -94,7 +94,7 @@ export default async function AdminPayoutsPage({
           {rows.map((row) => (
             <li
               key={row.hostId}
-              className="border-sarat-black/8 rounded-card flex flex-wrap items-center justify-between gap-4 [border-width:0.5px] p-6"
+              className="border-sarat-black/12 rounded-card flex flex-wrap items-center justify-between gap-4 border p-6"
             >
               <div className="flex flex-col gap-1">
                 <span className="text-base font-medium">{row.hostName}</span>

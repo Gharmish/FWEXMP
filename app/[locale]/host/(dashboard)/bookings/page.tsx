@@ -130,7 +130,7 @@ export default async function HostBookingsPage({
     rows.length === 0 ? (
       <p className="text-sarat-black-600 text-base">{t(`${emptyKey}.empty`)}</p>
     ) : (
-      <ul className="border-sarat-black/8 rounded-card divide-sarat-black/8 divide-hairline flex flex-col [border-width:0.5px]">
+      <ul className="border-sarat-black/12 rounded-card divide-sarat-black/12 flex flex-col divide-y border">
         {rows.map((row) => (
           <BookingRow
             key={row.id}
@@ -169,7 +169,7 @@ export default async function HostBookingsPage({
         {suspended && (
           <p
             role="status"
-            className="border-al-qatt-red/40 bg-al-qatt-red/5 text-sarat-black rounded-card [border-width:0.5px] p-4 text-sm leading-relaxed"
+            className="border-al-qatt-red/40 bg-al-qatt-red/5 text-sarat-black rounded-card border p-4 text-sm leading-relaxed"
           >
             {t('suspendedBanner')}
           </p>
@@ -222,7 +222,7 @@ export default async function HostBookingsPage({
                     'rounded-button inline-flex min-h-11 items-center gap-2 px-4 text-sm font-medium transition-colors duration-200',
                     active
                       ? 'bg-sarat-black text-white'
-                      : 'border-sarat-black/20 text-sarat-black hover:border-sarat-black/40 [border-width:0.5px]',
+                      : 'border-sarat-black/20 text-sarat-black hover:border-sarat-black/40 border',
                   )}
                 >
                   {t(`views.${v}`)}
@@ -245,7 +245,7 @@ export default async function HostBookingsPage({
               and results are shareable / back-button friendly. */}
           <form
             method="get"
-            className="border-sarat-black/8 rounded-card flex flex-wrap items-end gap-4 [border-width:0.5px] p-4"
+            className="border-sarat-black/12 rounded-card flex flex-wrap items-end gap-4 border p-4"
           >
             {view !== 'open' && <input type="hidden" name="view" value={view} />}
             <div className="flex min-w-48 flex-1 flex-col gap-2">
@@ -258,7 +258,7 @@ export default async function HostBookingsPage({
                 name="q"
                 defaultValue={q}
                 placeholder={t('filter.searchPlaceholder')}
-                className="rounded-input border-sarat-black/20 text-sarat-black placeholder:text-sarat-black-600 h-11 w-full [border-width:0.5px] bg-white px-4 text-base"
+                className="rounded-input border-sarat-black/20 text-sarat-black placeholder:text-sarat-black-600 h-11 w-full border bg-white px-4 text-base"
               />
             </div>
             <div className="flex min-w-48 flex-col gap-2">
@@ -269,7 +269,7 @@ export default async function HostBookingsPage({
                 id="bookings-experience"
                 name="experience"
                 defaultValue={experience}
-                className="rounded-input border-sarat-black/20 text-sarat-black h-11 w-full [border-width:0.5px] bg-white px-3 text-base"
+                className="rounded-input border-sarat-black/20 text-sarat-black h-11 w-full border bg-white px-3 text-base"
               >
                 <option value="">{t('filter.allExperiences')}</option>
                 {myExperiences.map((exp) => (
@@ -388,7 +388,7 @@ export default async function HostBookingsPage({
                   {requests.length + upcoming.length + past.length === 0 ? (
                     <p className="text-sarat-black-600 text-base">{t('calendar.emptyDay')}</p>
                   ) : (
-                    <ul className="border-sarat-black/8 rounded-card divide-sarat-black/8 divide-hairline flex flex-col [border-width:0.5px]">
+                    <ul className="border-sarat-black/12 rounded-card divide-sarat-black/12 flex flex-col divide-y border">
                       {[...requests, ...upcoming].map((row) => (
                         <BookingRow
                           key={row.id}

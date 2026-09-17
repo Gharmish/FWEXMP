@@ -10,7 +10,7 @@ import { cn } from '@/lib/utils';
 
 /**
  * Gharmish Dialog — Base UI dialog (focus trap, scroll lock, aria wiring)
- * with the one spring for enter/exit. Floating layer: rounded-modal, 0.5px
+ * with the one spring for enter/exit. Floating layer: rounded-modal, 1px
  * hairline, --shadow-overlay (the single allowed shadow, BRIEF §3).
  *
  * Controlled (`open` + `onOpenChange`) or uncontrolled (pass `trigger`).
@@ -74,7 +74,7 @@ export function Dialog({
               render={
                 <motion.div
                   className={cn(
-                    'rounded-modal border-sarat-black/8 fixed inset-0 z-[60] m-auto h-fit w-[calc(100%-2rem)] max-w-md [border-width:0.5px] bg-white p-6 shadow-overlay',
+                    'rounded-modal border-sarat-black/12 shadow-overlay fixed inset-0 z-[60] m-auto h-fit w-[calc(100%-2rem)] max-w-md border bg-white p-6',
                     className,
                   )}
                   initial={reduce ? false : { opacity: 0, scale: 0.96, y: 8 }}

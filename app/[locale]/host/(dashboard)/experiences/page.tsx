@@ -126,7 +126,7 @@ export default async function HostExperiencesIndexPage({
       {justDeleted && (
         <p
           role="status"
-          className="border-sarat-black/8 bg-mist text-sarat-black rounded-card [border-width:0.5px] p-4 text-sm leading-relaxed"
+          className="border-sarat-black/12 bg-mist text-sarat-black rounded-card border p-4 text-sm leading-relaxed"
         >
           {tIndex('deletedNotice')}
         </p>
@@ -150,7 +150,7 @@ export default async function HostExperiencesIndexPage({
       ) : (
         <>
           {active.length > 0 && (
-            <ul className="border-sarat-black/8 divide-sarat-black/8 rounded-card divide-hairline flex flex-col [border-width:0.5px]">
+            <ul className="border-sarat-black/12 divide-sarat-black/12 rounded-card flex flex-col divide-y border">
               {active.map(renderRow)}
             </ul>
           )}
@@ -159,7 +159,7 @@ export default async function HostExperiencesIndexPage({
               <summary className="text-sarat-black-600 hover:text-sarat-black inline-flex min-h-11 cursor-pointer list-none items-center gap-2 text-sm font-medium">
                 {tIndex('archivedFold', { count: archived.length })}
               </summary>
-              <ul className="border-sarat-black/8 divide-sarat-black/8 rounded-card divide-hairline mt-4 flex flex-col [border-width:0.5px]">
+              <ul className="border-sarat-black/12 divide-sarat-black/12 rounded-card mt-4 flex flex-col divide-y border">
                 {archived.map(renderRow)}
               </ul>
             </details>

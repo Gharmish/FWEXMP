@@ -55,7 +55,7 @@ export interface MomentsCopy {
 }
 
 const TEXTAREA_CLASS = cn(
-  'rounded-input border-sarat-black/20 bg-white text-sarat-black w-full resize-y [border-width:0.5px] px-4 py-3 text-base',
+  'rounded-input border-sarat-black/20 bg-white text-sarat-black w-full resize-y border px-4 py-3 text-base',
   'placeholder:text-sarat-black-600',
 );
 const initialState: MomentActionState = { success: false };
@@ -176,7 +176,7 @@ export function MomentCard({
   const fields = state.fields ?? {};
   const error = actionError(state, copy);
   return (
-    <li className="border-sarat-black/8 rounded-card flex flex-col gap-4 [border-width:0.5px] p-6">
+    <li className="border-sarat-black/12 rounded-card flex flex-col gap-4 border p-6">
       <div className="flex items-center justify-between gap-3">
         <span className="text-sarat-black-600 text-sm font-medium">{index + 1}</span>
         <div className="flex items-center gap-2">
@@ -245,7 +245,7 @@ export function AddMomentForm({
     <form
       ref={formRef}
       action={action}
-      className="border-sarat-black/8 rounded-card flex flex-col gap-4 [border-width:0.5px] p-6"
+      className="border-sarat-black/12 rounded-card flex flex-col gap-4 border p-6"
     >
       <h2 className="text-h3">{copy.addHeading}</h2>
       <input type="hidden" name="experienceId" value={experienceId} />

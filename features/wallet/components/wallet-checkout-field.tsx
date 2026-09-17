@@ -118,7 +118,7 @@ export function WalletCheckoutField({
       <form action={removeAction} className="flex flex-col gap-2">
         <input type="hidden" name="reference" value={reference} />
         <input type="hidden" name="locale" value={locale} />
-        <div className="border-juniper-green/30 bg-juniper-green-50 rounded-input flex flex-wrap items-center gap-3 [border-width:0.5px] px-4 py-3">
+        <div className="border-juniper-green/30 bg-juniper-green-50 rounded-input flex flex-wrap items-center gap-3 border px-4 py-3">
           <Check className="text-juniper-green size-4 shrink-0" aria-hidden />
           <span className="text-sm font-medium">
             {copy.appliedPrefix} <span dir="ltr">−{formatSAR(appliedSar, locale)}</span>

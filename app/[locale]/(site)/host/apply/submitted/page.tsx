@@ -59,7 +59,7 @@ export default async function HostApplySubmittedPage({
           <p className="text-sarat-black-600 text-lg leading-relaxed">{t('description')}</p>
         </div>
 
-        <ol className="border-sarat-black/8 rounded-card mt-12 grid gap-4 [border-width:0.5px] p-6">
+        <ol className="border-sarat-black/12 rounded-card mt-12 grid gap-4 border p-6">
           <li className="flex gap-4">
             <span className="text-sarat-black-600 text-sm tabular-nums">01</span>
             <p className="text-base leading-relaxed">{t('step1')}</p>

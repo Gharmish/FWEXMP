@@ -144,19 +144,22 @@ export function ShareButton({
             <a
               key={channel}
               href={channelHref(channel)}
-              {...(channel === 'email'
-                ? {}
-                : { target: '_blank', rel: 'noopener noreferrer' })}
+              {...(channel === 'email' ? {} : { target: '_blank', rel: 'noopener noreferrer' })}
               onClick={() => {
                 trackShare({ id: analyticsId, contentType, method: channel });
                 setOpen(false);
               }}
-              className="border-sarat-black/10 hover:bg-mist flex h-12 items-center gap-3 rounded-button [border-width:0.5px] px-4 text-sm font-medium transition-colors duration-200"
+              className="border-sarat-black/12 hover:bg-mist rounded-button flex h-12 items-center gap-3 border px-4 text-sm font-medium transition-colors duration-200"
             >
               {channel === 'email' ? (
                 <Mail className="size-5 shrink-0" strokeWidth={1.5} aria-hidden />
               ) : (
-                <svg viewBox="0 0 24 24" fill="currentColor" className="size-5 shrink-0" aria-hidden>
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="currentColor"
+                  className="size-5 shrink-0"
+                  aria-hidden
+                >
                   <path d={BRAND_GLYPHS[channel]} />
                 </svg>
               )}
@@ -167,7 +170,7 @@ export function ShareButton({
             type="button"
             onClick={copyLink}
             className={cn(
-              'border-sarat-black/10 hover:bg-mist col-span-2 flex h-12 items-center gap-3 rounded-button [border-width:0.5px] px-4 text-sm font-medium transition-colors duration-200',
+              'border-sarat-black/12 hover:bg-mist rounded-button col-span-2 flex h-12 items-center gap-3 border px-4 text-sm font-medium transition-colors duration-200',
               copied && 'text-success',
             )}
           >

@@ -65,10 +65,7 @@ export default async function AdminAlertsPage({ params }: { params: Promise<{ lo
   };
 
   const renderRow = (row: AdminAlertRow) => (
-    <li
-      key={row.id}
-      className="border-sarat-black/8 rounded-card flex flex-col gap-3 [border-width:0.5px] p-6"
-    >
+    <li key={row.id} className="border-sarat-black/12 rounded-card flex flex-col gap-3 border p-6">
       <div className="flex flex-wrap items-center gap-3">
         <span className="text-sarat-black text-base font-medium">
           {t.has(`alerts.kinds.${row.kind}`) ? t(`alerts.kinds.${row.kind}`) : row.subject}

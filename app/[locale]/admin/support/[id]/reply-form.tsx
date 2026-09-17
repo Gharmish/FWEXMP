@@ -80,7 +80,7 @@ export function ReplyForm({
             // Echo the draft back on failure — React resets uncontrolled inputs.
             defaultValue={!replyState.success ? replyState.values?.body : ''}
             key={replyState.success ? 'sent' : 'draft'}
-            className="rounded-input border-sarat-black/20 text-sarat-black focus-visible:border-saffron-gold w-full [border-width:0.5px] bg-white p-3 text-base leading-relaxed outline-none"
+            className="rounded-input border-sarat-black/20 text-sarat-black focus-visible:border-saffron-gold w-full border bg-white p-3 text-base leading-relaxed outline-none"
           />
           {replyError && (
             <p role="alert" className="text-al-qatt-red-800 text-sm">
@@ -95,7 +95,7 @@ export function ReplyForm({
         </form>
       ) : (
         <div className="flex max-w-2xl flex-col gap-3">
-          <p className="text-sarat-black-600 border-sarat-black/8 rounded-input bg-mist [border-width:0.5px] p-4 text-sm leading-relaxed">
+          <p className="text-sarat-black-600 border-sarat-black/12 rounded-input bg-mist border p-4 text-sm leading-relaxed">
             {copy.windowClosedNote}
           </p>
           {state !== 'closed' && (

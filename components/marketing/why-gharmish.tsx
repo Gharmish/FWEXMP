@@ -23,7 +23,7 @@ export async function WhyGharmish() {
   ];
 
   return (
-    <section className="border-sarat-black/8 bg-mist [border-top-width:0.5px]">
+    <section className="border-sarat-black/12 bg-mist border-t">
       <div className="mx-auto w-full max-w-6xl px-6 py-20">
         <FadeIn className="mb-12 flex flex-col gap-2">
           <p className={eyebrowClassName}>{t('eyebrow')}</p>

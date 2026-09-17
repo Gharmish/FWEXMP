@@ -34,7 +34,7 @@ export function ReadinessCard({ items, copy, compact = false }: ReadinessCardPro
   return (
     <section
       aria-labelledby="readiness-heading"
-      className="border-sarat-black/8 rounded-card flex flex-col gap-4 [border-width:0.5px] p-6"
+      className="border-sarat-black/12 rounded-card flex flex-col gap-4 border p-6"
     >
       <div className="flex flex-wrap items-baseline justify-between gap-2">
         <h2 id="readiness-heading" className="text-h3">
@@ -59,7 +59,7 @@ export function ReadinessCard({ items, copy, compact = false }: ReadinessCardPro
       </ul>
 
       {recommended.length > 0 && (
-        <div className="border-sarat-black/8 flex flex-col gap-2 [border-top-width:0.5px] pt-4">
+        <div className="border-sarat-black/12 flex flex-col gap-2 border-t pt-4">
           <p className="text-sarat-black-600 text-xs font-medium">{copy.recommendedLabel}</p>
           <ul className="grid gap-x-6 gap-y-2 sm:grid-cols-2">
             {recommended.map((item) => (

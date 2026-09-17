@@ -230,7 +230,7 @@ export default async function HostDashboardPage({
         {suspended && (
           <p
             role="status"
-            className="border-al-qatt-red/40 bg-al-qatt-red/5 text-sarat-black rounded-card [border-width:0.5px] p-4 text-sm leading-relaxed"
+            className="border-al-qatt-red/40 bg-al-qatt-red/5 text-sarat-black rounded-card border p-4 text-sm leading-relaxed"
           >
             {t('suspendedBanner')}
           </p>
@@ -238,7 +238,7 @@ export default async function HostDashboardPage({
       </section>
 
       {showChecklist && (
-        <section className="border-sarat-black/8 rounded-card flex flex-col gap-4 [border-width:0.5px] p-6">
+        <section className="border-sarat-black/12 rounded-card flex flex-col gap-4 border p-6">
           <div className="flex flex-wrap items-baseline justify-between gap-3">
             <h2 className={sectionTitle}>{t('checklist.title')}</h2>
             <span className="text-sarat-black-600 text-sm tabular-nums">
@@ -283,7 +283,7 @@ export default async function HostDashboardPage({
         <section className="flex flex-col gap-4">
           <h2 className={sectionTitle}>{t('attention.title')}</h2>
           {pendingRequests.length > 0 && (
-            <ul className="border-saffron-gold/50 rounded-card divide-sarat-black/8 divide-hairline flex flex-col [border-width:0.5px]">
+            <ul className="border-saffron-gold/50 rounded-card divide-sarat-black/12 flex flex-col divide-y border">
               {pendingRequests.map((row) => (
                 <BookingRow
                   key={row.id}
@@ -307,7 +307,7 @@ export default async function HostDashboardPage({
             </Link>
           )}
           {(awaitingPayment.length > 0 || attentionLinks.length > 0) && (
-            <ul className="border-sarat-black/8 rounded-card divide-sarat-black/8 divide-hairline flex flex-col [border-width:0.5px]">
+            <ul className="border-sarat-black/12 rounded-card divide-sarat-black/12 flex flex-col divide-y border">
               {awaitingPayment.map((row) => (
                 <li key={row.id}>
                   <Link
@@ -375,11 +375,11 @@ export default async function HostDashboardPage({
           </Link>
         </div>
         {comingUp.length === 0 ? (
-          <p className="text-sarat-black-600 border-sarat-black/8 rounded-card [border-width:0.5px] p-6 text-base">
+          <p className="text-sarat-black-600 border-sarat-black/12 rounded-card border p-6 text-base">
             {listings.live > 0 ? t('comingUp.empty') : t('comingUp.emptyNoListing')}
           </p>
         ) : (
-          <div className="border-sarat-black/8 rounded-card divide-sarat-black/8 divide-hairline flex flex-col [border-width:0.5px]">
+          <div className="border-sarat-black/12 rounded-card divide-sarat-black/12 flex flex-col divide-y border">
             {[...byDay.entries()].map(([date, rows]) => (
               <div key={date} className="flex flex-col gap-2 p-6">
                 <h3 className={cn(eyebrowClassName, date === today && 'text-sarat-black')}>
@@ -431,7 +431,7 @@ export default async function HostDashboardPage({
 
       <div className="grid gap-6 lg:grid-cols-2">
         {earnings && (
-          <section className="border-sarat-black/8 rounded-card flex flex-col gap-4 [border-width:0.5px] p-6">
+          <section className="border-sarat-black/12 rounded-card flex flex-col gap-4 border p-6">
             <div className="flex items-baseline justify-between gap-4">
               <h2 className={sectionTitle}>{t('earningsKpis.title')}</h2>
               <Link
@@ -465,7 +465,7 @@ export default async function HostDashboardPage({
           </section>
         )}
 
-        <section className="border-sarat-black/8 rounded-card flex flex-col gap-4 [border-width:0.5px] p-6">
+        <section className="border-sarat-black/12 rounded-card flex flex-col gap-4 border p-6">
           <div className="flex items-baseline justify-between gap-4">
             <h2 className={sectionTitle}>{t('numbers.title')}</h2>
             <Link

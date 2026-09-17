@@ -45,7 +45,7 @@ export async function SocialProofStrip({ locale }: SocialProofStripProps) {
             return (
               <li
                 key={review.id}
-                className="border-sarat-black/8 rounded-card flex flex-col gap-3 [border-width:0.5px] bg-white p-6"
+                className="border-sarat-black/12 rounded-card flex flex-col gap-3 border bg-white p-6"
               >
                 <StarRating
                   rating={review.rating}

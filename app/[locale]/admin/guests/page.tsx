@@ -51,7 +51,7 @@ export default async function AdminGuestsPage({
     return (
       <div className="flex flex-col gap-12">
         {backLink}
-        <div className="border-sarat-black/8 rounded-card flex flex-col items-start gap-4 [border-width:0.5px] p-12">
+        <div className="border-sarat-black/12 rounded-card flex flex-col items-start gap-4 border p-12">
           <p className={eyebrowClassName}>{t('noDb.eyebrow')}</p>
           <h2 className="text-h2">{t('noDb.title')}</h2>
           <p className="text-sarat-black-600 max-w-xl text-base">{t('noDb.description')}</p>
@@ -77,7 +77,7 @@ export default async function AdminGuestsPage({
 
       <form
         method="get"
-        className="border-sarat-black/8 rounded-card flex flex-wrap items-end gap-3 [border-width:0.5px] p-4"
+        className="border-sarat-black/12 rounded-card flex flex-wrap items-end gap-3 border p-4"
       >
         <label className="flex min-w-50 flex-1 flex-col gap-1">
           <span className="text-sarat-black-600 text-sm">{t('guestsList.search')}</span>
@@ -86,7 +86,7 @@ export default async function AdminGuestsPage({
             name="q"
             defaultValue={q}
             placeholder={t('guestsList.searchPlaceholder')}
-            className="rounded-input border-sarat-black/20 text-sarat-black h-11 w-full [border-width:0.5px] bg-white px-3 text-base"
+            className="rounded-input border-sarat-black/20 text-sarat-black h-11 w-full border bg-white px-3 text-base"
           />
         </label>
         <button
@@ -100,7 +100,7 @@ export default async function AdminGuestsPage({
       {rows.length === 0 ? (
         <p className="text-sarat-black-600 text-base">{t('guestsList.empty')}</p>
       ) : (
-        <ul className="border-sarat-black/8 rounded-card divide-hairline flex flex-col divide-[var(--color-sarat-black)]/8 [border-width:0.5px]">
+        <ul className="border-sarat-black/12 rounded-card divide-sarat-black/12 flex flex-col divide-y border">
           {rows.map((row) => (
             <li key={row.id}>
               <Link

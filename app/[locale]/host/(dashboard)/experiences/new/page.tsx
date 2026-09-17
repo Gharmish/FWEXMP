@@ -65,7 +65,7 @@ export default async function NewExperiencePage({
           </p>
         </div>
 
-        <div className="border-sarat-black/8 mt-12 [border-top-width:0.5px] pt-12">
+        <div className="border-sarat-black/12 mt-12 border-t pt-12">
           <NewExperienceForm
             locale={loc}
             copy={{

@@ -57,7 +57,7 @@ export function EmergencyCancelButton({ bookingId, locale, copy }: EmergencyCanc
         : undefined;
 
   return (
-    <section className="border-al-qatt-red/25 rounded-card flex flex-col gap-3 [border-width:0.5px] p-6">
+    <section className="border-al-qatt-red/25 rounded-card flex flex-col gap-3 border p-6">
       <h2 className="text-al-qatt-red-800 inline-flex items-center gap-2 text-sm font-medium">
         <TriangleAlert className="size-4 shrink-0" aria-hidden />
         {copy.heading}
@@ -78,7 +78,7 @@ export function EmergencyCancelButton({ bookingId, locale, copy }: EmergencyCanc
             rows={3}
             placeholder={copy.reasonPlaceholder}
             defaultValue={state.values?.reason ?? ''}
-            className="border-sarat-black/15 rounded-input focus-visible:border-sarat-black w-full resize-y [border-width:0.5px] bg-white px-3 py-2 text-sm outline-none"
+            className="border-sarat-black/15 rounded-input focus-visible:border-sarat-black w-full resize-y border bg-white px-3 py-2 text-sm outline-none"
           />
         </div>
         <div className="flex flex-col items-start gap-1">

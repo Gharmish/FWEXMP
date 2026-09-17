@@ -16,7 +16,7 @@ interface FooterLink {
 }
 
 /**
- * Restrained footer (BRIEF §3): a single 0.5px top hairline, no shadow,
+ * Restrained footer (BRIEF §3): a single 1px top hairline, no shadow,
  * brand tokens only. The full Gharmish lockup, a quiet nav, and the
  * copyright line.
  *
@@ -99,7 +99,7 @@ export async function Footer() {
 
   // Mobile: the same column collapsed into a tap-to-open accordion.
   const renderAccordion = ({ label, links }: { label: string; links: FooterLink[] }) => (
-    <details key={label} className="group border-sarat-black/8 [border-top-width:0.5px]">
+    <details key={label} className="group border-sarat-black/12 border-t">
       <summary
         className={cn(
           'flex min-h-12 cursor-pointer list-none items-center justify-between',
@@ -119,7 +119,7 @@ export async function Footer() {
   );
 
   return (
-    <footer className="border-sarat-black/8 [border-top-width:0.5px] print:hidden">
+    <footer className="border-sarat-black/12 border-t print:hidden">
       <div className="mx-auto flex max-w-6xl flex-col gap-12 px-6 py-12">
         <Stagger className="flex flex-col gap-12 sm:flex-row sm:justify-between">
           <StaggerItem className="flex flex-col gap-3">
@@ -142,7 +142,7 @@ export async function Footer() {
         {/* Mobile accordions */}
         <div className="flex flex-col sm:hidden">{columns.map(renderAccordion)}</div>
 
-        <div className="border-sarat-black/8 flex flex-col gap-4 [border-top-width:0.5px] pt-6 text-sm">
+        <div className="border-sarat-black/12 flex flex-col gap-4 border-t pt-6 text-sm">
           <nav aria-label={t('legalLabel')} className="flex flex-wrap items-center gap-x-6 gap-y-1">
             {legalLinks.map((link) => (
               <Link key={link.href} href={link.href} className={bottomLinkClassName}>

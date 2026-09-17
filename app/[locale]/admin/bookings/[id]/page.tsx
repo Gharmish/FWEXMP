@@ -163,7 +163,7 @@ export default async function AdminBookingDetailPage({
           here because `createCheckout` refuses while it is set, and this
           is the only way to lift it (2026-07-28 eighth audit). */}
       {booking.settleAnomalyAt && (
-        <section className="border-al-qatt-red/40 rounded-card bg-error-surface flex flex-col gap-3 [border-width:0.5px] p-6">
+        <section className="border-al-qatt-red/40 rounded-card bg-error-surface flex flex-col gap-3 border p-6">
           <h2 className="text-error text-base font-medium">
             {t('bookingDetail.settleAnomalyTitle')}
           </h2>
@@ -192,7 +192,7 @@ export default async function AdminBookingDetailPage({
       {booking.refundDueSar !== null && (
         <section
           className={cn(
-            'rounded-card flex flex-col gap-4 [border-width:0.5px] p-6',
+            'rounded-card flex flex-col gap-4 border p-6',
             booking.refundBank
               ? 'border-juniper-green/30 bg-juniper-green/5'
               : 'border-pending/40 bg-pending-surface',
@@ -244,7 +244,7 @@ export default async function AdminBookingDetailPage({
         </section>
       )}
 
-      <dl className="border-sarat-black/8 rounded-card grid gap-6 [border-width:0.5px] p-6 sm:grid-cols-2">
+      <dl className="border-sarat-black/12 rounded-card grid gap-6 border p-6 sm:grid-cols-2">
         {rows.map((r) => (
           <div key={r.label} className="flex flex-col gap-1">
             <dt className={eyebrowClassName}>{r.label}</dt>

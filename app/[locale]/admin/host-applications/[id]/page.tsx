@@ -68,7 +68,7 @@ export default async function AdminHostApplicationDetailPage({
           <ArrowLeft className="size-4 shrink-0 rtl:rotate-180" aria-hidden />
           {t('hostApplicationsList.title')}
         </Link>
-        <div className="border-sarat-black/8 rounded-card flex flex-col items-start gap-4 [border-width:0.5px] p-12">
+        <div className="border-sarat-black/12 rounded-card flex flex-col items-start gap-4 border p-12">
           <p className={eyebrowClassName}>{t('noDb.eyebrow')}</p>
           <h2 className="text-h2">{t('noDb.title')}</h2>
           <p className="text-sarat-black-600 max-w-xl text-base">{t('noDb.description')}</p>
@@ -110,7 +110,7 @@ export default async function AdminHostApplicationDetailPage({
         </p>
       </div>
 
-      <dl className="border-sarat-black/8 rounded-card grid gap-6 [border-width:0.5px] p-6 sm:grid-cols-2">
+      <dl className="border-sarat-black/12 rounded-card grid gap-6 border p-6 sm:grid-cols-2">
         <div className="flex flex-col gap-1">
           <dt className={eyebrowClassName}>{t('detail.identity')}</dt>
           <dd className="text-base font-medium">{t(`identityType.${application.identityType}`)}</dd>
@@ -217,7 +217,7 @@ export default async function AdminHostApplicationDetailPage({
       </section>
 
       {application.reviewerNotes && (
-        <section className="border-sarat-black/8 rounded-card flex flex-col gap-3 [border-width:0.5px] p-6">
+        <section className="border-sarat-black/12 rounded-card flex flex-col gap-3 border p-6">
           <h2 className={eyebrowClassName}>{t('detail.reviewerNotes')}</h2>
           {application.reviewedAt && (
             <p className="text-sarat-black-600 text-sm">
@@ -233,7 +233,7 @@ export default async function AdminHostApplicationDetailPage({
       )}
 
       {events.length > 0 && (
-        <section className="border-sarat-black/8 rounded-card flex flex-col gap-4 [border-width:0.5px] p-6">
+        <section className="border-sarat-black/12 rounded-card flex flex-col gap-4 border p-6">
           <h2 className={eyebrowClassName}>{t('detail.historyHeading')}</h2>
           <ol className="flex flex-col gap-4">
             {events.map((event) => (

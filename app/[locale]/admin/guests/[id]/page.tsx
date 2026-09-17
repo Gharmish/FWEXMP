@@ -89,7 +89,7 @@ export default async function AdminGuestDetailPage({
         />
       </div>
 
-      <dl className="border-sarat-black/8 rounded-card grid gap-6 [border-width:0.5px] p-6 sm:grid-cols-2">
+      <dl className="border-sarat-black/12 rounded-card grid gap-6 border p-6 sm:grid-cols-2">
         {facts.map((f) => (
           <div key={f.label} className="flex flex-col gap-1">
             <dt className={eyebrowClassName}>{f.label}</dt>
@@ -105,7 +105,7 @@ export default async function AdminGuestDetailPage({
         {guest.bookingList.length === 0 ? (
           <p className="text-sarat-black-600 text-base">{t('guestDetail.noBookings')}</p>
         ) : (
-          <ul className="border-sarat-black/8 rounded-card divide-hairline flex flex-col divide-[var(--color-sarat-black)]/8 [border-width:0.5px]">
+          <ul className="border-sarat-black/12 rounded-card divide-sarat-black/12 flex flex-col divide-y border">
             {guest.bookingList.map((b) => (
               <li key={b.id} className="flex flex-wrap items-center justify-between gap-4 p-6">
                 <div className="flex min-w-0 flex-col gap-1">

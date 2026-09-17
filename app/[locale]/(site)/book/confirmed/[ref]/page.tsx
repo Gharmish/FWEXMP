@@ -684,7 +684,7 @@ export default async function BookingConfirmedPage({ params, searchParams }: Pag
       </header>
 
       <section
-        className="border-sarat-black/8 rounded-card mt-12 flex flex-col gap-4 [border-width:0.5px] p-6"
+        className="border-sarat-black/12 rounded-card mt-12 flex flex-col gap-4 border p-6"
         aria-labelledby="booking-reference-heading"
       >
         <p id="booking-reference-heading" className={eyebrowClassName}>
@@ -720,10 +720,7 @@ export default async function BookingConfirmedPage({ params, searchParams }: Pag
             they can be read at a glance on the day. */}
         {factTiles.length > 0 && (
           <>
-            <span
-              className="border-sarat-black/12 mt-1 block border-t [border-top-width:0.5px] border-dashed"
-              aria-hidden
-            />
+            <span className="border-sarat-black/12 mt-1 block border-t border-dashed" aria-hidden />
             <Stagger>
               <dl className="grid grid-cols-2 gap-4 sm:grid-cols-3">
                 {factTiles.map((row) => (
@@ -742,10 +739,7 @@ export default async function BookingConfirmedPage({ params, searchParams }: Pag
         {/* The money, as receipt lines under the ticket's perforation. */}
         {moneyRows.length > 0 && (
           <>
-            <span
-              className="border-sarat-black/12 mt-1 block border-t [border-top-width:0.5px] border-dashed"
-              aria-hidden
-            />
+            <span className="border-sarat-black/12 mt-1 block border-t border-dashed" aria-hidden />
             <dl className="flex flex-col gap-2">
               {moneyRows.map((row) => (
                 <div key={row.label} className="flex items-baseline justify-between gap-6">
@@ -868,7 +862,7 @@ export default async function BookingConfirmedPage({ params, searchParams }: Pag
           Rendered for every refund path that didn't pass through the
           guest's own cancel form — host/admin/support cancellations. */}
       {refundQueued && booking && (
-        <section className="border-sarat-black/8 rounded-card mt-12 flex flex-col gap-4 [border-width:0.5px] p-6 print:hidden">
+        <section className="border-sarat-black/12 rounded-card mt-12 flex flex-col gap-4 border p-6 print:hidden">
           <h2 className="text-h2">{t('refundBank.heading')}</h2>
           <p className="text-sarat-black-600 max-w-2xl text-base leading-relaxed">
             {booking.refundBank
@@ -916,7 +910,7 @@ export default async function BookingConfirmedPage({ params, searchParams }: Pag
       )}
 
       {isWalletRefunded && booking && (
-        <section className="border-sarat-black/8 rounded-card mt-12 flex flex-col gap-4 [border-width:0.5px] p-6 print:hidden">
+        <section className="border-sarat-black/12 rounded-card mt-12 flex flex-col gap-4 border p-6 print:hidden">
           <h2 className="text-h2">{t('walletCredit.heading')}</h2>
           <p className="text-sarat-black-600 text-base leading-relaxed">
             {t('walletCredit.description', { amount: formatSAR(walletCreditSar, loc) })}
@@ -985,7 +979,7 @@ export default async function BookingConfirmedPage({ params, searchParams }: Pag
                 <li key={index} className="flex items-start gap-3">
                   {/* Decorative order marker — the ol carries the semantics. */}
                   <span
-                    className="border-sarat-black/12 bg-mist text-sarat-black-600 flex size-6 shrink-0 items-center justify-center rounded-full [border-width:0.5px] text-xs font-medium"
+                    className="border-sarat-black/12 bg-mist text-sarat-black-600 flex size-6 shrink-0 items-center justify-center rounded-full border text-xs font-medium"
                     aria-hidden
                   >
                     {formatInteger(index + 1, loc)}
@@ -1003,7 +997,7 @@ export default async function BookingConfirmedPage({ params, searchParams }: Pag
       {booking?.status === 'completed' && tMe && reviewCopy && (
         <section
           id="review"
-          className="border-sarat-black/8 rounded-card mt-12 flex flex-col gap-4 [border-width:0.5px] p-6 print:hidden"
+          className="border-sarat-black/12 rounded-card mt-12 flex flex-col gap-4 border p-6 print:hidden"
         >
           {/* Section-level h2 like every sibling — the form's own
               heading is an h3 beneath it, keeping the outline h1→h2→h3

@@ -48,7 +48,7 @@ export interface NewExperienceFormProps {
 const initialState: HostExperienceState = { success: false };
 
 const SELECT_CLASS = cn(
-  'rounded-input border-sarat-black/20 bg-white text-sarat-black h-11 w-full [border-width:0.5px] px-3 text-base',
+  'rounded-input border-sarat-black/20 bg-white text-sarat-black h-11 w-full border px-3 text-base',
 );
 
 function SubmitButton({ label, pendingLabel }: { label: string; pendingLabel: string }) {

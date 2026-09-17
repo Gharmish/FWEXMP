@@ -160,7 +160,7 @@ export function WalletAdminForms({ personKey, idempotencyKeys, copy }: WalletAdm
             <select
               name="reason"
               defaultValue="goodwill"
-              className="border-sarat-black/20 rounded-input h-11 [border-width:0.5px] bg-white px-3 text-sm"
+              className="border-sarat-black/20 rounded-input h-11 border bg-white px-3 text-sm"
             >
               <option value="goodwill">{copy.reasonGoodwill}</option>
               <option value="promo">{copy.reasonPromo}</option>
@@ -199,7 +199,7 @@ export function WalletAdminForms({ personKey, idempotencyKeys, copy }: WalletAdm
               rows={2}
               maxLength={WALLET_NOTE_MAX}
               defaultValue={issue.values?.note ?? ''}
-              className="rounded-input border-sarat-black/20 text-sarat-black w-full [border-width:0.5px] bg-white p-3 text-base"
+              className="rounded-input border-sarat-black/20 text-sarat-black w-full border bg-white p-3 text-base"
             />
           </div>
           {issue.generalError && (
@@ -249,7 +249,7 @@ export function WalletAdminForms({ personKey, idempotencyKeys, copy }: WalletAdm
               maxLength={WALLET_NOTE_MAX}
               defaultValue={adjust.values?.note ?? ''}
               aria-invalid={adjust.fieldError('note') ? true : undefined}
-              className="rounded-input border-sarat-black/20 text-sarat-black w-full [border-width:0.5px] bg-white p-3 text-base"
+              className="rounded-input border-sarat-black/20 text-sarat-black w-full border bg-white p-3 text-base"
             />
             {adjust.fieldError('note') && (
               <p role="alert" className="text-al-qatt-red-800 text-sm">

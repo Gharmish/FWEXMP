@@ -653,7 +653,7 @@ export default async function ExperienceDetailPage({
       {previewMode && (
         <p
           role="status"
-          className="border-saffron-gold/50 bg-saffron-gold/10 text-sarat-black rounded-card mb-6 [border-width:0.5px] p-4 text-sm leading-relaxed"
+          className="border-saffron-gold/50 bg-saffron-gold/10 text-sarat-black rounded-card mb-6 border p-4 text-sm leading-relaxed"
         >
           {t('preview.banner')}
         </p>
@@ -746,7 +746,7 @@ export default async function ExperienceDetailPage({
           at-a-glance contract a guest reads before committing. */}
       <section
         aria-label={t('highlights.heading')}
-        className="border-sarat-black/8 mt-8 grid grid-cols-2 gap-x-6 gap-y-6 [border-block-width:0.5px] py-8 sm:grid-cols-4"
+        className="border-sarat-black/12 mt-8 grid grid-cols-2 gap-x-6 gap-y-6 border-y py-8 sm:grid-cols-4"
       >
         {highlights.map(({ key, Icon, label, value }) => (
           <div key={key} className="flex items-center gap-3">
@@ -983,7 +983,7 @@ export default async function ExperienceDetailPage({
           {/* RiseIn, not MountFade: the panel is conversion-critical, so it
               must SSR visible (transform-only settle; opacity stays 1 —
               no invisible-until-hydration on mid-range 4G devices). */}
-          <RiseIn className="rounded-card border-sarat-black/8 flex flex-col gap-6 [border-width:0.5px] p-6">
+          <RiseIn className="rounded-card border-sarat-black/12 flex flex-col gap-6 border p-6">
             <h2 className="text-h2">{bookingCopy.title}</h2>
             <p className="text-2xl font-medium">
               <Price amount={exp.priceSar} locale={loc} />
@@ -1118,7 +1118,7 @@ function ReviewsSectionFallback({ locale }: { locale: Locale }) {
   return (
     <section
       aria-busy="true"
-      className="border-sarat-black/8 flex scroll-mt-20 flex-col gap-8 [border-top-width:0.5px] pt-12"
+      className="border-sarat-black/12 flex scroll-mt-20 flex-col gap-8 border-t pt-12"
     >
       <div className="flex flex-col gap-2">
         <Skeleton className="h-4 w-24" />
@@ -1128,7 +1128,7 @@ function ReviewsSectionFallback({ locale }: { locale: Locale }) {
         {Array.from({ length: 2 }).map((_, i) => (
           <div
             key={i}
-            className="rounded-card border-sarat-black/8 flex flex-col gap-3 [border-width:0.5px] p-6"
+            className="rounded-card border-sarat-black/12 flex flex-col gap-3 border p-6"
           >
             <Skeleton className="h-4 w-32" />
             <Skeleton className="h-4 w-full" />

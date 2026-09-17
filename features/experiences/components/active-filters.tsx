@@ -93,7 +93,7 @@ export function ActiveFilters({ criteria, cities, onRemove }: ActiveFiltersProps
             type="button"
             onClick={() => onRemove(token.patch)}
             aria-label={`${t('removeFilter')}: ${token.ariaLabel ?? (typeof token.label === 'string' ? token.label : token.key)}`}
-            className="border-sarat-black/20 text-sarat-black hover:border-sarat-black/40 inline-flex h-11 items-center gap-2 rounded-full [border-width:0.5px] ps-4 pe-3 text-sm transition-colors duration-200"
+            className="border-sarat-black/20 text-sarat-black hover:border-sarat-black/40 inline-flex h-11 items-center gap-2 rounded-full border ps-4 pe-3 text-sm transition-colors duration-200"
           >
             <span className="inline-flex items-center gap-1">{token.label}</span>
             <X className="text-sarat-black-600 size-4 shrink-0" aria-hidden />

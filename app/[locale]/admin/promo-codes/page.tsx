@@ -57,7 +57,7 @@ export default async function AdminPromoCodesPage({
     return (
       <div className="flex flex-col gap-12">
         {backLink}
-        <div className="border-sarat-black/8 rounded-card flex flex-col items-start gap-4 [border-width:0.5px] p-12">
+        <div className="border-sarat-black/12 rounded-card flex flex-col items-start gap-4 border p-12">
           <p className={eyebrowClassName}>{t('noDb.eyebrow')}</p>
           <h2 className="text-h2">{t('noDb.title')}</h2>
           <p className="text-sarat-black-600 max-w-xl text-base">{t('noDb.description')}</p>
@@ -107,8 +107,7 @@ export default async function AdminPromoCodesPage({
     formForbidden: t('promoCodes.formForbidden'),
   };
 
-  const panelClass =
-    'border-sarat-black/8 rounded-card flex flex-col gap-6 [border-width:0.5px] p-6 sm:p-8';
+  const panelClass = 'border-sarat-black/12 rounded-card flex flex-col gap-6 border p-6 sm:p-8';
 
   const discountText = (row: (typeof codes)[number]) =>
     row.discountType === 'percent' ? (
@@ -170,7 +169,7 @@ export default async function AdminPromoCodesPage({
               return (
                 <li
                   key={row.id}
-                  className="border-sarat-black/8 flex flex-col gap-3 border-b [border-bottom-width:0.5px] pb-6 last:border-b-0 last:pb-0"
+                  className="border-sarat-black/12 flex flex-col gap-3 border-b pb-6 last:border-b-0 last:pb-0"
                 >
                   <div className="flex flex-wrap items-center gap-3">
                     <span className="font-display text-lg font-medium tracking-[0.04em]" dir="ltr">

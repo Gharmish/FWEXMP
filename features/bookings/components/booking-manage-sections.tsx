@@ -224,7 +224,7 @@ export async function BookingManageSections({
       {/* Contact — WhatsApp deep links. The host line appears once the
           booking is accepted; Gharmish support is there in every state. */}
       {(hostWhatsapp || supportWhatsapp) && (
-        <section className="border-sarat-black/8 rounded-card mt-12 flex flex-col gap-3 [border-width:0.5px] p-6 print:hidden">
+        <section className="border-sarat-black/12 rounded-card mt-12 flex flex-col gap-3 border p-6 print:hidden">
           <h2 className="text-h2">
             {hostWhatsapp ? t('whatsapp.heading') : t('supportWhatsapp.heading')}
           </h2>
@@ -275,7 +275,7 @@ export async function BookingManageSections({
           A lapsed hold is about to be released; moving it would imply the
           spot is still held. */}
       {rescheduleView && !isHoldLapsed && (
-        <section className="border-sarat-black/8 rounded-card mt-12 flex flex-col gap-3 [border-width:0.5px] p-6 print:hidden">
+        <section className="border-sarat-black/12 rounded-card mt-12 flex flex-col gap-3 border p-6 print:hidden">
           <h2 className="text-h2">{t('reschedule.heading')}</h2>
           <p className="text-sarat-black-600 max-w-2xl text-base leading-relaxed">
             {t('reschedule.policy', { deadline: formatDeadline(rescheduleView.deadline) })}
@@ -336,7 +336,7 @@ export async function BookingManageSections({
         (options.reschedule.reason === 'window_passed' ||
           options.reschedule.reason === 'limit_reached') &&
         !isHoldLapsed && (
-          <section className="border-sarat-black/8 rounded-card mt-12 flex flex-col gap-3 [border-width:0.5px] p-6 print:hidden">
+          <section className="border-sarat-black/12 rounded-card mt-12 flex flex-col gap-3 border p-6 print:hidden">
             <h2 className="text-h2">{t('reschedule.heading')}</h2>
             <p className="text-sarat-black-600 max-w-2xl text-base leading-relaxed">
               {options.reschedule.reason === 'window_passed'
@@ -357,7 +357,7 @@ export async function BookingManageSections({
           A lapsed hold is about to be released anyway; offering "cancel"
           there would imply the spot is still held. */}
       {cancelView && !isHoldLapsed && (
-        <section className="border-sarat-black/8 rounded-card mt-12 flex flex-col gap-3 [border-width:0.5px] p-6 print:hidden">
+        <section className="border-sarat-black/12 rounded-card mt-12 flex flex-col gap-3 border p-6 print:hidden">
           <h2 className="text-h2">{t('cancel.heading')}</h2>
           <p className="text-sarat-black-600 max-w-2xl text-base leading-relaxed">
             {cancelView.refund === 'none_needed'

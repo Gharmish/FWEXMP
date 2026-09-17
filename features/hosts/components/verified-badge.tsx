@@ -54,7 +54,7 @@ export function VerifiedBadge({
           type="button"
           onClick={() => setOpen(true)}
           className={cn(
-            'border-sarat-black/8 text-sarat-black hover:border-juniper-green inline-flex min-h-8 items-center gap-2 rounded-full [border-width:0.5px] bg-white ps-2 pe-3 text-xs font-medium transition-colors duration-200',
+            'border-sarat-black/12 text-sarat-black hover:border-juniper-green inline-flex min-h-8 items-center gap-2 rounded-full border bg-white ps-2 pe-3 text-xs font-medium transition-colors duration-200',
             // The pill reads at 32px, but a thumb needs 44px. Grow the hit
             // area with a centred pseudo-element so the visual size and the
             // surrounding text rhythm are untouched.
@@ -104,7 +104,7 @@ export function VerifiedBadge({
             ))}
           </ul>
 
-          <div className="border-sarat-black/8 flex flex-wrap items-center justify-between gap-2 [border-top-width:0.5px] pt-4">
+          <div className="border-sarat-black/12 flex flex-wrap items-center justify-between gap-2 border-t pt-4">
             {verifiedDate && (
               <span className="text-sarat-black-600 text-xs">
                 {t('verifiedOn', { date: verifiedDate })}

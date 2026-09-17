@@ -105,7 +105,7 @@ function DocumentRow({
   const error = errorMessage(state, copy);
 
   return (
-    <li className="border-sarat-black/8 rounded-card flex flex-col gap-3 [border-width:0.5px] p-6">
+    <li className="border-sarat-black/12 rounded-card flex flex-col gap-3 border p-6">
       <div className="flex flex-wrap items-center gap-3">
         <span className="text-base font-medium">
           {copy.typeLabels[document.type] ?? document.type}
@@ -142,7 +142,7 @@ function DocumentRow({
               rows={2}
               maxLength={2000}
               className={cn(
-                'rounded-input border-sarat-black/20 text-sarat-black w-full resize-y [border-width:0.5px] bg-white px-4 py-3 text-base',
+                'rounded-input border-sarat-black/20 text-sarat-black w-full resize-y border bg-white px-4 py-3 text-base',
                 'placeholder:text-sarat-black-600 disabled:pointer-events-none disabled:opacity-50',
               )}
             />

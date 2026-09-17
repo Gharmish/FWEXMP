@@ -121,7 +121,7 @@ export default async function AdminBookingsPage({
       </div>
 
       {block?.reason === 'no_db' ? (
-        <div className="border-sarat-black/8 rounded-card flex flex-col items-start gap-4 [border-width:0.5px] p-12">
+        <div className="border-sarat-black/12 rounded-card flex flex-col items-start gap-4 border p-12">
           <p className={eyebrowClassName}>{t('noDb.eyebrow')}</p>
           <h2 className="text-h2">{t('noDb.title')}</h2>
           <p className="text-sarat-black-600 max-w-xl text-base">{t('noDb.description')}</p>
@@ -129,7 +129,7 @@ export default async function AdminBookingsPage({
       ) : (
         <>
           {/* Counts strip */}
-          <dl className="border-sarat-black/8 rounded-card grid grid-cols-2 gap-6 [border-width:0.5px] p-6 sm:grid-cols-4 lg:grid-cols-8">
+          <dl className="border-sarat-black/12 rounded-card grid grid-cols-2 gap-6 border p-6 sm:grid-cols-4 lg:grid-cols-8">
             <Stat
               label={t('bookingsList.stats.total')}
               value={totals.total}
@@ -185,7 +185,7 @@ export default async function AdminBookingsPage({
           )}
 
           {nothingYet ? (
-            <div className="border-sarat-black/8 rounded-card flex flex-col items-start gap-4 [border-width:0.5px] p-12">
+            <div className="border-sarat-black/12 rounded-card flex flex-col items-start gap-4 border p-12">
               <p className={eyebrowClassName}>{t('bookingsList.empty.eyebrow')}</p>
               <h2 className="text-h2">{t('bookingsList.empty.title')}</h2>
               <p className="text-sarat-black-600 max-w-xl text-base">
@@ -197,7 +197,7 @@ export default async function AdminBookingsPage({
               {/* Filter bar — plain GET form, no client JS. */}
               <form
                 method="get"
-                className="border-sarat-black/8 rounded-card flex flex-wrap items-end gap-3 [border-width:0.5px] p-4"
+                className="border-sarat-black/12 rounded-card flex flex-wrap items-end gap-3 border p-4"
               >
                 {/* Preserve the refund-due drill-down (dashboard link) across
                     re-filters; clear it via the badge link below. */}
@@ -221,7 +221,7 @@ export default async function AdminBookingsPage({
                   <select
                     name="status"
                     defaultValue={status}
-                    className="rounded-input border-sarat-black/20 text-sarat-black h-11 [border-width:0.5px] bg-white px-3 text-base"
+                    className="rounded-input border-sarat-black/20 text-sarat-black h-11 border bg-white px-3 text-base"
                   >
                     <option value="all">{t('bookingsList.filter.allStatuses')}</option>
                     {FILTERABLE_STATUSES.map((s) => (
@@ -238,7 +238,7 @@ export default async function AdminBookingsPage({
                   <select
                     name="view"
                     defaultValue={view}
-                    className="rounded-input border-sarat-black/20 text-sarat-black h-11 [border-width:0.5px] bg-white px-3 text-base"
+                    className="rounded-input border-sarat-black/20 text-sarat-black h-11 border bg-white px-3 text-base"
                   >
                     <option value="all">{t('bookingsList.filter.viewAll')}</option>
                     <option value="upcoming">{t('bookingsList.filter.viewUpcoming')}</option>
@@ -279,7 +279,7 @@ export default async function AdminBookingsPage({
                   {t('bookingsList.filter.noMatches')}
                 </p>
               ) : (
-                <ul className="border-sarat-black/8 rounded-card divide-hairline flex flex-col [border-width:0.5px]">
+                <ul className="border-sarat-black/12 rounded-card flex flex-col divide-y border">
                   {filtered.map((row) => (
                     <li
                       key={row.id}

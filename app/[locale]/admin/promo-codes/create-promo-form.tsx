@@ -130,7 +130,7 @@ export function CreatePromoForm({ locale, copy }: CreatePromoFormProps) {
             name="discountType"
             defaultValue={values.discountType || 'percent'}
             className={cn(
-              'rounded-input border-sarat-black/20 text-sarat-black h-11 w-full [border-width:0.5px] bg-white px-4 text-base',
+              'rounded-input border-sarat-black/20 text-sarat-black h-11 w-full border bg-white px-4 text-base',
             )}
           >
             <option value="percent">{copy.typePercent}</option>

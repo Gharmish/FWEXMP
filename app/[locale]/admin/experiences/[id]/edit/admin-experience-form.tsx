@@ -136,11 +136,11 @@ export interface AdminExperienceFormProps {
 const initialState: AdminExperienceEditState = { success: false };
 
 const TEXTAREA_CLASS = cn(
-  'rounded-input border-sarat-black/20 bg-white text-sarat-black w-full resize-y [border-width:0.5px] px-4 py-3 text-base',
+  'rounded-input border-sarat-black/20 bg-white text-sarat-black w-full resize-y border px-4 py-3 text-base',
   'placeholder:text-sarat-black-600 disabled:pointer-events-none disabled:opacity-50',
 );
 const SELECT_CLASS = cn(
-  'rounded-input border-sarat-black/20 bg-white text-sarat-black h-11 w-full [border-width:0.5px] px-3 text-base',
+  'rounded-input border-sarat-black/20 bg-white text-sarat-black h-11 w-full border px-3 text-base',
 );
 
 function SubmitButton({ label, pending: pendingLabel }: { label: string; pending: string }) {
@@ -665,7 +665,7 @@ export function AdminExperienceForm({
             {copy.weekdays.map((label, index) => (
               <label
                 key={index}
-                className="border-sarat-black/20 rounded-button inline-flex min-h-11 cursor-pointer items-center gap-2 [border-width:0.5px] px-4 text-sm"
+                className="border-sarat-black/20 rounded-button inline-flex min-h-11 cursor-pointer items-center gap-2 border px-4 text-sm"
               >
                 <input
                   type="checkbox"

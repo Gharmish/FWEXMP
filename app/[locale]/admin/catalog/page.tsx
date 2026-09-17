@@ -67,7 +67,7 @@ export default async function AdminCatalogPage({
     return (
       <div className="flex flex-col gap-12">
         {backLink}
-        <div className="border-sarat-black/8 rounded-card flex flex-col items-start gap-4 [border-width:0.5px] p-12">
+        <div className="border-sarat-black/12 rounded-card flex flex-col items-start gap-4 border p-12">
           <p className={eyebrowClassName}>{t('noDb.eyebrow')}</p>
           <h2 className="text-h2">{t('noDb.title')}</h2>
           <p className="text-sarat-black-600 max-w-xl text-base">{t('noDb.description')}</p>
@@ -119,8 +119,7 @@ export default async function AdminCatalogPage({
     formValidation: t('catalog.formValidation'),
   };
 
-  const panelClass =
-    'border-sarat-black/8 rounded-card flex flex-col gap-6 [border-width:0.5px] p-6 sm:p-8';
+  const panelClass = 'border-sarat-black/12 rounded-card flex flex-col gap-6 border p-6 sm:p-8';
 
   return (
     <div className="flex flex-col gap-12">
@@ -146,7 +145,7 @@ export default async function AdminCatalogPage({
           {overview.categories.map((row) => (
             <li
               key={row.category}
-              className="border-sarat-black/8 flex flex-wrap items-center gap-4 border-b [border-bottom-width:0.5px] py-4 first:pt-0 last:border-b-0 last:pb-0"
+              className="border-sarat-black/12 flex flex-wrap items-center gap-4 border-b py-4 first:pt-0 last:border-b-0 last:pb-0"
             >
               <span
                 aria-hidden
@@ -184,7 +183,7 @@ export default async function AdminCatalogPage({
           {overview.cities.map((city) => (
             <li
               key={city.id}
-              className="border-sarat-black/8 flex flex-col gap-3 border-b [border-bottom-width:0.5px] pb-6 last:border-b-0 last:pb-0"
+              className="border-sarat-black/12 flex flex-col gap-3 border-b pb-6 last:border-b-0 last:pb-0"
             >
               <div className="flex flex-wrap items-center gap-3">
                 <span className="text-base font-medium">{cityLabel(city.nameEn, city.nameAr)}</span>
@@ -216,7 +215,7 @@ export default async function AdminCatalogPage({
             </li>
           ))}
         </ul>
-        <div className="border-sarat-black/8 flex flex-col gap-3 border-t [border-top-width:0.5px] pt-6">
+        <div className="border-sarat-black/12 flex flex-col gap-3 border-t pt-6">
           <h3 className="text-base font-medium">{t('catalog.addCityTitle')}</h3>
           <AddCityForm locale={loc} copy={addCityCopy} />
         </div>
@@ -262,10 +261,7 @@ export default async function AdminCatalogPage({
               </thead>
               <tbody>
                 {overview.matrix.rows.map(({ city, liveByCategory }) => (
-                  <tr
-                    key={city.id}
-                    className="border-sarat-black/8 border-b [border-bottom-width:0.5px] last:border-b-0"
-                  >
+                  <tr key={city.id} className="border-sarat-black/12 border-b last:border-b-0">
                     <th scope="row" className="px-4 py-3 text-start font-medium whitespace-nowrap">
                       {cityLabel(city.nameEn, city.nameAr)}
                     </th>

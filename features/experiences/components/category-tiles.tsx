@@ -87,7 +87,7 @@ function CategoryTile({
         // order and the a11y tree so screen readers see each category once.
         aria-hidden={duplicate || undefined}
         tabIndex={duplicate ? -1 : undefined}
-        className="rounded-card border-sarat-black/8 hover:border-sarat-black/20 flex min-h-11 items-center gap-3 [border-width:0.5px] px-4 py-3 transition-colors duration-200"
+        className="rounded-card border-sarat-black/12 hover:border-sarat-black/20 flex min-h-11 items-center gap-3 border px-4 py-3 transition-colors duration-200"
       >
         <span
           className={`flex size-8 shrink-0 items-center justify-center rounded-full ${TILE_DISC[category.key]}`}
