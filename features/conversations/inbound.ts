@@ -1,7 +1,7 @@
 import type { ToolCallLog } from '@/db/schema';
 import 'server-only';
 
-import { and, desc, eq, inArray, isNotNull, isNull, lt, or, sql } from 'drizzle-orm';
+import { and, desc, eq, inArray, isNotNull, isNull, lt, or } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import { hasSupportAgent, serverEnv } from '@/lib/env';
 import {
@@ -118,8 +118,12 @@ async function identifyHost(phone: string): Promise<string | null> {
   const viaAccount = await db
     .select({ id: hosts.id, verificationStatus: hosts.verificationStatus })
     .from(hosts)
-    // auth_user_id is text, hosts.user_id is uuid — cast or Postgres refuses the join.
-    .innerJoin(guests, sql`${guests.authUserId} = ${hosts.userId}::text`)
+    // Both sides are uuid since b6d0b41 (2026-09-12). The `::text` cast
+    // that predated it made Postgres reject the join (`uuid = text`), and
+    // because the throw landed in recordInboundMessage's catch, every
+    // guest message on the support line was dropped unrecorded and
+    // unanswered for five days. inbound.params.test.ts pins the shape.
+    .innerJoin(guests, eq(guests.authUserId, hosts.userId))
     .where(eq(guests.phone, phone))
     .limit(1);
   if (viaAccount[0]) {

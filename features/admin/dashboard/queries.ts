@@ -1,6 +1,6 @@
 import 'server-only';
 
-import { eq, sql } from 'drizzle-orm';
+import { eq, inArray, sql } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import { reportError } from '@/lib/log';
 import {
@@ -92,6 +92,20 @@ export async function getAdminDashboard(): Promise<AdminDashboard | null> {
   const block = await adminGuard();
   if (block) return null;
   try {
+    // Experiences whose host is currently suspended. A query builder, not
+    // an inline `(select ${experiences.id} from … join …)` fragment: for
+    // a single-table select drizzle rewrites every top-level column chunk
+    // of a selection fragment to a bare identifier, so that inline form
+    // rendered `select "id" from "experiences" join "hosts" on "id" =
+    // "host_id"` and Postgres refused it as ambiguous (42702) on every
+    // dashboard load. A nested builder renders fully qualified.
+    // queries.render.test.ts pins the SQL.
+    const suspendedHostExperiences = db
+      .select({ id: experiences.id })
+      .from(experiences)
+      .innerJoin(hosts, eq(hosts.id, experiences.hostId))
+      .where(eq(hosts.verificationStatus, 'suspended'));
+
     // Two waves of 4, not one Promise.all of 8: the postgres-js pool is 5
     // connections on Vercel and shared across concurrent renders on the
     // same instance — see metrics-queries.ts for the failure mode.
@@ -112,7 +126,7 @@ export async function getAdminDashboard(): Promise<AdminDashboard | null> {
           upcoming: sql<number>`count(*) filter (where ${bookings.date} >= ${RIYADH_TODAY} and ${bookings.status} in ('pending','confirmed'))::int`,
           refundsDueCount: sql<number>`count(*) filter (where ${bookings.refundDueSar} is not null)::int`,
           refundsDueSar: sql<number>`coalesce(sum(${bookings.refundDueSar}), 0)::int`,
-          suspendedHost: sql<number>`count(*) filter (where ${bookings.date} >= ${RIYADH_TODAY} and ${bookings.status} in ('pending','confirmed') and ${bookings.experienceId} in (select ${experiences.id} from ${experiences} join ${hosts} on ${hosts.id} = ${experiences.hostId} where ${hosts.verificationStatus} = 'suspended'))::int`,
+          suspendedHost: sql<number>`count(*) filter (where ${bookings.date} >= ${RIYADH_TODAY} and ${bookings.status} in ('pending','confirmed') and ${inArray(bookings.experienceId, suspendedHostExperiences)})::int`,
         })
         .from(bookings),
       db.select({ n: sql<number>`count(*)::int` }).from(guests),

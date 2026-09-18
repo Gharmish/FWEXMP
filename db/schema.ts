@@ -1873,7 +1873,7 @@ export const promoCodes = pgTable(
  * IBAN, application) — newest row tells the story. One row PER CHANGED
  * FIELD so the admin User-360 timeline renders a clean old→new diff.
  *
- * A person's identity is fragmented across `guests` (authUserId text),
+ * A person's identity is fragmented across `guests` (authUserId uuid),
  * `hosts` (userId uuid) and `host_applications` (userId uuid); the same
  * Supabase account can be both a guest and a host. We therefore anchor
  * each row with whichever ids are known — `subjectAuthUserId` for a
