@@ -153,14 +153,22 @@ export function buildCheckoutBody(
   // the schema) and absent for Apple Pay, where the wallet carries the
   // address. Every field is set only when present; `state` is optional
   // even for cards per the OPPWA 3DS2 guide (KSA addresses have none).
-  for (const [param, value] of [
-    ['billing.street1', input.billing.street1],
-    ['billing.city', input.billing.city],
-    ['billing.state', input.billing.state],
-    ['billing.postcode', input.billing.postcode],
-    ['billing.country', input.billing.country],
-  ] as const) {
-    if (value) body.set(param, value);
+  //
+  // "Absent for Apple Pay" is enforced HERE, not left to the caller: the
+  // manual path unmounts the address section, but the auto-prepared
+  // checkout (93feda0) posts the guest's saved billing with every method,
+  // so wallet checkouts silently stopped being the minimal body that last
+  // worked (2026-08-10) — found before the live Apple Pay flip, 2026-09-21.
+  if (cfg.channel !== 'applepay') {
+    for (const [param, value] of [
+      ['billing.street1', input.billing.street1],
+      ['billing.city', input.billing.city],
+      ['billing.state', input.billing.state],
+      ['billing.postcode', input.billing.postcode],
+      ['billing.country', input.billing.country],
+    ] as const) {
+      if (value) body.set(param, value);
+    }
   }
 
   if (cfg.mode === 'test' && cfg.testConnector === 'external' && cfg.channel !== 'applepay') {

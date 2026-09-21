@@ -193,6 +193,27 @@ describe('buildCheckoutBody', () => {
     expect(cardBody.get('card.holder')).toBe('Sara Al Qahtani');
     expect(cardBody.get('customer.mobile')).toBe('+966541104000');
   });
+
+  it('sends no billing on the applepay channel even when the caller supplies a saved address', () => {
+    // The auto-prepared checkout posts the guest's stored billing (country
+    // defaults to SA) with every method; the builder is the single gate.
+    const withBilling = {
+      ...input,
+      billing: {
+        street1: '12 King Fahd Rd',
+        city: 'Abha',
+        state: '',
+        postcode: '62521',
+        country: 'SA',
+      },
+    };
+    const body = buildCheckoutBody(withBilling, applePayCfg);
+    expect([...body.keys()].filter((key) => key.startsWith('billing.'))).toEqual([]);
+    // Cards still carry it — 3DS2 requires the address.
+    const cardBody = buildCheckoutBody(withBilling, testCfg);
+    expect(cardBody.get('billing.street1')).toBe('12 King Fahd Rd');
+    expect(cardBody.get('billing.country')).toBe('SA');
+  });
 });
 
 describe('buildRefundBody', () => {

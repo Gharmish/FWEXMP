@@ -119,10 +119,43 @@ already sent. `HYPERPAY_APPLEPAY_ENTITY_ID` was REMOVED from Production:
 the live entity covers cards only, so Apple Pay is not offered until
 HyperPay issues a live Apple Pay entity. Still open: (1) the owner must
 pay a real SAR ≥5 booking with a card and confirm the amount settles to the
-merchant bank within ~72h, then confirm back to HyperPay; (2) configure
-the notification webhook in the merchant area (gate2play.ctpe.info) and
-set `HYPERPAY_WEBHOOK_SECRET`; (3) rotate the access token — it was
-pasted into a chat transcript when it arrived.
+merchant bank within ~72h, then confirm back to HyperPay; (2) ~~configure
+the notification webhook~~ — see the 2026-09-21 note below; (3) rotate the
+access token — it was pasted into a chat transcript when it arrived.
+
+**WEBHOOK KEY INSTALLED 2026-09-21.** HyperPay support registered
+`https://gharmish.com/api/webhooks/hyperpay` on the live entity (there is
+no self-service Webhooks page under our login — it is done by email) and
+sent the 64-char hex decryption key. The owner saved it in Vercel
+Production as a **Secret** and redeployed (`dpl_HHGmQeJN…`); the endpoint
+went from `503 not_configured` to `400 bad_request` on an empty probe,
+which is the "key loaded" signal. Things learned the hard way:
+
+- OPPWA webhooks are **inactive until their "Click to Test" gets a 2xx**.
+  HyperPay's first test hit the 503, so after installing the key they must
+  be asked to **re-test**; no events flow until that passes.
+- OPPWA's **Wrapper** setting defaults to **None**: the body is the bare
+  hex ciphertext as `text/plain`, not `{ "encryptedBody": … }`. The route
+  only spoke JSON until `d150db7`, which accepts both (and no longer pages
+  a "secret drift" for a merely malformed body).
+- A probe that must not page anyone: POST an empty body with no headers →
+  `400`. Anything carrying both `X-Initialization-Vector` and
+  `X-Authentication-Tag` that fails to decrypt is a paged `401`.
+- Unverified until the first real payload: that `payload.ndc` equals our
+  stored checkout id for COPYandPAY (else the superseded-capture alert
+  fires falsely), and that HyperPay's "Fields" setting still includes
+  `merchantTransactionId`, `ndc`, `result.code`, `id`, `amount`.
+- The key travelled by plain email and chat. It cannot mark a booking paid
+  (settle re-queries the gateway) but it can forge an alert-triggering
+  payload; ask HyperPay to regenerate it once the flow is proven.
+
+**APPLE PAY (live) — NOT ENABLED YET.** On 2026-09-21 HyperPay wrote that
+Apple Pay "is now enabled on your account", with no entity id and no
+certificate detail. `HYPERPAY_APPLEPAY_ENTITY_ID` stays unset until they
+confirm which entity carries `APPLEPAY` and which certificate model it
+uses. Setting the variable makes Apple Pay the **default** method for every
+Apple device at once (there is no canary switch), so flip it only with the
+owner on an iPhone and a rollback (remove the variable + redeploy) ready.
 
 Default flow stays **request-to-book** until HyperPay env vars arrive —
 the integration is gated behind `hasHyperpay()` (`lib/env.ts`), exactly
@@ -156,7 +189,7 @@ like `hasSupabaseAuth()`.
 
 - Live click-through with a test card (3DS fields are cross-origin
   iframes) + the Mada asset pack from HyperPay's quickconnect share.
-- HyperPay webhook — the route is BUILT (`app/api/webhooks/hyperpay`); what remains is setting `HYPERPAY_WEBHOOK_SECRET` so it stops answering 503. Belt-and-suspenders settlement for closed-tab captures.
+- HyperPay webhook — built, key installed 2026-09-21 (see the note above); what remains is HyperPay's re-test so the webhook activates, then one closed-tab payment to watch a real notification settle a booking.
 
 ### Go-live steps
 
