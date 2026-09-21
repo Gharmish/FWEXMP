@@ -173,4 +173,98 @@ describe('POST /api/webhooks/hyperpay', () => {
     await POST(request(payment()));
     expect(notifyAdmin).not.toHaveBeenCalled();
   });
+
+  it('does not read a successful refund as a superseded capture', async () => {
+    currentCheckoutId = 'chk-current';
+    const res = await POST(request(payment({ ndc: 'rf-ndc', paymentType: 'RF' })));
+    expect(res.status).toBe(200);
+    expect(notifyAdmin).not.toHaveBeenCalled();
+  });
+
+  it('acknowledges the common case — already settled by the return route — with no receipt', async () => {
+    settleOutcome = 'already_settled';
+    const res = await POST(request(payment()));
+    expect(res.status).toBe(200);
+    expect(afterCalls).toHaveLength(0);
+    expect(notifyAdmin).not.toHaveBeenCalled();
+  });
+
+  // OPPWA's "Wrapper" setting: None (the documented default) posts the bare
+  // hex ciphertext as text/plain; JSON wraps it in { encryptedBody }.
+  describe('payload wrappers', () => {
+    function rawRequest(payload: unknown, transform: (hex: string) => string = (hex) => hex) {
+      const enc = encrypt(JSON.stringify(payload));
+      return new NextRequest('http://localhost/api/webhooks/hyperpay', {
+        method: 'POST',
+        headers: {
+          'content-type': 'text/plain',
+          'x-initialization-vector': enc.iv.toUpperCase(),
+          'x-authentication-tag': enc.authTag.toUpperCase(),
+        },
+        body: transform(enc.encryptedBody),
+      });
+    }
+
+    it('settles a notification delivered as a bare hex body (wrapper None)', async () => {
+      const res = await POST(rawRequest(payment()));
+      expect(res.status).toBe(200);
+      expect(settleBooking).toHaveBeenCalledWith(REFERENCE);
+      expect(notifyAdmin).not.toHaveBeenCalled();
+    });
+
+    it('accepts uppercase hex and a trailing newline, as OPPWA sends them', async () => {
+      const res = await POST(rawRequest(payment(), (hex) => `${hex.toUpperCase()}\n`));
+      expect(res.status).toBe(200);
+      expect(settleBooking).toHaveBeenCalledWith(REFERENCE);
+    });
+
+    it('decrypts with an uppercase key pasted with surrounding whitespace', async () => {
+      env.HYPERPAY_WEBHOOK_SECRET = ` ${SECRET.toUpperCase()}\n`;
+      expect((await POST(rawRequest(payment()))).status).toBe(200);
+    });
+
+    it('is 400 — not a paged 401 — for a body that is neither hex nor the JSON wrapper', async () => {
+      for (const body of ['', 'not hex at all', '{"encryptedBody":42}', '{broken']) {
+        const res = await POST(
+          new NextRequest('http://localhost/api/webhooks/hyperpay', {
+            method: 'POST',
+            headers: { 'x-initialization-vector': 'ab', 'x-authentication-tag': 'cd' },
+            body,
+          }),
+        );
+        expect(res.status).toBe(400);
+      }
+      expect(notifyAdmin).not.toHaveBeenCalled();
+    });
+  });
+
+  it('acknowledges an authentic body that is not a JSON object so OPPWA stops redelivering it', async () => {
+    for (const plaintext of ['plain text, not json', 'null', '"test"']) {
+      const enc = encrypt(plaintext);
+      const res = await POST(
+        new NextRequest('http://localhost/api/webhooks/hyperpay', {
+          method: 'POST',
+          headers: { 'x-initialization-vector': enc.iv, 'x-authentication-tag': enc.authTag },
+          body: enc.encryptedBody,
+        }),
+      );
+      expect(res.status).toBe(200);
+    }
+    expect(settleBooking).not.toHaveBeenCalled();
+    expect(reportError).toHaveBeenCalledTimes(3);
+  });
+
+  it('rejects a truncated authentication tag', async () => {
+    const enc = encrypt(JSON.stringify(payment()));
+    // A valid PREFIX of the real tag: Node accepts it unless the length is pinned.
+    const res = await POST(
+      request(payment(), {
+        iv: enc.iv,
+        body: enc.encryptedBody,
+        authTag: enc.authTag.slice(0, 8),
+      }),
+    );
+    expect(res.status).toBe(401);
+    expect(settleBooking).not.toHaveBeenCalled();
+  });
 });

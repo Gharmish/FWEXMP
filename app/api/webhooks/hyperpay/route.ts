@@ -10,6 +10,42 @@ import { getBookingByReference } from '@/features/bookings/queries';
 import { sendBookingReceiptEmail } from '@/features/bookings/lib/booking-email';
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const HEX_RE = /^[0-9a-f]+$/i;
+
+interface OppwaNotification {
+  type?: string;
+  payload?: {
+    merchantTransactionId?: string;
+    /** OPPWA's checkout id for this capture. */
+    ndc?: string;
+    id?: string;
+    /** DB = debit (the only type checkout creates); RF/RV/CB move money back. */
+    paymentType?: string;
+    result?: { code?: string };
+    amount?: string;
+  };
+}
+
+/**
+ * OPPWA delivers the ciphertext one of two ways, chosen per webhook in the
+ * merchant area ("Wrapper"): None — the documented DEFAULT — posts the bare
+ * hex string as `text/plain`; JSON posts `{ "encryptedBody": "<hex>" }`.
+ * The route used to `request.json()` only, so a default-configured webhook
+ * threw a SyntaxError that was reported as a secret drift (401 + page) and
+ * HyperPay's activation test could never pass. Accept both; anything that
+ * is not hex is malformed (400), not an authentication failure.
+ */
+function readEncryptedBody(raw: string): string | null {
+  const text = raw.trim();
+  if (!text.startsWith('{')) return HEX_RE.test(text) ? text : null;
+  try {
+    const parsed = JSON.parse(text) as { encryptedBody?: unknown };
+    const hex = typeof parsed.encryptedBody === 'string' ? parsed.encryptedBody.trim() : '';
+    return HEX_RE.test(hex) ? hex : null;
+  } catch {
+    return null;
+  }
+}
 
 /**
  * HyperPay / OPPWA webhook. Closes the "guest paid during 3DS but never
@@ -28,18 +64,20 @@ const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
  * failures return 500 and permanent ones (unconfigured, malformed) do not.
  */
 export async function POST(request: NextRequest): Promise<NextResponse> {
-  const secret = serverEnv.HYPERPAY_WEBHOOK_SECRET;
+  // Trimmed: a space or newline pasted AHEAD of the key hex-decodes to zero
+  // bytes ("Invalid key length") and every notification would 401.
+  const secret = serverEnv.HYPERPAY_WEBHOOK_SECRET.trim();
   if (!secret) return NextResponse.json({ error: 'not_configured' }, { status: 503 });
 
   let decrypted: string;
   try {
-    const body = (await request.json()) as { encryptedBody?: string };
-    const iv = request.headers.get('x-initialization-vector');
-    const authTag = request.headers.get('x-authentication-tag');
-    if (!body.encryptedBody || !iv || !authTag) {
+    const encryptedBody = readEncryptedBody(await request.text());
+    const iv = request.headers.get('x-initialization-vector')?.trim();
+    const authTag = request.headers.get('x-authentication-tag')?.trim();
+    if (!encryptedBody || !iv || !authTag) {
       return NextResponse.json({ error: 'bad_request' }, { status: 400 });
     }
-    decrypted = decryptOppwaNotification(secret, body.encryptedBody, iv, authTag);
+    decrypted = decryptOppwaNotification(secret, encryptedBody, iv, authTag);
   } catch (error) {
     reportError(error, { surface: 'hyperpay-webhook:decrypt' });
     // A well-formed notification we can't decrypt almost certainly means
@@ -62,18 +100,21 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
   }
 
+  // Authentic (the GCM tag passed) but not a JSON object — plain text, or
+  // `null`: no redelivery can ever parse, and a non-2xx here had OPPWA
+  // retrying it daily for 30 days. It would also fail HyperPay's activation
+  // test, whose dummy payload is undocumented.
+  let notification: OppwaNotification;
   try {
-    const notification = JSON.parse(decrypted) as {
-      type?: string;
-      payload?: {
-        merchantTransactionId?: string;
-        /** OPPWA's checkout id for this capture. */
-        ndc?: string;
-        id?: string;
-        result?: { code?: string };
-        amount?: string;
-      };
-    };
+    const parsed: unknown = JSON.parse(decrypted);
+    if (typeof parsed !== 'object' || parsed === null) throw new Error('payload is not an object');
+    notification = parsed;
+  } catch (error) {
+    reportError(error, { surface: 'hyperpay-webhook:payload' });
+    return NextResponse.json({ received: true });
+  }
+
+  try {
     // Only payment notifications are actionable; acknowledge the rest
     // (REGISTRATION / RISK / test pings) so OPPWA stops retrying them.
     if (notification.type !== 'PAYMENT') return NextResponse.json({ received: true });
@@ -87,9 +128,15 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     // so the guest was charged with nothing recorded and nobody told
     // (2026-09 engineering audit MONEY-03). Name it to a human here; the
     // existing auto-refund/anomaly machinery takes it from the console.
+    //
+    // Debits only: a refund or reversal succeeds with the same `000.` codes
+    // and its own `ndc`, so it would read as a superseded CAPTURE and tell
+    // the operator to "refund or record it" — for money already going back.
     const ndc = notification.payload?.ndc;
     const resultCode = notification.payload?.result?.code;
-    if (ndc && resultCode && isSuccessfulResult(resultCode)) {
+    const paymentType = notification.payload?.paymentType;
+    const isDebit = !paymentType || paymentType === 'DB';
+    if (ndc && resultCode && isDebit && isSuccessfulResult(resultCode)) {
       const current = await getCheckoutIdForReference(reference);
       if (current && current !== ndc) {
         reportError(new Error('capture on a superseded checkout'), {

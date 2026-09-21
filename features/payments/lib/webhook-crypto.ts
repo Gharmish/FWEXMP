@@ -17,10 +17,13 @@ export function decryptOppwaNotification(
   ivHex: string,
   authTagHex: string,
 ): string {
+  // `authTagLength` pinned: left unset, Node accepts tags as short as four
+  // bytes, which shrinks a forgery to a 2^32 guess. OPPWA sends 16.
   const decipher = createDecipheriv(
     'aes-256-gcm',
     Buffer.from(secretHex, 'hex'),
     Buffer.from(ivHex, 'hex'),
+    { authTagLength: 16 },
   );
   decipher.setAuthTag(Buffer.from(authTagHex, 'hex'));
   return Buffer.concat([
