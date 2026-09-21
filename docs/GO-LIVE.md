@@ -35,14 +35,14 @@ works) · Vercel project `gharmish` · Supabase `gharmish-experiences`
 
 ### What works **without** any further credentials (soft-launch surface)
 
-| Journey                                             | Needs login?     | Status                                                                |
-| --------------------------------------------------- | ---------------- | --------------------------------------------------------------------- |
-| Browse / search / experience detail / host profiles | No               | ✅ Live                                                               |
-| **Guest requests a booking** (name + phone)         | **No**           | ✅ Live                                                               |
-| Operator confirms/cancels/refunds bookings          | Admin (Test OTP) | ✅ Live                                                               |
-| Guest account (`/me`, wishlist, leave review)       | Yes (email OTP)  | ✅ Live via email OTP (§2b); SMS optional (§2)                        |
-| Host self-service (apply, manage listings, upload)  | Yes (email OTP)  | ✅ Live via email OTP (§2b); SMS optional (§2)                        |
-| Online card/Mada payment                            | — → §3           | 🟡 HyperPay LIVE creds set 2026-09-13; SAR ≥5 settlement test pending |
+| Journey                                             | Needs login?     | Status                                                                     |
+| --------------------------------------------------- | ---------------- | -------------------------------------------------------------------------- |
+| Browse / search / experience detail / host profiles | No               | ✅ Live                                                                    |
+| **Guest requests a booking** (name + phone)         | **No**           | ✅ Live                                                                    |
+| Operator confirms/cancels/refunds bookings          | Admin (Test OTP) | ✅ Live                                                                    |
+| Guest account (`/me`, wishlist, leave review)       | Yes (email OTP)  | ✅ Live via email OTP (§2b); SMS optional (§2)                             |
+| Host self-service (apply, manage listings, upload)  | Yes (email OTP)  | ✅ Live via email OTP (§2b); SMS optional (§2)                             |
+| Online card/Mada payment                            | — → §3           | ✅ LIVE 2026-09-21: card + Apple Pay + webhook proven; bank settlement TBC |
 
 **Implication:** Gharmish can soft-launch today as a _request-to-book_
 marketplace — guests request, the operator confirms and arranges payment
@@ -226,13 +226,38 @@ booking's `idempotency_key` — look it up by reference code; it is not
 written here because this repository is public) and refund it if a capture
 exists.
 
-**APPLE PAY (live) — NOT ENABLED YET.** On 2026-09-21 HyperPay wrote that
-Apple Pay "is now enabled on your account", with no entity id and no
-certificate detail. `HYPERPAY_APPLEPAY_ENTITY_ID` stays unset until they
-confirm which entity carries `APPLEPAY` and which certificate model it
-uses. Setting the variable makes Apple Pay the **default** method for every
-Apple device at once (there is no canary switch), so flip it only with the
-owner on an iPhone and a rollback (remove the variable + redeploy) ready.
+**WEBHOOK + APPLE PAY PROVEN LIVE 2026-09-21.** HyperPay activated the
+webhook the same day and answered in writing: refund (RF) notifications
+carry the ORIGINAL `merchantTransactionId` unless the API call changes it
+(so the `paymentType` gate on the superseded-capture alert is load-bearing);
+Apple Pay is enabled on the **same live entity**
+(`8acda4d9a03d17e801a051e63fe24b5d`) with the owner's own certificates
+(created from HyperPay's CSRs, sent 2026-09-18; `gharmish.com` shows
+Verified under that Merchant ID in the Apple portal); the one webhook and
+key also carry Apple Pay transactions. Two real SAR 5 payments by the owner:
+
+- **GH-HPC9GK — card, tab closed after 3-D Secure.** Two notifications
+  reached the webhook (09:33:57 and 09:34:27 UTC, both 200); the booking
+  flipped to paid at 09:34:27.95 with `000.000.000`, and the return route
+  was never requested — the webhook settled it, 25 minutes ahead of the
+  hourly reconcile. No alert fired, which also closes the two unknowns
+  above: `payload.ndc` equals our stored checkout id, and HyperPay's Fields
+  setting includes what the route needs.
+- **GH-S3KR3N — Apple Pay on an iPhone**, after the owner set
+  `HYPERPAY_APPLEPAY_ENTITY_ID` to the live entity id (Production, Config)
+  and redeployed (`dpl_2QY6XSFr…`). `checkout_created` carries the
+  `APPLEPAY` tag, the webhook was delivered at 09:42:58, the guest returned
+  at 09:42:59, settled `000.000.000` at 09:43:00 — 24 s after the pay page
+  opened. The gateway reports the underlying card brand (MASTER); the
+  ledger tag is the only Apple Pay marker.
+
+Apple Pay is now the **default** method on every Apple device. Rollback is
+still: remove `HYPERPAY_APPLEPAY_ENTITY_ID` + redeploy (same-entity setup,
+so in-flight Apple Pay bookings keep resolving). Still open with HyperPay:
+live risk settings for Apple Pay (ECI-07 blocking, the approved country
+list), regenerating the webhook key that travelled by plain email, and the
+owner's bank-settlement confirmation for these captures (~72 h). Apple's
+certificates expire after 25 months (issued 2026-09).
 
 Default flow stays **request-to-book** until HyperPay env vars arrive —
 the integration is gated behind `hasHyperpay()` (`lib/env.ts`), exactly
@@ -266,7 +291,7 @@ like `hasSupabaseAuth()`.
 
 - Live click-through with a test card (3DS fields are cross-origin
   iframes) + the Mada asset pack from HyperPay's quickconnect share.
-- HyperPay webhook — built, key installed 2026-09-21 (see the note above); what remains is HyperPay's re-test so the webhook activates, then one closed-tab payment to watch a real notification settle a booking.
+- ~~HyperPay webhook~~ — active and proven with a closed-tab payment on 2026-09-21 (see the note above).
 
 ### Go-live steps
 
