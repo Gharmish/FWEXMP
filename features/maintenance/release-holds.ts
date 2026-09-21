@@ -41,6 +41,7 @@ import {
   purgeKycDocuments,
 } from '@/features/maintenance/passes/retention';
 import { watchProductionConfig } from '@/features/maintenance/passes/config';
+import { watchTransactionReport } from '@/features/maintenance/passes/report-check';
 
 export interface ReleaseHoldsSummary {
   expired: number;
@@ -85,6 +86,7 @@ export async function runReleaseHolds(): Promise<ReleaseHoldsSummary> {
   const run = createPassRunner(RUN_BUDGET_MS);
 
   await watchProductionConfig(run);
+  await watchTransactionReport(run);
   const expired = await expireRequests(run);
   const released = await releaseHolds(run);
   await sweepStrandedReservations(run);

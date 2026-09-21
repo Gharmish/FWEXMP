@@ -214,6 +214,8 @@ raises the `settle_anomaly` page _"transaction report could not be read"_
 (it does not — ask HyperPay to enable Transaction Reports for entity
 `8acda4d9…`).
 
+**Hourly self-check (production only):** cron pass `0b-report-check` (`features/maintenance/passes/report-check.ts`) queries the report on every entity for a reference no booking carries, so a live entity that refuses `/v1/query` pages within an hour of deploy instead of on the first blocked guest; its `settle_anomaly` page _"the hourly self-check could not read the HyperPay transaction report"_ (same once-a-day `settle-report-unavailable` fingerprint as settle's) names the entity and the gateway's answer — a permission/auth code means ask HyperPay to enable Transaction Reports, a timeout or 5xx is a blip the next hour re-tests; to confirm after a deploy, check `/admin/alerts` once an hourly run has passed — no such row (paged or `suppressed: quiet-window`) means the live report is readable.
+
 One **live** booking was abandoned by the old reading and cannot be
 re-checked from here: **GH-9D5YCM**, SAR 480, checkout created 2026-09-17
 18:44 UTC, read as abandoned 20:00, system-cancelled 21:00. It is most
