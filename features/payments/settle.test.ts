@@ -124,14 +124,33 @@ let gatewayStatus: {
   currency?: string;
   paymentBrand?: string;
 };
-vi.mock('@/features/payments/lib/hyperpay', () => ({
-  getPaymentStatus: async () => gatewayStatus,
-  // Mirrors the real classifier's shape: success / pending / everything
-  // else rejected — so the "no payment session" code lands in the
-  // rejected branch exactly as it does in production.
-  classifyResult: (code: string) =>
-    code.startsWith('000.000.') ? 'success' : code.startsWith('000.200') ? 'pending' : 'rejected',
-}));
+const getPaymentStatus = vi.fn(async () => gatewayStatus);
+/**
+ * The transaction report (`GET /v1/query?merchantTransactionId=…`), per
+ * entity. An `Error` value makes that entity's query throw. Default: the
+ * gateway holds nothing for the reference, on the one configured entity.
+ */
+let report: Partial<Record<'card' | 'applepay', ReportedPayment[] | Error>> = {};
+let entities: Array<'card' | 'applepay'> = ['card'];
+const queryPaymentsByReference = vi.fn(async (_reference: string, channel: 'card' | 'applepay') => {
+  const answer = report[channel] ?? [];
+  if (answer instanceof Error) throw answer;
+  return answer;
+});
+vi.mock('@/features/payments/lib/hyperpay', async () => {
+  // The REAL classifier (pure): the throttle and no-session codes must land
+  // in the branches production puts them in, not where a stub would.
+  const core = await vi.importActual<typeof import('@/features/payments/lib/hyperpay-core')>(
+    '@/features/payments/lib/hyperpay-core',
+  );
+  return {
+    getPaymentStatus: (...args: unknown[]) => getPaymentStatus(...(args as [])),
+    classifyResult: core.classifyResult,
+    gatewayChannels: () => entities,
+    queryPaymentsByReference: (reference: string, channel: 'card' | 'applepay') =>
+      queryPaymentsByReference(reference, channel),
+  };
+});
 
 const ledgerEvents: Array<Record<string, unknown>> = [];
 /** When set, the ledger insert of this event type throws (a deterministic fault). */
@@ -168,9 +187,26 @@ vi.mock('@/lib/platform-settings', () => ({
 }));
 
 import { settleBooking } from './settle';
+import type { ReportedPayment } from './types';
+
+/** A captured debit as the transaction report returns it for `ref-1`. */
+const reportedCapture = (extra: Partial<ReportedPayment> = {}): ReportedPayment => ({
+  id: 'pay-report-1',
+  paymentType: 'DB',
+  paymentBrand: 'VISA',
+  amount: '480.00',
+  currency: 'SAR',
+  merchantTransactionId: 'ref-1',
+  result: { code: '000.100.112' },
+  ...extra,
+});
+/** What an expired checkout SESSION answers — paid or not. */
+const NO_SESSION = { id: '', result: { code: '200.300.404' } };
 
 beforeEach(() => {
   vi.clearAllMocks();
+  report = {};
+  entities = ['card'];
   setCalls.length = 0;
   ledgerEvents.length = 0;
   ledgerThrowsFor = null;
@@ -492,6 +528,9 @@ describe('settleBooking', () => {
     const outcome = await settleBooking('ref-1');
 
     expect(outcome).toBe('rejected');
+    // …but ONLY because the transaction report was asked first and holds
+    // nothing for this reference: the session code alone proves nothing.
+    expect(queryPaymentsByReference).toHaveBeenCalledWith('ref-1', 'card');
     expect(setCalls).toEqual([{ paymentStatus: 'unpaid', checkoutSupersededAt: expect.any(Date) }]);
     // Provenance survives (the raw code is diagnosable) without a
     // `settle_failed` row that would count as a payment failure.
@@ -541,6 +580,257 @@ describe('settleBooking', () => {
 
     const outcome = await settleBooking('ref-1');
 
+    expect(outcome).toBe('pending');
+    expect(setCalls).toHaveLength(0);
+  });
+
+  it('reads a throttled status as "ask again later", never as a decline', async () => {
+    // OPPWA refuses the third status GET per checkout per minute with
+    // 800.120.100. As `rejected` it flipped a possibly-captured booking to
+    // `failed` and emailed the guest that their payment didn't go through.
+    gatewayStatus = { id: '', result: { code: '800.120.100' } };
+
+    const outcome = await settleBooking('ref-1');
+
+    expect(outcome).toBe('pending');
+    expect(setCalls).toHaveLength(0);
+    expect(ledgerEvents).toHaveLength(0);
+    expect(sendBookingPaymentFailedEmail).not.toHaveBeenCalled();
+    // A refused request is not an expired session: no report lookup either.
+    expect(queryPaymentsByReference).not.toHaveBeenCalled();
+  });
+});
+
+/**
+ * The 2026-09-21 finding, verified on the test gateway: once a checkout's
+ * ~30-minute session is gone, the status GET answers 200.300.404 for a
+ * CAPTURED checkout exactly as for an untouched one. Settle used to read
+ * that as "abandoned" — and the reconcile pass only ever polls rows past
+ * their deadline, i.e. after the window. The transaction report (keyed on
+ * our reference, never expiring) is what tells the two apart.
+ */
+describe('settleBooking — expired checkout session', () => {
+  beforeEach(() => {
+    gatewayStatus = NO_SESSION;
+  });
+
+  it('settles a captured payment from the transaction report instead of abandoning it', async () => {
+    report = { card: [reportedCapture()] };
+
+    const outcome = await settleBooking('ref-1');
+
+    expect(outcome).toBe('success');
+    expect(setCalls).toHaveLength(1);
+    expect(setCalls[0]).toMatchObject({
+      paymentStatus: 'paid',
+      // The report entry's id is the payment id refunds will reference.
+      paymentReference: 'pay-report-1',
+      paymentBrand: 'VISA',
+      billedName: 'Aziz',
+    });
+    // Same ledger event as any settle, tagged so recovered captures count.
+    expect(ledgerEvents).toEqual([
+      expect.objectContaining({
+        type: 'settle_succeeded',
+        amountSar: 480,
+        gatewayId: 'pay-report-1',
+        resultCode: 'RECOVERED:000.100.112',
+      }),
+    ]);
+    expect(sendHostPaymentReceivedEmail).toHaveBeenCalledTimes(1);
+    expect(notifyAdmin).not.toHaveBeenCalled();
+  });
+
+  it('runs the recovered capture through the SAME conditional-UPDATE arbiter', async () => {
+    report = { card: [reportedCapture()] };
+
+    await settleBooking('ref-1');
+
+    expect(whereColumns).toHaveLength(1);
+    expect(whereColumns[0]).toEqual(
+      expect.arrayContaining(['id', 'paymentStatus', 'totalAmount', 'walletAppliedSar']),
+    );
+  });
+
+  it('a recovered capture that loses the settle race is a plain replay', async () => {
+    report = { card: [reportedCapture()] };
+    updateReturns = [];
+    recheck = { paymentStatus: 'paid' };
+
+    expect(await settleBooking('ref-1')).toBe('already_settled');
+    expect(ledgerEvents).toHaveLength(0);
+    expect(sendHostPaymentReceivedEmail).not.toHaveBeenCalled();
+  });
+
+  it('finds the capture among the declined attempts that preceded it', async () => {
+    report = {
+      card: [
+        reportedCapture({ id: 'pay-declined', amount: undefined, result: { code: '100.380.401' } }),
+        reportedCapture(),
+      ],
+    };
+
+    expect(await settleBooking('ref-1')).toBe('success');
+    expect(setCalls[0]).toMatchObject({ paymentStatus: 'paid', paymentReference: 'pay-report-1' });
+  });
+
+  it('raises a wrong-amount capture as an anomaly — never "abandoned"', async () => {
+    // A capture on a checkout priced before a promo/credit change. The old
+    // reading dropped it silently; now the amount guard pages a human and
+    // the anomaly stamp freezes the hold so the release pass cannot cancel.
+    report = { card: [reportedCapture({ amount: '530.00' })] };
+
+    const outcome = await settleBooking('ref-1');
+
+    expect(outcome).toBe('anomaly');
+    expect(setCalls).toEqual([
+      { settleAnomalyAt: expect.any(Date), settleAnomalyKind: 'amount mismatch' },
+    ]);
+    expect(notifyAdmin).toHaveBeenCalledWith(
+      'settle_anomaly',
+      expect.objectContaining({ problem: 'amount mismatch', reported: '530.00' }),
+    );
+  });
+
+  it('fails CLOSED when the report cannot be read: no abandon, one quiet-windowed page', async () => {
+    report = { card: new Error('HyperPay transaction report failed: 800.900.300') };
+
+    const outcome = await settleBooking('ref-1');
+
+    // `error` = transient: the row stays `processing`, which the release
+    // pass never touches, and the webhook/cron retry.
+    expect(outcome).toBe('error');
+    expect(setCalls).toHaveLength(0);
+    expect(ledgerEvents).toHaveLength(0);
+    expect(notifyAdmin).toHaveBeenCalledTimes(1);
+    expect(notifyAdmin).toHaveBeenCalledWith(
+      'settle_anomaly',
+      expect.objectContaining({ reference: 'ref-1' }),
+      { fingerprint: 'settle-report-unavailable', quietWindowMs: 24 * 3_600_000 },
+    );
+  });
+
+  it('asks EVERY entity before abandoning — the report is entity-scoped', async () => {
+    // Verified 2026-09-21: an Apple Pay capture queried on the card entity
+    // answers "cannot find transaction". A channel switch leaves exactly
+    // that: current checkout on card, the money on the Apple Pay entity.
+    entities = ['card', 'applepay'];
+    report = { card: [], applepay: [reportedCapture({ paymentBrand: 'MASTER' })] };
+
+    const outcome = await settleBooking('ref-1');
+
+    expect(outcome).toBe('success');
+    expect(queryPaymentsByReference.mock.calls.map((c) => c[1])).toEqual(['card', 'applepay']);
+    expect(setCalls[0]).toMatchObject({ paymentStatus: 'paid', paymentBrand: 'MASTER' });
+  });
+
+  it('never abandons on a partial answer: one entity silent, the other empty', async () => {
+    entities = ['card', 'applepay'];
+    report = { card: [], applepay: new Error('timeout') };
+
+    expect(await settleBooking('ref-1')).toBe('error');
+    expect(setCalls).toHaveLength(0);
+  });
+
+  it('settles from the entity that answered when the other could not', async () => {
+    entities = ['card', 'applepay'];
+    report = { card: [reportedCapture()], applepay: new Error('timeout') };
+
+    expect(await settleBooking('ref-1')).toBe('success');
+    expect(reportError).toHaveBeenCalledWith(
+      expect.any(Error),
+      expect.objectContaining({ surface: 'payment-settle:reportQuery' }),
+    );
+    // The capture was found — nothing to page about.
+    expect(notifyAdmin).not.toHaveBeenCalled();
+  });
+
+  it('does not settle from a capture that was already refunded at the gateway', async () => {
+    report = {
+      card: [
+        reportedCapture(),
+        {
+          id: 'rf-1',
+          paymentType: 'RF',
+          referencedId: 'pay-report-1',
+          amount: '480.00',
+          currency: 'SAR',
+          merchantTransactionId: 'ref-1',
+          result: { code: '000.100.112' },
+        },
+      ],
+    };
+
+    const outcome = await settleBooking('ref-1');
+
+    expect(outcome).toBe('rejected');
+    expect(setCalls).toEqual([{ paymentStatus: 'unpaid', checkoutSupersededAt: expect.any(Date) }]);
+  });
+
+  it('leaves the booking processing while the report shows a debit in flight', async () => {
+    report = { card: [reportedCapture({ result: { code: '000.200.000' } })] };
+
+    expect(await settleBooking('ref-1')).toBe('pending');
+    expect(setCalls).toHaveLength(0);
+    expect(ledgerEvents).toHaveLength(0);
+  });
+
+  it('settles one capture and pages about the rest when the guest was charged twice', async () => {
+    report = { card: [reportedCapture(), reportedCapture({ id: 'pay-report-2' })] };
+
+    const outcome = await settleBooking('ref-1');
+
+    expect(outcome).toBe('success');
+    expect(setCalls[0]).toMatchObject({ paymentStatus: 'paid', paymentReference: 'pay-report-1' });
+    expect(notifyAdmin).toHaveBeenCalledWith(
+      'settle_anomaly',
+      expect.objectContaining({ reference: 'ref-1', settlingFromPaymentId: 'pay-report-1' }),
+      { fingerprint: 'multi-capture:ref-1', quietWindowMs: 24 * 3_600_000 },
+    );
+  });
+
+  it('auto-refunds a recovered capture that landed on a cancelled booking', async () => {
+    booking = { ...booking!, status: 'cancelled' };
+    report = { card: [reportedCapture()] };
+
+    expect(await settleBooking('ref-1')).toBe('success');
+    expect(executeRefund).toHaveBeenCalledWith('b-1', 'pay-report-1', 480);
+  });
+});
+
+/**
+ * `createCheckout` probes the live checkout before deciding what to do
+ * with it. OPPWA allows two status GETs per checkout per minute, so settle
+ * must not spend a second one on an answer the caller already holds.
+ */
+describe('settleBooking — caller-supplied status', () => {
+  it('uses the status the caller already fetched: no second GET', async () => {
+    const outcome = await settleBooking('ref-1', {
+      checkoutId: 'chk-1',
+      status: { ...gatewayStatus, result: { code: '000.000.000', description: 'ok' } },
+    });
+
+    expect(outcome).toBe('success');
+    expect(getPaymentStatus).not.toHaveBeenCalled();
+    expect(setCalls[0]).toMatchObject({ paymentStatus: 'paid', paymentReference: 'pay-1' });
+  });
+
+  it('ignores a status fetched for a DIFFERENT checkout than the row holds now', async () => {
+    // The row moved on between the caller's probe and this settle: a
+    // success for checkout A must never settle the booking via checkout B.
+    gatewayStatus = { id: 'pay-1', result: { code: '000.200.000' } };
+
+    const outcome = await settleBooking('ref-1', {
+      checkoutId: 'chk-OLD',
+      status: {
+        id: 'pay-old',
+        result: { code: '000.000.000', description: 'ok' },
+        amount: '480.00',
+        currency: 'SAR',
+      },
+    });
+
+    expect(getPaymentStatus).toHaveBeenCalledTimes(1);
     expect(outcome).toBe('pending');
     expect(setCalls).toHaveLength(0);
   });

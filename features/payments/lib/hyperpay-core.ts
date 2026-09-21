@@ -1,7 +1,9 @@
 import type {
+  CaptureLookup,
   HyperpayConfig,
   PaymentOutcome,
   PrepareCheckoutInput,
+  ReportedPayment,
 } from '@/features/payments/types';
 
 /**
@@ -25,12 +27,15 @@ const MANUAL_REVIEW_RE = /^(000\.400\.0[^3]|000\.400\.[0-1]{2}0)/;
 const PENDING_RE = /^(000\.200|800\.400\.5|100\.400\.500)/;
 
 /**
- * What the status GET answers for a checkout no shopper ever submitted
- * (or that expired unpaid): "invalid or missing parameter — no payment
- * session found for the requested id". Classified `rejected` like any
- * other non-success code, but settle must NOT read it as a card decline:
- * nothing was attempted, so the guest gets no "payment failed" message
- * and the hold lapses on its ordinary schedule instead.
+ * What the status GET answers once the gateway holds no SESSION for a
+ * checkout: "invalid or missing parameter — no payment session found for
+ * the requested id - are you mixing test/live servers or have you paid
+ * more than 30min ago?". Classified `rejected` like any other non-success
+ * code, but it is NOT a verdict on the money — it is what a never-submitted
+ * checkout answers AND what a CAPTURED one answers once its session has
+ * aged out (verified on the test server 2026-09-21: three paid checkouts,
+ * card and Apple Pay, all answered exactly this). Settle therefore asks the
+ * transaction report (`pickCapture`) before reading it as "abandoned".
  */
 export const NO_PAYMENT_SESSION_CODE = '200.300.404';
 
@@ -38,11 +43,86 @@ export function isNoPaymentSession(code: string): boolean {
   return code === NO_PAYMENT_SESSION_CODE;
 }
 
+/**
+ * "Rejected by Throttling". OPPWA allows two status GETs per checkout per
+ * minute; the third is refused with this code. It says nothing about the
+ * payment, so it must never read as a decline — that would flip a possibly
+ * captured booking to `failed` and email the guest that their card was
+ * refused. `getPaymentStatus` folds a bare HTTP 429 into the same code.
+ */
+export const THROTTLED_CODE = '800.120.100';
+
+export function isThrottled(code: string): boolean {
+  return code === THROTTLED_CODE;
+}
+
+/** What `GET /v1/query` answers when the entity holds nothing for the reference. */
+export const NO_TRANSACTION_FOUND_CODE = '700.400.580';
+
 /** Classify a result code into a coarse outcome for the settlement flow. */
 export function classifyResult(code: string): PaymentOutcome {
   if (SUCCESS_RE.test(code) || MANUAL_REVIEW_RE.test(code)) return 'success';
-  if (PENDING_RE.test(code)) return 'pending';
+  // Throttled = "ask again later": the row stays `processing` for the next
+  // webhook delivery / reconcile pass, exactly like an in-flight result.
+  if (PENDING_RE.test(code) || isThrottled(code)) return 'pending';
   return 'rejected';
+}
+
+/** Entry types that move a debit's money BACK: refund, reversal, chargeback. */
+const REVERSAL_TYPES: readonly string[] = ['RF', 'RV', 'CB'];
+
+/**
+ * Read a transaction report for the money actually held against a booking.
+ *
+ * Pure selection over `GET /v1/query?merchantTransactionId=…` entries
+ * (merged across entities by the caller). Only a successful `DB` that no
+ * successful refund/reversal points back at counts: a capture a human
+ * already refunded in the HyperPay console must never settle a booking —
+ * the guest would hold a paid seat for money that went home. An entry
+ * whose own `merchantTransactionId` is not this reference is ignored even
+ * though the query was keyed on it (never settle from a row that does not
+ * name the booking).
+ *
+ * When several live debits exist, the one matching what the guest owes is
+ * preferred; with none matching, the first is returned anyway so settle's
+ * amount guard raises the mismatch to a human instead of the capture being
+ * silently dropped as "abandoned".
+ */
+export function pickCapture(
+  payments: readonly ReportedPayment[],
+  reference: string,
+  amountSar: number,
+): CaptureLookup {
+  const own = payments.filter((p) => p.merchantTransactionId === reference);
+  const succeeded = (p: ReportedPayment): boolean =>
+    typeof p.result?.code === 'string' && classifyResult(p.result.code) === 'success';
+
+  const reversed = new Set(
+    own
+      .filter((p) => REVERSAL_TYPES.includes(p.paymentType ?? '') && succeeded(p))
+      .map((p) => p.referencedId),
+  );
+  const debits = own.filter((p) => p.paymentType === 'DB');
+  const live = debits.filter(
+    (p): p is ReportedPayment & { id: string } =>
+      typeof p.id === 'string' && p.id !== '' && succeeded(p) && !reversed.has(p.id),
+  );
+
+  if (live.length > 0) {
+    const expected = formatAmount(amountSar);
+    const exact = live.find((p) => p.amount === expected && p.currency === 'SAR');
+    return { kind: 'captured', payment: exact ?? live[0], liveDebits: live.length };
+  }
+  // On a RECORDED entry the throttle code is a terminal refusal of that
+  // attempt, not "ask again later" — counting it as in flight would hold
+  // the booking in `processing` forever.
+  const inFlight = debits.some(
+    (p) =>
+      typeof p.result?.code === 'string' &&
+      !isThrottled(p.result.code) &&
+      classifyResult(p.result.code) === 'pending',
+  );
+  return inFlight ? { kind: 'pending' } : { kind: 'none' };
 }
 
 /** True only when the payment was successfully processed (or risk-review captured). */

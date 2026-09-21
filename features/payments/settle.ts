@@ -8,15 +8,26 @@ import { grantReferralRewards } from '@/features/marketing/referral';
 import { notifyAdmin } from '@/lib/admin-alerts';
 import { isArPlaceholder } from '@/lib/ar-placeholder';
 import { getPlatformSettingsStrict } from '@/lib/platform-settings';
-import { classifyResult, getPaymentStatus } from '@/features/payments/lib/hyperpay';
-import { isNoPaymentSession } from '@/features/payments/lib/hyperpay-core';
+import {
+  classifyResult,
+  gatewayChannels,
+  getPaymentStatus,
+  queryPaymentsByReference,
+} from '@/features/payments/lib/hyperpay';
+import { isNoPaymentSession, pickCapture } from '@/features/payments/lib/hyperpay-core';
 import { recordPaymentEvent, resolvePaymentChannel } from '@/features/payments/ledger';
 import { executeRefund } from '@/features/bookings/lib/refund';
 import {
   sendBookingPaymentFailedEmail,
   sendHostPaymentReceivedEmail,
 } from '@/features/bookings/lib/booking-email';
-import type { PaymentChannel, PaymentOutcome } from '@/features/payments/types';
+import type {
+  CaptureLookup,
+  PaymentChannel,
+  PaymentOutcome,
+  PaymentStatusResponse,
+  ReportedPayment,
+} from '@/features/payments/types';
 
 /**
  * Result of a settle call. `already_settled` is the idempotent no-op —
@@ -62,6 +73,53 @@ async function getPaymentStatusWithRetry(
     await new Promise((resolve) => setTimeout(resolve, 750));
     return getPaymentStatus(checkoutId, channel);
   }
+}
+
+/**
+ * A status a caller ALREADY fetched for a checkout, moments ago.
+ * `createCheckout` probes the live checkout before deciding what to do
+ * with it; handing that answer over keeps settle from issuing a second
+ * status GET back-to-back on the same id — OPPWA allows two per checkout
+ * per minute and refuses the third as throttled. Honoured only when it is
+ * for the checkout the booking row holds NOW; otherwise settle fetches
+ * its own. Not caller-controlled input: `settleBooking` is not a server
+ * action, and the only producer is our own gateway client.
+ */
+export interface KnownGatewayStatus {
+  checkoutId: string;
+  status: PaymentStatusResponse;
+}
+
+/**
+ * Ask the transaction report whether the gateway holds money for this
+ * booking — the question the status GET can no longer answer once the
+ * checkout session is gone. Every configured entity is asked (the report
+ * is entity-scoped and a channel switch moves a booking across entities).
+ *
+ * An entity that could not be asked THROWS unless another already showed
+ * a live capture: "one entity said nothing, the other didn't answer" is
+ * not "nothing was paid", and the caller abandons on `none`.
+ */
+async function findCapture(
+  reference: string,
+  channel: PaymentChannel,
+  amountSar: number,
+): Promise<CaptureLookup> {
+  const reported: ReportedPayment[] = [];
+  let failure: unknown = null;
+  for (const entity of gatewayChannels(channel)) {
+    try {
+      reported.push(...(await queryPaymentsByReference(reference, entity)));
+    } catch (error) {
+      failure = error;
+    }
+  }
+  const found = pickCapture(reported, reference, amountSar);
+  if (failure !== null) {
+    if (found.kind !== 'captured') throw failure;
+    reportError(failure, { surface: 'payment-settle:reportQuery', reference });
+  }
+  return found;
 }
 
 /**
@@ -154,7 +212,10 @@ async function recordSettleAnomaly(
   if (firstTime) await notifyAdmin('settle_anomaly', detail);
 }
 
-export async function settleBooking(reference: string): Promise<SettleOutcome> {
+export async function settleBooking(
+  reference: string,
+  known?: KnownGatewayStatus,
+): Promise<SettleOutcome> {
   if (!hasHyperpay() || !serverEnv.DATABASE_URL) return 'error';
 
   try {
@@ -183,8 +244,87 @@ export async function settleBooking(reference: string): Promise<SettleOutcome> {
     if (booking.paymentStatus === 'paid') return 'already_settled';
 
     const channel = await resolvePaymentChannel(booking.id, booking.checkoutId);
-    const status = await getPaymentStatusWithRetry(booking.checkoutId, channel);
-    const outcome = classifyResult(status.result.code);
+    let status =
+      known && known.checkoutId === booking.checkoutId
+        ? known.status
+        : await getPaymentStatusWithRetry(booking.checkoutId, channel);
+    let outcome = classifyResult(status.result.code);
+    /** The raw status code a report-recovered capture replaced (ledger provenance). */
+    let recoveredFrom: string | null = null;
+
+    // "No payment session" is NOT a verdict on the money (2026-09-21). The
+    // gateway keeps a checkout session ~30 minutes; after that the status
+    // GET answers 200.300.404 for a CAPTURED checkout exactly as it does
+    // for an untouched one — verified on the test server against three
+    // paid checkouts. The reconcile pass only polls rows past their
+    // payment deadline, i.e. almost always after that window, so a guest
+    // who paid, lost the tab during 3DS and whose webhook was missed used
+    // to be read as "abandoned": handed back to `unpaid`, system-cancelled
+    // by the release pass an hour later, never alerted — and free to be
+    // charged again. The transaction report is keyed on OUR reference and
+    // does not expire, so ask it before believing nothing was paid.
+    if (isNoPaymentSession(status.result.code)) {
+      let found: CaptureLookup;
+      try {
+        found = await findCapture(reference, channel, booking.totalAmount);
+      } catch (error) {
+        // Fail CLOSED: without the report a paid booking and an abandoned
+        // one are indistinguishable, so the row stays `processing` (the
+        // release pass never touches it) and the webhook/cron retry. One
+        // page a day, platform-wide — a report that is down or not enabled
+        // on this entity silently parks every expired checkout, and the
+        // 24h stuck-settlement alert is a long time to learn that.
+        reportError(error, { surface: 'payment-settle:reportQuery', reference });
+        await notifyAdmin(
+          'settle_anomaly',
+          {
+            reference,
+            problem:
+              'checkout session expired and the HyperPay transaction report could not be read — a paid booking cannot be told from an abandoned one',
+            action:
+              'the booking stays processing and is retried hourly; if this repeats, confirm GET /v1/query is enabled for the entity and check the reference in the HyperPay portal',
+          },
+          { fingerprint: 'settle-report-unavailable', quietWindowMs: 24 * 3_600_000 },
+        );
+        return 'error';
+      }
+      // A debit still in flight at the gateway: leave the row `processing`.
+      if (found.kind === 'pending') return 'pending';
+      if (found.kind === 'captured') {
+        if (found.liveDebits > 1) {
+          // More than one unreversed capture for one booking is a double
+          // charge. One of them settles the booking below; a human must
+          // send the rest back.
+          await notifyAdmin(
+            'settle_anomaly',
+            {
+              reference,
+              problem: `${found.liveDebits} successful unreversed captures exist for this booking — one settles it, refund the others at HyperPay`,
+              settlingFromPaymentId: found.payment.id,
+            },
+            { fingerprint: `multi-capture:${reference}`, quietWindowMs: 24 * 3_600_000 },
+          );
+        }
+        // Settle from the report entry down the SAME success path: the
+        // amount/currency guards, the conditional-UPDATE arbiter and the
+        // ledger row below all apply unchanged. A capture at the wrong
+        // amount (a superseded checkout priced before a promo/credit
+        // change) therefore lands as an amount-mismatch anomaly with a
+        // human paged — never as "abandoned".
+        recoveredFrom = status.result.code;
+        status = {
+          id: found.payment.id,
+          result: {
+            code: found.payment.result?.code ?? '',
+            description: found.payment.result?.description ?? '',
+          },
+          amount: found.payment.amount,
+          currency: found.payment.currency,
+          paymentBrand: found.payment.paymentBrand,
+        };
+        outcome = 'success';
+      }
+    }
 
     if (outcome === 'success') {
       // Defence in depth: verify the amount and currency HyperPay reports
@@ -305,7 +445,13 @@ export async function settleBooking(reference: string): Promise<SettleOutcome> {
                   type: 'settle_succeeded',
                   amountSar: booking.totalAmount,
                   gatewayId: status.id,
-                  resultCode: status.result.code,
+                  // `RECOVERED:` marks a capture settled from the
+                  // transaction report after its checkout session had
+                  // expired — the count of these is how many paid guests
+                  // the old "abandoned" reading would have cancelled.
+                  resultCode: recoveredFrom
+                    ? `RECOVERED:${status.result.code}`
+                    : status.result.code,
                 },
                 inner,
               );
@@ -429,8 +575,12 @@ export async function settleBooking(reference: string): Promise<SettleOutcome> {
 
     if (outcome === 'rejected' && isNoPaymentSession(status.result.code)) {
       // ABANDONED, not declined: the gateway has no payment session for
-      // this checkout at all — the shopper never submitted the widget
-      // (or the checkout expired unpaid). The payment step now prepares
+      // this checkout AND — checked above, on every entity — its
+      // transaction report holds no live or in-flight debit for the
+      // booking's reference. The session code alone never gets here: a
+      // captured checkout answers it too once ~30 minutes have passed.
+      // So the shopper never submitted the widget, or every attempt was
+      // refused and the return never landed. The payment step now prepares
       // a checkout on page load for eligible guests, so this is the
       // ordinary end of "opened the pay page and left", not a card
       // failure. Hand the booking back to `unpaid` (checkoutId kept, so

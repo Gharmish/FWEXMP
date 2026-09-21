@@ -6,10 +6,16 @@ import {
   classifyResult,
   formatAmount,
   isSuccessfulResult,
+  isThrottled,
   LIVE_BASE_URL,
+  pickCapture,
   TEST_BASE_URL,
 } from '@/features/payments/lib/hyperpay-core';
-import type { HyperpayConfig, PrepareCheckoutInput } from '@/features/payments/types';
+import type {
+  HyperpayConfig,
+  PrepareCheckoutInput,
+  ReportedPayment,
+} from '@/features/payments/types';
 
 const input: PrepareCheckoutInput = {
   merchantTransactionId: 'b1f9c0de-0000-4000-8000-000000000001',
@@ -72,6 +78,133 @@ describe('classifyResult', () => {
       expect(classifyResult(code)).toBe('rejected');
       expect(isSuccessfulResult(code)).toBe(false);
     }
+  });
+
+  it('treats "Rejected by Throttling" as pending — a refused REQUEST is never a declined PAYMENT', () => {
+    // OPPWA allows two status GETs per checkout per minute; the third
+    // answers 800.120.100. Read as a decline it flipped a possibly
+    // captured booking to `failed` and emailed "your payment failed".
+    expect(isThrottled('800.120.100')).toBe(true);
+    expect(classifyResult('800.120.100')).toBe('pending');
+    expect(isSuccessfulResult('800.120.100')).toBe(false);
+    // Its neighbours are real risk-velocity declines of a payment.
+    for (const code of ['800.120.101', '800.120.200', '800.120.300']) {
+      expect(isThrottled(code)).toBe(false);
+      expect(classifyResult(code)).toBe('rejected');
+    }
+  });
+});
+
+/**
+ * `pickCapture` decides whether an expired checkout was PAID. Entries
+ * mirror what `GET /v1/query?merchantTransactionId=…` really returned on
+ * the test server (2026-09-21): a declined debit carries no amount, and a
+ * refund names the debit it reverses in `referencedId`.
+ */
+describe('pickCapture', () => {
+  const REF = '11111111-2222-4333-8444-555555555555';
+  const debit = (extra: Partial<ReportedPayment> = {}): ReportedPayment => ({
+    id: 'pay-ok',
+    paymentType: 'DB',
+    paymentBrand: 'VISA',
+    amount: '480.00',
+    currency: 'SAR',
+    merchantTransactionId: REF,
+    result: { code: '000.100.112' },
+    ...extra,
+  });
+  const declined = debit({
+    id: 'pay-declined',
+    amount: undefined,
+    currency: undefined,
+    result: { code: '100.380.401' },
+  });
+
+  it('finds the capture among the declines that preceded it', () => {
+    const found = pickCapture([declined, debit()], REF, 480);
+    expect(found).toEqual({ kind: 'captured', payment: debit(), liveDebits: 1 });
+  });
+
+  it('reports none when every attempt was declined, or nothing exists', () => {
+    expect(pickCapture([declined], REF, 480)).toEqual({ kind: 'none' });
+    expect(pickCapture([], REF, 480)).toEqual({ kind: 'none' });
+  });
+
+  it('NEVER settles from a capture that was already refunded or reversed', () => {
+    // A human refunded an unmatched capture in the HyperPay console. If it
+    // still counted, a later abandoned checkout on the same booking would
+    // settle it as PAID with money that has already gone home.
+    for (const paymentType of ['RF', 'RV', 'CB']) {
+      const reversal: ReportedPayment = {
+        id: 'rev-1',
+        paymentType,
+        referencedId: 'pay-ok',
+        amount: '480.00',
+        currency: 'SAR',
+        merchantTransactionId: REF,
+        result: { code: '000.100.112' },
+      };
+      expect(pickCapture([debit(), reversal], REF, 480)).toEqual({ kind: 'none' });
+    }
+  });
+
+  it('still counts a capture whose refund attempt FAILED', () => {
+    const failedRefund: ReportedPayment = {
+      id: 'rf-1',
+      paymentType: 'RF',
+      referencedId: 'pay-ok',
+      merchantTransactionId: REF,
+      result: { code: '700.400.200' },
+    };
+    expect(pickCapture([debit(), failedRefund], REF, 480).kind).toBe('captured');
+  });
+
+  it('only a reversal of THAT debit cancels it', () => {
+    const otherRefund: ReportedPayment = {
+      id: 'rf-2',
+      paymentType: 'RF',
+      referencedId: 'some-other-debit',
+      merchantTransactionId: REF,
+      result: { code: '000.100.112' },
+    };
+    expect(pickCapture([debit(), otherRefund], REF, 480).kind).toBe('captured');
+  });
+
+  it('prefers the capture matching what the guest owes, and counts a double charge', () => {
+    const stale = debit({ id: 'pay-old-total', amount: '530.00' });
+    const found = pickCapture([stale, debit()], REF, 480);
+    expect(found).toMatchObject({ kind: 'captured', liveDebits: 2 });
+    expect(found.kind === 'captured' && found.payment.id).toBe('pay-ok');
+  });
+
+  it('hands back a wrong-amount capture rather than hiding it — settle raises the mismatch', () => {
+    const found = pickCapture([debit({ amount: '530.00' })], REF, 480);
+    expect(found).toMatchObject({ kind: 'captured', liveDebits: 1 });
+  });
+
+  it('reports pending while a debit is still in flight', () => {
+    expect(pickCapture([debit({ result: { code: '000.200.000' } })], REF, 480)).toEqual({
+      kind: 'pending',
+    });
+  });
+
+  it('reads a throttle code on a RECORDED entry as that attempt’s refusal, not as in flight', () => {
+    // Otherwise the booking would sit in `processing` forever.
+    expect(pickCapture([debit({ result: { code: '800.120.100' } })], REF, 480)).toEqual({
+      kind: 'none',
+    });
+  });
+
+  it('ignores entries that do not name this booking, or carry no payment id', () => {
+    expect(pickCapture([debit({ merchantTransactionId: 'someone-else' })], REF, 480)).toEqual({
+      kind: 'none',
+    });
+    expect(pickCapture([debit({ id: undefined })], REF, 480)).toEqual({ kind: 'none' });
+    expect(pickCapture([debit({ id: '' })], REF, 480)).toEqual({ kind: 'none' });
+  });
+
+  it('never reads a successful non-debit as a capture', () => {
+    expect(pickCapture([debit({ paymentType: 'RF' })], REF, 480)).toEqual({ kind: 'none' });
   });
 });
 

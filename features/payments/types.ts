@@ -108,5 +108,42 @@ export interface PaymentStatusResponse {
   merchantTransactionId?: string;
 }
 
+/**
+ * One entry of `GET /v1/query?merchantTransactionId=…` (OPPWA Transaction
+ * Reports). A reference can carry SEVERAL: every declined attempt, the
+ * capture, and any refund — all under the same `merchantTransactionId`.
+ * Shape observed on the test server 2026-09-21: a declined debit has no
+ * `amount`, and a refund points at the debit it reverses via `referencedId`.
+ */
+export interface ReportedPayment {
+  id?: string;
+  /** `DB` debit · `RF` refund · `RV` reversal · `CB` chargeback. */
+  paymentType?: string;
+  paymentBrand?: string;
+  amount?: string;
+  currency?: string;
+  merchantTransactionId?: string;
+  /** On RF/RV/CB: the `id` of the debit this entry moves money back from. */
+  referencedId?: string;
+  result?: Partial<HyperpayResult>;
+}
+
+/** Response of `GET /v1/query?merchantTransactionId=…`. */
+export interface TransactionReportResponse {
+  result?: Partial<HyperpayResult>;
+  payments?: ReportedPayment[];
+}
+
+/**
+ * What the transaction report says about a booking's reference:
+ * `captured` = an unreversed successful debit exists (`liveDebits` > 1 is
+ * a double charge); `pending` = a debit is still in flight; `none` = the
+ * gateway holds no money for it.
+ */
+export type CaptureLookup =
+  | { kind: 'captured'; payment: ReportedPayment & { id: string }; liveDebits: number }
+  | { kind: 'pending' }
+  | { kind: 'none' };
+
 /** Outcome classification derived from a result code. */
 export type PaymentOutcome = 'success' | 'pending' | 'rejected';

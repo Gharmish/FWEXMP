@@ -5,6 +5,9 @@ import {
   baseUrlFor,
   buildCheckoutBody,
   buildRefundBody,
+  isSuccessfulResult,
+  NO_TRANSACTION_FOUND_CODE,
+  THROTTLED_CODE,
 } from '@/features/payments/lib/hyperpay-core';
 import type {
   HyperpayConfig,
@@ -12,6 +15,8 @@ import type {
   PaymentStatusResponse,
   PrepareCheckoutInput,
   PrepareCheckoutResponse,
+  ReportedPayment,
+  TransactionReportResponse,
 } from '@/features/payments/types';
 
 /**
@@ -143,9 +148,65 @@ export async function getPaymentStatus(
     cache: 'no-store',
     signal: AbortSignal.timeout(HYPERPAY_TIMEOUT_MS),
   });
+  // A bare 429 is the same "two status requests per checkout per minute"
+  // refusal as the throttle result code, whatever its body. Folded into
+  // that code BEFORE parsing so every caller has one transient path — and
+  // so settle's retry-on-throw never spends a second request on a limit
+  // that a second request only deepens.
+  if (res.status === 429) {
+    return { id: '', result: { code: THROTTLED_CODE, description: 'HTTP 429 (throttled)' } };
+  }
   const data = await parseJson<PaymentStatusResponse>(res, 'getPaymentStatus');
   if (!data.result?.code) {
     throw new Error(`HyperPay getPaymentStatus returned no result code (HTTP ${res.status})`);
   }
   return data;
+}
+
+/**
+ * Every entity a booking's money could sit on: the given channel's first,
+ * then the other one when Apple Pay has its own entity. The transaction
+ * report is ENTITY-SCOPED (verified 2026-09-21: an Apple Pay capture
+ * queried on the card entity answers "cannot find transaction", and vice
+ * versa), and a channel switch supersedes a checkout onto the other
+ * entity — so "no capture" is only true once each has been asked.
+ */
+export function gatewayChannels(primary: PaymentChannel): PaymentChannel[] {
+  const other: PaymentChannel = primary === 'card' ? 'applepay' : 'card';
+  return config(other).entityId === config(primary).entityId ? [primary] : [primary, other];
+}
+
+/**
+ * Every transaction one entity holds for a booking reference —
+ * `GET /v1/query?merchantTransactionId=…` (OPPWA Transaction Reports).
+ *
+ * The status GET only works while the checkout SESSION lives (~30 min);
+ * after that it answers "no payment session" for paid and unpaid
+ * checkouts alike. This report is keyed on OUR reference instead, so it is
+ * how settle tells a captured payment from an abandoned one.
+ *
+ * Returns `[]` ONLY on the gateway's explicit "cannot find transaction".
+ * Anything else that is not a successful report — throttling, an auth or
+ * permission error, a 5xx — THROWS: an unanswered question must never be
+ * read as "nothing was paid".
+ */
+export async function queryPaymentsByReference(
+  merchantTransactionId: string,
+  channel: PaymentChannel = 'card',
+): Promise<ReportedPayment[]> {
+  const url = new URL(`${hyperpayBaseUrl()}v1/query`);
+  url.searchParams.set('entityId', config(channel).entityId);
+  url.searchParams.set('merchantTransactionId', merchantTransactionId);
+  const res = await fetch(url, {
+    headers: authHeaders(),
+    cache: 'no-store',
+    signal: AbortSignal.timeout(HYPERPAY_TIMEOUT_MS),
+  });
+  const data = await parseJson<TransactionReportResponse>(res, 'queryPaymentsByReference');
+  const code = data.result?.code;
+  if (code === NO_TRANSACTION_FOUND_CODE) return [];
+  if (!code || !isSuccessfulResult(code) || !Array.isArray(data.payments)) {
+    throw new Error(`HyperPay transaction report failed: ${code ?? `HTTP ${res.status}`}`);
+  }
+  return data.payments;
 }

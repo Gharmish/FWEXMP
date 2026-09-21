@@ -149,6 +149,83 @@ which is the "key loaded" signal. Things learned the hard way:
   (settle re-queries the gateway) but it can forge an alert-triggering
   payload; ask HyperPay to regenerate it once the flow is proven.
 
+**EXPIRED CHECKOUT ≠ UNPAID — settle reads the transaction report (2026-09-21).**
+A review inferred, and a read-only probe of the **test** server then
+confirmed, that the status GET cannot tell a paid checkout from an
+abandoned one once the checkout's session is gone:
+
+- `GET /v1/checkouts/{id}/payment` on three **captured** test checkouts
+  (GH-MQZYYP card, GH-TD8FQD Apple Pay, GH-NMFAHH card; 30–45 days old)
+  answered HTTP 400 `200.300.404` — byte-identical to the genuinely
+  abandoned GH-ZH25EB. The gateway's own description says it: _"No payment
+  session found for the requested id - are you mixing test/live servers or
+  have you paid more than 30min ago?"_ The COPYandPAY guide agrees ("a
+  checkout id expires … not later than 30 minutes").
+- Settle read that code as **ABANDONED**: `processing → unpaid`, no alert,
+  no email; the release pass then system-cancelled the booking an hour
+  later. The reconcile pass only polls rows **past their payment deadline**
+  — i.e. almost always after the 30-minute window — so a guest who paid,
+  lost the tab during 3DS and whose webhook was missed could be cancelled
+  while charged, and charged again on a fresh checkout.
+- `GET /v1/query?entityId=…&merchantTransactionId=<bookings.idempotency_key>`
+  (Transaction Reports) does not expire. Paid reference → HTTP 200,
+  `result.code 000.000.100`, `payments[]` with `id`, `paymentType`,
+  `paymentBrand`, `amount`, `currency`, `merchantTransactionId`,
+  `result.code`, `timestamp` (+ card/customer detail we never read).
+  Nothing for the reference → HTTP 404 `700.400.580` "cannot find
+  transaction". One reference carries **several** entries: a declined `DB`
+  has no `amount`; a refund is `paymentType RF` whose `referencedId` is the
+  debit's `id`. `/v1/query/{paymentId}` returns the single entry.
+  `date.from`/`date.to` are not enabled on this account.
+- The report is **entity-scoped**: the Apple Pay capture queried on the card
+  entity (and the card capture on the Apple Pay entity) answered
+  `700.400.580`. Every configured entity must be asked.
+
+What the code does now (`features/payments/settle.ts`, `lib/hyperpay.ts`,
+`lib/hyperpay-core.ts`): on `200.300.404` settle asks the report on every
+entity **before** abandoning. An unreversed successful `DB` settles the
+booking down the ordinary path (same amount/currency guards, same
+conditional-UPDATE arbiter, `settle_succeeded` ledger row tagged
+`RECOVERED:<code>`); a wrong-amount capture becomes the usual amount-mismatch
+anomaly; a capture already refunded at the gateway is ignored; two live
+captures settle one and page about the other. Only an explicit "cannot find
+transaction" from **every** entity abandons. If the report cannot be read
+settle fails **closed** — the booking stays `processing` (the release pass
+never touches it) and one `settle_anomaly` page a day says so.
+`createCheckout` routes an expired session through settle before it will
+supersede anything, and hands settle its one status GET instead of letting
+it fetch a second (OPPWA allows two per checkout per minute). `800.120.100`
+"Rejected by Throttling" and a bare HTTP 429 are transient (`pending`),
+never a decline. The webhook pages once per reference per day when the
+payload says success but settle could not confirm, and asks OPPWA to
+redeliver only when settle polled the very checkout the payload names.
+
+Not observed, stated plainly: the **throttle code itself** (four rapid GETs
+on an expired test session just repeated `200.300.404`; the limit is from
+the docs), the **exact 30-minute boundary** (youngest checkout probed was
+30 days old), and — the one that matters — **`/v1/query` on the LIVE
+entity**. Every probe used the test credentials; the live token exists only
+in Vercel. If the live entity refuses the report, abandoned checkouts park
+in `processing` and a returning pay-after-approval guest whose checkout is
+30+ minutes old gets a "try again" error instead of a new checkout. **After
+deploying, confirm it:** the first expired checkout the hourly cron meets
+either writes an `ABANDONED:` / `RECOVERED:` ledger row (report works) or
+raises the `settle_anomaly` page _"transaction report could not be read"_
+(it does not — ask HyperPay to enable Transaction Reports for entity
+`8acda4d9…`).
+
+**Hourly self-check (production only):** cron pass `0b-report-check` (`features/maintenance/passes/report-check.ts`) queries the report on every entity for a reference no booking carries, so a live entity that refuses `/v1/query` pages within an hour of deploy instead of on the first blocked guest; its `settle_anomaly` page _"the hourly self-check could not read the HyperPay transaction report"_ (same once-a-day `settle-report-unavailable` fingerprint as settle's) names the entity and the gateway's answer — a permission/auth code means ask HyperPay to enable Transaction Reports, a timeout or 5xx is a blip the next hour re-tests; to confirm after a deploy, check `/admin/alerts` once an hourly run has passed — no such row (paged or `suppressed: quiet-window`) means the live report is readable.
+
+One **live** booking was abandoned by the old reading and cannot be
+re-checked from here: **GH-9D5YCM**, SAR 480, checkout created 2026-09-17
+18:44 UTC, read as abandoned 20:00, system-cancelled 21:00. It is most
+likely a guest who opened the pay page and left (the checkout was
+auto-prepared on page load), but that is the same shape as the failure —
+search the HyperPay live portal for its `merchantTransactionId` (the
+booking's `idempotency_key` — look it up by reference code; it is not
+written here because this repository is public) and refund it if a capture
+exists.
+
 **APPLE PAY (live) — NOT ENABLED YET.** On 2026-09-21 HyperPay wrote that
 Apple Pay "is now enabled on your account", with no entity id and no
 certificate detail. `HYPERPAY_APPLEPAY_ENTITY_ID` stays unset until they
