@@ -181,6 +181,84 @@ describe('POST /api/webhooks/hyperpay', () => {
     expect(notifyAdmin).not.toHaveBeenCalled();
   });
 
+  // OPPWA says "captured", settle could not confirm it. This used to be a
+  // silent 200 — the one notification that a guest was charged, dropped.
+  describe('success notified but not confirmed by settle', () => {
+    const unconfirmedPage = [
+      'settle_anomaly',
+      expect.objectContaining({
+        reference: REFERENCE,
+        notifiedCheckoutId: 'chk-current',
+        currentCheckoutId: 'chk-current',
+      }),
+      { fingerprint: `unconfirmed-capture:${REFERENCE}`, quietWindowMs: 24 * 3_600_000 },
+    ] as const;
+
+    it('pages once per reference and asks for a redelivery while the CURRENT checkout is still in flight', async () => {
+      settleOutcome = 'pending';
+      const res = await POST(request(payment({ id: 'pay-1', amount: '480.00' })));
+      // Bounded retry: settle polled the very checkout the payload names,
+      // so this resolves — the status lands, or the session expires and
+      // settle reads the transaction report.
+      expect(res.status).toBe(500);
+      expect(notifyAdmin).toHaveBeenCalledTimes(1);
+      expect(notifyAdmin).toHaveBeenCalledWith(
+        unconfirmedPage[0],
+        expect.objectContaining({ settleOutcome: 'pending', paymentId: 'pay-1', amount: '480.00' }),
+        unconfirmedPage[2],
+      );
+      expect(afterCalls).toHaveLength(0);
+    });
+
+    it('pages and ACKs a rejected verdict — it is already written, no redelivery changes it', async () => {
+      settleOutcome = 'rejected';
+      const res = await POST(request(payment()));
+      expect(res.status).toBe(200);
+      expect(notifyAdmin).toHaveBeenCalledTimes(1);
+      expect(notifyAdmin).toHaveBeenCalledWith(...unconfirmedPage);
+    });
+
+    it('NEVER asks for a redelivery of a superseded capture, and does not page it twice', async () => {
+      // Settle polls the NEWER, untouched checkout, which answers pending
+      // for as long as it lives; OPPWA retries a failing endpoint daily for
+      // 30 days and pauses deliveries while they all fail.
+      currentCheckoutId = 'chk-newer';
+      settleOutcome = 'pending';
+      const res = await POST(request(payment({ ndc: 'chk-old' })));
+      expect(res.status).toBe(200);
+      expect(notifyAdmin).toHaveBeenCalledTimes(1);
+      expect(notifyAdmin).toHaveBeenCalledWith(
+        'settle_anomaly',
+        expect.objectContaining({ capturedCheckoutId: 'chk-old' }),
+        expect.objectContaining({ fingerprint: `superseded-capture:${REFERENCE}:chk-old` }),
+      );
+    });
+
+    it('pages but cannot bound a retry when the booking holds no checkout id', async () => {
+      currentCheckoutId = null;
+      settleOutcome = 'pending';
+      const res = await POST(request(payment()));
+      expect(res.status).toBe(200);
+      expect(notifyAdmin).toHaveBeenCalledTimes(1);
+    });
+
+    it('stays quiet when the payload itself reports a decline or a pending payment', async () => {
+      for (const code of ['800.100.151', '000.200.000']) {
+        settleOutcome = code.startsWith('000.200') ? 'pending' : 'rejected';
+        const res = await POST(request(payment({ result: { code } })));
+        expect(res.status).toBe(200);
+      }
+      expect(notifyAdmin).not.toHaveBeenCalled();
+    });
+
+    it('stays quiet for a successful refund notification that settle reads as pending', async () => {
+      settleOutcome = 'pending';
+      const res = await POST(request(payment({ ndc: 'rf-ndc', paymentType: 'RF' })));
+      expect(res.status).toBe(200);
+      expect(notifyAdmin).not.toHaveBeenCalled();
+    });
+  });
+
   it('acknowledges the common case — already settled by the return route — with no receipt', async () => {
     settleOutcome = 'already_settled';
     const res = await POST(request(payment()));

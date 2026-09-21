@@ -46,20 +46,30 @@ vi.mock('@/features/bookings/lib/availability', () => ({
   nowMinutesInRiyadh: () => 600,
 }));
 const prepareCheckout = vi.fn(async () => ({ id: 'chk-new', integrity: 'sha384-x' }));
+/** What the status GET answers for the booking's EXISTING checkout. */
+let existingStatus: { id: string; result: { code: string; description: string } } | Error;
+const getPaymentStatus = vi.fn(async () => {
+  if (existingStatus instanceof Error) throw existingStatus;
+  return existingStatus;
+});
 vi.mock('@/features/payments/lib/hyperpay', () => ({
   prepareCheckout: (...args: unknown[]) => prepareCheckout(...(args as [])),
-  getPaymentStatus: async () => ({ result: { code: '200.300.404' } }),
+  getPaymentStatus: (...args: unknown[]) => getPaymentStatus(...(args as [])),
   hyperpayBaseUrl: () => 'https://test.oppwa.com',
 }));
-vi.mock('@/features/payments/lib/hyperpay-core', () => ({
-  classifyResult: () => 'pending',
-  isNoPaymentSession: () => true,
+// hyperpay-core is pure and deliberately NOT mocked: the probe's branches
+// hang off the real result-code classification.
+let settleOutcome = 'error';
+const settleBooking = vi.fn(async () => settleOutcome);
+vi.mock('@/features/payments/settle', () => ({
+  settleBooking: (...args: unknown[]) => settleBooking(...(args as [])),
 }));
-vi.mock('@/features/payments/settle', () => ({ settleBooking: async () => 'error' }));
 const recordPaymentEvent = vi.fn(async () => undefined);
+/** The newest `checkout_created` ledger row (drives the reuse window). */
+let createdEvent: { gatewayId: string; resultCode: string | null; createdAt: Date } | null = null;
 vi.mock('@/features/payments/ledger', () => ({
   recordPaymentEvent: (...args: unknown[]) => recordPaymentEvent(...(args as [])),
-  latestPaymentEvent: async () => null,
+  latestPaymentEvent: async () => createdEvent,
   countPaymentEventsSince: async () => 0,
 }));
 
@@ -172,6 +182,9 @@ beforeEach(() => {
   setCalls.length = 0;
   whereColumns.length = 0;
   winner = undefined;
+  settleOutcome = 'error';
+  createdEvent = null;
+  existingStatus = { id: '', result: { code: '000.200.000', description: 'pending' } };
   row = {
     id: 'b-1',
     guestId: 'g-1',
@@ -296,5 +309,167 @@ describe('createCheckout — liveness compare-and-swap (MONEY-02)', () => {
       paymentDeadline: new Date('2027-06-04T12:00:00Z'),
     };
     expect(await createCheckout(initial, form())).toMatchObject({ message: 'underReview' });
+  });
+});
+
+/**
+ * A `processing` booking already holds a checkout, and createCheckout asks
+ * the gateway about it before reusing or retiring it. Two 2026-09-21
+ * findings live here: the probe and settle used to spend BOTH of OPPWA's
+ * two-per-minute status GETs back-to-back, and an expired session
+ * (200.300.404) — which a CAPTURED checkout answers too — was read as
+ * "untouched" and superseded, opening a second charge.
+ */
+describe('createCheckout — the existing checkout probe', () => {
+  const OLD = 'chk-old';
+  const answers = (code: string) => {
+    existingStatus = {
+      id: code.startsWith('000.000') ? 'pay-1' : '',
+      result: { code, description: '' },
+    };
+  };
+  /** Minutes since the existing checkout was created (the reuse window is 25). */
+  const createdMinutesAgo = (minutes: number) => {
+    createdEvent = {
+      gatewayId: OLD,
+      resultCode: null,
+      createdAt: new Date(FIXED_NOW.getTime() - minutes * 60_000),
+    };
+  };
+  const supersededByUs = () =>
+    recordPaymentEvent.mock.calls.filter(
+      (c) => (c as unknown as [{ type: string }])[0]?.type === 'checkout_superseded',
+    );
+
+  beforeEach(() => {
+    row = {
+      ...row!,
+      paymentStatus: 'processing',
+      checkoutId: OLD,
+      checkoutIntegrity: 'sha384-old',
+    };
+    createdMinutesAgo(40);
+  });
+
+  it('hands its ONE status GET to settle instead of letting settle fetch a second', async () => {
+    answers('000.000.000');
+    settleOutcome = 'success';
+
+    const out = await createCheckout(initial, form());
+
+    expect(out).toMatchObject({ status: 'error', message: 'alreadyPaid' });
+    expect(getPaymentStatus).toHaveBeenCalledTimes(1);
+    expect(settleBooking).toHaveBeenCalledWith(REFERENCE, {
+      checkoutId: OLD,
+      status: existingStatus,
+    });
+    expect(prepareCheckout).not.toHaveBeenCalled();
+  });
+
+  it('a guest who PAID and lost the tab is told so — not handed a second checkout', async () => {
+    // Session expired; settle recovers the capture from the transaction report.
+    answers('200.300.404');
+    settleOutcome = 'success';
+
+    const out = await createCheckout(initial, form());
+
+    expect(out).toMatchObject({ status: 'error', message: 'alreadyPaid' });
+    expect(settleBooking).toHaveBeenCalledWith(
+      REFERENCE,
+      expect.objectContaining({ checkoutId: OLD }),
+    );
+    expect(prepareCheckout).not.toHaveBeenCalled();
+  });
+
+  it('NEVER opens a second charge path while the expired checkout’s fate is unknown', async () => {
+    answers('200.300.404');
+    // report unreadable · debit still in flight · reference vanished
+    for (const unknown of ['error', 'pending', 'not_found']) {
+      settleOutcome = unknown;
+      const out = await createCheckout(initial, form());
+      expect(out).toMatchObject({ status: 'error', message: 'server' });
+    }
+    expect(prepareCheckout).not.toHaveBeenCalled();
+    expect(supersededByUs()).toHaveLength(0);
+  });
+
+  it('says under review when the recovered capture does not match the booking', async () => {
+    answers('200.300.404');
+    settleOutcome = 'anomaly';
+    expect(await createCheckout(initial, form())).toMatchObject({ message: 'underReview' });
+    expect(prepareCheckout).not.toHaveBeenCalled();
+  });
+
+  it('mints a fresh checkout once settle has POSITIVELY found nothing, without a duplicate ledger row', async () => {
+    answers('200.300.404');
+    settleOutcome = 'rejected'; // abandoned: the report holds no money
+
+    const out = await createCheckout(initial, form());
+
+    expect(out.status).toBe('ready');
+    expect(out.data).toMatchObject({ checkoutId: 'chk-new' });
+    // Settle already wrote the ABANDONED `checkout_superseded` row for OLD.
+    expect(supersededByUs()).toHaveLength(0);
+  });
+
+  it('never hands back an id settle just retired, even inside the reuse window', async () => {
+    // The row is `unpaid` + superseded now, which the reconcile pass skips:
+    // a widget on it would be a checkout nothing watches.
+    createdMinutesAgo(5);
+    answers('200.300.404');
+    settleOutcome = 'rejected';
+
+    const out = await createCheckout(initial, form());
+
+    expect(out.data).toMatchObject({ checkoutId: 'chk-new' });
+  });
+
+  it('reads a throttled probe as UNKNOWN: may reuse the same id, never supersede', async () => {
+    answers('800.120.100');
+
+    createdMinutesAgo(5);
+    const reused = await createCheckout(initial, form());
+    expect(reused.status).toBe('ready');
+    expect(reused.data).toMatchObject({ checkoutId: OLD, integrity: 'sha384-old' });
+
+    createdMinutesAgo(40);
+    const refused = await createCheckout(initial, form());
+    expect(refused).toMatchObject({ status: 'error', message: 'server' });
+
+    expect(settleBooking).not.toHaveBeenCalled();
+    expect(prepareCheckout).not.toHaveBeenCalled();
+    expect(supersededByUs()).toHaveLength(0);
+  });
+
+  it('an unreachable gateway is unknown too', async () => {
+    existingStatus = new Error('timeout');
+    expect(await createCheckout(initial, form())).toMatchObject({ message: 'server' });
+    expect(prepareCheckout).not.toHaveBeenCalled();
+  });
+
+  it('records a completed decline through settle with the same single GET, then retires the id', async () => {
+    answers('800.100.151');
+    settleOutcome = 'rejected';
+
+    const out = await createCheckout(initial, form());
+
+    expect(getPaymentStatus).toHaveBeenCalledTimes(1);
+    expect(settleBooking).toHaveBeenCalledWith(
+      REFERENCE,
+      expect.objectContaining({ checkoutId: OLD }),
+    );
+    expect(out.data).toMatchObject({ checkoutId: 'chk-new' });
+    expect(supersededByUs()).toHaveLength(1);
+  });
+
+  it('still hands an untouched, in-window checkout straight back', async () => {
+    createdMinutesAgo(5);
+    answers('000.200.000');
+
+    const out = await createCheckout(initial, form());
+
+    expect(out.data).toMatchObject({ checkoutId: OLD });
+    expect(settleBooking).not.toHaveBeenCalled();
+    expect(prepareCheckout).not.toHaveBeenCalled();
   });
 });

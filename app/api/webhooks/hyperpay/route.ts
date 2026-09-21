@@ -124,10 +124,16 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
     // A successful capture on a checkout that is no longer the booking's
     // CURRENT one (a promo/credit change or a second tab prepared a newer
-    // checkout) can never settle: settleBooking only polls the current id,
-    // so the guest was charged with nothing recorded and nobody told
-    // (2026-09 engineering audit MONEY-03). Name it to a human here; the
-    // existing auto-refund/anomaly machinery takes it from the console.
+    // checkout) does not settle from this notification: settleBooking polls
+    // the current id, so the guest was charged with nothing recorded and
+    // nobody told (2026-09 engineering audit MONEY-03). Name it to a human
+    // here; the existing auto-refund/anomaly machinery takes it from the
+    // console. (Since 2026-09-21 settle can still pick it up LATER: once the
+    // current checkout's session has expired it reads the transaction
+    // report, which is keyed on the reference and sees every checkout's
+    // capture — settling it when the amount still matches, raising an
+    // amount-mismatch anomaly when it does not. The page stays: that path
+    // runs an hour or more after the charge.)
     //
     // Debits only: a refund or reversal succeeds with the same `000.` codes
     // and its own `ndc`, so it would read as a superseded CAPTURE and tell
@@ -136,9 +142,13 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     const resultCode = notification.payload?.result?.code;
     const paymentType = notification.payload?.paymentType;
     const isDebit = !paymentType || paymentType === 'DB';
-    if (ndc && resultCode && isDebit && isSuccessfulResult(resultCode)) {
-      const current = await getCheckoutIdForReference(reference);
-      if (current && current !== ndc) {
+    const claimsCapture = Boolean(ndc && resultCode && isDebit && isSuccessfulResult(resultCode));
+    let current: string | null = null;
+    let superseded = false;
+    if (claimsCapture) {
+      current = await getCheckoutIdForReference(reference);
+      superseded = current !== null && current !== ndc;
+      if (superseded) {
         reportError(new Error('capture on a superseded checkout'), {
           surface: 'hyperpay-webhook:superseded-capture',
           reference,
@@ -187,6 +197,47 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     }
     if (outcome === 'error') {
       return NextResponse.json({ error: 'settle_failed' }, { status: 500 });
+    }
+    // OPPWA says the money was CAPTURED, and settle could not confirm it:
+    // the status it read was still pending (or throttled), or it read as a
+    // decline / an abandoned checkout. This used to be a silent 200 — the
+    // one notification that a guest was charged, acknowledged and dropped
+    // (2026-09-21). Name it to a human, once per booking per day. The
+    // superseded case is already paged above, with better detail.
+    if (claimsCapture && (outcome === 'pending' || outcome === 'rejected')) {
+      if (!superseded) {
+        reportError(new Error('capture notified but not confirmed by settle'), {
+          surface: 'hyperpay-webhook:unconfirmed-capture',
+          reference,
+          outcome,
+        });
+        await notifyAdmin(
+          'settle_anomaly',
+          {
+            reference,
+            problem:
+              'HyperPay notified a successful capture but settlement could not confirm it — check the payment at HyperPay; the guest may be charged with the booking unpaid',
+            settleOutcome: outcome,
+            notifiedCheckoutId: ndc ?? null,
+            currentCheckoutId: current,
+            paymentId: notification.payload?.id ?? null,
+            amount: notification.payload?.amount ?? null,
+          },
+          { fingerprint: `unconfirmed-capture:${reference}`, quietWindowMs: 24 * 3_600_000 },
+        );
+      }
+      // Ask for a redelivery ONLY when settle polled the very checkout the
+      // notification names and found it still in flight: that resolves on
+      // its own (the status lands, or the session expires and settle reads
+      // the transaction report instead). Never for a superseded capture —
+      // settle polls the NEWER, untouched checkout, which answers pending
+      // for as long as it lives, and OPPWA retries a failing endpoint daily
+      // for 30 days and pauses deliveries while they all fail. Never for
+      // `rejected` either: that verdict is already written to the booking
+      // and no redelivery changes it — a human does.
+      if (outcome === 'pending' && !superseded && current !== null) {
+        return NextResponse.json({ error: 'unconfirmed_capture' }, { status: 500 });
+      }
     }
     return NextResponse.json({ received: true, outcome });
   } catch (error) {

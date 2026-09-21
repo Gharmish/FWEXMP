@@ -21,8 +21,12 @@ import {
   hyperpayBaseUrl,
   prepareCheckout,
 } from '@/features/payments/lib/hyperpay';
-import { classifyResult, isNoPaymentSession } from '@/features/payments/lib/hyperpay-core';
-import { settleBooking } from '@/features/payments/settle';
+import {
+  classifyResult,
+  isNoPaymentSession,
+  isThrottled,
+} from '@/features/payments/lib/hyperpay-core';
+import { settleBooking, type KnownGatewayStatus } from '@/features/payments/settle';
 import type { PaymentChannel, PaymentOutcome } from '@/features/payments/types';
 import {
   countPaymentEventsSince,
@@ -460,12 +464,21 @@ export async function createCheckout(
       // untouched checkout answers, so only a SUCCESS classification
       // is conclusive here; `unknown` (gateway unreachable) may still
       // reuse (same id, no new charge path) but never supersede.
+      //
+      // This is the ONLY status GET for the checkout in this request:
+      // the answer is handed to settle (`probe`) rather than re-fetched.
+      // OPPWA allows two status requests per checkout per minute, and the
+      // probe-then-settle pair used to spend both back-to-back. A
+      // throttled answer says nothing about the payment, so it counts as
+      // `unknown` — it must never read as "untouched" and supersede.
       let existingOutcome: PaymentOutcome | 'unknown';
       let existingCode: string | null = null;
+      let probe: KnownGatewayStatus | undefined;
       try {
         const status = await getPaymentStatus(booking.checkoutId, existingChannel);
         existingCode = status.result.code;
-        existingOutcome = classifyResult(existingCode);
+        existingOutcome = isThrottled(existingCode) ? 'unknown' : classifyResult(existingCode);
+        probe = { checkoutId: booking.checkoutId, status };
       } catch (error) {
         reportError(error, {
           surface: 'payment-create-checkout:existingStatus',
@@ -473,28 +486,43 @@ export async function createCheckout(
         });
         existingOutcome = 'unknown';
       }
-      if (existingOutcome === 'success') {
-        const settled = await settleBooking(input.reference);
-        const error =
-          settled === 'success' || settled === 'already_settled'
-            ? 'alreadyPaid'
-            : settled === 'anomaly'
-              ? 'underReview'
-              : 'server';
-        return { status: 'error', message: error, values: echoValues(formData) };
+      // "No payment session" is what an EXPIRED session answers — for a
+      // captured checkout as much as an untouched one (2026-09-21). A
+      // guest who paid, lost the tab during 3DS and reopens the pay link
+      // 30+ minutes later lands exactly here, so the id is never retired
+      // on that code alone: settle asks the transaction report first.
+      const sessionGone = existingCode !== null && isNoPaymentSession(existingCode);
+      // Settle retired the id itself (ABANDONED: the report holds no
+      // money for this booking) — its ledger row is already written.
+      let retiredBySettle = false;
+      if (existingOutcome === 'success' || sessionGone) {
+        const settled = await settleBooking(input.reference, probe);
+        if (settled === 'success' || settled === 'already_settled') {
+          return { status: 'error', message: 'alreadyPaid', values: echoValues(formData) };
+        }
+        if (settled === 'anomaly') {
+          return { status: 'error', message: 'underReview', values: echoValues(formData) };
+        }
+        // Only a settle that POSITIVELY found nothing (`rejected` on an
+        // expired session = abandoned) clears the way for a new checkout.
+        // A captured checkout that would not settle, a debit still in
+        // flight, or a report that could not be read all leave the old
+        // checkout's fate open — and a second charge path is the one
+        // thing that must not open over an unknown.
+        if (!sessionGone || settled !== 'rejected') {
+          return { status: 'error', message: 'server', values: echoValues(formData) };
+        }
+        retiredBySettle = true;
       }
       // A completed DECLINE whose 3DS return never landed leaves a
       // consumed checkout id: single-use at the gateway, so a widget on
       // it dead-ends. Let settle record the decline on its ordinary
       // path (failed flip, ledger, guest email — all idempotent), then
       // retire the id below instead of handing it back.
-      const consumed =
-        existingOutcome === 'rejected' &&
-        existingCode !== null &&
-        !isNoPaymentSession(existingCode);
-      if (consumed) {
+      const declined = existingOutcome === 'rejected' && existingCode !== null && !sessionGone;
+      if (declined) {
         try {
-          await settleBooking(input.reference);
+          await settleBooking(input.reference, probe);
         } catch (error) {
           reportError(error, {
             surface: 'payment-create-checkout:settleDecline',
@@ -502,6 +530,10 @@ export async function createCheckout(
           });
         }
       }
+      // An id settle just retired is as unusable as a declined one: the
+      // row is `unpaid` + superseded now, which the reconcile pass skips —
+      // handing it back would put a widget on a checkout nothing watches.
+      const consumed = declined || retiredBySettle;
       if (fresh && !consumed && !input.edited) {
         return ready(booking.checkoutId, booking.checkoutIntegrity);
       }
@@ -515,18 +547,20 @@ export async function createCheckout(
         return { status: 'error', message: 'server', values: echoValues(formData) };
       }
       if (capped) return tooMany();
-      try {
-        await recordPaymentEvent({
-          bookingId: booking.id,
-          type: 'checkout_superseded',
-          amountSar: booking.totalAmount,
-          gatewayId: booking.checkoutId,
-        });
-      } catch (error) {
-        reportError(error, {
-          surface: 'payment-create-checkout:ledger',
-          reference: input.reference,
-        });
+      if (!retiredBySettle) {
+        try {
+          await recordPaymentEvent({
+            bookingId: booking.id,
+            type: 'checkout_superseded',
+            amountSar: booking.totalAmount,
+            gatewayId: booking.checkoutId,
+          });
+        } catch (error) {
+          reportError(error, {
+            surface: 'payment-create-checkout:ledger',
+            reference: input.reference,
+          });
+        }
       }
     } else if (capped) {
       return tooMany();
