@@ -15,7 +15,7 @@
  * most once and then degrade, not loop.
  */
 import { getDbGeneration, resetDb } from '@/lib/db';
-import { reportError } from '@/lib/log';
+import { reportWarning } from '@/lib/log';
 
 export class DeadlineError extends Error {
   constructor(label: string, ms: number) {
@@ -127,7 +127,11 @@ export async function boundedQuery<T>(
     const hung = error instanceof DeadlineError;
     if (!hung && !isTransientConnectionError(error)) throw error;
     const reset = hung ? resetDb(generation) : false;
-    reportError(error, { surface: 'db:boundedQueryRetry', label, poolReset: reset });
+    // A warning, not an error: the retry below almost always succeeds, and
+    // a retry that fails propagates to the caller, which reports THAT. Kept
+    // at error level, every recovered stall read as a failed page load in
+    // Vercel's error view and the daily health report (2026-09-22).
+    reportWarning(error, { surface: 'db:boundedQueryRetry', label, poolReset: reset });
     return await withDeadline(`${label}:retry`, RETRY_ATTEMPT_MS, Promise.resolve(run()));
   }
 }

@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache';
 import { db } from '@/lib/db';
 import { cancellationPolicies, platformSettings } from '@/db/schema';
 import { reportError } from '@/lib/log';
+import { revalidateCancellationPolicyCaches } from '@/lib/cache-tags';
 import { adminFailureMessage, adminGateRefused, requireAdminActor } from '@/features/admin/guard';
 import {
   commissionPctToBps,
@@ -242,7 +243,10 @@ export async function updateCancellationPolicies(
     return { success: false, message: 'server', values: submittedTierValues(formData) };
   }
 
-  // Every surface that renders the tier parameters.
+  // The cross-request tier cache first (Next data cache, every instance),
+  // so the admin's own re-read and the next guest render both see the new
+  // numbers — then the route caches of every surface that renders them.
+  revalidateCancellationPolicyCaches();
   revalidatePath('/[locale]/admin/settings', 'page');
   revalidatePath('/[locale]/(site)/experiences/[slug]', 'page');
   revalidatePath('/[locale]/(site)/cancellation-policy', 'page');

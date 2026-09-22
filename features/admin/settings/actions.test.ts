@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { createDbFake } from '@/lib/test/db-fake';
 
-vi.mock('next/cache', () => ({ revalidatePath: vi.fn() }));
+vi.mock('next/cache', () => ({ revalidatePath: vi.fn(), updateTag: vi.fn() }));
 vi.mock('@/lib/log', () => ({ reportError: vi.fn() }));
 let actor: Record<string, unknown> = { adminUserId: 'admin-1' };
 vi.mock('@/features/admin/guard', () => ({
@@ -16,6 +16,7 @@ vi.mock('@/lib/db', () => ({
   },
 }));
 
+import { updateTag } from 'next/cache';
 import { updateCancellationPolicies, updateSettings } from './actions';
 
 const initial = { success: false as const };
@@ -126,5 +127,8 @@ describe('updateCancellationPolicies', () => {
       partialRefundHours: 24,
     });
     expect(fake.current?.upserts.map((u) => u.set?.partialRefundBps)).toEqual([5000, 5000, 5000]);
+    // The cross-request tier cache is expired with the write, so the next
+    // experience render reads the new numbers instead of a cached copy.
+    expect(updateTag).toHaveBeenCalledWith('cancellation-policies');
   });
 });

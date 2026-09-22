@@ -52,22 +52,22 @@ function causeChain(error: Error): string {
   return out;
 }
 
-export function reportError(error: unknown, context?: ReportErrorContext): void {
+type ReportLevel = 'error' | 'warning';
+
+function report(level: ReportLevel, error: unknown, context?: ReportErrorContext): void {
   const sentryConfigured = Boolean(process.env.SENTRY_DSN || process.env.NEXT_PUBLIC_SENTRY_DSN);
   if (process.env.NODE_ENV !== 'production' || !sentryConfigured) {
     // Single chokepoint for `console.*` in the app — the rest of the
-    // codebase routes through reportError() rather than touching the
-    // console directly (CLAUDE.md no-console rule). In production
-    // WITHOUT a Sentry DSN this is the only place errors surface
-    // (platform function logs) — captureException would enqueue into
-    // the void and every failure would vanish unrecorded. Scrubbed in
-    // production (dev keeps raw values for debugging).
-    console.error(
-      '[gharmish]',
-      context?.surface ?? 'error',
-      consoleSafe(error),
-      consoleSafe(context),
-    );
+    // codebase routes through reportError()/reportWarning() rather than
+    // touching the console directly (CLAUDE.md no-console rule). In
+    // production WITHOUT a Sentry DSN this is the only place errors
+    // surface (platform function logs) — captureException would enqueue
+    // into the void and every failure would vanish unrecorded. Scrubbed
+    // in production (dev keeps raw values for debugging). The level is
+    // load-bearing: Vercel's runtime-error view — and the daily health
+    // report built on it — counts every `console.error` line as a failure.
+    const write = level === 'warning' ? console.warn : console.error;
+    write('[gharmish]', context?.surface ?? level, consoleSafe(error), consoleSafe(context));
     if (!sentryConfigured) return;
   }
 
@@ -76,7 +76,23 @@ export function reportError(error: unknown, context?: ReportErrorContext): void 
   // event but not indexed).
   const { surface, ...extra } = context ?? {};
   Sentry.captureException(error, {
+    ...(level === 'warning' ? { level } : {}),
     tags: surface ? { surface } : undefined,
     extra,
   });
+}
+
+export function reportError(error: unknown, context?: ReportErrorContext): void {
+  report('error', error, context);
+}
+
+/**
+ * A fault the code recovered from — a deadline retry that then
+ * succeeded, a pool reset — worth a line in the logs but not an error.
+ * `warn` level keeps it out of the runtime-error view, so what is left
+ * there is only what actually reached a user. Same scrubbing and Sentry
+ * routing as `reportError`, at severity `warning`.
+ */
+export function reportWarning(error: unknown, context?: ReportErrorContext): void {
+  report('warning', error, context);
 }

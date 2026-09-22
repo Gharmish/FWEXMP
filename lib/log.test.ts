@@ -96,3 +96,75 @@ describe('reportError', () => {
     expect(captureException).not.toHaveBeenCalled();
   });
 });
+
+describe('reportWarning', () => {
+  const ORIGINAL_NODE_ENV = process.env.NODE_ENV;
+  const ORIGINAL_SENTRY_DSN = process.env.SENTRY_DSN;
+
+  beforeEach(() => {
+    captureException.mockReset();
+    vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    vi.spyOn(console, 'error').mockImplementation(() => undefined);
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+    // @ts-expect-error -- NODE_ENV is readonly in TS but we own it in this test
+    process.env.NODE_ENV = ORIGINAL_NODE_ENV;
+    if (ORIGINAL_SENTRY_DSN === undefined) delete process.env.SENTRY_DSN;
+    else process.env.SENTRY_DSN = ORIGINAL_SENTRY_DSN;
+  });
+
+  it('writes at warn level — never console.error — outside production', async () => {
+    // @ts-expect-error -- mutating NODE_ENV for the duration of this test
+    process.env.NODE_ENV = 'development';
+    vi.resetModules();
+    const { reportWarning } = await import('./log');
+
+    reportWarning(new Error('slow socket'), { surface: 'db:boundedQueryRetry', label: 'q' });
+
+    const warns = (console.warn as unknown as { mock: { calls: unknown[][] } }).mock.calls;
+    expect(warns).toHaveLength(1);
+    expect(warns[0][0]).toBe('[gharmish]');
+    expect(warns[0][1]).toBe('db:boundedQueryRetry');
+    expect(console.error).not.toHaveBeenCalled();
+    expect(captureException).not.toHaveBeenCalled();
+  });
+
+  it('forwards to Sentry at severity warning in production with a DSN', async () => {
+    // @ts-expect-error -- mutating NODE_ENV for the duration of this test
+    process.env.NODE_ENV = 'production';
+    process.env.SENTRY_DSN = 'https://key@sentry.example/1';
+    vi.resetModules();
+    const { reportWarning } = await import('./log');
+    const error = new Error('recovered');
+
+    reportWarning(error, { surface: 'db:boundedQueryRetry', poolReset: true });
+
+    expect(captureException).toHaveBeenCalledTimes(1);
+    const [capturedError, captureContext] = captureException.mock.calls[0];
+    expect(capturedError).toBe(error);
+    expect(captureContext).toEqual({
+      level: 'warning',
+      tags: { surface: 'db:boundedQueryRetry' },
+      extra: { poolReset: true },
+    });
+    expect(console.error).not.toHaveBeenCalled();
+  });
+
+  it('falls back to console.warn in production when no Sentry DSN is set', async () => {
+    // @ts-expect-error -- mutating NODE_ENV for the duration of this test
+    process.env.NODE_ENV = 'production';
+    delete process.env.SENTRY_DSN;
+    vi.resetModules();
+    const { reportWarning } = await import('./log');
+
+    reportWarning(new Error('dsn-less stall'), { surface: 'db:boundedQueryRetry' });
+
+    const warns = (console.warn as unknown as { mock: { calls: unknown[][] } }).mock.calls;
+    expect(warns).toHaveLength(1);
+    expect(warns[0][1]).toBe('db:boundedQueryRetry');
+    expect(console.error).not.toHaveBeenCalled();
+    expect(captureException).not.toHaveBeenCalled();
+  });
+});

@@ -1,8 +1,9 @@
 import { updateTag } from 'next/cache';
 
 /**
- * Tags for the public-catalog data caches (`unstable_cache` entries in
- * `features/experiences/queries.ts` and `features/reviews/queries.ts`).
+ * Tags for the public data caches (`unstable_cache` entries in
+ * `features/experiences/queries.ts`, `features/reviews/queries.ts` and
+ * `features/bookings/lib/cancellation-policy.ts`).
  *
  * The cached reads are public and identical for every visitor, so they
  * carry a 60s time-based revalidation as the backstop; these tags exist
@@ -33,4 +34,18 @@ export function revalidateExperienceCaches(): void {
 /** Call after any write that changes review visibility or content. */
 export function revalidateReviewCaches(): void {
   updateTag(REVIEWS_CACHE_TAG);
+}
+
+/**
+ * The cancellation-tier parameters (`features/bookings/lib/
+ * cancellation-policy.ts`): three rows the experience page, the legal
+ * pages and booking creation all read, edited only in /admin/settings.
+ * That editor expires the tag synchronously so an edit shows on the very
+ * next render; the entry's time-based revalidation is only the backstop.
+ */
+export const CANCELLATION_POLICIES_CACHE_TAG = 'cancellation-policies';
+
+/** Call after the admin editor writes `cancellation_policies`. */
+export function revalidateCancellationPolicyCaches(): void {
+  updateTag(CANCELLATION_POLICIES_CACHE_TAG);
 }
