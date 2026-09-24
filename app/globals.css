@@ -519,6 +519,32 @@ body {
   }
 }
 
+/* Home announcement ticker (components/marketing/announcement-ticker.tsx).
+ * A one-line notice that scrolls continuously in the reading direction:
+ * the track holds two copies of the text and slides by exactly one copy
+ * per loop, so the seam never shows. `--ticker-end` sets the direction
+ * (-50% = leftward for LTR; the component flips it to +50% under RTL)
+ * and `--ticker-duration` scales with the text length so both scripts
+ * read at the same speed. Ambient loop — same spring-rule exception as
+ * the mist. `inline` so those two vars resolve on the ticker element,
+ * not on :root. The pause/stop mechanics (hover pauses, focus or tap
+ * stops for good, WCAG 2.2.2) live in the component; the global
+ * reduced-motion rule below freezes it and the component then wraps
+ * the text instead. */
+@theme inline {
+  --animate-ticker: ticker var(--ticker-duration, 20s) linear infinite;
+}
+@theme {
+  @keyframes ticker {
+    from {
+      transform: translateX(0);
+    }
+    to {
+      transform: translateX(var(--ticker-end, -50%));
+    }
+  }
+}
+
 /* ---- Type scale (2026-09 engineering audit DESIGN-03) ------------------
  * BRIEF §3's tiers as utilities, so a heading is `text-h1` rather than a
  * six-token string copied 58×. Sizes/line-heights come from Tailwind's

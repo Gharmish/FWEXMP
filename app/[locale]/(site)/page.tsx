@@ -32,6 +32,7 @@ import { DestinationChapter } from '@/components/marketing/destination-chapter';
 import { CategoryTiles } from '@/features/experiences/components/category-tiles';
 import { HeroHighlands } from '@/components/marketing/hero-highlands';
 import { HeroHeadline } from '@/components/marketing/hero-headline';
+import { AnnouncementTicker } from '@/components/marketing/announcement-ticker';
 import { trackPageView, utmFromSearchParams } from '@/features/analytics/capture';
 
 const languagesAlternates = {
@@ -164,12 +165,9 @@ export default async function HomePage({
   return (
     <div className="flex flex-col">
       <JsonLd data={jsonLd} />
-      {/* Admin announcement band — plain text, dismiss-free by design. */}
-      {announcement && (
-        <p className="border-habala-mist-200 bg-info-surface text-info border-b px-6 py-3 text-center text-sm leading-relaxed">
-          {announcement}
-        </p>
-      )}
+      {/* Admin announcement band — a one-line ticker that scrolls in the
+          reading direction; dismiss-free by design (it stops on tap). */}
+      {announcement && <AnnouncementTicker text={announcement} />}
       {/* Hero — living highlands: the headline cascades in word by word
           with one slot rotating through the enabled categories in their
           brand tones, over layered Sarat ridge silhouettes that settle on
