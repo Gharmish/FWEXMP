@@ -6,8 +6,9 @@ import {
   withDeadline,
 } from '@/lib/deadline';
 import { resetDb } from '@/lib/db';
+import { reportError, reportWarning } from '@/lib/log';
 
-vi.mock('@/lib/log', () => ({ reportError: vi.fn() }));
+vi.mock('@/lib/log', () => ({ reportError: vi.fn(), reportWarning: vi.fn() }));
 vi.mock('@/lib/db', () => ({
   getDbGeneration: vi.fn(() => 7),
   resetDb: vi.fn(() => true),
@@ -54,6 +55,13 @@ describe('boundedQuery', () => {
     await vi.advanceTimersByTimeAsync(6_000);
     await expect(p).resolves.toBe('recovered');
     expect(run).toHaveBeenCalledTimes(2);
+    // A recovered stall is logged as a warning, never as an error — the
+    // error view must show only failures that reached a user.
+    expect(reportWarning).toHaveBeenCalledWith(
+      expect.any(DeadlineError),
+      expect.objectContaining({ surface: 'db:boundedQueryRetry', label: 'q', poolReset: true }),
+    );
+    expect(reportError).not.toHaveBeenCalled();
   });
 
   it('replaces the pool (with the generation it saw) before retrying a hang', async () => {
@@ -86,6 +94,8 @@ describe('boundedQuery', () => {
     await vi.advanceTimersByTimeAsync(8_000);
     await assertion;
     expect(run).toHaveBeenCalledTimes(2);
+    // The second failure is the caller's to report — never logged here.
+    expect(reportError).not.toHaveBeenCalled();
   });
 
   it('propagates a real rejection immediately without retrying', async () => {
