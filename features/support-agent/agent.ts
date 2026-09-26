@@ -111,6 +111,12 @@ export function toMessageParams(history: ThreadMessage[]): Anthropic.MessagePara
     }
   }
   while (params.length && params[0].role !== 'user') params.shift();
+  // A thread that ends with our own reply has nothing left to answer, and
+  // the API rejects a conversation ending in an assistant turn outright
+  // ("does not support assistant message prefill" — prod 400 on
+  // 2026-09-25, when a turn ran for a message another turn had already
+  // answered). Return nothing rather than re-answering the last inbound.
+  if (params.length && params[params.length - 1].role !== 'user') return [];
   return params;
 }
 
@@ -410,6 +416,16 @@ export async function runAgentTurn(
   try {
     for (let pass = 0; pass < MAX_TURN_PASSES; pass += 1) {
       const history = await loadThread(conversationId);
+      // Already answered: two messages seconds apart run two webhook legs;
+      // whichever takes the lock second finds the thread ending in the
+      // reply the first leg (or its re-check) already sent. Running the
+      // model on that thread is a duplicate reply at best and an API 400
+      // at worst (assistant-prefill rejection, prod 2026-09-25) — which
+      // then fail-safed into a needless ticket and a second acknowledgement.
+      if (history.at(-1)?.direction === 'out') {
+        await releaseLock();
+        return { outcome: 'skipped' };
+      }
       // Read per turn, never cached across turns: the challenge can be
       // passed mid-conversation, and a conversation can be re-identified to
       // a different guest between messages.

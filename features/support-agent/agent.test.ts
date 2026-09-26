@@ -71,11 +71,22 @@ describe('toMessageParams', () => {
       { direction: 'in', body: 'hi' },
       { direction: 'in', body: 'where do we meet?' },
       { direction: 'out', body: 'At the souq.' },
+      { direction: 'in', body: 'what time?' },
     ]);
     expect(params).toEqual([
       { role: 'user', content: 'hi\n\nwhere do we meet?' },
       { role: 'assistant', content: 'At the souq.' },
+      { role: 'user', content: 'what time?' },
     ]);
+  });
+
+  it('returns nothing when the thread already ends with our reply (no assistant prefill)', () => {
+    expect(
+      toMessageParams([
+        { direction: 'in', body: 'hi' },
+        { direction: 'out', body: 'Welcome!' },
+      ]),
+    ).toEqual([]);
   });
 
   it('labels empty inbound bodies as attachments', () => {
