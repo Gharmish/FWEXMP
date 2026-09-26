@@ -163,6 +163,44 @@ describe('runAgentTurn re-check loop', () => {
     expect(releases()).toHaveLength(1);
   });
 
+  it('skips without a model call when the thread was already answered under the other leg', async () => {
+    // Two messages 1.7s apart: the second leg took the lock first and
+    // answered both; this leg (the first message's) then finds the thread
+    // ending in that reply. Prod 2026-09-25: it ran anyway, the API
+    // rejected the assistant-ending thread (400 prefill), and the fail-safe
+    // opened a ticket and sent a second acknowledgement.
+    let modelCalls = 0;
+    setAnthropicClientForTests({
+      messages: {
+        create: async () => {
+          modelCalls += 1;
+          throw new Error('400 assistant message prefill');
+        },
+      },
+    } as unknown as Anthropic);
+    history = [
+      { direction: 'in', body: 'hi', mediaContentType: null, createdAt: T0 },
+      {
+        direction: 'in',
+        body: 'anyone there?',
+        mediaContentType: null,
+        createdAt: new Date(T0.getTime() + 1_700),
+      },
+      {
+        direction: 'out',
+        body: 'Welcome!',
+        mediaContentType: null,
+        createdAt: new Date(T0.getTime() + 4_600),
+      },
+    ];
+    const out = await runAgentTurn(recorded, '+966500000001');
+    expect(out.outcome).toBe('skipped');
+    expect(modelCalls).toBe(0);
+    expect(sendConversationReply).not.toHaveBeenCalled();
+    expect(holds()).toHaveLength(1); // the acquisition
+    expect(releases()).toHaveLength(1); // and it let go
+  });
+
   it('returns skipped without running when the lock is held', async () => {
     // A held lock makes the conditional UPDATE match zero rows.
     const client = textReplyClient(['never']);
