@@ -7,7 +7,7 @@ import { ZoomIn } from 'lucide-react';
 import { SPRING } from '@/components/ui/motion';
 import { Button } from '@/components/ui/button';
 import {
-  cropToWebp,
+  cropToPhoto,
   HERO_ASPECT,
   type PixelArea,
 } from '@/features/host-experiences/lib/image-process';
@@ -26,17 +26,20 @@ export interface HeroCropperProps {
   imageSrc: string;
   copy: HeroCropperCopy;
   onCancel: () => void;
-  /** Receives the cropped, re-encoded 16:9 WebP ready to upload. */
+  /** Receives the cropped, re-encoded 16:9 photo ready to upload. */
   onApply: (file: File) => void;
+  /** The frame could not be rendered — the caller closes the sheet and says so. */
+  onError: () => void;
 }
 
 /**
  * Full-screen crop sheet for framing a hero photo to the canonical 16:9
  * (BRIEF §3). Springs up from the bottom; static under reduced motion.
- * On apply, the chosen region is rendered to a bounded WebP so every
- * stored hero is uniform and lightweight.
+ * On apply, the chosen region is rendered to a bounded WebP (JPEG where
+ * the browser cannot encode WebP) so every stored hero is uniform and
+ * lightweight.
  */
-export function HeroCropper({ imageSrc, copy, onCancel, onApply }: HeroCropperProps) {
+export function HeroCropper({ imageSrc, copy, onCancel, onApply, onError }: HeroCropperProps) {
   const reduce = useReducedMotion();
   const [crop, setCrop] = useState({ x: 0, y: 0 });
   const [zoom, setZoom] = useState(1);
@@ -65,8 +68,9 @@ export function HeroCropper({ imageSrc, copy, onCancel, onApply }: HeroCropperPr
     if (!area || busy) return;
     setBusy(true);
     try {
-      const file = await cropToWebp(imageSrc, area);
-      onApply(file);
+      onApply(await cropToPhoto(imageSrc, area));
+    } catch {
+      onError();
     } finally {
       setBusy(false);
     }

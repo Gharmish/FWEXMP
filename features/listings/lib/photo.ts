@@ -1,8 +1,14 @@
 /**
- * Experience hero-photo upload constraints, mirrored from the Supabase
- * `photos` bucket policy (5MB cap, image MIME types). Kept pure so the
- * rules are unit-testable and shared by the client (fail fast before
- * uploading) and the server action (authoritative check).
+ * Photo upload constraints. Two different questions, two checks:
+ *
+ *  - What may the host PICK? Any image ({@link validateSelectedPhoto}).
+ *    The browser re-encodes whatever it was to WebP or JPEG before
+ *    upload (`features/host-experiences/lib/image-process.ts`).
+ *  - What may be STORED? Only the types below ({@link validatePhoto}),
+ *    mirrored from the Supabase `photos` bucket policy.
+ *
+ * Kept pure so the rules are unit-testable and shared by the client
+ * and the server action.
  */
 
 /**
@@ -27,8 +33,12 @@ const ACCEPTED: Record<string, string> = {
 };
 
 export const ACCEPTED_PHOTO_MIME = Object.keys(ACCEPTED);
-/** For the file input's `accept` attribute. */
-export const ACCEPTED_PHOTO_ATTR = ACCEPTED_PHOTO_MIME.join(',');
+/**
+ * For the file input's `accept` attribute: every image. HEIC is
+ * deliberately not named — iOS converts a HEIC photo to JPEG for a page
+ * that does not ask for HEIC by name, and that JPEG opens everywhere.
+ */
+export const ACCEPTED_PHOTO_ATTR = 'image/*';
 
 export type PhotoValidationError = 'missing' | 'type' | 'size';
 
@@ -50,21 +60,24 @@ export function validatePhoto(input: { size: number; type: string }): PhotoValid
   return { ok: true, ext, contentType: input.type };
 }
 
+export type SelectedPhotoResult = { ok: true } | { ok: false; reason: 'missing' | 'type' };
+
 /**
- * Validate a file the host just *selected* (pre-crop/re-encode). Type
- * check only — no size ceiling (owner decision 2026-07-03): whatever
- * the camera produced, the client-side WebP re-encode shrinks it before
- * upload, and the authoritative {@link validatePhoto} still guards the
- * rare uncompressed fallback.
+ * Validate a file the host just *selected* (pre-crop/re-encode). Every
+ * image format is welcome (owner decision 2026-09-27) and there is no
+ * size ceiling (owner decision 2026-07-03): the browser re-encodes the
+ * photo before upload, so neither the original's format nor its size
+ * reaches the server. Whether the browser can actually open the file is
+ * settled by decoding it, not here — this only turns away what is
+ * plainly not an image. Some phones report no type at all for a photo,
+ * so a missing type passes.
  */
-export function validateSelectedPhoto(input: {
-  size: number;
-  type: string;
-}): PhotoValidationResult {
+export function validateSelectedPhoto(input: { size: number; type: string }): SelectedPhotoResult {
   if (!input.size) return { ok: false, reason: 'missing' };
-  const ext = ACCEPTED[input.type];
-  if (!ext) return { ok: false, reason: 'type' };
-  return { ok: true, ext, contentType: input.type };
+  const type = input.type.toLowerCase();
+  const unlabelled = type === '' || type === 'application/octet-stream';
+  if (!unlabelled && !type.startsWith('image/')) return { ok: false, reason: 'type' };
+  return { ok: true };
 }
 
 /** Object key for an experience's hero image: `experiences/{slug}/hero.{ext}`. */

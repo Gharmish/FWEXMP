@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/button';
 import { ConfirmSubmit } from '@/components/ui/confirm-dialog';
 import type { GalleryState } from '@/features/admin/experiences/gallery-actions';
 import { ACCEPTED_PHOTO_ATTR, validateSelectedPhoto } from '@/features/listings/lib/photo';
-import { readFileAsDataUrl } from '@/features/host-experiences/lib/image-process';
+import { openImage } from '@/features/host-experiences/lib/image-process';
 import {
   HeroCropper,
   type HeroCropperCopy,
@@ -104,12 +104,12 @@ export function GalleryManager({
   removeAction: GalleryAction;
 }) {
   const [state, action] = useActionState(uploadAction, initialState);
-  const [clientError, setClientError] = useState<'invalidType' | 'tooLarge' | null>(null);
+  const [clientError, setClientError] = useState<'invalidType' | null>(null);
   const [fileName, setFileName] = useState<string | null>(null);
   /** Data URL of the freshly picked file, while the crop sheet is open. */
   const [cropSrc, setCropSrc] = useState<string | null>(null);
   // Every picked photo goes through the crop sheet and is rendered to a
-  // bounded 16:9 WebP (same pipeline as the hero) before it's staged in
+  // bounded 16:9 photo (same pipeline as the hero) before it's staged in
   // the input. `ready` gates the button until the host applies a frame.
   const [ready, setReady] = useState(false);
   const inputId = useId();
@@ -125,11 +125,7 @@ export function GalleryManager({
             ? (copy.lockedLive ?? copy.error)
             : copy.error
       : undefined;
-  const error = clientError
-    ? clientError === 'invalidType'
-      ? copy.invalidType
-      : copy.tooLarge
-    : serverError;
+  const error = clientError ? copy.invalidType : serverError;
 
   return (
     <section className="border-sarat-black/12 rounded-card flex flex-col gap-6 border p-6">
@@ -186,19 +182,25 @@ export function GalleryManager({
               setClientError(null);
               return;
             }
-            // Generous input ceiling (30MB) — the crop re-encode is what
-            // brings the upload under the action body cap.
+            // Any image, any size — the crop re-encode is what brings the
+            // upload under the action body cap.
             const picked = validateSelectedPhoto({ size: file.size, type: file.type });
+            // Allow re-picking the same file (onChange wouldn't fire again).
+            input.value = '';
             if (!picked.ok) {
-              setClientError(picked.reason === 'type' ? 'invalidType' : 'tooLarge');
+              setClientError('invalidType');
               setFileName(null);
               return;
             }
             setClientError(null);
             setFileName(file.name);
-            setCropSrc(await readFileAsDataUrl(file));
-            // Allow re-picking the same file (onChange wouldn't fire again).
-            input.value = '';
+            try {
+              setCropSrc(await openImage(file));
+            } catch {
+              // Not an image this browser can open.
+              setClientError('invalidType');
+              setFileName(null);
+            }
           }}
         />
         {fileName && <span className="text-sarat-black-600 truncate text-sm">{fileName}</span>}
@@ -232,6 +234,11 @@ export function GalleryManager({
               setReady(true);
             }
             setCropSrc(null);
+          }}
+          onError={() => {
+            setCropSrc(null);
+            setFileName(null);
+            setClientError('invalidType');
           }}
         />
       )}

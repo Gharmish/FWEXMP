@@ -9,12 +9,17 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
 import { parsePastedCoords } from '@/features/host-experiences/lib/coords';
+import { needsResolving } from '@/features/host-experiences/lib/map-link';
+import { resolveMapLink } from '@/features/host-experiences/map-link-actions';
 import { hasMeetingPoint, SAUDI_BOX } from '@/features/listings/schemas';
 
 const LAT_MIN = SAUDI_BOX.latMin;
 const LAT_MAX = SAUDI_BOX.latMax;
 const LNG_MIN = SAUDI_BOX.lngMin;
 const LNG_MAX = SAUDI_BOX.lngMax;
+
+/** Wait for the host to stop typing before a share link is looked up. */
+const RESOLVE_DELAY_MS = 400;
 
 /** Where the map opens before the host has placed a pin — Abha centre. */
 const ABHA_CENTRE = { lat: 18.2164, lng: 42.5053 } as const;
@@ -42,6 +47,10 @@ export interface LocationPickerCopy {
   pasteLabel: string;
   pastePlaceholder: string;
   pasteInvalid: string;
+  /** Shown while a share link is being looked up on the server. */
+  pasteResolving: string;
+  /** Shown when the pin came from a place name rather than an exact position. */
+  pasteApproximate: string;
   previewTitle: string;
   searchLabel: string;
   searchPlaceholder: string;
@@ -80,6 +89,9 @@ interface LocationPickerProps {
  * The two number inputs remain the real form fields (`name="lat"` /
  * `name="lng"`), tucked into a manual-entry fold — no JS and the form
  * still submits; the paste-a-maps-link box stays as a second path.
+ * A link with coordinates in it is read in the browser; a share link
+ * from the Maps app (`maps.app.goo.gl/…`) has none, so it is looked up
+ * through the `resolveMapLink` server action.
  */
 export function LocationPicker({
   defaultLat,
@@ -95,7 +107,7 @@ export function LocationPicker({
   const [lat, setLat] = useState(hasDefault ? String(defaultLat) : '');
   const [lng, setLng] = useState(hasDefault ? String(defaultLng) : '');
   const [placed, setPlaced] = useState(hasDefault);
-  const [pasteBad, setPasteBad] = useState(false);
+  const [paste, setPaste] = useState<'idle' | 'busy' | 'bad' | 'approximate'>('idle');
   const [mapReady, setMapReady] = useState(false);
   const [query, setQuery] = useState('');
   const [search, setSearch] = useState<'idle' | 'busy' | 'none'>('idle');
@@ -114,6 +126,15 @@ export function LocationPicker({
   useEffect(() => {
     onChangeRef.current = onChange;
   });
+  /** Latest paste wins: a slow lookup must not overwrite a newer one. */
+  const pasteSeq = useRef(0);
+  const pasteTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(
+    () => () => {
+      if (pasteTimer.current) clearTimeout(pasteTimer.current);
+    },
+    [],
+  );
 
   /** Single write path: form fields and map pin stay in sync. */
   const pick = useCallback((nextLat: number, nextLng: number, pan: boolean) => {
@@ -191,15 +212,44 @@ export function LocationPicker({
     }
   };
 
+  const placeFromPaste = (point: { lat: number; lng: number }) => {
+    pick(point.lat, point.lng, true);
+    mapRef.current?.setZoom(15);
+  };
+
+  const resolvePaste = async (raw: string, seq: number) => {
+    try {
+      const result = await resolveMapLink(raw);
+      if (seq !== pasteSeq.current) return;
+      if (result.success) {
+        placeFromPaste(result);
+        setPaste(result.approximate ? 'approximate' : 'idle');
+      } else {
+        setPaste('bad');
+      }
+    } catch {
+      // Offline — the host still has tap-the-map and search.
+      if (seq === pasteSeq.current) setPaste('bad');
+    }
+  };
+
   const handlePaste = (raw: string) => {
+    pasteSeq.current += 1;
+    const seq = pasteSeq.current;
+    if (pasteTimer.current) clearTimeout(pasteTimer.current);
+
     const parsed = parsePastedCoords(raw);
     if (parsed) {
-      setPasteBad(false);
-      pick(parsed.lat, parsed.lng, true);
-      mapRef.current?.setZoom(15);
-    } else {
-      setPasteBad(raw.trim().length > 0);
+      setPaste('idle');
+      placeFromPaste(parsed);
+      return;
     }
+    if (!needsResolving(raw)) {
+      setPaste(raw.trim().length > 0 ? 'bad' : 'idle');
+      return;
+    }
+    setPaste('busy');
+    pasteTimer.current = setTimeout(() => void resolvePaste(raw, seq), RESOLVE_DELAY_MS);
   };
 
   const runSearch = async () => {
@@ -298,9 +348,18 @@ export function LocationPicker({
           dir="ltr"
           placeholder={copy.pastePlaceholder}
           onChange={(e) => handlePaste(e.target.value)}
-          aria-invalid={pasteBad ? 'true' : undefined}
+          aria-invalid={paste === 'bad' ? 'true' : undefined}
+          aria-busy={paste === 'busy' ? 'true' : undefined}
         />
-        {pasteBad && <p className="text-al-qatt-red-800 text-sm">{copy.pasteInvalid}</p>}
+        <div aria-live="polite">
+          {paste === 'busy' && (
+            <p className="text-sarat-black-600 text-sm">{copy.pasteResolving}</p>
+          )}
+          {paste === 'approximate' && (
+            <p className="text-sarat-black text-sm font-medium">{copy.pasteApproximate}</p>
+          )}
+          {paste === 'bad' && <p className="text-al-qatt-red-800 text-sm">{copy.pasteInvalid}</p>}
+        </div>
       </div>
 
       <details open={Boolean(latError ?? lngError) || undefined}>

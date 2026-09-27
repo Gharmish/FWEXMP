@@ -58,10 +58,39 @@ describe('validatePhoto', () => {
 });
 
 describe('validateSelectedPhoto', () => {
-  it('still gates on the MIME allow-list', () => {
-    expect(validateSelectedPhoto({ size: 1000, type: 'image/gif' })).toEqual({
+  it('accepts every image format, including ones that are never stored as-is', () => {
+    for (const type of [
+      'image/jpeg',
+      'image/heic',
+      'image/heif',
+      'image/gif',
+      'image/bmp',
+      'image/tiff',
+      'IMAGE/PNG',
+    ]) {
+      expect(validateSelectedPhoto({ size: 1000, type })).toEqual({ ok: true });
+    }
+  });
+
+  it('accepts a photo the phone gave no type for', () => {
+    expect(validateSelectedPhoto({ size: 1000, type: '' })).toEqual({ ok: true });
+    expect(validateSelectedPhoto({ size: 1000, type: 'application/octet-stream' })).toEqual({
+      ok: true,
+    });
+  });
+
+  it('turns away what is plainly not an image, and an empty file', () => {
+    expect(validateSelectedPhoto({ size: 1000, type: 'application/pdf' })).toEqual({
       ok: false,
       reason: 'type',
+    });
+    expect(validateSelectedPhoto({ size: 1000, type: 'video/mp4' })).toEqual({
+      ok: false,
+      reason: 'type',
+    });
+    expect(validateSelectedPhoto({ size: 0, type: 'image/jpeg' })).toEqual({
+      ok: false,
+      reason: 'missing',
     });
   });
 

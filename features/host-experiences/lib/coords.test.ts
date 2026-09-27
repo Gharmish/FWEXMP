@@ -35,6 +35,37 @@ describe('parsePastedCoords', () => {
     expect(parsePastedCoords('https://maps.google.com/?q=Abha')).toBeNull();
   });
 
+  it('prefers the place pair over the viewport centre in a place URL', () => {
+    expect(
+      parsePastedCoords(
+        'https://www.google.com/maps/place/Village/@18.30,42.40,15z/data=!4m6!3m5!8m2!3d18.216887!4d42.502984',
+      ),
+    ).toEqual({ lat: 18.216887, lng: 42.502984 });
+  });
+
+  it('parses coordinates in the path and in Apple Maps params', () => {
+    expect(
+      parsePastedCoords('https://www.google.com/maps/search/18.2169,+42.503?entry=tts'),
+    ).toEqual({ lat: 18.2169, lng: 42.503 });
+    expect(parsePastedCoords('https://maps.apple.com/?ll=18.2169,42.503&q=Village')).toEqual({
+      lat: 18.2169,
+      lng: 42.503,
+    });
+    expect(parsePastedCoords('https://maps.apple.com/place?coordinate=18.2169,42.503')).toEqual({
+      lat: 18.2169,
+      lng: 42.503,
+    });
+  });
+
+  it('finds nothing in a short share link or a plus-code link', () => {
+    expect(parsePastedCoords('https://maps.app.goo.gl/AbCdEfGh12345678?g_st=ic')).toBeNull();
+    expect(parsePastedCoords('https://maps.google.com?q=6G83+Q55+Abha&ftid=0x15:0x32')).toBeNull();
+  });
+
+  it('ignores number pairs that cannot be coordinates', () => {
+    expect(parsePastedCoords('https://maps.google.com/?q=120.5,42.5')).toBeNull();
+  });
+
   it('keeps negative coordinates intact', () => {
     expect(parsePastedCoords('-33.8688, 151.2093')).toEqual({ lat: -33.8688, lng: 151.2093 });
   });

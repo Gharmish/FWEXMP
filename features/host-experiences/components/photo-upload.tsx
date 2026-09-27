@@ -9,7 +9,7 @@ import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import type { UploadHeroState } from '@/features/host-experiences/photo-actions';
 import { ACCEPTED_PHOTO_ATTR, validateSelectedPhoto } from '@/features/listings/lib/photo';
-import { readFileAsDataUrl } from '@/features/host-experiences/lib/image-process';
+import { openImage } from '@/features/host-experiences/lib/image-process';
 import {
   HeroCropper,
   type HeroCropperCopy,
@@ -94,15 +94,20 @@ export function PhotoUpload({
     if (!file) return;
     const result = validateSelectedPhoto({ size: file.size, type: file.type });
     if (!result.ok) {
-      setClientError(result.reason === 'type' ? 'invalid_type' : 'too_large');
+      setClientError(result.reason === 'type' ? 'invalid_type' : 'missing');
       return;
     }
     setClientError(null);
-    setCropSrc(await readFileAsDataUrl(file));
+    try {
+      setCropSrc(await openImage(file));
+    } catch {
+      // Not an image this browser can open.
+      setClientError('invalid_type');
+    }
   }
 
   /**
-   * Stage the cropped WebP into the hidden file input and submit at once.
+   * Stage the cropped photo into the hidden file input and submit at once.
    * "Use this frame" IS the upload — the separate third tap that used to
    * follow was routinely missed, leaving hosts thinking the photo had
    * saved (2026-08-22 audit P2-8). The explicit button stays as a retry
@@ -126,7 +131,7 @@ export function PhotoUpload({
       <form ref={formRef} action={action} className="flex flex-col gap-4">
         <input type="hidden" name="experienceId" value={experienceId} />
         <input type="hidden" name="locale" value={locale} />
-        {/* Holds the cropped WebP staged via DataTransfer; this is what posts. */}
+        {/* Holds the cropped photo staged via DataTransfer; this is what posts. */}
         <input
           ref={photoInputRef}
           type="file"
@@ -201,6 +206,10 @@ export function PhotoUpload({
           copy={copy.crop}
           onCancel={() => setCropSrc(null)}
           onApply={handleCropApply}
+          onError={() => {
+            setCropSrc(null);
+            setClientError('invalid_type');
+          }}
         />
       )}
     </>

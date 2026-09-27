@@ -148,6 +148,8 @@ export interface ExperienceFormCopy {
   coordsPasteLabel: string;
   coordsPastePlaceholder: string;
   coordsPasteInvalid: string;
+  coordsPasteResolving: string;
+  coordsPasteApproximate: string;
   coordsPreviewTitle: string;
   mapSearchLabel: string;
   mapSearchPlaceholder: string;
@@ -887,6 +889,8 @@ export function ExperienceForm({
               pasteLabel: copy.coordsPasteLabel,
               pastePlaceholder: copy.coordsPastePlaceholder,
               pasteInvalid: copy.coordsPasteInvalid,
+              pasteResolving: copy.coordsPasteResolving,
+              pasteApproximate: copy.coordsPasteApproximate,
               previewTitle: copy.coordsPreviewTitle,
               searchLabel: copy.mapSearchLabel,
               searchPlaceholder: copy.mapSearchPlaceholder,
