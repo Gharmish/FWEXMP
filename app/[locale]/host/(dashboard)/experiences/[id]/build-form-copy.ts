@@ -67,6 +67,8 @@ export function buildExperienceFormCopy(
     coordsPasteLabel: t('coordsPasteLabel'),
     coordsPastePlaceholder: t('coordsPastePlaceholder'),
     coordsPasteInvalid: t('coordsPasteInvalid'),
+    coordsPasteResolving: t('coordsPasteResolving'),
+    coordsPasteApproximate: t('coordsPasteApproximate'),
     coordsPreviewTitle: t('coordsPreviewTitle'),
     mapSearchLabel: t('mapSearchLabel'),
     mapSearchPlaceholder: t('mapSearchPlaceholder'),
