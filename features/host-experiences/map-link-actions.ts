@@ -147,8 +147,10 @@ export async function resolveMapLink(raw: string): Promise<ResolveMapLinkState> 
       if (clue) return await settle(clue);
       if (hop === MAX_HOPS || !isMapsUrl(current)) break;
       const next = await nextHop(current);
-      if (!next) break;
-      current = next;
+      // A redirect may point at plain http; it is only ever requested over https.
+      const secure = next ? toHttps(next) : null;
+      if (!secure) break;
+      current = secure;
     }
     return { success: false, message: 'not_found' };
   } catch (error) {

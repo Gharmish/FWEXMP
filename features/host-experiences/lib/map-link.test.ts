@@ -18,7 +18,6 @@ describe('isMapsUrl', () => {
     expect(isMapsUrl('https://goo.gl/maps/abc')).toBe(true);
     expect(isMapsUrl('https://www.google.com/maps/place/Abha')).toBe(true);
     expect(isMapsUrl('https://maps.google.com.sa/?q=Abha')).toBe(true);
-    expect(isMapsUrl('https://www.google.co.uk/maps')).toBe(true);
     expect(isMapsUrl('https://maps.apple.com/?q=Abha')).toBe(true);
     expect(isMapsUrl('https://maps.apple/p/abc')).toBe(true);
   });
@@ -27,6 +26,9 @@ describe('isMapsUrl', () => {
     expect(isMapsUrl('https://example.com/maps')).toBe(false);
     expect(isMapsUrl('https://maps.app.goo.gl.evil.com/x')).toBe(false);
     expect(isMapsUrl('https://evilgoogle.com/maps')).toBe(false);
+    // Country domains are not trusted by pattern, only by name.
+    expect(isMapsUrl('https://www.google.cm/maps')).toBe(false);
+    expect(isMapsUrl('https://google.io/maps')).toBe(false);
     expect(isMapsUrl('https://google.com.evil.io/maps')).toBe(false);
     expect(isMapsUrl('https://169.254.169.254/latest/meta-data')).toBe(false);
     expect(isMapsUrl('https://localhost/maps')).toBe(false);

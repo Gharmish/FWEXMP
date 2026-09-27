@@ -102,6 +102,15 @@ describe('resolveMapLink', () => {
     });
   });
 
+  it('requests a plain-http redirect target over https', async () => {
+    routes[SHORT] = () => redirect('http://goo.gl/maps/next');
+    routes['https://goo.gl/maps/next'] = () =>
+      redirect('https://www.google.com/maps/@18.2169,42.503,17z');
+
+    expect(await resolveMapLink(SHORT)).toMatchObject({ success: true, lat: 18.2169 });
+    expect(requested).toEqual([SHORT, 'https://goo.gl/maps/next']);
+  });
+
   it('never follows a redirect off the maps allow-list', async () => {
     routes[SHORT] = () => redirect('https://169.254.169.254/latest/meta-data');
 

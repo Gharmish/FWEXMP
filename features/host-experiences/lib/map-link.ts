@@ -7,8 +7,24 @@ import { parsePastedCoords } from '@/features/host-experiences/lib/coords';
  * rules are unit-testable without a network.
  */
 
-const SHORT_HOSTS = new Set(['maps.app.goo.gl', 'goo.gl', 'maps.apple']);
-const GOOGLE_HOST = /^(?:www\.|maps\.)?google\.(?:com|[a-z]{2}|com?\.[a-z]{2})$/;
+/**
+ * Every hostname the resolver may request, spelled out. A pattern such
+ * as "google.<any country>" would be shorter but would trust whoever
+ * registered the name in each country, and a hostname we request can
+ * resolve to any address its owner likes.
+ */
+const MAPS_HOSTS = new Set([
+  'maps.app.goo.gl',
+  'goo.gl',
+  'google.com',
+  'www.google.com',
+  'maps.google.com',
+  'google.com.sa',
+  'www.google.com.sa',
+  'maps.google.com.sa',
+  'maps.apple.com',
+  'maps.apple',
+]);
 const CONSENT_HOST = 'consent.google.com';
 
 function parseUrl(raw: string): URL | null {
@@ -28,9 +44,7 @@ function parseUrl(raw: string): URL | null {
 export function isMapsUrl(raw: string): boolean {
   const url = parseUrl(raw);
   if (!url || url.port !== '' || url.username !== '' || url.password !== '') return false;
-  const host = url.hostname.toLowerCase();
-  if (SHORT_HOSTS.has(host) || host === 'maps.apple.com') return true;
-  return GOOGLE_HOST.test(host);
+  return MAPS_HOSTS.has(url.hostname.toLowerCase());
 }
 
 /** A share link worth sending to the server: a maps URL with no coordinates in it. */
