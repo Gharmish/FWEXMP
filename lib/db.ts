@@ -93,12 +93,58 @@ function createClient(): ReturnType<typeof postgres> {
 
 let currentClient: ReturnType<typeof postgres> | undefined;
 
+/**
+ * Suspension watch (Vercel only — nothing else freezes the process).
+ *
+ * A socket with a statement in flight when the instance is frozen comes
+ * back poisoned: the statement never settles, so postgres.js keeps the
+ * connection in its `busy` list forever. That costs nothing while other
+ * slots are free, but once a fan-out needs more connections than remain
+ * the driver pipelines the overflow onto the longest-busy connection —
+ * the corpse — and that statement hangs with no error. `boundedQuery`
+ * callers recover by deadline; every other path (admin pages, server
+ * actions, crons) waited out the function timeout.
+ *
+ * A one-second heartbeat timestamps the event loop. A beat more than
+ * `THAW_GAP_MS` overdue means the loop was not running — the instance
+ * slept — so the pool is replaced BEFORE the next statement is
+ * dispatched. `getDb()` checks as well as the beat itself, because on a
+ * thaw the waking request's I/O can run before the overdue timer does.
+ * Healthy idle sockets were due to close anyway (`idle_timeout` 5s), so
+ * the swap discards nothing of value, and statements still in flight on
+ * the old pool get `resetDb`'s usual drain.
+ */
+const THAW_BEAT_MS = 1_000;
+const THAW_GAP_MS = 5_000;
+let lastBeat = 0;
+let beat: ReturnType<typeof setInterval> | undefined;
+
+function replacePoolAfterThaw(): void {
+  if (!beat) return;
+  const now = Date.now();
+  if (now - lastBeat - THAW_BEAT_MS <= THAW_GAP_MS) return;
+  lastBeat = now;
+  resetDb(generation);
+}
+
+function watchForThaw(): void {
+  if (beat || !process.env.VERCEL) return;
+  lastBeat = Date.now();
+  beat = setInterval(() => {
+    replacePoolAfterThaw();
+    lastBeat = Date.now();
+  }, THAW_BEAT_MS);
+  // Never the reason the process stays alive.
+  beat.unref();
+}
+
 function install(client: ReturnType<typeof postgres>): Database {
   if (process.env.NODE_ENV !== 'production') {
     globalForDb.__gharmishPgClient = client;
   }
   currentClient = client;
   instance = drizzle(client, { schema, casing: 'snake_case' });
+  watchForThaw();
   return instance;
 }
 
@@ -106,6 +152,7 @@ export function getDb(): Database {
   if (!instance) {
     return install(globalForDb.__gharmishPgClient ?? createClient());
   }
+  replacePoolAfterThaw();
   return instance;
 }
 
