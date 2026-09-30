@@ -74,8 +74,14 @@ export type PlaceClue =
   | { kind: 'coords'; lat: number; lng: number }
   /** A plus code, with the place text Google appended after it (may be empty). */
   | { kind: 'plusCode'; code: string; locality: string }
-  /** Only a place name — can be geocoded, never exact. */
-  | { kind: 'text'; query: string };
+  /**
+   * Only a place name — can be geocoded, never exact — plus, when Google
+   * wrote the link, the feature id (`ftid=0x…:0x…`) that names the exact
+   * place the name stands for.
+   */
+  | { kind: 'text'; query: string; ftid: string | null };
+
+const FTID = /^0x[0-9a-f]{1,16}:0x[0-9a-f]{1,16}$/i;
 
 const PLUS_CODE = /^([23456789CFGHJMPQRVWX]{2,8}\+[23456789CFGHJMPQRVWX]{2,7})(?:[\s,،]+(.*))?$/i;
 
@@ -117,7 +123,47 @@ export function readPlaceClue(raw: string): PlaceClue | null {
 
   const code = text.match(PLUS_CODE);
   if (code?.[1]) return { kind: 'plusCode', code: code[1].toUpperCase(), locality: code[2] ?? '' };
-  return { kind: 'text', query: text };
+  const ftid = rawParam(url, ['ftid']);
+  return { kind: 'text', query: text, ftid: ftid && FTID.test(ftid) ? ftid.toLowerCase() : null };
+}
+
+/** Where Google's own embed page for the place is requested from — never a host the link chose. */
+const EMBED_ORIGIN = 'https://www.google.com/maps';
+
+/**
+ * The URL of Google's iframe-embed page for a text clue. Unlike the
+ * full Maps page, the embed page is rendered on the server and names
+ * the matched place with its position, so a share link whose redirect
+ * carries only a place name (the common case for the Maps app since
+ * 2026) can still be pinned exactly. The feature id addresses the
+ * place itself (`cid` is its second half in decimal); without one the
+ * query is Google's best match for the text.
+ */
+export function embedUrlFor(clue: Extract<PlaceClue, { kind: 'text' }>): string {
+  const params = new URLSearchParams();
+  const cid = clue.ftid?.split(':')[1];
+  if (cid) params.set('cid', BigInt(cid).toString(10));
+  else params.set('q', clue.query);
+  params.set('output', 'embed');
+  return `${EMBED_ORIGIN}?${params.toString()}`;
+}
+
+/**
+ * The matched place's position in an embed page: the entity block reads
+ * `[["0x…:0x…","<name>",[lat,lng],…`. Nothing matched (an unknown place
+ * or id) leaves no such block.
+ */
+const EMBED_PLACE =
+  /\[\["0x[0-9a-f]+:0x[0-9a-f]+","(?:[^"\\]|\\.)*",\[(-?\d{1,2}\.\d+),(-?\d{1,3}\.\d+)\]/i;
+
+export function readEmbedPosition(html: string): { lat: number; lng: number } | null {
+  const m = html.match(EMBED_PLACE);
+  if (!m) return null;
+  const lat = Number(m[1]);
+  const lng = Number(m[2]);
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
+  if (Math.abs(lat) > 90 || Math.abs(lng) > 180) return null;
+  return { lat, lng };
 }
 
 /**

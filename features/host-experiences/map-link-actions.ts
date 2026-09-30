@@ -4,8 +4,10 @@ import { z } from 'zod';
 import { reportError } from '@/lib/log';
 import { getCurrentHostIdForWrite } from '@/features/host-experiences/queries';
 import {
+  embedUrlFor,
   geocodeCandidates,
   isMapsUrl,
+  readEmbedPosition,
   readPlaceClue,
   toHttps,
   unwrapConsent,
@@ -26,8 +28,11 @@ import {
  *
  * The redirect target is followed by hand, one hop at a time, and every
  * hop must be a Google or Apple maps hostname (`isMapsUrl`) — the
- * action never requests a host the caller chose freely, and never reads
- * a response body.
+ * action never requests a host the caller chose freely. The only
+ * response body it reads is Google's own embed page for the place, at a
+ * URL this module builds itself (`embedUrlFor`), because the Maps app's
+ * share links now redirect to a place *name* rather than a position and
+ * that page is where Google states the position.
  */
 export type ResolveMapLinkState =
   | {
@@ -44,6 +49,8 @@ const inputSchema = z.string().trim().min(1).max(2048);
 const MAX_HOPS = 4;
 const MAX_GEOCODE_TRIES = 3;
 const REQUEST_TIMEOUT_MS = 5000;
+/** The embed page is ~2 KB; anything far larger is not the page we expect. */
+const EMBED_MAX_BYTES = 256 * 1024;
 const USER_AGENT = 'Gharmish/1.0 (+https://gharmish.com; hello@gharmish.com)';
 /** Launch market — the reference of last resort for a shortened plus code. */
 const ABHA_CENTRE: LatLng = { lat: 18.2164, lng: 42.5053 };
@@ -61,6 +68,46 @@ async function nextHop(url: string): Promise<string | null> {
   const location = response.headers.get('location');
   if (!location) return null;
   return new URL(location, url).toString();
+}
+
+/**
+ * The place's position from Google's embed page, or null when Google
+ * matched nothing. A failure of this lookup must not fail the whole
+ * resolution — the geocoder still gets its turn.
+ */
+async function embedPosition(clue: Extract<PlaceClue, { kind: 'text' }>): Promise<LatLng | null> {
+  try {
+    let url = embedUrlFor(clue);
+    // Google answers the embed URL with a redirect to its canonical form;
+    // it is followed by hand so that every hop stays on the allow-list.
+    for (let hop = 0; hop <= MAX_HOPS; hop += 1) {
+      if (!isMapsUrl(url)) return null;
+      const response = await fetch(url, {
+        redirect: 'manual',
+        cache: 'no-store',
+        signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+        headers: { 'user-agent': USER_AGENT, 'accept-language': 'en' },
+      });
+      if (response.status >= 300 && response.status < 400) {
+        await response.body?.cancel();
+        const location = response.headers.get('location');
+        const next = location ? toHttps(new URL(location, url).toString()) : null;
+        if (!next) return null;
+        url = next;
+        continue;
+      }
+      const length = Number(response.headers.get('content-length') ?? 0);
+      if (!response.ok || length > EMBED_MAX_BYTES) {
+        await response.body?.cancel();
+        return null;
+      }
+      const html = await response.text();
+      return readEmbedPosition(html.slice(0, EMBED_MAX_BYTES));
+    }
+    return null;
+  } catch {
+    return null;
+  }
 }
 
 interface NominatimResult {
@@ -123,6 +170,12 @@ async function settle(clue: PlaceClue): Promise<ResolveMapLinkState> {
     if (!point) return { success: false, message: 'not_found' };
     return { success: true, ...point, approximate: anchor === null };
   }
+
+  // Google's own answer first: exact when the link named the place by
+  // id, its best guess for the text otherwise. The geocoder is the
+  // fallback for when Google matched nothing.
+  const placed = await embedPosition(clue);
+  if (placed) return { success: true, ...placed, approximate: clue.ftid === null };
 
   const point = await geocodeQuietly(geocodeCandidates(clue.query).slice(0, 1));
   if (!point) return { success: false, message: 'not_found' };
