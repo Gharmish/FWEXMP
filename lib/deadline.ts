@@ -53,6 +53,15 @@ export async function withDeadline<T>(label: string, ms: number, promise: Promis
 const FIRST_ATTEMPT_MS = 6_000;
 const RETRY_ATTEMPT_MS = 8_000;
 
+/**
+ * How far past its own deadline an attempt's failure may be observed
+ * before the only explanation is that the event loop was not running.
+ * A live loop fires the deadline timer within milliseconds of `ms`, so a
+ * failure seen seconds later means the instance was suspended mid-attempt
+ * and the timers expired while it slept.
+ */
+const SUSPENSION_SLACK_MS = 2_000;
+
 /** postgres.js / Node / SQLSTATE codes that mean "the socket, not the SQL". */
 const TRANSIENT_CODES = new Set([
   'CONNECT_TIMEOUT',
@@ -112,6 +121,20 @@ export function isTransientConnectionError(error: unknown, depth = 0): boolean {
  * close their socket inside postgres.js, so they are retried without a
  * reset. Real SQL errors propagate immediately — never retried.
  *
+ * A retry that was SUSPENDED does not count. Post-response work (a
+ * background `unstable_cache` refresh) can be frozen with the instance
+ * mid-query; the next request thaws it and Node runs every expired timer
+ * before it polls a single socket, so the attempt dies instantly. The
+ * retry then starts, the waking request finishes, the instance freezes
+ * again mid-handshake, and the following thaw kills the retry the same
+ * way — two failures with the pooler healthy throughout (2026-09-29 and
+ * 09-30: Supavisor logged the sockets idle in `auth_scram_first_wait`,
+ * then authenticated fresh ones 50ms after we gave up; the errors were
+ * logged under unrelated routes such as /terms). Such a failure says
+ * nothing about the database, so when the retry is observed failing well
+ * past its own deadline it gets ONE more attempt on a fresh pool — every
+ * socket that slept through the freeze is suspect.
+ *
  * `run` must build a NEW query each call — passing a started promise
  * would make the retry await the same hung socket. `Promise.resolve`
  * upgrades Drizzle's thenable query builders to real promises.
@@ -132,6 +155,22 @@ export async function boundedQuery<T>(
     // at error level, every recovered stall read as a failed page load in
     // Vercel's error view and the daily health report (2026-09-22).
     reportWarning(error, { surface: 'db:boundedQueryRetry', label, poolReset: reset });
-    return await withDeadline(`${label}:retry`, RETRY_ATTEMPT_MS, Promise.resolve(run()));
+    const retryGeneration = getDbGeneration();
+    const retryStartedAt = Date.now();
+    try {
+      return await withDeadline(`${label}:retry`, RETRY_ATTEMPT_MS, Promise.resolve(run()));
+    } catch (retryError) {
+      const retryHung = retryError instanceof DeadlineError;
+      if (!retryHung && !isTransientConnectionError(retryError)) throw retryError;
+      const suspendedMs = Date.now() - retryStartedAt - RETRY_ATTEMPT_MS;
+      if (suspendedMs <= SUSPENSION_SLACK_MS) throw retryError;
+      reportWarning(retryError, {
+        surface: 'db:boundedQueryRetry',
+        label,
+        poolReset: resetDb(retryGeneration),
+        suspendedMs,
+      });
+      return await withDeadline(`${label}:resumed`, RETRY_ATTEMPT_MS, Promise.resolve(run()));
+    }
   }
 }

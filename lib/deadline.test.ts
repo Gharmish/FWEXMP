@@ -98,6 +98,76 @@ describe('boundedQuery', () => {
     expect(reportError).not.toHaveBeenCalled();
   });
 
+  describe('a retry that slept through an instance suspension', () => {
+    const connectTimeout = () =>
+      Object.assign(new Error('write CONNECT_TIMEOUT pooler:6543'), { code: 'CONNECT_TIMEOUT' });
+
+    /** The wall clock jumps while no timer runs — a freeze in miniature. */
+    const suspend = (ms: number) => vi.setSystemTime(Date.now() + ms);
+
+    it('gets one more attempt on a fresh pool when its deadline fired late', async () => {
+      const run = vi
+        .fn<() => Promise<string>>()
+        .mockImplementationOnce(() => hang<string>())
+        .mockImplementationOnce(() => hang<string>())
+        .mockImplementationOnce(() => Promise.resolve('thawed'));
+      const p = boundedQuery('q', run);
+      await vi.advanceTimersByTimeAsync(6_000);
+      suspend(60_000);
+      await vi.advanceTimersByTimeAsync(8_000);
+      await expect(p).resolves.toBe('thawed');
+      expect(run).toHaveBeenCalledTimes(3);
+      expect(resetDb).toHaveBeenCalledTimes(2);
+      expect(reportWarning).toHaveBeenLastCalledWith(
+        expect.any(DeadlineError),
+        expect.objectContaining({ surface: 'db:boundedQueryRetry', label: 'q', poolReset: true }),
+      );
+      expect(reportError).not.toHaveBeenCalled();
+    });
+
+    it('gets one more attempt when the thaw surfaces as a connect timeout', async () => {
+      let failRetry: (error: Error) => void = () => undefined;
+      const run = vi
+        .fn<() => Promise<string>>()
+        .mockImplementationOnce(() => Promise.reject(connectTimeout()))
+        .mockImplementationOnce(
+          () =>
+            new Promise<string>((_, reject) => {
+              failRetry = reject;
+            }),
+        )
+        .mockImplementationOnce(() => Promise.resolve('reconnected'));
+      const p = boundedQuery('q', run);
+      await vi.advanceTimersByTimeAsync(0);
+      suspend(60_000);
+      failRetry(connectTimeout());
+      await expect(p).resolves.toBe('reconnected');
+      expect(run).toHaveBeenCalledTimes(3);
+      // Every socket that slept through the freeze is suspect.
+      expect(resetDb).toHaveBeenCalledTimes(1);
+    });
+
+    it('never gets a fourth attempt', async () => {
+      const run = vi.fn(() => hang<string>());
+      const p = boundedQuery('q', run);
+      const assertion = expect(p).rejects.toBeInstanceOf(DeadlineError);
+      await vi.advanceTimersByTimeAsync(6_000);
+      suspend(60_000);
+      await vi.advanceTimersByTimeAsync(8_000);
+      suspend(60_000);
+      await vi.advanceTimersByTimeAsync(8_000);
+      await assertion;
+      expect(run).toHaveBeenCalledTimes(3);
+    });
+
+    it('is not granted when the retry failed on a running instance', async () => {
+      const run = vi.fn(() => Promise.reject(connectTimeout()));
+      await expect(boundedQuery('q', run)).rejects.toMatchObject({ code: 'CONNECT_TIMEOUT' });
+      expect(run).toHaveBeenCalledTimes(2);
+      expect(resetDb).not.toHaveBeenCalled();
+    });
+  });
+
   it('propagates a real rejection immediately without retrying', async () => {
     const boom = new Error('57014 statement timeout');
     const run = vi.fn(() => Promise.reject(boom));
