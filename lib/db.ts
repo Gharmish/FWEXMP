@@ -1,6 +1,7 @@
 import { drizzle, type PostgresJsDatabase } from 'drizzle-orm/postgres-js';
 import postgres from 'postgres';
 import { serverEnv } from '@/lib/env';
+import { reportWarning } from '@/lib/log';
 import * as schema from '@/db/schema';
 
 /**
@@ -138,12 +139,60 @@ function watchForThaw(): void {
   beat.unref();
 }
 
+/**
+ * Statement long-stop: no statement on the shared pool may stay pending
+ * forever, whoever issued it.
+ *
+ * `boundedQuery` protects the public render paths, but admin pages,
+ * server actions and crons call `db` directly, and a statement stuck on
+ * a poisoned connection never rejects — the caller waits out the
+ * function timeout. Every top-level statement therefore arms a timer;
+ * one still pending after `STATEMENT_STOP_MS` retires its pool, and the
+ * driver rejects whatever is still stuck on it with
+ * `CONNECTION_DESTROYED` a moment later, so the caller fails into its
+ * own error handling instead of hanging. The stop sits far above both
+ * `boundedQuery` budgets (so those paths still recover by retry first)
+ * and above any statement this app runs (tens of milliseconds).
+ *
+ * Only `unsafe` is wrapped — the one entry point drizzle uses for
+ * top-level statements. Transactions go through `begin`, whose inner
+ * client is untouched: row and advisory lock waits there are legitimate.
+ * Attaching the settle handler starts the (lazy) driver query one
+ * microtask later, after drizzle's synchronous `.values()` — drizzle
+ * awaits every statement immediately, so nothing observes the change.
+ */
+const STATEMENT_STOP_MS = 20_000;
+const STATEMENT_STOP_DRAIN_SECONDS = 2;
+
+function withStatementStop(client: ReturnType<typeof postgres>): ReturnType<typeof postgres> {
+  return new Proxy(client, {
+    get(target, prop) {
+      if (prop !== 'unsafe') return Reflect.get(target, prop);
+      return (...args: Parameters<typeof target.unsafe>) => {
+        const statement = target.unsafe(...args);
+        const seenGeneration = generation;
+        const stop = setTimeout(() => {
+          const poolReset = resetDb(seenGeneration, STATEMENT_STOP_DRAIN_SECONDS);
+          reportWarning(new Error(`statement pending past ${STATEMENT_STOP_MS}ms`), {
+            surface: 'db:statementStop',
+            poolReset,
+          });
+        }, STATEMENT_STOP_MS);
+        stop.unref();
+        const settled = () => clearTimeout(stop);
+        statement.then(settled, settled);
+        return statement;
+      };
+    },
+  });
+}
+
 function install(client: ReturnType<typeof postgres>): Database {
   if (process.env.NODE_ENV !== 'production') {
     globalForDb.__gharmishPgClient = client;
   }
   currentClient = client;
-  instance = drizzle(client, { schema, casing: 'snake_case' });
+  instance = drizzle(withStatementStop(client), { schema, casing: 'snake_case' });
   watchForThaw();
   return instance;
 }

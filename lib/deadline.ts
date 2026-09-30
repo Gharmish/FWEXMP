@@ -123,11 +123,12 @@ export function isTransientConnectionError(error: unknown, depth = 0): boolean {
  *
  * A retry that was SUSPENDED does not count. Post-response work (a
  * background `unstable_cache` refresh) can be frozen with the instance
- * mid-query; the next request thaws it and Node runs every expired timer
- * before it polls a single socket, so the attempt dies instantly. The
- * retry then starts, the waking request finishes, the instance freezes
- * again mid-handshake, and the following thaw kills the retry the same
- * way — two failures with the pooler healthy throughout (2026-09-29 and
+ * mid-query; the next request thaws it and the timers that expired while
+ * it slept fire on the first turn of the event loop, so the attempt dies
+ * at once, whatever the socket would have delivered. The retry then
+ * starts, the waking request finishes, the instance freezes again
+ * mid-handshake, and the following thaw kills the retry the same way —
+ * two failures with the pooler healthy throughout (2026-09-29 and
  * 09-30: Supavisor logged the sockets idle in `auth_scram_first_wait`,
  * then authenticated fresh ones 50ms after we gave up; the errors were
  * logged under unrelated routes such as /terms). Such a failure says
