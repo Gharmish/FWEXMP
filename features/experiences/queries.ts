@@ -6,7 +6,7 @@ import { and, asc, eq } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import { boundedQuery } from '@/lib/deadline';
 import { serverEnv } from '@/lib/env';
-import { EXPERIENCES_CACHE_TAG, REVIEWS_CACHE_TAG } from '@/lib/cache-tags';
+import { EXPERIENCES_CACHE_TAG } from '@/lib/cache-tags';
 import { reportError } from '@/lib/log';
 import type { Experience, Host, Moment } from '@/db/schema';
 import type {
@@ -73,7 +73,7 @@ function arOrFallback(en: string, ar: string): string {
 
 function toSummary(
   row: ExperienceWithHost,
-  ratings: Map<string, ReviewAggregate>,
+  ratings: ReadonlyMap<string, ReviewAggregate>,
 ): ExperienceSummary {
   const agg = ratings.get(row.slug);
   return {
@@ -130,7 +130,7 @@ function toMomentInfo(m: Moment): MomentInfo {
 
 function toDetail(
   row: ExperienceWithDetail,
-  ratings: Map<string, ReviewAggregate>,
+  ratings: ReadonlyMap<string, ReviewAggregate>,
 ): ExperienceDetail {
   return {
     ...toSummary(row, ratings),
@@ -155,12 +155,41 @@ function toDetail(
 }
 
 /**
- * The live catalog (summaries + embedded ratings), cached across
- * requests. Public and identical for every visitor, so the 60s window
- * is safe; content writes call `revalidateExperienceCaches()` /
- * `revalidateReviewCaches()` for instant freshness. Tagged with BOTH
- * tags because the summaries embed rating count/average. `undefined`
- * is not JSON-round-trip-safe, hence the plain-array return.
+ * A cached listing WITHOUT its ratings. The cross-request entries below
+ * hold these; ratings are merged in per request by `withRatings`, from
+ * their own cache (`getRatingsBySlug`). They used to be embedded in the
+ * cached value, which meant one failed ratings read — it degrades to
+ * "no ratings" — was pinned into the listing for the whole cache window
+ * and every visitor lost the stars. `createdAtMs` rides along because
+ * the "New" badge depends on the review count and a Date does not
+ * survive the cache's JSON round-trip.
+ */
+interface Unrated<T extends ExperienceSummary> {
+  value: T;
+  createdAtMs: number;
+}
+
+const NO_RATINGS: ReadonlyMap<string, ReviewAggregate> = new Map();
+
+function withRatings<T extends ExperienceSummary>(
+  entry: Unrated<T>,
+  ratings: ReadonlyMap<string, ReviewAggregate>,
+): T {
+  const agg = ratings.get(entry.value.slug);
+  return {
+    ...entry.value,
+    ratingAverage: agg?.average ?? null,
+    ratingCount: agg?.count ?? 0,
+    isNew: isNewListing(new Date(entry.createdAtMs), agg?.count ?? 0),
+  };
+}
+
+/**
+ * The live catalog (summaries, ratings merged in afterwards), cached
+ * across requests. Public and identical for every visitor, so the 60s
+ * window is safe; content writes call `revalidateExperienceCaches()`
+ * for instant freshness. `undefined` is not JSON-round-trip-safe, hence
+ * the plain-array return.
  *
  * Before this cache the full live set (with host join + the global
  * ratings aggregate) hydrated up to 3× per catalog request — see the
@@ -168,30 +197,31 @@ function toDetail(
  * deliberate launch-scale tradeoff (`getExperiencesFiltered`).
  */
 const loadLiveSummaries = unstable_cache(
-  async (): Promise<ExperienceSummary[]> => {
+  async (): Promise<Unrated<ExperienceSummary>[]> => {
     // boundedQuery converts a poisoned-pooler hang into a bounded throw —
-    // a thrown load is never cached, so the next request retries. The
-    // ratings arm is NOT wrapped: getRatingsBySlug is bounded internally
-    // and degrades to empty on failure.
-    const [rows, ratings] = await Promise.all([
-      boundedQuery('experiences:liveSummaries', () =>
-        db.query.experiences.findMany({
-          where: (e) => eq(e.status, 'live'),
-          with: { host: true },
-          orderBy: (e) => asc(e.createdAt),
-        }),
-      ),
-      getRatingsBySlug(),
-    ]);
-    return rows.map((row) => toSummary(row, ratings));
+    // a thrown load is never cached, so the next request retries.
+    const rows = await boundedQuery('experiences:liveSummaries', () =>
+      db.query.experiences.findMany({
+        where: (e) => eq(e.status, 'live'),
+        with: { host: true },
+        orderBy: (e) => asc(e.createdAt),
+      }),
+    );
+    return rows.map((row) => ({
+      value: toSummary(row, NO_RATINGS),
+      createdAtMs: row.createdAt.getTime(),
+    }));
   },
   ['live-experience-summaries'],
-  { revalidate: 60, tags: [EXPERIENCES_CACHE_TAG, REVIEWS_CACHE_TAG] },
+  { revalidate: 60, tags: [EXPERIENCES_CACHE_TAG] },
 );
 
 export const getExperiences = cache(async (): Promise<readonly ExperienceSummary[]> => {
   if (!hasDb()) return sample.getExperiences();
-  return loadLiveSummaries();
+  // getRatingsBySlug is bounded internally and degrades to empty on
+  // failure — for this request only, since nothing here is cached.
+  const [entries, ratings] = await Promise.all([loadLiveSummaries(), getRatingsBySlug()]);
+  return entries.map((entry) => withRatings(entry, ratings));
 });
 
 export const getFeaturedExperiences = cache(async (): Promise<readonly ExperienceSummary[]> => {
@@ -211,26 +241,24 @@ export const getFeaturedExperiences = cache(async (): Promise<readonly Experienc
  * undefined does not survive the cache's JSON round-trip.
  */
 const loadDetailBySlug = unstable_cache(
-  async (slug: string): Promise<ExperienceDetail | null> => {
-    const [row, ratings] = await Promise.all([
-      boundedQuery('experiences:detailBySlug', () =>
-        db.query.experiences.findFirst({
-          where: (e) => and(eq(e.slug, slug), eq(e.status, 'live')),
-          with: { host: true, moments: true },
-        }),
-      ),
-      getRatingsBySlug(),
-    ]);
-    return row ? toDetail(row, ratings) : null;
+  async (slug: string): Promise<Unrated<ExperienceDetail> | null> => {
+    const row = await boundedQuery('experiences:detailBySlug', () =>
+      db.query.experiences.findFirst({
+        where: (e) => and(eq(e.slug, slug), eq(e.status, 'live')),
+        with: { host: true, moments: true },
+      }),
+    );
+    return row ? { value: toDetail(row, NO_RATINGS), createdAtMs: row.createdAt.getTime() } : null;
   },
   ['experience-detail'],
-  { revalidate: 60, tags: [EXPERIENCES_CACHE_TAG, REVIEWS_CACHE_TAG] },
+  { revalidate: 60, tags: [EXPERIENCES_CACHE_TAG] },
 );
 
 export const getExperienceBySlug = cache(
   async (slug: string): Promise<ExperienceDetail | undefined> => {
     if (!hasDb()) return sample.getExperienceBySlug(slug);
-    return (await loadDetailBySlug(slug)) ?? undefined;
+    const [entry, ratings] = await Promise.all([loadDetailBySlug(slug), getRatingsBySlug()]);
+    return entry ? withRatings(entry, ratings) : undefined;
   },
 );
 
