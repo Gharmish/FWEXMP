@@ -13,6 +13,12 @@ export interface GuestProfile {
   email: string | null;
   avatarUrl: string | null;
   preferredLanguage: Locale;
+  /**
+   * Set when this account also owns a `hosts` row: the account page
+   * shows the host's verification state and links to the host profile,
+   * and the placeholder fields above are mirrored from it (host-mirror.ts).
+   */
+  host: { slug: string; verified: boolean } | null;
 }
 
 /* ----------------------- Server-action state ----------------------- */

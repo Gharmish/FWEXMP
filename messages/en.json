@@ -4053,6 +4053,11 @@
           "server": "We couldn't update your photo. Try again in a moment."
         }
       },
+      "host": {
+        "verified": "Verified host",
+        "pending": "Host verification pending",
+        "manage": "Edit your host profile"
+      },
       "details": {
         "title": "Personal details",
         "nameLabel": "Name",

@@ -112,6 +112,22 @@ export default async function ProfilePage({ params }: { params: Promise<{ locale
                   {profile.phone ? formatSaudiPhone(profile.phone) : profile.email}
                 </p>
               )}
+              {/* A host's account carries the same identity as their host
+                  profile (host-mirror.ts) — show its verification state
+                  and where the public-facing details are edited. */}
+              {profile.host && (
+                <div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-2 pt-1 sm:justify-start">
+                  <Badge variant={profile.host.verified ? 'verified' : 'neutral'}>
+                    {profile.host.verified ? t('host.verified') : t('host.pending')}
+                  </Badge>
+                  <Link
+                    href="/host/profile"
+                    className="text-sarat-black-600 text-sm underline-offset-4 hover:underline"
+                  >
+                    {t('host.manage')}
+                  </Link>
+                </div>
+              )}
             </div>
             <AvatarUpload
               avatarUrl={profile.avatarUrl}
