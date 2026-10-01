@@ -13,6 +13,7 @@ import { LocationPicker } from '@/features/host-experiences/components/location-
 import { RiyalSymbol } from '@/components/ui/riyal-symbol';
 import { cn } from '@/lib/utils';
 import { fillTemplate } from '@/lib/fill-template';
+import { formatTime } from '@/lib/format';
 import type { Locale } from '@/lib/i18n';
 import {
   updateHostExperience,
@@ -138,6 +139,7 @@ export interface ExperienceFormCopy {
   placeNameHint: string;
   startTimeLabel: string;
   startTimeHint: string;
+  startTimePlaceholder: string;
   bookingCutoffLabel: string;
   bookingCutoffHint: string;
   /** Preset cutoff choices, each with its localized label. */
@@ -263,6 +265,33 @@ const SELECT_CLASS = cn(
   'rounded-input border-sarat-black/20 bg-white text-sarat-black h-11 w-full border px-3 text-base',
   'disabled:pointer-events-none disabled:opacity-50',
 );
+
+/**
+ * Start-time choices for the select, every 15 minutes. A native
+ * `<input type="time">` looked filled when it was empty (Safari shows a
+ * grey placeholder time) and was unreliable to change on iOS, so hosts
+ * saved listings with no start time. An existing off-grid value (set
+ * before this picker, or by an admin) is kept as an extra option so
+ * re-saving never silently moves it.
+ */
+const START_TIME_STEP_MINUTES = 15;
+
+function startTimeOptions(current: string): string[] {
+  const slots: string[] = [];
+  for (let m = 0; m < 24 * 60; m += START_TIME_STEP_MINUTES) {
+    slots.push(`${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`);
+  }
+  if (/^([01]\d|2[0-3]):[0-5]\d$/.test(current) && !slots.includes(current)) {
+    slots.push(current);
+    slots.sort();
+  }
+  return slots;
+}
+
+function formatStartTime(value: string, locale: Locale): string {
+  const [h, m] = value.split(':').map(Number);
+  return formatTime(new Date(Date.UTC(2000, 0, 1, h, m)), locale, { timeZone: 'UTC' });
+}
 
 function SubmitButton({ label, pendingLabel }: { label: string; pendingLabel: string }) {
   const { pending } = useFormStatus();
@@ -681,15 +710,21 @@ export function ExperienceForm({
             <label htmlFor="ex-startTime" className="text-sm font-medium">
               {copy.startTimeLabel}
             </label>
-            <Input
+            <select
               id="ex-startTime"
               name="startTime"
-              type="time"
-              dir="ltr"
-              defaultValue={startTimeDefault === UNSET_TEXT ? undefined : startTimeDefault}
+              defaultValue={startTimeDefault}
               aria-invalid={fields.startTime ? 'true' : undefined}
               aria-describedby={fields.startTime ? eid('startTime') : undefined}
-            />
+              className={cn(SELECT_CLASS, 'aria-invalid:border-al-qatt-red')}
+            >
+              <option value={UNSET_TEXT}>{copy.startTimePlaceholder}</option>
+              {startTimeOptions(startTimeDefault).map((value) => (
+                <option key={value} value={value}>
+                  {formatStartTime(value, locale)}
+                </option>
+              ))}
+            </select>
             <p className="text-sarat-black-600 text-sm">{copy.startTimeHint}</p>
             <FieldError id={eid('startTime')} message={fieldErrorMessage(fields.startTime, copy)} />
           </div>

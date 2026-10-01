@@ -2785,6 +2785,7 @@
       },
       "startTimeLabel": "Start time",
       "startTimeHint": "Local start time of every occurrence. Guests see it before booking and on their ticket.",
+      "startTimePlaceholder": "Choose a time",
       "bookingCutoffLabel": "Booking cutoff",
       "bookingCutoffHint": "How far before the start time bookings close for that day. Guests can never book once an experience has started.",
       "bookingCutoffOption": "{hours, plural, one {# hour before start} other {# hours before start}}",

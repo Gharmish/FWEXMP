@@ -55,6 +55,7 @@ export function buildExperienceFormCopy(
     placeNameHint: t('placeNameHint'),
     startTimeLabel: t('startTimeLabel'),
     startTimeHint: t('startTimeHint'),
+    startTimePlaceholder: t('startTimePlaceholder'),
     bookingCutoffLabel: t('bookingCutoffLabel'),
     bookingCutoffHint: t('bookingCutoffHint'),
     bookingCutoffOptions: BOOKING_CUTOFF_OPTIONS.map((hours) => ({
