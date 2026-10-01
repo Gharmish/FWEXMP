@@ -14,6 +14,7 @@ import {
   type AdminExperienceEditState,
 } from '@/features/admin/experiences/actions';
 import type { AdminExperienceEdit, HostOption } from '@/features/admin/experiences/queries';
+import { formatStartTime, startTimeOptions } from '@/features/listings/lib/start-time';
 
 interface Option {
   value: string;
@@ -217,6 +218,7 @@ export function AdminExperienceForm({
 
   const weekdaySet = new Set(v?.availabilityWeekdays?.map(Number) ?? ex.availabilityWeekdays);
   const commissionPct = v?.commissionPct ?? (ex.commissionBps / 100).toString();
+  const startTimeDefault = v?.startTime ?? ex.startTime;
 
   const formError =
     state.message === 'server'
@@ -334,13 +336,19 @@ export function AdminExperienceForm({
             <label htmlFor="ex-startTime" className={labelClass}>
               {copy.startTime}
             </label>
-            <Input
+            <select
               id="ex-startTime"
               name="startTime"
-              type="time"
-              defaultValue={v?.startTime ?? ex.startTime}
+              defaultValue={startTimeDefault}
+              className={cn(SELECT_CLASS, 'aria-invalid:border-al-qatt-red')}
               {...aria('startTime')}
-            />
+            >
+              {startTimeOptions(startTimeDefault).map((value) => (
+                <option key={value} value={value}>
+                  {formatStartTime(value, locale)}
+                </option>
+              ))}
+            </select>
             {err('startTime')}
           </div>
         </div>
