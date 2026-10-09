@@ -2,13 +2,18 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('server-only', () => ({}));
 
-const state = vi.hoisted(() => ({ missing: [] as string[] }));
+const state = vi.hoisted(() => ({ missing: [] as string[], unmapped: [] as string[] }));
 
 vi.mock('@/lib/config-check', () => ({
   missingProductionConfig: () => state.missing,
 }));
+vi.mock('@/lib/notifications/whatsapp/provider', () => ({
+  unmappedWhatsAppTemplates: () => state.unmapped,
+}));
 const notifyAdmin = vi.fn<(...args: unknown[]) => Promise<void>>(async () => undefined);
-vi.mock('@/lib/admin-alerts', () => ({ notifyAdmin: (...args: unknown[]) => notifyAdmin(...args) }));
+vi.mock('@/lib/admin-alerts', () => ({
+  notifyAdmin: (...args: unknown[]) => notifyAdmin(...args),
+}));
 vi.mock('@/lib/log', () => ({ reportError: vi.fn() }));
 
 import { createPassRunner } from '@/features/maintenance/runner';
@@ -24,6 +29,7 @@ describe('watchProductionConfig', () => {
   beforeEach(() => {
     notifyAdmin.mockClear();
     state.missing = [];
+    state.unmapped = [];
     process.env.VERCEL_ENV = 'production';
   });
   afterEach(() => {
@@ -40,6 +46,18 @@ describe('watchProductionConfig', () => {
     expect(notifyAdmin).toHaveBeenCalledWith(
       'config_missing',
       { missing: 'ADMIN_ALERT_EMAIL, HYPERPAY_WEBHOOK_SECRET', count: 2 },
+      { fingerprint: 'config-check', quietWindowMs: CONFIG_ALERT_QUIET_MS },
+    );
+  });
+
+  it('pages for a registry template the SID map cannot serve', async () => {
+    // Every send of that template+locale is ledgered as failed, as silent
+    // as a dropped secret (2026-10-09 development plan R1).
+    state.unmapped = ['v3/guest_payment_pending.ar'];
+    await watchProductionConfig(createPassRunner());
+    expect(notifyAdmin).toHaveBeenCalledWith(
+      'config_missing',
+      { missing: 'TWILIO_WHATSAPP_CONTENT_SIDS[v3/guest_payment_pending.ar]', count: 1 },
       { fingerprint: 'config-check', quietWindowMs: CONFIG_ALERT_QUIET_MS },
     );
   });
