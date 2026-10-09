@@ -126,14 +126,14 @@ The plan serves both sides: Now has 3 host items, 2 guest/founder items and 1 pl
 
 ### Now (weeks 1–2, alongside the PM Top 3 #9 #10 #11)
 
-| #   | Item                                                           | Theme | Size | Depends on                                                      | Flags | Issue  |
-| --- | -------------------------------------------------------------- | ----- | ---- | --------------------------------------------------------------- | ----- | ------ |
-| N1  | Host payouts last mile (R11)                                   | 1     | M    | IBAN-decrypt bug fix (handed to the bug routine, below)         | 🔑🧑‍⚖️  | see PR |
-| N2  | Arabic WhatsApp template coverage + guard (R1)                 | 3     | S    | —                                                               | 🔑    | see PR |
-| N3  | Booking-funnel instrumentation + clean traffic (R12 + R2)      | 4     | M    | —                                                               | 🗄    | see PR |
-| N4  | Host application: Arabic-only + finish KYC in place (R3 + R13) | 2     | M    | —                                                               | 🧑‍⚖️    | see PR |
-| N5  | Verified-badge integrity for legacy hosts (R14)                | 1     | M    | Shares the KYC upload with N4. Should land before the #9 relist | 🧑‍⚖️    | see PR |
-| N6  | Dependabot + scheduled audit job (R4)                          | 5     | S    | —                                                               | —     | see PR |
+| #   | Item                                                           | Theme | Size | Depends on                                                      | Flags | Issue |
+| --- | -------------------------------------------------------------- | ----- | ---- | --------------------------------------------------------------- | ----- | ----- |
+| N1  | Host payouts last mile (R11)                                   | 1     | M    | IBAN-decrypt bug fix (handed to the bug routine, below)         | 🔑🧑‍⚖️  | #14   |
+| N2  | Arabic WhatsApp template coverage + guard (R1)                 | 3     | S    | —                                                               | 🔑    | #15   |
+| N3  | Booking-funnel instrumentation + clean traffic (R12 + R2)      | 4     | M    | —                                                               | 🗄    | #16   |
+| N4  | Host application: Arabic-only + finish KYC in place (R3 + R13) | 2     | M    | —                                                               | 🧑‍⚖️    | #17   |
+| N5  | Verified-badge integrity for legacy hosts (R14)                | 1     | M    | Shares the KYC upload with N4. Should land before the #9 relist | 🧑‍⚖️    | #18   |
+| N6  | Dependabot + scheduled audit job (R4)                          | 5     | S    | —                                                               | —     | #19   |
 
 Capacity note: N2 and N6 are under a day each. N1, N4 and N5 overlap in files (`features/host-applications`, `features/host-earnings`) and should run one after another, not in parallel sessions.
 
