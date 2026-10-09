@@ -26,6 +26,7 @@ type ErrorKey =
   | 'needs_arabic_moments'
   | 'needs_arabic_lists'
   | 'needs_english'
+  | 'host_suspended'
   | 'reviewer_note_short';
 
 interface Copy {

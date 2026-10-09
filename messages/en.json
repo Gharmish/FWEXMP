@@ -773,6 +773,7 @@
       "commission": "Platform commission (%)",
       "commissionHint": "Gharmish's share of each booking. The host payout is the remainder.",
       "startTime": "Daily start time",
+      "startTimePlaceholder": "Choose a time",
       "titleEn": "Title (English)",
       "titleAr": "Title (Arabic)",
       "descriptionEn": "Description (English)",
@@ -1164,7 +1165,8 @@
         "needsArabic": "The Arabic title or description is still a TODO placeholder — fill it in before approving (Arabic-first audience).",
         "needsArabicMoments": "One or more timeline moments still carry a TODO Arabic placeholder — complete them in the timeline editor before approving.",
         "needsArabicLists": "The Arabic \"What's included\" or \"What to bring\" list is empty while the English one isn't — add it in the Arabic copy editor above before approving.",
-        "needsEnglish": "The English title or description is still empty — the host drafted in Arabic only. Fill it in before approving."
+        "needsEnglish": "The English title or description is still empty — the host drafted in Arabic only. Fill it in before approving.",
+        "hostSuspended": "This host is suspended — nothing of theirs can go live until an admin reinstates them."
       }
     },
     "disputes": {

@@ -9,9 +9,14 @@ import type { Guest, Host } from '@/db/schema';
  * carried a name, a photo and a contact address (2026-10-01).
  *
  * Mirror the host's authored details onto the guest row — but only onto
- * the fields that still hold a placeholder. A name, email or photo the
- * guest set on the account page is theirs and always wins; this never
- * overwrites a real value, so it is safe to run on every profile read.
+ * the fields that still hold a placeholder, and only while the account
+ * page has never been personalised: the placeholder NAME is the marker.
+ * Once the name is real (set by the guest, or filled by this very mirror)
+ * nothing more is copied, so an email or photo the guest later REMOVES
+ * stays removed — the per-field version put them back on the next page
+ * load, because an emptied field is indistinguishable from a never-set
+ * one (nightly bug hunt 2026-10-09). A name, email or photo the guest set
+ * themselves always wins; this never overwrites a real value.
  */
 export type HostMirrorPatch = Partial<Pick<Guest, 'name' | 'email' | 'avatarUrl'>>;
 
@@ -26,7 +31,8 @@ export function hostMirrorPatch(
   const guestName = guest.name.trim();
   const hostName = host.name.trim();
   const nameIsPlaceholder = guestName === '' || guestName === placeholderName;
-  if (nameIsPlaceholder && hostName !== '' && hostName !== guestName) {
+  if (!nameIsPlaceholder) return patch;
+  if (hostName !== '' && hostName !== guestName) {
     patch.name = hostName;
   }
 

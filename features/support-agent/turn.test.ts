@@ -154,6 +154,57 @@ describe('runAgentTurn re-check loop', () => {
     expect(releases()).toHaveLength(1);
   });
 
+  it('answers a message that landed mid-turn even though its row precedes the stored reply', async () => {
+    // Real ordering: the guest's second message is inserted while the
+    // model answers the first, and the reply row lands AFTER it. The
+    // re-check then reloads a thread ending in our own reply — which the
+    // 810f282 "already answered" skip used to drop on the floor.
+    const t = (ms: number) => new Date(T0.getTime() + ms);
+    const lastUserTurns: string[] = [];
+    setAnthropicClientForTests({
+      messages: {
+        create: async (params: { messages: Array<{ role: string; content: unknown }> }) => {
+          const last = params.messages.at(-1);
+          lastUserTurns.push(`${last?.role}:${String(last?.content)}`);
+          return {
+            id: 'm',
+            type: 'message',
+            role: 'assistant',
+            stop_reason: 'end_turn',
+            content: [{ type: 'text', text: 'answer', citations: null }],
+          };
+        },
+      },
+    } as unknown as Anthropic);
+    sendConversationReply.mockImplementation(async () => {
+      if (history.length === 1) {
+        history.push({
+          direction: 'in',
+          body: 'and one more thing',
+          mediaContentType: null,
+          createdAt: t(2_000),
+        });
+      }
+      history.push({
+        direction: 'out',
+        body: 'answer',
+        mediaContentType: null,
+        createdAt: t(5_000 * history.length),
+      });
+      return { ok: true };
+    });
+    newerQueue = [[{ id: 'm2' }], []];
+    try {
+      const out = await runAgentTurn(recorded, '+966500000001');
+      expect(out.outcome).toBe('replied');
+      expect(dedupeKeys()).toEqual(['support_agent:m1:0', 'support_agent:m2:0']);
+      expect(lastUserTurns).toEqual(['user:hi', 'user:and one more thing']);
+      expect(releases()).toHaveLength(1);
+    } finally {
+      sendConversationReply.mockImplementation(async () => ({ ok: true }));
+    }
+  });
+
   it('is bounded: never more than three passes, then releases', async () => {
     setAnthropicClientForTests(textReplyClient(['a', 'b', 'c', 'd', 'e']));
     newerQueue = [[{ id: 'm2' }], [{ id: 'm3' }], [{ id: 'm4' }], [{ id: 'm5' }]];

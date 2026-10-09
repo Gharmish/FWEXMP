@@ -65,6 +65,7 @@ function ready(over: Row = {}): Row {
     whatToBring: [],
     whatToBringAr: [],
     moments: [{ titleAr: 'لحظة', descriptionAr: 'وصف' }],
+    host: { verificationStatus: 'verified' },
     ...over,
   };
 }
@@ -94,6 +95,16 @@ describe('approveExperience', () => {
       expect(await approveExperience(initial, form())).toMatchObject({ message });
     }
     expect(fake.current?.updates).toEqual([]);
+  });
+
+  it('refuses a listing whose host is suspended', async () => {
+    experience = ready({ host: { verificationStatus: 'suspended' } });
+    expect(await approveExperience(initial, form())).toMatchObject({
+      success: false,
+      message: 'host_suspended',
+    });
+    expect(fake.current?.updates).toEqual([]);
+    expect(email).not.toHaveBeenCalled();
   });
 
   it('is not_found / wrong_state when the row is missing or not pending review', async () => {

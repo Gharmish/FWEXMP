@@ -86,6 +86,7 @@ export default async function AdminExperienceNewPage({
     commission: tE('commission'),
     commissionHint: tE('commissionHint'),
     startTime: tE('startTime'),
+    startTimePlaceholder: tE('startTimePlaceholder'),
     titleEn: tE('titleEn'),
     titleAr: tE('titleAr'),
     descriptionEn: tE('descriptionEn'),

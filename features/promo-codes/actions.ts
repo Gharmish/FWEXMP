@@ -171,16 +171,18 @@ export async function applyPromo(
       if (booking.paymentStatus === 'paid') return fail('already_paid');
       if (booking.status !== 'confirmed') return fail('unavailable');
 
-      // Applied Gharmish Credit is released FIRST: a promo percentage
-      // must never compute on a post-credit amount, and partial credit
-      // reversals aren't a thing — the guest re-taps "Apply credit" on
-      // the refreshed page (the release restores the total in this same
-      // transaction, so the base below is the true pre-credit amount).
-      let creditReleasedSar = 0;
-      if (booking.walletAppliedSar > 0) {
-        const released = await releaseWalletReservationTx(tx, booking.id);
-        if (released.released) creditReleasedSar = released.amountSar;
-      }
+      // Applied Gharmish Credit is the LAST reduction, so promo math runs
+      // on the pre-credit base — but the reservation is only RELEASED
+      // once the code has passed every check below. Returning early from
+      // this callback COMMITS the transaction (Drizzle rolls back on
+      // throw only), so a release ahead of a rejected code stripped the
+      // guest's credit, restored the total and retired a live checkout
+      // while the client was told nothing but "invalid code": the stale
+      // widget stayed on screen, and a payment through it mismatched
+      // settle's amount guard and parked the booking under review
+      // (nightly bug hunt 2026-10-09, P0). The base below is what the
+      // release will restore, read under the same row lock.
+      const reservedCreditSar = booking.walletAppliedSar;
 
       // Lock the promo row: the cap re-count below must serialize against
       // other checkouts redeeming the same code.
@@ -201,7 +203,7 @@ export async function applyPromo(
 
       // Discount is computed on the PRE-discount, PRE-credit base so
       // re-applying or swapping a code is idempotent.
-      const baseSar = booking.totalAmount + creditReleasedSar + booking.discountSar;
+      const baseSar = booking.totalAmount + reservedCreditSar + booking.discountSar;
       if (promo.minTotalSar != null && baseSar < promo.minTotalSar) {
         return fail('below_min', promo.minTotalSar);
       }
@@ -245,6 +247,22 @@ export async function applyPromo(
       });
       if (discountSar <= 0) return fail('invalid');
       const totalSar = baseSar - discountSar;
+
+      // Every check passed — now hand the credit back (a positive
+      // reversal row; the guest re-taps "Apply credit" on the refreshed
+      // page). Partial credit reversals aren't a thing. The release
+      // re-reads the row under the lock we already hold, so it can only
+      // disagree with `reservedCreditSar` if the row changed under us —
+      // throw, and the transaction rolls back instead of writing a total
+      // the ledger doesn't back.
+      let creditReleasedSar = 0;
+      if (reservedCreditSar > 0) {
+        const released = await releaseWalletReservationTx(tx, booking.id);
+        if (!released.released || released.amountSar !== reservedCreditSar) {
+          throw new Error('wallet reservation changed under the promo lock');
+        }
+        creditReleasedSar = released.amountSar;
+      }
 
       // A live checkout was prepared at the old total — supersede it in
       // the same locked write that changes the amount, so no window

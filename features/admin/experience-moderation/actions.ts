@@ -45,7 +45,9 @@ export interface AdminModerationResult {
     | 'needs_arabic'
     | 'needs_english'
     | 'needs_arabic_moments'
-    | 'needs_arabic_lists';
+    | 'needs_arabic_lists'
+    /** The listing's host is suspended — nothing of theirs may go live (2026-10-09). */
+    | 'host_suspended';
   fieldError?: string;
   /** Echo of the reviewer's typed note so a failed submit never wipes it (2026-09 UX audit P1-6). */
   values?: { reviewerNotes: string };
@@ -100,9 +102,19 @@ export async function approveExperience(
         whatToBring: true,
         whatToBringAr: true,
       },
-      with: { moments: { columns: { titleAr: true, descriptionAr: true } } },
+      with: {
+        moments: { columns: { titleAr: true, descriptionAr: true } },
+        host: { columns: { verificationStatus: true } },
+      },
     });
     if (!row) return { success: false, message: 'not_found', values };
+    // Suspending a host pauses their LIVE listings; one still sitting in
+    // review could be approved straight into a catalog where nobody can
+    // book it (the booking action refuses suspended hosts). Reinstate
+    // the host first.
+    if (row.host.verificationStatus === 'suspended') {
+      return { success: false, message: 'host_suspended', values };
+    }
     if (!row.heroImage) return { success: false, message: 'needs_hero', values };
     if (row.titleAr.startsWith('TODO(ar') || row.descriptionAr.startsWith('TODO(ar')) {
       return { success: false, message: 'needs_arabic', values };

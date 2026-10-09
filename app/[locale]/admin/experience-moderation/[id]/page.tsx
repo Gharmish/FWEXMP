@@ -399,6 +399,7 @@ export default async function AdminExperienceModerationDetailPage({
               needs_arabic_moments: t('experienceActions.errors.needsArabicMoments'),
               needs_arabic_lists: t('experienceActions.errors.needsArabicLists'),
               needs_english: t('experienceActions.errors.needsEnglish'),
+              host_suspended: t('experienceActions.errors.hostSuspended'),
               reviewer_note_short: t('experienceActions.errors.reviewerNoteShort'),
             },
           }}
