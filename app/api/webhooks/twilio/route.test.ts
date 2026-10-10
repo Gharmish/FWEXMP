@@ -200,6 +200,16 @@ describe('POST /api/webhooks/twilio — inbound keywords', () => {
     expect(addSuppression).not.toHaveBeenCalled();
   });
 
+  it('answers 500 when the message could not be stored, so Twilio retries', async () => {
+    recordInboundMessage.mockRejectedValueOnce(new Error('connection reset'));
+    const params = { From: 'whatsapp:+966541104000', Body: 'What time do we meet?' };
+
+    const res = await POST(request(params, sign(params)));
+
+    expect(res.status).toBe(500);
+    expect(runAgentTurn).not.toHaveBeenCalled();
+  });
+
   it('acknowledges an ordinary reply without touching the suppression list', async () => {
     recordInboundMessage.mockResolvedValueOnce(null);
     const params = { From: 'whatsapp:+966541104000', Body: 'What time do we meet?' };

@@ -1,8 +1,18 @@
 import { describe, expect, it, vi } from 'vitest';
 
 vi.mock('server-only', () => ({}));
-vi.mock('@/lib/db', () => ({ db: {} }));
-vi.mock('@/lib/env', () => ({ serverEnv: { DATABASE_URL: '' }, hasSupportAgent: () => false }));
+const env = vi.hoisted(() => ({ DATABASE_URL: '' }));
+const dbFake = vi.hoisted(() => ({
+  query: {
+    conversations: {
+      findFirst: async (): Promise<unknown> => {
+        throw new Error('connection reset');
+      },
+    },
+  },
+}));
+vi.mock('@/lib/db', () => ({ db: dbFake }));
+vi.mock('@/lib/env', () => ({ serverEnv: env, hasSupportAgent: () => false }));
 vi.mock('@/lib/log', () => ({ reportError: vi.fn() }));
 vi.mock('@/lib/admin-alerts', () => ({ notifyAdmin: vi.fn() }));
 vi.mock('@/lib/notifications/ledger', () => ({
@@ -40,9 +50,23 @@ describe('inferLocale', () => {
 
 describe('recordInboundMessage', () => {
   it('is a no-op without a database', async () => {
+    env.DATABASE_URL = '';
     await expect(
       recordInboundMessage({ from: 'whatsapp:+966541104000', body: 'hi' }),
     ).resolves.toBeNull();
+  });
+
+  it('rethrows a database failure so the webhook refuses the delivery and Twilio retries', async () => {
+    // The catch used to return null, which the webhook ACKed with 200:
+    // Twilio never redelivered and the guest's message was gone.
+    env.DATABASE_URL = 'postgres://test';
+    try {
+      await expect(
+        recordInboundMessage({ from: 'whatsapp:+966541104000', body: 'hi' }),
+      ).rejects.toThrow('connection reset');
+    } finally {
+      env.DATABASE_URL = '';
+    }
   });
 });
 

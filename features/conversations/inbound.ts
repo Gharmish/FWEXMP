@@ -25,8 +25,12 @@ import { sendWhatsAppText, whatsappAddress } from '@/lib/notifications/whatsapp/
  * WHATSAPP_SUPPORT_PLAN.md). A guest message is persisted on its
  * conversation, identified to a guest by phone, acknowledged once per
  * quiet period in the guest's language, and paged to the admin rails.
- * Everything here is best-effort: the webhook has already answered
- * Twilio, so a failure is logged and never retried by the provider.
+ * Recording the message is NOT best-effort: a persistence failure is
+ * rethrown so the webhook answers 500 and Twilio redelivers (2026-09
+ * engineering audit OPS-10; the catch here used to swallow it, so the
+ * webhook ACKed and the guest's words were gone — nightly bug hunt
+ * 2026-10-09, P1). Everything after the row exists (acknowledgement,
+ * paging, the agent turn) runs once Twilio has its 200 and is best-effort.
  */
 
 const hasDb = (): boolean => Boolean(serverEnv.DATABASE_URL);
@@ -153,9 +157,10 @@ async function identifyHost(phone: string): Promise<string | null> {
 /**
  * Persist one inbound message. Upserts the conversation by address,
  * resolves the guest on first contact, and stores the message
- * idempotently on the Twilio SID. Returns null without a DB or on error
- * (logged) — the caller then skips the ack rather than replying to a
- * message we can't show an admin.
+ * idempotently on the Twilio SID. Returns null without a DB or for an
+ * undialable sender (nothing a retry could fix); a database failure is
+ * logged and RETHROWN so the webhook refuses the delivery and Twilio
+ * retries — an ACK on a message we failed to store loses it for good.
  */
 export async function recordInboundMessage(input: InboundMessage): Promise<RecordedInbound | null> {
   if (!hasDb()) return null;
@@ -274,7 +279,7 @@ export async function recordInboundMessage(input: InboundMessage): Promise<Recor
     };
   } catch (error) {
     reportError(error, { surface: 'conversations:recordInbound' });
-    return null;
+    throw error;
   }
 }
 

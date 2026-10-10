@@ -21,6 +21,9 @@ vi.mock('@/features/admin/guard', () => ({
 }));
 vi.mock('@/features/bookings/lib/payout-sql', () => ({ paymentCollected: () => undefined }));
 const sendHostPayoutPaidEmail = vi.fn(async () => undefined);
+vi.mock('@/lib/pii-crypto', () => ({
+  decryptPii: (value: string | null) => (value?.startsWith('enc:') ? value.slice(4) : value),
+}));
 vi.mock('@/features/admin/payouts/payout-email', () => ({
   sendHostPayoutPaidEmail: (...args: unknown[]) => sendHostPayoutPaidEmail(...(args as [])),
 }));
@@ -105,7 +108,11 @@ const payoutOf = (rows: OwedRow[]) =>
 beforeEach(() => {
   vi.clearAllMocks();
   actor = { adminUserId: 'admin-1' };
-  host = { id: HOST_ID, payoutIban: 'SA0380000000608010167519', verificationStatus: 'verified' };
+  host = {
+    id: HOST_ID,
+    payoutIban: 'enc:SA0380000000608010167519',
+    verificationStatus: 'verified',
+  };
   owed = [booking('b-1', 480), booking('b-2', 300)];
   clawbacks = [];
   inserted.length = 0;
@@ -164,6 +171,16 @@ describe('markHostPaid', () => {
     expect(sendHostPayoutPaidEmail).toHaveBeenCalledWith(
       expect.objectContaining({ hostId: HOST_ID, payoutId: 'payout-1', amountSar: net }),
     );
+  });
+
+  it('hints the host with the last four digits of the DECRYPTED IBAN', async () => {
+    // The column is ciphertext at rest; the hint must never be four
+    // base64 characters of it (2026-10-09 development plan).
+    await markHostPaid(initial, form(payoutOf(owed)));
+    expect(sendHostPayoutPaidEmail).toHaveBeenCalledWith(
+      expect.objectContaining({ ibanLast4: '7519' }),
+    );
+    expect(inserted[0]).toMatchObject({ payoutIban: 'enc:SA0380000000608010167519' });
   });
 
   it('nets a pending clawback and settles it against the batch', async () => {

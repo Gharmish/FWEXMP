@@ -35,6 +35,8 @@ export interface AdminExperienceFormCopy {
   commission: string;
   commissionHint: string;
   startTime: string;
+  /** Selected when the row holds no valid time, so a save fails loudly instead of silently landing on 00:00. */
+  startTimePlaceholder: string;
   titleEn: string;
   titleAr: string;
   descriptionEn: string;
@@ -343,6 +345,12 @@ export function AdminExperienceForm({
               className={cn(SELECT_CLASS, 'aria-invalid:border-al-qatt-red')}
               {...aria('startTime')}
             >
+              {/* A listing with no start time (hosts can leave it unset in a
+                  draft) used to match no option, so the browser selected
+                  the first one and the save silently wrote 00:00 (nightly
+                  bug hunt 2026-10-09). The empty option is what gets
+                  selected instead, and the schema rejects it. */}
+              <option value="">{copy.startTimePlaceholder}</option>
               {startTimeOptions(startTimeDefault).map((value) => (
                 <option key={value} value={value}>
                   {formatStartTime(value, locale)}

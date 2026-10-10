@@ -2,6 +2,7 @@ import 'server-only';
 
 import { notifyAdmin } from '@/lib/admin-alerts';
 import { missingProductionConfig } from '@/lib/config-check';
+import { unmappedWhatsAppTemplates } from '@/lib/notifications/whatsapp/provider';
 import type { PassRunner } from '@/features/maintenance/runner';
 
 /** The quiet window between two pages for the same missing variables. */
@@ -23,7 +24,13 @@ export async function watchProductionConfig(run: PassRunner) {
       // Only production carries the real secrets; previews and CI boot
       // with lib/env.ts defaults on purpose.
       if (process.env.VERCEL_ENV !== 'production') return;
-      const missing = missingProductionConfig();
+      // A registry template with no Content SID fails every send for that
+      // locale (ledgered, retried, never delivered) — as silent as a
+      // dropped secret, so it pages through the same alert.
+      const missing = [
+        ...missingProductionConfig(),
+        ...unmappedWhatsAppTemplates().map((key) => `TWILIO_WHATSAPP_CONTENT_SIDS[${key}]`),
+      ];
       if (missing.length === 0) return;
       await notifyAdmin(
         'config_missing',

@@ -49,6 +49,18 @@ describe('hostMirrorPatch', () => {
     ).toEqual({});
   });
 
+  it('never puts back an email or photo the guest removed after the first fill', () => {
+    // The first read mirrored all three; the guest then cleared the email
+    // and deleted the photo on the account page.
+    expect(hostMirrorPatch({ name: host.name, email: null, avatarUrl: null }, host, PHONE)).toEqual(
+      {},
+    );
+    // Same for a guest who named themselves and keeps the rest empty.
+    expect(
+      hostMirrorPatch({ name: 'Abdulaziz', email: null, avatarUrl: null }, host, PHONE),
+    ).toEqual({});
+  });
+
   it('is idempotent once the guest row already mirrors the host', () => {
     expect(
       hostMirrorPatch(

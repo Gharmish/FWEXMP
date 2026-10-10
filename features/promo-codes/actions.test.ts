@@ -163,6 +163,32 @@ describe('applyPromo', () => {
     expect(ledger).not.toHaveBeenCalled();
   });
 
+  it('a rejected code leaves applied credit and a live checkout untouched (2026-10-09 P0)', async () => {
+    // The release used to run BEFORE the code was checked, and an early
+    // return from the transaction callback commits: a typo in the code
+    // stripped the guest's credit and retired the checkout while the
+    // client only heard "invalid".
+    locked = {
+      ...locked,
+      paymentStatus: 'processing',
+      checkoutId: 'chk-1',
+      walletAppliedSar: 50,
+      totalAmount: 250,
+    };
+    promo = { ...promo, active: false };
+    expect(await applyPromo(idle, form())).toMatchObject({ status: 'error', message: 'invalid' });
+    // The minimum is judged on the pre-credit base (250 + 50 = 300).
+    promo = { ...promo, active: true, minTotalSar: 301 };
+    expect(await applyPromo(idle, form())).toMatchObject({
+      status: 'error',
+      message: 'below_min',
+      minTotalSar: 301,
+    });
+    expect(released).not.toHaveBeenCalled();
+    expect(fake.current?.updates).toEqual([]);
+    expect(ledger).not.toHaveBeenCalled();
+  });
+
   it('a checkout in flight is superseded and the old widget journaled; applied wallet credit is released first', async () => {
     locked = {
       ...locked,

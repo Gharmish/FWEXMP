@@ -8,6 +8,8 @@ import { serverEnv } from '@/lib/env';
 import { reportError } from '@/lib/log';
 import { withDeadline } from '@/lib/deadline';
 import { SITE_URL } from '@/lib/site';
+import { hasLocale } from 'next-intl';
+import { routing } from '@/lib/i18n';
 import type { UtmParams } from '@/features/analytics/types';
 
 /**
@@ -53,7 +55,30 @@ export function utmFromSearchParams(sp: SearchParamsShape): UtmParams {
  * three test days in August produced more "views" than a normal month.
  */
 const BOT_UA =
-  /bot|crawl|spider|slurp|preview|fetch|facebookexternalhit|whatsapp|twitterbot|telegrambot|slackbot|discordbot|linkedinbot|pinterest|snapchat|vercel-screenshot|headless|lighthouse|pagespeed|curl|wget|python-requests|go-http-client|axios|node-fetch|okhttp|uptime|monitor/i;
+  /bot|crawl|spider|slurp|preview|fetch|facebookexternalhit|whatsapp|twitterbot|telegrambot|slackbot|discordbot|linkedinbot|pinterest|vercel-screenshot|headless|lighthouse|pagespeed|curl|wget|python-requests|go-http-client|axios|node-fetch|okhttp|uptime|monitor/i;
+
+/**
+ * Not demand, by user agent. `snapchat` was on the list until 2026-10-09:
+ * Snapchat's in-app browser identifies as `… Snapchat/13.x (iPhone…)`, so
+ * every visitor arriving from a Snap ad or story was dropped as a bot
+ * and the campaign read as zero visits (development plan R2). Snap's
+ * link-preview fetcher carries `bot`, which the generic token keeps.
+ */
+export function isBotUserAgent(ua: string): boolean {
+  return BOT_UA.test(ua);
+}
+
+/**
+ * Only the locales the site serves are demand. The `[locale]` layout
+ * `notFound()`s any other first segment, but App Router renders a page
+ * concurrently with its layout, so `/wp-admin` or `/.env` reached the
+ * home page's `trackPageView` with locale `wp-admin` before the 404 was
+ * decided: 13% of recorded page views were scanner probes (development
+ * plan R2).
+ */
+export function isTrackableLocale(locale: string): boolean {
+  return hasLocale(routing.locales, locale);
+}
 
 const SITE_HOST = (() => {
   try {
@@ -77,7 +102,7 @@ interface RequestMeta {
 async function requestMeta(): Promise<RequestMeta | null> {
   const h = await headers();
   const ua = h.get('user-agent') ?? '';
-  if (!ua || BOT_UA.test(ua)) return null;
+  if (!ua || isBotUserAgent(ua)) return null;
   // Only the hostname of an EXTERNAL referrer is kept. Same-site
   // navigations (RSC fetches carry the previous page as Referer) and
   // typed/direct arrivals both read as null = direct.
@@ -123,6 +148,7 @@ type NewEvent = Omit<typeof analyticsEvents.$inferInsert, 'experienceId'> & {
  */
 async function record(event: NewEvent): Promise<void> {
   if (!serverEnv.DATABASE_URL) return;
+  if (!event.locale || !isTrackableLocale(event.locale)) return;
   let meta: RequestMeta | null;
   try {
     meta = await requestMeta();

@@ -241,6 +241,29 @@ export async function runAgentLoop(
   return { reply: finalText, toolCalls, handedToHuman, ticketReference, stopReason };
 }
 
+/**
+ * A re-check pass answers inbound messages that arrived while the previous
+ * pass ran. Chronologically those rows sit BEFORE the reply that pass just
+ * stored (the guest wrote during the model call; the reply was inserted
+ * after it), so the reloaded thread ends in our own message and read as
+ * "already answered" — the 810f282 skip then dropped the guest's second
+ * message for good, and the cron sweep (last outbound ≥ last inbound)
+ * never picked it up either (nightly bug hunt 2026-10-09, P1). Move every
+ * inbound message the model has not yet seen to the end of the thread,
+ * where it is the turn to answer.
+ */
+export function surfaceUnseenInbound(history: ThreadMessage[], seenThrough: Date): ThreadMessage[] {
+  const unseen = history.filter(
+    (m) =>
+      m.direction === 'in' &&
+      m.createdAt !== undefined &&
+      m.createdAt.getTime() > seenThrough.getTime(),
+  );
+  if (unseen.length === 0) return history;
+  const seen = history.filter((m) => !unseen.includes(m));
+  return [...seen, ...unseen];
+}
+
 async function loadThread(conversationId: string): Promise<ThreadMessage[]> {
   const rows = await db
     .select({
@@ -424,9 +447,16 @@ export async function runAgentTurn(
   const controller = new AbortController();
   const budgetTimer = setTimeout(() => controller.abort(), TURN_BUDGET_MS);
 
+  // Newest inbound timestamp the model was shown on the previous pass —
+  // null on the first. A re-check pass surfaces everything newer.
+  let seenThrough: Date | null = null;
+
   try {
     for (let pass = 0; pass < MAX_TURN_PASSES; pass += 1) {
-      const history = await loadThread(conversationId);
+      const loaded = await loadThread(conversationId);
+      const history: ThreadMessage[] = seenThrough
+        ? surfaceUnseenInbound(loaded, seenThrough)
+        : loaded;
       // Already answered: two messages seconds apart run two webhook legs;
       // whichever takes the lock second finds the thread ending in the
       // reply the first leg (or its re-check) already sent. Running the
@@ -496,8 +526,9 @@ export async function runAgentTurn(
       // Re-check: did the guest write again while this pass was running?
       // Such a message found the lock held (its webhook leg `skipped`),
       // so this turn must answer it — otherwise nothing ever will.
-      const lastSeenInboundAt =
+      const lastSeenInboundAt: Date =
         [...history].reverse().find((m) => m.direction === 'in')?.createdAt ?? now;
+      seenThrough = lastSeenInboundAt;
       const [newer] = await db
         .select({ id: conversationMessages.id })
         .from(conversationMessages)
