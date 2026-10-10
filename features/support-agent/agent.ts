@@ -489,7 +489,14 @@ export async function runAgentTurn(
         },
       });
 
-      if (!(await stillBotOwned())) {
+      // Stand down only when this pass did nothing the guest or the admin
+      // must hear about (review of #35): a hand-off this turn made itself
+      // flips `state` to human (the escalate tool) and its reply carries
+      // the ticket reference and the emergency numbers; and a tool trail
+      // is persisted only with the reply, which is where the admin's
+      // thread view reads it — a cancellation the bot just made must not
+      // vanish because a person took the thread a second later.
+      if (!output.handedToHuman && output.toolCalls.length === 0 && !(await stillBotOwned())) {
         await releaseLock();
         return { outcome: 'skipped' };
       }
