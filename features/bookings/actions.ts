@@ -143,7 +143,10 @@ export async function requestBooking(
       if (await callerOwnsReplay(reference, winner?.guestId)) {
         await writeLastBookingCookie(reference, input.experienceSlug);
       }
-      redirect({ href: nextPath, locale: input.locale });
+      // Land where the WINNER's state says, as the fast path does (review
+      // of #32): a winner already paid belongs on the confirmation page,
+      // not this caller's pay step.
+      redirect({ href: winner?.path ?? nextPath, locale: input.locale });
     }
     reportError(error, { surface: 'booking-request', experienceSlug: input.experienceSlug });
     return { success: false, message: 'server', values: currentValues(formData) };

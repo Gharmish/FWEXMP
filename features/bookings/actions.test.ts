@@ -468,7 +468,9 @@ describe('requestBooking — replay cookie needs proven ownership (issue #24)', 
 
     const target = await runExpectingRedirect(form());
 
-    expect(target.href).toBe(`/book/${IDEMPOTENCY_KEY}/pay?slug=asiri-coffee`);
+    // The winner is already paid, so the caller lands where the fast path
+    // would send them — the confirmation page, not a dead pay step.
+    expect(target.href).toBe(`/book/confirmed/${IDEMPOTENCY_KEY}?slug=asiri-coffee`);
     expect(lastBookingWrites()).toHaveLength(0);
   });
 
