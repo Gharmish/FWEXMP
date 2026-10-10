@@ -190,6 +190,19 @@ describe('POST /api/webhooks/twilio — inbound keywords', () => {
     expect(addSuppression).toHaveBeenCalledWith('whatsapp', '+966541104000', 'stop');
   });
 
+  it.each(['إلغاء', 'الغاء'])(
+    'routes a bare Arabic "cancel" (%s) to the support line, not the opt-out list',
+    async (word) => {
+      const params = { From: 'whatsapp:+966541104000', Body: word };
+
+      const res = await POST(request(params, sign(params)));
+
+      expect(res.status).toBe(200);
+      expect(addSuppression).not.toHaveBeenCalled();
+      expect(recordInboundMessage).toHaveBeenCalledWith(expect.objectContaining({ body: word }));
+    },
+  );
+
   it('lifts the suppression on START', async () => {
     const params = { From: 'whatsapp:+966541104000', Body: 'start' };
 
