@@ -6,7 +6,11 @@ import { redirect } from '@/lib/i18n';
 import { reportError } from '@/lib/log';
 import { currentValues, parseBookingRequest } from '@/features/bookings/lib/request/form';
 import { writeLastBookingCookie } from '@/features/bookings/lib/request/last-booking-cookie';
-import { isIdempotencyReplay, replayLanding } from '@/features/bookings/lib/request/replay';
+import {
+  callerOwnsReplay,
+  isIdempotencyReplay,
+  replayLanding,
+} from '@/features/bookings/lib/request/replay';
 import {
   experienceGates,
   loadBookableExperience,
@@ -81,10 +85,15 @@ export async function requestBooking(
   }
 
   if (input.idempotencyKey) {
-    const landing = await replayLanding(reference, { pay: payPath, confirmed: confirmedPath });
-    if (landing) {
-      await writeLastBookingCookie(reference, input.experienceSlug);
-      redirect({ href: landing, locale: input.locale });
+    const replay = await replayLanding(reference, { pay: payPath, confirmed: confirmedPath });
+    if (replay) {
+      // Knowing the key is not ownership (issue #24): only a caller who
+      // already proves it gets the cookie re-signed; anyone else lands on
+      // the page's sign-in / not-yours state.
+      if (await callerOwnsReplay(reference, replay.guestId)) {
+        await writeLastBookingCookie(reference, input.experienceSlug);
+      }
+      redirect({ href: replay.path, locale: input.locale });
     }
   }
 
@@ -128,8 +137,12 @@ export async function requestBooking(
     // fast path above; the loser's insert hits the idempotency-key unique
     // constraint. The winner's booking stands — land this caller on it.
     // Emails are the winner's job; skipping them here IS the dedupe.
+    // The cookie follows the fast path's ownership rule (issue #24).
     if (isIdempotencyReplay(error)) {
-      await writeLastBookingCookie(reference, input.experienceSlug);
+      const winner = await replayLanding(reference, { pay: payPath, confirmed: confirmedPath });
+      if (await callerOwnsReplay(reference, winner?.guestId)) {
+        await writeLastBookingCookie(reference, input.experienceSlug);
+      }
       redirect({ href: nextPath, locale: input.locale });
     }
     reportError(error, { surface: 'booking-request', experienceSlug: input.experienceSlug });

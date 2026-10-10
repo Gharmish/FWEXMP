@@ -152,6 +152,7 @@ let experience: MockExperience | undefined;
 let replayRow:
   | {
       id: string;
+      guestId?: string;
       status?: string;
       paymentStatus?: string;
       paymentDeadline?: Date | null;
@@ -170,6 +171,8 @@ let holdRow:
       walletAppliedSar: number;
     }
   | undefined;
+/** The winner's row the backstop re-read sees once the insert has lost the race. */
+let backstopWinner: typeof replayRow = undefined;
 /** Rows the superseded-hold release UPDATE reports as flipped. */
 let releasedRows: Array<{ id: string }> = [];
 /** Value of this device's last-booking cookie (null = absent). */
@@ -200,7 +203,10 @@ function makeInsert() {
       // are awaited bare and may simulate a unique-violation loss.
       const isGuest = 'preferredLanguage' in v;
       if (!isGuest) {
-        if (insertBookingError) return Promise.reject(insertBookingError);
+        if (insertBookingError) {
+          if (backstopWinner) replayRow = backstopWinner;
+          return Promise.reject(insertBookingError);
+        }
         insertedBookings.push(v);
         return Promise.resolve(undefined) as Promise<unknown> & {
           returning: () => Promise<unknown[]>;
@@ -309,6 +315,7 @@ beforeEach(() => {
   consentCookie = null;
   hyperpayOn = true;
   replayRow = undefined;
+  backstopWinner = undefined;
   holdRow = undefined;
   releasedRows = [];
   lastBookingCookie = null;
@@ -385,6 +392,104 @@ describe('requestBooking — happy paths', () => {
     expect(target.href).toMatch(
       /^\/book\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\/pay\?slug=asiri-coffee$/,
     );
+  });
+});
+
+describe('requestBooking — replay cookie needs proven ownership (issue #24)', () => {
+  const lastBookingWrites = () => cookieSets.filter((c) => c.name === LAST_BOOKING_COOKIE);
+  const paidRow = {
+    id: 'b-existing',
+    guestId: 'g-owner',
+    status: 'confirmed',
+    paymentStatus: 'paid',
+    paymentDeadline: null,
+    settleAnomalyAt: null,
+  };
+
+  it('fast path: a stranger posting a known reference lands on the booking but gets NO signed cookie', async () => {
+    replayRow = paidRow;
+
+    const target = await runExpectingRedirect(form());
+
+    expect(target.href).toBe(`/book/confirmed/${IDEMPOTENCY_KEY}?slug=asiri-coffee`);
+    expect(lastBookingWrites()).toHaveLength(0);
+  });
+
+  it('fast path: a signed-in caller who is not the booking guest gets no cookie', async () => {
+    replayRow = paidRow;
+    currentUser = { id: 'auth-attacker', phone: '' };
+    guestRow = {
+      id: 'g-attacker',
+      authUserId: 'auth-attacker',
+      phone: null,
+      email: null,
+      suspendedAt: null,
+    };
+
+    await runExpectingRedirect(form());
+
+    expect(lastBookingWrites()).toHaveLength(0);
+  });
+
+  it('fast path: a genuine double-tap (this browser already holds the cookie) keeps it', async () => {
+    replayRow = paidRow;
+    lastBookingCookie = serializeLastBookingCookie({
+      reference: IDEMPOTENCY_KEY,
+      experienceSlug: 'asiri-coffee',
+    });
+
+    await runExpectingRedirect(form());
+
+    expect(lastBookingWrites()).toHaveLength(1);
+  });
+
+  it('fast path: the signed-in booking guest gets the cookie', async () => {
+    replayRow = paidRow;
+    currentUser = { id: 'auth-owner', phone: '' };
+    guestRow = {
+      id: 'g-owner',
+      authUserId: 'auth-owner',
+      phone: null,
+      email: null,
+      suspendedAt: null,
+    };
+
+    await runExpectingRedirect(form());
+
+    expect(lastBookingWrites()).toHaveLength(1);
+  });
+
+  it('backstop: losing the insert race to a booking the caller cannot prove is theirs writes no cookie', async () => {
+    insertBookingError = Object.assign(new Error('duplicate key'), {
+      code: '23505',
+      constraint_name: 'bookings_idempotencyKey_unique',
+    });
+    backstopWinner = paidRow;
+
+    const target = await runExpectingRedirect(form());
+
+    expect(target.href).toBe(`/book/${IDEMPOTENCY_KEY}/pay?slug=asiri-coffee`);
+    expect(lastBookingWrites()).toHaveLength(0);
+  });
+
+  it('backstop: the signed-in booking guest losing the race still gets the cookie', async () => {
+    insertBookingError = Object.assign(new Error('duplicate key'), {
+      code: '23505',
+      constraint_name: 'bookings_idempotencyKey_unique',
+    });
+    backstopWinner = paidRow;
+    currentUser = { id: 'auth-owner', phone: '' };
+    guestRow = {
+      id: 'g-owner',
+      authUserId: 'auth-owner',
+      phone: null,
+      email: null,
+      suspendedAt: null,
+    };
+
+    await runExpectingRedirect(form());
+
+    expect(lastBookingWrites()).toHaveLength(1);
   });
 });
 
