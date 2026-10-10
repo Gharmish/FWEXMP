@@ -429,7 +429,10 @@ export async function settleBooking(
               eq(bookings.walletAppliedSar, booking.walletAppliedSar),
             ),
           )
-          .returning({ id: bookings.id });
+          // The status comes back from the SAME write (issue #25): a cancel
+          // can commit while the gateway call is in flight, and the
+          // dead-booking branch below must see it.
+          .returning({ id: bookings.id, status: bookings.status });
         // The ledger row commits with the flip, never without it
         // (2026-09 engineering audit DATA-03) — behind a SAVEPOINT, so the
         // flip is authoritative: a deterministic ledger fault (enum, uuid
@@ -517,14 +520,20 @@ export async function settleBooking(
 
       // Cancel-during-3DS race: the charge landed on a booking that no
       // longer exists for the guest. Refund it right back (gateway-first,
-      // manual fallback) and tell the team.
-      if ((DEAD_STATUSES as readonly string[]).includes(booking.status)) {
+      // manual fallback) and tell the team. Decided on the status the
+      // paid flip RETURNED, not the one read before the gateway call
+      // (2026-10-10, issue #25): cancel-core cancels a `processing`
+      // booking as "nothing to refund", so a cancel committing in that
+      // window left the card charged on a cancelled booking while the
+      // host got a "payment received" email.
+      const flippedStatus = won[0].status;
+      if ((DEAD_STATUSES as readonly string[]).includes(flippedStatus)) {
         // Full paid base: the card capture plus any redeemed credit —
         // executeRefund's auto rails return each leg down its own rail.
         const paidBaseSar = booking.totalAmount + booking.walletAppliedSar;
         const refund = await executeRefund(booking.id, status.id, paidBaseSar);
         await notifyAdmin('settle_anomaly', {
-          problem: `payment captured on a ${booking.status} booking`,
+          problem: `payment captured on a ${flippedStatus} booking`,
           reference,
           amountSar: paidBaseSar,
           autoRefund: refund,
