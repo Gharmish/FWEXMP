@@ -427,6 +427,17 @@ export async function runAgentTurn(
       .set({ agentLockUntil: null, updatedAt: new Date() })
       .where(eq(conversations.id, conversationId));
 
+  // The `state = 'bot'` precondition the lock was taken under is
+  // re-checked before every send (2026-10-10, issue #30): an admin can
+  // take over while the model call runs, and the thread is theirs then.
+  const stillBotOwned = async () =>
+    (
+      await db.query.conversations.findFirst({
+        where: eq(conversations.id, conversationId),
+        columns: { state: true },
+      })
+    )?.state === 'bot';
+
   // The inbound message this pass is answering — drives the reply's
   // dedupe key, and advances to the newest unanswered message on re-check.
   let messageId = recorded.messageId;
@@ -477,6 +488,18 @@ export async function runAgentTurn(
           guestHasEmail: identity.hasEmail,
         },
       });
+
+      // Stand down only when this pass did nothing the guest or the admin
+      // must hear about (review of #35): a hand-off this turn made itself
+      // flips `state` to human (the escalate tool) and its reply carries
+      // the ticket reference and the emergency numbers; and a tool trail
+      // is persisted only with the reply, which is where the admin's
+      // thread view reads it — a cancellation the bot just made must not
+      // vanish because a person took the thread a second later.
+      if (!output.handedToHuman && output.toolCalls.length === 0 && !(await stillBotOwned())) {
+        await releaseLock();
+        return { outcome: 'skipped' };
+      }
 
       if (output.stopReason === 'refusal')
         return await failSafe(recorded, address, 'refusal', guestId);
@@ -530,11 +553,17 @@ export async function runAgentTurn(
         return { outcome: 'replied', ticketReference: output.ticketReference };
       }
       messageId = newer.id;
-      // Keep the lock alive for the extra pass.
-      await db
+      // Keep the lock alive for the extra pass — only while the thread is
+      // still the bot's (issue #30); a take-over ends the turn here.
+      const extended = await db
         .update(conversations)
         .set({ agentLockUntil: new Date(Date.now() + LOCK_MS) })
-        .where(eq(conversations.id, conversationId));
+        .where(and(eq(conversations.id, conversationId), eq(conversations.state, 'bot')))
+        .returning({ id: conversations.id });
+      if (extended.length === 0) {
+        await releaseLock();
+        return { outcome: 'replied', ticketReference: output.ticketReference };
+      }
     }
     await releaseLock();
     return { outcome: 'replied' };

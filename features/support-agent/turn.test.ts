@@ -55,11 +55,18 @@ let history: Array<{
 /** Successive results of the post-reply "any newer inbound?" query. */
 let newerQueue: Array<Array<{ id: string }>> = [];
 const lockSets: Array<Record<string, unknown>> = [];
+/** `conversations.state` as the turn re-reads it before sending (issue #30). */
+let conversationState = 'bot';
+/** The lock-extension UPDATE matches no row (the thread was taken over). */
+let extensionMisses = false;
 /** Agent turns counted by the daily budget query (per conversation and global). */
 let budgetCount = 0;
 
 vi.mock('@/lib/db', () => ({
   db: {
+    query: {
+      conversations: { findFirst: async () => ({ state: conversationState }) },
+    },
     update: () => ({
       set: (values: Record<string, unknown>) => {
         lockSets.push(values);
@@ -68,7 +75,12 @@ vi.mock('@/lib/db', () => ({
             const p = Promise.resolve(undefined) as Promise<unknown> & {
               returning: () => Promise<unknown[]>;
             };
-            p.returning = async () => [{ guestId: 'g1', hostId: null, locale: 'en' }];
+            // The first Date write is the acquisition; later ones extend.
+            const isExtension =
+              values.agentLockUntil instanceof Date &&
+              lockSets.filter((v) => v.agentLockUntil instanceof Date).length > 1;
+            p.returning = async () =>
+              isExtension && extensionMisses ? [] : [{ guestId: 'g1', hostId: null, locale: 'en' }];
             return p;
           },
         };
@@ -92,6 +104,7 @@ vi.mock('@/lib/db', () => ({
 }));
 
 import { runAgentTurn, setAnthropicClientForTests } from './agent';
+import { runTool } from './tools';
 
 function textReplyClient(texts: string[]): Anthropic {
   const queue = [...texts];
@@ -103,6 +116,21 @@ function textReplyClient(texts: string[]): Anthropic {
         role: 'assistant',
         stop_reason: 'end_turn',
         content: [{ type: 'text', text: queue.shift() ?? 'ok', citations: null }],
+      }),
+    },
+  } as unknown as Anthropic;
+}
+
+/** A client that plays back scripted responses, tool_use rounds included. */
+function scriptedClient(responses: Array<Pick<Anthropic.Message, 'stop_reason' | 'content'>>) {
+  const queue = [...responses];
+  return {
+    messages: {
+      create: async () => ({
+        id: 'm',
+        type: 'message',
+        role: 'assistant',
+        ...(queue.shift() ?? { stop_reason: 'end_turn', content: [] }),
       }),
     },
   } as unknown as Anthropic;
@@ -122,6 +150,8 @@ beforeEach(() => {
   history = [{ direction: 'in', body: 'hi', mediaContentType: null, createdAt: T0 }];
   newerQueue = [];
   lockSets.length = 0;
+  conversationState = 'bot';
+  extensionMisses = false;
   budgetCount = 0;
   sendConversationReply.mockClear();
 });
@@ -151,6 +181,93 @@ describe('runAgentTurn re-check loop', () => {
     expect(dedupeKeys()).toEqual(['support_agent:m1:0', 'support_agent:m2:0']);
     // acquisition + one extension between the passes, one release at the end
     expect(holds()).toHaveLength(2);
+    expect(releases()).toHaveLength(1);
+  });
+
+  it('stands down without sending when an admin took over during the model call (issue #30)', async () => {
+    setAnthropicClientForTests(textReplyClient(['Welcome!']));
+    conversationState = 'human';
+    const out = await runAgentTurn(recorded, '+966500000001');
+    expect(out.outcome).toBe('skipped');
+    expect(sendConversationReply).not.toHaveBeenCalled();
+    expect(releases()).toHaveLength(1);
+  });
+
+  it('still sends the hand-off reply when this turn escalated the thread itself', async () => {
+    // The escalate tool flips `state` to human DURING the loop; the reply
+    // that follows carries the ticket reference and the emergency numbers,
+    // so the take-over stand-down must not swallow it (review of #35).
+    vi.mocked(runTool).mockResolvedValueOnce({
+      result: '{"ticket_reference":"TK-1","handed_to_human":true}',
+      handedToHuman: true,
+      ticketReference: 'TK-1',
+    });
+    setAnthropicClientForTests(
+      scriptedClient([
+        {
+          stop_reason: 'tool_use',
+          content: [
+            {
+              type: 'tool_use',
+              id: 't1',
+              name: 'escalate_to_human',
+              input: { category: 'safety', priority: 'urgent', summary: 's' },
+              caller: { type: 'direct' },
+            },
+          ],
+        },
+        {
+          stop_reason: 'end_turn',
+          content: [{ type: 'text', text: 'A person is on it (TK-1). Call 997.', citations: null }],
+        },
+      ]),
+    );
+    conversationState = 'human';
+    const out = await runAgentTurn(recorded, '+966500000001');
+    expect(out).toEqual({ outcome: 'handed_off', ticketReference: 'TK-1' });
+    expect(sendConversationReply).toHaveBeenCalledTimes(1);
+    expect(releases()).toHaveLength(1);
+  });
+
+  it('still sends when a tool already acted, even if an admin took over meanwhile', async () => {
+    // The tool trail is persisted only with the reply, and the admin's
+    // thread view reads it from there — a cancellation the bot just made
+    // must not vanish because a person took the thread a second later.
+    vi.mocked(runTool).mockResolvedValueOnce({ result: '{"ok":true}' });
+    setAnthropicClientForTests(
+      scriptedClient([
+        {
+          stop_reason: 'tool_use',
+          content: [
+            {
+              type: 'tool_use',
+              id: 't1',
+              name: 'cancel_booking',
+              input: { reference_code: 'X' },
+              caller: { type: 'direct' },
+            },
+          ],
+        },
+        {
+          stop_reason: 'end_turn',
+          content: [{ type: 'text', text: 'Cancelled.', citations: null }],
+        },
+      ]),
+    );
+    conversationState = 'human';
+    const out = await runAgentTurn(recorded, '+966500000001');
+    expect(out.outcome).toBe('replied');
+    expect(sendConversationReply).toHaveBeenCalledTimes(1);
+    expect(releases()).toHaveLength(1);
+  });
+
+  it('runs no extra pass once the thread was taken over (issue #30)', async () => {
+    setAnthropicClientForTests(textReplyClient(['First answer', 'Second answer']));
+    newerQueue = [[{ id: 'm2' }], []];
+    extensionMisses = true;
+    const out = await runAgentTurn(recorded, '+966500000001');
+    expect(out.outcome).toBe('replied');
+    expect(dedupeKeys()).toEqual(['support_agent:m1:0']);
     expect(releases()).toHaveLength(1);
   });
 
