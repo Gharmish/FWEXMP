@@ -32,6 +32,9 @@ vi.mock('@/features/host-applications/lib/application-email', () => ({
 type Row = Record<string, unknown>;
 let application: Row | undefined;
 let documents: Row[] = [];
+/** What the documents read returns INSIDE the approve transaction; null = same as `documents`. */
+let documentsUnderLock: Row[] | null = null;
+let documentReads = 0;
 let claimed: Row[] = [];
 let slugTaken = false;
 const fake = vi.hoisted(() => ({ current: null as ReturnType<typeof createDbFake> | null }));
@@ -81,6 +84,8 @@ beforeEach(() => {
   actor = { adminUserId: 'admin-1' };
   application = { id: ID, identityType: 'national_id' };
   documents = [{ type: 'national_id', status: 'approved' }];
+  documentsUnderLock = null;
+  documentReads = 0;
   claimed = [claimedApp()];
   slugTaken = false;
   approvedEmail.mockClear();
@@ -88,9 +93,16 @@ beforeEach(() => {
   fake.current = createDbFake({
     query: {
       hostApplications: { findFirst: () => application, findMany: () => [] },
-      hostApplicationDocuments: { findMany: () => documents },
+      hostApplicationDocuments: {
+        findMany: () => {
+          documentReads += 1;
+          return documentReads > 1 && documentsUnderLock ? documentsUnderLock : documents;
+        },
+      },
       hosts: { findFirst: () => (slugTaken ? { id: 'h-old' } : undefined) },
     },
+    // The approve transaction's `select … for update` of the application row.
+    select: (shape) => ('identityType' in shape && application ? [application] : []),
     update: (values) => ('status' in values ? claimed : []),
     insert: (values) => (!Array.isArray(values) && 'slug' in values ? [{ id: 'h1' }] : []),
   });
@@ -115,6 +127,20 @@ describe('approveApplication', () => {
       message: 'documents_incomplete',
     });
     expect(fake.current?.updates).toEqual([]);
+  });
+
+  it('re-checks the documents under the row lock: a replacement uploaded mid-review blocks the approval (issue #29)', async () => {
+    // Pre-check sees every required document approved; the resubmit then
+    // resets the replaced one to pending before the claim transaction.
+    documentsUnderLock = [{ type: 'national_id', status: 'pending' }];
+
+    expect(await approveApplication(initial, form())).toMatchObject({
+      message: 'documents_incomplete',
+    });
+    expect(documentReads).toBe(2);
+    expect(fake.current?.updates).toEqual([]);
+    expect(fake.current?.inserts).toEqual([]);
+    expect(approvedEmail).not.toHaveBeenCalled();
   });
 
   it('is not_found for a missing application and wrong_state when the claim loses', async () => {

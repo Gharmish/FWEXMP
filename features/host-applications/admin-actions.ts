@@ -76,6 +76,24 @@ async function requireAdmin(): Promise<{ adminUserId: string } | { error: AdminA
   return { adminUserId: actor.adminUserId };
 }
 
+/**
+ * Is any REQUIRED document for the identity type not yet individually
+ * approved? Takes the handle so approve can run it both as a fast
+ * pre-check and again under the application row lock (issue #29).
+ */
+async function requiredDocumentsMissing(
+  handle: Pick<typeof db, 'query'>,
+  applicationId: string,
+  identityType: Parameters<typeof requiredDocumentTypes>[0],
+): Promise<boolean> {
+  const docs = await handle.query.hostApplicationDocuments.findMany({
+    where: (d) => eq(d.applicationId, applicationId),
+    columns: { type: true, status: true },
+  });
+  const approvedTypes = new Set(docs.filter((d) => d.status === 'approved').map((d) => d.type));
+  return requiredDocumentTypes(identityType).some((type) => !approvedTypes.has(type));
+}
+
 export async function approveApplication(
   _previous: AdminApplyResult,
   formData: FormData,
@@ -100,7 +118,7 @@ export async function approveApplication(
   // claim step and returns `wrong_state` cleanly instead of trying to
   // insert a duplicate `hosts.userId` (which would fail uniquely and
   // surface as a generic server error).
-  let raced: 'not_found' | 'wrong_state' | null = null;
+  let raced: 'not_found' | 'wrong_state' | 'documents_incomplete' | null = null;
   let recipient: ApplicationDecisionRecipient | null = null;
   try {
     // "Verified" must mean verified (2026-08-02 legal audit): the public
@@ -116,19 +134,32 @@ export async function approveApplication(
       columns: { id: true, identityType: true },
     });
     if (!pendingApp) return { success: false, message: 'not_found', values };
-    const docs = await db.query.hostApplicationDocuments.findMany({
-      where: (d) => eq(d.applicationId, applicationId),
-      columns: { type: true, status: true },
-    });
-    const approvedTypes = new Set(docs.filter((d) => d.status === 'approved').map((d) => d.type));
-    const missingRequired = requiredDocumentTypes(pendingApp.identityType).filter(
-      (type) => !approvedTypes.has(type),
-    );
-    if (missingRequired.length > 0) {
+    if (await requiredDocumentsMissing(db, applicationId, pendingApp.identityType)) {
       return { success: false, message: 'documents_incomplete', values };
     }
 
     await db.transaction(async (tx) => {
+      // The check above ran outside this transaction (2026-10-10, issue
+      // #29): a resubmit landing in between resets a replaced document to
+      // `pending` (and may change the identity number or IBAN) while the
+      // application stays `pending`, so the claim alone would mint a
+      // verified host from an unreviewed document. Lock the application
+      // row — resubmit updates it first in its own transaction, so it
+      // serialises behind us or we behind it — then re-check under it.
+      const [locked] = await tx
+        .select({ identityType: hostApplications.identityType })
+        .from(hostApplications)
+        .where(eq(hostApplications.id, applicationId))
+        .for('update');
+      if (!locked) {
+        raced = 'not_found';
+        return;
+      }
+      if (await requiredDocumentsMissing(tx, applicationId, locked.identityType)) {
+        raced = 'documents_incomplete';
+        return;
+      }
+
       // Claim the row. If another admin already moved it out of
       // `pending`, this matches zero rows.
       const claimed = await tx
@@ -296,7 +327,7 @@ export async function rejectApplication(
   // Same conditional-claim pattern as approve: only reject rows that
   // are still `pending`. Already-approved (with a minted host) and
   // already-rejected rows are not re-decided here.
-  let raced: 'not_found' | 'wrong_state' | null = null;
+  let raced: 'not_found' | 'wrong_state' | 'documents_incomplete' | null = null;
   let recipient: ApplicationDecisionRecipient | null = null;
   try {
     await db.transaction(async (tx) => {
