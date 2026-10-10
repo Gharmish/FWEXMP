@@ -55,11 +55,18 @@ let history: Array<{
 /** Successive results of the post-reply "any newer inbound?" query. */
 let newerQueue: Array<Array<{ id: string }>> = [];
 const lockSets: Array<Record<string, unknown>> = [];
+/** `conversations.state` as the turn re-reads it before sending (issue #30). */
+let conversationState = 'bot';
+/** The lock-extension UPDATE matches no row (the thread was taken over). */
+let extensionMisses = false;
 /** Agent turns counted by the daily budget query (per conversation and global). */
 let budgetCount = 0;
 
 vi.mock('@/lib/db', () => ({
   db: {
+    query: {
+      conversations: { findFirst: async () => ({ state: conversationState }) },
+    },
     update: () => ({
       set: (values: Record<string, unknown>) => {
         lockSets.push(values);
@@ -68,7 +75,12 @@ vi.mock('@/lib/db', () => ({
             const p = Promise.resolve(undefined) as Promise<unknown> & {
               returning: () => Promise<unknown[]>;
             };
-            p.returning = async () => [{ guestId: 'g1', hostId: null, locale: 'en' }];
+            // The first Date write is the acquisition; later ones extend.
+            const isExtension =
+              values.agentLockUntil instanceof Date &&
+              lockSets.filter((v) => v.agentLockUntil instanceof Date).length > 1;
+            p.returning = async () =>
+              isExtension && extensionMisses ? [] : [{ guestId: 'g1', hostId: null, locale: 'en' }];
             return p;
           },
         };
@@ -122,6 +134,8 @@ beforeEach(() => {
   history = [{ direction: 'in', body: 'hi', mediaContentType: null, createdAt: T0 }];
   newerQueue = [];
   lockSets.length = 0;
+  conversationState = 'bot';
+  extensionMisses = false;
   budgetCount = 0;
   sendConversationReply.mockClear();
 });
@@ -151,6 +165,25 @@ describe('runAgentTurn re-check loop', () => {
     expect(dedupeKeys()).toEqual(['support_agent:m1:0', 'support_agent:m2:0']);
     // acquisition + one extension between the passes, one release at the end
     expect(holds()).toHaveLength(2);
+    expect(releases()).toHaveLength(1);
+  });
+
+  it('stands down without sending when an admin took over during the model call (issue #30)', async () => {
+    setAnthropicClientForTests(textReplyClient(['Welcome!']));
+    conversationState = 'human';
+    const out = await runAgentTurn(recorded, '+966500000001');
+    expect(out.outcome).toBe('skipped');
+    expect(sendConversationReply).not.toHaveBeenCalled();
+    expect(releases()).toHaveLength(1);
+  });
+
+  it('runs no extra pass once the thread was taken over (issue #30)', async () => {
+    setAnthropicClientForTests(textReplyClient(['First answer', 'Second answer']));
+    newerQueue = [[{ id: 'm2' }], []];
+    extensionMisses = true;
+    const out = await runAgentTurn(recorded, '+966500000001');
+    expect(out.outcome).toBe('replied');
+    expect(dedupeKeys()).toEqual(['support_agent:m1:0']);
     expect(releases()).toHaveLength(1);
   });
 

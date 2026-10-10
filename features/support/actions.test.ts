@@ -149,11 +149,12 @@ describe('admin perimeter', () => {
 });
 
 describe('setConversationState / resolveTicket / nudgeConversation', () => {
-  it('flips the state and clears the agent lock; unknown ids are not_found', async () => {
+  it('flips the state and leaves a running agent turn its lock (issue #30); unknown ids are not_found', async () => {
     expect(
       await setConversationState(initial, form({ conversationId: CID, state: 'closed' })),
     ).toEqual({ success: true });
-    expect(fake.current?.updates[0]).toMatchObject({ state: 'closed', agentLockUntil: null });
+    expect(fake.current?.updates[0]).toMatchObject({ state: 'closed' });
+    expect(fake.current?.updates[0]).not.toHaveProperty('agentLockUntil');
     updated = [];
     expect(
       await setConversationState(initial, form({ conversationId: CID, state: 'bot' })),
