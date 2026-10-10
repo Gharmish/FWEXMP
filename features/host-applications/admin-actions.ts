@@ -327,7 +327,7 @@ export async function rejectApplication(
   // Same conditional-claim pattern as approve: only reject rows that
   // are still `pending`. Already-approved (with a minted host) and
   // already-rejected rows are not re-decided here.
-  let raced: 'not_found' | 'wrong_state' | 'documents_incomplete' | null = null;
+  let raced: 'not_found' | 'wrong_state' | null = null;
   let recipient: ApplicationDecisionRecipient | null = null;
   try {
     await db.transaction(async (tx) => {
