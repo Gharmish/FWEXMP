@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { JsonLd } from '@/components/seo/json-ld';
-import { SITE_DESCRIPTION, SITE_NAME, SITE_URL } from '@/lib/site';
+import { SITE_NAME, SITE_URL } from '@/lib/site';
 import { routing, type Locale } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
 import { ExperienceCard } from '@/features/experiences/components/experience-card';
@@ -171,13 +171,16 @@ export default async function ExperiencesIndexPage({
   }));
 
   const url = `${SITE_URL}/${loc}/experiences`;
+  // Localized: SITE_DESCRIPTION is English-only and leaked into the Arabic
+  // page's structured data.
+  const tSite = await getTranslations('siteMeta');
 
   const jsonLd = {
     '@context': 'https://schema.org',
     '@type': 'ItemList',
     '@id': `${url}#experiences`,
     name: loc === 'ar' ? 'تجارب غارميش' : 'Gharmish experiences',
-    description: SITE_DESCRIPTION,
+    description: tSite('description'),
     url,
     publisher: { '@type': 'Organization', name: SITE_NAME, url: SITE_URL },
     itemListElement: results.map((experience, index) => ({
