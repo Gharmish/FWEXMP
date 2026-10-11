@@ -3907,7 +3907,7 @@
   },
   "cityAbha": {
     "metaTitle": "Things to do in Abha — experiences hosted by locals",
-    "metaDescription": "Book experiences in Abha and the Aseer highlands — nature walks, heritage villages, Aseeri food and coffee, adventure on the Soudah cliffs — each hosted by a local who knows the place best.",
+    "metaDescription": "Experiences in Abha and the Aseer highlands — nature walks, heritage villages, Aseeri food and coffee, Soudah cliff adventures — each hosted by a local.",
     "breadcrumb": "Abha",
     "eyebrow": "Abha, Aseer",
     "title": "Things to do in Abha",
@@ -3926,31 +3926,38 @@
     "breadcrumbCatalog": "Experiences",
     "nature": {
       "title": "Nature experiences in Abha & Aseer",
-      "intro": "Aseer is the greenest corner of Saudi Arabia — juniper forests on Jabal Sawda, terraced valleys, and mornings when the mist rolls up the escarpment and through the trees. These experiences put you inside that landscape with someone who has walked it for years: dawn forest walks, valley trails, and quiet places no map label does justice to."
+      "intro": "Aseer is the greenest corner of Saudi Arabia — juniper forests on Jabal Sawda, terraced valleys, and mornings when the mist rolls up the escarpment and through the trees. These experiences put you inside that landscape with someone who has walked it for years: dawn forest walks, valley trails, and quiet places no map label does justice to.",
+      "metaDescription": "Juniper forests on Jabal Sawda, terraced valleys and misty mornings — nature experiences in Abha & Aseer, hosted by locals who know the trails."
     },
     "heritage": {
       "title": "Heritage experiences in Abha & Aseer",
-      "intro": "Stone towers, painted doorways, and the UNESCO-listed geometry of Al-Qatt Al-Aseeri — Aseer's heritage isn't behind glass, it's still lived in. Visit the village of Rijal Almaa, learn the wall-painting craft from a local artist, and hear the stories of the flower men from people who grew up with them."
+      "intro": "Stone towers, painted doorways, and the UNESCO-listed geometry of Al-Qatt Al-Aseeri — Aseer's heritage isn't behind glass, it's still lived in. Visit the village of Rijal Almaa, learn the wall-painting craft from a local artist, and hear the stories of the flower men from people who grew up with them.",
+      "metaDescription": "Rijal Almaa's stone towers, Al-Qatt Al-Aseeri wall painting and the stories of the flower men — heritage experiences in Aseer, hosted by locals."
     },
     "food": {
       "title": "Food & coffee experiences in Abha & Aseer",
-      "intro": "The Aseeri coffee ritual is its own language — the roast, the pour, the order guests are served in all mean something. Around it comes mountain honey, saleeg, and bread from ovens that have never cooled. These experiences seat you at a local table, hosted by the people who cook this food for their own families."
+      "intro": "The Aseeri coffee ritual is its own language — the roast, the pour, the order guests are served in all mean something. Around it comes mountain honey, saleeg, and bread from ovens that have never cooled. These experiences seat you at a local table, hosted by the people who cook this food for their own families.",
+      "metaDescription": "The Aseeri coffee ritual, mountain honey and saleeg at a local table — food & coffee experiences in Abha & Aseer, hosted by the people who cook it."
     },
     "wellness": {
       "title": "Wellness experiences in Abha & Aseer",
-      "intro": "Cool mountain air, running water, and altitude that slows everything down — Aseer is built for taking a breath. Guided breathwork and sound sessions by the water at Wadi Mahala, quiet walks, and unhurried mornings, all led by hosts who know exactly where the calm is."
+      "intro": "Cool mountain air, running water, and altitude that slows everything down — Aseer is built for taking a breath. Guided breathwork and sound sessions by the water at Wadi Mahala, quiet walks, and unhurried mornings, all led by hosts who know exactly where the calm is.",
+      "metaDescription": "Breathwork and sound by the water at Wadi Mahala, quiet walks and cool mountain air — wellness experiences in Abha & Aseer, led by local hosts."
     },
     "adventure": {
       "title": "Adventure experiences in Abha & Aseer",
-      "intro": "The Soudah escarpment drops nearly a kilometre off the edge of the Sarawat — and you can climb along it. Via ferrata routes, cable descents, and mountain days with certified local guides and full safety equipment. No experience needed for most of it; a head for views is."
+      "intro": "The Soudah escarpment drops nearly a kilometre off the edge of the Sarawat — and you can climb along it. Via ferrata routes, cable descents, and mountain days with certified local guides and full safety equipment. No experience needed for most of it; a head for views is.",
+      "metaDescription": "Via ferrata on the Soudah escarpment and mountain days with certified local guides — adventure experiences in Abha & Aseer, safety gear included."
     },
     "family": {
       "title": "Family experiences in Abha & Aseer",
-      "intro": "Experiences the whole family actually does together — painting an Al-Qatt panel every one of you takes home, village mornings, and easy outdoor days sized for younger legs. Hosted by locals who are used to hosting families, with clear age guidance on every listing."
+      "intro": "Experiences the whole family actually does together — painting an Al-Qatt panel every one of you takes home, village mornings, and easy outdoor days sized for younger legs. Hosted by locals who are used to hosting families, with clear age guidance on every listing.",
+      "metaDescription": "Al-Qatt painting, village mornings and easy outdoor days for younger legs — family experiences in Abha & Aseer, with age guidance on every listing."
     },
     "women_only": {
       "title": "Women-only experiences in Abha & Aseer",
-      "intro": "Hiking, yoga, sketching, and mountain mornings in a women-only setting — led by women hosts, for women guests, with the whole experience kept that way from meeting point to finish. Every listing marks it clearly before you book."
+      "intro": "Hiking, yoga, sketching, and mountain mornings in a women-only setting — led by women hosts, for women guests, with the whole experience kept that way from meeting point to finish. Every listing marks it clearly before you book.",
+      "metaDescription": "Hiking, yoga and sketching in a women-only setting, led by women hosts for women guests — women-only experiences in Abha & Aseer."
     }
   },
   "relatedExperiences": {

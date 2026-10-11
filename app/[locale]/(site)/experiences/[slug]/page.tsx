@@ -121,9 +121,12 @@ export async function generateMetadata({
   if (landingCategory) {
     const t = await getTranslations({ locale, namespace: 'categoryLanding' });
     const landingPath = (l: string) => `${SITE_URL}/${l}/experiences/${slug}`;
+    // A dedicated ≤155-char line: the on-page intro runs 170–340 characters
+    // and was truncated mid-sentence in search results.
+    const description = t(`${landingCategory}.metaDescription`);
     return {
       title: t(`${landingCategory}.title`),
-      description: t(`${landingCategory}.intro`),
+      description,
       alternates: {
         canonical: landingPath(locale),
         languages: {
@@ -133,7 +136,7 @@ export async function generateMetadata({
       },
       openGraph: {
         title: t(`${landingCategory}.title`),
-        description: t(`${landingCategory}.intro`),
+        description,
         url: landingPath(locale),
         type: 'website',
         images: [{ url: `${SITE_URL}/${locale}/opengraph-image`, width: 1200, height: 630 }],
@@ -141,7 +144,7 @@ export async function generateMetadata({
       twitter: {
         card: 'summary_large_image',
         title: t(`${landingCategory}.title`),
-        description: t(`${landingCategory}.intro`),
+        description,
         images: [`${SITE_URL}/${locale}/opengraph-image`],
       },
     };
