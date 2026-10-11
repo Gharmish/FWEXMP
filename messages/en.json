@@ -3157,7 +3157,7 @@
     "termsRequired": "Accept the terms of service to continue.",
     "datePast": "Pick a date in the future.",
     "dateUnavailable": "This experience doesn't run on that day. Pick another date.",
-    "dateCutoff": "Booking has closed for today — it's too close to the start time. Pick another day.",
+    "dateCutoff": "Booking has closed for that day — it's too close to the start time. Pick another day.",
     "dateFull": "That date is fully booked. Try another day.",
     "dateFullForm": "The date you picked just sold out — choose another day from the calendar.",
     "dayFullSuffix": "fully booked",
