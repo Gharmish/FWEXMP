@@ -87,6 +87,8 @@ describe('approveExperience', () => {
       [ready({ heroImage: null }), 'needs_hero'],
       [ready({ titleAr: 'TODO(ar): title' }), 'needs_arabic'],
       [ready({ descriptionEn: '   ' }), 'needs_english'],
+      [ready({ inclusions: [], inclusionsAr: ['قهوة'] }), 'needs_english'],
+      [ready({ whatToBring: [], whatToBringAr: ['قبعة'] }), 'needs_english'],
       [ready({ moments: [{ titleAr: 'TODO(ar)', descriptionAr: 'x' }] }), 'needs_arabic_moments'],
       [ready({ whatToBring: ['Hat'], whatToBringAr: [] }), 'needs_arabic_lists'],
     ];

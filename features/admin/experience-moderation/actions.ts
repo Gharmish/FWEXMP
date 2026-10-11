@@ -120,8 +120,15 @@ export async function approveExperience(
       return { success: false, message: 'needs_arabic', values };
     }
     // Hosts may draft in Arabic only (2026-08-22) — the English side is
-    // the team's to fill before the listing reaches the catalog.
-    if (row.titleEn.trim() === '' || row.descriptionEn.trim() === '') {
+    // the team's to fill before the listing reaches the catalog. That
+    // includes the lists: an Arabic-only "What's included" would leave
+    // the English page without one.
+    if (
+      row.titleEn.trim() === '' ||
+      row.descriptionEn.trim() === '' ||
+      (row.inclusionsAr.length > 0 && row.inclusions.length === 0) ||
+      (row.whatToBringAr.length > 0 && row.whatToBring.length === 0)
+    ) {
       return { success: false, message: 'needs_english', values };
     }
     // Host-added moments are stamped with the same placeholder — without
