@@ -8,7 +8,13 @@ beforeAll(() => vi.useFakeTimers({ now: FIXED_NOW, toFake: ['Date'] }));
 afterAll(() => vi.useRealTimers());
 
 vi.mock('server-only', () => ({}));
-vi.mock('@/lib/db', () => ({ db: {} }));
+/** Select chain for the tests that reach the db (only decide_booking_request does). */
+let dbSelect: (shape: Record<string, unknown>) => unknown = () => {
+  throw new Error('unexpected select');
+};
+vi.mock('@/lib/db', () => ({
+  db: { select: (shape: Record<string, unknown>) => dbSelect(shape) },
+}));
 vi.mock('@/lib/log', () => ({ reportError: vi.fn() }));
 vi.mock('@/lib/whatsapp', () => ({ whatsappLink: () => null }));
 vi.mock('@/features/bookings/queries', () => ({
@@ -27,6 +33,10 @@ vi.mock('@/features/bookings/lib/refund-bank-core', () => ({
 vi.mock('@/features/bookings/lib/reschedule-core', () => ({ rescheduleBookingCore: vi.fn() }));
 vi.mock('@/features/availability/queries', () => ({ getScheduleDataBySlug: vi.fn() }));
 vi.mock('@/features/support/tickets', () => ({ openTicket: vi.fn() }));
+const executeBookingTransition = vi.fn();
+vi.mock('@/features/bookings/lib/transition-executor', () => ({
+  executeBookingTransition: (...args: unknown[]) => executeBookingTransition(...args),
+}));
 const attemptIdentityChallenge = vi.fn();
 vi.mock('./identity', () => ({
   attemptIdentityChallenge: (...args: unknown[]) => attemptIdentityChallenge(...args),
@@ -303,6 +313,62 @@ describe('verify_identity results', () => {
       guestId: 'g-1',
       address: '+966500000000',
       submittedEmail: 'x@y.com',
+    });
+  });
+});
+
+describe('decide_booking_request (issue #41)', () => {
+  const hostCtx: ToolContext = {
+    conversationId: 'c-1',
+    address: 'whatsapp:+966500000000',
+    guestId: null,
+    hostId: 'h-1',
+    identityVerified: false,
+    identityVerifiedAt: null,
+    guestHasEmail: false,
+    locale: 'en',
+    now: new Date('2026-08-21T09:00:00Z'),
+    lastInbound: 'yes approve it',
+  };
+  const input = {
+    reference_code: 'GH-AAAAAA',
+    decision: 'approve',
+    confirmation_quote: 'yes approve it',
+  };
+
+  /** Routes the two selects the tool makes: host status, then the booking. */
+  function routeSelects(status: 'verified' | 'suspended') {
+    dbSelect = (shape) => {
+      const rows =
+        'verificationStatus' in shape ? [{ verificationStatus: status }] : [{ id: 'b-1' }];
+      const chain = {
+        from: () => chain,
+        innerJoin: () => chain,
+        where: () => chain,
+        limit: async () => rows,
+      };
+      return chain;
+    };
+  }
+
+  beforeEach(() => {
+    executeBookingTransition.mockReset();
+    executeBookingTransition.mockResolvedValue({ ok: true });
+  });
+
+  it('refuses a suspended host without touching the booking', async () => {
+    routeSelects('suspended');
+    const out = await runTool('decide_booking_request', input, hostCtx);
+    expect(JSON.parse(out.result)).toEqual({ error: 'suspended' });
+    expect(executeBookingTransition).not.toHaveBeenCalled();
+  });
+
+  it('still lets a verified host approve', async () => {
+    routeSelects('verified');
+    await runTool('decide_booking_request', input, hostCtx);
+    expect(executeBookingTransition).toHaveBeenCalledWith('b-1', 'confirmed', {
+      kind: 'host',
+      hostId: 'h-1',
     });
   });
 });
