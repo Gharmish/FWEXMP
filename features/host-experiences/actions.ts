@@ -494,9 +494,15 @@ export async function updateHostExperience(
   // content (the republish path deliberately skips the queue).
   //
   // The demote branch uses a conditional UPDATE (`where status=<seen>`)
-  // so a concurrent admin transition can't be silently overwritten:
-  // if the row left that status between our read and write, the update
-  // matches zero rows and we fall back to a status-preserving save.
+  // so a concurrent transition can't be silently overwritten. A material
+  // payload is NEVER written without that condition (2026-10-11, issue
+  // #42): the old lost-race fallback saved it status-preserving, so a
+  // host racing their own Pause landed unreviewed content on a `paused`
+  // row and republished it past the queue (paused → live skips review),
+  // and the same write broke the reviewer freeze on a row that had
+  // meanwhile moved to `pending_review`. On a lost race we re-read the
+  // status and demote once more from wherever a public row moved;
+  // anything else is refused with the same messages as the read above.
   let demoted = false;
   try {
     const demotableStatus =
@@ -504,39 +510,57 @@ export async function updateHostExperience(
     const material = hasMaterialChange(payload, current);
 
     if (demotableStatus && material) {
-      const updated = await db
-        .update(experiences)
-        .set({ ...payload, status: 'pending_review' as const, updatedAt: new Date() })
-        .where(
-          and(
-            eq(experiences.id, experienceId),
-            eq(experiences.hostId, guard.hostId),
-            eq(experiences.status, demotableStatus),
-          ),
-        )
-        .returning({ id: experiences.id });
+      const demoteFrom = async (fromStatus: 'live' | 'paused') =>
+        db
+          .update(experiences)
+          .set({ ...payload, status: 'pending_review' as const, updatedAt: new Date() })
+          .where(
+            and(
+              eq(experiences.id, experienceId),
+              eq(experiences.hostId, guard.hostId),
+              eq(experiences.status, fromStatus),
+            ),
+          )
+          .returning({ id: experiences.id });
+
+      let fromStatus: 'live' | 'paused' = demotableStatus;
+      let updated = await demoteFrom(fromStatus);
 
       if (updated.length === 0) {
-        // Lost the race — another action (admin moderation, bulk-pause
-        // on host suspension, etc.) moved the row. Fall back to a
-        // status-preserving update so the host's edits still land.
-        await db
-          .update(experiences)
-          .set({ ...payload, updatedAt: new Date() })
-          .where(and(eq(experiences.id, experienceId), eq(experiences.hostId, guard.hostId)));
-      } else {
-        demoted = true;
-        // Audit row — both the admin queue and the host edit page rely
-        // on this to render the history timeline.
-        await db.insert(experienceModerationEvents).values({
-          experienceId,
-          event: 'submitted',
-          fromStatus: demotableStatus,
-          toStatus: 'pending_review',
-          reviewerUserId: null,
-          reviewerNotes: null,
+        // Lost the race — another action (the host's own pause or
+        // publish, admin moderation, bulk-pause on host suspension) moved
+        // the row. Still public → demote from there; otherwise refuse.
+        const moved = await db.query.experiences.findFirst({
+          where: (e) => eq(e.id, experienceId),
+          columns: { status: true },
         });
+        if (moved?.status === 'pending_review') {
+          return { success: false, message: 'locked_review', values: collectValues(formData) };
+        }
+        if (moved?.status === 'archived') {
+          return { success: false, message: 'archived', values: collectValues(formData) };
+        }
+        if (moved?.status !== 'live' && moved?.status !== 'paused') {
+          return { success: false, message: 'server', values: collectValues(formData) };
+        }
+        fromStatus = moved.status;
+        updated = await demoteFrom(fromStatus);
+        if (updated.length === 0) {
+          return { success: false, message: 'server', values: collectValues(formData) };
+        }
       }
+
+      demoted = true;
+      // Audit row — both the admin queue and the host edit page rely
+      // on this to render the history timeline.
+      await db.insert(experienceModerationEvents).values({
+        experienceId,
+        event: 'submitted',
+        fromStatus,
+        toStatus: 'pending_review',
+        reviewerUserId: null,
+        reviewerNotes: null,
+      });
     } else {
       await db
         .update(experiences)
