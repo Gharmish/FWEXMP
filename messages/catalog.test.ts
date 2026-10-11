@@ -60,7 +60,6 @@ const IDENTICAL_ALLOWLIST = new Set([
 
 /** Keys whose Arabic deliberately drops an argument (shorter titles). */
 const ARG_DIFF_ALLOWLIST = new Set([
-  'hostProfile.meta.title',
   'ogImage.host.unverified',
   // Arabic nests `{formatted}` inside the plural so the dual form
   // (تجربتان already means "two") prints without a redundant digit.
