@@ -125,7 +125,7 @@ export default async function CancellationPolicyPage({
           {/* The emergency-cancel flow returns the full payment as Gharmish
               Credit with an opt-in back to card — a refund path this page
               never disclosed before the 2026-08-02 legal audit. */}
-          <p>{t('refunds.body3')}</p>
+          <p>{settings.refundsViaBankTransfer ? t('refunds.body3Bank') : t('refunds.body3')}</p>
         </>
       ),
     },

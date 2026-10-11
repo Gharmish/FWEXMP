@@ -131,10 +131,24 @@ export async function sendBookingCancellationEmail(
   const refundedToBank =
     refund === 'refunded' && booking.refundMethod === 'manual' && booking.refundBank !== null;
   const pendingToBank = refund === 'refund_pending' && booking.refundBank !== null;
-  const pendingNeedsBank =
-    refund === 'refund_pending' &&
-    booking.refundBank === null &&
-    (await getPlatformSettings()).refundsViaBankTransfer;
+  // Read once: it also decides whether a wallet credit may promise the
+  // "back to your card" rail (hidden while refunds are wired by hand —
+  // MONEY-04, refund-out-actions.ts), so the email never offers a button
+  // the booking page does not show.
+  const manualRail =
+    (refund === 'refund_pending' && booking.refundBank === null) || refund === 'wallet_credited'
+      ? (await getPlatformSettings()).refundsViaBankTransfer
+      : false;
+  const pendingNeedsBank = refund === 'refund_pending' && booking.refundBank === null && manualRail;
+  // Credit is session-owned: tell the guest how to reach it. An account
+  // holder just signs in; an anonymous booking's row is only claimed by
+  // a sign-in with the booking's email, or from the booking device
+  // (guest-identity.ts claim evidence).
+  const walletSignIn = booking.guestHasAccount
+    ? 'cancelWalletSignInAccount'
+    : booking.guestEmail
+      ? 'cancelWalletSignInEmail'
+      : 'cancelWalletSignInDevice';
   const intro =
     refund === 'refunded'
       ? t(refundedToBank ? `${framing}IntroRefundedBank` : `${framing}IntroRefunded`)
@@ -147,7 +161,7 @@ export async function sendBookingCancellationEmail(
                 : `${framing}IntroRefundPending`,
           )
         : refund === 'wallet_credited'
-          ? t('cancelIntroWalletCredited')
+          ? `${t(manualRail ? 'cancelIntroWalletCreditedNoCard' : 'cancelIntroWalletCredited')} ${t(walletSignIn)}`
           : refund === 'forfeited'
             ? t('cancelIntroForfeited')
             : t(`${framing}IntroUnpaid`);
@@ -157,7 +171,8 @@ export async function sendBookingCancellationEmail(
   // refunded receipt otherwise — EXCEPT a queued refund with no payee on
   // file, which links the booking page where the bank-details form
   // lives. Wallet credits link to the booking page too — that's where
-  // the guest chooses "spend it" vs "back to my card". Forfeited/unpaid
+  // the guest sees the credit (and, while the gateway rail is on, may
+  // move it back to their card). Forfeited/unpaid
   // cancellations have no money document.
   const urls = guestBookingUrls(locale, reference, booking.experienceSlug);
   const showDocument = (refund === 'refunded' || refund === 'refund_pending') && !pendingNeedsBank;
@@ -181,7 +196,9 @@ export async function sendBookingCancellationEmail(
             refundAmountText,
           )
         : refund === 'wallet_credited'
-          ? REFUND_LINES.wallet[locale](refundAmountText)
+          ? REFUND_LINES[booking.guestHasAccount ? 'wallet' : 'wallet_claim'][locale](
+              refundAmountText,
+            )
           : refund === 'forfeited'
             ? REFUND_LINES.forfeited[locale]()
             : REFUND_LINES.none[locale]();

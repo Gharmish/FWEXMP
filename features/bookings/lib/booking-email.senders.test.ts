@@ -112,6 +112,7 @@ function base(over: BookingRow = {}): BookingRow {
     guestName: 'Sara',
     guestEmail: 'sara@example.com',
     guestPhone: '+966500000001',
+    guestHasAccount: true,
     guestPreferredLanguage: 'en',
     termsAcceptedAt: null,
     termsVersion: null,
