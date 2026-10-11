@@ -59,6 +59,9 @@ export async function generateMetadata({
       canonical: `${SITE_URL}/${locale}`,
       languages: languagesAlternates,
     },
+    // Declaring openGraph replaces the parent's resolved block wholesale —
+    // including the [locale]-level opengraph-image file convention — so the
+    // brand card is re-attached explicitly (same pattern as /hosting).
     openGraph: {
       title,
       description: t('description'),
@@ -66,11 +69,13 @@ export async function generateMetadata({
       siteName: t('name'),
       locale: locale === 'ar' ? 'ar_SA' : 'en_US',
       type: 'website',
+      images: [{ url: `${SITE_URL}/${locale}/opengraph-image`, width: 1200, height: 630 }],
     },
     twitter: {
       card: 'summary_large_image',
       title,
       description: t('description'),
+      images: [`${SITE_URL}/${locale}/opengraph-image`],
     },
   };
 }
