@@ -132,7 +132,12 @@ export default async function TermsPage({ params }: { params: Promise<{ locale: 
       body: (
         <>
           <p>{t('credit.body1')}</p>
-          <p>{t('credit.body2')}</p>
+          {/* The refund-out rail (credit → original card) is a gateway
+              reversal, hidden while refunds are wired by hand
+              (refunds_via_bank_transfer, MONEY-04). The Terms must state
+              the rail actually offered, same as the cancellation-policy
+              page — never promise a button the booking page hides. */}
+          <p>{settings.refundsViaBankTransfer ? t('credit.body2Bank') : t('credit.body2')}</p>
         </>
       ),
     },

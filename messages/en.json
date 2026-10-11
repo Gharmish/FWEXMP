@@ -4315,8 +4315,9 @@
     },
     "credit": {
       "heading": "Gharmish Credit",
-      "body1": "Gharmish Credit is a balance on your Gharmish account that you can apply to bookings at checkout. It is not money in a bank account: it cannot be deposited into, transferred to anyone else, or withdrawn as cash. Credit we grant as a goodwill gesture or promotion may carry an expiry date, which is shown when it's granted; credit issued from a refund of your own payment never expires.",
-      "body2": "When a refund is issued as Gharmish Credit, any amount you originally paid by card can be moved back to that card from your booking page — up to the amount charged to it, and only to that original payment method. Credit granted in error, or connected to fraud or misuse, may be reversed."
+      "body1": "Gharmish Credit is a balance on your Gharmish account that you can apply to bookings at checkout. To see and use it you must be signed in to the account the booking belongs to — for a booking made without an account, that means signing in with the email address you gave when booking. It is not money in a bank account: it cannot be deposited into, transferred to anyone else, or withdrawn as cash. Credit we grant as a goodwill gesture or promotion may carry an expiry date, which is shown when it's granted; credit issued from a refund of your own payment never expires.",
+      "body2": "When a refund is issued as Gharmish Credit, any amount you originally paid by card can be moved back to that card from your booking page — up to the amount charged to it, and only to that original payment method. Credit granted in error, or connected to fraud or misuse, may be reversed.",
+      "body2Bank": "When a refund is issued as Gharmish Credit, the credit stays available to spend at checkout; it is not automatically returned to your card. Gharmish may, at its discretion, refund the amount you originally paid by bank transfer instead — up to the amount charged — in which case the matching credit is withdrawn. Credit granted in error, or connected to fraud or misuse, may be reversed."
     },
     "conduct": {
       "heading": "Guest conduct",
