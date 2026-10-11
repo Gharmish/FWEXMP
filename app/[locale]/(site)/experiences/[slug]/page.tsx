@@ -277,12 +277,13 @@ export default async function ExperienceDetailPage({
   //
   // Translations are not DB work and hold no connection, so they ride
   // along with the first wave for free.
-  const [t, te, tb, tTiers, tFooter] = await Promise.all([
+  const [t, te, tb, tTiers, tFooter, tSite] = await Promise.all([
     getTranslations('experienceDetail'),
     getTranslations('experience'),
     getTranslations('bookingRequest'),
     getTranslations('cancellationTiers'),
     getTranslations('footer'),
+    getTranslations('siteMeta'),
   ]);
   // Wave 1 — the four reads the page cannot render without. Each of these
   // is one connection at a time (getReviewAggregate/getScheduleDataBySlug
@@ -634,7 +635,7 @@ export default async function ExperienceDetailPage({
           {
             '@type': 'ListItem',
             position: 1,
-            name: SITE_NAME,
+            name: tSite('name'),
             item: `${SITE_URL}/${loc}`,
           },
           // The middle level earns the SERP breadcrumb trail ("Gharmish ›

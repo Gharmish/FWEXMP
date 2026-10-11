@@ -3,7 +3,7 @@ import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { ArrowRight } from 'lucide-react';
 import type { Locale } from '@/lib/i18n';
 import { Link, routing, ogLocaleFor } from '@/lib/i18n';
-import { SITE_URL, SITE_NAME } from '@/lib/site';
+import { SITE_URL } from '@/lib/site';
 import { JsonLd } from '@/components/seo/json-ld';
 import { EMPTY_CRITERIA } from '@/features/experiences/lib/search';
 import { getExperiencesFiltered } from '@/features/experiences/queries';
@@ -68,8 +68,9 @@ export default async function AbhaPage({
   setRequestLocale(locale);
   await trackPageView({ path: '/abha', locale, utm: utmFromSearchParams(await searchParams) });
   const loc = locale as Locale;
-  const [t, experiences, saved] = await Promise.all([
+  const [t, tSite, experiences, saved] = await Promise.all([
     getTranslations({ locale, namespace: 'cityAbha' }),
+    getTranslations({ locale, namespace: 'siteMeta' }),
     getExperiencesFiltered({ ...EMPTY_CRITERIA, city: 'abha' }),
     getWishlistSet(),
   ]);
@@ -91,7 +92,7 @@ export default async function AbhaPage({
       {
         '@type': 'BreadcrumbList',
         itemListElement: [
-          { '@type': 'ListItem', position: 1, name: SITE_NAME, item: `${SITE_URL}/${loc}` },
+          { '@type': 'ListItem', position: 1, name: tSite('name'), item: `${SITE_URL}/${loc}` },
           {
             '@type': 'ListItem',
             position: 2,

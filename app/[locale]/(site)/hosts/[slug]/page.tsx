@@ -5,7 +5,7 @@ import { notFound } from 'next/navigation';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { Link, permanentRedirect, ogLocaleFor } from '@/lib/i18n';
 import { routing, type Locale } from '@/lib/i18n';
-import { SITE_NAME, SITE_URL } from '@/lib/site';
+import { SITE_URL } from '@/lib/site';
 import { cn } from '@/lib/utils';
 import { Avatar } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
@@ -63,7 +63,7 @@ export async function generateMetadata({
   const name = locale === 'ar' ? toArabicText(host.name) : host.name;
   const description = clampDescription(pickLocalized(locale, host.bioEn, host.bioAr));
   const url = `${SITE_URL}/${locale}/hosts/${slug}`;
-  const title = t('title', { name, siteName: SITE_NAME });
+  const title = t('title', { name });
   return {
     title,
     description,
@@ -128,6 +128,7 @@ export default async function HostProfilePage({
   const t = await getTranslations('hostProfile');
   const th = await getTranslations('host');
   const tHostsIndex = await getTranslations('hostsIndex');
+  const tSite = await getTranslations('siteMeta');
 
   const name = loc === 'ar' ? toArabicText(host.name) : host.name;
   const bio = pickLocalized(loc, host.bioEn, host.bioAr);
@@ -186,7 +187,7 @@ export default async function HostProfilePage({
       {
         '@type': 'BreadcrumbList',
         itemListElement: [
-          { '@type': 'ListItem', position: 1, name: SITE_NAME, item: `${SITE_URL}/${loc}` },
+          { '@type': 'ListItem', position: 1, name: tSite('name'), item: `${SITE_URL}/${loc}` },
           {
             '@type': 'ListItem',
             position: 2,
