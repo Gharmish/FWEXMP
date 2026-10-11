@@ -3809,6 +3809,7 @@
   "hostsIndex": {
     "meta": {
       "title": "Gharmish hosts",
+      "pageTitle": "Local hosts in Abha & Aseer",
       "description": "Meet the people behind every Gharmish experience — farmers, guides, artisans, and Aseeri tourism operators."
     },
     "eyebrow": "Our hosts",
@@ -3893,7 +3894,7 @@
     "footer": "Gharmish · Experiences hosted by the people who know the place best."
   },
   "about": {
-    "metaTitle": "About Gharmish",
+    "metaTitle": "About us — local experiences in Aseer",
     "metaDescription": "Gharmish is a marketplace for experiences hosted by the people who know the place best — starting in Abha, Aseer. Here's why we built it, and how to reach us.",
     "eyebrow": "About us",
     "title": "The best way to know a place is through its people.",

@@ -30,7 +30,9 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const { locale } = await params;
   const t = await getTranslations({ locale, namespace: 'hostsIndex.meta' });
-  const title = t('title');
+  // `meta.title` ("Gharmish hosts") doubles as the host-profile breadcrumb;
+  // as a document title it rendered "Gharmish hosts · Gharmish".
+  const title = t('pageTitle');
   const description = t('description');
 
   return {
