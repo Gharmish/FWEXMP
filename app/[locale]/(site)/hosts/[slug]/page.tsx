@@ -128,6 +128,7 @@ export default async function HostProfilePage({
   const t = await getTranslations('hostProfile');
   const th = await getTranslations('host');
   const tHostsIndex = await getTranslations('hostsIndex');
+  const tSite = await getTranslations('siteMeta');
 
   const name = loc === 'ar' ? toArabicText(host.name) : host.name;
   const bio = pickLocalized(loc, host.bioEn, host.bioAr);
@@ -186,7 +187,7 @@ export default async function HostProfilePage({
       {
         '@type': 'BreadcrumbList',
         itemListElement: [
-          { '@type': 'ListItem', position: 1, name: SITE_NAME, item: `${SITE_URL}/${loc}` },
+          { '@type': 'ListItem', position: 1, name: tSite('name'), item: `${SITE_URL}/${loc}` },
           {
             '@type': 'ListItem',
             position: 2,

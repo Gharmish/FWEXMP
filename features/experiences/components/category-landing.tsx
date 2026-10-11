@@ -2,7 +2,7 @@ import { getTranslations } from 'next-intl/server';
 import { ArrowLeft } from 'lucide-react';
 import type { Locale } from '@/lib/i18n';
 import { Link } from '@/lib/i18n';
-import { SITE_URL, SITE_NAME } from '@/lib/site';
+import { SITE_URL } from '@/lib/site';
 import { JsonLd } from '@/components/seo/json-ld';
 import type { Category } from '@/features/experiences/types';
 import { CATEGORIES } from '@/features/experiences/lib/sample-data';
@@ -26,8 +26,9 @@ interface CategoryLandingProps {
  * catalog. Listed in the sitemap; linked from the home category tiles.
  */
 export async function CategoryLanding({ category, locale }: CategoryLandingProps) {
-  const [t, experiences, saved] = await Promise.all([
+  const [t, tSite, experiences, saved] = await Promise.all([
     getTranslations({ locale, namespace: 'categoryLanding' }),
+    getTranslations({ locale, namespace: 'siteMeta' }),
     getExperiencesFiltered({ ...EMPTY_CRITERIA, categories: [category] }),
     getWishlistSet(),
   ]);
@@ -52,7 +53,7 @@ export async function CategoryLanding({ category, locale }: CategoryLandingProps
       {
         '@type': 'BreadcrumbList',
         itemListElement: [
-          { '@type': 'ListItem', position: 1, name: SITE_NAME, item: `${SITE_URL}/${locale}` },
+          { '@type': 'ListItem', position: 1, name: tSite('name'), item: `${SITE_URL}/${locale}` },
           {
             '@type': 'ListItem',
             position: 2,
