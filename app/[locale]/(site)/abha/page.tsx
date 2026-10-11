@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { ArrowRight } from 'lucide-react';
 import type { Locale } from '@/lib/i18n';
-import { Link, routing } from '@/lib/i18n';
+import { Link, routing, ogLocaleFor } from '@/lib/i18n';
 import { SITE_URL, SITE_NAME } from '@/lib/site';
 import { JsonLd } from '@/components/seo/json-ld';
 import { EMPTY_CRITERIA } from '@/features/experiences/lib/search';
@@ -45,6 +45,7 @@ export async function generateMetadata({
       description: t('metaDescription'),
       url: path(locale),
       type: 'website',
+      locale: ogLocaleFor(locale),
       images: [{ url: `${SITE_URL}/${locale}/opengraph-image`, width: 1200, height: 630 }],
     },
     twitter: {
@@ -110,6 +111,8 @@ export default async function AbhaPage({
         <h1 className="text-h1">{t('title')}</h1>
         <p className="text-sarat-black-600 text-base leading-relaxed">{t('intro1')}</p>
         <p className="text-sarat-black-600 text-base leading-relaxed">{t('intro2')}</p>
+        {/* Practical paragraph (seasons, access) — SEO-06 thin-landing fix. */}
+        <p className="text-sarat-black-600 text-base leading-relaxed">{t('intro3')}</p>
       </header>
 
       {experiences.length === 0 && (

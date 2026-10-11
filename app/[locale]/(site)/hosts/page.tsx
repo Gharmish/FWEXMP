@@ -5,7 +5,7 @@ import { cn } from '@/lib/utils';
 import { Avatar } from '@/components/ui/avatar';
 import { JsonLd } from '@/components/seo/json-ld';
 import { VerifiedSeal } from '@/components/ui/verified-seal';
-import { Link } from '@/lib/i18n';
+import { Link, ogLocaleFor } from '@/lib/i18n';
 import type { Locale } from '@/lib/i18n';
 import { routing } from '@/lib/i18n';
 import { SITE_NAME, SITE_URL } from '@/lib/site';
@@ -50,6 +50,7 @@ export async function generateMetadata({
       description,
       url: `${SITE_URL}/${locale}/hosts`,
       type: 'website',
+      locale: ogLocaleFor(locale),
       images: [{ url: `${SITE_URL}/${locale}/opengraph-image`, width: 1200, height: 630 }],
     },
     twitter: {

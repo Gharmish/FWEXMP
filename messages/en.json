@@ -2912,7 +2912,7 @@
   "experiencesIndex": {
     "meta": {
       "title": "Experiences in Abha",
-      "description": "Curated Aseeri experiences in Abha, hosted by vetted local partners."
+      "description": "Browse curated experiences in Abha and Aseer — heritage, nature, food, wellness, adventure and family — each hosted by a vetted local who knows the place."
     },
     "eyebrow": "Abha experiences",
     "title": "Meet Aseer from the inside.",
@@ -3917,7 +3917,8 @@
     "gridLabel": "Experiences in Abha",
     "empty": "No live experiences in Abha right now — new ones are added as hosts join. Browse the full catalogue in the meantime.",
     "allCta": "Browse all experiences",
-    "hostCta": "Host with Gharmish in Abha"
+    "hostCta": "Host with Gharmish in Abha",
+    "intro3": "The season is long. Summer brings the mist, the festivals and most of the Kingdom's visitors; spring and autumn are quieter and clear; winter nights on the plateau drop close to freezing. Abha has its own airport, the Soudah heights are under an hour away by road, and most experiences start in the city or a short drive out."
   },
   "categoryLanding": {
     "eyebrow": "Experiences by category",
@@ -3928,38 +3929,54 @@
     "nature": {
       "title": "Nature experiences in Abha & Aseer",
       "intro": "Aseer is the greenest corner of Saudi Arabia — juniper forests on Jabal Sawda, terraced valleys, and mornings when the mist rolls up the escarpment and through the trees. These experiences put you inside that landscape with someone who has walked it for years: dawn forest walks, valley trails, and quiet places no map label does justice to.",
-      "metaDescription": "Juniper forests on Jabal Sawda, terraced valleys and misty mornings — nature experiences in Abha & Aseer, hosted by locals who know the trails."
+      "metaDescription": "Juniper forests on Jabal Sawda, terraced valleys and misty mornings — nature experiences in Abha & Aseer, hosted by locals who know the trails.",
+      "know1": "The highlands run cool. Abha sits at about 2,200 metres and Jabal Sawda rises close to 3,000, so summer afternoons stay mild and early mornings can be genuinely cold. Bring a layer even in July, and expect the escarpment to be in cloud on many days between June and September.",
+      "know2": "Most nature experiences start early, when the light is soft and the trails are empty. Closed shoes, water and sun protection are enough for the walks; your host carries the rest — which wadi still holds water, where the path is loose after rain, and when to turn back before the mist closes in."
     },
     "heritage": {
       "title": "Heritage experiences in Abha & Aseer",
       "intro": "Stone towers, painted doorways, and the UNESCO-listed geometry of Al-Qatt Al-Aseeri — Aseer's heritage isn't behind glass, it's still lived in. Visit the village of Rijal Almaa, learn the wall-painting craft from a local artist, and hear the stories of the flower men from people who grew up with them.",
-      "metaDescription": "Rijal Almaa's stone towers, Al-Qatt Al-Aseeri wall painting and the stories of the flower men — heritage experiences in Aseer, hosted by locals."
+      "metaDescription": "Rijal Almaa's stone towers, Al-Qatt Al-Aseeri wall painting and the stories of the flower men — heritage experiences in Aseer, hosted by locals.",
+      "know1": "Aseer's heritage is still lived in. The stone-and-slate towers of Rijal Almaa, the geometric wall painting of Al-Qatt Al-Aseeri that UNESCO inscribed in 2017, and the mountain villages around Abha are family places first — which is why every heritage experience here is hosted by someone with a claim to them.",
+      "know2": "Expect modest dress and shoes you can slip off at the door; many visits end indoors over coffee. Photography is usually welcome, but ask before pointing a camera at people or inside a home — your host will tell you when it is fine."
     },
     "food": {
       "title": "Food & coffee experiences in Abha & Aseer",
       "intro": "The Aseeri coffee ritual is its own language — the roast, the pour, the order guests are served in all mean something. Around it comes mountain honey, saleeg, and bread from ovens that have never cooled. These experiences seat you at a local table, hosted by the people who cook this food for their own families.",
-      "metaDescription": "The Aseeri coffee ritual, mountain honey and saleeg at a local table — food & coffee experiences in Abha & Aseer, hosted by the people who cook it."
+      "metaDescription": "The Aseeri coffee ritual, mountain honey and saleeg at a local table — food & coffee experiences in Abha & Aseer, hosted by the people who cook it.",
+      "know1": "Aseer grows what it serves. Coffee comes from the terraces of the Sarawat, honey from sidr and juniper country, and the table is built around dishes such as haneeth, areekah and saleeg that take hours and a crowd. These experiences seat you at that table with the family who cooks it.",
+      "know2": "Come hungry, and tell your host about allergies when you book — most meals are shared from one tray and portions are generous. Coffee is poured in rounds; a small shake of the cup says you have had enough."
     },
     "wellness": {
       "title": "Wellness experiences in Abha & Aseer",
       "intro": "Cool mountain air, running water, and altitude that slows everything down — Aseer is built for taking a breath. Guided breathwork and sound sessions by the water at Wadi Mahala, quiet walks, and unhurried mornings, all led by hosts who know exactly where the calm is.",
-      "metaDescription": "Breathwork and sound by the water at Wadi Mahala, quiet walks and cool mountain air — wellness experiences in Abha & Aseer, led by local hosts."
+      "metaDescription": "Breathwork and sound by the water at Wadi Mahala, quiet walks and cool mountain air — wellness experiences in Abha & Aseer, led by local hosts.",
+      "know1": "Altitude, cool air and quiet do most of the work. Wellness experiences in Aseer use the setting — a terrace above the clouds, a juniper forest at first light, a courtyard at dusk — rather than equipment, so they suit first-timers as much as regulars.",
+      "know2": "Sessions are small and unhurried, and several are offered women-only on request. Wear loose clothing, bring a layer for the cool mornings, and leave the pace to your host."
     },
     "adventure": {
       "title": "Adventure experiences in Abha & Aseer",
       "intro": "The Soudah escarpment drops nearly a kilometre off the edge of the Sarawat — and you can climb along it. Via ferrata routes, cable descents, and mountain days with certified local guides and full safety equipment. No experience needed for most of it; a head for views is.",
-      "metaDescription": "Via ferrata on the Soudah escarpment and mountain days with certified local guides — adventure experiences in Abha & Aseer, safety gear included."
+      "metaDescription": "Via ferrata on the Soudah escarpment and mountain days with certified local guides — adventure experiences in Abha & Aseer, safety gear included.",
+      "know1": "The Sarawat escarpment drops almost 2,000 metres from the Sawda plateau toward Tihama — a wall of cliffs, ridges and old stone paths that locals have climbed for centuries. Adventure experiences follow those routes with people who know them: via ferrata, canyon trails, ridge hikes and the long descent toward the coast.",
+      "know2": "Hosts set the pace and provide the technical gear; you bring fitness honest to the level listed, closed shoes with grip, and a wind layer. Weather turns quickly on the edge, so a shortened or postponed route is a good host's call, not a bad sign."
     },
     "family": {
       "title": "Family experiences in Abha & Aseer",
       "intro": "Experiences the whole family actually does together — painting an Al-Qatt panel every one of you takes home, village mornings, and easy outdoor days sized for younger legs. Hosted by locals who are used to hosting families, with clear age guidance on every listing.",
-      "metaDescription": "Al-Qatt painting, village mornings and easy outdoor days for younger legs — family experiences in Abha & Aseer, with age guidance on every listing."
+      "metaDescription": "Al-Qatt painting, village mornings and easy outdoor days for younger legs — family experiences in Abha & Aseer, with age guidance on every listing.",
+      "know1": "Abha is built for family summers: a mild climate, parks and terraces at altitude, villages where children can roam, and hosts who grew up doing exactly that. Family experiences keep the walking short, the pace gentle and the stops frequent.",
+      "know2": "Each listing states the minimum age and whether a stroller works on the route. Book for the whole group so the host can plan seating, food and timing; most activities run in the cooler morning and late-afternoon hours."
     },
     "women_only": {
       "title": "Women-only experiences in Abha & Aseer",
       "intro": "Hiking, yoga, sketching, and mountain mornings in a women-only setting — led by women hosts, for women guests, with the whole experience kept that way from meeting point to finish. Every listing marks it clearly before you book.",
-      "metaDescription": "Hiking, yoga and sketching in a women-only setting, led by women hosts for women guests — women-only experiences in Abha & Aseer."
-    }
+      "metaDescription": "Hiking, yoga and sketching in a women-only setting, led by women hosts for women guests — women-only experiences in Abha & Aseer.",
+      "know1": "Women-only experiences are hosted by women, for women and girls, in spaces arranged for privacy — a terrace, a studio, a trail with no other group booked. They cover the same ground as the rest of the catalog: craft, cooking, hiking, wellness and heritage.",
+      "know2": "The group size and the host's own profile are on every listing, so you know who you are meeting before you book. Photos stay inside the group unless everyone agrees, and the host will say what to wear for the route."
+    },
+    "gridLabel": "Experiences in this category",
+    "knowTitle": "Good to know"
   },
   "relatedExperiences": {
     "title": "More experiences nearby"
@@ -4177,7 +4194,8 @@
     "community": {
       "heading": "Honest reviews, gated by real bookings",
       "body": "Only guests who completed a booking can review it — one review per booking, and hosts can reply once. No purchased ratings, no anonymous noise."
-    }
+    },
+    "metaTitle": "Trust & safety — vetted hosts, protected payments"
   },
   "howItWorks": {
     "eyebrow": "How it works",
@@ -4203,7 +4221,8 @@
       "step2": "We verify your identity — and your licences where your activity requires them — then build the experience with you, photography included.",
       "step3": "Choose how bookings confirm: instantly against your calendar, or with your approval per request.",
       "step4": "Host your guests and track earnings and payouts from your dashboard."
-    }
+    },
+    "metaTitle": "How Gharmish works — booking local experiences in Aseer"
   },
   "cancellationPolicyPage": {
     "eyebrow": "Cancellation & refunds",
@@ -4237,7 +4256,8 @@
       "body1": "Aseer's weather is part of its character — mist rolling over the ridge, a cool drizzle, clouds passing below your feet. Experiences run in ordinary mountain weather, and a grey forecast on its own isn't grounds for a free cancellation: if you choose not to come, the cancellation policy on your booking applies as usual, including your one free date move.",
       "body2": "Safety is a different matter. If conditions would make an experience unsafe or impossible to run — thunderstorms, heavy rain or flooding in the wadis, dense fog on mountain roads, or an official weather warning for the area — the host cancels, and the call is made as early as the forecast allows. You'll hear from us the moment it's made.",
       "body3": "A weather cancellation is never your loss: you're refunded 100% of what you paid, whatever policy the experience carries and however close to the start it happens, and every open date stays yours to rebook. Outdoor experiences — nature and adventure especially — carry a reminder of this on their page."
-    }
+    },
+    "metaTitle": "Cancellation & refund policy"
   },
   "helpFaq": {
     "eyebrow": "Help",
@@ -4286,7 +4306,8 @@
         "q": "Can I change my experience after it's published?",
         "a": "Yes — edit the details, pause the listing, or adjust day-by-day availability from your dashboard whenever you need. Confirmed bookings keep the price and terms they were booked with."
       }
-    }
+    },
+    "metaTitle": "Help & FAQ — booking, payments and hosting"
   },
   "infoRelated": {
     "label": "Keep reading",

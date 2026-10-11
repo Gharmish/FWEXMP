@@ -3,7 +3,7 @@ import type { Metadata } from 'next';
 import { ArrowLeft, Star } from 'lucide-react';
 import { notFound } from 'next/navigation';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
-import { Link, permanentRedirect } from '@/lib/i18n';
+import { Link, permanentRedirect, ogLocaleFor } from '@/lib/i18n';
 import { routing, type Locale } from '@/lib/i18n';
 import { SITE_NAME, SITE_URL } from '@/lib/site';
 import { cn } from '@/lib/utils';
@@ -83,6 +83,7 @@ export async function generateMetadata({
       description,
       url,
       type: 'profile',
+      locale: ogLocaleFor(locale),
       images: [{ url: `${url}/opengraph-image`, width: 1200, height: 630 }],
     },
     twitter: {
@@ -179,7 +180,8 @@ export default async function HostProfilePage({
         description: bio,
         url,
         knowsLanguage: [...host.languages],
-        ...(host.verified ? { hasCredential: 'Verified host' } : {}),
+        // Localized: the Arabic page carried the English string (SEO-13).
+        ...(host.verified ? { hasCredential: th('verified') } : {}),
       },
       {
         '@type': 'BreadcrumbList',

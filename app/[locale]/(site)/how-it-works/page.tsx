@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { SITE_URL } from '@/lib/site';
-import { routing } from '@/lib/i18n';
+import { routing, ogLocaleFor } from '@/lib/i18n';
 import { InfoPage } from '@/components/layout/info-page';
 import { getPlatformSettings } from '@/lib/platform-settings';
 
@@ -12,7 +12,7 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const { locale } = await params;
   const t = await getTranslations({ locale, namespace: 'howItWorks' });
-  const title = t('title');
+  const title = t('metaTitle');
   const description = t('intro');
   return {
     title,
@@ -35,6 +35,7 @@ export async function generateMetadata({
       description,
       url: `${SITE_URL}/${locale}/how-it-works`,
       type: 'website',
+      locale: ogLocaleFor(locale),
       images: [{ url: `${SITE_URL}/${locale}/opengraph-image`, width: 1200, height: 630 }],
     },
     twitter: {
