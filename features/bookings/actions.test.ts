@@ -585,6 +585,51 @@ describe('requestBooking — throttles & guards', () => {
   });
 
   /**
+   * Issue #40: signed out, the typed phone matches an ACCOUNT's row (a
+   * phone-code signup with no email). The stranger's booking must not
+   * land on that row, and their email must not be written onto it —
+   * otherwise every later booking email for the account, `?k=` token
+   * included, goes to the stranger.
+   */
+  it('never books a signed-out caller onto an ACCOUNT row matched by the typed phone', async () => {
+    currentUser = null;
+    guestRow = {
+      id: 'guest-account',
+      authUserId: 'auth-victim',
+      phone: '+966555000444',
+      email: null,
+      suspendedAt: null,
+    };
+
+    await requestBooking(
+      initial,
+      form({ phone: '+966555000444', email: 'stranger@example.com' }),
+    ).catch(() => undefined);
+
+    expect(insertedBookings).toHaveLength(1);
+    expect(insertedBookings[0]).toMatchObject({
+      guestId: 'guest-new',
+      contactPhone: '+966555000444',
+    });
+    expect(guestUpdates.filter((u) => 'email' in u)).toEqual([]);
+  });
+
+  it('still blocks a signed-out booking on the number of a SUSPENDED account', async () => {
+    currentUser = null;
+    guestRow = {
+      id: 'guest-account',
+      authUserId: 'auth-victim',
+      phone: '+966555000555',
+      email: null,
+      suspendedAt: new Date('2026-09-01T00:00:00Z'),
+    };
+
+    await requestBooking(initial, form({ phone: '+966555000555' })).catch(() => undefined);
+
+    expect(insertedBookings).toHaveLength(0);
+  });
+
+  /**
    * The booking carries its OWN contact snapshot (round 3). Hosts read
    * it to reach the guest and the per-phone hold throttle counts on it,
    * which is what lets the identity rule above stay strict.
