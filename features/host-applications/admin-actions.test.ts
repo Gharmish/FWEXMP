@@ -91,6 +91,8 @@ beforeEach(() => {
       hostApplicationDocuments: { findMany: () => documents },
       hosts: { findFirst: () => (slugTaken ? { id: 'h-old' } : undefined) },
     },
+    // reviewDocument resolves the document's application before locking it.
+    select: (shape) => ('applicationId' in shape ? [{ applicationId: ID }] : []),
     update: (values) => ('status' in values ? claimed : []),
     insert: (values) => (!Array.isArray(values) && 'slug' in values ? [{ id: 'h1' }] : []),
   });
@@ -199,5 +201,45 @@ describe('rejectApplication / reviewDocument', () => {
       status: 'approved',
       reviewedByUserId: 'admin-1',
     });
+  });
+
+  it('locks the parent application row before writing the verdict (issue #36)', async () => {
+    const db = fake.current;
+    if (!db) throw new Error('no fake');
+    // Record every `.for()` lock and how many writes had run when it was taken.
+    const locks: Array<{ shape: string[]; mode: unknown; writesBefore: number }> = [];
+    const select = db.select;
+    db.select = (shape) => {
+      const chain = select(shape);
+      const lock = chain.for;
+      chain.for = async (mode) => {
+        locks.push({ shape: Object.keys(shape ?? {}), mode, writesBefore: db.updates.length });
+        return lock(mode);
+      };
+      return chain;
+    };
+    const fd = new FormData();
+    fd.set('documentId', ID);
+    fd.set('decision', 'rejected');
+    fd.set('reviewerNotes', 'The photo is unreadable, please re-upload.');
+    claimed = [{ id: ID }];
+
+    expect(await reviewDocument({ success: false }, fd)).toEqual({ success: true });
+    expect(locks).toEqual([{ shape: ['id'], mode: 'update', writesBefore: 0 }]);
+    expect(db.updates).toHaveLength(1);
+    expect(db.updates[0]).toMatchObject({ status: 'rejected' });
+  });
+
+  it('is not_found when the document does not exist, without locking or writing', async () => {
+    const db = createDbFake({ select: () => [] });
+    fake.current = db;
+    const fd = new FormData();
+    fd.set('documentId', ID);
+    fd.set('decision', 'approved');
+    expect(await reviewDocument({ success: false }, fd)).toEqual({
+      success: false,
+      message: 'not_found',
+    });
+    expect(db.updates).toEqual([]);
   });
 });

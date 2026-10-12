@@ -400,17 +400,35 @@ export async function reviewDocument(
   const { documentId, decision, reviewerNotes } = parsed.data;
 
   try {
-    const updated = await db
-      .update(hostApplicationDocuments)
-      .set({
-        status: decision,
-        reviewerNotes: reviewerNotes ?? null,
-        reviewedByUserId: guard.adminUserId,
-        reviewedAt: new Date(),
-        updatedAt: new Date(),
-      })
-      .where(eq(hostApplicationDocuments.id, documentId))
-      .returning({ id: hostApplicationDocuments.id });
+    const updated = await db.transaction(async (tx) => {
+      const [doc] = await tx
+        .select({ applicationId: hostApplicationDocuments.applicationId })
+        .from(hostApplicationDocuments)
+        .where(eq(hostApplicationDocuments.id, documentId))
+        .limit(1);
+      if (!doc) return [];
+      // Serialise against approveApplication, which re-checks the
+      // documents under this same application-row lock: a verdict either
+      // lands before that re-check reads it, or waits until the approval
+      // commits — never in between, where a rejection could still yield
+      // a verified host (issue #36, 2026-10-12).
+      await tx
+        .select({ id: hostApplications.id })
+        .from(hostApplications)
+        .where(eq(hostApplications.id, doc.applicationId))
+        .for('update');
+      return tx
+        .update(hostApplicationDocuments)
+        .set({
+          status: decision,
+          reviewerNotes: reviewerNotes ?? null,
+          reviewedByUserId: guard.adminUserId,
+          reviewedAt: new Date(),
+          updatedAt: new Date(),
+        })
+        .where(eq(hostApplicationDocuments.id, documentId))
+        .returning({ id: hostApplicationDocuments.id });
+    });
     if (updated.length === 0) return { success: false, message: 'not_found' };
   } catch (error) {
     reportError(error, { surface: 'admin:reviewDocument', documentId });
