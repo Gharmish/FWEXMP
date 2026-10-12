@@ -124,8 +124,12 @@ export async function setConversationState(
   try {
     const updated = await db
       .update(conversations)
-      // Handing back to the agent also clears a stale lock.
-      .set({ state: parsed.data.state, agentLockUntil: null, updatedAt: new Date() })
+      // The agent lock is left alone (2026-10-10, issue #30): clearing it
+      // released a lock a still-running turn owned, so a hand-back to
+      // `bot` mid-turn let a second turn run on the thread. The running
+      // turn re-checks `state` and releases its own lock; an expired one
+      // never blocks the next turn anyway.
+      .set({ state: parsed.data.state, updatedAt: new Date() })
       .where(eq(conversations.id, parsed.data.conversationId))
       .returning({ id: conversations.id });
     if (updated.length === 0) return { success: false, message: 'not_found' };
