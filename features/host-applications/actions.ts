@@ -3,7 +3,7 @@
 import { matchesDeclaredType } from '@/lib/file-signature';
 import { cookies } from 'next/headers';
 import { revalidatePath } from 'next/cache';
-import { eq } from 'drizzle-orm';
+import { and, eq } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import { serverEnv, hasSupabaseAuth } from '@/lib/env';
 import { hostApplications, hostApplicationDocuments, hostApplicationEvents } from '@/db/schema';
@@ -32,7 +32,7 @@ import type {
   HostIdentityType,
 } from '@/features/host-applications/types';
 import { HOST_LANGUAGE_OPTIONS } from '@/features/host-applications/types';
-import { encryptPii } from '@/lib/pii-crypto';
+import { decryptPii, encryptPii } from '@/lib/pii-crypto';
 
 /**
  * Server action for the host-apply form. Mirrors the booking action
@@ -296,10 +296,32 @@ export async function submitHostApplication(
   try {
     const existing = await db.query.hostApplications.findFirst({
       where: (a) => eq(a.userId, user.id),
-      columns: { id: true, status: true, reviewedAt: true },
+      columns: {
+        id: true,
+        status: true,
+        reviewedAt: true,
+        identityType: true,
+        identityNumber: true,
+        legalName: true,
+        iban: true,
+      },
       with: { documents: { columns: { type: true, status: true, objectKey: true } } },
     });
     hadExistingApplication = Boolean(existing);
+
+    // A document verdict was given against the identity on file at the
+    // time (2026-10-11, issue #43). When a resubmission changes any of
+    // the fields a reviewer checks the documents against, a carried-over
+    // `approved` verdict no longer vouches for anything — it goes back
+    // to `pending` below, so approval's `documents_incomplete` gate holds
+    // until an admin has looked again. A value that fails to decrypt
+    // comes back verbatim and so compares as changed: the safe side.
+    const identityChanged =
+      existing !== undefined &&
+      (existing.identityType !== input.identityType ||
+        decryptPii(existing.identityNumber) !== input.identityNumber ||
+        existing.legalName !== input.legalName ||
+        decryptPii(existing.iban) !== input.iban);
 
     // Refuse an approved re-submission HERE, before the KYC upload
     // loop below (2026-07-28 fourth audit). Refusing inside the
@@ -421,8 +443,27 @@ export async function submitHostApplication(
         applicationId = inserted.id;
       }
 
+      if (existing && identityChanged) {
+        await tx
+          .update(hostApplicationDocuments)
+          .set({
+            status: 'pending',
+            reviewerNotes: null,
+            reviewedByUserId: null,
+            reviewedAt: null,
+            updatedAt: new Date(),
+          })
+          .where(
+            and(
+              eq(hostApplicationDocuments.applicationId, existing.id),
+              eq(hostApplicationDocuments.status, 'approved'),
+            ),
+          );
+      }
+
       // Upsert the freshly-uploaded documents. A replacement resets the
-      // review verdict to pending; untouched documents keep theirs.
+      // review verdict to pending; untouched documents keep theirs
+      // unless the identity changed (above).
       for (const doc of staged) {
         await tx
           .insert(hostApplicationDocuments)
