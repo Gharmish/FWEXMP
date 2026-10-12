@@ -6,6 +6,7 @@ import { serverEnv } from '@/lib/env';
 import { reportError } from '@/lib/log';
 import { WEB_VITAL_NAMES, webVitals, type WebVitalName, type WebVitalRating } from '@/db/schema';
 import { rateVital } from '@/features/admin/analytics/vitals';
+import { adminGuard } from '@/features/admin/guard';
 
 export interface WebVitalSummaryRow {
   name: WebVitalName;
@@ -43,9 +44,14 @@ async function windowSummary(sinceMs: number): Promise<WebVitalSummaryRow[]> {
   });
 }
 
-/** p75 per Core Web Vital over the last 7 and 28 days (ROADMAP-06). Null on failure. */
+/**
+ * p75 per Core Web Vital over the last 7 and 28 days (ROADMAP-06). Null on
+ * failure. Re-gates itself: the layout's TOTP screen does not stop the page
+ * segment from rendering (issue #56).
+ */
 export async function getWebVitalsSummary(): Promise<WebVitalsSummary | null> {
   if (!serverEnv.DATABASE_URL) return null;
+  if (await adminGuard()) return null;
   try {
     const DAY = 24 * 3_600_000;
     const [last7d, last28d] = await Promise.all([windowSummary(7 * DAY), windowSummary(28 * DAY)]);

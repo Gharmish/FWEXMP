@@ -42,7 +42,7 @@ const setCalls: Array<Record<string, unknown>> = [];
  * Empty = this caller lost the write (concurrent settle, or the
  * booking's amounts changed while the gateway fetch was in flight).
  */
-let updateReturns: Array<{ id: string }> = [{ id: 'b-1' }];
+let updateReturns: Array<{ id: string; status?: string }> = [{ id: 'b-1' }];
 /**
  * What the post-loss re-read reports. The lost-write path re-reads the
  * row to distinguish "another settle won" (paid → replay) from "the
@@ -108,7 +108,12 @@ vi.mock('@/lib/db', () => ({
           where: (condition: unknown) => {
             whereColumns.push(columnNamesIn(condition));
             return {
-              returning: async () => (isAnomalyStamp ? anomalyStampReturns : updateReturns),
+              // A settle row without an explicit `status` reports the
+              // booking's current one, as RETURNING would.
+              returning: async () =>
+                isAnomalyStamp
+                  ? anomalyStampReturns
+                  : updateReturns.map((r) => ({ status: booking?.status, ...r })),
             };
           },
         };
@@ -488,6 +493,22 @@ describe('settleBooking', () => {
     // The capture is recorded first, then immediately reversed.
     expect(setCalls[0]).toMatchObject({ paymentStatus: 'paid' });
     expect(executeRefund).toHaveBeenCalledWith('b-1', 'pay-1', 480);
+  });
+
+  it('refunds when a cancel commits while the gateway call is in flight (issue #25)', async () => {
+    // Read as confirmed at the top; the paid flip's RETURNING shows the
+    // cancel that landed in between (cancel-core: "nothing to refund").
+    updateReturns = [{ id: 'b-1', status: 'cancelled' }];
+
+    const outcome = await settleBooking('ref-1');
+
+    expect(outcome).toBe('success');
+    expect(executeRefund).toHaveBeenCalledWith('b-1', 'pay-1', 480);
+    expect(notifyAdmin).toHaveBeenCalledWith(
+      'settle_anomaly',
+      expect.objectContaining({ problem: 'payment captured on a cancelled booking' }),
+    );
+    expect(sendHostPaymentReceivedEmail).not.toHaveBeenCalled();
   });
 
   it('dead-booking auto-refund covers the full paid base including redeemed credit', async () => {

@@ -2,6 +2,7 @@ import 'server-only';
 import { serverEnv } from '@/lib/env';
 import { reportError } from '@/lib/log';
 import { withDeadline } from '@/lib/deadline';
+import { adminGuard } from '@/features/admin/guard';
 import { comparison, type DateRange } from '@/features/admin/dashboard/lib/date-range';
 import type { Delta } from '@/features/admin/dashboard/metrics-types';
 
@@ -140,9 +141,12 @@ function addDaysIso(day: string, n: number): string {
  * Fetch the card's data for the dashboard's selected range plus the
  * comparison window. Five small requests, parallel, one deadline: a slow
  * or failing Vercel API must degrade this card alone, never the page.
+ * Re-gates itself: the layout's TOTP screen does not stop the page segment
+ * from rendering (issue #56).
  */
 export async function getSiteTraffic(range: DateRange): Promise<SiteTraffic | null> {
   if (!vercelAnalyticsConfigured()) return null;
+  if (await adminGuard()) return null;
   const earliest = addDaysIso(todayUtc(), -RETENTION_DAYS);
   const clamped = range.from < earliest;
   const cur_: DateRange = clamped ? { ...range, from: earliest } : range;

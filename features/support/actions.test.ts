@@ -117,6 +117,24 @@ describe('replyToConversation', () => {
     );
     expect(fake.current?.updates[0]).toMatchObject({ state: 'human' });
   });
+
+  it('keeps the typed reply when the thread is gone or the send fails', async () => {
+    // React resets the uncontrolled textarea after the action; an
+    // un-echoed body is a reply the admin has to retype.
+    conversation = { ...conversation, lastInboundAt: new Date() };
+    reply.mockResolvedValueOnce({ ok: false });
+    expect(await replyToConversation(initial, form({ conversationId: CID, body: 'hi' }))).toEqual({
+      success: false,
+      message: 'send_failed',
+      values: { body: 'hi' },
+    });
+    conversation = undefined;
+    expect(await replyToConversation(initial, form({ conversationId: CID, body: 'hi' }))).toEqual({
+      success: false,
+      message: 'not_found',
+      values: { body: 'hi' },
+    });
+  });
 });
 
 describe('admin perimeter', () => {
@@ -149,11 +167,12 @@ describe('admin perimeter', () => {
 });
 
 describe('setConversationState / resolveTicket / nudgeConversation', () => {
-  it('flips the state and clears the agent lock; unknown ids are not_found', async () => {
+  it('flips the state and leaves a running agent turn its lock (issue #30); unknown ids are not_found', async () => {
     expect(
       await setConversationState(initial, form({ conversationId: CID, state: 'closed' })),
     ).toEqual({ success: true });
-    expect(fake.current?.updates[0]).toMatchObject({ state: 'closed', agentLockUntil: null });
+    expect(fake.current?.updates[0]).toMatchObject({ state: 'closed' });
+    expect(fake.current?.updates[0]).not.toHaveProperty('agentLockUntil');
     updated = [];
     expect(
       await setConversationState(initial, form({ conversationId: CID, state: 'bot' })),
