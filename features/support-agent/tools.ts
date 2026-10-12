@@ -724,6 +724,19 @@ export async function runTool(
       }
       case 'decide_booking_request': {
         if (!ctx.hostId) return { result: JSON.stringify({ error: 'not_a_host' }) };
+        // A suspended host may not decide requests here either (2026-10-11,
+        // issue #41). The web path refuses them (host-bookings/actions.ts
+        // requireActiveHost), but `conversations.hostId` is sticky — a
+        // suspension never clears it — so re-read the status on every call.
+        const [host] = await db
+          .select({ verificationStatus: hosts.verificationStatus })
+          .from(hosts)
+          .where(eq(hosts.id, ctx.hostId))
+          .limit(1);
+        if (!host) return { result: JSON.stringify({ error: 'not_a_host' }) };
+        if (host.verificationStatus === 'suspended') {
+          return { result: JSON.stringify({ error: 'suspended' }) };
+        }
         const code = (str(input, 'reference_code') ?? '').trim().toUpperCase();
         const decision = str(input, 'decision');
         if (decision !== 'approve' && decision !== 'decline') {
