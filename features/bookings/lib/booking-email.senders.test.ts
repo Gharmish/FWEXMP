@@ -380,3 +380,18 @@ describe('reminders honour the payment gate (GAPA-02)', () => {
     expect(sent()).toHaveLength(0);
   });
 });
+
+describe('wallet credit to an account-less booker (issue #57)', () => {
+  // An email sign-in never claims the booking-time guest row
+  // (guest-identity.ts claims only by verified phone), so neither the
+  // email nor the WhatsApp line may tell the guest to sign in by email.
+  it('points them to a phone sign-in on the booking device, never to email', async () => {
+    booking = base({ status: 'cancelled', guestHasAccount: false });
+    await senders.sendBookingCancellationEmail('ref-1', 'wallet_credited');
+    const [call] = dispatchNotification.mock.calls.map((c) => JSON.stringify(c));
+    expect(call).toContain('cancelWalletSignInDevice');
+    expect(call).not.toContain('cancelWalletSignInEmail');
+    expect(call).toContain('sign in with the mobile number you booked with');
+    expect(call).not.toMatch(/email address you gave/);
+  });
+});
