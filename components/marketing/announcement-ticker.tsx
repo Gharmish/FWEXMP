@@ -30,10 +30,13 @@ function durationClass(text: string): string {
  * seam never shows as long as the other copies cover the band's full
  * width. Two copies only covered a phone: on a desktop viewport a short
  * notice filled a third of the band and the rest scrolled past empty
- * before the loop visibly jumped (2026-10-12). Twelve copies of even a
- * ~150 px notice span past 2,500 px, comfortably wider than any desktop
- * band, and the clones are aria-hidden and hidden under reduced motion,
- * so the cost is a few hundred bytes of markup.
+ * before the loop visibly jumped (2026-10-12). Every copy also gets a
+ * `min-w-[10vw]` floor, so the eleven copies behind the leading one
+ * always cover at least 110 % of the band whatever the text length
+ * (a ~12-character notice alone would fall short on a 1920 px screen).
+ * The clones are aria-hidden and hidden under reduced motion, so the
+ * cost is a few hundred bytes of markup. The `12` in the `--ticker-end`
+ * classes below must equal this constant: Tailwind needs the literal.
  */
 const COPIES = 12;
 const CLONES = Array.from({ length: COPIES - 1 }, (_, i) => i);
@@ -79,6 +82,7 @@ export function AnnouncementTicker({ text }: AnnouncementTickerProps) {
           stopped
             ? 'block'
             : cn(
+                // The divisor must equal COPIES (one copy per loop).
                 'animate-ticker flex w-max [--ticker-end:calc(-100%/12)] hover:[animation-play-state:paused] rtl:[--ticker-end:calc(100%/12)]',
                 'motion-reduce:block motion-reduce:w-auto motion-reduce:animate-none',
                 durationClass(text),
@@ -88,7 +92,7 @@ export function AnnouncementTicker({ text }: AnnouncementTickerProps) {
         <span
           className={cn(
             !stopped &&
-              'shrink-0 pe-16 whitespace-nowrap motion-reduce:pe-0 motion-reduce:whitespace-normal',
+              'min-w-[10vw] shrink-0 pe-16 whitespace-nowrap motion-reduce:min-w-0 motion-reduce:pe-0 motion-reduce:whitespace-normal',
           )}
         >
           {text}
@@ -98,7 +102,7 @@ export function AnnouncementTicker({ text }: AnnouncementTickerProps) {
             <span
               key={i}
               aria-hidden
-              className="shrink-0 pe-16 whitespace-nowrap motion-reduce:hidden"
+              className="min-w-[10vw] shrink-0 pe-16 whitespace-nowrap motion-reduce:hidden"
             >
               {text}
             </span>
