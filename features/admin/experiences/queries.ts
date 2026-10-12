@@ -3,6 +3,7 @@ import 'server-only';
 import { asc, eq } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import { experiences, hosts, moments } from '@/db/schema';
+import { adminGuard } from '@/features/admin/guard';
 import { isAdminAndDbReady } from '@/features/admin/experience-moderation/queries';
 import type { AdminGuardFailure } from '@/features/admin/experience-moderation/queries';
 import type { BookingMode } from '@/features/experiences/types';
@@ -21,8 +22,17 @@ export interface AdminMoment {
   descriptionAr: string;
 }
 
-/** Ordered timeline for the admin moments editor. */
+/**
+ * Ordered timeline for the admin moments editor.
+ *
+ * Every read in this module re-gates (issue #56, 2026-10-12): the admin
+ * layout swaps `children` for the TOTP screen, but the App Router still
+ * renders the page segment and serialises its output into the flight
+ * payload — so an allowlisted admin who has not passed the second factor
+ * would otherwise read these rows from the page source.
+ */
 export async function getExperienceMoments(experienceId: string): Promise<AdminMoment[]> {
+  if (await adminGuard()) return [];
   const rows = await db
     .select({
       id: moments.id,
@@ -46,6 +56,7 @@ export interface HostOption {
 
 /** Hosts for the "create experience" owner dropdown (verified first). */
 export async function listHostsForSelect(): Promise<readonly HostOption[]> {
+  if (await adminGuard()) return [];
   const rows = await db
     .select({ id: hosts.id, name: hosts.name })
     .from(hosts)
@@ -90,12 +101,12 @@ export interface AdminExperienceEdit {
 
 /**
  * Load one experience with every editable column for the admin editor.
- * No host scope — admins edit any listing. Caller must have already
- * passed `isAdminAndDbReady()`.
+ * No host scope — admins edit any listing. Re-gates itself (issue #56).
  */
 export async function getAdminExperienceForEdit(
   id: string,
 ): Promise<AdminExperienceEdit | undefined> {
+  if (await adminGuard()) return undefined;
   const row = await db.query.experiences.findFirst({ where: eq(experiences.id, id) });
   if (!row) return undefined;
   return {
