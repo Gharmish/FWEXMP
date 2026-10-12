@@ -660,8 +660,9 @@ export const REFUND_LINES = {
   },
   // Credit is session-owned (features/wallet/queries.ts): a guest with a
   // Gharmish account sees it after any sign-in; an account-less guest's
-  // row is only claimed by a sign-in with the booking's email (or from
-  // the booking device), so that line says how, or the credit is invisible.
+  // row is only claimed by a phone sign-in with the booking's number from
+  // the booking device — never by email (issue #57) — so that line says
+  // how, or the credit is invisible.
   wallet: {
     ar: (amount: string) =>
       `أضفنا ${amount} إلى رصيد غارميش في حسابك — سجّل الدخول لاستخدامه عند الدفع`,
@@ -670,9 +671,9 @@ export const REFUND_LINES = {
   },
   wallet_claim: {
     ar: (amount: string) =>
-      `أضفنا ${amount} إلى رصيد غارميش — سجّل الدخول بالبريد الإلكتروني الذي حجزت به لاستخدامه`,
+      `أضفنا ${amount} إلى رصيد غارميش — لاستخدامه، سجّل الدخول برقم الجوال الذي حجزت به ومن الجهاز نفسه الذي حجزت منه`,
     en: (amount: string) =>
-      `${amount} has been added to your Gharmish Credit — sign in with the email address you gave when booking to use it`,
+      `${amount} has been added to your Gharmish Credit — to use it, sign in with the mobile number you booked with, on the device you booked on`,
   },
   forfeited: {
     ar: () => 'لا يوجد مبلغ مسترد وفق سياسة الإلغاء لهذا الحجز',

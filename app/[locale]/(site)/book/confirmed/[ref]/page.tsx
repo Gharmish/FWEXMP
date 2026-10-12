@@ -941,16 +941,14 @@ export default async function BookingConfirmedPage({ params, searchParams }: Pag
               // Wallet actions are session-owned — tell a signed-out (or
               // cookie-only) viewer to sign in rather than look broken.
               // Which sign-in works depends on the row: an account holder
-              // signs in any way; an anonymous row is claimed only by the
-              // booking's email, or from the booking device
-              // (guest-identity.ts claim evidence).
+              // signs in any way; an anonymous row is claimed only by a
+              // phone sign-in with the booking's number, from the booking
+              // device — never by email (guest-identity.ts, issue #57).
               <p className="text-sarat-black-600 text-sm">
                 {t(
                   booking.guestHasAccount
                     ? 'walletCredit.signInHintAccount'
-                    : booking.guestEmail
-                      ? 'walletCredit.signInHint'
-                      : 'walletCredit.signInHintDevice',
+                    : 'walletCredit.signInHintDevice',
                 )}
               </p>
             )}

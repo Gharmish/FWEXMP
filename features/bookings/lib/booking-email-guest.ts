@@ -141,14 +141,13 @@ export async function sendBookingCancellationEmail(
       : false;
   const pendingNeedsBank = refund === 'refund_pending' && booking.refundBank === null && manualRail;
   // Credit is session-owned: tell the guest how to reach it. An account
-  // holder just signs in; an anonymous booking's row is only claimed by
-  // a sign-in with the booking's email, or from the booking device
-  // (guest-identity.ts claim evidence).
+  // holder just signs in; an anonymous booking's row is only claimed by a
+  // phone sign-in with the booking's number, from the booking device
+  // (`own_browser` in guest-identity.ts). An email sign-in never reaches
+  // that claim, so the copy must not offer it (issue #57, 2026-10-12).
   const walletSignIn = booking.guestHasAccount
     ? 'cancelWalletSignInAccount'
-    : booking.guestEmail
-      ? 'cancelWalletSignInEmail'
-      : 'cancelWalletSignInDevice';
+    : 'cancelWalletSignInDevice';
   const intro =
     refund === 'refunded'
       ? t(refundedToBank ? `${framing}IntroRefundedBank` : `${framing}IntroRefunded`)
