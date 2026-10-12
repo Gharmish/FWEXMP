@@ -131,18 +131,18 @@ export function isDateBookable(input: BookableInput): BookableResult {
   if (input.dateStr > addDays(input.todayStr, input.horizonDays ?? BOOKING_HORIZON_DAYS)) {
     return { ok: false, reason: 'too_far' };
   }
-  // Same-day cutoff: a slot closes for new bookings once now is within
+  // Lead-time cutoff: a slot closes for new bookings once now is within
   // `cutoffMinutes` of its local start time (which subsumes "past start").
-  // Only today's slot can be affected — a future day's start is always far
-  // enough out — so we gate on dateStr === todayStr and skip it entirely
-  // when the caller didn't supply time-of-day inputs.
-  if (
-    input.dateStr === input.todayStr &&
-    input.startTime !== undefined &&
-    input.nowMinutes !== undefined
-  ) {
+  // Not only today's slot: a 12h or 24h cutoff on an early start reaches
+  // back into the previous day. Skipped entirely when the caller didn't
+  // supply time-of-day inputs.
+  if (input.startTime !== undefined && input.nowMinutes !== undefined) {
     const start = minutesOfDay(input.startTime);
-    if (start !== null && input.nowMinutes >= start - (input.cutoffMinutes ?? 0)) {
+    if (
+      start !== null &&
+      minutesUntilStart(input.dateStr, input.todayStr, start, input.nowMinutes) <=
+        (input.cutoffMinutes ?? 0)
+    ) {
       return { ok: false, reason: 'cutoff' };
     }
   }
@@ -197,12 +197,30 @@ export function startWindowClosed(input: {
 }): boolean {
   if (!DATE_RE.test(input.dateStr) || !DATE_RE.test(input.todayStr)) return true;
   if (input.dateStr < input.todayStr) return true;
-  if (input.dateStr > input.todayStr) return false;
   const start = input.startTime ? minutesOfDay(input.startTime) : null;
   // Date-only granularity: with no parsable start time the slot stays
   // open through its local day, matching `isDateBookable`'s behavior.
   if (start === null) return false;
-  return input.nowMinutes >= start - (input.cutoffMinutes ?? 0);
+  return (
+    minutesUntilStart(input.dateStr, input.todayStr, start, input.nowMinutes) <=
+    (input.cutoffMinutes ?? 0)
+  );
+}
+
+/**
+ * Minutes from now (`todayStr` at `nowMinutes`, Riyadh local) until the
+ * slot's local start on `dateStr`. Both dates are calendar days in the
+ * same fixed-offset zone, so whole-day arithmetic in UTC is exact.
+ */
+function minutesUntilStart(
+  dateStr: string,
+  todayStr: string,
+  startMinutes: number,
+  nowMinutes: number,
+): number {
+  const days =
+    (Date.parse(`${dateStr}T00:00:00Z`) - Date.parse(`${todayStr}T00:00:00Z`)) / 86_400_000;
+  return days * 24 * 60 + startMinutes - nowMinutes;
 }
 
 /**
