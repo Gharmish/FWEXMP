@@ -107,6 +107,27 @@ describe('approveExperience', () => {
     expect(email).not.toHaveBeenCalled();
   });
 
+  it('refuses as host_suspended when the host is suspended between the check and the flip', async () => {
+    // The pre-check read `verified`; the in-WHERE guard lost to a
+    // concurrent suspendHost, and the re-read now sees the suspension.
+    let reads = 0;
+    fake.current = createDbFake({
+      query: {
+        experiences: {
+          findFirst: () =>
+            reads++ === 0 ? experience : { id: ID, host: { verificationStatus: 'suspended' } },
+        },
+      },
+      update: () => [],
+    });
+    expect(await approveExperience(initial, form())).toMatchObject({
+      success: false,
+      message: 'host_suspended',
+    });
+    expect(fake.current?.inserts).toEqual([]);
+    expect(email).not.toHaveBeenCalled();
+  });
+
   it('is not_found / wrong_state when the row is missing or not pending review', async () => {
     experience = undefined;
     expect(await approveExperience(initial, form())).toMatchObject({ message: 'not_found' });
@@ -122,7 +143,7 @@ describe('approveExperience', () => {
     expect(fake.current?.updates[0]).toMatchObject({ status: 'live' });
     // The claim re-asserts pending_review so a decided listing cannot be re-decided.
     expect(referencedColumns(fake.current?.updateConditions[0])).toEqual(
-      expect.arrayContaining(['id', 'status']),
+      expect.arrayContaining(['id', 'status', 'hostId', 'verificationStatus']),
     );
     expect(fake.current?.inserts[0]).toMatchObject({
       experienceId: ID,
