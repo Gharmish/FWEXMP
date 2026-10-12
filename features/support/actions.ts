@@ -79,7 +79,7 @@ export async function replyToConversation(
       where: eq(conversations.id, parsed.data.conversationId),
       columns: { id: true, address: true, lastInboundAt: true, locale: true },
     });
-    if (!conversation) return { success: false, message: 'not_found' };
+    if (!conversation) return { success: false, message: 'not_found', values: { body } };
     const inbound = conversation.lastInboundAt?.getTime() ?? 0;
     if (!inbound || Date.now() - inbound >= SERVICE_WINDOW_MS) {
       return { success: false, message: 'window_closed', values: { body } };
@@ -101,7 +101,7 @@ export async function replyToConversation(
 
     revalidatePath('/[locale]/admin/support/[id]', 'page');
     revalidatePath('/[locale]/admin/support', 'page');
-    if (!result.ok) return { success: false, message: 'send_failed' };
+    if (!result.ok) return { success: false, message: 'send_failed', values: { body } };
     return { success: true };
   } catch (error) {
     reportError(error, { surface: 'support:reply' });
