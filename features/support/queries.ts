@@ -107,6 +107,9 @@ export async function listConversationsForAdmin(): Promise<readonly AdminConvers
   }
 }
 
+/** Messages loaded per admin thread view — the most recent ones. */
+const THREAD_MESSAGES_LIMIT = 500;
+
 export async function getConversationThread(id: string): Promise<ConversationThread | null> {
   const guard = await adminGuard();
   if (guard) return null;
@@ -149,9 +152,11 @@ export async function getConversationThread(id: string): Promise<ConversationThr
         eq(notificationDeliveries.id, conversationMessages.deliveryId),
       )
       .where(eq(conversationMessages.conversationId, id))
-      .orderBy(conversationMessages.createdAt)
-      .limit(500);
-    const mapped: ConversationMessageRow[] = messages.map((m) => ({
+      // Newest first so the cap drops the OLDEST messages, never the
+      // latest guest message awaiting a reply; reversed below for display.
+      .orderBy(desc(conversationMessages.createdAt))
+      .limit(THREAD_MESSAGES_LIMIT);
+    const mapped: ConversationMessageRow[] = messages.reverse().map((m) => ({
       id: m.id,
       direction: m.direction,
       author: m.author,
