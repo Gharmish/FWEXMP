@@ -86,6 +86,18 @@ describe('createPromoCode', () => {
     expect(row.startsAt).toBeInstanceOf(Date);
   });
 
+  it('reads the window as Riyadh wall-clock time, not server time', async () => {
+    expect(
+      await createPromoCode(
+        initial,
+        form({ startsAt: '2026-10-01T10:00', endsAt: '2026-10-15T23:59' }),
+      ),
+    ).toEqual({ success: true });
+    const row = fake.current?.inserts[0] as Record<string, unknown>;
+    expect((row.startsAt as Date).toISOString()).toBe('2026-10-01T07:00:00.000Z');
+    expect((row.endsAt as Date).toISOString()).toBe('2026-10-15T20:59:00.000Z');
+  });
+
   it('reports a taken code without touching it', async () => {
     taken = true;
     expect(await createPromoCode(initial, form())).toMatchObject({
