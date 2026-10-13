@@ -62,6 +62,10 @@ export default async function AdminExperienceEditPage({
     );
   }
   if (block?.reason === 'not_admin') notFound();
+  // The layout renders the TOTP screen in place of this page, but the App
+  // Router still renders the page segment into the flight payload — so a
+  // pending second factor must stop here, before any fetch (issue #56).
+  if (block?.reason === 'mfa_required') return null;
 
   const experience = await getAdminExperienceForEdit(id);
   if (!experience) notFound();
@@ -125,6 +129,7 @@ export default async function AdminExperienceEditPage({
     commission: tE('commission'),
     commissionHint: tE('commissionHint'),
     startTime: tE('startTime'),
+    startTimePlaceholder: tE('startTimePlaceholder'),
     titleEn: tE('titleEn'),
     titleAr: tE('titleAr'),
     descriptionEn: tE('descriptionEn'),

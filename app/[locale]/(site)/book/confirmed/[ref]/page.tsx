@@ -355,7 +355,15 @@ export default async function BookingConfirmedPage({ params, searchParams }: Pag
                     : t('title');
   const headerDescription = isCancelled
     ? isWalletRefunded
-      ? t('cancelledDescriptionWalletCredit', { amount: formatSAR(walletCreditSar, loc) })
+      ? // The "back to your card" half is a gateway reversal — never
+        // promised while refunds are wired by hand (the button below is
+        // hidden on the same setting).
+        t(
+          refundsViaBankTransfer
+            ? 'cancelledDescriptionWalletCreditNoCard'
+            : 'cancelledDescriptionWalletCredit',
+          { amount: formatSAR(walletCreditSar, loc) },
+        )
       : booking?.status === 'refunded'
         ? // The refund copy must name where the money actually went —
           // "your card" on the manual (bank-transfer) rail pointed
@@ -911,9 +919,16 @@ export default async function BookingConfirmedPage({ params, searchParams }: Pag
 
       {isWalletRefunded && booking && (
         <section className="border-sarat-black/12 rounded-card mt-12 flex flex-col gap-4 border p-6 print:hidden">
-          <h2 className="text-h2">{t('walletCredit.heading')}</h2>
+          <h2 className="text-h2">
+            {t(refundsViaBankTransfer ? 'walletCredit.headingNoCard' : 'walletCredit.heading')}
+          </h2>
           <p className="text-sarat-black-600 text-base leading-relaxed">
-            {t('walletCredit.description', { amount: formatSAR(walletCreditSar, loc) })}
+            {t(
+              refundsViaBankTransfer
+                ? 'walletCredit.descriptionNoCard'
+                : 'walletCredit.description',
+              { amount: formatSAR(walletCreditSar, loc) },
+            )}
           </p>
           <div className="flex flex-wrap items-center gap-3">
             <Link
@@ -925,7 +940,17 @@ export default async function BookingConfirmedPage({ params, searchParams }: Pag
             {!walletOwner && (
               // Wallet actions are session-owned — tell a signed-out (or
               // cookie-only) viewer to sign in rather than look broken.
-              <p className="text-sarat-black-600 text-sm">{t('walletCredit.signInHint')}</p>
+              // Which sign-in works depends on the row: an account holder
+              // signs in any way; an anonymous row is claimed only by a
+              // phone sign-in with the booking's number, from the booking
+              // device — never by email (guest-identity.ts, issue #57).
+              <p className="text-sarat-black-600 text-sm">
+                {t(
+                  booking.guestHasAccount
+                    ? 'walletCredit.signInHintAccount'
+                    : 'walletCredit.signInHintDevice',
+                )}
+              </p>
             )}
             {walletOwner && !refundsViaBankTransfer && booking.totalAmountSar > 0 && (
               <RefundToCardButton

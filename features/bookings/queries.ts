@@ -75,6 +75,13 @@ export interface BookingDetail {
   guestEmail: string | null;
   /** Guest's E.164 phone if known — the WhatsApp notification address. */
   guestPhone: string | null;
+  /**
+   * Whether the guest row is linked to a Gharmish account. Wallet credit
+   * is session-owned, so an account-less guest must sign in with the
+   * booking's email (or from the booking device) before they can see it —
+   * the cancellation copy picks its sign-in instruction from this.
+   */
+  guestHasAccount: boolean;
   /** Guest's preferred locale — decision emails are sent in it. */
   guestPreferredLanguage: 'en' | 'ar';
   /**
@@ -206,7 +213,15 @@ export async function getBookingByReference(reference: string): Promise<BookingD
       where: eq(bookings.idempotencyKey, reference),
       with: {
         experience: { columns: { slug: true } },
-        guest: { columns: { name: true, email: true, phone: true, preferredLanguage: true } },
+        guest: {
+          columns: {
+            name: true,
+            email: true,
+            phone: true,
+            preferredLanguage: true,
+            authUserId: true,
+          },
+        },
       },
     }),
   );
@@ -235,6 +250,7 @@ export async function getBookingByReference(reference: string): Promise<BookingD
     guestName: row.guest.name,
     guestEmail: row.guest.email,
     guestPhone: row.contactPhone ?? row.guest.phone,
+    guestHasAccount: row.guest.authUserId !== null,
     guestPreferredLanguage: row.guest.preferredLanguage,
     termsAcceptedAt: row.termsAcceptedAt?.toISOString() ?? null,
     termsVersion: row.termsVersion,
@@ -387,7 +403,15 @@ export async function getBookingsForGuest(guestId: string): Promise<GuestBooking
         limit: GUEST_BOOKINGS_LIMIT,
         with: {
           experience: { columns: { slug: true, titleEn: true, titleAr: true } },
-          guest: { columns: { name: true, email: true, phone: true, preferredLanguage: true } },
+          guest: {
+            columns: {
+              name: true,
+              email: true,
+              phone: true,
+              preferredLanguage: true,
+              authUserId: true,
+            },
+          },
         },
       }),
     );
@@ -419,6 +443,7 @@ export async function getBookingsForGuest(guestId: string): Promise<GuestBooking
     guestName: row.guest.name,
     guestEmail: row.guest.email,
     guestPhone: row.contactPhone ?? row.guest.phone,
+    guestHasAccount: row.guest.authUserId !== null,
     guestPreferredLanguage: row.guest.preferredLanguage,
     termsAcceptedAt: row.termsAcceptedAt?.toISOString() ?? null,
     termsVersion: row.termsVersion,

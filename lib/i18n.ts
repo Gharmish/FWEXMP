@@ -61,3 +61,14 @@ export function permanentRedirect(args: Parameters<typeof nav.permanentRedirect>
   nav.permanentRedirect(args);
   throw new Error('next-intl permanentRedirect returned without throwing NEXT_REDIRECT');
 }
+
+/**
+ * Open Graph locale for a route locale. Every page that declares its own
+ * `openGraph` block replaces the [locale] layout's resolved block wholesale
+ * (Next merges metadata shallowly), so `og:locale` silently vanished below
+ * the home page (2026-10-11 SEO audit, SEO-12). Pages re-attach it with
+ * this instead of re-deriving the mapping.
+ */
+export function ogLocaleFor(locale: string): 'ar_SA' | 'en_US' {
+  return locale === 'ar' ? 'ar_SA' : 'en_US';
+}

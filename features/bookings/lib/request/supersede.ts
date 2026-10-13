@@ -6,11 +6,26 @@ import { reportError } from '@/lib/log';
 import { bookingLinkTokenValid } from '@/lib/booking-link-token';
 import { LAST_BOOKING_COOKIE, parseLastBookingCookie } from '@/features/account/cookie';
 import { releaseWalletReservation } from '@/features/wallet/reservation';
+import { recordPaymentEvent } from '@/features/payments/ledger';
 import type { BookingRequestInput } from '@/features/bookings/lib/request/form';
 
 export interface SupersededHold {
   id: string;
   walletAppliedSar: number;
+  /**
+   * The gateway checkout still open on the hold (`processing`), or null.
+   * The pay step prepares a checkout the moment it renders, so a guest
+   * who taps "change date or guests" from there ALWAYS leaves one behind
+   * — a hold in that state used to be skipped entirely, stranding the
+   * seats and the phone-throttle slot until the deadline cron reaped
+   * them (nightly bug hunt 2026-10-09). The release retires the checkout
+   * the same way a promo change does: the id is kept and the supersession
+   * journaled, so a late capture on the stale widget still reaches
+   * settle, which refunds a charge on a cancelled booking and alerts.
+   */
+  liveCheckoutId: string | null;
+  /** The charged total that checkout was prepared at (for the ledger row). */
+  totalAmountSar: number;
   /**
    * Whether the hold sits inside THIS phone's active-hold count (a factual
    * overlap, not an ownership claim) — so an authorized release can
@@ -49,16 +64,21 @@ export async function resolveSupersededHold(
         paymentDeadline: true,
         settleAnomalyAt: true,
         walletAppliedSar: true,
+        checkoutId: true,
+        totalAmount: true,
       },
     });
     // Only a LIVE unpaid instant hold qualifies: confirmed, no payment
-    // captured or in flight, not under settle review, and its pay window
-    // still open. Anything else (paid, pending approval, lapsed) is not
-    // this flow's to touch.
+    // captured, not under settle review, and its pay window still open.
+    // A prepared-but-unpaid checkout (`processing`) is live too — see
+    // `liveCheckoutId`. Anything else (paid, pending approval, lapsed) is
+    // not this flow's to touch.
     const live =
       hold !== undefined &&
       hold.status === 'confirmed' &&
-      (hold.paymentStatus === 'unpaid' || hold.paymentStatus === 'failed') &&
+      (hold.paymentStatus === 'unpaid' ||
+        hold.paymentStatus === 'failed' ||
+        hold.paymentStatus === 'processing') &&
       hold.settleAnomalyAt === null &&
       hold.paymentDeadline !== null &&
       hold.paymentDeadline.getTime() > Date.now();
@@ -75,6 +95,8 @@ export async function resolveSupersededHold(
     return {
       id: hold.id,
       walletAppliedSar: hold.walletAppliedSar,
+      liveCheckoutId: hold.paymentStatus === 'processing' ? hold.checkoutId : null,
+      totalAmountSar: hold.totalAmount,
       countsForPhone: hold.contactPhone === input.phone,
     };
   } catch (error) {
@@ -87,10 +109,14 @@ export async function resolveSupersededHold(
  * Step 10 — the replacement exists: release the verified superseded hold
  * with the exact transition the release cron applies to lapsed holds, so
  * its capacity frees now and `createCheckout` refuses the old pay link.
- * The WHERE re-asserts every liveness guard: a payment that raced ahead
- * (or a settle anomaly stamped meanwhile) leaves the row untouched.
- * Best-effort — on any failure the hold simply lapses on its own
- * deadline; the new booking must never fail here.
+ * A hold with a prepared checkout is retired the way a promo change
+ * retires one: back to `unpaid`, stamped superseded, id KEPT (settle must
+ * still resolve a late capture on the stale widget — it refunds a charge
+ * on a cancelled booking and alerts the team). The WHERE re-asserts every
+ * liveness guard: a payment that settled meanwhile (`paid`), or a settle
+ * anomaly stamped meanwhile, leaves the row untouched. Best-effort — on
+ * any failure the hold simply lapses on its own deadline; the new booking
+ * must never fail here.
  */
 export async function releaseSupersededHold(
   hold: SupersededHold,
@@ -99,19 +125,41 @@ export async function releaseSupersededHold(
   try {
     const releasedHold = await db
       .update(bookings)
-      .set({ status: 'cancelled', cancelledAt: new Date(), cancellationKind: 'system' })
+      .set({
+        status: 'cancelled',
+        cancelledAt: new Date(),
+        cancellationKind: 'system',
+        ...(hold.liveCheckoutId
+          ? { paymentStatus: 'unpaid' as const, checkoutSupersededAt: new Date() }
+          : {}),
+      })
       .where(
         and(
           eq(bookings.id, hold.id),
           eq(bookings.status, 'confirmed'),
-          inArray(bookings.paymentStatus, ['unpaid', 'failed']),
+          inArray(bookings.paymentStatus, ['unpaid', 'failed', 'processing']),
           isNull(bookings.settleAnomalyAt),
         ),
       )
       .returning({ id: bookings.id });
+    if (releasedHold.length === 0) return;
+    // Journal the retired checkout (best-effort, like createCheckout's own
+    // supersessions) so a late capture on it stays traceable.
+    if (hold.liveCheckoutId) {
+      try {
+        await recordPaymentEvent({
+          bookingId: hold.id,
+          type: 'checkout_superseded',
+          amountSar: hold.totalAmountSar,
+          gatewayId: hold.liveCheckoutId,
+        });
+      } catch (error) {
+        reportError(error, { surface: 'booking-request:supersededLedger', reference });
+      }
+    }
     // Checkout-applied credit on the old hold was only a reservation —
     // hand it back, same as the cron does on release.
-    if (releasedHold.length > 0 && hold.walletAppliedSar > 0) {
+    if (hold.walletAppliedSar > 0) {
       await releaseWalletReservation(hold.id);
     }
   } catch (error) {

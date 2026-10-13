@@ -40,6 +40,10 @@ export default async function AdminMomentsPage({
 
   const block = await isAdminAndDbReady();
   if (block?.reason === 'not_admin') notFound();
+  // The layout renders the TOTP screen in place of this page, but the App
+  // Router still renders the page segment into the flight payload — so a
+  // pending second factor must stop here, before any fetch (issue #56).
+  if (block?.reason === 'mfa_required') return null;
   if (block?.reason === 'no_db') {
     return (
       <div className="flex flex-col gap-6">

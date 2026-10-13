@@ -332,6 +332,9 @@ export async function getRecentReviews(
         .innerJoin(guests, eq(reviewsTable.guestId, guests.id))
         .where(
           and(
+            // Live only: each card links to its experience, and a paused or
+            // archived listing 404s — a broken internal link on the home page.
+            eq(experiences.status, 'live'),
             isNull(reviewsTable.hiddenAt),
             gte(reviewsTable.rating, 4),
             ...(options.excludeWomenOnly ? [ne(experiences.category, 'women_only')] : []),
@@ -405,7 +408,16 @@ export async function getReviewsByHostSlug(
       .innerJoin(experiences, eq(reviewsTable.experienceId, experiences.id))
       .innerJoin(hosts, eq(experiences.hostId, hosts.id))
       .innerJoin(guests, eq(reviewsTable.guestId, guests.id))
-      .where(and(eq(hosts.slug, slug), isNull(reviewsTable.hiddenAt), gte(reviewsTable.rating, 4)))
+      // Live only, as documented above: each card links to its experience,
+      // and a paused or archived listing 404s.
+      .where(
+        and(
+          eq(hosts.slug, slug),
+          eq(experiences.status, 'live'),
+          isNull(reviewsTable.hiddenAt),
+          gte(reviewsTable.rating, 4),
+        ),
+      )
       .orderBy(desc(reviewsTable.createdAt))
       .limit(limit);
     return rows.map((row) => ({

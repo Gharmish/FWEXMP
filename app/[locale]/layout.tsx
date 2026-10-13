@@ -34,6 +34,7 @@ import { CookieNotice } from '@/components/layout/cookie-notice';
 import { MarketingPixels } from '@/components/layout/marketing-pixels';
 import { WebVitalsReporter } from '@/features/analytics/web-vitals-reporter';
 import { Analytics } from '@vercel/analytics/next';
+import { SpeedInsights } from '@vercel/speed-insights/next';
 import { UtmCapture } from '@/features/analytics/utm-capture';
 import { MotionProvider } from '@/components/ui/motion';
 import { ToastProvider } from '@/components/ui/toast';
@@ -159,6 +160,16 @@ export default async function LocaleLayout({
                     analytics_events capture. Site-level visitors/referrers/
                     countries live in the Vercel dashboard (linked from /admin). */}
                 <Analytics />
+                {/* Vercel Speed Insights: real-user Core Web Vitals (LCP/INP/CLS)
+                    per route and locale, against the BRIEF §3 budgets, in the
+                    Vercel dashboard. Complements (does not replace) the
+                    first-party WebVitalsReporter sample above, which feeds
+                    /admin. Same cookieless, no-identifier posture as Web
+                    Analytics, so it sits outside the consent gate too. The
+                    project already had Speed Insights provisioned; it never
+                    received data because nothing mounted the collector
+                    (2026-10-11). */}
+                <SpeedInsights />
                 <UtmCapture />
                 {/* useSearchParams consumer — Suspense keeps prerender happy. */}
                 <Suspense fallback={null}>

@@ -38,6 +38,18 @@ export async function resolveBookingGuest(
 
   if (guest?.suspendedAt) return { suspended: true };
 
+  // A signed-out booking whose typed phone matches an ACCOUNT's row must
+  // not book onto that row (2026-10-11, issue #40): the stranger's booking
+  // would land in the victim's account, and the email backfill below
+  // would point every later booking email — with its `?k=` link token —
+  // at the stranger. The suspension check above still applies to the
+  // number; the booking then gets its own anonymous row carrying NO
+  // phone (`guests.phone` is unique and the account holds it), exactly
+  // as resolveGuestForUser does for a contested phone. Contact details
+  // still reach the host via the booking's `contact_phone` snapshot.
+  const contested = !user && Boolean(guest?.authUserId);
+  if (contested) guest = undefined;
+
   if (!guest) {
     // Anonymous first booking — `authUserId` stays null; accounts only
     // ever link through a verified phone (guest-identity.ts).
@@ -45,7 +57,7 @@ export async function resolveBookingGuest(
       .insert(guests)
       .values({
         name: input.name,
-        phone: input.phone,
+        phone: contested ? null : input.phone,
         email: input.email,
         preferredLanguage: input.locale,
         // Opt-in evidence for marketing messages — stamped only when the

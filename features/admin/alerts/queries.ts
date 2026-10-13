@@ -5,6 +5,7 @@ import { db } from '@/lib/db';
 import { serverEnv } from '@/lib/env';
 import { reportError } from '@/lib/log';
 import { adminAlerts } from '@/db/schema';
+import { adminGuard } from '@/features/admin/guard';
 import type { AdminAlertRow } from '@/features/admin/alerts/types';
 
 export const ALERTS_LIST_LIMIT = 100;
@@ -23,6 +24,10 @@ function asRecord(value: unknown): Record<string, unknown> {
  */
 export async function listAdminAlerts(): Promise<AdminAlertRow[] | null> {
   if (!serverEnv.DATABASE_URL) return null;
+  // Re-gate like every other admin query: alert details carry guest
+  // contact data and inbound WhatsApp text, and the admin layout's check
+  // is not re-run for every segment render.
+  if (await adminGuard()) return null;
   try {
     const rows = await db
       .select()
@@ -51,6 +56,7 @@ export async function listAdminAlerts(): Promise<AdminAlertRow[] | null> {
 /** Unacknowledged alerts — the rail badge. Zero on any failure. */
 export async function countOpenAlerts(): Promise<number> {
   if (!serverEnv.DATABASE_URL) return 0;
+  if (await adminGuard()) return 0;
   try {
     const [row] = await db
       .select({ n: count() })

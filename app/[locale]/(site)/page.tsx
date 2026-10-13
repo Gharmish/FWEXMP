@@ -4,11 +4,11 @@ import { ArrowRight, Search } from 'lucide-react';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { cn } from '@/lib/utils';
 import { Avatar } from '@/components/ui/avatar';
-import { Link } from '@/lib/i18n';
+import { Link, ogLocaleFor } from '@/lib/i18n';
 import type { Locale } from '@/lib/i18n';
 import { routing } from '@/lib/i18n';
 import type { Category } from '@/lib/colors';
-import { SITE_URL, SITE_NAME } from '@/lib/site';
+import { SITE_URL, SITE_NAME, SUPPORT_EMAIL } from '@/lib/site';
 import { buttonVariants } from '@/components/ui/button';
 import { JsonLd } from '@/components/seo/json-ld';
 import { ExperienceCard } from '@/features/experiences/components/experience-card';
@@ -59,18 +59,23 @@ export async function generateMetadata({
       canonical: `${SITE_URL}/${locale}`,
       languages: languagesAlternates,
     },
+    // Declaring openGraph replaces the parent's resolved block wholesale —
+    // including the [locale]-level opengraph-image file convention — so the
+    // brand card is re-attached explicitly (same pattern as /hosting).
     openGraph: {
       title,
       description: t('description'),
       url: `${SITE_URL}/${locale}`,
       siteName: t('name'),
-      locale: locale === 'ar' ? 'ar_SA' : 'en_US',
+      locale: ogLocaleFor(locale),
       type: 'website',
+      images: [{ url: `${SITE_URL}/${locale}/opengraph-image`, width: 1200, height: 630 }],
     },
     twitter: {
       card: 'summary_large_image',
       title,
       description: t('description'),
+      images: [`${SITE_URL}/${locale}/opengraph-image`],
     },
   };
 }
@@ -141,6 +146,26 @@ export default async function HomePage({
         logo: `${SITE_URL}/images/gharmish-wordmark.png`,
         description: tSite('description'),
         areaServed: 'Abha, Aseer, Saudi Arabia',
+        // Contact + place (2026-10-11 SEO audit, SEO-14): the knowledge-panel
+        // signals Google asks of an Organization. `sameAs` (social profiles)
+        // is deliberately absent until the owner confirms the official
+        // handles — a wrong profile link is worse than none.
+        email: SUPPORT_EMAIL,
+        contactPoint: [
+          {
+            '@type': 'ContactPoint',
+            contactType: 'customer support',
+            email: SUPPORT_EMAIL,
+            availableLanguage: ['ar', 'en'],
+            areaServed: 'SA',
+          },
+        ],
+        address: {
+          '@type': 'PostalAddress',
+          addressLocality: 'Abha',
+          addressRegion: 'Aseer',
+          addressCountry: 'SA',
+        },
       },
       {
         '@type': 'WebSite',
