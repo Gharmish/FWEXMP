@@ -28,9 +28,19 @@ export async function sweepSupportLine(run: PassRunner) {
   });
   // Phase 2: same net for bot-owned threads, plus one re-page per
   // ticket that blew through its SLA.
-  const agentSwept = await run.pass('3c-agent-turns', () => sweepPendingAgentTurns(), 0, {
-    bestEffort: true,
-  });
+  // Checked per turn, not just at pass start (runner contract): one turn
+  // can take over a minute.
+  const agentSwept = await run.pass(
+    '3c-agent-turns',
+    () =>
+      sweepPendingAgentTurns(undefined, undefined, () => {
+        if (!run.overBudget()) return false;
+        run.truncate('3c-agent-turns');
+        return true;
+      }),
+    0,
+    { bestEffort: true },
+  );
   const slaBreaches = await run.pass('3c-ticket-sla', () => sweepTicketSla(), 0, {
     bestEffort: true,
   });
