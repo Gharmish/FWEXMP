@@ -131,11 +131,13 @@ export async function notifyAdmin(
       // Actionable destination: booking-shaped alerts land on the bookings
       // queue; everything else on the dashboard. Saves the operator a
       // UUID-paste round-trip.
+      // A conversation is the place to reply, so it wins for every kind
+      // (same order as the WhatsApp rail below).
       const adminUrl =
-        kind === 'guest_whatsapp_inbound' && typeof detail.from === 'string'
-          ? `${SITE_URL}/en/admin/guests?q=${encodeURIComponent(detail.from)}`
-          : kind.startsWith('support_ticket') && typeof detail.conversationId === 'string'
-            ? `${SITE_URL}/en/admin/support/${detail.conversationId}`
+        typeof detail.conversationId === 'string'
+          ? `${SITE_URL}/en/admin/support/${detail.conversationId}`
+          : kind === 'guest_whatsapp_inbound' && typeof detail.from === 'string'
+            ? `${SITE_URL}/en/admin/guests?q=${encodeURIComponent(detail.from)}`
             : kind.startsWith('support_ticket')
               ? `${SITE_URL}/en/admin/support`
               : 'bookingId' in detail || 'reference' in detail

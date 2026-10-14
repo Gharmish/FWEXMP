@@ -52,3 +52,28 @@ describe('ACK_COPY', () => {
     expect(ACK_COPY.ar).not.toContain('غرميش');
   });
 });
+
+describe('pageAdminAboutInbound', () => {
+  it('carries the conversation id so the alert links the thread', async () => {
+    const { notifyAdmin } = await import('@/lib/admin-alerts');
+    const { pageAdminAboutInbound } = await import('./inbound');
+    await pageAdminAboutInbound(
+      {
+        conversationId: 'conv-1',
+        messageId: 'm-1',
+        locale: 'en',
+        guestName: null,
+        shouldAck: false,
+        isNew: true,
+        state: 'human',
+      },
+      '+966500000001',
+      'hello',
+    );
+    expect(notifyAdmin).toHaveBeenCalledWith(
+      'guest_whatsapp_inbound',
+      expect.objectContaining({ conversationId: 'conv-1' }),
+      expect.anything(),
+    );
+  });
+});
