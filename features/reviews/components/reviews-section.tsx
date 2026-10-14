@@ -37,10 +37,12 @@ interface ReviewsSectionProps {
   productId?: string;
 }
 
-function reviewJsonLd(review: ReviewSummary): Record<string, unknown> {
-  // Body pick mirrors ReviewCard: EN text first for the structured layer
-  // (it is locale-independent), falling back to the Arabic text.
-  const body = review.textEn ?? review.textAr;
+function reviewJsonLd(review: ReviewSummary, locale: Locale): Record<string, unknown> {
+  // Same pick as ReviewCard, so the structured layer states exactly the
+  // text the page shows: the Arabic page carried the English body while
+  // rendering the Arabic one (2026-10-14 SEO run).
+  const body =
+    locale === 'ar' ? (review.textAr ?? review.textEn) : (review.textEn ?? review.textAr);
   return {
     '@type': 'Review',
     // guestName is ALREADY the public display form (first name + initial,
@@ -106,7 +108,7 @@ export async function ReviewsSection({
             '@id': productId,
             // First page only, even under `?reviews=all` — the aggregate
             // already carries the full count.
-            review: visible.slice(0, INITIAL_VISIBLE).map(reviewJsonLd),
+            review: visible.slice(0, INITIAL_VISIBLE).map((review) => reviewJsonLd(review, locale)),
           }}
         />
       )}
