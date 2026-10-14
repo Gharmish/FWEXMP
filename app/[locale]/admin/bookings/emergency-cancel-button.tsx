@@ -15,6 +15,7 @@ type ErrorKey =
   | 'not_found'
   | 'wrong_state'
   | 'dispute_open'
+  | 'wallet_unreachable'
   | 'validation'
   | 'server';
 
