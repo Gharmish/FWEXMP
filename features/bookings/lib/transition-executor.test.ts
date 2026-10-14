@@ -46,7 +46,12 @@ interface MockBooking {
   paymentReference: string | null;
   approvalDeadline: Date | null;
   idempotencyKey: string;
-  experience: { hostId: string; maxGroupSize: number; bookingCutoffHours: number };
+  experience: {
+    hostId: string;
+    maxGroupSize: number;
+    bookingCutoffHours: number;
+    status: string;
+  };
   guest: { preferredLanguage: 'en' | 'ar' };
 }
 let booking: MockBooking | undefined;
@@ -143,7 +148,7 @@ beforeEach(() => {
     paymentReference: null,
     approvalDeadline: null,
     idempotencyKey: 'ref-1',
-    experience: { hostId: 'h-1', maxGroupSize: 10, bookingCutoffHours: 2 },
+    experience: { hostId: 'h-1', maxGroupSize: 10, bookingCutoffHours: 2, status: 'live' },
     guest: { preferredLanguage: 'en' },
   };
 });
@@ -166,7 +171,7 @@ describe('executeBookingTransition — scope', () => {
   it('lets an admin transition any booking regardless of host', async () => {
     booking = {
       ...booking!,
-      experience: { hostId: 'h-other', maxGroupSize: 10, bookingCutoffHours: 2 },
+      experience: { hostId: 'h-other', maxGroupSize: 10, bookingCutoffHours: 2, status: 'live' },
     };
     expect(await executeBookingTransition('b-1', 'confirmed', ADMIN)).toEqual({
       ok: 'transitioned',
@@ -214,6 +219,28 @@ describe('executeBookingTransition — lapsed approval window', () => {
     expect(setCalls[0]).toMatchObject({ status: 'confirmed' });
     expect(sendBookingApprovedEmail).toHaveBeenCalledWith('ref-1');
     expect(sendBookingExpiredEmail).not.toHaveBeenCalled();
+  });
+});
+
+describe('executeBookingTransition — approval on a listing that is not live (#78)', () => {
+  it.each(['paused', 'pending_review'])(
+    'refuses a host approval on a %s listing and writes nothing',
+    async (status) => {
+      booking = { ...booking!, experience: { ...booking!.experience, status } };
+
+      const result = await executeBookingTransition('b-1', 'confirmed', OWNER_HOST);
+
+      expect(result).toEqual({ error: 'listing_not_live' });
+      expect(setCalls).toHaveLength(0);
+      expect(sendBookingApprovedEmail).not.toHaveBeenCalled();
+    },
+  );
+
+  it('still lets the host decline a request on a paused listing', async () => {
+    booking = { ...booking!, experience: { ...booking!.experience, status: 'paused' } };
+    expect(await executeBookingTransition('b-1', 'declined', OWNER_HOST)).toEqual({
+      ok: 'transitioned',
+    });
   });
 });
 

@@ -2286,6 +2286,7 @@
       "tooEarly": "This booking can't be completed before the experience date.",
       "tooLate": "This request can't be accepted any more — the start time is too close or has already passed.",
       "unpaid": "This booking hasn't been paid — it can't be completed.",
+      "listingNotLive": "This experience isn't live right now, so the guest couldn't pay. Relist it first, then accept the request.",
       "validation": "Something about this request was invalid. Refresh and try again.",
       "server": "Something went wrong on our side. Try again.",
       "reasonRequired": "Pick a reason for cancelling first."

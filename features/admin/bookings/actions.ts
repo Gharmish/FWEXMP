@@ -60,6 +60,8 @@ export interface AdminBookingActionResult {
     | 'too_early'
     | 'too_late'
     | 'unpaid'
+    // Part of the shared executor's result; only a host actor gets it.
+    | 'listing_not_live'
     | 'dispute_open'
     | 'validation'
     | 'server';

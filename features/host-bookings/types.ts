@@ -118,6 +118,7 @@ export type HostBookingActionError =
   | 'too_early'
   | 'too_late'
   | 'unpaid'
+  | 'listing_not_live'
   | 'reason_required'
   | 'validation'
   | 'server';

@@ -764,6 +764,14 @@ export async function runTool(
           decision === 'approve' ? 'confirmed' : 'declined',
           { kind: 'host', hostId: ctx.hostId },
         );
+        if ('error' in outcome && outcome.error === 'listing_not_live') {
+          return {
+            result: JSON.stringify({
+              ...outcome,
+              note: 'The listing is paused or in review, so the guest could not pay. Tell the host to relist it first; the request stays pending until then.',
+            }),
+          };
+        }
         return { result: JSON.stringify(outcome) };
       }
       case 'open_ticket':
