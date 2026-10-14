@@ -140,6 +140,19 @@ describe('adminUpdateExperience', () => {
     expect(fake.current?.updates[0]).toMatchObject({ status: 'draft', inclusionsAr: [] });
   });
 
+  it('a live listing needs the English side of an Arabic-only list too', async () => {
+    expect(
+      await adminUpdateExperience(initial, form({ inclusionsRaw: '', whatToBringRaw: '' })),
+    ).toMatchObject({
+      message: 'validation',
+      fields: {
+        inclusionsRaw: 'inclusions_en_required',
+        whatToBringRaw: 'what_to_bring_en_required',
+      },
+    });
+    expect(fake.current?.updates).toEqual([]);
+  });
+
   it('is not_found for an unknown id and refuses a schedule change over live bookings', async () => {
     existing = undefined;
     expect(await adminUpdateExperience(initial, form())).toMatchObject({ message: 'not_found' });
