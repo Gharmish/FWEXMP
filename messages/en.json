@@ -1920,7 +1920,7 @@
         "docRequired": "Attach this document.",
         "docType": "Use a JPG, PNG, WebP, or PDF file.",
         "docSize": "Keep files under 4MB.",
-        "docTotal": "Your documents add up to more than 4MB for one submission. Send the largest ones now and the rest in a second submission — what you have already uploaded is kept."
+        "docTotal": "Your documents add up to more than 4MB, which is the limit for one submission. Make the larger files smaller, for example by sending a clear phone photo or a compressed PDF of each document, then submit again."
       },
       "uploadFailed": "We couldn't upload one of your documents. Check your connection and try again."
     },
