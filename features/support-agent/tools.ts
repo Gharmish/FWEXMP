@@ -768,7 +768,7 @@ export async function runTool(
           return {
             result: JSON.stringify({
               ...outcome,
-              note: 'The listing is paused or in review, so the guest could not pay. Tell the host to relist it first; the request stays pending until then.',
+              note: 'The listing is not live (paused or in review), so the guest could not pay. The request stays pending: a paused listing can be relisted by the host, one in review becomes approvable once the admin approves it. Only a live listing can accept the request.',
             }),
           };
         }
