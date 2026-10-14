@@ -869,6 +869,17 @@ describe('requestBooking — superseding an unpaid hold (third-round R7)', () =>
     expect(releaseWalletReservation).not.toHaveBeenCalled();
   });
 
+  it('a hold that settled meanwhile is left alone when the date still has room: no credit is returned on a paid hold (review of #88)', async () => {
+    holdRow = liveHold();
+    releasedRows = [];
+    txBookedSum = 2;
+    txSumMember = { id: 'hold-1', partySize: 4 };
+    await runExpectingRedirect(superseding({ supersedesToken: 'valid-token', partySize: '5' }));
+    expect(insertedBookings).toHaveLength(1);
+    expect(guestUpdates.some((u) => u.status === 'cancelled')).toBe(true);
+    expect(releaseWalletReservation).not.toHaveBeenCalled();
+  });
+
   it('a full date writes nothing: the hold the guest came from is left as it was', async () => {
     holdRow = liveHold();
     releasedRows = [{ id: 'hold-1' }];

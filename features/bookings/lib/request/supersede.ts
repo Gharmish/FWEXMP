@@ -77,8 +77,8 @@ async function ownsHold(reference: string, token: string | undefined): Promise<b
  * the form names that hold (`supersedes`) and the caller PROVES they hold
  * its link — this device's last-booking cookie points at it, or a valid
  * signed link token for that exact reference is presented — it stops
- * counting toward the phone throttle and is released after the new
- * booking is created. A matching contact phone is NOT proof (it is
+ * counting toward the phone throttle and is cancelled inside the new
+ * booking's capacity transaction. A matching contact phone is NOT proof (it is
  * attacker-suppliable), so it never authorizes the release. Ownership in
  * any doubt → leave the hold alone; the release cron reaps it at its
  * deadline anyway. Best-effort: any failure is reported and means "no

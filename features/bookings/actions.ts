@@ -43,8 +43,9 @@ export type {
  *   6. throttles     active unpaid holds per phone, creations per IP per hour
  *   7. guest         the guest row (account-linked or anonymous), suspension check
  *   8. values        the row, with policy/commission snapshots and consent stamps
- *   9. insert        under the experience row lock, only if the date has room
- *  10. release       free the superseded hold now that its replacement exists
+ *   9. insert        under the experience row lock, only if the date has room;
+ *                    the superseded hold is cancelled under that same lock
+ *  10. bookkeeping   the released hold's ledger row and wallet reservation
  *  11. notify        host + guest emails after the response has flushed
  *
  * Where the guest lands depends on the experience's booking mode

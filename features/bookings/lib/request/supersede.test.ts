@@ -132,15 +132,13 @@ describe('cancelSupersededHold + finishSupersededHoldRelease', () => {
     expect(releaseWalletReservation).toHaveBeenCalledWith('b-old');
   });
 
-  it('reports a guarded update that matched no row (payment raced ahead) so nothing further runs', async () => {
+  it('reports a guarded update that matched no row (payment raced ahead)', async () => {
     fake.current = createDbFake({
       query: { bookings: { findFirst: () => hold } },
       update: () => [],
     });
     const resolved = await resolveSupersededHold(input, NEW);
     expect(await db.transaction((tx) => cancelSupersededHold(tx, resolved!))).toBe(false);
-    expect(ledger).not.toHaveBeenCalled();
-    expect(releaseWalletReservation).not.toHaveBeenCalled();
   });
 });
 

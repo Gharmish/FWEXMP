@@ -20,6 +20,8 @@ import {
   type SupersededHold,
 } from '@/features/bookings/lib/request/supersede';
 
+export type InsertBookingOutcome = { status: 'full' } | { status: 'ok'; holdReleased: boolean };
+
 export interface BookingRowContext {
   guestId: string;
   /** The idempotency key — the URL capability of the booking. */
@@ -110,10 +112,11 @@ export async function bookingRowValues(
  * the insert (review of #88): releasing it afterwards left a window in
  * which a payment that settled meanwhile kept the hold on the date next
  * to its replacement. If the guarded cancel matches no row the hold is
- * no longer this flow's — it is summed like any other booking.
+ * no longer this flow's — it is summed like any other booking. The cancel
+ * is no longer best-effort: an error there aborts the transaction and the
+ * guest gets a server error with no booking, which beats seating a party
+ * twice.
  */
-export type InsertBookingOutcome = { status: 'full' } | { status: 'ok'; holdReleased: boolean };
-
 export async function insertBookingIfRoom(
   experience: BookableExperience,
   input: BookingRequestInput,
