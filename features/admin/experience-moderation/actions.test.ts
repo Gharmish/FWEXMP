@@ -15,14 +15,19 @@ vi.mock('@/features/admin/guard', () => ({
   adminGateRefused: (a: Record<string, unknown>) => 'refused' in a,
   adminFailureMessage: () => 'forbidden',
 }));
-const email = vi.fn<(id: string, decision: string) => Promise<void>>(async () => undefined);
+const email = vi.fn<(id: string, decision: string, options?: unknown) => Promise<void>>(
+  async () => undefined,
+);
 vi.mock('@/features/admin/experience-moderation/moderation-email', () => ({
-  sendExperienceModerationEmail: (id: string, decision: string) => email(id, decision),
+  sendExperienceModerationEmail: (id: string, decision: string, options?: unknown) =>
+    options === undefined ? email(id, decision) : email(id, decision, options),
 }));
 
 type Row = Record<string, unknown>;
 let experience: Row | undefined;
 let updated: Row[] = [];
+/** The latest `submitted` moderation event the approval reads (#79). */
+let submission: Row | undefined;
 const fake = vi.hoisted(() => ({ current: null as ReturnType<typeof createDbFake> | null }));
 vi.mock('@/lib/db', () => ({
   get db() {
@@ -74,9 +79,13 @@ beforeEach(() => {
   actor = { adminUserId: 'admin-1' };
   experience = ready();
   updated = [{ id: ID }];
+  submission = { fromStatus: 'live' };
   email.mockClear();
   fake.current = createDbFake({
-    query: { experiences: { findFirst: () => experience } },
+    query: {
+      experiences: { findFirst: () => experience },
+      experienceModerationEvents: { findFirst: () => submission },
+    },
     update: () => updated,
   });
 });
@@ -153,7 +162,24 @@ describe('approveExperience', () => {
       toStatus: 'live',
       reviewerNotes: 'Great',
     });
-    expect(email).toHaveBeenCalledWith(ID, 'approved');
+    expect(email).toHaveBeenCalledWith(ID, 'approved', { returnedToPaused: false });
+  });
+
+  it('returns a listing the host had paused to paused, not live (#79)', async () => {
+    submission = { fromStatus: 'paused' };
+    expect(await run(() => approveExperience(initial, form()))).toBe(
+      `REDIRECT:/admin/experience-moderation/${ID}`,
+    );
+    expect(fake.current?.updates[0]).toMatchObject({ status: 'paused' });
+    expect(fake.current?.inserts[0]).toMatchObject({ event: 'approved', toStatus: 'paused' });
+    expect(email).toHaveBeenCalledWith(ID, 'approved', { returnedToPaused: true });
+  });
+
+  it('still goes live on a first submission with no earlier submitted event', async () => {
+    submission = undefined;
+    await run(() => approveExperience(initial, form()));
+    expect(fake.current?.updates[0]).toMatchObject({ status: 'live' });
+    expect(fake.current?.inserts[0]).toMatchObject({ toStatus: 'live' });
   });
 });
 
