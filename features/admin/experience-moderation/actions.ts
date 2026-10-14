@@ -1,6 +1,6 @@
 'use server';
 
-import { and, eq, sql } from 'drizzle-orm';
+import { and, desc, eq, ne, sql } from 'drizzle-orm';
 import { revalidatePath } from 'next/cache';
 import { revalidateExperienceCaches } from '@/lib/cache-tags';
 import { db } from '@/lib/db';
@@ -19,7 +19,8 @@ import { sendExperienceModerationEmail } from '@/features/admin/experience-moder
 /**
  * Admin moderation actions on experiences.
  *
- *   - Approve: pending_review → live + audit event.
+ *   - Approve: pending_review → live + audit event (→ paused when the
+ *     host had paused the listing before the edit that sent it to review).
  *   - Reject:  pending_review → draft + audit event with required note.
  *   - Request changes: pending_review → changes_requested + audit
  *     event with required note. The host can edit and resubmit.
@@ -84,6 +85,7 @@ export async function approveExperience(
   if (!parsed.success) return { success: false, message: 'validation', values };
   const { experienceId, reviewerNotes, locale } = parsed.data;
 
+  let approvedStatus: 'live' | 'paused' = 'live';
   try {
     // Launch-content gates: nothing goes live without a hero photo or
     // with AI/translation placeholders in the Arabic the year-1
@@ -149,13 +151,35 @@ export async function approveExperience(
       return { success: false, message: 'needs_arabic_lists', values };
     }
 
+    // A listing the host had PAUSED and then edited materially went to
+    // review from `paused` (#42); approving it straight to `live`
+    // silently undid the host's pause and reopened dates they had
+    // stopped selling (#79, 2026-10-14). The row no longer remembers the
+    // pause — the `submitted` event that OPENED this review cycle does —
+    // so approval returns it to where the host left it, and the host
+    // republishes when ready. A resubmission after "request changes"
+    // writes its own `submitted` event from `changes_requested`; that one
+    // is skipped so a change-request round does not hide the pause
+    // (review of #90). A first submission (`draft`) still resolves to live.
+    const submission = await db.query.experienceModerationEvents.findFirst({
+      where: (e) =>
+        and(
+          eq(e.experienceId, experienceId),
+          eq(e.event, 'submitted'),
+          ne(e.fromStatus, 'changes_requested'),
+        ),
+      orderBy: (e) => [desc(e.createdAt)],
+      columns: { fromStatus: true },
+    });
+    approvedStatus = submission?.fromStatus === 'paused' ? 'paused' : 'live';
+
     // Conditional update: only flips if it's still pending_review AND the
     // host is still verified. The suspension check above is a read before
     // this write; a concurrent suspendHost (which pauses only LIVE rows)
     // would otherwise let this listing go live under a suspended host.
     const updated = await db
       .update(experiences)
-      .set({ status: 'live', updatedAt: new Date() })
+      .set({ status: approvedStatus, updatedAt: new Date() })
       .where(
         and(
           eq(experiences.id, experienceId),
@@ -179,7 +203,7 @@ export async function approveExperience(
       experienceId,
       event: 'approved',
       fromStatus: 'pending_review',
-      toStatus: 'live',
+      toStatus: approvedStatus,
       reviewerUserId: guard.adminUserId,
       reviewerNotes: reviewerNotes ?? null,
     });
@@ -190,7 +214,9 @@ export async function approveExperience(
 
   // Tell the host — best-effort, never fails the decision.
   try {
-    await sendExperienceModerationEmail(experienceId, 'approved');
+    await sendExperienceModerationEmail(experienceId, 'approved', {
+      returnedToPaused: approvedStatus === 'paused',
+    });
   } catch (error) {
     reportError(error, { surface: 'admin:moderationEmail', experienceId });
   }

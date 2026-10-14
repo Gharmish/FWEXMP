@@ -26,6 +26,15 @@ export type ModerationDecision = 'approved' | 'rejected' | 'changes_requested';
 export async function sendExperienceModerationEmail(
   experienceId: string,
   decision: ModerationDecision,
+  options: {
+    /**
+     * Approved back to `paused` (#79): the host had paused the listing,
+     * so the notice says "approved, republish when you're ready" and
+     * links to the host page, never "now live". Email only — the
+     * WhatsApp approval template promises a live listing.
+     */
+    returnedToPaused?: boolean;
+  } = {},
 ): Promise<void> {
   if (!notificationsConfigured()) return;
 
@@ -40,20 +49,23 @@ export async function sendExperienceModerationEmail(
   const t = await getTranslations({ locale: host.locale, namespace: 'moderationEmail' });
   const title = host.locale === 'ar' ? experience.titleAr : experience.titleEn;
 
-  const subject =
-    decision === 'approved'
+  const paused = decision === 'approved' && options.returnedToPaused === true;
+  const subject = paused
+    ? t('approvedPausedSubject', { experience: title })
+    : decision === 'approved'
       ? t('approvedSubject', { experience: title })
       : decision === 'rejected'
         ? t('rejectedSubject', { experience: title })
         : t('changesSubject', { experience: title });
-  const intro =
-    decision === 'approved'
+  const intro = paused
+    ? t('approvedPausedIntro')
+    : decision === 'approved'
       ? t('approvedIntro')
       : decision === 'rejected'
         ? t('rejectedIntro')
         : t('changesIntro');
   const cta =
-    decision === 'approved'
+    decision === 'approved' && !paused
       ? {
           label: t('approvedCta'),
           url: `${SITE_URL}/${host.locale}/experiences/${experience.slug}`,
@@ -76,8 +88,9 @@ export async function sendExperienceModerationEmail(
   });
   // WhatsApp only for approvals and change requests; a rejection stays
   // email + in-product, where the reviewer's note lives.
-  const whatsapp =
-    decision === 'approved'
+  const whatsapp = paused
+    ? undefined
+    : decision === 'approved'
       ? whatsappPayload('host_experience_approved', host.locale, {
           experienceName: title,
           experiencePath: `${host.locale}/experiences/${experience.slug}`,
