@@ -30,10 +30,12 @@ vi.mock('@/lib/db', () => ({
   },
 }));
 
+import { db } from '@/lib/db';
 import type { BookingRequestInput } from '@/features/bookings/lib/request/form';
 import {
+  cancelSupersededHold,
+  finishSupersededHoldRelease,
   freeHeldSeats,
-  releaseSupersededHold,
   resolveSupersededHold,
   supersededHoldSeats,
 } from './supersede';
@@ -96,16 +98,18 @@ describe('resolveSupersededHold', () => {
   });
 });
 
-describe('releaseSupersededHold', () => {
+/** The cancel runs inside the capacity transaction; `db.transaction` on the fake hands the fake back. */
+describe('cancelSupersededHold + finishSupersededHoldRelease', () => {
   it('retires the prepared checkout the way a promo change does and journals it', async () => {
     const resolved = await resolveSupersededHold(input, NEW);
-    await releaseSupersededHold(resolved!, NEW);
+    expect(await db.transaction((tx) => cancelSupersededHold(tx, resolved!))).toBe(true);
     expect(fake.current?.updates[0]).toMatchObject({
       status: 'cancelled',
       cancellationKind: 'system',
       paymentStatus: 'unpaid',
     });
     expect(fake.current?.updates[0]?.checkoutSupersededAt).toBeInstanceOf(Date);
+    await finishSupersededHoldRelease(resolved!, NEW);
     expect(ledger).toHaveBeenCalledWith(
       expect.objectContaining({
         bookingId: 'b-old',
@@ -120,20 +124,21 @@ describe('releaseSupersededHold', () => {
   it('cancels a plain unpaid hold without touching its payment state, and returns applied credit', async () => {
     hold = { ...hold, paymentStatus: 'unpaid', checkoutId: null, walletAppliedSar: 40 };
     const resolved = await resolveSupersededHold(input, NEW);
-    await releaseSupersededHold(resolved!, NEW);
+    expect(await db.transaction((tx) => cancelSupersededHold(tx, resolved!))).toBe(true);
     expect(fake.current?.updates[0]).not.toHaveProperty('paymentStatus');
     expect(fake.current?.updates[0]).not.toHaveProperty('checkoutSupersededAt');
+    await finishSupersededHoldRelease(resolved!, NEW);
     expect(ledger).not.toHaveBeenCalled();
     expect(releaseWalletReservation).toHaveBeenCalledWith('b-old');
   });
 
-  it('does nothing further when the guarded update matched no row (payment raced ahead)', async () => {
+  it('reports a guarded update that matched no row (payment raced ahead) so nothing further runs', async () => {
     fake.current = createDbFake({
       query: { bookings: { findFirst: () => hold } },
       update: () => [],
     });
     const resolved = await resolveSupersededHold(input, NEW);
-    await releaseSupersededHold({ ...resolved!, walletAppliedSar: 40 }, NEW);
+    expect(await db.transaction((tx) => cancelSupersededHold(tx, resolved!))).toBe(false);
     expect(ledger).not.toHaveBeenCalled();
     expect(releaseWalletReservation).not.toHaveBeenCalled();
   });

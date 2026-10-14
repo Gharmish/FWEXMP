@@ -15,6 +15,10 @@ import { getTierSnapshot } from '@/features/bookings/lib/cancellation-policy';
 import { generateReferenceCode } from '@/features/bookings/lib/reference-code';
 import type { BookableExperience } from '@/features/bookings/lib/request/experience';
 import type { BookingRequestInput } from '@/features/bookings/lib/request/form';
+import {
+  cancelSupersededHold,
+  type SupersededHold,
+} from '@/features/bookings/lib/request/supersede';
 
 export interface BookingRowContext {
   guestId: string;
@@ -98,41 +102,61 @@ export async function bookingRowValues(
  * exists (2026-08-02 ops audit): free anonymous requests could zero out
  * a calendar for the whole approval window.
  *
- * `supersededHoldId` is the guest's own verified hold that this booking
- * replaces ("change date or guests" from the pay step). It is released
- * only after this insert, so it must not count against the replacement:
- * otherwise a same-date edit on a nearly full date is refused as full by
- * the guest's own seats (#77, 2026-10-14). The same exclusion
- * reschedule-core applies to the booking being moved.
+ * `supersededHold` is the guest's own verified hold that this booking
+ * replaces ("change date or guests" from the pay step). It must not
+ * count against the replacement: otherwise a same-date edit on a nearly
+ * full date is refused as full by the guest's own seats (#77,
+ * 2026-10-14). The hold is cancelled HERE, under the same lock, before
+ * the insert (review of #88): releasing it afterwards left a window in
+ * which a payment that settled meanwhile kept the hold on the date next
+ * to its replacement. If the guarded cancel matches no row the hold is
+ * no longer this flow's — it is summed like any other booking.
  */
+export type InsertBookingOutcome = { status: 'full' } | { status: 'ok'; holdReleased: boolean };
+
 export async function insertBookingIfRoom(
   experience: BookableExperience,
   input: BookingRequestInput,
   values: Awaited<ReturnType<typeof bookingRowValues>>,
-  supersededHoldId?: string,
-): Promise<'full' | 'ok'> {
-  const insertIfRoom = (row: typeof bookings.$inferInsert): Promise<'full' | 'ok'> =>
+  supersededHold?: Pick<SupersededHold, 'id' | 'liveCheckoutId'>,
+): Promise<InsertBookingOutcome> {
+  const insertIfRoom = (row: typeof bookings.$inferInsert): Promise<InsertBookingOutcome> =>
     db.transaction(async (tx) => {
       await tx.execute(
         sql`select 1 from ${experiences} where ${experiences.id} = ${experience.id} for update`,
       );
-      const [{ booked }] = await tx
-        .select({ booked: sql<number>`coalesce(sum(${bookings.partySize}), 0)::int` })
-        .from(bookings)
-        .where(
-          and(
-            eq(bookings.experienceId, experience.id),
-            eq(bookings.date, input.preferredDate),
-            inArray(bookings.status, [...ACTIVE_BOOKING_STATUSES]),
-            holdStillCounts(),
-            supersededHoldId ? ne(bookings.id, supersededHoldId) : undefined,
-          ),
-        );
-      if (remainingCapacity(experience.maxGroupSize, booked) < input.partySize) {
-        return 'full' as const;
+      const bookedExcluding = async (excludedId: string | undefined): Promise<number> => {
+        const [{ booked }] = await tx
+          .select({ booked: sql<number>`coalesce(sum(${bookings.partySize}), 0)::int` })
+          .from(bookings)
+          .where(
+            and(
+              eq(bookings.experienceId, experience.id),
+              eq(bookings.date, input.preferredDate),
+              inArray(bookings.status, [...ACTIVE_BOOKING_STATUSES]),
+              holdStillCounts(),
+              excludedId ? ne(bookings.id, excludedId) : undefined,
+            ),
+          );
+        return booked;
+      };
+      const full = (booked: number) =>
+        remainingCapacity(experience.maxGroupSize, booked) < input.partySize;
+
+      // Sum with the hold set aside first: a full date writes nothing, so
+      // the hold the guest came from stays exactly as it was.
+      if (full(await bookedExcluding(supersededHold?.id))) return { status: 'full' as const };
+      let holdReleased = false;
+      if (supersededHold) {
+        holdReleased = await cancelSupersededHold(tx, supersededHold);
+        // The hold settled (or lapsed) meanwhile: it counts like any other
+        // row now, so the date must have room for it AND the replacement.
+        if (!holdReleased && full(await bookedExcluding(undefined))) {
+          return { status: 'full' as const };
+        }
       }
       await tx.insert(bookings).values(row);
-      return 'ok' as const;
+      return { status: 'ok' as const, holdReleased };
     });
 
   if (experience.bookingMode === 'instant') {

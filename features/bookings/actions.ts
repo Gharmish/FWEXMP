@@ -16,7 +16,7 @@ import {
   loadBookableExperience,
 } from '@/features/bookings/lib/request/experience';
 import {
-  releaseSupersededHold,
+  finishSupersededHoldRelease,
   resolveSupersededHold,
 } from '@/features/bookings/lib/request/supersede';
 import { holdThrottles } from '@/features/bookings/lib/request/throttle';
@@ -122,8 +122,13 @@ export async function requestBooking(
     });
     if (experience.bookingMode === 'instant' && hasHyperpay()) nextPath = payPath;
 
-    const outcome = await insertBookingIfRoom(experience, input, values, supersededHold?.id);
-    if (outcome === 'full') {
+    const outcome = await insertBookingIfRoom(
+      experience,
+      input,
+      values,
+      supersededHold ?? undefined,
+    );
+    if (outcome.status === 'full') {
       return {
         success: false,
         message: 'date_full',
@@ -131,7 +136,9 @@ export async function requestBooking(
         values: currentValues(formData),
       };
     }
-    if (supersededHold) await releaseSupersededHold(supersededHold, reference);
+    if (supersededHold && outcome.holdReleased) {
+      await finishSupersededHoldRelease(supersededHold, reference);
+    }
   } catch (error) {
     // Race-proof replay backstop: two concurrent retries can both pass the
     // fast path above; the loser's insert hits the idempotency-key unique

@@ -121,43 +121,67 @@ export async function resolveSupersededHold(
 }
 
 /**
- * Step 10 — the replacement exists: release the verified superseded hold
- * with the exact transition the release cron applies to lapsed holds, so
- * its capacity frees now and `createCheckout` refuses the old pay link.
- * A hold with a prepared checkout is retired the way a promo change
- * retires one: back to `unpaid`, stamped superseded, id KEPT (settle must
- * still resolve a late capture on the stale widget — it refunds a charge
- * on a cancelled booking and alerts the team). The WHERE re-asserts every
- * liveness guard: a payment that settled meanwhile (`paid`), or a settle
- * anomaly stamped meanwhile, leaves the row untouched. Best-effort — on
- * any failure the hold simply lapses on its own deadline; the new booking
- * must never fail here.
+ * The handle `insertBookingIfRoom` runs its transaction on — the same
+ * shape `WalletTx` takes in the wallet ledger.
  */
-export async function releaseSupersededHold(
+export type BookingTx = Parameters<Parameters<typeof db.transaction>[0]>[0];
+
+/**
+ * Step 9b — cancel the verified superseded hold INSIDE the replacement's
+ * capacity transaction, under the experience row lock (review of #88,
+ * 2026-10-14). Releasing it after the insert left a gap: a hold whose
+ * checkout settled to `paid` between the resolve and the release stayed
+ * on the date while the replacement, summed without it, was already in
+ * — one party counted once, seated twice. Done under the lock, the sum
+ * that admits the replacement is the sum the release leaves behind.
+ *
+ * The transition is the exact one the release cron applies to lapsed
+ * holds, so its capacity frees now and `createCheckout` refuses the old
+ * pay link. A hold with a prepared checkout is retired the way a promo
+ * change retires one: back to `unpaid`, stamped superseded, id KEPT
+ * (settle must still resolve a late capture on the stale widget — it
+ * refunds a charge on a cancelled booking and alerts the team). The
+ * WHERE re-asserts every liveness guard: a payment that settled
+ * meanwhile (`paid`), or a settle anomaly stamped meanwhile, leaves the
+ * row untouched and this returns false — the caller then counts the
+ * hold like any other booking.
+ */
+export async function cancelSupersededHold(
+  tx: BookingTx,
+  hold: Pick<SupersededHold, 'id' | 'liveCheckoutId'>,
+): Promise<boolean> {
+  const releasedHold = await tx
+    .update(bookings)
+    .set({
+      status: 'cancelled',
+      cancelledAt: new Date(),
+      cancellationKind: 'system',
+      ...(hold.liveCheckoutId
+        ? { paymentStatus: 'unpaid' as const, checkoutSupersededAt: new Date() }
+        : {}),
+    })
+    .where(
+      and(
+        eq(bookings.id, hold.id),
+        eq(bookings.status, 'confirmed'),
+        inArray(bookings.paymentStatus, ['unpaid', 'failed', 'processing']),
+        isNull(bookings.settleAnomalyAt),
+      ),
+    )
+    .returning({ id: bookings.id });
+  return releasedHold.length > 0;
+}
+
+/**
+ * Step 10 — the replacement is in and `cancelSupersededHold` flipped the
+ * old hold: the bookkeeping that does not need the lock. Best-effort —
+ * on any failure the new booking must never fail here.
+ */
+export async function finishSupersededHoldRelease(
   hold: SupersededHold,
   reference: string,
 ): Promise<void> {
   try {
-    const releasedHold = await db
-      .update(bookings)
-      .set({
-        status: 'cancelled',
-        cancelledAt: new Date(),
-        cancellationKind: 'system',
-        ...(hold.liveCheckoutId
-          ? { paymentStatus: 'unpaid' as const, checkoutSupersededAt: new Date() }
-          : {}),
-      })
-      .where(
-        and(
-          eq(bookings.id, hold.id),
-          eq(bookings.status, 'confirmed'),
-          inArray(bookings.paymentStatus, ['unpaid', 'failed', 'processing']),
-          isNull(bookings.settleAnomalyAt),
-        ),
-      )
-      .returning({ id: bookings.id });
-    if (releasedHold.length === 0) return;
     // Journal the retired checkout (best-effort, like createCheckout's own
     // supersessions) so a late capture on it stays traceable.
     if (hold.liveCheckoutId) {

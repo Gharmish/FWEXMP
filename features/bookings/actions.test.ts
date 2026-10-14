@@ -243,6 +243,19 @@ function makeInsert() {
   });
 }
 
+function makeUpdate() {
+  return () => ({
+    set: (values: Record<string, unknown>) => {
+      guestUpdates.push(values);
+      const where = () =>
+        Object.assign(Promise.resolve(undefined), {
+          returning: async () => releasedRows,
+        });
+      return { where };
+    },
+  });
+}
+
 vi.mock('@/lib/db', () => ({
   db: {
     query: {
@@ -261,16 +274,7 @@ vi.mock('@/lib/db', () => ({
         }),
       };
     },
-    update: () => ({
-      set: (values: Record<string, unknown>) => {
-        guestUpdates.push(values);
-        const where = () =>
-          Object.assign(Promise.resolve(undefined), {
-            returning: async () => releasedRows,
-          });
-        return { where };
-      },
-    }),
+    update: makeUpdate(),
     insert: makeInsert(),
     transaction: async (cb: (tx: unknown) => Promise<unknown>) =>
       cb({
@@ -280,6 +284,9 @@ vi.mock('@/lib/db', () => ({
             where: async (condition?: SQL) => [{ booked: lockedSum(condition) }],
           }),
         }),
+        // The superseded hold is cancelled inside the capacity transaction
+        // (review of #88), so the tx carries the same update recorder.
+        update: makeUpdate(),
         insert: makeInsert(),
       }),
   },
@@ -843,6 +850,37 @@ describe('requestBooking — superseding an unpaid hold (third-round R7)', () =>
     await runExpectingRedirect(superseding({ supersedesToken: 'valid-token', partySize: '5' }));
     expect(insertedBookings).toHaveLength(1);
     expect(guestUpdates.at(-1)).toMatchObject({ status: 'cancelled' });
+  });
+
+  it('refuses the replacement when the hold settled meanwhile and the date has no room for both (review of #88)', async () => {
+    holdRow = liveHold();
+    // The guarded cancel matches no row: the hold's checkout was captured
+    // between the resolve and the lock, so its 4 seats stay on the date.
+    releasedRows = [];
+    txBookedSum = 10;
+    txSumMember = { id: 'hold-1', partySize: 4 };
+    expect(
+      await requestBooking(
+        initial,
+        superseding({ supersedesToken: 'valid-token', partySize: '5' }),
+      ),
+    ).toMatchObject({ message: 'date_full' });
+    expect(insertedBookings).toEqual([]);
+    expect(releaseWalletReservation).not.toHaveBeenCalled();
+  });
+
+  it('a full date writes nothing: the hold the guest came from is left as it was', async () => {
+    holdRow = liveHold();
+    releasedRows = [{ id: 'hold-1' }];
+    txBookedSum = 12;
+    expect(
+      await requestBooking(
+        initial,
+        superseding({ supersedesToken: 'valid-token', partySize: '1' }),
+      ),
+    ).toMatchObject({ message: 'date_full' });
+    expect(guestUpdates.some((u) => u.status === 'cancelled')).toBe(false);
+    expect(insertedBookings).toEqual([]);
   });
 
   it('an unproven supersede still counts the hold: the date stays full', async () => {
