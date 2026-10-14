@@ -764,6 +764,14 @@ export async function runTool(
           decision === 'approve' ? 'confirmed' : 'declined',
           { kind: 'host', hostId: ctx.hostId },
         );
+        if ('error' in outcome && outcome.error === 'listing_not_live') {
+          return {
+            result: JSON.stringify({
+              ...outcome,
+              note: 'The listing is not live (paused or in review), so the guest could not pay. The request stays pending: a paused listing can be relisted by the host, one in review becomes approvable once the admin approves it. Only a live listing can accept the request.',
+            }),
+          };
+        }
         return { result: JSON.stringify(outcome) };
       }
       case 'open_ticket':

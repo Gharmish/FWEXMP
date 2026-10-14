@@ -15,6 +15,7 @@ const ERROR_KEYS: Record<HostBookingActionError, string> = {
   too_early: 'tooEarly',
   too_late: 'tooLate',
   unpaid: 'unpaid',
+  listing_not_live: 'listingNotLive',
   reason_required: 'reasonRequired',
   validation: 'validation',
   server: 'server',
