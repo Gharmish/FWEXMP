@@ -132,6 +132,7 @@ export async function getApplicationDocumentsForAdmin(
           id: row.id,
           type: row.type,
           fileName: row.fileName,
+          objectKey: row.objectKey,
           contentType: row.contentType,
           sizeBytes: row.sizeBytes,
           status: row.status,

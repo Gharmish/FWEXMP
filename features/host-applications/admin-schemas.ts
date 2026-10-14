@@ -25,6 +25,8 @@ export const rejectApplicationSchema = z.object({
 export const reviewDocumentSchema = z
   .object({
     documentId: z.uuid(),
+    /** The file the admin viewed — the verdict applies to it only (#70). */
+    objectKey: z.string().min(1).max(1024),
     decision: z.enum(['approved', 'rejected']),
     reviewerNotes: z
       .union([z.string().trim().max(2000), z.literal('').transform(() => undefined)])

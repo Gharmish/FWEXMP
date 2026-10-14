@@ -20,6 +20,7 @@ type ErrorKey =
   | 'not_found'
   | 'validation'
   | 'server'
+  | 'stale'
   | 'rejection_note_short';
 
 export interface DocumentReviewCopy {
@@ -131,6 +132,7 @@ function DocumentRow({
 
       <form action={formAction} className="flex flex-col gap-3">
         <input type="hidden" name="documentId" value={document.id} />
+        <input type="hidden" name="objectKey" value={document.objectKey} />
         {noteOpen && (
           <div className="flex flex-col gap-2">
             <label htmlFor={noteId} className="text-sm font-medium">

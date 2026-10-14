@@ -220,6 +220,7 @@ describe('rejectApplication / reviewDocument', () => {
   it('a document rejection needs a note; an approval does not', async () => {
     const fd = new FormData();
     fd.set('documentId', ID);
+    fd.set('objectKey', 'kyc/u1/national_id-1.pdf');
     fd.set('decision', 'rejected');
     expect(await reviewDocument({ success: false }, fd)).toMatchObject({
       message: 'validation',
@@ -251,6 +252,7 @@ describe('rejectApplication / reviewDocument', () => {
     };
     const fd = new FormData();
     fd.set('documentId', ID);
+    fd.set('objectKey', 'kyc/u1/national_id-1.pdf');
     fd.set('decision', 'rejected');
     fd.set('reviewerNotes', 'The photo is unreadable, please re-upload.');
     claimed = [{ id: ID }];
@@ -261,11 +263,36 @@ describe('rejectApplication / reviewDocument', () => {
     expect(db.updates[0]).toMatchObject({ status: 'rejected' });
   });
 
+  it('a verdict from a page showing a replaced file approves nothing and says stale (#70)', async () => {
+    const fd = new FormData();
+    fd.set('documentId', ID);
+    fd.set('objectKey', 'kyc/u1/national_id-1.pdf');
+    fd.set('decision', 'approved');
+    // The row now holds a newer file, so the keyed UPDATE matches nothing.
+    claimed = [];
+    expect(await reviewDocument({ success: false }, fd)).toEqual({
+      success: false,
+      message: 'stale',
+    });
+    expect(referencedColumns(fake.current?.updateConditions.at(-1))).toEqual(
+      expect.arrayContaining(['id', 'objectKey']),
+    );
+  });
+
+  it('refuses a verdict that names no file', async () => {
+    const fd = new FormData();
+    fd.set('documentId', ID);
+    fd.set('decision', 'approved');
+    expect(await reviewDocument({ success: false }, fd)).toMatchObject({ message: 'validation' });
+    expect(fake.current?.updates).toEqual([]);
+  });
+
   it('is not_found when the document does not exist, without locking or writing', async () => {
     const db = createDbFake({ select: () => [] });
     fake.current = db;
     const fd = new FormData();
     fd.set('documentId', ID);
+    fd.set('objectKey', 'kyc/u1/national_id-1.pdf');
     fd.set('decision', 'approved');
     expect(await reviewDocument({ success: false }, fd)).toEqual({
       success: false,
