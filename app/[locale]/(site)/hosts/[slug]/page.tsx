@@ -161,7 +161,8 @@ export default async function HostProfilePage({
       {
         '@type': isOrganization ? 'Organization' : 'Person',
         '@id': `${url}#host`,
-        name: host.name,
+        // The visible h1's name: the Arabic page shows the Arabic form.
+        name,
         // Locale-appropriate bio (English fallback via pickLocalized) —
         // the Arabic page must not describe the host in English.
         description: bio,
@@ -180,7 +181,7 @@ export default async function HostProfilePage({
             name: tHostsIndex('meta.title'),
             item: `${SITE_URL}/${loc}/hosts`,
           },
-          { '@type': 'ListItem', position: 3, name: host.name, item: url },
+          { '@type': 'ListItem', position: 3, name, item: url },
         ],
       },
     ],
