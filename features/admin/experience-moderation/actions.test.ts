@@ -1,4 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import * as operators from 'drizzle-orm';
+import { PgDialect } from 'drizzle-orm/pg-core';
+import { experienceModerationEvents } from '@/db/schema';
 import { createDbFake, referencedColumns } from '@/lib/test/db-fake';
 
 vi.mock('next/cache', () => ({ revalidatePath: vi.fn() }));
@@ -26,8 +29,21 @@ vi.mock('@/features/admin/experience-moderation/moderation-email', () => ({
 type Row = Record<string, unknown>;
 let experience: Row | undefined;
 let updated: Row[] = [];
-/** The latest `submitted` moderation event the approval reads (#79). */
-let submission: Row | undefined;
+/**
+ * The `submitted` moderation events of this listing, newest first. The
+ * approval reads the one that opened the review cycle (#79): the first
+ * row the rendered predicate admits, as Postgres would return it.
+ */
+let submissions: Row[] = [];
+const dialect = new PgDialect({ casing: 'snake_case' });
+function latestSubmission(args: unknown): Row | undefined {
+  const where = (args as { where?: (t: unknown, ops: unknown) => unknown }).where;
+  const { sql: text, params } = dialect.sqlToQuery(
+    where!(experienceModerationEvents, operators) as Parameters<typeof dialect.sqlToQuery>[0],
+  );
+  const skipsResubmits = text.includes('"from_status" <> $') && params.includes('changes_requested');
+  return submissions.find((e) => !skipsResubmits || e.fromStatus !== 'changes_requested');
+}
 const fake = vi.hoisted(() => ({ current: null as ReturnType<typeof createDbFake> | null }));
 vi.mock('@/lib/db', () => ({
   get db() {
@@ -79,12 +95,12 @@ beforeEach(() => {
   actor = { adminUserId: 'admin-1' };
   experience = ready();
   updated = [{ id: ID }];
-  submission = { fromStatus: 'live' };
+  submissions = [{ fromStatus: 'live' }];
   email.mockClear();
   fake.current = createDbFake({
     query: {
       experiences: { findFirst: () => experience },
-      experienceModerationEvents: { findFirst: () => submission },
+      experienceModerationEvents: { findFirst: latestSubmission },
     },
     update: () => updated,
   });
@@ -166,7 +182,7 @@ describe('approveExperience', () => {
   });
 
   it('returns a listing the host had paused to paused, not live (#79)', async () => {
-    submission = { fromStatus: 'paused' };
+    submissions = [{ fromStatus: 'paused' }];
     expect(await run(() => approveExperience(initial, form()))).toBe(
       `REDIRECT:/admin/experience-moderation/${ID}`,
     );
@@ -176,10 +192,28 @@ describe('approveExperience', () => {
   });
 
   it('still goes live on a first submission with no earlier submitted event', async () => {
-    submission = undefined;
+    submissions = [];
     await run(() => approveExperience(initial, form()));
     expect(fake.current?.updates[0]).toMatchObject({ status: 'live' });
     expect(fake.current?.inserts[0]).toMatchObject({ toStatus: 'live' });
+  });
+
+  it('keeps the pause through a change-request round: the resubmission does not hide it (review of #90)', async () => {
+    // paused → material edit (submitted from paused) → request changes →
+    // host resubmits (submitted from changes_requested) → approve.
+    submissions = [{ fromStatus: 'changes_requested' }, { fromStatus: 'paused' }];
+    expect(await run(() => approveExperience(initial, form()))).toBe(
+      `REDIRECT:/admin/experience-moderation/${ID}`,
+    );
+    expect(fake.current?.updates[0]).toMatchObject({ status: 'paused' });
+    expect(fake.current?.inserts[0]).toMatchObject({ event: 'approved', toStatus: 'paused' });
+    expect(email).toHaveBeenCalledWith(ID, 'approved', { returnedToPaused: true });
+  });
+
+  it('a resubmission after a change request on a first-time listing still goes live', async () => {
+    submissions = [{ fromStatus: 'changes_requested' }, { fromStatus: 'draft' }];
+    await run(() => approveExperience(initial, form()));
+    expect(fake.current?.updates[0]).toMatchObject({ status: 'live' });
   });
 });
 

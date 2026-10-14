@@ -1,6 +1,6 @@
 'use server';
 
-import { and, desc, eq, sql } from 'drizzle-orm';
+import { and, desc, eq, ne, sql } from 'drizzle-orm';
 import { revalidatePath } from 'next/cache';
 import { revalidateExperienceCaches } from '@/lib/cache-tags';
 import { db } from '@/lib/db';
@@ -155,10 +155,19 @@ export async function approveExperience(
     // review from `paused` (#42); approving it straight to `live`
     // silently undid the host's pause and reopened dates they had
     // stopped selling (#79, 2026-10-14). The row no longer remembers the
-    // pause — the latest `submitted` event does — so approval returns it
-    // to where the host left it, and the host republishes when ready.
+    // pause — the `submitted` event that OPENED this review cycle does —
+    // so approval returns it to where the host left it, and the host
+    // republishes when ready. A resubmission after "request changes"
+    // writes its own `submitted` event from `changes_requested`; that one
+    // is skipped so a change-request round does not hide the pause
+    // (review of #90). A first submission (`draft`) still resolves to live.
     const submission = await db.query.experienceModerationEvents.findFirst({
-      where: (e) => and(eq(e.experienceId, experienceId), eq(e.event, 'submitted')),
+      where: (e) =>
+        and(
+          eq(e.experienceId, experienceId),
+          eq(e.event, 'submitted'),
+          ne(e.fromStatus, 'changes_requested'),
+        ),
       orderBy: (e) => [desc(e.createdAt)],
       columns: { fromStatus: true },
     });
