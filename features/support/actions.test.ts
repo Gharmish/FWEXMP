@@ -118,6 +118,19 @@ describe('replyToConversation', () => {
     expect(fake.current?.updates[0]).toMatchObject({ state: 'human' });
   });
 
+  it('takes the thread before the send, so a bot turn finishing mid-send stands down', async () => {
+    let updatesAtSend: unknown[] = [];
+    reply.mockImplementationOnce(async () => {
+      updatesAtSend = [...(fake.current?.updates ?? [])];
+      return { ok: false };
+    });
+    expect(
+      await replyToConversation(initial, form({ conversationId: CID, body: 'hi' })),
+    ).toMatchObject({ message: 'send_failed', values: { body: 'hi' } });
+    expect(updatesAtSend[0]).toMatchObject({ state: 'human' });
+    expect(fake.current?.updates).toHaveLength(1);
+  });
+
   it('keeps the typed reply when the thread is gone or the send fails', async () => {
     // React resets the uncontrolled textarea after the action; an
     // un-echoed body is a reply the admin has to retype.
