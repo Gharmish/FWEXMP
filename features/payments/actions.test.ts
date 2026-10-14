@@ -64,6 +64,16 @@ const settleBooking = vi.fn(async () => settleOutcome);
 vi.mock('@/features/payments/settle', () => ({
   settleBooking: (...args: unknown[]) => settleBooking(...(args as [])),
 }));
+const afterCallbacks: Array<() => Promise<void>> = [];
+vi.mock('next/server', () => ({
+  after: (cb: () => Promise<void>) => {
+    afterCallbacks.push(cb);
+  },
+}));
+const sendBookingReceiptEmail = vi.fn(async () => undefined);
+vi.mock('@/features/bookings/lib/booking-email', () => ({
+  sendBookingReceiptEmail: (...args: unknown[]) => sendBookingReceiptEmail(...(args as [])),
+}));
 const recordPaymentEvent = vi.fn(async () => undefined);
 /** The newest `checkout_created` ledger row (drives the reuse window). */
 let createdEvent: { gatewayId: string; resultCode: string | null; createdAt: Date } | null = null;
@@ -175,6 +185,7 @@ const initial: CreateCheckoutState = { status: 'idle' };
 
 beforeEach(() => {
   vi.clearAllMocks();
+  afterCallbacks.length = 0;
   viewerAllowed = true;
   holdExpired = false;
   slotStarted = false;
@@ -379,6 +390,30 @@ describe('createCheckout — the existing checkout probe', () => {
       expect.objectContaining({ checkoutId: OLD }),
     );
     expect(prepareCheckout).not.toHaveBeenCalled();
+  });
+
+  it('sends the receipt when the pay-page reopen is the request that settles (#67)', async () => {
+    answers('200.300.404');
+    settleOutcome = 'success';
+
+    const out = await createCheckout(initial, form());
+    await Promise.all(afterCallbacks.map((cb) => cb()));
+
+    expect(out).toMatchObject({ status: 'error', message: 'alreadyPaid' });
+    expect(sendBookingReceiptEmail).toHaveBeenCalledTimes(1);
+    expect(sendBookingReceiptEmail).toHaveBeenCalledWith(REFERENCE);
+  });
+
+  it('does not resend the receipt when another path already settled', async () => {
+    answers('000.000.000');
+    settleOutcome = 'already_settled';
+
+    const out = await createCheckout(initial, form());
+    await Promise.all(afterCallbacks.map((cb) => cb()));
+
+    expect(out).toMatchObject({ status: 'error', message: 'alreadyPaid' });
+    expect(afterCallbacks).toHaveLength(0);
+    expect(sendBookingReceiptEmail).not.toHaveBeenCalled();
   });
 
   it('NEVER opens a second charge path while the expired checkout’s fate is unknown', async () => {
