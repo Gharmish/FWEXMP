@@ -31,7 +31,12 @@ vi.mock('@/lib/db', () => ({
 }));
 
 import type { BookingRequestInput } from '@/features/bookings/lib/request/form';
-import { releaseSupersededHold, resolveSupersededHold } from './supersede';
+import {
+  freeHeldSeats,
+  releaseSupersededHold,
+  resolveSupersededHold,
+  supersededHoldSeats,
+} from './supersede';
 
 const OLD = '13131313-1313-4131-8131-131313131313';
 const NEW = '24242424-2424-4242-8242-242424242424';
@@ -131,5 +136,36 @@ describe('releaseSupersededHold', () => {
     await releaseSupersededHold({ ...resolved!, walletAppliedSar: 40 }, NEW);
     expect(ledger).not.toHaveBeenCalled();
     expect(releaseWalletReservation).not.toHaveBeenCalled();
+  });
+});
+
+describe('the listing calendar gives the guest their own held seats back (#77)', () => {
+  beforeEach(() => {
+    hold = { ...hold, experienceId: 'exp-1', date: '2026-11-02', partySize: 4 };
+  });
+
+  it('returns the held seats for a live hold on this listing, proven by token', async () => {
+    expect(await supersededHoldSeats(OLD, 'signed-ok', 'exp-1')).toEqual({
+      date: '2026-11-02',
+      partySize: 4,
+    });
+  });
+
+  it('gives nothing back without proof, for another listing, or for a paid hold', async () => {
+    expect(await supersededHoldSeats(OLD, 'forged', 'exp-1')).toBeNull();
+    expect(await supersededHoldSeats(OLD, 'signed-ok', 'exp-2')).toBeNull();
+    hold = { ...hold, paymentStatus: 'paid' };
+    expect(await supersededHoldSeats(OLD, 'signed-ok', 'exp-1')).toBeNull();
+    expect(await supersededHoldSeats(undefined, 'signed-ok', 'exp-1')).toBeNull();
+  });
+
+  it('frees the held seats on their date only', () => {
+    const booked = { '2026-11-02': 8, '2026-11-03': 5 };
+    expect(freeHeldSeats(booked, { date: '2026-11-02', partySize: 4 })).toEqual({
+      '2026-11-02': 4,
+      '2026-11-03': 5,
+    });
+    expect(freeHeldSeats(booked, null)).toBe(booked);
+    expect(freeHeldSeats(booked, { date: '2026-11-09', partySize: 4 })).toBe(booked);
   });
 });

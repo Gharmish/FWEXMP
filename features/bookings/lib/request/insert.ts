@@ -1,4 +1,4 @@
-import { and, eq, inArray, sql } from 'drizzle-orm';
+import { and, eq, inArray, ne, sql } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import { hasHyperpay } from '@/lib/env';
 import { bookings, experiences } from '@/db/schema';
@@ -97,11 +97,19 @@ export async function bookingRowValues(
  * enforced there"), but a `pending` row consumes capacity the moment it
  * exists (2026-08-02 ops audit): free anonymous requests could zero out
  * a calendar for the whole approval window.
+ *
+ * `supersededHoldId` is the guest's own verified hold that this booking
+ * replaces ("change date or guests" from the pay step). It is released
+ * only after this insert, so it must not count against the replacement:
+ * otherwise a same-date edit on a nearly full date is refused as full by
+ * the guest's own seats (#77, 2026-10-14). The same exclusion
+ * reschedule-core applies to the booking being moved.
  */
 export async function insertBookingIfRoom(
   experience: BookableExperience,
   input: BookingRequestInput,
   values: Awaited<ReturnType<typeof bookingRowValues>>,
+  supersededHoldId?: string,
 ): Promise<'full' | 'ok'> {
   const insertIfRoom = (row: typeof bookings.$inferInsert): Promise<'full' | 'ok'> =>
     db.transaction(async (tx) => {
@@ -117,6 +125,7 @@ export async function insertBookingIfRoom(
             eq(bookings.date, input.preferredDate),
             inArray(bookings.status, [...ACTIVE_BOOKING_STATUSES]),
             holdStillCounts(),
+            supersededHoldId ? ne(bookings.id, supersededHoldId) : undefined,
           ),
         );
       if (remainingCapacity(experience.maxGroupSize, booked) < input.partySize) {

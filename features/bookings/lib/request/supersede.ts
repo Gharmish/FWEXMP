@@ -34,6 +34,43 @@ export interface SupersededHold {
   countsForPhone: boolean;
 }
 
+interface HoldLiveness {
+  status: string;
+  paymentStatus: string;
+  settleAnomalyAt: Date | null;
+  paymentDeadline: Date | null;
+}
+
+/**
+ * Only a LIVE unpaid instant hold qualifies: confirmed, no payment
+ * captured, not under settle review, and its pay window still open. A
+ * prepared-but-unpaid checkout (`processing`) is live too — see
+ * `liveCheckoutId`. Anything else (paid, pending approval, lapsed) is not
+ * this flow's to touch.
+ */
+function isLiveHold(hold: HoldLiveness): boolean {
+  return (
+    hold.status === 'confirmed' &&
+    (hold.paymentStatus === 'unpaid' ||
+      hold.paymentStatus === 'failed' ||
+      hold.paymentStatus === 'processing') &&
+    hold.settleAnomalyAt === null &&
+    hold.paymentDeadline !== null &&
+    hold.paymentDeadline.getTime() > Date.now()
+  );
+}
+
+/**
+ * Proof of ownership: same-device cookie OR a valid signed link token for
+ * THIS reference (HMAC-bound, so a guessed/leaked bare reference can't
+ * forge it). Phone match is deliberately excluded.
+ */
+async function ownsHold(reference: string, token: string | undefined): Promise<boolean> {
+  const store = await cookies();
+  const hint = parseLastBookingCookie(store.get(LAST_BOOKING_COOKIE)?.value);
+  return hint?.reference === reference || bookingLinkTokenValid(reference, token);
+}
+
 /**
  * Step 5 — the payment step's "change date or guests" path books a
  * REPLACEMENT while the original unpaid instant hold still stands. When
@@ -68,30 +105,8 @@ export async function resolveSupersededHold(
         totalAmount: true,
       },
     });
-    // Only a LIVE unpaid instant hold qualifies: confirmed, no payment
-    // captured, not under settle review, and its pay window still open.
-    // A prepared-but-unpaid checkout (`processing`) is live too — see
-    // `liveCheckoutId`. Anything else (paid, pending approval, lapsed) is
-    // not this flow's to touch.
-    const live =
-      hold !== undefined &&
-      hold.status === 'confirmed' &&
-      (hold.paymentStatus === 'unpaid' ||
-        hold.paymentStatus === 'failed' ||
-        hold.paymentStatus === 'processing') &&
-      hold.settleAnomalyAt === null &&
-      hold.paymentDeadline !== null &&
-      hold.paymentDeadline.getTime() > Date.now();
-    if (!hold || !live) return null;
-    const store = await cookies();
-    const hint = parseLastBookingCookie(store.get(LAST_BOOKING_COOKIE)?.value);
-    // Proof of ownership: same-device cookie OR a valid signed link token
-    // for THIS reference (HMAC-bound, so a guessed/leaked bare reference
-    // can't forge it). Phone match is deliberately excluded.
-    const owned =
-      hint?.reference === supersedesRef ||
-      bookingLinkTokenValid(supersedesRef, input.supersedesToken);
-    if (!owned) return null;
+    if (!hold || !isLiveHold(hold)) return null;
+    if (!(await ownsHold(supersedesRef, input.supersedesToken))) return null;
     return {
       id: hold.id,
       walletAppliedSar: hold.walletAppliedSar,
@@ -165,4 +180,59 @@ export async function releaseSupersededHold(
   } catch (error) {
     reportError(error, { surface: 'booking-request:supersededRelease', reference });
   }
+}
+
+export interface HeldSeats {
+  date: string;
+  partySize: number;
+}
+
+/**
+ * The listing page's half of #77 (2026-10-14): when "change date or
+ * guests" opens the listing, the guest's own hold still counts in the
+ * calendar's booked seats, so the date picker greys out their date or
+ * clamps the party size below what they already hold. This returns the
+ * seats to give back, under the same proof the action demands (a live
+ * hold on THIS listing, owned by cookie or signed token) — anything else
+ * shows the calendar unchanged. Display only: `insertBookingIfRoom`
+ * re-checks capacity under the lock. Best-effort: a failure means no
+ * adjustment.
+ */
+export async function supersededHoldSeats(
+  supersedesRef: string | undefined,
+  supersedesToken: string | undefined,
+  experienceId: string,
+): Promise<HeldSeats | null> {
+  if (!supersedesRef) return null;
+  try {
+    const hold = await db.query.bookings.findFirst({
+      where: (b) => eq(b.idempotencyKey, supersedesRef),
+      columns: {
+        experienceId: true,
+        date: true,
+        partySize: true,
+        status: true,
+        paymentStatus: true,
+        paymentDeadline: true,
+        settleAnomalyAt: true,
+      },
+    });
+    if (!hold || hold.experienceId !== experienceId || !isLiveHold(hold)) return null;
+    if (!(await ownsHold(supersedesRef, supersedesToken))) return null;
+    return { date: hold.date, partySize: hold.partySize };
+  } catch (error) {
+    reportError(error, { surface: 'experience-page:supersededHoldSeats' });
+    return null;
+  }
+}
+
+/** `bookedByDate` with the guest's own held seats given back on their date. */
+export function freeHeldSeats(
+  bookedByDate: Record<string, number>,
+  held: HeldSeats | null,
+): Record<string, number> {
+  if (!held) return bookedByDate;
+  const booked = bookedByDate[held.date];
+  if (booked === undefined) return bookedByDate;
+  return { ...bookedByDate, [held.date]: Math.max(0, booked - held.partySize) };
 }

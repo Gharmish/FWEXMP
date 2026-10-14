@@ -122,7 +122,7 @@ export async function requestBooking(
     });
     if (experience.bookingMode === 'instant' && hasHyperpay()) nextPath = payPath;
 
-    const outcome = await insertBookingIfRoom(experience, input, values);
+    const outcome = await insertBookingIfRoom(experience, input, values, supersededHold?.id);
     if (outcome === 'full') {
       return {
         success: false,
