@@ -33,4 +33,22 @@ describe('clampDescription', () => {
     const text = `Price 4.5 ${'stars and a long walk '.repeat(10)}`;
     expect(clampDescription(text).endsWith('…')).toBe(true);
   });
+
+  it('does not treat a decimal point that lands exactly at the cut as a sentence end', () => {
+    // Place the "." of "4.5" at index META_DESCRIPTION_MAX - 1, the last
+    // character of the clamp window (2026-10-14 PR #91 review).
+    const lead = 'Rated 4';
+    const text = `${'a '.repeat((META_DESCRIPTION_MAX - 1 - lead.length) / 2)}${lead}.5 stars by every guest so far, ${'and more words '.repeat(10)}`;
+    expect(text.indexOf('.')).toBe(META_DESCRIPTION_MAX - 1);
+    const out = clampDescription(text);
+    expect(out.endsWith('4.')).toBe(false);
+    expect(out.endsWith('…')).toBe(true);
+  });
+
+  it('still ends on a sentence that closes exactly at the limit', () => {
+    const first = `${'word '.repeat(31)}ends`;
+    expect(first.length).toBe(META_DESCRIPTION_MAX - 1);
+    const text = `${first}. ${'more '.repeat(20)}`;
+    expect(clampDescription(text)).toBe(`${first}.`);
+  });
 });

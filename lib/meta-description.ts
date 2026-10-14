@@ -17,12 +17,18 @@ export function clampDescription(text: string): string {
   const normalized = text.replace(/\s+/g, ' ').trim();
   if (normalized.length <= META_DESCRIPTION_MAX) return normalized;
 
-  // A sentence end may sit right at the limit, so search one character
-  // past the cut point.
-  const window = normalized.slice(0, META_DESCRIPTION_MAX);
+  // Match on the full text, not on a slice: against a slice the `$` in
+  // the lookahead matches the end of the window, so a decimal point that
+  // happens to land at the cut ("4.5" split as "4.") reads as a sentence
+  // end (2026-10-14 PR #91 review). Abbreviations ("e.g.") still count as
+  // sentence ends; an abbreviation list is not worth its code for 8
+  // listings.
   let sentenceEnd = -1;
-  for (const match of window.matchAll(SENTENCE_END)) sentenceEnd = match.index;
-  if (sentenceEnd + 1 >= MIN_SENTENCE_SNIPPET) return window.slice(0, sentenceEnd + 1);
+  for (const match of normalized.matchAll(SENTENCE_END)) {
+    if (match.index >= META_DESCRIPTION_MAX) break;
+    sentenceEnd = match.index;
+  }
+  if (sentenceEnd + 1 >= MIN_SENTENCE_SNIPPET) return normalized.slice(0, sentenceEnd + 1);
 
   const cut = normalized.slice(0, META_DESCRIPTION_MAX - 1);
   const lastSpace = cut.lastIndexOf(' ');
