@@ -56,6 +56,8 @@ export interface PassRunner {
   /** Passes that stopped early because the run budget ran out mid-loop. */
   readonly truncatedPasses: string[];
   readonly startedAt: number;
+  /** Wall-clock budget this run was created with, for per-item headroom checks. */
+  readonly budgetMs: number;
   /** True once the run has used its budget — long loops check this per item. */
   overBudget(): boolean;
   /** Record that `name` stopped early; the pass still returns its partial result. */
@@ -76,6 +78,7 @@ export function createPassRunner(budgetMs: number = RUN_BUDGET_MS): PassRunner {
   const overBudget = (): boolean => Date.now() - startedAt > budgetMs;
   return {
     startedAt,
+    budgetMs,
     failedPasses,
     skippedPasses,
     truncatedPasses,

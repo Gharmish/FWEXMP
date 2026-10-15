@@ -52,6 +52,17 @@ const MAX_TURN_PASSES = 3;
 /** Whole-turn deadline, kept under LOCK_MS so a turn can never outlive its lock (AI-08). */
 const TURN_BUDGET_MS = 70_000;
 /**
+ * Worst case for one sweep turn, as seen by the hourly run. The deadline
+ * only aborts the model call: a reply send that began just before it
+ * still runs (10 s cap), and the fail-safe that follows the abort pages
+ * the admin over email and WhatsApp (10 s cap each) and acknowledges the
+ * guest (10 s cap) before the DB writes, so a turn can outlive its budget
+ * by some 40 s. The sweep's caller stops when this no longer fits in what
+ * is left of the run budget, not only once the budget is already gone
+ * (review of #94, 2026-10-15).
+ */
+export const AGENT_TURN_MAX_MS = TURN_BUDGET_MS + 40_000;
+/**
  * Spend ceilings (2026-09 engineering audit AI-02). The public support
  * number used to get a full Opus run per message, forever, for anyone.
  * Past either cap the sender is handed to a person without a model call;
@@ -579,10 +590,16 @@ export async function runAgentTurn(
  * Cron safety net for bot-owned conversations: an inbound message older
  * than `minAgeMs` with no reply after it means the webhook's `after()`
  * leg died or a burst arrived while the lock was held. Re-run the turn.
+ *
+ * Each turn may take up to `TURN_BUDGET_MS`, so `shouldStop` is checked
+ * before every one: ten slow turns back to back would outlast the hourly
+ * run's function limit and kill the passes after this one, heartbeat
+ * included. Threads left over are picked up by the next run.
  */
 export async function sweepPendingAgentTurns(
   minAgeMs = 2 * 60 * 1000,
   limit = 10,
+  shouldStop: () => boolean = () => false,
 ): Promise<number> {
   if (!hasSupportAgent() || !serverEnv.DATABASE_URL) return 0;
   let handled = 0;
@@ -604,6 +621,7 @@ export async function sweepPendingAgentTurns(
       const inbound = row.lastInboundAt?.getTime() ?? 0;
       if (!inbound || now - inbound < minAgeMs) continue;
       if ((row.lastOutboundAt?.getTime() ?? 0) >= inbound) continue;
+      if (shouldStop()) break;
       const last = await db.query.conversationMessages.findFirst({
         where: eq(conversationMessages.conversationId, row.id),
         orderBy: desc(conversationMessages.createdAt),
