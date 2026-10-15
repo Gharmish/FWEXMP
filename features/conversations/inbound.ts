@@ -444,6 +444,10 @@ export async function pageAdminAboutInbound(
       guest: recorded.guestName ?? 'unknown sender',
       language: recorded.locale,
       message: body.slice(0, 280) || '(media only)',
+      // Both rails link the thread itself; without it the email fell back
+      // to a guest search (empty for an unknown sender) and WhatsApp to
+      // the dashboard.
+      conversationId: recorded.conversationId,
     },
     { fingerprint: `whatsapp-inbound:${recorded.conversationId}`, quietWindowMs: 30 * 60_000 },
   );
