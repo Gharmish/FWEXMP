@@ -111,3 +111,118 @@ describe('pauseHostExperience on an owned listing', () => {
     expect(fake.current?.updates).toHaveLength(1);
   });
 });
+
+/**
+ * Issue #42: a material edit to a live listing races the host's own
+ * Pause. The demote (`where status = 'live'`) matches no row because the
+ * listing is now `paused`; the old fallback then wrote the material
+ * payload with no status condition, and paused → live republish skipped
+ * review. A material payload must only ever land together with the
+ * demotion to `pending_review`.
+ */
+describe('updateHostExperience — material edit vs a concurrent status change', () => {
+  const LIVE_ROW = {
+    id: OWN,
+    status: 'live',
+    slug: 'x',
+    titleEn: 'Sunrise hike on the escarpment',
+    titleAr: null,
+    descriptionEn: 'A'.repeat(80),
+    descriptionAr: null,
+    category: 'nature',
+    priceSar: 200,
+    placeName: 'Al Soudah',
+    city: 'Abha',
+    region: 'Aseer',
+    lat: 18.2,
+    lng: 42.4,
+    durationMinutes: 180,
+    maxGroupSize: 8,
+    minAge: 0,
+    cancellationTier: 'moderate',
+    startTime: '06:00',
+    availabilityWeekdays: [5, 6],
+  };
+
+  function editForm(): FormData {
+    const fd = form(OWN);
+    const fields: Record<string, string> = {
+      titleEn: LIVE_ROW.titleEn,
+      descriptionEn: LIVE_ROW.descriptionEn,
+      category: LIVE_ROW.category,
+      // The material change: a new price.
+      priceSar: '350',
+      placeName: LIVE_ROW.placeName,
+      city: LIVE_ROW.city,
+      region: LIVE_ROW.region,
+      lat: String(LIVE_ROW.lat),
+      lng: String(LIVE_ROW.lng),
+      durationMinutes: String(LIVE_ROW.durationMinutes),
+      maxGroupSize: String(LIVE_ROW.maxGroupSize),
+      minAge: String(LIVE_ROW.minAge),
+      cancellationTier: LIVE_ROW.cancellationTier,
+      startTime: LIVE_ROW.startTime,
+      inclusionsRaw: '',
+      inclusionsArRaw: '',
+      whatToBringRaw: '',
+      whatToBringArRaw: '',
+    };
+    for (const [k, v] of Object.entries(fields)) fd.set(k, v);
+    for (const d of LIVE_ROW.availabilityWeekdays) fd.append('availabilityWeekdays', String(d));
+    return fd;
+  }
+
+  /**
+   * The first full-row read sees `live`; every later read sees the row
+   * the race left behind. The first demote matches no row; a second one
+   * matches only when `secondDemoteWins`.
+   */
+  function race(movedTo: string, secondDemoteWins: boolean) {
+    let reads = 0;
+    // The fake may consult `update` more than once per write; each demote
+    // attempt is its own `.set()` payload object.
+    const demotes: Array<Record<string, unknown>> = [];
+    fake.current = createDbFake({
+      query: {
+        experiences: {
+          findFirst: () => {
+            reads += 1;
+            // Read 1 is the ownership guard, read 2 the full row.
+            return reads <= 2 ? LIVE_ROW : { ...LIVE_ROW, status: movedTo };
+          },
+        },
+      },
+      update: (values) => {
+        if (values.status !== 'pending_review') return [];
+        if (!demotes.includes(values)) demotes.push(values);
+        return demotes.indexOf(values) === 1 && secondDemoteWins ? [{ id: OWN }] : [];
+      },
+      select: () => [],
+    });
+  }
+
+  it('demotes from the raced-to `paused` status and records the submission', async () => {
+    race('paused', true);
+    await expect(updateHostExperience(initial, editForm())).rejects.toThrow(
+      `REDIRECT:/host/experiences/${OWN}?saved=review`,
+    );
+    // Every write that carried the new price also demoted the row.
+    const priced = fake.current?.updates.filter((u) => u.priceSar === 350) ?? [];
+    expect(priced.length).toBeGreaterThan(0);
+    expect(priced.every((u) => u.status === 'pending_review')).toBe(true);
+    expect(fake.current?.inserts).toEqual([
+      expect.objectContaining({ event: 'submitted', fromStatus: 'paused' }),
+    ]);
+  });
+
+  it('refuses as locked_review when the row moved into the review queue meanwhile', async () => {
+    race('pending_review', false);
+    expect(await updateHostExperience(initial, editForm())).toMatchObject({
+      success: false,
+      message: 'locked_review',
+    });
+    const priced = fake.current?.updates.filter((u) => u.priceSar === 350) ?? [];
+    expect(priced.every((u) => u.status === 'pending_review')).toBe(true);
+    expect(fake.current?.inserts).toEqual([]);
+  });
+});

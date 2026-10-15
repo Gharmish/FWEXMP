@@ -48,8 +48,8 @@ ${disallows}
 
 Sitemap: ${SITE_URL}/sitemap.xml
 
-# AI manifest
-LLM: ${SITE_URL}/llms.txt
+# AI manifest (a comment: non-standard directives make validators flag the file)
+# LLM: ${SITE_URL}/llms.txt
 `;
 
   return new Response(body, {

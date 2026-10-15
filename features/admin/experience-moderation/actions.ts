@@ -1,10 +1,10 @@
 'use server';
 
-import { and, eq } from 'drizzle-orm';
+import { and, eq, sql } from 'drizzle-orm';
 import { revalidatePath } from 'next/cache';
 import { revalidateExperienceCaches } from '@/lib/cache-tags';
 import { db } from '@/lib/db';
-import { experiences, experienceModerationEvents } from '@/db/schema';
+import { experiences, experienceModerationEvents, hosts } from '@/db/schema';
 import { redirect } from '@/lib/i18n';
 import { reportError } from '@/lib/log';
 import { adminFailureMessage, adminGateRefused, requireAdminActor } from '@/features/admin/guard';
@@ -45,7 +45,9 @@ export interface AdminModerationResult {
     | 'needs_arabic'
     | 'needs_english'
     | 'needs_arabic_moments'
-    | 'needs_arabic_lists';
+    | 'needs_arabic_lists'
+    /** The listing's host is suspended — nothing of theirs may go live (2026-10-09). */
+    | 'host_suspended';
   fieldError?: string;
   /** Echo of the reviewer's typed note so a failed submit never wipes it (2026-09 UX audit P1-6). */
   values?: { reviewerNotes: string };
@@ -100,16 +102,33 @@ export async function approveExperience(
         whatToBring: true,
         whatToBringAr: true,
       },
-      with: { moments: { columns: { titleAr: true, descriptionAr: true } } },
+      with: {
+        moments: { columns: { titleAr: true, descriptionAr: true } },
+        host: { columns: { verificationStatus: true } },
+      },
     });
     if (!row) return { success: false, message: 'not_found', values };
+    // Suspending a host pauses their LIVE listings; one still sitting in
+    // review could be approved straight into a catalog where nobody can
+    // book it (the booking action refuses suspended hosts). Reinstate
+    // the host first.
+    if (row.host.verificationStatus === 'suspended') {
+      return { success: false, message: 'host_suspended', values };
+    }
     if (!row.heroImage) return { success: false, message: 'needs_hero', values };
     if (row.titleAr.startsWith('TODO(ar') || row.descriptionAr.startsWith('TODO(ar')) {
       return { success: false, message: 'needs_arabic', values };
     }
     // Hosts may draft in Arabic only (2026-08-22) — the English side is
-    // the team's to fill before the listing reaches the catalog.
-    if (row.titleEn.trim() === '' || row.descriptionEn.trim() === '') {
+    // the team's to fill before the listing reaches the catalog. That
+    // includes the lists: an Arabic-only "What's included" would leave
+    // the English page without one.
+    if (
+      row.titleEn.trim() === '' ||
+      row.descriptionEn.trim() === '' ||
+      (row.inclusionsAr.length > 0 && row.inclusions.length === 0) ||
+      (row.whatToBringAr.length > 0 && row.whatToBring.length === 0)
+    ) {
       return { success: false, message: 'needs_english', values };
     }
     // Host-added moments are stamped with the same placeholder — without
@@ -130,13 +149,30 @@ export async function approveExperience(
       return { success: false, message: 'needs_arabic_lists', values };
     }
 
-    // Conditional update: only flips if it's still pending_review.
+    // Conditional update: only flips if it's still pending_review AND the
+    // host is still verified. The suspension check above is a read before
+    // this write; a concurrent suspendHost (which pauses only LIVE rows)
+    // would otherwise let this listing go live under a suspended host.
     const updated = await db
       .update(experiences)
       .set({ status: 'live', updatedAt: new Date() })
-      .where(and(eq(experiences.id, experienceId), eq(experiences.status, 'pending_review')))
+      .where(
+        and(
+          eq(experiences.id, experienceId),
+          eq(experiences.status, 'pending_review'),
+          sql`exists (select 1 from ${hosts} where ${hosts.id} = ${experiences.hostId} and ${hosts.verificationStatus} = 'verified')`,
+        ),
+      )
       .returning({ id: experiences.id });
     if (updated.length === 0) {
+      const fresh = await db.query.experiences.findFirst({
+        where: (e) => eq(e.id, experienceId),
+        columns: { id: true },
+        with: { host: { columns: { verificationStatus: true } } },
+      });
+      if (fresh?.host.verificationStatus === 'suspended') {
+        return { success: false, message: 'host_suspended', values };
+      }
       return { success: false, message: 'wrong_state', values };
     }
     await db.insert(experienceModerationEvents).values({

@@ -32,6 +32,9 @@ vi.mock('@/features/host-applications/lib/application-email', () => ({
 type Row = Record<string, unknown>;
 let application: Row | undefined;
 let documents: Row[] = [];
+/** What the documents read returns INSIDE the approve transaction; null = same as `documents`. */
+let documentsUnderLock: Row[] | null = null;
+let documentReads = 0;
 let claimed: Row[] = [];
 let slugTaken = false;
 const fake = vi.hoisted(() => ({ current: null as ReturnType<typeof createDbFake> | null }));
@@ -81,6 +84,8 @@ beforeEach(() => {
   actor = { adminUserId: 'admin-1' };
   application = { id: ID, identityType: 'national_id' };
   documents = [{ type: 'national_id', status: 'approved' }];
+  documentsUnderLock = null;
+  documentReads = 0;
   claimed = [claimedApp()];
   slugTaken = false;
   approvedEmail.mockClear();
@@ -88,9 +93,23 @@ beforeEach(() => {
   fake.current = createDbFake({
     query: {
       hostApplications: { findFirst: () => application, findMany: () => [] },
-      hostApplicationDocuments: { findMany: () => documents },
+      hostApplicationDocuments: {
+        findMany: () => {
+          documentReads += 1;
+          return documentReads > 1 && documentsUnderLock ? documentsUnderLock : documents;
+        },
+      },
       hosts: { findFirst: () => (slugTaken ? { id: 'h-old' } : undefined) },
     },
+    // Two `select … for update` readers share the fake: reviewDocument
+    // resolves the document's application before locking it, and the
+    // approve transaction re-reads the application row under its lock.
+    select: (shape) =>
+      'applicationId' in shape
+        ? [{ applicationId: ID }]
+        : 'identityType' in shape && application
+          ? [application]
+          : [],
     update: (values) => ('status' in values ? claimed : []),
     insert: (values) => (!Array.isArray(values) && 'slug' in values ? [{ id: 'h1' }] : []),
   });
@@ -115,6 +134,20 @@ describe('approveApplication', () => {
       message: 'documents_incomplete',
     });
     expect(fake.current?.updates).toEqual([]);
+  });
+
+  it('re-checks the documents under the row lock: a replacement uploaded mid-review blocks the approval (issue #29)', async () => {
+    // Pre-check sees every required document approved; the resubmit then
+    // resets the replaced one to pending before the claim transaction.
+    documentsUnderLock = [{ type: 'national_id', status: 'pending' }];
+
+    expect(await approveApplication(initial, form())).toMatchObject({
+      message: 'documents_incomplete',
+    });
+    expect(documentReads).toBe(2);
+    expect(fake.current?.updates).toEqual([]);
+    expect(fake.current?.inserts).toEqual([]);
+    expect(approvedEmail).not.toHaveBeenCalled();
   });
 
   it('is not_found for a missing application and wrong_state when the claim loses', async () => {
@@ -199,5 +232,45 @@ describe('rejectApplication / reviewDocument', () => {
       status: 'approved',
       reviewedByUserId: 'admin-1',
     });
+  });
+
+  it('locks the parent application row before writing the verdict (issue #36)', async () => {
+    const db = fake.current;
+    if (!db) throw new Error('no fake');
+    // Record every `.for()` lock and how many writes had run when it was taken.
+    const locks: Array<{ shape: string[]; mode: unknown; writesBefore: number }> = [];
+    const select = db.select;
+    db.select = (shape) => {
+      const chain = select(shape);
+      const lock = chain.for;
+      chain.for = async (mode) => {
+        locks.push({ shape: Object.keys(shape ?? {}), mode, writesBefore: db.updates.length });
+        return lock(mode);
+      };
+      return chain;
+    };
+    const fd = new FormData();
+    fd.set('documentId', ID);
+    fd.set('decision', 'rejected');
+    fd.set('reviewerNotes', 'The photo is unreadable, please re-upload.');
+    claimed = [{ id: ID }];
+
+    expect(await reviewDocument({ success: false }, fd)).toEqual({ success: true });
+    expect(locks).toEqual([{ shape: ['id'], mode: 'update', writesBefore: 0 }]);
+    expect(db.updates).toHaveLength(1);
+    expect(db.updates[0]).toMatchObject({ status: 'rejected' });
+  });
+
+  it('is not_found when the document does not exist, without locking or writing', async () => {
+    const db = createDbFake({ select: () => [] });
+    fake.current = db;
+    const fd = new FormData();
+    fd.set('documentId', ID);
+    fd.set('decision', 'approved');
+    expect(await reviewDocument({ success: false }, fd)).toEqual({
+      success: false,
+      message: 'not_found',
+    });
+    expect(db.updates).toEqual([]);
   });
 });

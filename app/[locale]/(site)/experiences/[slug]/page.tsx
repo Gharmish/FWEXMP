@@ -31,7 +31,7 @@ import { startInstant } from '@/features/bookings/lib/cancellation';
  */
 const RIYADH_CLOCK_ANCHOR = '2000-01-01';
 import { Price } from '@/components/ui/price';
-import { Link } from '@/lib/i18n';
+import { Link, ogLocaleFor } from '@/lib/i18n';
 import type { Locale } from '@/lib/i18n';
 import { routing } from '@/lib/i18n';
 import { SITE_URL, SITE_NAME } from '@/lib/site';
@@ -121,9 +121,12 @@ export async function generateMetadata({
   if (landingCategory) {
     const t = await getTranslations({ locale, namespace: 'categoryLanding' });
     const landingPath = (l: string) => `${SITE_URL}/${l}/experiences/${slug}`;
+    // A dedicated ≤155-char line: the on-page intro runs 170–340 characters
+    // and was truncated mid-sentence in search results.
+    const description = t(`${landingCategory}.metaDescription`);
     return {
       title: t(`${landingCategory}.title`),
-      description: t(`${landingCategory}.intro`),
+      description,
       alternates: {
         canonical: landingPath(locale),
         languages: {
@@ -133,15 +136,16 @@ export async function generateMetadata({
       },
       openGraph: {
         title: t(`${landingCategory}.title`),
-        description: t(`${landingCategory}.intro`),
+        description,
         url: landingPath(locale),
         type: 'website',
+        locale: ogLocaleFor(locale),
         images: [{ url: `${SITE_URL}/${locale}/opengraph-image`, width: 1200, height: 630 }],
       },
       twitter: {
         card: 'summary_large_image',
         title: t(`${landingCategory}.title`),
-        description: t(`${landingCategory}.intro`),
+        description,
         images: [`${SITE_URL}/${locale}/opengraph-image`],
       },
     };
@@ -172,6 +176,7 @@ export async function generateMetadata({
       description,
       url,
       type: 'website',
+      locale: ogLocaleFor(locale),
       // Point og:image at the `.png` alias, not the opengraph-image
       // convention route: both render the same card, but only the alias
       // carries ISR + a long CDN cache, and the convention URL was the one
@@ -272,12 +277,13 @@ export default async function ExperienceDetailPage({
   //
   // Translations are not DB work and hold no connection, so they ride
   // along with the first wave for free.
-  const [t, te, tb, tTiers, tFooter] = await Promise.all([
+  const [t, te, tb, tTiers, tFooter, tSite] = await Promise.all([
     getTranslations('experienceDetail'),
     getTranslations('experience'),
     getTranslations('bookingRequest'),
     getTranslations('cancellationTiers'),
     getTranslations('footer'),
+    getTranslations('siteMeta'),
   ]);
   // Wave 1 — the four reads the page cannot render without. Each of these
   // is one connection at a time (getReviewAggregate/getScheduleDataBySlug
@@ -629,7 +635,7 @@ export default async function ExperienceDetailPage({
           {
             '@type': 'ListItem',
             position: 1,
-            name: SITE_NAME,
+            name: tSite('name'),
             item: `${SITE_URL}/${loc}`,
           },
           // The middle level earns the SERP breadcrumb trail ("Gharmish ›

@@ -773,6 +773,7 @@
       "commission": "Platform commission (%)",
       "commissionHint": "Gharmish's share of each booking. The host payout is the remainder.",
       "startTime": "Daily start time",
+      "startTimePlaceholder": "Choose a time",
       "titleEn": "Title (English)",
       "titleAr": "Title (Arabic)",
       "descriptionEn": "Description (English)",
@@ -1116,7 +1117,7 @@
     },
     "emergencyCancel": {
       "heading": "Emergency cancellation",
-      "description": "For emergencies only — weather, host no-show, safety: the experience can't start or finish. This bypasses the cancellation policy and returns the guest's full payment as Gharmish Credit, from where they can spend it or move it back to their card. The reason is recorded on the booking and shown in the wallet ledger.",
+      "description": "For emergencies only — weather, host no-show, safety: the experience can't start or finish. This bypasses the cancellation policy and returns the guest's full payment as Gharmish Credit, which they spend at checkout. Moving it back to their card is only offered while gateway refunds are on (bank-transfer refunds switched off in Settings). A guest without a Gharmish account must sign in with the email on the booking to see the credit. The reason is recorded on the booking and shown in the wallet ledger.",
       "reasonLabel": "Reason (required — kept on record)",
       "reasonPlaceholder": "e.g. Flash flooding at the meeting point — host called off the departure.",
       "label": "Emergency cancel & refund to credit",
@@ -1164,7 +1165,8 @@
         "needsArabic": "The Arabic title or description is still a TODO placeholder — fill it in before approving (Arabic-first audience).",
         "needsArabicMoments": "One or more timeline moments still carry a TODO Arabic placeholder — complete them in the timeline editor before approving.",
         "needsArabicLists": "The Arabic \"What's included\" or \"What to bring\" list is empty while the English one isn't — add it in the Arabic copy editor above before approving.",
-        "needsEnglish": "The English title or description is still empty — the host drafted in Arabic only. Fill it in before approving."
+        "needsEnglish": "The English title, description or lists are still empty — the host drafted in Arabic only. Fill them in before approving.",
+        "hostSuspended": "This host is suspended — nothing of theirs can go live until an admin reinstates them."
       }
     },
     "disputes": {
@@ -1663,7 +1665,7 @@
   },
   "hosting": {
     "meta": {
-      "title": "Host with Gharmish",
+      "title": "Become a host in Abha & Aseer",
       "description": "Partner with Gharmish to host authentic Aseeri experiences. See who can host, how the partnership works, what to prepare, and how payouts work — then apply."
     },
     "hero": {
@@ -2910,7 +2912,7 @@
   "experiencesIndex": {
     "meta": {
       "title": "Experiences in Abha",
-      "description": "Curated Aseeri experiences in Abha, hosted by vetted local partners."
+      "description": "Browse curated experiences in Abha and Aseer — heritage, nature, food, wellness, adventure and family — each hosted by a vetted local who knows the place."
     },
     "eyebrow": "Abha experiences",
     "title": "Meet Aseer from the inside.",
@@ -3155,7 +3157,7 @@
     "termsRequired": "Accept the terms of service to continue.",
     "datePast": "Pick a date in the future.",
     "dateUnavailable": "This experience doesn't run on that day. Pick another date.",
-    "dateCutoff": "Booking has closed for today — it's too close to the start time. Pick another day.",
+    "dateCutoff": "Booking has closed for that day — it's too close to the start time. Pick another day.",
     "dateFull": "That date is fully booked. Try another day.",
     "dateFullForm": "The date you picked just sold out — choose another day from the calendar.",
     "dayFullSuffix": "fully booked",
@@ -3312,6 +3314,7 @@
     "cancelledDescriptionRefundedBank": "This booking was cancelled and the refund was transferred to the bank account you provided. Depending on your bank, it can take a few business days to appear.",
     "cancelledDescriptionRefundPendingBank": "This booking was cancelled. Our team will transfer your refund to the bank account you provided — usually within a few business days.",
     "cancelledDescriptionWalletCredit": "Due to an emergency, this experience couldn't go ahead and the booking was cancelled. Your full payment of {amount} has been added to your Gharmish Credit — use it on any experience, or move it back to your card below.",
+    "cancelledDescriptionWalletCreditNoCard": "Due to an emergency, this experience couldn't go ahead and the booking was cancelled. Your full payment of {amount} has been added to your Gharmish Credit — use it on any experience at checkout.",
     "vatIncludedLabel": "Includes VAT ({pct}%)",
     "whatsapp": {
       "heading": "Questions for your host?",
@@ -3398,9 +3401,12 @@
     "walletAppliedLabel": "Gharmish Credit",
     "walletCredit": {
       "heading": "Your refund, your choice",
+      "headingNoCard": "Your Gharmish Credit",
       "description": "{amount} is in your Gharmish Credit right now. Spend it on any experience at checkout — or move what you paid by card back to your original payment method.",
+      "descriptionNoCard": "{amount} is in your Gharmish Credit right now. Spend it on any experience at checkout.",
       "browse": "Browse experiences",
-      "signInHint": "Sign in with the email address you gave when booking to see your balance or move the refund back to your card.",
+      "signInHintAccount": "Sign in to see your balance.",
+      "signInHintDevice": "To see your balance, sign in with the mobile number you booked with, on the device you booked on.",
       "toCard": "Move it back to my card",
       "toCardPending": "Requesting refund",
       "confirmTitle": "Refund to your card?",
@@ -3679,8 +3685,11 @@
     "cancelByOpsIntroRefundPendingBank": "The Gharmish team has cancelled this booking. We'll transfer your full refund to the bank account you provided within a few business days.",
     "cancelByOpsIntroRefundPendingNeedsBank": "The Gharmish team has cancelled this booking. Your full refund is ready to send — we just need to know where: open your booking page and add your bank details, and we'll transfer it within a few business days.",
     "cancelIntroWalletCredited": "Due to an emergency, this experience couldn't go ahead — we're sorry. Your full payment has been added to your Gharmish Credit: spend it on any experience at checkout, or open your booking page to move it back to your card.",
+    "cancelIntroWalletCreditedNoCard": "Due to an emergency, this experience couldn't go ahead — we're sorry. Your full payment has been added to your Gharmish Credit: spend it on any experience at checkout.",
+    "cancelWalletSignInAccount": "Sign in to your Gharmish account to see it.",
+    "cancelWalletSignInDevice": "To see it, sign in to Gharmish with the mobile number you booked with, on the device you booked on.",
     "walletCreditLabel": "Added to your Gharmish Credit",
-    "viewWalletCredit": "View your refund options",
+    "viewWalletCredit": "View your Gharmish Credit",
     "hostGuestCancelledSubject": "A guest cancelled: {experience}",
     "hostGuestCancelledIntro": "A guest has cancelled the booking below — those spots are open again.",
     "hostHoldLapsedSubject": "A booking lapsed unpaid: {experience}",
@@ -3701,7 +3710,7 @@
     "hostBookingsCta": "Open your bookings",
     "waCancelRefunded": "Your refund has been issued to your card",
     "waCancelRefundPending": "Your refund is being processed and will reach your card in a few business days",
-    "waCancelWalletCredited": "Your full payment was added to your Gharmish Credit",
+    "waCancelWalletCredited": "Your full payment was added to your Gharmish Credit — sign in to use it at checkout",
     "waCancelForfeited": "The refund window had passed, so the payment was not refunded",
     "waCancelUnpaid": "Nothing was charged",
     "reviewInviteSubject": "How was {experience}?",
@@ -3798,6 +3807,7 @@
   "hostsIndex": {
     "meta": {
       "title": "Gharmish hosts",
+      "pageTitle": "Local hosts in Abha & Aseer",
       "description": "Meet the people behind every Gharmish experience — farmers, guides, artisans, and Aseeri tourism operators."
     },
     "eyebrow": "Our hosts",
@@ -3807,7 +3817,7 @@
   },
   "hostProfile": {
     "meta": {
-      "title": "{name} · Host on {siteName}"
+      "title": "{name} · Local host in Abha & Aseer"
     },
     "eyebrow": "Host",
     "backToExperiences": "Back to experiences",
@@ -3882,7 +3892,7 @@
     "footer": "Gharmish · Experiences hosted by the people who know the place best."
   },
   "about": {
-    "metaTitle": "About Gharmish",
+    "metaTitle": "About us — local experiences in Aseer",
     "metaDescription": "Gharmish is a marketplace for experiences hosted by the people who know the place best — starting in Abha, Aseer. Here's why we built it, and how to reach us.",
     "eyebrow": "About us",
     "title": "The best way to know a place is through its people.",
@@ -3895,8 +3905,8 @@
     "exploreCta": "Explore the experiences"
   },
   "cityAbha": {
-    "metaTitle": "Things to do in Abha — experiences hosted by locals",
-    "metaDescription": "Book experiences in Abha and the Aseer highlands — nature walks, heritage villages, Aseeri food and coffee, adventure on the Soudah cliffs — each hosted by a local who knows the place best.",
+    "metaTitle": "Things to do in Abha — hosted by locals",
+    "metaDescription": "Experiences in Abha and the Aseer highlands — nature walks, heritage villages, Aseeri food and coffee, Soudah cliff adventures — each hosted by a local.",
     "breadcrumb": "Abha",
     "eyebrow": "Abha, Aseer",
     "title": "Things to do in Abha",
@@ -3905,7 +3915,8 @@
     "gridLabel": "Experiences in Abha",
     "empty": "No live experiences in Abha right now — new ones are added as hosts join. Browse the full catalogue in the meantime.",
     "allCta": "Browse all experiences",
-    "hostCta": "Host with Gharmish in Abha"
+    "hostCta": "Host with Gharmish in Abha",
+    "intro3": "The season is long. Summer brings the mist, the festivals and most of the Kingdom's visitors; spring and autumn are quieter and clear; winter nights on the plateau drop close to freezing. Abha has its own airport, the Soudah heights are under an hour away by road, and most experiences start in the city or a short drive out."
   },
   "categoryLanding": {
     "eyebrow": "Experiences by category",
@@ -3915,32 +3926,55 @@
     "breadcrumbCatalog": "Experiences",
     "nature": {
       "title": "Nature experiences in Abha & Aseer",
-      "intro": "Aseer is the greenest corner of Saudi Arabia — juniper forests on Jabal Sawda, terraced valleys, and mornings when the mist rolls up the escarpment and through the trees. These experiences put you inside that landscape with someone who has walked it for years: dawn forest walks, valley trails, and quiet places no map label does justice to."
+      "intro": "Aseer is the greenest corner of Saudi Arabia — juniper forests on Jabal Sawda, terraced valleys, and mornings when the mist rolls up the escarpment and through the trees. These experiences put you inside that landscape with someone who has walked it for years: dawn forest walks, valley trails, and quiet places no map label does justice to.",
+      "metaDescription": "Juniper forests on Jabal Sawda, terraced valleys and misty mornings — nature experiences in Abha & Aseer, hosted by locals who know the trails.",
+      "know1": "The highlands run cool. Abha sits at about 2,200 metres and Jabal Sawda rises close to 3,000, so summer afternoons stay mild and early mornings can be genuinely cold. Bring a layer even in July, and expect the escarpment to be in cloud on many days between June and September.",
+      "know2": "Most nature experiences start early, when the light is soft and the trails are empty. Closed shoes, water and sun protection are enough for the walks; your host carries the rest — which wadi still holds water, where the path is loose after rain, and when to turn back before the mist closes in."
     },
     "heritage": {
       "title": "Heritage experiences in Abha & Aseer",
-      "intro": "Stone towers, painted doorways, and the UNESCO-listed geometry of Al-Qatt Al-Aseeri — Aseer's heritage isn't behind glass, it's still lived in. Visit the village of Rijal Almaa, learn the wall-painting craft from a local artist, and hear the stories of the flower men from people who grew up with them."
+      "intro": "Stone towers, painted doorways, and the UNESCO-listed geometry of Al-Qatt Al-Aseeri — Aseer's heritage isn't behind glass, it's still lived in. Visit the village of Rijal Almaa, learn the wall-painting craft from a local artist, and hear the stories of the flower men from people who grew up with them.",
+      "metaDescription": "Rijal Almaa's stone towers, Al-Qatt Al-Aseeri wall painting and the stories of the flower men — heritage experiences in Aseer, hosted by locals.",
+      "know1": "Aseer's heritage is still lived in. The stone-and-slate towers of Rijal Almaa, the geometric wall painting of Al-Qatt Al-Aseeri that UNESCO inscribed in 2017, and the mountain villages around Abha are family places first — which is why every heritage experience here is hosted by someone with a claim to them.",
+      "know2": "Expect modest dress and shoes you can slip off at the door; many visits end indoors over coffee. Photography is usually welcome, but ask before pointing a camera at people or inside a home — your host will tell you when it is fine."
     },
     "food": {
       "title": "Food & coffee experiences in Abha & Aseer",
-      "intro": "The Aseeri coffee ritual is its own language — the roast, the pour, the order guests are served in all mean something. Around it comes mountain honey, saleeg, and bread from ovens that have never cooled. These experiences seat you at a local table, hosted by the people who cook this food for their own families."
+      "intro": "The Aseeri coffee ritual is its own language — the roast, the pour, the order guests are served in all mean something. Around it comes mountain honey, saleeg, and bread from ovens that have never cooled. These experiences seat you at a local table, hosted by the people who cook this food for their own families.",
+      "metaDescription": "The Aseeri coffee ritual, mountain honey and saleeg at a local table — food & coffee experiences in Abha & Aseer, hosted by the people who cook it.",
+      "know1": "Aseer grows what it serves. Coffee comes from the terraces of the Sarawat, honey from sidr and juniper country, and the table is built around dishes such as haneeth, areekah and saleeg that take hours and a crowd. These experiences seat you at that table with the family who cooks it.",
+      "know2": "Come hungry, and tell your host about allergies when you book — most meals are shared from one tray and portions are generous. Coffee is poured in rounds; a small shake of the cup says you have had enough."
     },
     "wellness": {
       "title": "Wellness experiences in Abha & Aseer",
-      "intro": "Cool mountain air, running water, and altitude that slows everything down — Aseer is built for taking a breath. Guided breathwork and sound sessions by the water at Wadi Mahala, quiet walks, and unhurried mornings, all led by hosts who know exactly where the calm is."
+      "intro": "Cool mountain air, running water, and altitude that slows everything down — Aseer is built for taking a breath. Guided breathwork and sound sessions by the water at Wadi Mahala, quiet walks, and unhurried mornings, all led by hosts who know exactly where the calm is.",
+      "metaDescription": "Breathwork and sound by the water at Wadi Mahala, quiet walks and cool mountain air — wellness experiences in Abha & Aseer, led by local hosts.",
+      "know1": "Altitude, cool air and quiet do most of the work. Wellness experiences in Aseer use the setting — a terrace above the clouds, a juniper forest at first light, a courtyard at dusk — rather than equipment, so they suit first-timers as much as regulars.",
+      "know2": "Sessions are small and unhurried, and several are offered women-only on request. Wear loose clothing, bring a layer for the cool mornings, and leave the pace to your host."
     },
     "adventure": {
       "title": "Adventure experiences in Abha & Aseer",
-      "intro": "The Soudah escarpment drops nearly a kilometre off the edge of the Sarawat — and you can climb along it. Via ferrata routes, cable descents, and mountain days with certified local guides and full safety equipment. No experience needed for most of it; a head for views is."
+      "intro": "The Soudah escarpment drops nearly a kilometre off the edge of the Sarawat — and you can climb along it. Via ferrata routes, cable descents, and mountain days with certified local guides and full safety equipment. No experience needed for most of it; a head for views is.",
+      "metaDescription": "Via ferrata on the Soudah escarpment and mountain days with certified local guides — adventure experiences in Abha & Aseer, safety gear included.",
+      "know1": "The Sarawat escarpment drops almost 2,000 metres from the Sawda plateau toward Tihama — a wall of cliffs, ridges and old stone paths that locals have climbed for centuries. Adventure experiences follow those routes with people who know them: via ferrata, canyon trails, ridge hikes and the long descent toward the coast.",
+      "know2": "Hosts set the pace and provide the technical gear; you bring fitness honest to the level listed, closed shoes with grip, and a wind layer. Weather turns quickly on the edge, so a shortened or postponed route is a good host's call, not a bad sign."
     },
     "family": {
       "title": "Family experiences in Abha & Aseer",
-      "intro": "Experiences the whole family actually does together — painting an Al-Qatt panel every one of you takes home, village mornings, and easy outdoor days sized for younger legs. Hosted by locals who are used to hosting families, with clear age guidance on every listing."
+      "intro": "Experiences the whole family actually does together — painting an Al-Qatt panel every one of you takes home, village mornings, and easy outdoor days sized for younger legs. Hosted by locals who are used to hosting families, with clear age guidance on every listing.",
+      "metaDescription": "Al-Qatt painting, village mornings and easy outdoor days for younger legs — family experiences in Abha & Aseer, with age guidance on every listing.",
+      "know1": "Abha is built for family summers: a mild climate, parks and terraces at altitude, villages where children can roam, and hosts who grew up doing exactly that. Family experiences keep the walking short, the pace gentle and the stops frequent.",
+      "know2": "Each listing states the minimum age and whether a stroller works on the route. Book for the whole group so the host can plan seating, food and timing; most activities run in the cooler morning and late-afternoon hours."
     },
     "women_only": {
       "title": "Women-only experiences in Abha & Aseer",
-      "intro": "Hiking, yoga, sketching, and mountain mornings in a women-only setting — led by women hosts, for women guests, with the whole experience kept that way from meeting point to finish. Every listing marks it clearly before you book."
-    }
+      "intro": "Hiking, yoga, sketching, and mountain mornings in a women-only setting — led by women hosts, for women guests, with the whole experience kept that way from meeting point to finish. Every listing marks it clearly before you book.",
+      "metaDescription": "Hiking, yoga and sketching in a women-only setting, led by women hosts for women guests — women-only experiences in Abha & Aseer.",
+      "know1": "Women-only experiences are hosted by women, for women and girls, in spaces arranged for privacy — a terrace, a studio, a trail with no other group booked. They cover the same ground as the rest of the catalog: craft, cooking, hiking, wellness and heritage.",
+      "know2": "The group size and the host's own profile are on every listing, so you know who you are meeting before you book. Photos stay inside the group unless everyone agrees, and the host will say what to wear for the route."
+    },
+    "gridLabel": "Experiences in this category",
+    "knowTitle": "Good to know"
   },
   "relatedExperiences": {
     "title": "More experiences nearby"
@@ -4158,7 +4192,8 @@
     "community": {
       "heading": "Honest reviews, gated by real bookings",
       "body": "Only guests who completed a booking can review it — one review per booking, and hosts can reply once. No purchased ratings, no anonymous noise."
-    }
+    },
+    "metaTitle": "Trust & safety — vetted hosts, protected payments"
   },
   "howItWorks": {
     "eyebrow": "How it works",
@@ -4184,7 +4219,8 @@
       "step2": "We verify your identity — and your licences where your activity requires them — then build the experience with you, photography included.",
       "step3": "Choose how bookings confirm: instantly against your calendar, or with your approval per request.",
       "step4": "Host your guests and track earnings and payouts from your dashboard."
-    }
+    },
+    "metaTitle": "How it works — book local experiences in Aseer"
   },
   "cancellationPolicyPage": {
     "eyebrow": "Cancellation & refunds",
@@ -4206,7 +4242,8 @@
       "body2": "If an automatic refund can't be processed, our team completes it manually and you'll receive a confirmation email — you never need to chase it.",
       "body1Bank": "Refunds are paid by bank transfer. When you cancel, we ask for the bank account you'd like the money sent to, and our team wires it — usually within a few business days.",
       "body2Bank": "You'll receive a confirmation once the transfer is made, and your booking page shows the refund's status the whole time — you never need to chase it.",
-      "body3": "In exceptional cases — for example when our team cancels a booking for safety or force-majeure reasons — your full payment is returned instantly as Gharmish Credit, and you can then move the card-paid amount back to your card from the booking page with one tap. Any amount you paid by card can always travel back to that card."
+      "body3": "In exceptional cases — for example when our team cancels a booking for safety or force-majeure reasons — your full payment is returned instantly as Gharmish Credit, and you can then move the card-paid amount back to your card from the booking page with one tap. Any amount you paid by card can always travel back to that card.",
+      "body3Bank": "In exceptional cases — for example when our team cancels a booking for safety or force-majeure reasons — your full payment is returned instantly as Gharmish Credit, which you can spend on any experience at checkout. Sign in with the email address you used when booking to see it."
     },
     "hostCancellations": {
       "heading": "If a host cancels",
@@ -4217,7 +4254,8 @@
       "body1": "Aseer's weather is part of its character — mist rolling over the ridge, a cool drizzle, clouds passing below your feet. Experiences run in ordinary mountain weather, and a grey forecast on its own isn't grounds for a free cancellation: if you choose not to come, the cancellation policy on your booking applies as usual, including your one free date move.",
       "body2": "Safety is a different matter. If conditions would make an experience unsafe or impossible to run — thunderstorms, heavy rain or flooding in the wadis, dense fog on mountain roads, or an official weather warning for the area — the host cancels, and the call is made as early as the forecast allows. You'll hear from us the moment it's made.",
       "body3": "A weather cancellation is never your loss: you're refunded 100% of what you paid, whatever policy the experience carries and however close to the start it happens, and every open date stays yours to rebook. Outdoor experiences — nature and adventure especially — carry a reminder of this on their page."
-    }
+    },
+    "metaTitle": "Cancellation & refund policy"
   },
   "helpFaq": {
     "eyebrow": "Help",
@@ -4266,7 +4304,8 @@
         "q": "Can I change my experience after it's published?",
         "a": "Yes — edit the details, pause the listing, or adjust day-by-day availability from your dashboard whenever you need. Confirmed bookings keep the price and terms they were booked with."
       }
-    }
+    },
+    "metaTitle": "Help & FAQ — booking, payments and hosting"
   },
   "infoRelated": {
     "label": "Keep reading",
@@ -4303,8 +4342,9 @@
     },
     "credit": {
       "heading": "Gharmish Credit",
-      "body1": "Gharmish Credit is a balance on your Gharmish account that you can apply to bookings at checkout. It is not money in a bank account: it cannot be deposited into, transferred to anyone else, or withdrawn as cash. Credit we grant as a goodwill gesture or promotion may carry an expiry date, which is shown when it's granted; credit issued from a refund of your own payment never expires.",
-      "body2": "When a refund is issued as Gharmish Credit, any amount you originally paid by card can be moved back to that card from your booking page — up to the amount charged to it, and only to that original payment method. Credit granted in error, or connected to fraud or misuse, may be reversed."
+      "body1": "Gharmish Credit is a balance on your Gharmish account that you can apply to bookings at checkout. To see and use it you must be signed in to the account the booking belongs to — for a booking made without an account, that means signing in with the email address you gave when booking. It is not money in a bank account: it cannot be deposited into, transferred to anyone else, or withdrawn as cash. Credit we grant as a goodwill gesture or promotion may carry an expiry date, which is shown when it's granted; credit issued from a refund of your own payment never expires.",
+      "body2": "When a refund is issued as Gharmish Credit, any amount you originally paid by card can be moved back to that card from your booking page — up to the amount charged to it, and only to that original payment method. Credit granted in error, or connected to fraud or misuse, may be reversed.",
+      "body2Bank": "When a refund is issued as Gharmish Credit, the credit stays available to spend at checkout; it is not automatically returned to your card. Gharmish may, at its discretion, refund the amount you originally paid by bank transfer instead — up to the amount charged — in which case the matching credit is withdrawn. Credit granted in error, or connected to fraud or misuse, may be reversed."
     },
     "conduct": {
       "heading": "Guest conduct",

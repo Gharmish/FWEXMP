@@ -174,3 +174,38 @@ describe('sendWhatsAppTemplate', () => {
     expect(reportError).toHaveBeenCalledTimes(1);
   });
 });
+
+describe('unmappedWhatsAppTemplates', () => {
+  const served = async (map: Record<string, string> | null) => {
+    const mod = await load('{}');
+    return mod.unmappedWhatsAppTemplates(map, ['ar']);
+  };
+
+  it('reports nothing when WhatsApp is not configured at all', async () => {
+    expect(await served(null)).toEqual([]);
+  });
+
+  it('names the registry templates the map cannot serve, by locale key', async () => {
+    const { WHATSAPP_TEMPLATES, providerKey } = await import('./registry');
+    const full = Object.fromEntries(
+      WHATSAPP_TEMPLATES.map((t) => [`${providerKey(t.id)}.ar`, 'HX1']),
+    );
+    expect(await served(full)).toEqual([]);
+    // The 2026-10-09 production gap: the Arabic hold message had an
+    // approved SID on Twilio that never reached the env map.
+    delete full['v3/guest_payment_pending.ar'];
+    expect(await served(full)).toEqual(['v3/guest_payment_pending.ar']);
+  });
+
+  it('accepts a shared locale-less key or a legacy key as served', async () => {
+    const { WHATSAPP_TEMPLATES, providerKey } = await import('./registry');
+    const full = Object.fromEntries(WHATSAPP_TEMPLATES.map((t) => [providerKey(t.id), 'HX1']));
+    expect(await served(full)).toEqual([]);
+    const legacy = WHATSAPP_TEMPLATES.find((t) => t.legacy);
+    if (!legacy?.legacy) throw new Error('expected a template with a legacy fallback');
+    delete full[providerKey(legacy.id)];
+    expect(await served(full)).toEqual([`${providerKey(legacy.id)}.ar`]);
+    full[`${legacy.legacy.key}.ar`] = 'HXlegacy';
+    expect(await served(full)).toEqual([]);
+  });
+});

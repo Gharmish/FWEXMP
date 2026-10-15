@@ -146,6 +146,16 @@ describe('isDateBookable', () => {
       );
     });
 
+    it('applies a 24h cutoff to the next day (lead time reaches back a day)', () => {
+      // Sat 2026-05-30 starts 09:00 with a 24h cutoff → closes Fri 09:00.
+      const nextDay = { ...today, dateStr: '2026-05-30', cutoffMinutes: 24 * 60 };
+      expect(isDateBookable({ ...nextDay, nowMinutes: 20 * 60 })).toEqual({
+        ok: false,
+        reason: 'cutoff',
+      });
+      expect(isDateBookable({ ...nextDay, nowMinutes: 8 * 60 })).toEqual({ ok: true });
+    });
+
     it('skips the gate entirely when time-of-day inputs are omitted', () => {
       // Day-granularity callers (host/admin grids) keep the old behavior.
       expect(isDateBookable({ ...base, dateStr: '2026-05-29' })).toEqual({ ok: true });
@@ -267,6 +277,12 @@ describe('startWindowClosed', () => {
   it('applies the lead-time window when a cutoff is given', () => {
     expect(startWindowClosed({ ...base, nowMinutes: 8 * 60, cutoffMinutes: 120 })).toBe(true);
     expect(startWindowClosed({ ...base, nowMinutes: 6 * 60, cutoffMinutes: 120 })).toBe(false);
+  });
+
+  it('applies a cutoff that reaches back into the previous day', () => {
+    const tomorrow = { ...base, dateStr: '2026-06-06', cutoffMinutes: 24 * 60 };
+    expect(startWindowClosed({ ...tomorrow, nowMinutes: 20 * 60 })).toBe(true);
+    expect(startWindowClosed({ ...tomorrow, nowMinutes: 8 * 60 })).toBe(false);
   });
 
   it('a past date is always closed and a future date always open', () => {

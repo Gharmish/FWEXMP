@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 import { ArrowRight, ChevronDown } from 'lucide-react';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
-import { Link, routing } from '@/lib/i18n';
+import { Link, routing, ogLocaleFor } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
 import { buttonVariants } from '@/components/ui/button';
 import { FadeIn } from '@/components/ui/motion';
@@ -50,6 +50,7 @@ export async function generateMetadata({
       description,
       url: `${SITE_URL}/${locale}/hosting`,
       type: 'website',
+      locale: ogLocaleFor(locale),
       images: [{ url: `${SITE_URL}/${locale}/opengraph-image`, width: 1200, height: 630 }],
     },
     twitter: {

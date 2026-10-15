@@ -65,6 +65,7 @@ function ready(over: Row = {}): Row {
     whatToBring: [],
     whatToBringAr: [],
     moments: [{ titleAr: 'لحظة', descriptionAr: 'وصف' }],
+    host: { verificationStatus: 'verified' },
     ...over,
   };
 }
@@ -86,6 +87,8 @@ describe('approveExperience', () => {
       [ready({ heroImage: null }), 'needs_hero'],
       [ready({ titleAr: 'TODO(ar): title' }), 'needs_arabic'],
       [ready({ descriptionEn: '   ' }), 'needs_english'],
+      [ready({ inclusions: [], inclusionsAr: ['قهوة'] }), 'needs_english'],
+      [ready({ whatToBring: [], whatToBringAr: ['قبعة'] }), 'needs_english'],
       [ready({ moments: [{ titleAr: 'TODO(ar)', descriptionAr: 'x' }] }), 'needs_arabic_moments'],
       [ready({ whatToBring: ['Hat'], whatToBringAr: [] }), 'needs_arabic_lists'],
     ];
@@ -94,6 +97,37 @@ describe('approveExperience', () => {
       expect(await approveExperience(initial, form())).toMatchObject({ message });
     }
     expect(fake.current?.updates).toEqual([]);
+  });
+
+  it('refuses a listing whose host is suspended', async () => {
+    experience = ready({ host: { verificationStatus: 'suspended' } });
+    expect(await approveExperience(initial, form())).toMatchObject({
+      success: false,
+      message: 'host_suspended',
+    });
+    expect(fake.current?.updates).toEqual([]);
+    expect(email).not.toHaveBeenCalled();
+  });
+
+  it('refuses as host_suspended when the host is suspended between the check and the flip', async () => {
+    // The pre-check read `verified`; the in-WHERE guard lost to a
+    // concurrent suspendHost, and the re-read now sees the suspension.
+    let reads = 0;
+    fake.current = createDbFake({
+      query: {
+        experiences: {
+          findFirst: () =>
+            reads++ === 0 ? experience : { id: ID, host: { verificationStatus: 'suspended' } },
+        },
+      },
+      update: () => [],
+    });
+    expect(await approveExperience(initial, form())).toMatchObject({
+      success: false,
+      message: 'host_suspended',
+    });
+    expect(fake.current?.inserts).toEqual([]);
+    expect(email).not.toHaveBeenCalled();
   });
 
   it('is not_found / wrong_state when the row is missing or not pending review', async () => {
@@ -111,7 +145,7 @@ describe('approveExperience', () => {
     expect(fake.current?.updates[0]).toMatchObject({ status: 'live' });
     // The claim re-asserts pending_review so a decided listing cannot be re-decided.
     expect(referencedColumns(fake.current?.updateConditions[0])).toEqual(
-      expect.arrayContaining(['id', 'status']),
+      expect.arrayContaining(['id', 'status', 'hostId', 'verificationStatus']),
     );
     expect(fake.current?.inserts[0]).toMatchObject({
       experienceId: ID,

@@ -77,6 +77,12 @@ describe('cron watchdog — auth', () => {
     expect(res.status).toBe(401);
   });
 
+  it('rejects (401, not 500) a same-length bearer with a non-ASCII character (issue #31)', async () => {
+    // Same character count as 'Bearer test-secret', one more UTF-8 byte.
+    const res = await GET(request('Bearer test-secreé'));
+    expect(res.status).toBe(401);
+  });
+
   it('is inert (401) while no secret is configured, even with an empty bearer', async () => {
     env.CRON_SECRET = '';
     const res = await GET(request('Bearer '));

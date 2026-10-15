@@ -190,6 +190,19 @@ describe('POST /api/webhooks/twilio — inbound keywords', () => {
     expect(addSuppression).toHaveBeenCalledWith('whatsapp', '+966541104000', 'stop');
   });
 
+  it.each(['إلغاء', 'الغاء'])(
+    'routes a bare Arabic "cancel" (%s) to the support line, not the opt-out list',
+    async (word) => {
+      const params = { From: 'whatsapp:+966541104000', Body: word };
+
+      const res = await POST(request(params, sign(params)));
+
+      expect(res.status).toBe(200);
+      expect(addSuppression).not.toHaveBeenCalled();
+      expect(recordInboundMessage).toHaveBeenCalledWith(expect.objectContaining({ body: word }));
+    },
+  );
+
   it('lifts the suppression on START', async () => {
     const params = { From: 'whatsapp:+966541104000', Body: 'start' };
 
@@ -198,6 +211,16 @@ describe('POST /api/webhooks/twilio — inbound keywords', () => {
     expect(res.status).toBe(200);
     expect(removeSuppression).toHaveBeenCalledWith('whatsapp', '+966541104000');
     expect(addSuppression).not.toHaveBeenCalled();
+  });
+
+  it('answers 500 when the message could not be stored, so Twilio retries', async () => {
+    recordInboundMessage.mockRejectedValueOnce(new Error('connection reset'));
+    const params = { From: 'whatsapp:+966541104000', Body: 'What time do we meet?' };
+
+    const res = await POST(request(params, sign(params)));
+
+    expect(res.status).toBe(500);
+    expect(runAgentTurn).not.toHaveBeenCalled();
   });
 
   it('acknowledges an ordinary reply without touching the suppression list', async () => {

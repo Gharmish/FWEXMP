@@ -241,6 +241,29 @@ export async function runAgentLoop(
   return { reply: finalText, toolCalls, handedToHuman, ticketReference, stopReason };
 }
 
+/**
+ * A re-check pass answers inbound messages that arrived while the previous
+ * pass ran. Chronologically those rows sit BEFORE the reply that pass just
+ * stored (the guest wrote during the model call; the reply was inserted
+ * after it), so the reloaded thread ends in our own message and read as
+ * "already answered" — the 810f282 skip then dropped the guest's second
+ * message for good, and the cron sweep (last outbound ≥ last inbound)
+ * never picked it up either (nightly bug hunt 2026-10-09, P1). Move every
+ * inbound message the model has not yet seen to the end of the thread,
+ * where it is the turn to answer.
+ */
+export function surfaceUnseenInbound(history: ThreadMessage[], seenThrough: Date): ThreadMessage[] {
+  const unseen = history.filter(
+    (m) =>
+      m.direction === 'in' &&
+      m.createdAt !== undefined &&
+      m.createdAt.getTime() > seenThrough.getTime(),
+  );
+  if (unseen.length === 0) return history;
+  const seen = history.filter((m) => !unseen.includes(m));
+  return [...seen, ...unseen];
+}
+
 async function loadThread(conversationId: string): Promise<ThreadMessage[]> {
   const rows = await db
     .select({
@@ -404,6 +427,17 @@ export async function runAgentTurn(
       .set({ agentLockUntil: null, updatedAt: new Date() })
       .where(eq(conversations.id, conversationId));
 
+  // The `state = 'bot'` precondition the lock was taken under is
+  // re-checked before every send (2026-10-10, issue #30): an admin can
+  // take over while the model call runs, and the thread is theirs then.
+  const stillBotOwned = async () =>
+    (
+      await db.query.conversations.findFirst({
+        where: eq(conversations.id, conversationId),
+        columns: { state: true },
+      })
+    )?.state === 'bot';
+
   // The inbound message this pass is answering — drives the reply's
   // dedupe key, and advances to the newest unanswered message on re-check.
   let messageId = recorded.messageId;
@@ -413,9 +447,16 @@ export async function runAgentTurn(
   const controller = new AbortController();
   const budgetTimer = setTimeout(() => controller.abort(), TURN_BUDGET_MS);
 
+  // Newest inbound timestamp the model was shown on the previous pass —
+  // null on the first. A re-check pass surfaces everything newer.
+  let seenThrough: Date | null = null;
+
   try {
     for (let pass = 0; pass < MAX_TURN_PASSES; pass += 1) {
-      const history = await loadThread(conversationId);
+      const loaded = await loadThread(conversationId);
+      const history: ThreadMessage[] = seenThrough
+        ? surfaceUnseenInbound(loaded, seenThrough)
+        : loaded;
       // Already answered: two messages seconds apart run two webhook legs;
       // whichever takes the lock second finds the thread ending in the
       // reply the first leg (or its re-check) already sent. Running the
@@ -447,6 +488,18 @@ export async function runAgentTurn(
           guestHasEmail: identity.hasEmail,
         },
       });
+
+      // Stand down only when this pass did nothing the guest or the admin
+      // must hear about (review of #35): a hand-off this turn made itself
+      // flips `state` to human (the escalate tool) and its reply carries
+      // the ticket reference and the emergency numbers; and a tool trail
+      // is persisted only with the reply, which is where the admin's
+      // thread view reads it — a cancellation the bot just made must not
+      // vanish because a person took the thread a second later.
+      if (!output.handedToHuman && output.toolCalls.length === 0 && !(await stillBotOwned())) {
+        await releaseLock();
+        return { outcome: 'skipped' };
+      }
 
       if (output.stopReason === 'refusal')
         return await failSafe(recorded, address, 'refusal', guestId);
@@ -480,8 +533,9 @@ export async function runAgentTurn(
       // Re-check: did the guest write again while this pass was running?
       // Such a message found the lock held (its webhook leg `skipped`),
       // so this turn must answer it — otherwise nothing ever will.
-      const lastSeenInboundAt =
+      const lastSeenInboundAt: Date =
         [...history].reverse().find((m) => m.direction === 'in')?.createdAt ?? now;
+      seenThrough = lastSeenInboundAt;
       const [newer] = await db
         .select({ id: conversationMessages.id })
         .from(conversationMessages)
@@ -499,11 +553,17 @@ export async function runAgentTurn(
         return { outcome: 'replied', ticketReference: output.ticketReference };
       }
       messageId = newer.id;
-      // Keep the lock alive for the extra pass.
-      await db
+      // Keep the lock alive for the extra pass — only while the thread is
+      // still the bot's (issue #30); a take-over ends the turn here.
+      const extended = await db
         .update(conversations)
         .set({ agentLockUntil: new Date(Date.now() + LOCK_MS) })
-        .where(eq(conversations.id, conversationId));
+        .where(and(eq(conversations.id, conversationId), eq(conversations.state, 'bot')))
+        .returning({ id: conversations.id });
+      if (extended.length === 0) {
+        await releaseLock();
+        return { outcome: 'replied', ticketReference: output.ticketReference };
+      }
     }
     await releaseLock();
     return { outcome: 'replied' };

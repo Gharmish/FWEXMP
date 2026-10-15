@@ -521,10 +521,11 @@ body {
 
 /* Home announcement ticker (components/marketing/announcement-ticker.tsx).
  * A one-line notice that scrolls continuously in the reading direction:
- * the track holds two copies of the text and slides by exactly one copy
- * per loop, so the seam never shows. `--ticker-end` sets the direction
- * (-50% = leftward for LTR; the component flips it to +50% under RTL)
- * and `--ticker-duration` scales with the text length so both scripts
+ * the track holds N identical copies of the text (N = `COPIES` in the
+ * component, 12) and slides by exactly one copy per loop (`--ticker-end`
+ * = -100%/N leftward for LTR; the component flips the sign under RTL),
+ * so the seam never shows at any viewport width.
+ * `--ticker-duration` scales with the text length so both scripts
  * read at the same speed. Ambient loop — same spring-rule exception as
  * the mist. `inline` so those two vars resolve on the ticker element,
  * not on :root. The pause/stop mechanics (hover pauses, focus or tap

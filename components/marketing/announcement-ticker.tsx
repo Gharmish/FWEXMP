@@ -25,11 +25,29 @@ function durationClass(text: string): string {
 }
 
 /**
+ * How many copies of the notice the track holds. One loop slides the
+ * track by exactly one copy (`--ticker-end` = 100% / COPIES), so the
+ * seam never shows as long as the other copies cover the band's full
+ * width. Two copies only covered a phone: on a desktop viewport a short
+ * notice filled a third of the band and the rest scrolled past empty
+ * before the loop visibly jumped (2026-10-12). Every copy also gets a
+ * `min-w-[10vw]` floor, so the eleven copies behind the leading one
+ * always cover at least 110 % of the band whatever the text length
+ * (a ~12-character notice alone would fall short on a 1920 px screen).
+ * The clones are aria-hidden and hidden under reduced motion, so the
+ * cost is a few hundred bytes of markup. The `12` in the `--ticker-end`
+ * classes below must equal this constant: Tailwind needs the literal.
+ */
+const COPIES = 12;
+const CLONES = Array.from({ length: COPIES - 1 }, (_, i) => i);
+
+/**
  * The home-page announcement band as a one-line ticker. The text never
  * wraps: it scrolls continuously in the reading direction (leftward in
- * English, rightward in Arabic — `rtl:` flips `--ticker-end`), with an
- * aria-hidden clone behind it so the loop is seamless. The keyframe and
- * the duration/direction vars live in globals.css (`animate-ticker`).
+ * English, rightward in Arabic — `rtl:` flips `--ticker-end`), with
+ * aria-hidden clones behind it so the loop is seamless at any viewport
+ * width. The keyframe and the duration/direction vars live in
+ * globals.css (`animate-ticker`).
  *
  * Moving content needs a way to stop (WCAG 2.2.2), and the house rule
  * from the retired category marquee is a PERMANENT stop on interaction —
@@ -64,7 +82,8 @@ export function AnnouncementTicker({ text }: AnnouncementTickerProps) {
           stopped
             ? 'block'
             : cn(
-                'animate-ticker flex w-max [--ticker-end:-50%] hover:[animation-play-state:paused] rtl:[--ticker-end:50%]',
+                // The divisor must equal COPIES (one copy per loop).
+                'animate-ticker flex w-max [--ticker-end:calc(-100%/12)] hover:[animation-play-state:paused] rtl:[--ticker-end:calc(100%/12)]',
                 'motion-reduce:block motion-reduce:w-auto motion-reduce:animate-none',
                 durationClass(text),
               ),
@@ -73,16 +92,21 @@ export function AnnouncementTicker({ text }: AnnouncementTickerProps) {
         <span
           className={cn(
             !stopped &&
-              'shrink-0 pe-16 whitespace-nowrap motion-reduce:pe-0 motion-reduce:whitespace-normal',
+              'min-w-[10vw] shrink-0 pe-16 whitespace-nowrap motion-reduce:min-w-0 motion-reduce:pe-0 motion-reduce:whitespace-normal',
           )}
         >
           {text}
         </span>
-        {!stopped && (
-          <span aria-hidden className="shrink-0 pe-16 whitespace-nowrap motion-reduce:hidden">
-            {text}
-          </span>
-        )}
+        {!stopped &&
+          CLONES.map((i) => (
+            <span
+              key={i}
+              aria-hidden
+              className="min-w-[10vw] shrink-0 pe-16 whitespace-nowrap motion-reduce:hidden"
+            >
+              {text}
+            </span>
+          ))}
       </span>
     </div>
   );
