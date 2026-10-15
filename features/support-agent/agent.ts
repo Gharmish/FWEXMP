@@ -52,13 +52,16 @@ const MAX_TURN_PASSES = 3;
 /** Whole-turn deadline, kept under LOCK_MS so a turn can never outlive its lock (AI-08). */
 const TURN_BUDGET_MS = 70_000;
 /**
- * Worst case for one sweep turn, as seen by the hourly run: the model
- * budget plus the fail-safe that follows an abort (ticket insert,
- * conversation update, acknowledgement send). The sweep's caller stops
- * when this no longer fits in what is left of the run budget, not only
- * once the budget is already gone (review of #94, 2026-10-15).
+ * Worst case for one sweep turn, as seen by the hourly run. The deadline
+ * only aborts the model call: a reply send that began just before it
+ * still runs (10 s cap), and the fail-safe that follows the abort pages
+ * the admin over email and WhatsApp (10 s cap each) and acknowledges the
+ * guest (10 s cap) before the DB writes, so a turn can outlive its budget
+ * by some 40 s. The sweep's caller stops when this no longer fits in what
+ * is left of the run budget, not only once the budget is already gone
+ * (review of #94, 2026-10-15).
  */
-export const AGENT_TURN_MAX_MS = TURN_BUDGET_MS + 10_000;
+export const AGENT_TURN_MAX_MS = TURN_BUDGET_MS + 40_000;
 /**
  * Spend ceilings (2026-09 engineering audit AI-02). The public support
  * number used to get a full Opus run per message, forever, for anyone.

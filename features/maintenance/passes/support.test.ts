@@ -10,7 +10,7 @@ vi.mock('@/features/conversations/inbound', () => ({
   sweepUnacknowledgedInbound: async () => 0,
 }));
 vi.mock('@/features/support-agent/agent', () => ({
-  AGENT_TURN_MAX_MS: 80_000,
+  AGENT_TURN_MAX_MS: 110_000,
   sweepPendingAgentTurns: async (_minAgeMs?: number, _limit?: number, stop?: () => boolean) => {
     sweep.stop = stop ?? null;
     return 0;
@@ -53,7 +53,7 @@ describe('sweepSupportLine agent-turn budget', () => {
     await sweepSupportLine(run);
     expect(sweep.stop).toBeTypeOf('function');
 
-    // 100 s in: 140 s left, a worst-case turn (80 s) fits.
+    // 100 s in: 140 s left, a worst-case turn (110 s) fits.
     vi.advanceTimersByTime(100_000);
     expect(run.overBudget()).toBe(false);
     expect(sweep.stop?.()).toBe(false);

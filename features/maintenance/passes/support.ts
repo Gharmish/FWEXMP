@@ -7,7 +7,7 @@ import {
 import { AGENT_TURN_MAX_MS, sweepPendingAgentTurns } from '@/features/support-agent/agent';
 import { maybeSendDailyReport } from '@/features/support-agent/report';
 import { sweepTicketSla } from '@/features/support/tickets';
-import { RUN_BUDGET_MS, type PassRunner } from '@/features/maintenance/runner';
+import type { PassRunner } from '@/features/maintenance/runner';
 
 /**
  * WhatsApp support-line safety nets: unacknowledged inbound, pending agent
@@ -36,7 +36,7 @@ export async function sweepSupportLine(run: PassRunner) {
   // turn no longer fits in the budget that remains (2026-10-15).
   const stopAgentSweep = (): boolean => {
     const elapsedMs = Date.now() - run.startedAt;
-    const late = run.overBudget() || elapsedMs + AGENT_TURN_MAX_MS > RUN_BUDGET_MS;
+    const late = run.overBudget() || elapsedMs + AGENT_TURN_MAX_MS > run.budgetMs;
     if (late) run.truncate('3c-agent-turns');
     return late;
   };
