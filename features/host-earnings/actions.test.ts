@@ -59,6 +59,16 @@ describe('updatePayoutIban', () => {
     });
   });
 
+  it('rejects a 24-character IBAN whose mod-97 checksum fails', async () => {
+    // Last two digits of IBAN swapped: right shape, wrong checksum.
+    expect(await updatePayoutIban(initial, form('SA0380000000608010167591'))).toEqual({
+      success: false,
+      message: 'validation',
+      values: { iban: 'SA0380000000608010167591' },
+    });
+    expect(fake.current?.updates).toEqual([]);
+  });
+
   it('is forbidden without a host row or for a suspended host', async () => {
     host = undefined;
     expect(await updatePayoutIban(initial, form(IBAN))).toMatchObject({ message: 'forbidden' });
