@@ -412,4 +412,26 @@ describe('runAgentTurn spend ceiling (2026-09 engineering audit AI-02)', () => {
     const ack = (sendConversationReply.mock.calls[0] as unknown as [{ type: string }])[0];
     expect(ack.type).toBe('support_ack');
   });
+
+  it('pages the admin with the thread link when the fail-safe ticket cannot be opened (review of #96)', async () => {
+    const { notifyAdmin } = await import('@/lib/admin-alerts');
+    vi.mocked(notifyAdmin).mockClear();
+    openTicket.mockRejectedValueOnce(new Error('tickets table unavailable'));
+    budgetCount = 40;
+    setAnthropicClientForTests(textReplyClient(['should never be sent']));
+    const out = await runAgentTurn(recorded, '+966500000001');
+    expect(out.outcome).toBe('failed');
+    expect(out.ticketReference).toBeUndefined();
+    // There is no ticket to reach the thread from, so the alert itself
+    // must carry the conversation for both rails to link it.
+    expect(notifyAdmin).toHaveBeenCalledWith(
+      'guest_whatsapp_inbound',
+      expect.objectContaining({
+        from: '+966500000001',
+        conversationId: recorded.conversationId,
+      }),
+    );
+    // The guest still gets the acknowledgement and the thread goes to a person.
+    expect(sendConversationReply).toHaveBeenCalledTimes(1);
+  });
 });
