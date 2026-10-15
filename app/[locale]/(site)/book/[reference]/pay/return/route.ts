@@ -53,36 +53,48 @@ export async function GET(
   //     own lifetime — is the closest honest bound for a retry replay.
   // Cold hits fall through to the plain redirect; the confirmation page
   // then shows its ordinary sign-in wall.
+  //
+  // The whole block is a convenience and must never stand between a
+  // guest whose card just cleared and the settle below: the bounded
+  // booking read throws after its retries, and a route handler has no
+  // error boundary — the guest got a bare 500 and the booking stayed
+  // `processing` until the webhook or cron caught up (nightly bug hunt
+  // 2026-10-09). A failed read means no token; the confirmation page's
+  // ordinary sign-in wall covers the cookie-less guest.
   if (UUID_RE.test(reference)) {
-    const booking = await getBookingByReference(reference);
-    const now = Date.now();
-    const genuineRoundTrip =
-      booking !== undefined &&
-      (booking.paymentStatus === 'processing' ||
-        (booking.paymentStatus === 'paid' &&
-          booking.paidAt !== null &&
-          now - new Date(booking.paidAt).getTime() <= ROUND_TRIP_WINDOW_MS) ||
-        (booking.paymentStatus === 'failed' &&
-          booking.paymentDeadline !== null &&
-          new Date(booking.paymentDeadline).getTime() > now));
-    // OPPWA appends `id=<checkoutId>` to shopperResultUrl on every real
-    // return, and only the paying browser holds that id. Requiring it
-    // closes the oracle where a bare reference UUID on a `processing` or
-    // open-`failed` row could mint the permanent link token
-    // (2026-09 engineering audit SEC-02).
-    const returnedCheckoutId = request.nextUrl.searchParams.get('id');
-    const currentCheckoutId = booking ? await getCheckoutIdForReference(reference) : null;
-    const fromPayingBrowser =
-      currentCheckoutId !== null &&
-      returnedCheckoutId !== null &&
-      returnedCheckoutId === currentCheckoutId;
-    if (
-      genuineRoundTrip &&
-      fromPayingBrowser &&
-      !(await getBookingByReferenceForViewer(reference))
-    ) {
-      const token = bookingLinkToken(reference);
-      if (token) confirmed.searchParams.set(BOOKING_LINK_TOKEN_PARAM, token);
+    try {
+      const booking = await getBookingByReference(reference);
+      const now = Date.now();
+      const genuineRoundTrip =
+        booking !== undefined &&
+        (booking.paymentStatus === 'processing' ||
+          (booking.paymentStatus === 'paid' &&
+            booking.paidAt !== null &&
+            now - new Date(booking.paidAt).getTime() <= ROUND_TRIP_WINDOW_MS) ||
+          (booking.paymentStatus === 'failed' &&
+            booking.paymentDeadline !== null &&
+            new Date(booking.paymentDeadline).getTime() > now));
+      // OPPWA appends `id=<checkoutId>` to shopperResultUrl on every real
+      // return, and only the paying browser holds that id. Requiring it
+      // closes the oracle where a bare reference UUID on a `processing` or
+      // open-`failed` row could mint the permanent link token
+      // (2026-09 engineering audit SEC-02).
+      const returnedCheckoutId = request.nextUrl.searchParams.get('id');
+      const currentCheckoutId = booking ? await getCheckoutIdForReference(reference) : null;
+      const fromPayingBrowser =
+        currentCheckoutId !== null &&
+        returnedCheckoutId !== null &&
+        returnedCheckoutId === currentCheckoutId;
+      if (
+        genuineRoundTrip &&
+        fromPayingBrowser &&
+        !(await getBookingByReferenceForViewer(reference))
+      ) {
+        const token = bookingLinkToken(reference);
+        if (token) confirmed.searchParams.set(BOOKING_LINK_TOKEN_PARAM, token);
+      }
+    } catch (error) {
+      reportError(error, { surface: 'pay-return:linkToken', reference });
     }
   }
 

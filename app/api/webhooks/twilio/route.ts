@@ -75,6 +75,9 @@ const STATUS_MAP: Record<string, WebhookStatus> = {
  * Opt-out / opt-in keywords, matched on the trimmed whole message
  * (case-insensitive). English set mirrors Twilio's standard opt-out
  * keywords; Arabic covers the forms a Saudi guest would actually type.
+ * "Cancel" is left out in both languages: on a bookings line a bare
+ * "إلغاء" means "cancel my booking", and treating it as STOP silently
+ * muted every later booking message to that guest.
  */
 const STOP_KEYWORDS = new Set([
   'stop',
@@ -85,8 +88,6 @@ const STOP_KEYWORDS = new Set([
   'إيقاف',
   'ايقاف',
   'توقف',
-  'الغاء',
-  'إلغاء',
 ]);
 const START_KEYWORDS = new Set(['start', 'unstop', 'ابدأ', 'ابدا']);
 

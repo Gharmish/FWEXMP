@@ -68,12 +68,13 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   // Constant-time comparison, same as the webhook verifiers — a plain
   // `!==` leaks match-prefix timing (impractical over HTTP, but there's
   // no reason for this check to be the odd one out).
-  const provided = request.headers.get('authorization') ?? '';
-  const expected = `Bearer ${secret}`;
+  // Compare BYTE lengths: a header with a non-ASCII character can match
+  // the string length yet differ in UTF-8 bytes, and `timingSafeEqual`
+  // then throws — a 500 instead of a 401 (issue #31, 2026-10-12).
+  const provided = Buffer.from(request.headers.get('authorization') ?? '');
+  const expected = Buffer.from(`Bearer ${secret}`);
   const authorized =
-    Boolean(secret) &&
-    provided.length === expected.length &&
-    timingSafeEqual(Buffer.from(provided), Buffer.from(expected));
+    Boolean(secret) && provided.length === expected.length && timingSafeEqual(provided, expected);
   if (!authorized) {
     return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
   }

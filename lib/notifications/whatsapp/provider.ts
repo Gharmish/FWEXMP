@@ -5,6 +5,7 @@ import { SITE_URL } from '@/lib/site';
 import { reportError } from '@/lib/log';
 import type { Locale } from '@/lib/i18n';
 import type { WhatsAppTemplateKey } from '../types';
+import { WHATSAPP_TEMPLATES, providerKey } from './registry';
 
 /**
  * Twilio WhatsApp adapter — Content-template sends via Twilio's REST API
@@ -54,10 +55,43 @@ function contentSidMap(): Record<string, string> | null {
  * Looks up `<template>.<locale>` first, then a locale-less `<template>`
  * key for templates that are approved in one shared form.
  */
-export function whatsappContentSid(template: WhatsAppTemplateKey | (string & {}), locale: Locale): string | null {
+export function whatsappContentSid(
+  template: WhatsAppTemplateKey | (string & {}),
+  locale: Locale,
+): string | null {
   const map = contentSidMap();
   if (!map) return null;
   return map[`${template}.${locale}`] ?? map[template] ?? null;
+}
+
+/**
+ * Registry templates, per locale, that nothing in the SID map can serve:
+ * no `v3/<id>.<locale>`, no shared `v3/<id>`, and no legacy key. Each
+ * is a message the dispatcher will ledger as failed on every send, so
+ * the hourly config pass pages on them (2026-10-09 development plan R1:
+ * four of four Arabic "your spot is on hold" messages failed in 28 days
+ * because the approved Arabic SID never made it into the env map).
+ * Returns the missing map keys, e.g. `v3/guest_payment_pending.ar`.
+ */
+export function unmappedWhatsAppTemplates(
+  map: Record<string, string> | null = contentSidMap(),
+  locales: readonly Locale[] = ['ar', 'en'],
+): string[] {
+  if (!map) return [];
+  const missing: string[] = [];
+  for (const template of WHATSAPP_TEMPLATES) {
+    const key = providerKey(template.id);
+    for (const locale of locales) {
+      const served =
+        map[`${key}.${locale}`] ??
+        map[key] ??
+        (template.legacy
+          ? (map[`${template.legacy.key}.${locale}`] ?? map[template.legacy.key])
+          : undefined);
+      if (!served) missing.push(`${key}.${locale}`);
+    }
+  }
+  return missing;
 }
 
 /**

@@ -60,7 +60,11 @@ describe('identifyHost renders a join Postgres accepts', () => {
   it('compares guests.auth_user_id to hosts.user_id without a cast', async () => {
     // A new sender: no conversation row, no direct contact-phone match,
     // so the account-based lookup runs.
-    await recordInboundMessage({ from: 'whatsapp:+966541104000', body: 'hi' });
+    // The pg-proxy fake returns no rows, so the insert's `.returning()`
+    // yields nothing and the recorder throws past the join we inspect —
+    // a persistence failure is rethrown on purpose (webhook 500 → Twilio
+    // retries), so only the rendered SQL matters here.
+    await recordInboundMessage({ from: 'whatsapp:+966541104000', body: 'hi' }).catch(() => null);
 
     const join = state.executed.find((q) => q.sql.includes('from "hosts" inner join "guests"'));
     expect(join, 'the hosts ↔ guests account lookup ran').toBeDefined();

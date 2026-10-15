@@ -254,6 +254,12 @@ describe('GET /api/cron/release-holds', () => {
     expect(response.status).toBe(401);
   });
 
+  it('rejects (401, not 500) a same-length bearer with a non-ASCII character (issue #31)', async () => {
+    // 'test-secreé' has the secret's 11 characters but 12 UTF-8 bytes.
+    const response = await GET(cronRequest('test-secreé'));
+    expect(response.status).toBe(401);
+  });
+
   it('no-ops without a database', async () => {
     env.DATABASE_URL = '';
     const response = await GET(cronRequest());

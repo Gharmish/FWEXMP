@@ -83,7 +83,14 @@ export function listingReadiness(row: ReadinessRow, momentCount: number): Readin
     { key: 'place', ok: row.placeName.trim() !== UNSET_TEXT, required: true },
     { key: 'location', ok: hasMeetingPoint(row.lat, row.lng), required: true },
     { key: 'weekdays', ok: row.availabilityWeekdays.length > 0, required: true },
-    { key: 'inclusions', ok: row.inclusions.length > 0, required: true },
+    // Either language, like title and description: an Arabic-only host
+    // types the Arabic list, and the approval gate (`needs_english`)
+    // makes the team fill the English one before the listing goes live.
+    {
+      key: 'inclusions',
+      ok: row.inclusions.length > 0 || row.inclusionsAr.length > 0,
+      required: true,
+    },
     { key: 'hero', ok: Boolean(row.heroImage), required: true },
     { key: 'gallery', ok: row.images.length >= GALLERY_MOSAIC_MIN, required: false },
     { key: 'timeline', ok: momentCount > 0, required: false },

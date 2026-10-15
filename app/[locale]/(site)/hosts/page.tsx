@@ -5,10 +5,10 @@ import { cn } from '@/lib/utils';
 import { Avatar } from '@/components/ui/avatar';
 import { JsonLd } from '@/components/seo/json-ld';
 import { VerifiedSeal } from '@/components/ui/verified-seal';
-import { Link } from '@/lib/i18n';
+import { Link, ogLocaleFor } from '@/lib/i18n';
 import type { Locale } from '@/lib/i18n';
 import { routing } from '@/lib/i18n';
-import { SITE_DESCRIPTION, SITE_NAME, SITE_URL } from '@/lib/site';
+import { SITE_NAME, SITE_URL } from '@/lib/site';
 import { toArabicText } from '@/features/experiences/lib/arabic-content';
 import { pickLocalized } from '@/lib/ar-placeholder';
 import { getAllHostsOrThrow } from '@/features/hosts/queries';
@@ -30,7 +30,9 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const { locale } = await params;
   const t = await getTranslations({ locale, namespace: 'hostsIndex.meta' });
-  const title = t('title');
+  // `meta.title` ("Gharmish hosts") doubles as the host-profile breadcrumb;
+  // as a document title it rendered "Gharmish hosts · Gharmish".
+  const title = t('pageTitle');
   const description = t('description');
 
   return {
@@ -48,6 +50,7 @@ export async function generateMetadata({
       description,
       url: `${SITE_URL}/${locale}/hosts`,
       type: 'website',
+      locale: ogLocaleFor(locale),
       images: [{ url: `${SITE_URL}/${locale}/opengraph-image`, width: 1200, height: 630 }],
     },
     twitter: {
@@ -71,12 +74,15 @@ export default async function HostsIndexPage({ params }: { params: Promise<{ loc
   const eyebrowClassName = cn('text-sarat-black-600 text-eyebrow');
 
   const url = `${SITE_URL}/${loc}/hosts`;
+  // Localized: SITE_DESCRIPTION is English-only and leaked into the Arabic
+  // page's structured data.
+  const tSite = await getTranslations('siteMeta');
   const jsonLd = {
     '@context': 'https://schema.org',
     '@type': 'ItemList',
     '@id': `${url}#hosts`,
     name: loc === 'ar' ? 'مضيفو غارميش' : 'Gharmish hosts',
-    description: SITE_DESCRIPTION,
+    description: tSite('description'),
     url,
     publisher: { '@type': 'Organization', name: SITE_NAME, url: SITE_URL },
     itemListElement: hosts.map((host, index) => ({

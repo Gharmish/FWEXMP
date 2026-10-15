@@ -50,8 +50,24 @@ vi.mock('@/features/auth/queries', () => ({
 }));
 
 let existingApp:
-  | { id: string; status: 'pending' | 'approved' | 'rejected'; reviewedAt: Date | null }
+  | ({
+      id: string;
+      status: 'pending' | 'approved' | 'rejected';
+      reviewedAt: Date | null;
+    } & typeof ON_FILE)
   | undefined;
+/**
+ * The identity a stored application carries — the same as applyForm()
+ * submits, so a resubmission fixture only differs where a test says so.
+ * No PII key in the harness, so the stored values are plaintext and
+ * `decryptPii` passes them through.
+ */
+const ON_FILE = {
+  identityType: 'national_id',
+  identityNumber: '1234567890',
+  legalName: 'Saad bin Nasser Al-Shahrani',
+  iban: 'SA0380000000608010167519',
+};
 const updates: Array<Record<string, unknown>> = [];
 const insertedApplications: Array<Record<string, unknown>> = [];
 const insertedEvents: Array<Record<string, unknown>> = [];
@@ -160,6 +176,7 @@ describe('submitHostApplication', () => {
       id: 'app-1',
       status: 'rejected',
       reviewedAt: new Date(Date.now() - 2 * HOURS),
+      ...ON_FILE,
     };
     const result = await runSubmit(applyForm());
     expect(result).toMatchObject({ success: false, message: 'cooldown' });
@@ -172,6 +189,7 @@ describe('submitHostApplication', () => {
       id: 'app-1',
       status: 'rejected',
       reviewedAt: new Date(Date.now() - 25 * HOURS),
+      ...ON_FILE,
     };
     const result = await runSubmit(applyForm());
     expect(result).toBeInstanceOf(Error);
@@ -181,9 +199,46 @@ describe('submitHostApplication', () => {
   });
 
   it('does not apply the cooldown to a pending resubmission', async () => {
-    existingApp = { id: 'app-1', status: 'pending', reviewedAt: null };
+    existingApp = { id: 'app-1', status: 'pending', reviewedAt: null, ...ON_FILE };
     const result = await runSubmit(applyForm());
     expect(result).toBeInstanceOf(Error);
     expect(updates).toHaveLength(1);
+  });
+
+  /**
+   * Issue #43: a document verdict was given against the identity on file.
+   * A resubmission that changes it (here: the identity number, no new
+   * file) must send every approved document back to pending, so the
+   * approval gate cannot pass on a verdict for different identity data.
+   */
+  it('resets approved document verdicts when the identity number changes', async () => {
+    existingApp = {
+      id: 'app-1',
+      status: 'rejected',
+      reviewedAt: new Date(Date.now() - 25 * HOURS),
+      ...ON_FILE,
+      identityNumber: '1098765432',
+    };
+    const result = await runSubmit(applyForm());
+    expect(result).toBeInstanceOf(Error);
+    expect(updates).toContainEqual(
+      expect.objectContaining({ status: 'pending', reviewedByUserId: null, reviewedAt: null }),
+    );
+  });
+
+  it.each([
+    ['legal name', { legalName: 'Someone Else Entirely' }],
+    ['IBAN', { iban: 'SA4420000001234567891234' }],
+    ['identity type', { identityType: 'cr' }],
+  ])('also resets them when the %s changes', async (_label, change) => {
+    existingApp = { id: 'app-1', status: 'pending', reviewedAt: null, ...ON_FILE, ...change };
+    await runSubmit(applyForm());
+    expect(updates.some((u) => 'reviewedByUserId' in u)).toBe(true);
+  });
+
+  it('keeps document verdicts when the identity on file is unchanged', async () => {
+    existingApp = { id: 'app-1', status: 'pending', reviewedAt: null, ...ON_FILE };
+    await runSubmit(applyForm());
+    expect(updates.some((u) => 'reviewedByUserId' in u)).toBe(false);
   });
 });

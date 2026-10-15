@@ -7,6 +7,7 @@ import { z } from 'zod';
 import { db } from '@/lib/db';
 import { bookings, experiences, payoutClawbacks, payouts } from '@/db/schema';
 import { reportError } from '@/lib/log';
+import { decryptPii } from '@/lib/pii-crypto';
 import { adminFailureMessage, adminGateRefused, requireAdminActor } from '@/features/admin/guard';
 import { splitCommission } from '@/features/bookings/lib/commission';
 import { paymentCollected } from '@/features/bookings/lib/payout-sql';
@@ -166,7 +167,10 @@ export async function markHostPaid(
         paidCount: owed.length,
         payoutId: batch.id,
         netSar: plan.netSar,
-        ibanLast4: host.payoutIban ? host.payoutIban.slice(-4) : null,
+        // The column is encrypted at rest; slicing the ciphertext put four
+        // base64 characters in the host's "account ending …" hint
+        // (2026-10-09 development plan). Decrypt first, never store more.
+        ibanLast4: host.payoutIban ? decryptPii(host.payoutIban).slice(-4) : null,
       } as const;
     });
 

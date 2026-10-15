@@ -70,6 +70,13 @@ describe('listingReadiness', () => {
     expect(items.find((i) => i.key === 'languages')?.ok).toBe(false);
   });
 
+  it('an Arabic-only inclusions list satisfies the inclusions item', () => {
+    const arOnly = { ...complete, titleEn: '', descriptionEn: '', inclusions: [] };
+    const items = listingReadiness(arOnly, 0);
+    expect(items.find((i) => i.key === 'inclusions')?.ok).toBe(true);
+    expect(publishBlockers(items)).toEqual([]);
+  });
+
   it('the Abha-centre default pin counts as set only because it is inside the box — an unset pin does not', () => {
     expect(
       listingReadiness({ ...complete, lat: 0, lng: 0 }, 0).find((i) => i.key === 'location')?.ok,

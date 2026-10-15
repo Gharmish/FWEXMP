@@ -2,7 +2,7 @@ import { getTranslations } from 'next-intl/server';
 import { ArrowLeft } from 'lucide-react';
 import type { Locale } from '@/lib/i18n';
 import { Link } from '@/lib/i18n';
-import { SITE_URL, SITE_NAME } from '@/lib/site';
+import { SITE_URL } from '@/lib/site';
 import { JsonLd } from '@/components/seo/json-ld';
 import type { Category } from '@/features/experiences/types';
 import { CATEGORIES } from '@/features/experiences/lib/sample-data';
@@ -26,8 +26,9 @@ interface CategoryLandingProps {
  * catalog. Listed in the sitemap; linked from the home category tiles.
  */
 export async function CategoryLanding({ category, locale }: CategoryLandingProps) {
-  const [t, experiences, saved] = await Promise.all([
+  const [t, tSite, experiences, saved] = await Promise.all([
     getTranslations({ locale, namespace: 'categoryLanding' }),
+    getTranslations({ locale, namespace: 'siteMeta' }),
     getExperiencesFiltered({ ...EMPTY_CRITERIA, categories: [category] }),
     getWishlistSet(),
   ]);
@@ -52,7 +53,7 @@ export async function CategoryLanding({ category, locale }: CategoryLandingProps
       {
         '@type': 'BreadcrumbList',
         itemListElement: [
-          { '@type': 'ListItem', position: 1, name: SITE_NAME, item: `${SITE_URL}/${locale}` },
+          { '@type': 'ListItem', position: 1, name: tSite('name'), item: `${SITE_URL}/${locale}` },
           {
             '@type': 'ListItem',
             position: 2,
@@ -81,27 +82,48 @@ export async function CategoryLanding({ category, locale }: CategoryLandingProps
         <p className="text-sarat-black-600 text-base leading-relaxed">{t(`${category}.intro`)}</p>
       </header>
 
-      {experiences.length > 0 ? (
-        // gap-4 matches the /experiences catalog grid gutter.
-        <div className="mt-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {experiences.map((experience) => (
-            <ExperienceCard
-              key={experience.slug}
-              experience={experience}
-              locale={locale}
-              actions={
-                <WishlistButton
-                  slug={experience.slug}
-                  isSaved={saved.has(experience.slug)}
-                  surface={experience.featured ? 'dark' : 'light'}
-                />
-              }
-            />
-          ))}
+      {/* The grid sits under its own h2 so the cards' h3 titles follow a
+          sequential heading order (2026-10-11 SEO audit, SEO-16: h1 → h3
+          skipped a level). */}
+      <section aria-labelledby="category-grid-heading" className="mt-12">
+        <h2 id="category-grid-heading" className="text-h2">
+          {t('gridLabel')}
+        </h2>
+        {experiences.length > 0 ? (
+          // gap-4 matches the /experiences catalog grid gutter.
+          <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {experiences.map((experience) => (
+              <ExperienceCard
+                key={experience.slug}
+                experience={experience}
+                locale={locale}
+                actions={
+                  <WishlistButton
+                    slug={experience.slug}
+                    isSaved={saved.has(experience.slug)}
+                    surface={experience.featured ? 'dark' : 'light'}
+                  />
+                }
+              />
+            ))}
+          </div>
+        ) : (
+          <p className="text-sarat-black-600 mt-6 text-sm">{t('empty')}</p>
+        )}
+      </section>
+
+      {/* Editorial "good to know" block — the landing's own substance, so
+          the page ranks on more than an intro and (today) an empty grid
+          (SEO-06). Facts only: altitude, seasons, dress, etiquette. */}
+      <section aria-labelledby="category-know-heading" className="mt-16 max-w-3xl">
+        <h2 id="category-know-heading" className="text-h2">
+          {t('knowTitle')}
+        </h2>
+        <div className="text-sarat-black-600 mt-6 flex flex-col gap-4 text-base leading-relaxed">
+          <p>{t(`${category}.know1`)}</p>
+          <p>{t(`${category}.know2`)}</p>
         </div>
-      ) : (
-        <p className="text-sarat-black-600 mt-12 text-sm">{t('empty')}</p>
-      )}
+      </section>
 
       <p className="text-sarat-black-600 mt-12 text-sm">
         <Link

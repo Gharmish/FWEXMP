@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
-import { routing } from '@/lib/i18n';
+import { routing, ogLocaleFor } from '@/lib/i18n';
 import { SITE_URL } from '@/lib/site';
 import { InfoPage } from '@/components/layout/info-page';
 import { getCancellationTiers } from '@/features/bookings/lib/cancellation-policy';
@@ -15,7 +15,7 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const { locale } = await params;
   const t = await getTranslations({ locale, namespace: 'cancellationPolicyPage' });
-  const title = t('title');
+  const title = t('metaTitle');
   const description = t('intro');
   return {
     title,
@@ -40,6 +40,7 @@ export async function generateMetadata({
       description,
       url: `${SITE_URL}/${locale}/cancellation-policy`,
       type: 'website',
+      locale: ogLocaleFor(locale),
       images: [{ url: `${SITE_URL}/${locale}/opengraph-image`, width: 1200, height: 630 }],
     },
     twitter: {
@@ -125,7 +126,7 @@ export default async function CancellationPolicyPage({
           {/* The emergency-cancel flow returns the full payment as Gharmish
               Credit with an opt-in back to card — a refund path this page
               never disclosed before the 2026-08-02 legal audit. */}
-          <p>{t('refunds.body3')}</p>
+          <p>{settings.refundsViaBankTransfer ? t('refunds.body3Bank') : t('refunds.body3')}</p>
         </>
       ),
     },
