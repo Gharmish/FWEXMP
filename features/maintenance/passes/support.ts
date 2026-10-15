@@ -4,10 +4,10 @@ import {
   purgeExpiredConversations,
   sweepUnacknowledgedInbound,
 } from '@/features/conversations/inbound';
-import { sweepPendingAgentTurns } from '@/features/support-agent/agent';
+import { AGENT_TURN_MAX_MS, sweepPendingAgentTurns } from '@/features/support-agent/agent';
 import { maybeSendDailyReport } from '@/features/support-agent/report';
 import { sweepTicketSla } from '@/features/support/tickets';
-import type { PassRunner } from '@/features/maintenance/runner';
+import { RUN_BUDGET_MS, type PassRunner } from '@/features/maintenance/runner';
 
 /**
  * WhatsApp support-line safety nets: unacknowledged inbound, pending agent
@@ -29,15 +29,20 @@ export async function sweepSupportLine(run: PassRunner) {
   // Phase 2: same net for bot-owned threads, plus one re-page per
   // ticket that blew through its SLA.
   // Checked per turn, not just at pass start (runner contract): one turn
-  // can take over a minute.
+  // can take over a minute. "Over budget" alone is not enough: a turn
+  // started with 5 s of budget left still runs its full 70 s plus the
+  // fail-safe, past the 300 s function limit, and the passes after this
+  // one (heartbeat included) never run. So stop as soon as a worst-case
+  // turn no longer fits in the budget that remains (2026-10-15).
+  const stopAgentSweep = (): boolean => {
+    const elapsedMs = Date.now() - run.startedAt;
+    const late = run.overBudget() || elapsedMs + AGENT_TURN_MAX_MS > RUN_BUDGET_MS;
+    if (late) run.truncate('3c-agent-turns');
+    return late;
+  };
   const agentSwept = await run.pass(
     '3c-agent-turns',
-    () =>
-      sweepPendingAgentTurns(undefined, undefined, () => {
-        if (!run.overBudget()) return false;
-        run.truncate('3c-agent-turns');
-        return true;
-      }),
+    () => sweepPendingAgentTurns(undefined, undefined, stopAgentSweep),
     0,
     { bestEffort: true },
   );
