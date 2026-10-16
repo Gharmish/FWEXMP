@@ -371,4 +371,16 @@ describe('suppression list', () => {
     await expect(removeSuppression('email', 'guest@example.com')).resolves.toBeUndefined();
     expect(reportError).toHaveBeenCalledTimes(2);
   });
+
+  it('add/remove rethrow DB errors when the caller asks (webhook retry path)', async () => {
+    dbFails = true;
+
+    await expect(
+      addSuppression('whatsapp', '+966541104000', 'stop', 'all', { throwOnError: true }),
+    ).rejects.toThrow();
+    await expect(
+      removeSuppression('whatsapp', '+966541104000', { throwOnError: true }),
+    ).rejects.toThrow();
+    expect(reportError).not.toHaveBeenCalled();
+  });
 });
