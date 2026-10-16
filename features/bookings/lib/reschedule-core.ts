@@ -85,10 +85,14 @@ export async function rescheduleBookingCore(
     }
 
     const now = new Date();
-    // A lapsed unpaid hold is about to be released by the cron; moving it
-    // would resurrect a dead hold on a fresh date. Same rule the page uses
-    // to hide the manage actions.
-    if (booking.paymentStatus === 'unpaid' && isHoldExpired(booking.paymentDeadline, now)) {
+    // A lapsed hold is about to be released by the cron; moving it would
+    // resurrect a dead hold on a fresh date. Same rule the page uses to
+    // hide the manage actions (`isHoldLapsed`): a hold whose payment
+    // FAILED lapses exactly like an unpaid one.
+    if (
+      (booking.paymentStatus === 'unpaid' || booking.paymentStatus === 'failed') &&
+      isHoldExpired(booking.paymentDeadline, now)
+    ) {
       return { success: false, message: 'wrong_state' };
     }
 
