@@ -2443,7 +2443,7 @@
       "errors": {
         "forbidden": "You don't have permission to do that.",
         "noDb": "We couldn't save right now — try again in a moment.",
-        "validation": "That doesn't look like a Saudi IBAN — 24 characters starting with SA.",
+        "validation": "That doesn't look like a valid Saudi IBAN — 24 characters starting with SA. If yours is, check for a mistyped digit.",
         "server": "Something went wrong on our side. Try again."
       }
     },
