@@ -105,7 +105,9 @@ export async function getHostEarningsTotals(): Promise<HostEarningsTotals | null
 
 export async function getHostEarnings(
   range?: HostEarningsRange,
-  ledger: { scope?: HostLedgerScope; page?: number } = {},
+  // `all`: every ledger row in one go, for the CSV statement. The page
+  // paginates, the export must not stop at the first page.
+  ledger: { scope?: HostLedgerScope; page?: number; all?: boolean } = {},
 ): Promise<HostEarnings | null> {
   const hostId = await getCurrentHostId();
   if (!hostId || !serverEnv.DATABASE_URL) return null;
@@ -144,27 +146,30 @@ export async function getHostEarnings(
     const payoutSum = sql<number>`coalesce(sum(${payout}), 0)::int`;
     const rowCount = sql<number>`count(*)::int`;
 
+    const ledgerQuery = db
+      .select({
+        id: bookings.id,
+        date: bookings.date,
+        experienceTitleEn: experiences.titleEn,
+        experienceTitleAr: experiences.titleAr,
+        partySize: bookings.partySize,
+        totalSar: bookings.totalAmount,
+        vatSar: vatPortionExpr(),
+        commissionBps: bookings.commissionBps,
+        payoutSar: payout,
+        paidOutAt: bookings.hostPaidAt,
+      })
+      .from(bookings)
+      .innerJoin(experiences, eq(experiences.id, bookings.experienceId))
+      .where(ledgerWhere)
+      .orderBy(historyScope === 'upcoming' ? bookings.date : desc(bookings.date))
+      .$dynamic();
+
     const [[totals], historyRows, [historyCount], breakdown, monthly] = await Promise.all([
       selectEarningsTotals(host.id),
-      db
-        .select({
-          id: bookings.id,
-          date: bookings.date,
-          experienceTitleEn: experiences.titleEn,
-          experienceTitleAr: experiences.titleAr,
-          partySize: bookings.partySize,
-          totalSar: bookings.totalAmount,
-          vatSar: vatPortionExpr(),
-          commissionBps: bookings.commissionBps,
-          payoutSar: payout,
-          paidOutAt: bookings.hostPaidAt,
-        })
-        .from(bookings)
-        .innerJoin(experiences, eq(experiences.id, bookings.experienceId))
-        .where(ledgerWhere)
-        .orderBy(historyScope === 'upcoming' ? bookings.date : desc(bookings.date))
-        .limit(HISTORY_PAGE_SIZE)
-        .offset(historyPage * HISTORY_PAGE_SIZE),
+      ledger.all
+        ? ledgerQuery
+        : ledgerQuery.limit(HISTORY_PAGE_SIZE).offset(historyPage * HISTORY_PAGE_SIZE),
       db
         .select({ count: rowCount })
         .from(bookings)

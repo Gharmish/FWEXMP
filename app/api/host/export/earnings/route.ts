@@ -11,7 +11,9 @@ const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
  * nothing to strangers (404, same enumeration posture as /host pages).
  *
  * `from` / `to` (YYYY-MM-DD, inclusive booking-date bounds) mirror the
- * page's range filter so the download matches what's on screen.
+ * page's range filter so the download matches what's on screen. The
+ * statement carries every ledger row in the range, not just the page's
+ * first 25.
  */
 export async function GET(request: NextRequest): Promise<NextResponse> {
   const sp = request.nextUrl.searchParams;
@@ -20,7 +22,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   const from = fromParam && DATE_RE.test(fromParam) ? fromParam : undefined;
   const to = toParam && DATE_RE.test(toParam) ? toParam : undefined;
 
-  const earnings = await getHostEarnings({ from, to });
+  const earnings = await getHostEarnings({ from, to }, { all: true });
   if (!earnings) {
     return NextResponse.json({ error: 'not_found' }, { status: 404 });
   }
