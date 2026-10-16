@@ -288,12 +288,23 @@ export async function isSuppressed(
   }
 }
 
+/**
+ * Suppression writes are best-effort like the rest of the ledger, except
+ * where the caller can still get the request retried: the Twilio webhook
+ * passes `throwOnError` so a STOP/START that failed to persist answers
+ * 500 instead of being ACKed and lost (2026-09 engineering audit OPS-10).
+ */
+interface SuppressionWriteOptions {
+  throwOnError?: boolean;
+}
+
 /** Add an address to the do-not-contact list. Idempotent. */
 export async function addSuppression(
   channel: Channel,
   address: string,
   reason: 'stop' | 'bounce' | 'complaint' | 'manual',
   scope: 'all' | 'marketing' = 'all',
+  options: SuppressionWriteOptions = {},
 ): Promise<void> {
   if (!hasDb()) return;
   try {
@@ -318,12 +329,17 @@ export async function addSuppression(
         });
     }
   } catch (error) {
+    if (options.throwOnError) throw error;
     reportError(error, { surface: 'notifications:addSuppression' });
   }
 }
 
 /** Remove an address from the do-not-contact list (START/UNSTOP keywords). */
-export async function removeSuppression(channel: Channel, address: string): Promise<void> {
+export async function removeSuppression(
+  channel: Channel,
+  address: string,
+  options: SuppressionWriteOptions = {},
+): Promise<void> {
   if (!hasDb()) return;
   try {
     await db
@@ -335,6 +351,7 @@ export async function removeSuppression(channel: Channel, address: string): Prom
         ),
       );
   } catch (error) {
+    if (options.throwOnError) throw error;
     reportError(error, { surface: 'notifications:removeSuppression' });
   }
 }
