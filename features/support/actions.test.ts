@@ -154,6 +154,7 @@ describe('admin perimeter', () => {
     expect(await resolveTicket(initial, form({ ticketId: CID }))).toEqual({
       success: false,
       message: 'forbidden',
+      values: { resolutionNote: '' },
     });
     expect(await nudgeConversation(initial, form({ conversationId: CID }))).toEqual({
       success: false,
@@ -210,6 +211,22 @@ describe('setConversationState / resolveTicket / nudgeConversation', () => {
     updated = [];
     expect(await resolveTicket(initial, form({ ticketId: CID }))).toMatchObject({
       message: 'not_found',
+    });
+  });
+
+  it("echoes the admin's resolution note on failure so the uncontrolled textarea keeps it", async () => {
+    updated = [];
+    expect(
+      await resolveTicket(initial, form({ ticketId: CID, resolutionNote: 'refunded by bank' })),
+    ).toEqual({
+      success: false,
+      message: 'not_found',
+      values: { resolutionNote: 'refunded by bank' },
+    });
+    expect(await resolveTicket(initial, form({ ticketId: '', resolutionNote: 'kept' }))).toEqual({
+      success: false,
+      message: 'validation',
+      values: { resolutionNote: 'kept' },
     });
   });
 
