@@ -6,6 +6,7 @@ import { db } from '@/lib/db';
 import { dispatchNotification, notificationsConfigured } from '@/lib/notifications/dispatch';
 import { whatsappPayload } from '@/lib/notifications/whatsapp';
 import { hostNotificationContact } from '@/lib/notifications/host-contact';
+import { pickLocalized } from '@/lib/ar-placeholder';
 import { SITE_URL } from '@/lib/site';
 import { renderReceiptEmail } from '@/features/bookings/lib/booking-email-render';
 
@@ -38,7 +39,10 @@ export async function sendExperienceModerationEmail(
   if (!host || (!host.email && !host.phone)) return;
 
   const t = await getTranslations({ locale: host.locale, namespace: 'moderationEmail' });
-  const title = host.locale === 'ar' ? experience.titleAr : experience.titleEn;
+  // Moderation runs before approval, so a draft may still be in one
+  // language only (a blank Arabic title is stored as the TODO(ar)
+  // marker): fall back to whichever title is real.
+  const title = pickLocalized(host.locale, experience.titleEn, experience.titleAr);
 
   const subject =
     decision === 'approved'
