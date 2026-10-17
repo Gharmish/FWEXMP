@@ -3375,6 +3375,7 @@
         "forbidden": "Sign in with the email you gave when booking to change these details.",
         "wrongState": "This booking's contact details can no longer be changed here.",
         "accountEmail": "This booking uses your account's email address — change it from your account settings.",
+        "sharedGuest": "This phone number is on more than one booking, so the email can't be changed here. Message us on WhatsApp and we'll update it for you.",
         "noDb": "We couldn't save right now — try again in a moment.",
         "validation": "Check the highlighted fields.",
         "server": "Something went wrong on our side. Try again."

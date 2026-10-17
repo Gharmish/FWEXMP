@@ -14,6 +14,7 @@ import {
   todayInRiyadh,
 } from '@/features/bookings/lib/availability';
 import { checkoutViewerCanAccess } from '@/features/bookings/lib/access';
+import { noOtherBookingOnGuestRow } from '@/features/bookings/lib/shared-guest';
 import { reportError } from '@/lib/log';
 import { paymentDetailsSchema } from '@/features/payments/schemas';
 import {
@@ -586,11 +587,20 @@ export async function createCheckout(
 
     // Persist the payment-step email onto the guest if we don't have one yet,
     // so the confirmation receipt can reach them (the booking form only
-    // collects name + phone). Set-if-empty — never overwrite an existing one.
+    // collects name + phone). Set-if-empty — never overwrite an existing one,
+    // and never onto a row another booking reads (2026-10-17, issue #120):
+    // this booking's proof of access says nothing about the others, and
+    // the row's email is where their `?k=` link emails go.
     await db
       .update(guests)
       .set({ email: input.email })
-      .where(and(eq(guests.id, booking.guestId), isNull(guests.email)));
+      .where(
+        and(
+          eq(guests.id, booking.guestId),
+          isNull(guests.email),
+          noOtherBookingOnGuestRow(booking.id),
+        ),
+      );
 
     // Remember the billing address so a returning guest doesn't retype it —
     // the next checkout's payment step prefills these. Always overwrites with
