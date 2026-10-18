@@ -93,6 +93,8 @@ const form = (fields: Record<string, string | File>, multi: Record<string, strin
   return fd;
 };
 const idle = { status: 'idle' as const };
+// Real JPEG magic bytes: the upload path sniffs content, not just File.type.
+const JPEG_BYTES = new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 0, 0x10, 0x4a, 0x46, 0x49, 0x46, 0, 1]);
 const BIO = 'A roaster who has poured coffee in the old town for twenty years now.';
 
 beforeEach(() => {
@@ -168,7 +170,7 @@ describe('updateHostProfile / photo', () => {
     expect(await updateHostPhoto(idle, form({}))).toEqual({ status: 'error', message: 'no_file' });
     const out = await updateHostPhoto(
       idle,
-      form({ photo: new File([new Uint8Array(10)], 'p.jpg', { type: 'image/jpeg' }) }),
+      form({ photo: new File([JPEG_BYTES], 'p.jpg', { type: 'image/jpeg' }) }),
     );
     expect(out).toMatchObject({
       status: 'success',
@@ -177,6 +179,16 @@ describe('updateHostProfile / photo', () => {
     expect(storage.uploaded).toEqual(['hosts/sara-coffee/profile.jpg']);
     expect(await removeHostPhoto()).toEqual({ status: 'success', photoUrl: null });
     expect(storage.removed).toEqual([['hosts/sara-coffee/profile.jpg']]);
+  });
+
+  it('refuses a photo whose bytes do not match its declared type (SEC-05)', async () => {
+    const out = await updateHostPhoto(
+      idle,
+      form({ photo: new File(['<svg onload="x()"></svg>'], 'p.jpg', { type: 'image/jpeg' }) }),
+    );
+    expect(out).toEqual({ status: 'error', message: 'invalid_type' });
+    expect(storage.uploaded).toEqual([]);
+    expect(fake.current?.updates).toEqual([]);
   });
 });
 

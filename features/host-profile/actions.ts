@@ -26,6 +26,7 @@ import { reportError } from '@/lib/log';
 import { getCurrentUser } from '@/features/auth/queries';
 import { getSupabaseUserStorage } from '@/lib/supabase/server';
 import { validatePhoto, objectKeyFromPublicUrl } from '@/features/listings/lib/photo';
+import { matchesDeclaredType } from '@/lib/file-signature';
 import {
   hostContactCodeSchema,
   hostContactSchema,
@@ -208,6 +209,10 @@ export async function updateHostPhoto(
             ? 'too_large'
             : 'no_file',
     };
+  }
+  // The declared type is the client's word; the bytes are not (SEC-05).
+  if (!(await matchesDeclaredType(file, check.contentType))) {
+    return { status: 'error', message: 'invalid_type' };
   }
 
   try {
