@@ -14,6 +14,14 @@ export const routing = defineRouting({
   defaultLocale: 'en',
   localePrefix: 'always',
   localeDetection: true,
+  // No `Link: <…>; rel="alternate"; hreflang=…` header from the middleware
+  // (2026-10-17 scan, SEO-01): every public page already emits its full
+  // alternates through generateMetadata, with x-default on the Arabic
+  // variant (Arabic-first market — app/sitemap.ts says the same). The
+  // header pointed x-default at the bare `/` redirect instead, so one URL
+  // carried two different x-default targets and search engines may drop
+  // the whole hreflang cluster.
+  alternateLinks: false,
 });
 
 export type Locale = (typeof routing.locales)[number];

@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { NextRequest, NextResponse } from 'next/server';
 
@@ -124,5 +125,10 @@ describe('proxy — session refresh', () => {
     supabaseOn = false;
     await middleware(request('/en/experiences', { 'sb-xyz-auth-token': sessionCookie(30) }));
     expect(getUser).not.toHaveBeenCalled();
+  });
+
+  it('does not emit the hreflang Link header — pages carry the alternates, with x-default on Arabic (SEO-01)', () => {
+    // The routing module is mocked above, so pin the real definition's text.
+    expect(readFileSync('lib/i18n.ts', 'utf8')).toContain('alternateLinks: false');
   });
 });
