@@ -9,7 +9,7 @@ import { dispatchNotification, notificationsConfigured } from '@/lib/notificatio
 import { reportError } from '@/lib/log';
 import { getBookingByReference } from '@/features/bookings/queries';
 import { startInstant } from '@/features/bookings/lib/cancellation';
-import { getExperienceBySlug } from '@/features/experiences/queries';
+import { getExperienceForBooking } from '@/features/experiences/queries';
 import { toArabicText } from '@/features/experiences/lib/arabic-content';
 import { guestBookingUrls } from './booking-email-links';
 import { renderReceiptEmail, type ReceiptRow } from './booking-email-render';
@@ -47,7 +47,7 @@ interface ReminderData {
   guestEmail: string | null;
   /** Guest E.164 phone; null for email-only guests. */
   guestPhone: string | null;
-  experience: NonNullable<Awaited<ReturnType<typeof getExperienceBySlug>>> | undefined;
+  experience: NonNullable<Awaited<ReturnType<typeof getExperienceForBooking>>> | undefined;
   title: string | null;
   placeName: string | null;
   startsAt: Date;
@@ -83,7 +83,7 @@ async function reminderData(reference: string, locale: Locale): Promise<Reminder
   }
 
   const experience = booking.experienceSlug
-    ? await getExperienceBySlug(booking.experienceSlug)
+    ? await getExperienceForBooking(booking.experienceSlug)
     : undefined;
   const title = experience ? (locale === 'ar' ? experience.titleAr : experience.titleEn) : null;
   const placeName = experience

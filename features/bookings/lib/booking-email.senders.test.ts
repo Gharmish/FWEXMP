@@ -44,8 +44,12 @@ vi.mock('@/lib/platform-settings', () => ({
     refundsViaBankTransfer: true,
   }),
 }));
+// Booking emails must read the listing at ANY status (BOOKING-02): a
+// paused listing's existing bookings keep their title and meeting point.
+// The live-only read is deliberately absent from this mock, so a sender
+// that drifts back to it fails loudly here.
 vi.mock('@/features/experiences/queries', () => ({
-  getExperienceBySlug: async () => ({
+  getExperienceForBooking: async () => ({
     slug: 'sunrise-hike',
     titleEn: 'Sunrise hike',
     titleAr: 'رحلة الشروق',
