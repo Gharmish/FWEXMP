@@ -106,6 +106,11 @@ export default async function AdminPayoutsPage({
                       })
                     : t('payoutsList.settled')}
                 </span>
+                {row.heldCount > 0 && (
+                  <span className="text-pending text-sm">
+                    {t('payoutsList.held', { count: row.heldCount })}
+                  </span>
+                )}
                 {row.clawbackSar > 0 && (
                   <span className="text-error text-sm">
                     {t.rich('payoutsList.clawback', {

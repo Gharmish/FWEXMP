@@ -350,6 +350,7 @@
       "intro": "What each host has earned from completed bookings. Pay them out-of-band (bank transfer), then mark it here so the owed figure resets.",
       "totalOwed": "Total owed across all hosts: <amount></amount>",
       "owed": "{count, plural, =1 {1 completed booking} other {# completed bookings}} · <amount></amount> owed",
+      "held": "{count, plural, =1 {1 booking} other {# bookings}} held back — open dispute; owed once it is resolved",
       "clawback": "Less refund clawbacks: −<amount></amount>",
       "settled": "All caught up",
       "paidToDate": "Paid to date: <amount></amount> ({count, plural, =1 {1 booking} other {# bookings}})",
