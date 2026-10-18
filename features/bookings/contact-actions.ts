@@ -175,14 +175,13 @@ export async function updateBookingContact(
       return { success: false, message: 'shared_guest', values };
     }
 
-    if (phone) {
-      await db.update(bookings).set({ contactPhone: phone }).where(eq(bookings.id, booking.id));
-    }
     if (email) {
       // The `authUserId IS NULL` and not-shared guards are re-applied in
       // the WHERE so a claim or a booking landing between the read and
-      // this write can't be raced.
-      await db
+      // this write can't be raced. A write that matches no row lost that
+      // race and saved nothing, so it must not report success (#127
+      // review): the email goes first so a refusal means nothing changed.
+      const written = await db
         .update(guests)
         .set({ email })
         .where(
@@ -191,7 +190,14 @@ export async function updateBookingContact(
             isNull(guests.authUserId),
             noOtherBookingOnGuestRow(booking.id),
           ),
-        );
+        )
+        .returning({ id: guests.id });
+      if (written.length === 0) {
+        return { success: false, message: 'shared_guest', values };
+      }
+    }
+    if (phone) {
+      await db.update(bookings).set({ contactPhone: phone }).where(eq(bookings.id, booking.id));
     }
   } catch (error) {
     reportError(error, { surface: 'bookings:updateContact', reference });

@@ -32,6 +32,8 @@ let booking: Row | undefined;
 /** Other bookings on the guest row (issue #120): the row is shared when non-empty. */
 let otherBookings: Row[] = [];
 const sharedChecks: Row[] = [];
+/** Rows the guarded guest UPDATE matches (its WHERE lost the race when empty). */
+let guestRowsWritten: Row[] = [{ id: 'g1' }];
 const fake = vi.hoisted(() => ({ current: null as ReturnType<typeof createDbFake> | null }));
 vi.mock('@/lib/db', () => ({
   get db() {
@@ -71,12 +73,14 @@ beforeEach(() => {
   booking = pending();
   otherBookings = [];
   sharedChecks.length = 0;
+  guestRowsWritten = [{ id: 'g1' }];
   fake.current = createDbFake({
     query: { bookings: { findFirst: () => booking } },
     select: (shape) => {
       sharedChecks.push(shape);
       return otherBookings;
     },
+    update: (values) => ('email' in values ? guestRowsWritten : [{ id: 'b1' }]),
   });
 });
 
@@ -153,14 +157,30 @@ describe('updateBookingContact', () => {
       success: true,
     });
     expect(fake.current?.updates).toEqual([
-      { contactPhone: '+966512345678' },
       { email: 'sara@example.com' },
+      { contactPhone: '+966512345678' },
     ]);
     // The email write re-applies the guards in its WHERE (account link
     // and shared row), so a race between the read and the write loses.
     // The subquery's exact SQL is pinned in shared-guest.render.test.ts.
-    const emailWhere = fake.current?.updateConditions[1];
+    const emailWhere = fake.current?.updateConditions[0];
     expect(referencedColumns(emailWhere)).toEqual(expect.arrayContaining(['id', 'authUserId']));
     expect(rawChunksIn(emailWhere)).toContain('not exists ');
+  });
+
+  it('reports shared_guest, and saves nothing, when the guarded email write matches no row', async () => {
+    // The read said "not shared", then a booking landed on the row (or an
+    // account claimed it) before the write: the WHERE refuses, zero rows
+    // change, and the guest must not be told the email was saved. The
+    // phone write comes after the email so a refusal means nothing changed.
+    guestRowsWritten = [];
+    expect(
+      await updateBookingContact(initial, form({ email: 'sara@example.com', phone: '0512345678' })),
+    ).toEqual({
+      success: false,
+      message: 'shared_guest',
+      values: { email: 'sara@example.com', phone: '0512345678' },
+    });
+    expect(fake.current?.updates).toEqual([{ email: 'sara@example.com' }]);
   });
 });

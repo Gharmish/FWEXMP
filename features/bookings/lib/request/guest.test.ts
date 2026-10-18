@@ -42,7 +42,7 @@ const input = {
   email: 'sara@example.com',
   locale: 'en',
   marketingConsent: false,
-} as unknown as BookingRequestInput;
+} as BookingRequestInput;
 
 function anonymousRow(over: Row = {}): Row {
   return {

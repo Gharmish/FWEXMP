@@ -586,8 +586,8 @@ export async function createCheckout(
     }
 
     // Persist the payment-step email onto the guest if we don't have one yet,
-    // so the confirmation receipt can reach them (the booking form only
-    // collects name + phone). Set-if-empty — never overwrite an existing one,
+    // so the confirmation receipt can reach them (a legacy row can still be
+    // email-less). Set-if-empty — never overwrite an existing one,
     // and never onto a row another booking reads (2026-10-17, issue #120):
     // this booking's proof of access says nothing about the others, and
     // the row's email is where their `?k=` link emails go.
