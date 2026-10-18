@@ -81,13 +81,19 @@ const run = async (fn: () => Promise<unknown>) => {
   }
 };
 
+const updateMatches = { current: true };
+
 beforeEach(() => {
   actor = { adminUserId: 'admin-1' };
   schedule.blocked = false;
   insertFails = 0;
+  updateMatches.current = true;
   existing = { id: ID, status: 'live', startTime: '06:30', availabilityWeekdays: [5, 6] };
   fake.current = createDbFake({
     query: { experiences: { findFirst: () => existing } },
+    // The conditional UPDATE re-asserts the status the editor opened on
+    // and reads back the id; an empty return means the row moved on.
+    update: () => (updateMatches.current ? [{ id: ID }] : []),
     insert: (values) => {
       if (!Array.isArray(values) && 'slug' in values) {
         if (insertFails > 0) {
@@ -102,6 +108,66 @@ beforeEach(() => {
 });
 
 describe('adminUpdateExperience', () => {
+  const inReview = (over: Row = {}): Row => ({
+    id: ID,
+    status: 'pending_review',
+    startTime: '06:30',
+    availabilityWeekdays: [5, 6],
+    heroImage: 'https://cdn.example/hero.webp',
+    moments: [],
+    host: { verificationStatus: 'verified' },
+    ...over,
+  });
+
+  it('flipping a listing to live runs the same launch gates as the approve action', async () => {
+    // No hero photo → refused, nothing written, values echoed.
+    existing = inReview({ heroImage: null });
+    expect(await adminUpdateExperience(initial, form({ status: 'live' }))).toMatchObject({
+      message: 'needs_hero',
+      values: { titleEn: 'Sunrise coffee walk in Abha' },
+    });
+    // A timeline moment still on the Arabic placeholder.
+    existing = inReview({ moments: [{ titleAr: 'TODO(ar): x', descriptionAr: 'y' }] });
+    expect(await adminUpdateExperience(initial, form({ status: 'live' }))).toMatchObject({
+      message: 'needs_arabic_moments',
+    });
+    // A suspended host.
+    existing = inReview({ host: { verificationStatus: 'suspended' } });
+    expect(await adminUpdateExperience(initial, form({ status: 'live' }))).toMatchObject({
+      message: 'host_suspended',
+    });
+    // A host whose application is still pending.
+    existing = inReview({ host: { verificationStatus: 'pending' } });
+    expect(await adminUpdateExperience(initial, form({ status: 'live' }))).toMatchObject({
+      message: 'host_unverified',
+    });
+    expect(fake.current?.updates).toEqual([]);
+    expect(fake.current?.inserts).toEqual([]);
+
+    // Everything in place → published, with the moderation event journaled.
+    existing = inReview();
+    expect(await run(() => adminUpdateExperience(initial, form({ status: 'live' })))).toBe(
+      `REDIRECT:/admin/experience-moderation/${ID}`,
+    );
+    expect(fake.current?.updates[0]).toMatchObject({ status: 'live' });
+    expect(fake.current?.inserts[0]).toMatchObject({
+      event: 'edited',
+      fromStatus: 'pending_review',
+      toStatus: 'live',
+    });
+  });
+
+  it('a save whose status no longer matches the row is wrong_state and journals nothing', async () => {
+    // A moderation decision landed between opening the editor and saving.
+    updateMatches.current = false;
+    expect(await adminUpdateExperience(initial, form({ status: 'paused' }))).toMatchObject({
+      message: 'wrong_state',
+      values: { titleEn: 'Sunrise coffee walk in Abha' },
+    });
+    expect(fake.current?.updates).toHaveLength(1);
+    expect(fake.current?.inserts).toEqual([]);
+  });
+
   it('returns per-field codes and echoes every value, including the weekday list', async () => {
     const out = await adminUpdateExperience(
       initial,
@@ -182,17 +248,24 @@ describe('adminCreateExperience', () => {
     expect(await adminCreateExperience(initial, form({ hostId: '' }))).toMatchObject({
       fields: { hostId: 'host_required' },
     });
+    // A new listing has no hero photo or timeline, so it can never be
+    // born live — the live gate's first content check answers for it.
+    expect(await adminCreateExperience(initial, form({ status: 'live' }))).toMatchObject({
+      message: 'needs_hero',
+      values: { titleEn: 'Sunrise coffee walk in Abha' },
+    });
+    expect(fake.current?.inserts).toEqual([]);
     insertFails = 2;
-    expect(await run(() => adminCreateExperience(initial, form()))).toBe(
-      'REDIRECT:/admin/experiences/new-1/edit',
-    );
+    expect(
+      await run(() => adminCreateExperience(initial, form({ status: 'pending_review' }))),
+    ).toBe('REDIRECT:/admin/experiences/new-1/edit');
     const rows = fake.current?.inserts as Row[];
     expect(rows.filter((r) => 'slug' in r)).toHaveLength(3);
     expect(rows.at(-1)).toMatchObject({
       experienceId: 'new-1',
       event: 'edited',
       fromStatus: 'draft',
-      toStatus: 'live',
+      toStatus: 'pending_review',
     });
     expect(rows[2]).toMatchObject({
       hostId: HOST,
