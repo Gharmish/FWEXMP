@@ -820,7 +820,7 @@
       "formHostUnverified": "This host isn't verified yet — approve their application before publishing a listing.",
       "host": "Owner (host)",
       "createHeading": "Create experience",
-      "createIntro": "Build a listing on a host's behalf. Pick the owning host, fill in the details, and choose a status — set it live now or leave it as a draft.",
+      "createIntro": "Build a listing on a host's behalf. Pick the owning host, fill in the details, and save it as a draft or send it for review. It goes live from the editor once the gallery and timeline are in place.",
       "createSubmit": "Create experience",
       "createPending": "Creating",
       "editTimeline": "Edit timeline (moments)"

@@ -35,7 +35,9 @@ import { reportError } from '@/lib/log';
  * second paging rail. `COOKIE_SIGNING_SECRET` is deliberately NOT here —
  * the cookie key derives from the service-role key when it is unset.
  * `TWILIO_WHATSAPP_CONTENT_SIDS` is checked per template by the config
- * pass rather than as one blob.
+ * pass rather than as one blob. `HYPERPAY_APPLEPAY_ENTITY_ID` is NOT
+ * here either: `hasHyperpayApplePay()` simply hides Apple Pay when it is
+ * unset, so a card-only deployment is a choice, not a misconfiguration.
  */
 const ALWAYS_REQUIRED = [
   'DATABASE_URL',
@@ -51,7 +53,6 @@ const ALWAYS_REQUIRED = [
   'ANTHROPIC_API_KEY',
   'HYPERPAY_ACCESS_TOKEN',
   'HYPERPAY_ENTITY_ID',
-  'HYPERPAY_APPLEPAY_ENTITY_ID',
   'ADMIN_ALERT_EMAIL',
   'ADMIN_ALERT_WHATSAPP',
 ] as const;

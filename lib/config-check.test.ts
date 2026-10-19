@@ -20,7 +20,6 @@ const full = {
   ANTHROPIC_API_KEY: 'sk',
   HYPERPAY_ACCESS_TOKEN: 'h',
   HYPERPAY_ENTITY_ID: 'e',
-  HYPERPAY_APPLEPAY_ENTITY_ID: 'ap',
   ADMIN_ALERT_EMAIL: 'ops@example.com',
   ADMIN_ALERT_WHATSAPP: '+966500000001',
   HYPERPAY_WEBHOOK_SECRET: 'w',
@@ -53,6 +52,10 @@ describe('missingProductionConfig', () => {
       'HYPERPAY_ACCESS_TOKEN',
       'ADMIN_ALERT_WHATSAPP',
     ]);
+  });
+
+  it('does not demand the Apple Pay entity (unset means card-only, not misconfigured)', () => {
+    expect(missingProductionConfig({ ...full, HYPERPAY_APPLEPAY_ENTITY_ID: '' }, true)).toEqual([]);
   });
 
   it('does not demand the optional cookie-signing secret (it derives from the service key)', () => {

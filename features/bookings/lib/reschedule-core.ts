@@ -151,7 +151,11 @@ export async function rescheduleBookingCore(
     // that stays pending through its own experience, or a pay button that
     // createCheckout refuses while the page still promises hours. A new
     // slot that leaves less than the minimum payable window is refused
-    // like any other unavailable date.
+    // like any other unavailable date — but only when the clamp actually
+    // moved the deadline earlier (#135 review): an unpaid instant hold
+    // is born with a 30-minute payment window, so a move to a LATER date
+    // keeps its deadline and must not be refused for the minutes already
+    // spent on it.
     let deadlineStamp: { approvalDeadline?: Date | null; paymentDeadline?: Date | null } = {};
     if (booking.status === 'pending') {
       const approvalDeadline = clampDeadlineToSlot(
@@ -169,6 +173,7 @@ export async function rescheduleBookingCore(
       );
       if (
         paymentDeadline !== null &&
+        paymentDeadline.getTime() < booking.paymentDeadline.getTime() &&
         paymentDeadline.getTime() - now.getTime() < MIN_PAYMENT_WINDOW_MS
       ) {
         return { success: false, message: 'date_unavailable' };
