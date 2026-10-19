@@ -4,6 +4,7 @@ import { eq } from 'drizzle-orm';
 import { revalidatePath } from 'next/cache';
 import { revalidateExperienceCaches } from '@/lib/cache-tags';
 import { db } from '@/lib/db';
+import { isUniqueViolation } from '@/lib/db-errors';
 import { experiences, experienceModerationEvents } from '@/db/schema';
 import { redirect } from '@/lib/i18n';
 import { reportError } from '@/lib/log';
@@ -339,7 +340,7 @@ export async function adminCreateExperience(
         break;
       } catch (error) {
         // Unique violation on slug → retry with a fresh suffix.
-        if ((error as { code?: string })?.code === '23505') continue;
+        if (isUniqueViolation(error)) continue;
         throw error;
       }
     }

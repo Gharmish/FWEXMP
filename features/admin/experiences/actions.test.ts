@@ -92,7 +92,10 @@ beforeEach(() => {
       if (!Array.isArray(values) && 'slug' in values) {
         if (insertFails > 0) {
           insertFails -= 1;
-          throw Object.assign(new Error('dup slug'), { code: '23505' });
+          // The shape drizzle 0.45 throws: the postgres error on `cause`.
+          throw new Error('Failed query: insert into "experiences" ...', {
+            cause: { code: '23505', constraint_name: 'experiences_slug_unique' },
+          });
         }
         return [{ id: 'new-1' }];
       }

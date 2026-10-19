@@ -3,6 +3,7 @@
 import { and, eq, gte, ne, sql } from 'drizzle-orm';
 import { revalidatePath } from 'next/cache';
 import { db } from '@/lib/db';
+import { isUniqueViolation } from '@/lib/db-errors';
 import { serverEnv } from '@/lib/env';
 import { bookings, disputes, supportTicketEvents, supportTickets } from '@/db/schema';
 import { reportError } from '@/lib/log';
@@ -55,11 +56,11 @@ function formValue(formData: FormData, key: string): string {
 /**
  * postgres.js surfaces unique violations as code 23505 with the
  * constraint name; matched by name (like the booking idempotency
- * catch) so an unrelated collision still reports as 'server'.
+ * catch) so an unrelated collision still reports as 'server'. drizzle
+ * wraps the driver error, so the match walks the cause chain.
  */
 function isOpenDisputeCollision(error: unknown): boolean {
-  const pg = error as { code?: unknown; constraint_name?: unknown };
-  return pg?.code === '23505' && pg?.constraint_name === 'disputes_one_open_per_booking';
+  return isUniqueViolation(error, 'disputes_one_open_per_booking');
 }
 
 export async function createDispute(

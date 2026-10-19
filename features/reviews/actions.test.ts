@@ -55,6 +55,7 @@ let bookingRow: { id: string; guestId: string; experienceId: string; status: str
 let existingReview: { id: string } | undefined;
 let recentByGuest = 0;
 const insertedReviews: Array<Record<string, unknown>> = [];
+let insertError: unknown;
 
 vi.mock('@/lib/db', () => ({
   db: {
@@ -69,6 +70,7 @@ vi.mock('@/lib/db', () => ({
     }),
     insert: () => ({
       values: (v: Record<string, unknown>) => {
+        if (insertError) return Promise.reject(insertError);
         insertedReviews.push(v);
         return Promise.resolve(undefined);
       },
@@ -107,6 +109,7 @@ beforeEach(() => {
   existingReview = undefined;
   recentByGuest = 0;
   insertedReviews.length = 0;
+  insertError = undefined;
 });
 
 describe('submitReview', () => {
@@ -148,6 +151,29 @@ describe('submitReview', () => {
     const result = await runSubmit(reviewForm());
     expect(result).toMatchObject({ success: false, message: 'already_reviewed' });
     expect(insertedReviews).toHaveLength(0);
+  });
+
+  it('maps the unique-index race loser (wrapped by drizzle) to already_reviewed', async () => {
+    // drizzle 0.45 wraps the driver error: the message is the SQL + params,
+    // and the postgres code sits on `cause`.
+    insertError = new Error('Failed query: insert into "reviews" ...\nparams: b1,g1,e1,5', {
+      cause: { code: '23505', constraint_name: 'reviews_booking_id_unique' },
+    });
+    const result = await runSubmit(reviewForm());
+    expect(result).toMatchObject({ success: false, message: 'already_reviewed' });
+    expect(reportError).not.toHaveBeenCalled();
+  });
+
+  it('reports a non-unique insert failure as server even when the review text says "unique"', async () => {
+    insertError = new Error(
+      'Failed query: insert into "reviews" ...\nparams: Truly a unique evening',
+      {
+        cause: { code: '57014' },
+      },
+    );
+    const result = await runSubmit(reviewForm({ text: 'Truly a unique evening' }));
+    expect(result).toMatchObject({ success: false, message: 'server' });
+    expect(reportError).toHaveBeenCalled();
   });
 
   it('throttles a guest who has posted too many reviews this hour', async () => {

@@ -13,6 +13,13 @@ describe('isUniqueViolation', () => {
     expect(isUniqueViolation(twice)).toBe(true);
   });
 
+  it('matches a named constraint anywhere in the cause chain', () => {
+    const pg = { code: '23505', constraint_name: 'disputes_one_open_per_booking' };
+    const wrapped = new Error('Failed query', { cause: pg });
+    expect(isUniqueViolation(wrapped, 'disputes_one_open_per_booking')).toBe(true);
+    expect(isUniqueViolation(wrapped, 'reviews_booking_id_unique')).toBe(false);
+  });
+
   it('rejects other codes, plain errors and non-objects', () => {
     expect(isUniqueViolation({ code: '23503' })).toBe(false);
     expect(isUniqueViolation(new Error('boom'))).toBe(false);
