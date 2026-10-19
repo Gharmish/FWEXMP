@@ -56,6 +56,26 @@ export function isThrottled(code: string): boolean {
   return code === THROTTLED_CODE;
 }
 
+/**
+ * The result-code family that describes OUR request, not the payment:
+ * `800.900.*` is the authentication / permission group (an invalid,
+ * rotated or revoked access token, an entity without access). It says
+ * nothing about whether the card was charged, so a status read answering
+ * it must be asked again — never read as a decline, which flipped a
+ * captured booking to `failed` and let the release pass cancel it (#137,
+ * 2026-10-19). The system / communication group (`900.*`) is deliberately
+ * NOT here: the gateway also records it as a transaction's OWN result
+ * (acquirer down, session timeout) and answers it with HTTP 400 for the
+ * life of the session, so throwing on it would park the guest on
+ * "pending" with no way to retry; a 5xx carrying it is caught by the
+ * HTTP-status rule in `getPaymentStatus` instead.
+ */
+const GATEWAY_FAULT_RE = /^800\.900\./;
+
+export function isGatewayFault(code: string): boolean {
+  return GATEWAY_FAULT_RE.test(code);
+}
+
 /** What `GET /v1/query` answers when the entity holds nothing for the reference. */
 export const NO_TRANSACTION_FOUND_CODE = '700.400.580';
 

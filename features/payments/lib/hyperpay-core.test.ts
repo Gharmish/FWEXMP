@@ -5,6 +5,7 @@ import {
   buildRefundBody,
   classifyResult,
   formatAmount,
+  isGatewayFault,
   isSuccessfulResult,
   isThrottled,
   LIVE_BASE_URL,
@@ -54,6 +55,30 @@ const applePayCfg: HyperpayConfig = {
   testConnector: 'external',
   channel: 'applepay',
 };
+
+describe('isGatewayFault', () => {
+  it('names the auth / permission family (#137)', () => {
+    for (const code of ['800.900.300', '800.900.301', '800.900.303']) {
+      expect(isGatewayFault(code)).toBe(true);
+    }
+  });
+
+  it('leaves real verdicts, the expired session, the throttle and connector results alone', () => {
+    // `900.*` can be a transaction's own result (acquirer down, session
+    // timeout); the HTTP status, not the code, decides for that family.
+    for (const code of [
+      '000.000.000',
+      '000.200.000',
+      '800.100.151',
+      '200.300.404',
+      '800.120.100',
+      '900.100.300',
+      '900.300.600',
+    ]) {
+      expect(isGatewayFault(code)).toBe(false);
+    }
+  });
+});
 
 describe('classifyResult', () => {
   it('treats the standard success groups as success', () => {

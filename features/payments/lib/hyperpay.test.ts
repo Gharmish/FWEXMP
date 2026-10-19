@@ -135,4 +135,44 @@ describe('getPaymentStatus', () => {
     respond(502, '<html>Bad gateway</html>');
     await expect(getPaymentStatus('chk-1')).rejects.toThrow(/non-JSON/);
   });
+
+  it('passes a real decline through (HTTP 400, 800.100.151)', async () => {
+    respond(400, {
+      id: 'pay-1',
+      result: { code: '800.100.151', description: 'transaction declined' },
+    });
+
+    expect((await getPaymentStatus('chk-1')).result.code).toBe('800.100.151');
+  });
+
+  it('THROWS when the gateway refused OUR request — an auth, permission or system error is never a decline (#137)', async () => {
+    // A rotated token, an entity without access or a gateway fault says
+    // nothing about the card. Read as `rejected`, settle flipped a
+    // captured booking to `failed` and the hold was cancelled at deadline.
+    const refused: Array<[number, string]> = [
+      [401, '800.900.300'], // invalid authentication information
+      [403, '800.900.303'], // no access
+      [502, '900.100.300'], // timeout, uncertain result
+      [500, '900.100.100'], // unexpected communication error
+      // An auth / permission code alone is enough, whatever the HTTP status.
+      [200, '800.900.301'],
+      [400, '800.900.302'],
+    ];
+    for (const [status, code] of refused) {
+      respond(status, { result: { code, description: 'refused' } });
+      await expect(getPaymentStatus('chk-1')).rejects.toThrow(/refused the request/);
+    }
+  });
+
+  it('passes a system code through on HTTP 400 — there it is the attempt’s own result, not ours', async () => {
+    // The gateway records "acquirer down" / "session timeout" as the
+    // transaction's result and answers it with 400 for the life of the
+    // session. Thrown, it would park the guest on "pending" with no retry.
+    respond(400, {
+      id: 'pay-1',
+      result: { code: '900.300.600', description: 'user session timeout' },
+    });
+
+    expect((await getPaymentStatus('chk-1')).result.code).toBe('900.300.600');
+  });
 });
