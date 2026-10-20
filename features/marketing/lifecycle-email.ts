@@ -10,6 +10,7 @@ import { renderReceiptEmail } from '@/features/bookings/lib/booking-email-render
 import { dispatchNotification, notificationsConfigured } from '@/lib/notifications/dispatch';
 import { unsubscribeUrl } from '@/features/marketing/unsubscribe-token';
 import { getExperiences } from '@/features/experiences/queries';
+import { toArabicText } from '@/features/experiences/lib/arabic-content';
 
 /**
  * Post-trip marketing rail (2026-08-15 marketing audit). Before this the
@@ -96,11 +97,13 @@ async function sendMarketingEmail(reference: string, stage: 'rebook' | 'winback'
   const t = await getTranslations({ locale, namespace: 'marketingEmail' });
   const experienceName = locale === 'ar' ? booking.experience.titleAr : booking.experience.titleEn;
   const links = await recommendationLinks(booking.experience.slug, booking.experience.city, locale);
+  // `experiences.city` is stored in English; Arabic copy shows the Arabic
+  // name, as the confirmation page and receipts do.
+  const cityLabel =
+    locale === 'ar' ? toArabicText(booking.experience.city) : booking.experience.city;
 
   const subject =
-    stage === 'rebook'
-      ? t('rebookSubject', { city: booking.experience.city })
-      : t('winbackSubject');
+    stage === 'rebook' ? t('rebookSubject', { city: cityLabel }) : t('winbackSubject');
   const noteHtml = [
     links ? `${escapeHtml(t('recommendationsHeading'))}<br/>${links}` : '',
     `<a href="${unsubscribe}">${escapeHtml(t('unsubscribe'))}</a>`,
@@ -115,7 +118,7 @@ async function sendMarketingEmail(reference: string, stage: 'rebook' | 'winback'
     greeting: t('greeting', { name: booking.guest.name }),
     intro:
       stage === 'rebook'
-        ? t('rebookIntro', { experience: experienceName, city: booking.experience.city })
+        ? t('rebookIntro', { experience: experienceName, city: cityLabel })
         : t('winbackIntro', { experience: experienceName }),
     rows: [],
     cta: { label: t('browseCta'), url: `${SITE_URL}/${locale}/experiences` },
