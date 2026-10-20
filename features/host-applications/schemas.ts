@@ -1,6 +1,10 @@
 import { z } from 'zod';
 import { HOST_LANGUAGE_OPTIONS } from '@/features/host-applications/types';
 import { isValidSaudiIban, normalizeIban } from '@/features/host-applications/lib/iban';
+import { toAsciiDigits } from '@/lib/phone';
+
+/** Arabic keyboards type ٠-٩, which `\d` rejects: transliterate first. */
+const asciiDigits = (v: unknown): unknown => (typeof v === 'string' ? toAsciiDigits(v) : v);
 
 /**
  * Zod for the host-application form. Single schema, validates client,
@@ -51,10 +55,13 @@ export const hostApplicationSchema = z
       .min(1, 'languages_required')
       .max(HOST_LANGUAGE_OPTIONS.length),
     identityType: z.enum(['national_id', 'cr']),
-    identityNumber: z
-      .string()
-      .trim()
-      .regex(/^\d{10}$/, 'identity_invalid'),
+    identityNumber: z.preprocess(
+      asciiDigits,
+      z
+        .string()
+        .trim()
+        .regex(/^\d{10}$/, 'identity_invalid'),
+    ),
     /** Exactly as printed on the national ID / commercial registration. */
     legalName: z.string().trim().min(3, 'legal_name_short').max(120, 'legal_name_long'),
     /** YYYY-MM-DD from `<input type="date">`. Required for individuals only. */
@@ -76,7 +83,7 @@ export const hostApplicationSchema = z
       .max(120, 'account_holder_long'),
     /** ZATCA VAT TIN: 15 digits starting with 3. Companies, optional. */
     vatNumber: z.preprocess(
-      (v) => (v === '' ? undefined : v),
+      (v) => (v === '' ? undefined : asciiDigits(v)),
       z
         .string()
         .trim()

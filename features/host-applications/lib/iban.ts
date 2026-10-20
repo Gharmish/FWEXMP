@@ -8,11 +8,17 @@
  * in the BBAN, so we accept them and let mod-97 be the gate.
  */
 
+import { toAsciiDigits } from '@/lib/phone';
+
 const SA_IBAN_SHAPE = /^SA\d{2}\d{2}[0-9A-Z]{18}$/;
 
-/** Strip spaces (users paste `SA03 8000 …` from bank apps) and uppercase. */
+/**
+ * Strip spaces (users paste `SA03 8000 …` from bank apps), transliterate
+ * Arabic-Indic digits (an Arabic keyboard types ٠-٩, which `\d` rejects)
+ * and uppercase.
+ */
 export function normalizeIban(raw: string): string {
-  return raw.replace(/\s+/g, '').toUpperCase();
+  return toAsciiDigits(raw).replace(/\s+/g, '').toUpperCase();
 }
 
 /**

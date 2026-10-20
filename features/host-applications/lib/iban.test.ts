@@ -5,6 +5,10 @@ describe('normalizeIban', () => {
   it('strips spaces and uppercases', () => {
     expect(normalizeIban('sa03 8000 0000 6080 1016 7519')).toBe('SA0380000000608010167519');
   });
+
+  it('transliterates Arabic-Indic digits typed on an Arabic keyboard', () => {
+    expect(normalizeIban('SA٠٣ ٨٠٠٠ ٠٠٠٠ ٦٠٨٠ ١٠١٦ ٧٥١٩')).toBe('SA0380000000608010167519');
+  });
 });
 
 describe('isValidSaudiIban', () => {

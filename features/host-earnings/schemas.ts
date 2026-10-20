@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { toAsciiDigits } from '@/lib/phone';
 
 /**
  * Saudi IBAN: `SA` + 2 check digits + 2-digit bank code + 18-digit
@@ -11,7 +12,8 @@ export const SAUDI_IBAN_RE = /^SA\d{22}$/;
 export const updatePayoutIbanSchema = z.object({
   iban: z
     .string()
-    .transform((value) => value.replace(/\s+/g, '').toUpperCase())
+    // toAsciiDigits: an Arabic keyboard types ٠-٩, which the regex rejects.
+    .transform((value) => toAsciiDigits(value).replace(/\s+/g, '').toUpperCase())
     .pipe(z.string().regex(SAUDI_IBAN_RE)),
   locale: z.enum(['en', 'ar']),
 });
