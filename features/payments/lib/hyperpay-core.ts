@@ -57,20 +57,27 @@ export function isThrottled(code: string): boolean {
 }
 
 /**
- * The result-code family that describes OUR request, not the payment:
- * `800.900.*` is the authentication / permission group (an invalid,
- * rotated or revoked access token, an entity without access). It says
- * nothing about whether the card was charged, so a status read answering
- * it must be asked again — never read as a decline, which flipped a
+ * The result codes that describe OUR request, not the payment: the
+ * authentication / permission members of OPPWA's `800.900.*` group —
+ * `800.900.100` (sender authorization), `800.900.201` (unknown channel:
+ * an entity the credentials do not know), `800.900.3xx` (user
+ * authorization, access denied or expired, no token created, secure
+ * registration) and `800.900.401` (IP not allowed). They say nothing
+ * about whether the card was charged, so a status read answering one
+ * must be asked again — never read as a decline, which flipped a
  * captured booking to `failed` and let the release pass cancel it (#137,
- * 2026-10-19). The system / communication group (`900.*`) is deliberately
- * NOT here: the gateway also records it as a transaction's OWN result
- * (acquirer down, session timeout) and answers it with HTTP 400 for the
- * life of the session, so throwing on it would park the guest on
- * "pending" with no way to retry; a 5xx carrying it is caught by the
- * HTTP-status rule in `getPaymentStatus` instead.
+ * 2026-10-19). The REST of `800.900.*` is deliberately not matched: it
+ * validates the customer data in a request (`.101` invalid email, `.200`
+ * invalid phone, `.450` invalid birthdate) and so is a verdict on the
+ * attempt, not on our access; thrown, it would park the guest on
+ * "pending" with no retry (PR #142 review, 2026-10-20). The system /
+ * communication group (`900.*`) is not here either: the gateway also
+ * records it as a transaction's OWN result (acquirer down, session
+ * timeout) and answers it with HTTP 400 for the life of the session; a
+ * 5xx carrying it is caught by the HTTP-status rule in `getPaymentStatus`
+ * instead.
  */
-const GATEWAY_FAULT_RE = /^800\.900\./;
+const GATEWAY_FAULT_RE = /^800\.900\.(100|201|3\d\d|401)$/;
 
 export function isGatewayFault(code: string): boolean {
   return GATEWAY_FAULT_RE.test(code);

@@ -151,12 +151,13 @@ describe('getPaymentStatus', () => {
     // captured booking to `failed` and the hold was cancelled at deadline.
     const refused: Array<[number, string]> = [
       [401, '800.900.300'], // invalid authentication information
-      [403, '800.900.303'], // no access
+      [403, '800.900.303'], // no token created
       [502, '900.100.300'], // timeout, uncertain result
       [500, '900.100.100'], // unexpected communication error
       // An auth / permission code alone is enough, whatever the HTTP status.
       [200, '800.900.301'],
       [400, '800.900.302'],
+      [400, '800.900.201'], // unknown channel (entity)
     ];
     for (const [status, code] of refused) {
       respond(status, { result: { code, description: 'refused' } });
@@ -174,5 +175,16 @@ describe('getPaymentStatus', () => {
     });
 
     expect((await getPaymentStatus('chk-1')).result.code).toBe('900.300.600');
+  });
+
+  it('passes a customer-data code of the 800.900 group through on HTTP 400 (PR #142 review)', async () => {
+    // `800.900.200` judges the phone number in the request, not our
+    // access. Thrown, the booking would sit on "pending" with no retry.
+    respond(400, {
+      id: 'pay-1',
+      result: { code: '800.900.200', description: 'invalid phone number' },
+    });
+
+    expect((await getPaymentStatus('chk-1')).result.code).toBe('800.900.200');
   });
 });
