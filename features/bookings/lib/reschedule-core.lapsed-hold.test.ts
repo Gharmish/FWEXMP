@@ -6,6 +6,10 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
  * confirmation-view.ts): an expired hold whose payment is `unpaid` OR
  * `failed`. The WhatsApp agent calls this core directly and never sees
  * the page's hidden controls.
+ *
+ * Lives beside `reschedule-core.test.ts` (the deadline re-clamp suite from
+ * PR #135) under its own name because the two harnesses mock `@/lib/db`
+ * differently (2026-10-20).
  */
 
 vi.mock('server-only', () => ({}));
