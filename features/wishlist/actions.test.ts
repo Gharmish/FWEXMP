@@ -33,13 +33,18 @@ vi.mock('@/lib/db', () => ({
 
 import { toggleWishlist } from './actions';
 
+let accountRows: unknown[] = [];
+
 beforeEach(() => {
   env.DATABASE_URL = 'postgres://test';
   who.user = { id: 'u1' };
   who.profile = { id: 'g1' };
   jar.value = undefined;
   jar.writes.length = 0;
-  fake.current = createDbFake({ select: () => [{ id: 'e-1' }] });
+  accountRows = [];
+  fake.current = createDbFake({
+    select: (shape) => ('savedExperienceId' in shape ? accountRows : [{ id: 'e-1' }]),
+  });
 });
 
 describe('toggleWishlist', () => {
@@ -62,6 +67,14 @@ describe('toggleWishlist', () => {
     await toggleWishlist('sunrise-hike');
     expect(jar.writes[1][1]).not.toContain('sunrise-hike');
     expect(fake.current?.deletes).toBe(1);
+  });
+
+  it('un-saves a slug held only by the account (saved on another device), not re-saving it', async () => {
+    accountRows = [{ savedExperienceId: 'e-1' }];
+    await toggleWishlist('sunrise-hike');
+    expect(jar.writes[0][1]).not.toContain('sunrise-hike');
+    expect(fake.current?.deletes).toBe(1);
+    expect(fake.current?.inserts).toEqual([]);
   });
 
   it('anonymous visitors get the cookie only — no database round-trip', async () => {

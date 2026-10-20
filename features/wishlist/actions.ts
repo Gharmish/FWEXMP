@@ -118,13 +118,37 @@ async function syncDbWishlist(cookieSlugs: readonly string[], removeSlug?: strin
   }
 }
 
+/**
+ * Whether the signed-in guest's account already holds this slug. The UI
+ * renders the cookie ∪ account union (queries.ts), so a slug saved on
+ * another device shows a gold heart here although this device's cookie
+ * lacks it; the toggle must read the same union or a click on that heart
+ * re-saves instead of removing.
+ */
+async function accountHasSlug(slug: string): Promise<boolean> {
+  const guestId = await resolveGuestIdForSync();
+  if (!guestId) return false;
+  try {
+    const [row] = await db
+      .select({ savedExperienceId: savedExperiences.experienceId })
+      .from(savedExperiences)
+      .innerJoin(experiences, eq(savedExperiences.experienceId, experiences.id))
+      .where(and(eq(savedExperiences.guestId, guestId), eq(experiences.slug, slug)))
+      .limit(1);
+    return Boolean(row);
+  } catch (error) {
+    reportError(error, { surface: 'wishlist:accountHasSlug' });
+    return false;
+  }
+}
+
 export async function toggleWishlist(slug: string): Promise<void> {
   // The argument comes straight off a client call; refuse anything that
   // is not slug-shaped before it touches the cookie or a query (2026-09
   // engineering audit GAPA-08).
   if (!isValidWishlistSlug(slug)) return;
   const current = await readCookie();
-  const removing = isInWishlist(current, slug);
+  const removing = isInWishlist(current, slug) || (await accountHasSlug(slug));
   const next = removing ? removeFromWishlistList(current, slug) : addToWishlistList(current, slug);
   await writeCookie(serializeWishlistCookie(next));
   await syncDbWishlist(next, removing ? slug : undefined);
