@@ -178,7 +178,9 @@ describe('POST /api/webhooks/twilio — inbound keywords', () => {
     expect(res.status).toBe(200);
     expect(res.headers.get('content-type')).toContain('text/xml');
     expect(await res.text()).toContain('<Response/>');
-    expect(addSuppression).toHaveBeenCalledWith('whatsapp', '+966541104000', 'stop');
+    expect(addSuppression).toHaveBeenCalledWith('whatsapp', '+966541104000', 'stop', 'all', {
+      throwOnError: true,
+    });
   });
 
   it('honors the Arabic opt-out keyword', async () => {
@@ -187,7 +189,9 @@ describe('POST /api/webhooks/twilio — inbound keywords', () => {
     const res = await POST(request(params, sign(params)));
 
     expect(res.status).toBe(200);
-    expect(addSuppression).toHaveBeenCalledWith('whatsapp', '+966541104000', 'stop');
+    expect(addSuppression).toHaveBeenCalledWith('whatsapp', '+966541104000', 'stop', 'all', {
+      throwOnError: true,
+    });
   });
 
   it.each(['إلغاء', 'الغاء'])(
@@ -209,8 +213,28 @@ describe('POST /api/webhooks/twilio — inbound keywords', () => {
     const res = await POST(request(params, sign(params)));
 
     expect(res.status).toBe(200);
-    expect(removeSuppression).toHaveBeenCalledWith('whatsapp', '+966541104000');
+    expect(removeSuppression).toHaveBeenCalledWith('whatsapp', '+966541104000', {
+      throwOnError: true,
+    });
     expect(addSuppression).not.toHaveBeenCalled();
+  });
+
+  it('answers 500 when a STOP could not be stored, so Twilio retries the opt-out', async () => {
+    addSuppression.mockRejectedValueOnce(new Error('connection reset'));
+    const params = { From: 'whatsapp:+966541104000', Body: 'STOP' };
+
+    const res = await POST(request(params, sign(params)));
+
+    expect(res.status).toBe(500);
+  });
+
+  it('answers 500 when a START could not be stored', async () => {
+    removeSuppression.mockRejectedValueOnce(new Error('connection reset'));
+    const params = { From: 'whatsapp:+966541104000', Body: 'START' };
+
+    const res = await POST(request(params, sign(params)));
+
+    expect(res.status).toBe(500);
   });
 
   it('answers 500 when the message could not be stored, so Twilio retries', async () => {

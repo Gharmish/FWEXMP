@@ -139,9 +139,11 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     const rawBody = params.Body?.trim() ?? '';
     const body = rawBody.toLowerCase();
     if (from) {
-      if (STOP_KEYWORDS.has(body)) await addSuppression('whatsapp', from, 'stop');
-      else if (START_KEYWORDS.has(body)) await removeSuppression('whatsapp', from);
-      else if (rawBody || params.MediaUrl0) {
+      if (STOP_KEYWORDS.has(body)) {
+        await addSuppression('whatsapp', from, 'stop', 'all', { throwOnError: true });
+      } else if (START_KEYWORDS.has(body)) {
+        await removeSuppression('whatsapp', from, { throwOnError: true });
+      } else if (rawBody || params.MediaUrl0) {
         const recorded = await recordInboundMessage({
           from,
           body: rawBody,
