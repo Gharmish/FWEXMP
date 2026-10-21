@@ -306,9 +306,12 @@ async function failSafe(
     ticketReference = ticket.reference;
   } catch (error) {
     reportError(error, { surface: 'support-agent:failSafe-ticket' });
+    // No ticket to find the thread from, so the alert must link it
+    // itself (review of #96, 2026-10-15).
     await notifyAdmin('guest_whatsapp_inbound', {
       from: address,
       message: `(agent failed: ${reason})`,
+      conversationId: recorded.conversationId,
     });
   }
   await db

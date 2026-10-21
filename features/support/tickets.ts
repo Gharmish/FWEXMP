@@ -40,7 +40,10 @@ const PRIORITY_FLOOR: Partial<Record<TicketCategory, TicketPriority>> = {
 
 const RANK: Record<TicketPriority, number> = { urgent: 3, high: 2, normal: 1 };
 
-export function effectivePriority(category: TicketCategory, requested: TicketPriority): TicketPriority {
+export function effectivePriority(
+  category: TicketCategory,
+  requested: TicketPriority,
+): TicketPriority {
   const floor = PRIORITY_FLOOR[category];
   return floor && RANK[floor] > RANK[requested] ? floor : requested;
 }
@@ -143,6 +146,7 @@ export async function sweepTicketSla(limit = 20): Promise<number> {
         category: supportTickets.category,
         summary: supportTickets.summary,
         slaDueAt: supportTickets.slaDueAt,
+        conversationId: supportTickets.conversationId,
       })
       .from(supportTickets)
       .where(
@@ -172,6 +176,7 @@ export async function sweepTicketSla(limit = 20): Promise<number> {
         priority: t.priority,
         category: t.category,
         summary: t.summary.slice(0, 280),
+        conversationId: t.conversationId,
       });
       fired += 1;
     }
