@@ -12,8 +12,13 @@ vi.mock('server-only', () => ({}));
 let dbSelect: (shape: Record<string, unknown>) => unknown = () => {
   throw new Error('unexpected select');
 };
+/** The thread's ownership as the write tools re-read it (#69). */
+let conversationState: 'bot' | 'human' | 'closed' = 'bot';
 vi.mock('@/lib/db', () => ({
-  db: { select: (shape: Record<string, unknown>) => dbSelect(shape) },
+  db: {
+    select: (shape: Record<string, unknown>) => dbSelect(shape),
+    query: { conversations: { findFirst: async () => ({ state: conversationState }) } },
+  },
 }));
 vi.mock('@/lib/log', () => ({ reportError: vi.fn() }));
 vi.mock('@/lib/whatsapp', () => ({ whatsappLink: () => null }));
@@ -370,5 +375,69 @@ describe('decide_booking_request (issue #41)', () => {
       kind: 'host',
       hostId: 'h-1',
     });
+  });
+});
+
+describe('write tools after an admin takes the thread (#69)', () => {
+  const ctx: ToolContext = {
+    conversationId: 'c-1',
+    address: 'whatsapp:+966500000000',
+    guestId: 'g-1',
+    hostId: 'h-1',
+    identityVerified: true,
+    identityVerifiedAt: new Date(),
+    guestHasEmail: true,
+    locale: 'en',
+    now: new Date('2026-08-21T09:00:00Z'),
+    lastInbound: 'yes cancel it',
+  };
+
+  beforeEach(() => {
+    conversationState = 'bot';
+    vi.mocked(getBookingsForGuest).mockResolvedValue([
+      { id: 'b-1', reference: 'ref-1', referenceCode: 'GH-AAAAAA' } as never,
+    ]);
+    cancelBookingCore.mockReset();
+    saveRefundBankDetails.mockReset();
+    executeBookingTransition.mockReset();
+    dbSelect = () => {
+      throw new Error('unexpected select');
+    };
+  });
+
+  const cancelInput = { reference_code: 'GH-AAAAAA', confirmation_quote: 'yes cancel it' };
+
+  it('does not cancel once the thread is human-owned', async () => {
+    conversationState = 'human';
+    const out = await runTool('cancel_booking', cancelInput, ctx);
+    expect(JSON.parse(out.result)).toMatchObject({ error: 'handed_to_human' });
+    expect(cancelBookingCore).not.toHaveBeenCalled();
+  });
+
+  it('refuses every write on a closed thread: reschedule, bank details, host decision', async () => {
+    conversationState = 'closed';
+    for (const name of [
+      'reschedule_booking',
+      'submit_refund_bank_details',
+      'decide_booking_request',
+    ]) {
+      const out = await runTool(name, { ...cancelInput, decision: 'approve' }, ctx);
+      expect(JSON.parse(out.result)).toMatchObject({ error: 'handed_to_human' });
+    }
+    expect(saveRefundBankDetails).not.toHaveBeenCalled();
+    expect(executeBookingTransition).not.toHaveBeenCalled();
+  });
+
+  it('still cancels while the bot owns the thread', async () => {
+    cancelBookingCore.mockResolvedValue({ success: true, refund: 'none' });
+    const out = await runTool('cancel_booking', cancelInput, ctx);
+    expect(JSON.parse(out.result)).toMatchObject({ success: true });
+    expect(cancelBookingCore).toHaveBeenCalledTimes(1);
+  });
+
+  it('keeps read-only tools running after a take-over', async () => {
+    conversationState = 'human';
+    const out = await runTool('list_my_bookings', {}, ctx);
+    expect(JSON.parse(out.result)).toHaveProperty('bookings');
   });
 });

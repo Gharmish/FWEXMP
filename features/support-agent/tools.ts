@@ -398,6 +398,33 @@ function writeToolDenied(ctx: ToolContext): Record<string, unknown> | null {
   };
 }
 
+/**
+ * Tools that change a booking or store bank details. An admin can take
+ * the thread (reply → `human`, or close it) while a model call is in
+ * flight, and the loop runs several tool rounds without re-reading
+ * ownership — so each write re-reads it right before acting (2026-10-13,
+ * #69). Read-only tools and the hand-off tools keep running.
+ */
+const OWNERSHIP_CHECKED_TOOLS = new Set([
+  'cancel_booking',
+  'reschedule_booking',
+  'submit_refund_bank_details',
+  'decide_booking_request',
+]);
+
+const HANDED_TO_HUMAN = {
+  error: 'handed_to_human',
+  note: 'A Gharmish team member has taken over this conversation, so this change was NOT made. Do not retry it or call any other tool. Tell them in one short sentence that a colleague is handling it and will reply here.',
+};
+
+async function threadTakenOver(ctx: ToolContext): Promise<boolean> {
+  const row = await db.query.conversations.findFirst({
+    where: eq(conversations.id, ctx.conversationId),
+    columns: { state: true },
+  });
+  return row?.state !== 'bot';
+}
+
 function asCategory(value: string | undefined): TicketCategory {
   return TICKET_CATEGORIES.includes(value as TicketCategory) ? (value as TicketCategory) : 'other';
 }
@@ -463,6 +490,9 @@ export async function runTool(
   ctx: ToolContext,
 ): Promise<ToolOutcome> {
   try {
+    if (OWNERSHIP_CHECKED_TOOLS.has(name) && (await threadTakenOver(ctx))) {
+      return { result: JSON.stringify(HANDED_TO_HUMAN) };
+    }
     switch (name) {
       case 'list_my_bookings': {
         if (!ctx.guestId) {
