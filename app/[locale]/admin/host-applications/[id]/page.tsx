@@ -206,6 +206,7 @@ export default async function AdminHostApplicationDetailPage({
             not_found: t('actions.errors.notFound'),
             validation: t('actions.errors.validation'),
             server: t('actions.errors.server'),
+            stale: t('actions.errors.documentStale'),
             rejection_note_short: t('actions.errors.rejectionNoteShort'),
           },
         }}
