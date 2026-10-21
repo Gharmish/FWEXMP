@@ -53,6 +53,7 @@ import { MeetingPointMap } from '@/features/experiences/components/meeting-point
 import { hasMeetingPoint } from '@/features/listings/schemas';
 import { trackExperienceView, utmFromSearchParams } from '@/features/analytics/capture';
 import { getScheduleDataBySlug } from '@/features/availability/queries';
+import { freeHeldSeats, supersededHoldSeats } from '@/features/bookings/lib/request/supersede';
 import {
   BOOKING_HORIZON_DAYS,
   addDays,
@@ -295,6 +296,13 @@ export default async function ExperienceDetailPage({
     // DB-backed tier parameters — the same rows booking creation snapshots.
     getCancellationTiers(),
   ]);
+  // "Change date or guests": give the guest's own hold back to the
+  // calendar so their date and party size aren't blocked by their own
+  // seats (#77). One extra read, on that path only.
+  const heldSeats = supersedesReference
+    ? await supersededHoldSeats(supersedesReference, supersedesToken, exp.id)
+    : null;
+  const bookedByDate = schedule ? freeHeldSeats(schedule.bookedByDate, heldSeats) : {};
   // Wave 2 — social proof and prefill. Nothing above depends on these, so
   // they are deferred rather than dropped.
   const [completedCount, hostResponseStats, knownGuest, wishlistSaved] = await Promise.all([
@@ -363,7 +371,7 @@ export default async function ExperienceDetailPage({
           blackoutDates: schedule.blackoutDates,
           stopSellDates: schedule.stopSellDates,
           maxGroupSize: schedule.maxGroupSize,
-          bookedByDate: schedule.bookedByDate,
+          bookedByDate,
           startTime: schedule.startTime,
           nowMinutes: nowMinutesRiyadh,
           cutoffMinutes: schedule.bookingCutoffHours * 60,
@@ -398,7 +406,7 @@ export default async function ExperienceDetailPage({
         blackoutDates: schedule.blackoutDates,
         stopSellDates: schedule.stopSellDates,
         maxGroupSize: schedule.maxGroupSize,
-        bookedByDate: schedule.bookedByDate,
+        bookedByDate,
         startTime: schedule.startTime,
         nowMinutes: nowMinutesRiyadh,
         cutoffMinutes: schedule.bookingCutoffHours * 60,

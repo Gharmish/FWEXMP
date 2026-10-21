@@ -1,4 +1,6 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import { PgDialect } from 'drizzle-orm/pg-core';
+import type { SQL } from 'drizzle-orm';
 
 // Freeze the clock so fixtures built from `new Date()` never drift across
 // midnight or DST (2026-09 engineering audit TEST-13). Only Date is faked;
@@ -191,6 +193,19 @@ const guestUpdates: Array<Record<string, unknown>> = [];
 let phoneHolds = 0;
 let ipRecent = 0;
 let txBookedSum = 0;
+/**
+ * A booking inside `txBookedSum` (#77): the locked sum drops its seats
+ * when the capacity WHERE excludes its id, as Postgres would.
+ */
+let txSumMember: { id: string; partySize: number } | null = null;
+const dialect = new PgDialect({ casing: 'snake_case' });
+function lockedSum(condition: SQL | undefined): number {
+  if (!txSumMember || !condition) return txBookedSum;
+  const query = dialect.sqlToQuery(condition);
+  const excluded =
+    query.sql.includes('"bookings"."id" <> $') && query.params.includes(txSumMember.id);
+  return excluded ? txBookedSum - txSumMember.partySize : txBookedSum;
+}
 /** Mocked slot-close instant for the approval-deadline clamp; null = no clamp. */
 let slotCloseMs: number | null = null;
 let insertBookingError: Error | null = null;
@@ -228,6 +243,19 @@ function makeInsert() {
   });
 }
 
+function makeUpdate() {
+  return () => ({
+    set: (values: Record<string, unknown>) => {
+      guestUpdates.push(values);
+      const where = () =>
+        Object.assign(Promise.resolve(undefined), {
+          returning: async () => releasedRows,
+        });
+      return { where };
+    },
+  });
+}
+
 vi.mock('@/lib/db', () => ({
   db: {
     query: {
@@ -246,21 +274,19 @@ vi.mock('@/lib/db', () => ({
         }),
       };
     },
-    update: () => ({
-      set: (values: Record<string, unknown>) => {
-        guestUpdates.push(values);
-        const where = () =>
-          Object.assign(Promise.resolve(undefined), {
-            returning: async () => releasedRows,
-          });
-        return { where };
-      },
-    }),
+    update: makeUpdate(),
     insert: makeInsert(),
     transaction: async (cb: (tx: unknown) => Promise<unknown>) =>
       cb({
         execute: async () => undefined,
-        select: () => ({ from: () => ({ where: async () => [{ booked: txBookedSum }] }) }),
+        select: () => ({
+          from: () => ({
+            where: async (condition?: SQL) => [{ booked: lockedSum(condition) }],
+          }),
+        }),
+        // The superseded hold is cancelled inside the capacity transaction
+        // (review of #88), so the tx carries the same update recorder.
+        update: makeUpdate(),
         insert: makeInsert(),
       }),
   },
@@ -323,6 +349,7 @@ beforeEach(() => {
   phoneHolds = 0;
   ipRecent = 0;
   txBookedSum = 0;
+  txSumMember = null;
   slotCloseMs = null;
   experience = {
     id: 'e-1',
@@ -810,6 +837,71 @@ describe('requestBooking — superseding an unpaid hold (third-round R7)', () =>
     expect(insertedBookings).toHaveLength(1);
     expect(guestUpdates.at(-1)).toMatchObject({ status: 'cancelled', cancellationKind: 'system' });
     expect(releaseWalletReservation).toHaveBeenCalledWith('hold-1');
+  });
+
+  it("does not count the guest's own hold against its replacement on a nearly full date (#77)", async () => {
+    holdRow = liveHold();
+    releasedRows = [{ id: 'hold-1' }];
+    // Max 12: the guest's own 4-seat hold plus 6 other seats are booked.
+    // Growing the party to 5 on the same date fits once the hold is set
+    // aside; counting it too (10 + 5 > 12) refused it as date_full.
+    txBookedSum = 10;
+    txSumMember = { id: 'hold-1', partySize: 4 };
+    await runExpectingRedirect(superseding({ supersedesToken: 'valid-token', partySize: '5' }));
+    expect(insertedBookings).toHaveLength(1);
+    expect(guestUpdates.at(-1)).toMatchObject({ status: 'cancelled' });
+  });
+
+  it('refuses the replacement when the hold settled meanwhile and the date has no room for both (review of #88)', async () => {
+    holdRow = liveHold();
+    // The guarded cancel matches no row: the hold's checkout was captured
+    // between the resolve and the lock, so its 4 seats stay on the date.
+    releasedRows = [];
+    txBookedSum = 10;
+    txSumMember = { id: 'hold-1', partySize: 4 };
+    expect(
+      await requestBooking(
+        initial,
+        superseding({ supersedesToken: 'valid-token', partySize: '5' }),
+      ),
+    ).toMatchObject({ message: 'date_full' });
+    expect(insertedBookings).toEqual([]);
+    expect(releaseWalletReservation).not.toHaveBeenCalled();
+  });
+
+  it('a hold that settled meanwhile is left alone when the date still has room: no credit is returned on a paid hold (review of #88)', async () => {
+    holdRow = liveHold();
+    releasedRows = [];
+    txBookedSum = 2;
+    txSumMember = { id: 'hold-1', partySize: 4 };
+    await runExpectingRedirect(superseding({ supersedesToken: 'valid-token', partySize: '5' }));
+    expect(insertedBookings).toHaveLength(1);
+    expect(guestUpdates.some((u) => u.status === 'cancelled')).toBe(true);
+    expect(releaseWalletReservation).not.toHaveBeenCalled();
+  });
+
+  it('a full date writes nothing: the hold the guest came from is left as it was', async () => {
+    holdRow = liveHold();
+    releasedRows = [{ id: 'hold-1' }];
+    txBookedSum = 12;
+    expect(
+      await requestBooking(
+        initial,
+        superseding({ supersedesToken: 'valid-token', partySize: '1' }),
+      ),
+    ).toMatchObject({ message: 'date_full' });
+    expect(guestUpdates.some((u) => u.status === 'cancelled')).toBe(false);
+    expect(insertedBookings).toEqual([]);
+  });
+
+  it('an unproven supersede still counts the hold: the date stays full', async () => {
+    holdRow = liveHold();
+    txBookedSum = 10;
+    txSumMember = { id: 'hold-1', partySize: 4 };
+    expect(await requestBooking(initial, superseding({ partySize: '5' }))).toMatchObject({
+      message: 'date_full',
+    });
+    expect(insertedBookings).toEqual([]);
   });
 
   it('a signed link token proves ownership too; a lapsed hold is left alone', async () => {
