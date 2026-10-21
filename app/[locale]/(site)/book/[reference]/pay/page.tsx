@@ -415,8 +415,13 @@ export default async function PaymentPage({ params, searchParams }: PageParams) 
           start side, order summary as a sticky rail on the inline-end side
           so the total stays on screen at the moment of payment. On mobile
           the summary leads (DOM order), as before. Grid columns follow the
-          writing direction, so RTL mirrors without extra rules. */}
-      <div className="mt-8 grid items-start gap-8 lg:grid-cols-[minmax(0,1fr)_24rem] lg:gap-12">
+          writing direction, so RTL mirrors without extra rules.
+          `grid-cols-1` caps the mobile column at the container (minmax(0,1fr)):
+          an implicit `auto` track grows to its items' min-content, and the
+          payment recap's `truncate` address line counts at its full no-wrap
+          width, so a long billing address (any Arabic one) widened the whole
+          page past the viewport and phones zoomed out (2026-10-21). */}
+      <div className="mt-8 grid grid-cols-1 items-start gap-8 lg:grid-cols-[minmax(0,1fr)_24rem] lg:gap-12">
         <aside className="flex flex-col lg:sticky lg:top-24 lg:col-start-2 lg:row-start-1">
           <section
             className="border-sarat-black/12 rounded-card flex flex-col gap-4 border p-6"
