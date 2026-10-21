@@ -158,6 +158,7 @@ export default async function AdminAlertsPage({ params }: { params: Promise<{ lo
               </h2>
               {open.length > 1 && (
                 <AcknowledgeButton
+                  alertIds={open.map((r) => r.id)}
                   copy={{
                     ...buttonCopy,
                     label: t('alerts.acknowledgeAll'),

@@ -1,6 +1,6 @@
 import 'server-only';
 
-import { count, desc, isNull } from 'drizzle-orm';
+import { count, desc, isNotNull, isNull } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import { serverEnv } from '@/lib/env';
 import { reportError } from '@/lib/log';
@@ -8,6 +8,7 @@ import { adminAlerts } from '@/db/schema';
 import { adminGuard } from '@/features/admin/guard';
 import type { AdminAlertRow } from '@/features/admin/alerts/types';
 
+/** History cap for ACKNOWLEDGED rows only; open rows are never capped. */
 export const ALERTS_LIST_LIMIT = 100;
 
 function asRecord(value: unknown): Record<string, unknown> {
@@ -21,6 +22,11 @@ function asRecord(value: unknown): Record<string, unknown> {
  * OPS-08 — rows were written by every alert but never read back by a
  * person). Null when the read fails so the page can say so instead of
  * rendering "all clear" over an outage.
+ *
+ * Every open row, then the newest acknowledged history (2026-10-22): one
+ * newest-100 window over both let a busy day of inbound-message alerts
+ * push an unacknowledged `refund_due` off the page while the rail badge
+ * still counted it.
  */
 export async function listAdminAlerts(): Promise<AdminAlertRow[] | null> {
   if (!serverEnv.DATABASE_URL) return null;
@@ -29,12 +35,20 @@ export async function listAdminAlerts(): Promise<AdminAlertRow[] | null> {
   // is not re-run for every segment render.
   if (await adminGuard()) return null;
   try {
-    const rows = await db
-      .select()
-      .from(adminAlerts)
-      .orderBy(desc(adminAlerts.createdAt))
-      .limit(ALERTS_LIST_LIMIT);
-    return rows.map((row) => {
+    const [openRows, acknowledgedRows] = await Promise.all([
+      db
+        .select()
+        .from(adminAlerts)
+        .where(isNull(adminAlerts.acknowledgedAt))
+        .orderBy(desc(adminAlerts.createdAt)),
+      db
+        .select()
+        .from(adminAlerts)
+        .where(isNotNull(adminAlerts.acknowledgedAt))
+        .orderBy(desc(adminAlerts.createdAt))
+        .limit(ALERTS_LIST_LIMIT),
+    ]);
+    return [...openRows, ...acknowledgedRows].map((row) => {
       const detail = asRecord(row.detail);
       return {
         id: row.id,

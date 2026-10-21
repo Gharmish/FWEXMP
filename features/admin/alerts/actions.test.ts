@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { createDbFake } from '@/lib/test/db-fake';
+import { createDbFake, referencedColumns } from '@/lib/test/db-fake';
 
 vi.mock('server-only', () => ({}));
 vi.mock('next/cache', () => ({ revalidatePath: vi.fn() }));
@@ -66,8 +66,30 @@ describe('acknowledgeAlert (2026-09 engineering audit OPS-08)', () => {
     });
   });
 
-  it('acknowledgeAll clears the open list in one statement', async () => {
-    expect(await acknowledgeAllAlerts()).toEqual({ success: true });
+  it('acknowledgeAll clears the shown open rows in one statement', async () => {
+    const fd = new FormData();
+    fd.append('alertIds', ALERT_ID);
+    fd.append('alertIds', '66666666-6666-4666-8666-666666666666');
+    expect(await acknowledgeAllAlerts(initial, fd)).toEqual({ success: true });
     expect(fake.current?.updates).toHaveLength(1);
+    // Scoped to the ids the page rendered: an alert raised after page
+    // load must not be closed unseen (2026-10-22).
+    expect(referencedColumns(fake.current?.updateConditions[0])).toEqual(
+      expect.arrayContaining(['id', 'acknowledgedAt']),
+    );
+  });
+
+  it('acknowledgeAll refuses an empty or malformed id list', async () => {
+    expect(await acknowledgeAllAlerts(initial, new FormData())).toEqual({
+      success: false,
+      message: 'validation',
+    });
+    const fd = new FormData();
+    fd.append('alertIds', 'nope');
+    expect(await acknowledgeAllAlerts(initial, fd)).toEqual({
+      success: false,
+      message: 'validation',
+    });
+    expect(fake.current?.updates).toEqual([]);
   });
 });
