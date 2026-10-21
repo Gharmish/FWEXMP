@@ -80,10 +80,12 @@ const adminExperienceBase = hostExperienceInputSchema.omit({ lat: true, lng: tru
 });
 
 /**
- * The moderation approve action refuses a listing whose English list has
- * no Arabic counterpart; an admin publishing straight to `live` from this
+ * The moderation approve action refuses a listing whose list exists in
+ * one language only; an admin publishing straight to `live` from this
  * editor bypasses that action, so the same parity holds here (third-round
- * verification N7). Drafts and paused listings may still be half-done.
+ * verification N7). Both directions: since Arabic-only hosts may submit
+ * (2026-10-12, 5747750), an English list can be the empty side too.
+ * Drafts and paused listings may still be half-done.
  */
 type AdminListsInput = {
   status: string;
@@ -102,6 +104,16 @@ function requireArabicListsWhenLive(v: AdminListsInput, ctx: z.RefinementCtx): v
       code: 'custom',
       path: ['whatToBringArRaw'],
       message: 'what_to_bring_ar_required',
+    });
+  }
+  if (v.inclusionsArRaw.length > 0 && v.inclusionsRaw.length === 0) {
+    ctx.addIssue({ code: 'custom', path: ['inclusionsRaw'], message: 'inclusions_en_required' });
+  }
+  if (v.whatToBringArRaw.length > 0 && v.whatToBringRaw.length === 0) {
+    ctx.addIssue({
+      code: 'custom',
+      path: ['whatToBringRaw'],
+      message: 'what_to_bring_en_required',
     });
   }
 }
