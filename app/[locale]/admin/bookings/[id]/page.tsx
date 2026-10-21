@@ -305,7 +305,11 @@ export default async function AdminBookingDetailPage({
             pending: t('emergencyCancel.pending'),
             confirmTitle: t('emergencyCancel.confirmTitle'),
             confirmDescription: t('emergencyCancel.confirmDescription'),
-            errors: { ...actionErrors, dispute_open: t('emergencyCancel.errors.disputeOpen') },
+            errors: {
+              ...actionErrors,
+              dispute_open: t('emergencyCancel.errors.disputeOpen'),
+              wallet_unreachable: t('emergencyCancel.errors.walletUnreachable'),
+            },
           }}
         />
       )}

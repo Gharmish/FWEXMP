@@ -61,6 +61,7 @@ export interface AdminBookingActionResult {
     | 'too_late'
     | 'unpaid'
     | 'dispute_open'
+    | 'wallet_unreachable'
     | 'validation'
     | 'server';
   /** Echoed field values (the emergency form's reason survives a failure). */
@@ -451,12 +452,25 @@ export async function emergencyCancelBooking(
           refundDueSar: true,
           idempotencyKey: true,
         },
-        with: { guest: { columns: { preferredLanguage: true } } },
+        with: { guest: { columns: { preferredLanguage: true, phone: true, authUserId: true } } },
       });
       if (!booking) return 'not_found' as const;
       // `completed` stays with the disputes flow; terminal states are terminal.
       if (booking.status !== 'pending' && booking.status !== 'confirmed') {
         return 'wrong_state' as const;
+      }
+      // A guest row with NO account and NO phone can never be claimed
+      // (guest-identity.ts claims by auth id or verified phone only), so
+      // credit on it is money nobody can reach. A signed-out booking on a
+      // number an account already holds lands on exactly such a row
+      // (2026-10-11, #40). Refuse before anything moves and send the
+      // admin to the card refund instead (2026-10-13, #68).
+      if (
+        booking.paymentStatus === 'paid' &&
+        booking.guest.phone === null &&
+        booking.guest.authUserId === null
+      ) {
+        return 'wallet_unreachable' as const;
       }
       // A stamped `refundDueSar` means another refund flow (a resolved
       // dispute's executor, a queued manual refund) already owns this

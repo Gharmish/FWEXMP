@@ -1125,7 +1125,8 @@
       "confirmTitle": "Emergency cancellation",
       "confirmDescription": "This cancels the booking immediately and moves the guest's full payment into their Gharmish Credit. It can't be undone.",
       "errors": {
-        "disputeOpen": "This booking has an open dispute — resolve it from the disputes queue instead, so the money is only moved once."
+        "disputeOpen": "This booking has an open dispute — resolve it from the disputes queue instead, so the money is only moved once.",
+        "walletUnreachable": "This booking is on a guest record with no account and no phone number, so Gharmish Credit there could never be reached. Use Refund on this page to return the payment to the guest's card instead."
       }
     },
     "bookingStatus": {
