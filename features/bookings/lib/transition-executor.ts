@@ -114,6 +114,13 @@ export async function executeBookingTransition(
       return 'not_found' as const;
     }
     if (!sourcesFor(to).includes(booking.status)) return 'wrong_state' as const;
+    // Withdrawing a request is the guest's (or admin's) move; a host says
+    // no by declining. The dashboard only hid the button, so a hand-made
+    // form cancelled the request with the host-cancellation email, no
+    // `declinedAt`, and a hit to the host's cancellation rate.
+    if (actor.kind === 'host' && to === 'cancelled' && booking.status === 'pending') {
+      return 'wrong_state' as const;
+    }
 
     // Completing has FINANCIAL side effects — it makes the booking
     // payout-eligible and (being terminal) strips the guest's
