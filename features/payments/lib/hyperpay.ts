@@ -5,6 +5,7 @@ import {
   baseUrlFor,
   buildCheckoutBody,
   buildRefundBody,
+  isGatewayFault,
   isSuccessfulResult,
   NO_TRANSACTION_FOUND_CODE,
   THROTTLED_CODE,
@@ -159,6 +160,27 @@ export async function getPaymentStatus(
   const data = await parseJson<PaymentStatusResponse>(res, 'getPaymentStatus');
   if (!data.result?.code) {
     throw new Error(`HyperPay getPaymentStatus returned no result code (HTTP ${res.status})`);
+  }
+  // The gateway refusing OUR request is not a verdict on the payment
+  // (#137): HTTP 401/403 (a rotated or revoked token, an entity without
+  // access), a 5xx, or an auth / permission result code on any status.
+  // Read as `rejected` it flipped a captured booking to `failed`, emailed "your
+  // payment didn't go through" and the release pass cancelled the hold at
+  // the deadline — money taken, no booking, nobody paged. THROW instead,
+  // the rule `queryPaymentsByReference` already follows: settle answers
+  // `error` and the row stays `processing` for the webhook or reconcile
+  // retry. HTTP 400 passes through — real declines, the expired-session
+  // answer (200.300.404) and an attempt that died at the connector
+  // (`900.*` as the transaction's own result) all arrive as 400.
+  if (
+    res.status === 401 ||
+    res.status === 403 ||
+    res.status >= 500 ||
+    isGatewayFault(data.result.code)
+  ) {
+    throw new Error(
+      `HyperPay getPaymentStatus refused the request: ${data.result.code} (HTTP ${res.status})`,
+    );
   }
   return data;
 }
