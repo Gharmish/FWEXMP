@@ -21,7 +21,9 @@ export function ResolveTicketForm({ ticketId, copy }: ResolveTicketFormProps) {
       </label>
       <textarea
         id={`resolve-${ticketId}`}
+        key={state.success ? 'resolved' : 'draft'}
         name="resolutionNote"
+        defaultValue={!state.success ? state.values?.resolutionNote : ''}
         rows={2}
         maxLength={2000}
         placeholder={copy.placeholder}
