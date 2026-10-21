@@ -1,4 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import * as operators from 'drizzle-orm';
+import { PgDialect } from 'drizzle-orm/pg-core';
+import { experienceModerationEvents } from '@/db/schema';
 import { createDbFake, referencedColumns } from '@/lib/test/db-fake';
 
 vi.mock('next/cache', () => ({ revalidatePath: vi.fn() }));
@@ -15,14 +18,32 @@ vi.mock('@/features/admin/guard', () => ({
   adminGateRefused: (a: Record<string, unknown>) => 'refused' in a,
   adminFailureMessage: () => 'forbidden',
 }));
-const email = vi.fn<(id: string, decision: string) => Promise<void>>(async () => undefined);
+const email = vi.fn<(id: string, decision: string, options?: unknown) => Promise<void>>(
+  async () => undefined,
+);
 vi.mock('@/features/admin/experience-moderation/moderation-email', () => ({
-  sendExperienceModerationEmail: (id: string, decision: string) => email(id, decision),
+  sendExperienceModerationEmail: (id: string, decision: string, options?: unknown) =>
+    options === undefined ? email(id, decision) : email(id, decision, options),
 }));
 
 type Row = Record<string, unknown>;
 let experience: Row | undefined;
 let updated: Row[] = [];
+/**
+ * The `submitted` moderation events of this listing, newest first. The
+ * approval reads the one that opened the review cycle (#79): the first
+ * row the rendered predicate admits, as Postgres would return it.
+ */
+let submissions: Row[] = [];
+const dialect = new PgDialect({ casing: 'snake_case' });
+function latestSubmission(args: unknown): Row | undefined {
+  const where = (args as { where?: (t: unknown, ops: unknown) => unknown }).where;
+  const { sql: text, params } = dialect.sqlToQuery(
+    where!(experienceModerationEvents, operators) as Parameters<typeof dialect.sqlToQuery>[0],
+  );
+  const skipsResubmits = text.includes('"from_status" <> $') && params.includes('changes_requested');
+  return submissions.find((e) => !skipsResubmits || e.fromStatus !== 'changes_requested');
+}
 const fake = vi.hoisted(() => ({ current: null as ReturnType<typeof createDbFake> | null }));
 vi.mock('@/lib/db', () => ({
   get db() {
@@ -74,9 +95,13 @@ beforeEach(() => {
   actor = { adminUserId: 'admin-1' };
   experience = ready();
   updated = [{ id: ID }];
+  submissions = [{ fromStatus: 'live' }];
   email.mockClear();
   fake.current = createDbFake({
-    query: { experiences: { findFirst: () => experience } },
+    query: {
+      experiences: { findFirst: () => experience },
+      experienceModerationEvents: { findFirst: latestSubmission },
+    },
     update: () => updated,
   });
 });
@@ -153,7 +178,42 @@ describe('approveExperience', () => {
       toStatus: 'live',
       reviewerNotes: 'Great',
     });
-    expect(email).toHaveBeenCalledWith(ID, 'approved');
+    expect(email).toHaveBeenCalledWith(ID, 'approved', { returnedToPaused: false });
+  });
+
+  it('returns a listing the host had paused to paused, not live (#79)', async () => {
+    submissions = [{ fromStatus: 'paused' }];
+    expect(await run(() => approveExperience(initial, form()))).toBe(
+      `REDIRECT:/admin/experience-moderation/${ID}`,
+    );
+    expect(fake.current?.updates[0]).toMatchObject({ status: 'paused' });
+    expect(fake.current?.inserts[0]).toMatchObject({ event: 'approved', toStatus: 'paused' });
+    expect(email).toHaveBeenCalledWith(ID, 'approved', { returnedToPaused: true });
+  });
+
+  it('still goes live on a first submission with no earlier submitted event', async () => {
+    submissions = [];
+    await run(() => approveExperience(initial, form()));
+    expect(fake.current?.updates[0]).toMatchObject({ status: 'live' });
+    expect(fake.current?.inserts[0]).toMatchObject({ toStatus: 'live' });
+  });
+
+  it('keeps the pause through a change-request round: the resubmission does not hide it (review of #90)', async () => {
+    // paused → material edit (submitted from paused) → request changes →
+    // host resubmits (submitted from changes_requested) → approve.
+    submissions = [{ fromStatus: 'changes_requested' }, { fromStatus: 'paused' }];
+    expect(await run(() => approveExperience(initial, form()))).toBe(
+      `REDIRECT:/admin/experience-moderation/${ID}`,
+    );
+    expect(fake.current?.updates[0]).toMatchObject({ status: 'paused' });
+    expect(fake.current?.inserts[0]).toMatchObject({ event: 'approved', toStatus: 'paused' });
+    expect(email).toHaveBeenCalledWith(ID, 'approved', { returnedToPaused: true });
+  });
+
+  it('a resubmission after a change request on a first-time listing still goes live', async () => {
+    submissions = [{ fromStatus: 'changes_requested' }, { fromStatus: 'draft' }];
+    await run(() => approveExperience(initial, form()));
+    expect(fake.current?.updates[0]).toMatchObject({ status: 'live' });
   });
 });
 
