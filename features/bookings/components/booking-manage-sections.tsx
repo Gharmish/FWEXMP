@@ -24,7 +24,7 @@ import { getScheduleDataBySlug } from '@/features/availability/queries';
 import type { BookableOption } from '@/features/bookings/types';
 import { toArabicText } from '@/features/experiences/lib/arabic-content';
 import type { BookingDetail } from '@/features/bookings/queries';
-import type { getExperienceBySlug } from '@/features/experiences/queries';
+import type { getExperienceForBooking } from '@/features/experiences/queries';
 import type { Locale } from '@/lib/i18n';
 
 export interface BookingManageSectionsProps {
@@ -32,7 +32,7 @@ export interface BookingManageSectionsProps {
   /** The booking's uuid reference (the URL segment). */
   reference: string;
   locale: Locale;
-  experience: Awaited<ReturnType<typeof getExperienceBySlug>>;
+  experience: Awaited<ReturnType<typeof getExperienceForBooking>>;
   /** Admitted by the read-only link token — every mutating form yields to a sign-in prompt. */
   tokenOnly: boolean;
   isHoldLapsed: boolean;

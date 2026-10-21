@@ -31,6 +31,7 @@ import {
   recordOtpSend,
   recordOtpVerifyFailure,
 } from '@/features/auth/lib/throttle';
+import { isInvalidOtpError } from '@/features/auth/lib/otp-error';
 
 /**
  * Sign-in flow. Two server actions, one per form step.
@@ -319,7 +320,8 @@ export async function verifyOtp(
 
     // Brute-force guard: too many wrong codes for this email → refuse
     // further attempts for the window, regardless of what Supabase allows.
-    if (!(await otpVerifyAllowed(email))) {
+    const ip = await authClientIp();
+    if (!(await otpVerifyAllowed(email, ip))) {
       return { success: false, stage: 'code', method, message: 'rate_limited', email };
     }
 
@@ -327,10 +329,15 @@ export async function verifyOtp(
       const supabase = await getSupabaseServerClient();
       const { data, error } = await supabase.auth.verifyOtp({ email, token: code, type: 'email' });
       if (error || !data.session) {
-        const message: AuthFailure['message'] =
-          error?.status === 410 || error?.status === 401 ? 'invalid_code' : 'server';
+        // 403 `otp_expired` is what the live server answers for a wrong
+        // code (features/auth/lib/otp-error.ts) — it must count as a
+        // guess, or the throttle never fires and the guest is told the
+        // server broke.
+        const message: AuthFailure['message'] = isInvalidOtpError(error)
+          ? 'invalid_code'
+          : 'server';
         if (message === 'invalid_code') {
-          await recordOtpVerifyFailure(email, await authClientIp());
+          await recordOtpVerifyFailure(email, ip);
         }
         return {
           success: false,
@@ -402,7 +409,8 @@ export async function verifyOtp(
   }
 
   // Brute-force guard — same as the email branch.
-  if (!(await otpVerifyAllowed(phone))) {
+  const ip = await authClientIp();
+  if (!(await otpVerifyAllowed(phone, ip))) {
     return { success: false, stage: 'code', method, message: 'rate_limited', phone };
   }
 
@@ -410,10 +418,9 @@ export async function verifyOtp(
     const supabase = await getSupabaseServerClient();
     const { data, error } = await supabase.auth.verifyOtp({ phone, token: code, type: 'sms' });
     if (error || !data.session) {
-      const message: AuthFailure['message'] =
-        error?.status === 410 || error?.status === 401 ? 'invalid_code' : 'server';
+      const message: AuthFailure['message'] = isInvalidOtpError(error) ? 'invalid_code' : 'server';
       if (message === 'invalid_code') {
-        await recordOtpVerifyFailure(phone, await authClientIp());
+        await recordOtpVerifyFailure(phone, ip);
       }
       return {
         success: false,

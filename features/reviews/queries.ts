@@ -396,30 +396,34 @@ export async function getReviewsByHostSlug(
       }));
   }
   try {
-    const rows = await db
-      .select({
-        review: reviewsTable,
-        guestName: guests.name,
-        slug: experiences.slug,
-        titleEn: experiences.titleEn,
-        titleAr: experiences.titleAr,
-      })
-      .from(reviewsTable)
-      .innerJoin(experiences, eq(reviewsTable.experienceId, experiences.id))
-      .innerJoin(hosts, eq(experiences.hostId, hosts.id))
-      .innerJoin(guests, eq(reviewsTable.guestId, guests.id))
-      // Live only, as documented above: each card links to its experience,
-      // and a paused or archived listing 404s.
-      .where(
-        and(
-          eq(hosts.slug, slug),
-          eq(experiences.status, 'live'),
-          isNull(reviewsTable.hiddenAt),
-          gte(reviewsTable.rating, 4),
-        ),
-      )
-      .orderBy(desc(reviewsTable.createdAt))
-      .limit(limit);
+    // Public path (/hosts/[slug]) — hang-bounded like every other public
+    // read (2026-10-17 scan, DATA-02).
+    const rows = await boundedQuery('reviews:byHostSlug', () =>
+      db
+        .select({
+          review: reviewsTable,
+          guestName: guests.name,
+          slug: experiences.slug,
+          titleEn: experiences.titleEn,
+          titleAr: experiences.titleAr,
+        })
+        .from(reviewsTable)
+        .innerJoin(experiences, eq(reviewsTable.experienceId, experiences.id))
+        .innerJoin(hosts, eq(experiences.hostId, hosts.id))
+        .innerJoin(guests, eq(reviewsTable.guestId, guests.id))
+        // Live only, as documented above: each card links to its experience,
+        // and a paused or archived listing 404s.
+        .where(
+          and(
+            eq(hosts.slug, slug),
+            eq(experiences.status, 'live'),
+            isNull(reviewsTable.hiddenAt),
+            gte(reviewsTable.rating, 4),
+          ),
+        )
+        .orderBy(desc(reviewsTable.createdAt))
+        .limit(limit),
+    );
     return rows.map((row) => ({
       id: row.review.id,
       experienceSlug: row.slug,

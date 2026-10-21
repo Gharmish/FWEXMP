@@ -15,6 +15,7 @@ import {
   updateArabicCopySchema,
 } from '@/features/admin/experience-moderation/schemas';
 import { sendExperienceModerationEmail } from '@/features/admin/experience-moderation/moderation-email';
+import { liveGateBlocker } from '@/features/admin/experience-moderation/lib/live-gate';
 
 /**
  * Admin moderation actions on experiences.
@@ -108,45 +109,15 @@ export async function approveExperience(
       },
     });
     if (!row) return { success: false, message: 'not_found', values };
-    // Suspending a host pauses their LIVE listings; one still sitting in
-    // review could be approved straight into a catalog where nobody can
-    // book it (the booking action refuses suspended hosts). Reinstate
-    // the host first.
-    if (row.host.verificationStatus === 'suspended') {
-      return { success: false, message: 'host_suspended', values };
-    }
-    if (!row.heroImage) return { success: false, message: 'needs_hero', values };
-    if (row.titleAr.startsWith('TODO(ar') || row.descriptionAr.startsWith('TODO(ar')) {
-      return { success: false, message: 'needs_arabic', values };
-    }
-    // Hosts may draft in Arabic only (2026-08-22) — the English side is
-    // the team's to fill before the listing reaches the catalog. That
-    // includes the lists: an Arabic-only "What's included" would leave
-    // the English page without one.
-    if (
-      row.titleEn.trim() === '' ||
-      row.descriptionEn.trim() === '' ||
-      (row.inclusionsAr.length > 0 && row.inclusions.length === 0) ||
-      (row.whatToBringAr.length > 0 && row.whatToBring.length === 0)
-    ) {
-      return { success: false, message: 'needs_english', values };
-    }
-    // Host-added moments are stamped with the same placeholder — without
-    // this check the Arabic detail page ships an English-only timeline.
-    if (
-      row.moments.some(
-        (m) => m.titleAr.startsWith('TODO(ar') || m.descriptionAr.startsWith('TODO(ar'),
-      )
-    ) {
-      return { success: false, message: 'needs_arabic_moments', values };
-    }
-    // Empty Arabic lists fall back to the seed dictionary, which only
-    // covers seeded strings — host-typed items would render in English.
-    if (
-      (row.inclusions.length > 0 && row.inclusionsAr.length === 0) ||
-      (row.whatToBring.length > 0 && row.whatToBringAr.length === 0)
-    ) {
-      return { success: false, message: 'needs_arabic_lists', values };
+    // The shared live gate (lib/live-gate.ts) — the admin editor applies
+    // the same checks when it flips a listing to live. `host_unverified`
+    // is left to the conditional UPDATE below, which already refuses it.
+    const blocker = liveGateBlocker({
+      ...row,
+      hostVerificationStatus: row.host.verificationStatus,
+    });
+    if (blocker !== null && blocker !== 'host_unverified') {
+      return { success: false, message: blocker, values };
     }
 
     // Conditional update: only flips if it's still pending_review AND the

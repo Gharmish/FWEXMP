@@ -119,6 +119,37 @@ describe('notifyAdmin quiet window', () => {
     expect(dispatchNotification).not.toHaveBeenCalled();
   });
 
+  it('with persistSuppressed:false a repeat inside the window writes nothing at all', async () => {
+    // SECURITY-02: the HyperPay webhook's failed-decrypt path is reachable
+    // by anyone; a row per POST would let a stranger fill the inbox.
+    recentRows = [{ id: 'alert-earlier' }];
+    await notifyAdmin(
+      'settle_anomaly',
+      { source: 'hyperpay-webhook', problem: 'decrypt' },
+      {
+        fingerprint: 'hyperpay-webhook:decrypt',
+        quietWindowMs: 3_600_000,
+        persistSuppressed: false,
+      },
+    );
+    expect(inserted).toEqual([]);
+    expect(sendEmail).not.toHaveBeenCalled();
+    expect(dispatchNotification).not.toHaveBeenCalled();
+    // The first alert of a window is still recorded and paged.
+    recentRows = [];
+    await notifyAdmin(
+      'settle_anomaly',
+      { source: 'hyperpay-webhook', problem: 'decrypt' },
+      {
+        fingerprint: 'hyperpay-webhook:decrypt',
+        quietWindowMs: 3_600_000,
+        persistSuppressed: false,
+      },
+    );
+    expect(inserted).toHaveLength(1);
+    expect(sendEmail).toHaveBeenCalledTimes(1);
+  });
+
   it('a suppressed repeat never extends the window — the team is paged again once per window', async () => {
     recentRows = [{ id: 'alert-earlier' }];
     await notifyAdmin(

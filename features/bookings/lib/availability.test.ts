@@ -3,6 +3,7 @@ import {
   BOOKING_CUTOFF_MINUTES,
   addDays,
   bookableDates,
+  clampDeadlineToSlot,
   closedDates,
   isDateBookable,
   isHoldExpired,
@@ -12,6 +13,22 @@ import {
   startWindowClosed,
   weekdayOf,
 } from '@/features/bookings/lib/availability';
+
+describe('clampDeadlineToSlot (BOOKING-01)', () => {
+  const deadline = new Date('2026-06-05T12:00:00Z');
+  it('pulls a deadline back to a slot that now closes earlier', () => {
+    const earlier = Date.parse('2026-06-05T06:00:00Z');
+    expect(clampDeadlineToSlot(deadline, earlier)?.toISOString()).toBe('2026-06-05T06:00:00.000Z');
+  });
+  it('never extends a deadline when the slot closes later', () => {
+    const later = Date.parse('2026-06-09T06:00:00Z');
+    expect(clampDeadlineToSlot(deadline, later)).toEqual(deadline);
+  });
+  it('leaves a missing deadline or an unparseable slot alone', () => {
+    expect(clampDeadlineToSlot(null, Date.parse('2026-06-05T06:00:00Z'))).toBeNull();
+    expect(clampDeadlineToSlot(deadline, null)).toEqual(deadline);
+  });
+});
 
 describe('isHoldExpired', () => {
   const now = new Date('2026-06-04T12:00:00Z');

@@ -125,7 +125,10 @@ describe('POST /api/webhooks/hyperpay', () => {
     expect(notifyAdmin).toHaveBeenCalledWith(
       'settle_anomaly',
       expect.objectContaining({ source: 'hyperpay-webhook' }),
-      expect.objectContaining({ fingerprint: 'hyperpay-webhook:decrypt' }),
+      expect.objectContaining({
+        fingerprint: 'hyperpay-webhook:decrypt',
+        persistSuppressed: false,
+      }),
     );
   });
 

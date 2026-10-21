@@ -6,6 +6,7 @@ import { reportError } from '@/lib/log';
 import { sourcesFor, type BookingTransitionTarget } from '@/features/bookings/lib/transitions';
 import {
   ACTIVE_BOOKING_STATUSES,
+  MIN_PAYMENT_WINDOW_MS,
   nowMinutesInRiyadh,
   remainingCapacity,
   startWindowClosed,
@@ -24,9 +25,6 @@ import {
   sendBookingExpiredEmail,
   sendHostBookingCancelledEmail,
 } from '@/features/bookings/lib/booking-email';
-
-/** Shortest post-approval payment window worth opening (GAPA-03). */
-const MIN_PAYMENT_WINDOW_MS = 30 * 60_000;
 
 /**
  * The ONE booking-transition executor, shared by the admin and host

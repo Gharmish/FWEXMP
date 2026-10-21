@@ -5,7 +5,7 @@ import { LAST_BOOKING_COOKIE, parseLastBookingCookie } from '@/features/account/
 
 import { getBookingByReference } from '@/features/bookings/queries';
 import { getReviewForBooking } from '@/features/reviews/queries';
-import { getExperienceBySlug } from '@/features/experiences/queries';
+import { getExperienceForBooking } from '@/features/experiences/queries';
 
 export type { LastBookingReview, LastBookingView } from '@/features/account/types';
 import type { LastBookingView } from '@/features/account/types';
@@ -27,7 +27,7 @@ export async function getLastBookingView(): Promise<LastBookingView | null> {
   if (!hint) return null;
   const [booking, experience] = await Promise.all([
     getBookingByReference(hint.reference),
-    getExperienceBySlug(hint.experienceSlug),
+    getExperienceForBooking(hint.experienceSlug),
   ]);
   const raw =
     booking && booking.status === 'completed' ? await getReviewForBooking(booking.id) : null;

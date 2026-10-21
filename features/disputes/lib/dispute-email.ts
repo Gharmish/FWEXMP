@@ -6,6 +6,7 @@ import { db } from '@/lib/db';
 import { hasEmail } from '@/lib/env';
 import type { Locale } from '@/lib/i18n';
 import { formatSAR } from '@/lib/format';
+import { getPlatformSettings } from '@/lib/platform-settings';
 import { dispatchNotification } from '@/lib/notifications/dispatch';
 import { hostNotificationContact } from '@/lib/notifications/host-contact';
 import { SITE_URL } from '@/lib/site';
@@ -64,6 +65,23 @@ export async function sendDisputeResolvedEmail(
     rows.push({ label: t('refundLabel'), value: formatSAR(refundAmountSar, locale) });
   }
 
+  // A queued refund on the manual bank-transfer rail cannot move until
+  // the guest says where to send it (2026-10-17 scan, MONEY-01): the
+  // dispute form collects no bank details, so a pending refund with no
+  // payee on file must ask for them — the same needs-bank branch the
+  // cancellation email takes — instead of promising to "confirm as soon
+  // as it's on its way". Same settings read as executeRefund; it
+  // degrades to the manual default on error.
+  const payeeOnFile =
+    Boolean(dispute.booking.refundBankName) &&
+    Boolean(dispute.booking.refundBeneficiaryName) &&
+    Boolean(dispute.booking.refundIban);
+  const needsBank =
+    refundAmountSar !== null &&
+    refundOutcome === 'refund_pending' &&
+    !payeeOnFile &&
+    (await getPlatformSettings()).refundsViaBankTransfer;
+
   const { html, text } = renderReceiptEmail({
     logoUrl: EMAIL_LOGO_URL,
     subject: t('subject'),
@@ -73,11 +91,13 @@ export async function sendDisputeResolvedEmail(
       refundAmountSar === null
         ? t('intro')
         : refundOutcome === 'refund_pending'
-          ? t('introWithRefundPending')
+          ? t(needsBank ? 'introWithRefundPendingNeedsBank' : 'introWithRefundPending')
           : t('introWithRefund'),
     rows,
     cta: {
-      label: t('viewBookingCta'),
+      // The bank-details form lives on the tokened booking page, which
+      // is where this link already pointed.
+      label: t(needsBank ? 'addBankDetailsCta' : 'viewBookingCta'),
       // The URL takes the reference UUID, never the GH- code: the page
       // 404s on anything that isn't UUID-shaped (2026-08-09).
       url: bookingManageUrl(locale, dispute.booking.idempotencyKey),

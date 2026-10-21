@@ -22,7 +22,7 @@ import { PrintButton } from '@/components/ui/print-button';
 import { GharmishLogo } from '@/components/layout/gharmish-logo';
 import { getBookingViewForViewer } from '@/features/bookings/queries';
 import { BOOKING_LINK_TOKEN_PARAM, bookingInvoiceUrl } from '@/lib/booking-link-token';
-import { getExperienceBySlug } from '@/features/experiences/queries';
+import { getExperienceForBooking } from '@/features/experiences/queries';
 import { toArabicText } from '@/features/experiences/lib/arabic-content';
 import { startInstant } from '@/features/bookings/lib/cancellation';
 import { halalasToSar, vatPortionHalalas, vatRatePercent } from '@/features/bookings/lib/vat';
@@ -133,7 +133,7 @@ export default async function BookingInvoicePage({ params, searchParams }: PageP
   // Issued invoices are immutable: prefer the settlement snapshots and
   // fall back to live lookups only for rows settled before the columns
   // existed. A later rename never rewrites this document.
-  const experience = await getExperienceBySlug(booking.experienceSlug);
+  const experience = await getExperienceForBooking(booking.experienceSlug);
   const snapshotTitle = loc === 'ar' ? booking.invoiceItemAr : booking.invoiceItemEn;
   const title =
     snapshotTitle ?? (experience ? (loc === 'ar' ? experience.titleAr : experience.titleEn) : null);

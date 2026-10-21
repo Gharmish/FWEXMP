@@ -20,7 +20,8 @@ vi.mock('@/lib/env', () => ({
   serverEnv: { DATABASE_URL: 'postgres://test' },
 }));
 
-const { collectedRevenue, paymentCollected } = await import('@/features/bookings/lib/payout-sql');
+const { collectedRevenue, noOpenDispute, paymentCollected } =
+  await import('@/features/bookings/lib/payout-sql');
 
 /**
  * Render an SQL fragment to the text the driver actually sends. The
@@ -32,6 +33,17 @@ const { collectedRevenue, paymentCollected } = await import('@/features/bookings
 function render(fragment: ReturnType<typeof collectedRevenue>): string {
   return new PgDialect({ casing: 'snake_case' }).sqlToQuery(fragment).sql;
 }
+
+describe('noOpenDispute (MONEY-02)', () => {
+  it('correlates on the fully-named bookings table so a single-table select cannot be ambiguous', () => {
+    const sql = render(noOpenDispute());
+    expect(sql).toBe(
+      "not exists (select 1 from disputes d where d.booking_id = bookings.id and d.status = 'open')",
+    );
+    // A bare `"id"` here would be ambiguous inside the subquery (42702).
+    expect(sql).not.toContain('"id"');
+  });
+});
 
 describe('collectedRevenue', () => {
   it('gates on BOTH the revenue statuses and collected payment', () => {
