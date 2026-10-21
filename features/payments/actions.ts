@@ -3,6 +3,7 @@
 import { UUID_RE } from '@/lib/uuid';
 import { and, eq, isNull, inArray, or, sql } from 'drizzle-orm';
 import { headers } from 'next/headers';
+import { after } from 'next/server';
 import { z } from 'zod';
 import { db } from '@/lib/db';
 import { serverEnv, hasHyperpay, hasHyperpayApplePay } from '@/lib/env';
@@ -27,6 +28,7 @@ import {
   isThrottled,
 } from '@/features/payments/lib/hyperpay-core';
 import { settleBooking, type KnownGatewayStatus } from '@/features/payments/settle';
+import { sendBookingReceiptEmail } from '@/features/bookings/lib/booking-email';
 import type { PaymentChannel, PaymentOutcome } from '@/features/payments/types';
 import {
   countPaymentEventsSince,
@@ -497,6 +499,19 @@ export async function createCheckout(
       let retiredBySettle = false;
       if (existingOutcome === 'success' || sessionGone) {
         const settled = await settleBooking(input.reference, probe);
+        // Sending the receipt is the caller's job on the actual paid flip,
+        // as in the return route, the webhook and the reconcile pass. When
+        // THIS request wins the flip, no later path will send it: a late
+        // return/webhook reads `already_settled` and reconcile skips paid
+        // rows (2026-10-13, #67). Best-effort, past the response.
+        if (settled === 'success') {
+          const reference = input.reference;
+          after(() =>
+            sendBookingReceiptEmail(reference).catch((error: unknown) =>
+              reportError(error, { surface: 'payment-create-checkout:receipt', reference }),
+            ),
+          );
+        }
         if (settled === 'success' || settled === 'already_settled') {
           return { status: 'error', message: 'alreadyPaid', values: echoValues(formData) };
         }
