@@ -25,7 +25,14 @@ interface Copy {
   /** Per-field validation messages keyed by the zod message keys. */
   errors: Record<'required' | 'invalid_email' | 'invalid_phone', string>;
   formErrors: Record<
-    'forbidden' | 'no_db' | 'not_found' | 'wrong_state' | 'account_email' | 'validation' | 'server',
+    | 'forbidden'
+    | 'no_db'
+    | 'not_found'
+    | 'wrong_state'
+    | 'account_email'
+    | 'shared_guest'
+    | 'validation'
+    | 'server',
     string
   >;
 }

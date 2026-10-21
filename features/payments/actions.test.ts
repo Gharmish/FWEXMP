@@ -1,4 +1,5 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import { is, sql, StringChunk } from 'drizzle-orm';
 
 // Freeze the clock so fixtures built from `new Date()` never drift across
 // midnight or DST (2026-09 engineering audit TEST-13). Only Date is faked;
@@ -118,6 +119,7 @@ let winner: Record<string, unknown> | undefined;
 let claimRows: Array<{ id: string }> = [{ id: 'b-1' }];
 const setCalls: Array<Record<string, unknown>> = [];
 const whereColumns: string[][] = [];
+const whereConditions: unknown[] = [];
 vi.mock('@/lib/db', () => ({
   db: {
     // Money flips and their ledger rows run in one transaction (DATA-03);
@@ -135,6 +137,7 @@ vi.mock('@/lib/db', () => ({
         return {
           where: (condition: unknown) => {
             whereColumns.push(columnNamesIn(condition));
+            whereConditions.push(condition);
             const p = Promise.resolve(undefined) as Promise<unknown> & {
               returning: () => Promise<unknown[]>;
             };
@@ -146,6 +149,29 @@ vi.mock('@/lib/db', () => ({
     }),
   },
 }));
+
+const noOtherBookingOnGuestRow = vi.fn((exceptBookingId: string | null) =>
+  sql.raw(`not-shared-guard:${exceptBookingId}`),
+);
+vi.mock('@/features/bookings/lib/shared-guest', () => ({
+  noOtherBookingOnGuestRow: (id: string | null) => noOtherBookingOnGuestRow(id),
+}));
+
+/** Every raw string chunk in a drizzle SQL tree. */
+function rawChunksIn(node: unknown, found: string[] = [], seen = new WeakSet<object>()): string[] {
+  if (!node || typeof node !== 'object') return found;
+  if (seen.has(node)) return found;
+  seen.add(node);
+  if (is(node, StringChunk)) {
+    found.push(node.value.join(''));
+    return found;
+  }
+  for (const value of Object.values(node as Record<string, unknown>)) {
+    if (Array.isArray(value)) value.forEach((v) => rawChunksIn(v, found, seen));
+    else if (value && typeof value === 'object') rawChunksIn(value, found, seen);
+  }
+  return found;
+}
 
 import { createCheckout, type CreateCheckoutState } from './actions';
 
@@ -181,6 +207,8 @@ beforeEach(() => {
   claimRows = [{ id: 'b-1' }];
   setCalls.length = 0;
   whereColumns.length = 0;
+  whereConditions.length = 0;
+  noOtherBookingOnGuestRow.mockClear();
   winner = undefined;
   settleOutcome = 'error';
   createdEvent = null;
@@ -204,6 +232,19 @@ beforeEach(() => {
     termsVersion: null,
     experience: { status: 'live', host: { verificationStatus: 'verified' } },
   };
+});
+
+describe('createCheckout — guest email backfill', () => {
+  it('backfills the payment-step email only onto a row no other booking reads (#120)', async () => {
+    const out = await createCheckout(initial, form());
+    expect(out.status).toBe('ready');
+    const at = setCalls.findIndex((v) => v.email === 'sara@example.com');
+    expect(at, 'the set-if-empty email write ran').toBeGreaterThanOrEqual(0);
+    expect(whereColumns[at]).toEqual(expect.arrayContaining(['id', 'email']));
+    expect(noOtherBookingOnGuestRow).toHaveBeenCalledTimes(1);
+    expect(noOtherBookingOnGuestRow).toHaveBeenCalledWith('b-1');
+    expect(rawChunksIn(whereConditions[at])).toContain('not-shared-guard:b-1');
+  });
 });
 
 describe('createCheckout — gates', () => {
