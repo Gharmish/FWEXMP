@@ -145,7 +145,9 @@ export default async function HomePage({
         url: SITE_URL,
         logo: `${SITE_URL}/images/gharmish-wordmark.png`,
         description: tSite('description'),
-        areaServed: 'Abha, Aseer, Saudi Arabia',
+        // Localized like `description`: the Arabic home page carried an
+        // English place name here (2026-10-14 SEO audit, SEO-32).
+        areaServed: tSite('areaServed'),
         // Contact + place (2026-10-11 SEO audit, SEO-14): the knowledge-panel
         // signals Google asks of an Organization. `sameAs` (social profiles)
         // is deliberately absent until the owner confirms the official
