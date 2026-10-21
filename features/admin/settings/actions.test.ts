@@ -20,7 +20,7 @@ import { updateTag } from 'next/cache';
 import { updateCancellationPolicies, updateSettings } from './actions';
 
 const initial = { success: false as const };
-function settingsForm(over: Record<string, string> = {}) {
+function settingsForm(over: Record<string, string> = {}, loaded: readonly string[] = []) {
   const fd = new FormData();
   const base: Record<string, string> = {
     commissionPct: '12.5',
@@ -36,6 +36,7 @@ function settingsForm(over: Record<string, string> = {}) {
   for (const [k, v] of Object.entries({ ...base, ...over })) fd.set(k, v);
   fd.append('enabledCategories', 'nature');
   fd.append('enabledCategories', 'food');
+  for (const cat of loaded) fd.append('loadedCategories', cat);
   return fd;
 }
 function policyForm(over: Record<string, string> = {}) {
@@ -101,6 +102,25 @@ describe('updateSettings', () => {
       vatRateBps: 1500,
       refundsViaBankTransfer: true,
     });
+  });
+});
+
+describe('updateSettings — category set shared with /admin/catalog (2026-10-22)', () => {
+  it('leaves enabledCategories alone when the form did not change them', async () => {
+    // Page loaded with nature+food; a catalog toggle has since changed
+    // the row. Saving VAT must not write the stale set back.
+    expect(await updateSettings(initial, settingsForm({}, ['food', 'nature']))).toEqual({
+      success: true,
+    });
+    expect(fake.current?.upserts[0]?.set).not.toHaveProperty('enabledCategories');
+    expect(fake.current?.upserts[0]?.set).toMatchObject({ defaultCommissionBps: 1250 });
+  });
+
+  it('writes enabledCategories when the admin changed them on this form', async () => {
+    expect(await updateSettings(initial, settingsForm({}, ['nature', 'food', 'heritage']))).toEqual(
+      { success: true },
+    );
+    expect(fake.current?.upserts[0]?.set).toMatchObject({ enabledCategories: ['nature', 'food'] });
   });
 });
 
