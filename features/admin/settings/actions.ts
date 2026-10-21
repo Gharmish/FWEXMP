@@ -99,6 +99,18 @@ export async function updateSettings(
   }
 
   const input = parsed.data;
+  // /admin/catalog writes the same column (setCategoryEnabled). Write the
+  // category set only when the admin changed it on THIS form — the hidden
+  // set it posts is the one the page loaded, so saving VAT from a page
+  // opened before a catalog toggle silently undid that toggle
+  // (2026-10-22). A post without the loaded set writes it, as before.
+  const loadedCategories = formData
+    .getAll('loadedCategories')
+    .filter((v): v is string => typeof v === 'string');
+  const categoriesChanged =
+    loadedCategories.length === 0 ||
+    loadedCategories.length !== input.enabledCategories.length ||
+    input.enabledCategories.some((c) => !loadedCategories.includes(c));
   const defaultCommissionBps = commissionPctToBps(input.commissionPct);
   const vatRateBps = commissionPctToBps(input.vatRatePct);
   const gatewayFeeBps = commissionPctToBps(input.gatewayFeePct);
@@ -130,7 +142,7 @@ export async function updateSettings(
         target: platformSettings.id,
         set: {
           defaultCommissionBps,
-          enabledCategories: input.enabledCategories,
+          ...(categoriesChanged ? { enabledCategories: input.enabledCategories } : {}),
           approvalWindowHours: input.approvalWindowHours,
           approvalPaymentWindowHours: input.approvalPaymentWindowHours,
           announcementEn: input.announcementEn || null,
