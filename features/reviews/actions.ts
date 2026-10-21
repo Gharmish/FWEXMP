@@ -4,6 +4,7 @@ import { and, eq, gt, gte, isNull, sql } from 'drizzle-orm';
 import { revalidatePath } from 'next/cache';
 import { revalidateReviewCaches } from '@/lib/cache-tags';
 import { db } from '@/lib/db';
+import { isUniqueViolation } from '@/lib/db-errors';
 import { serverEnv } from '@/lib/env';
 import { bookings, reviews } from '@/db/schema';
 import { redirect } from '@/lib/i18n';
@@ -133,8 +134,10 @@ export async function submitReview(
     });
   } catch (error) {
     // Unique-violation race (two tabs submitting at once) reads as a
-    // duplicate; surface it as already-reviewed rather than a 500.
-    if (error instanceof Error && /unique|duplicate/i.test(error.message)) {
+    // duplicate; surface it as already-reviewed rather than a 500. Matched
+    // by code through drizzle's cause chain, never by message: the wrapped
+    // message is the SQL plus its params, i.e. the guest's own review text.
+    if (isUniqueViolation(error)) {
       return { success: false, message: 'already_reviewed', values };
     }
     reportError(error, { surface: 'reviews:submitReview', bookingReference });

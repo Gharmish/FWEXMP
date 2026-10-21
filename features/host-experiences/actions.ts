@@ -4,6 +4,7 @@ import { and, count, eq, sql } from 'drizzle-orm';
 import { revalidatePath } from 'next/cache';
 import { revalidateExperienceCaches } from '@/lib/cache-tags';
 import { db } from '@/lib/db';
+import { isUniqueViolation } from '@/lib/db-errors';
 import { AR_PLACEHOLDER } from '@/lib/ar-placeholder';
 import { serverEnv } from '@/lib/env';
 import { bookings, experiences, experienceModerationEvents, hosts, moments } from '@/db/schema';
@@ -371,8 +372,7 @@ export async function createDraftExperience(
     } catch (error) {
       // Postgres unique violation on `experiences.slug` — retry with a
       // fresh suffix. Anything else is a real error.
-      const code = (error as { code?: string })?.code;
-      if (code === '23505') continue;
+      if (isUniqueViolation(error)) continue;
       reportError(error, { surface: 'host-experiences:create' });
       return { success: false, message: 'server', values: collectValues(formData) };
     }
@@ -865,8 +865,7 @@ export async function duplicateHostExperience(
         });
         break;
       } catch (error) {
-        const code = (error as { code?: string })?.code;
-        if (code === '23505') continue; // slug collision — fresh suffix
+        if (isUniqueViolation(error)) continue; // slug collision — fresh suffix
         throw error;
       }
     }
