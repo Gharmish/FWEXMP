@@ -2,7 +2,8 @@
   "siteMeta": {
     "name": "Gharmish",
     "homeTitle": "Gharmish — Experiences in Abha & Aseer",
-    "description": "Curated experiences hosted by the people who know the place best — starting in Abha, Aseer."
+    "description": "Curated experiences hosted by the people who know the place best — starting in Abha, Aseer.",
+    "areaServed": "Abha, Aseer, Saudi Arabia"
   },
   "nav": {
     "discover": "Discover",
