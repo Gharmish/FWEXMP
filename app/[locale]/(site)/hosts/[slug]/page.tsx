@@ -6,6 +6,7 @@ import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { Link, permanentRedirect, ogLocaleFor } from '@/lib/i18n';
 import { routing, type Locale } from '@/lib/i18n';
 import { SITE_URL } from '@/lib/site';
+import { clampDescription } from '@/lib/meta-description';
 import { cn } from '@/lib/utils';
 import { Avatar } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
@@ -35,21 +36,6 @@ import { WishlistButton } from '@/features/wishlist/components/wishlist-button';
 const LEGACY_HOST_SLUGS: Readonly<Record<string, string>> = {
   'faisal-al-qahtani': 'abdulaziz-alasmari',
 };
-
-/**
- * Meta descriptions come from the host bio — DB free text with no length
- * guarantee. Clamp to ~160 characters at a word boundary so the snippet
- * never gets machine-truncated mid-word in search results.
- */
-const META_DESCRIPTION_MAX = 160;
-
-function clampDescription(text: string): string {
-  const normalized = text.replace(/\s+/g, ' ').trim();
-  if (normalized.length <= META_DESCRIPTION_MAX) return normalized;
-  const cut = normalized.slice(0, META_DESCRIPTION_MAX - 1);
-  const lastSpace = cut.lastIndexOf(' ');
-  return `${lastSpace > 0 ? cut.slice(0, lastSpace) : cut}…`;
-}
 
 export async function generateMetadata({
   params,
@@ -175,7 +161,8 @@ export default async function HostProfilePage({
       {
         '@type': isOrganization ? 'Organization' : 'Person',
         '@id': `${url}#host`,
-        name: host.name,
+        // The visible h1's name: the Arabic page shows the Arabic form.
+        name,
         // Locale-appropriate bio (English fallback via pickLocalized) —
         // the Arabic page must not describe the host in English.
         description: bio,
@@ -194,7 +181,7 @@ export default async function HostProfilePage({
             name: tHostsIndex('meta.title'),
             item: `${SITE_URL}/${loc}/hosts`,
           },
-          { '@type': 'ListItem', position: 3, name: host.name, item: url },
+          { '@type': 'ListItem', position: 3, name, item: url },
         ],
       },
     ],
