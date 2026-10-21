@@ -5,6 +5,7 @@ import { eq } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import { promoCodes } from '@/db/schema';
 import { reportError } from '@/lib/log';
+import { RIYADH_OFFSET } from '@/lib/riyadh-time';
 import { adminFailureMessage, adminGateRefused, requireAdminActor } from '@/features/admin/guard';
 import { createPromoCodeSchema, setPromoActiveSchema } from '@/features/promo-codes/schemas';
 
@@ -48,10 +49,16 @@ function optionalInt(value: '' | number): number | null {
   return value === '' ? null : value;
 }
 
-/** '' | undefined | 'YYYY-MM-DDTHH:MM' → Date | null. */
+/**
+ * '' | undefined | 'YYYY-MM-DDTHH:MM' → Date | null. The form's
+ * `datetime-local` value carries no offset, and `new Date()` would read
+ * it in the server's zone (UTC on Vercel) — 3 hours off. The admin types
+ * Riyadh wall-clock time, so pin the offset.
+ */
 function optionalDate(value: string | undefined): Date | null {
   if (!value) return null;
-  const d = new Date(value);
+  const local = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2})?$/.exec(value);
+  const d = local ? new Date(`${value}${local[1] ? '' : ':00'}${RIYADH_OFFSET}`) : new Date(value);
   return Number.isNaN(d.getTime()) ? null : d;
 }
 
