@@ -157,8 +157,13 @@ export async function generateMetadata({
   const title = pickLocalized(locale, exp.titleEn, exp.titleAr);
   const description = clampDescription(pickLocalized(locale, exp.descriptionEn, exp.descriptionAr));
   const url = `${SITE_URL}/${locale}/experiences/${slug}`;
+  // The layout template appends ` · Gharmish`; on a long listing title that
+  // pushes the SERP title past ~60 characters, where Google cuts it mid-word
+  // (2026-10-21 SEO audit, SEO-34). Drop the suffix there, never the title.
+  const tSite = await getTranslations({ locale, namespace: 'siteMeta' });
+  const templatedLength = title.length + ` · ${tSite('name')}`.length;
   return {
-    title,
+    title: templatedLength > 60 ? { absolute: title } : title,
     description,
     alternates: {
       canonical: url,
