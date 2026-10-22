@@ -55,7 +55,15 @@ describe('bookingFilterWhere (2026-09 engineering audit DATA-04)', () => {
     expect(sql).toContain('"bookings"."idempotency_key" ilike $1');
     expect(sql).toContain('"guests"."name" ilike $3');
     expect(sql).toContain('"experiences"."title_en" ilike $4');
-    expect(params).toEqual(['%dawn%', '%dawn%', '%dawn%', '%dawn%']);
+    expect(sql).toContain('"experiences"."title_ar" ilike $5');
+    expect(params).toEqual(['%dawn%', '%dawn%', '%dawn%', '%dawn%', '%dawn%']);
+  });
+
+  it('a short code with digits in it does not take the phone branch', () => {
+    // GH-ABC7DE used to add `phone like '%7%'`, matching most of the ledger.
+    const { sql, params } = render(bookingFilterWhere({ q: 'GH-ABC7DE', todayStr: today }));
+    expect(sql).not.toContain('regexp_replace');
+    expect(params).toEqual(Array(5).fill('%gh-abc7de%'));
   });
 
   it('searches phones by digits, with and without the local leading zero', () => {
@@ -65,6 +73,9 @@ describe('bookingFilterWhere (2026-09 engineering audit DATA-04)', () => {
     );
     expect(params).toContain('%0512345%');
     expect(params).toContain('%512345%');
+    expect(render(bookingFilterWhere({ q: '+966 (51) 234-5', todayStr: today })).params).toContain(
+      '%966512345%',
+    );
   });
 
   it('escapes LIKE metacharacters in the needle', () => {
