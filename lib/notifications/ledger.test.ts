@@ -22,6 +22,8 @@ const insertedValues: Array<Record<string, unknown>> = [];
 const updateSets: Array<Record<string, unknown>> = [];
 /** Which ON CONFLICT arm each insert used: `nothing` or `update`. */
 const conflictModes: string[] = [];
+/** The `set` payload of each ON CONFLICT DO UPDATE. */
+const conflictSets: Array<Record<string, unknown>> = [];
 let deleteCount = 0;
 let insertConflict = false;
 let dbFails = false;
@@ -59,8 +61,9 @@ vi.mock('@/lib/db', () => ({
               },
             };
           },
-          onConflictDoUpdate: () => {
+          onConflictDoUpdate: (options?: { set?: Record<string, unknown> }) => {
             conflictModes.push('update');
+            conflictSets.push(options?.set ?? {});
             return {
               returning: async () => insertResult(),
               // `addSuppression`'s widen-to-all arm awaits the builder
@@ -152,6 +155,7 @@ beforeEach(() => {
   insertedValues.length = 0;
   updateSets.length = 0;
   conflictModes.length = 0;
+  conflictSets.length = 0;
   deleteCount = 0;
   insertConflict = false;
   dbFails = false;
@@ -208,10 +212,16 @@ describe('claimDelivery', () => {
     expect(conflictModes).toEqual(['update']);
   });
 
-  it('a suppressed claim only records — it never re-claims a failed row', async () => {
+  it('a suppressed claim never re-claims a failed row — it closes it as suppressed', async () => {
     await claimDelivery({ ...claim, suppressed: true });
 
-    expect(conflictModes).toEqual(['nothing']);
+    // A hard bounce leaves the row `failed` and suppresses the address;
+    // the next retry's suppressed claim must take the row out of the
+    // retry sweep (status suppressed) without queueing a send or
+    // spending an attempt (2026-10-22).
+    expect(conflictModes).toEqual(['update']);
+    expect(conflictSets[0]).toMatchObject({ status: 'suppressed' });
+    expect(conflictSets[0]).not.toHaveProperty('attempts');
   });
 });
 
@@ -321,6 +331,18 @@ describe('applyProviderStatus', () => {
     await applyProviderStatus('SM-1', 'sent');
 
     expect(updateSets[0]).toMatchObject({ status: 'sent' });
+  });
+
+  it('keeps a suppressed row closed on a late sent/delivered callback (2026-10-22)', async () => {
+    // A failed WhatsApp row the suppressed claim closed keeps its
+    // provider message id; the original message's late callback must
+    // not move it back to sent, which would misreport the ledger.
+    deliveryRow = { id: 'del-1', status: 'suppressed' };
+
+    await applyProviderStatus('SM-1', 'sent');
+    await applyProviderStatus('SM-1', 'delivered');
+
+    expect(updateSets).toHaveLength(0);
   });
 
   it('ignores an unknown provider message id', async () => {
