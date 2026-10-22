@@ -6,8 +6,10 @@ import { acknowledgeAlert, acknowledgeAllAlerts } from '@/features/admin/alerts/
 import type { AlertActionMessage, AlertActionState } from '@/features/admin/alerts/types';
 
 export interface AcknowledgeButtonProps {
-  /** One alert, or every open alert when omitted. */
+  /** One alert, or — when omitted — the open alerts listed in `alertIds`. */
   alertId?: string;
+  /** The open alerts the page showed; "acknowledge all" closes only these. */
+  alertIds?: readonly string[];
   copy: {
     label: string;
     pending: string;
@@ -17,7 +19,7 @@ export interface AcknowledgeButtonProps {
 
 const initial: AlertActionState = { success: false };
 
-export function AcknowledgeButton({ alertId, copy }: AcknowledgeButtonProps) {
+export function AcknowledgeButton({ alertId, alertIds, copy }: AcknowledgeButtonProps) {
   const [state, action, pending] = useActionState(
     alertId ? acknowledgeAlert : acknowledgeAllAlerts,
     initial,
@@ -26,6 +28,8 @@ export function AcknowledgeButton({ alertId, copy }: AcknowledgeButtonProps) {
   return (
     <form action={action} className="flex flex-col items-start gap-2">
       {alertId && <input type="hidden" name="alertId" value={alertId} />}
+      {!alertId &&
+        alertIds?.map((id) => <input key={id} type="hidden" name="alertIds" value={id} />)}
       <Button type="submit" variant={alertId ? 'secondary' : 'primary'} size="sm" pending={pending}>
         {pending ? copy.pending : copy.label}
       </Button>

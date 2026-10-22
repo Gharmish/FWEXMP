@@ -1211,6 +1211,7 @@
       "title": "Admin alerts",
       "intro": "Everything the platform paged you about — money anomalies, failed jobs, missing configuration, support escalations. Acknowledge an alert once you have looked at it. Repeats inside an alert's quiet window are recorded here without paging again.",
       "open": "{count, plural, =0 {Nothing open} one {# needs a look} other {# need a look}}",
+      "openCapped": "Showing the newest {shown} of {total} open alerts. Acknowledge these to see the rest.",
       "acknowledged": "{count, plural, one {# acknowledged} other {# acknowledged}}",
       "acknowledge": "Acknowledge",
       "acknowledging": "Acknowledging",

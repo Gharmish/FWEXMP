@@ -26,13 +26,25 @@ const row = {
   createdAt: new Date('2026-10-09T00:00:00Z'),
 };
 
+const acknowledgedRow = {
+  ...row,
+  id: 'a2',
+  acknowledgedAt: new Date('2026-10-09T01:00:00Z'),
+  createdAt: new Date('2026-10-10T00:00:00Z'),
+};
+let listCalls = 0;
+
 beforeEach(() => {
   refusal = null;
+  listCalls = 0;
   selected.mockReset();
   fake.current = createDbFake({
     select: (shape) => {
       selected(shape);
-      return 'n' in shape ? [{ n: 1 }] : [row];
+      if ('n' in shape) return [{ n: 1 }];
+      // First list read = open rows, second = acknowledged history.
+      listCalls += 1;
+      return listCalls % 2 === 1 ? [row] : [acknowledgedRow];
     },
   });
 });
@@ -44,8 +56,22 @@ beforeEach(() => {
  */
 describe('admin alert queries', () => {
   it('lists alerts for a verified admin', async () => {
-    expect(await listAdminAlerts()).toMatchObject([{ id: 'a1', kind: 'guest_whatsapp_inbound' }]);
+    expect(await listAdminAlerts()).toMatchObject([
+      { id: 'a1', kind: 'guest_whatsapp_inbound' },
+      { id: 'a2' },
+    ]);
     expect(await countOpenAlerts()).toBe(1);
+  });
+
+  it('reads open rows separately from the capped history (2026-10-22)', async () => {
+    // A newer acknowledged row must not push an older open one out of
+    // the list: open rows come from their own uncapped read, first.
+    const rows = await listAdminAlerts();
+    expect(listCalls).toBe(2);
+    expect(rows?.map((r) => [r.id, r.acknowledgedAt === null])).toEqual([
+      ['a1', true],
+      ['a2', false],
+    ]);
   });
 
   it('reads nothing when the caller is not a verified admin', async () => {
