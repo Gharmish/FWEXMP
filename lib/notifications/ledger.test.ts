@@ -333,6 +333,18 @@ describe('applyProviderStatus', () => {
     expect(updateSets[0]).toMatchObject({ status: 'sent' });
   });
 
+  it('keeps a suppressed row closed on a late sent/delivered callback (2026-10-22)', async () => {
+    // A failed WhatsApp row the suppressed claim closed keeps its
+    // provider message id; the original message's late callback must
+    // not move it back to sent, which would misreport the ledger.
+    deliveryRow = { id: 'del-1', status: 'suppressed' };
+
+    await applyProviderStatus('SM-1', 'sent');
+    await applyProviderStatus('SM-1', 'delivered');
+
+    expect(updateSets).toHaveLength(0);
+  });
+
   it('ignores an unknown provider message id', async () => {
     deliveryRow = undefined;
 

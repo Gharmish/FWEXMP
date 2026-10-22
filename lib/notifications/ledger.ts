@@ -171,6 +171,11 @@ export async function applyProviderStatus(
       columns: { id: true, status: true },
     });
     if (!row) return;
+    // A row closed as `suppressed` is terminal (2026-10-22): it ranks 0,
+    // so a late Twilio `sent`/`delivered` callback for the original
+    // message would otherwise reopen it. Before the suppressed claim
+    // closed `failed` rows, their top rank blocked those callbacks.
+    if (row.status === 'suppressed') return;
     const currentRank = row.status in STATUS_RANK ? STATUS_RANK[row.status as WebhookStatus] : 0;
     if (STATUS_RANK[status] <= currentRank) return;
     await db
