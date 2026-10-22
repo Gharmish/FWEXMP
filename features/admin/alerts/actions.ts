@@ -8,10 +8,13 @@ import { serverEnv } from '@/lib/env';
 import { reportError } from '@/lib/log';
 import { adminAlerts } from '@/db/schema';
 import { adminFailureMessage, adminGateRefused, requireAdminActor } from '@/features/admin/guard';
+import { OPEN_ALERTS_LIMIT } from '@/features/admin/alerts/queries';
 import type { AlertActionState } from '@/features/admin/alerts/types';
 
 const alertIdSchema = z.object({ alertId: z.uuid() });
-const alertIdsSchema = z.object({ alertIds: z.array(z.uuid()).min(1).max(1000) });
+// The page never renders more open ids than OPEN_ALERTS_LIMIT, so a
+// post of exactly the cap must pass (2026-10-22).
+const alertIdsSchema = z.object({ alertIds: z.array(z.uuid()).min(1).max(OPEN_ALERTS_LIMIT) });
 
 function revalidateAlertSurfaces() {
   revalidatePath('/[locale]/admin/alerts', 'page');

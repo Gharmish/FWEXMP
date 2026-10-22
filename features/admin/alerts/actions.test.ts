@@ -21,6 +21,7 @@ vi.mock('@/lib/db', () => ({
 }));
 
 import { acknowledgeAlert, acknowledgeAllAlerts } from './actions';
+import { OPEN_ALERTS_LIMIT } from './queries';
 
 const ALERT_ID = '55555555-5555-4555-8555-555555555555';
 const form = (id = ALERT_ID) => {
@@ -77,6 +78,28 @@ describe('acknowledgeAlert (2026-09 engineering audit OPS-08)', () => {
     expect(referencedColumns(fake.current?.updateConditions[0])).toEqual(
       expect.arrayContaining(['id', 'acknowledgedAt']),
     );
+  });
+
+  it('acknowledgeAll accepts a post of exactly the open-list cap (2026-10-22)', async () => {
+    // The page renders at most OPEN_ALERTS_LIMIT open ids, so a post of
+    // that many must clear them; the schema used to stop at its own
+    // number while the open read had no cap at all.
+    const ids = Array.from(
+      { length: OPEN_ALERTS_LIMIT + 1 },
+      (_, i) => `55555555-5555-4555-8555-${String(i).padStart(12, '0')}`,
+    );
+    const atCap = new FormData();
+    for (const id of ids.slice(0, OPEN_ALERTS_LIMIT)) atCap.append('alertIds', id);
+    expect(await acknowledgeAllAlerts(initial, atCap)).toEqual({ success: true });
+    expect(fake.current?.updates).toHaveLength(1);
+
+    const overCap = new FormData();
+    for (const id of ids) overCap.append('alertIds', id);
+    expect(await acknowledgeAllAlerts(initial, overCap)).toEqual({
+      success: false,
+      message: 'validation',
+    });
+    expect(fake.current?.updates).toHaveLength(1);
   });
 
   it('acknowledgeAll refuses an empty or malformed id list', async () => {
