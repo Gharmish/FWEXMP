@@ -91,7 +91,7 @@
     "@types/qrcode": "^1.5.6",
     "@types/react": "^19",
     "@types/react-dom": "^19",
-    "@vitest/coverage-v8": "^4.1.11",
+    "@vitest/coverage-v8": "^4.1.12",
     "drizzle-kit": "^0.31.10",
     "eslint": "^9",
     "eslint-config-next": "16.3.8",
@@ -103,6 +103,6 @@
     "tailwindcss": "^4",
     "tsx": "^4.22.0",
     "typescript": "^5",
-    "vitest": "^4.1.11"
+    "vitest": "^4.1.12"
   }
 }
