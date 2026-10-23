@@ -4,6 +4,7 @@ import type { Locale } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
 import { formatDate } from '@/lib/format';
 import type { ReviewSummary } from '@/features/reviews/types';
+import { reviewText } from '@/features/reviews/lib/review-text';
 
 interface ReviewCardProps {
   review: ReviewSummary;
@@ -21,8 +22,7 @@ interface ReviewCardProps {
 export function ReviewCard({ review, locale }: ReviewCardProps) {
   const t = useTranslations('reviews');
 
-  const body =
-    locale === 'ar' ? (review.textAr ?? review.textEn) : (review.textEn ?? review.textAr);
+  const body = reviewText(review, locale);
   const dateLabel = formatDate(new Date(review.createdAt), locale, 'gregory', {
     month: 'long',
     year: 'numeric',
