@@ -78,6 +78,17 @@ describe('bookingFilterWhere (2026-09 engineering audit DATA-04)', () => {
     );
   });
 
+  it('ignores bidi control characters pasted around a phone or a reference', () => {
+    // WhatsApp in an Arabic UI wraps a copied number in U+202A…U+202C; our
+    // own messages wrap a reference in U+2068…U+2069 (bidiIsolate).
+    const phone = render(bookingFilterWhere({ q: '\u202A+966 51 234 5\u202C', todayStr: today }));
+    expect(phone.sql).toContain('regexp_replace');
+    expect(phone.params).toContain('%966512345%');
+    const ref = render(bookingFilterWhere({ q: '\u2068GH-ABC7DE\u2069', todayStr: today }));
+    expect(ref.sql).not.toContain('regexp_replace');
+    expect(ref.params).toEqual(Array(5).fill('%gh-abc7de%'));
+  });
+
   it('escapes LIKE metacharacters in the needle', () => {
     const { params } = render(bookingFilterWhere({ q: '100%', todayStr: today }));
     expect(params[0]).toBe('%100\\%%');
