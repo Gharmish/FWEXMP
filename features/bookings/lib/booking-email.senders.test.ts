@@ -270,7 +270,7 @@ const HOST_CASES: Case[] = [
     name: 'sendHostNewBookingEmail',
     run: () => senders.sendHostNewBookingEmail('ref-1'),
     ok: {},
-    blocked: { experienceSlug: null },
+    blocked: { status: 'declined' },
     kind: 'host',
   },
   {
@@ -298,7 +298,7 @@ const HOST_CASES: Case[] = [
     name: 'sendHostPaymentReceivedEmail',
     run: () => senders.sendHostPaymentReceivedEmail('ref-1'),
     ok: {},
-    blocked: { experienceSlug: null },
+    blocked: { status: 'cancelled' },
     kind: 'host',
   },
   {
@@ -341,6 +341,26 @@ describe('host senders without a reachable host', () => {
   it('skip when the experience has no host contact', async () => {
     hostRow = undefined;
     await senders.sendHostNewBookingEmail('ref-1');
+    expect(sent()).toHaveLength(0);
+  });
+});
+
+describe('host notice retries re-fire only the notice that failed', () => {
+  it('drops a retried request notice once the host has approved it', async () => {
+    booking = base({ status: 'confirmed', paymentStatus: 'unpaid', paidAt: null });
+    await senders.RETRYABLE_BOOKING_SENDERS.host_new_request('ref-1', 'ar');
+    expect(sent()).toHaveLength(0);
+  });
+
+  it('still re-fires a request notice while the request is pending', async () => {
+    booking = base({ status: 'pending', paymentStatus: 'unpaid', paidAt: null });
+    await senders.RETRYABLE_BOOKING_SENDERS.host_new_request('ref-1', 'ar');
+    expect(sent().map((call) => call.type)).toEqual(['host_new_request']);
+  });
+
+  it('drops a retried new-booking notice for a cancelled booking', async () => {
+    booking = base({ status: 'cancelled' });
+    await senders.RETRYABLE_BOOKING_SENDERS.host_new_booking('ref-1', 'ar');
     expect(sent()).toHaveLength(0);
   });
 });
