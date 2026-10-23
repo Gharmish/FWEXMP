@@ -55,7 +55,15 @@ describe('bookingFilterWhere (2026-09 engineering audit DATA-04)', () => {
     expect(sql).toContain('"bookings"."idempotency_key" ilike $1');
     expect(sql).toContain('"guests"."name" ilike $3');
     expect(sql).toContain('"experiences"."title_en" ilike $4');
-    expect(params).toEqual(['%dawn%', '%dawn%', '%dawn%', '%dawn%']);
+    expect(sql).toContain('"experiences"."title_ar" ilike $5');
+    expect(params).toEqual(['%dawn%', '%dawn%', '%dawn%', '%dawn%', '%dawn%']);
+  });
+
+  it('a short code with digits in it does not take the phone branch', () => {
+    // GH-ABC7DE used to add `phone like '%7%'`, matching most of the ledger.
+    const { sql, params } = render(bookingFilterWhere({ q: 'GH-ABC7DE', todayStr: today }));
+    expect(sql).not.toContain('regexp_replace');
+    expect(params).toEqual(Array(5).fill('%gh-abc7de%'));
   });
 
   it('searches phones by digits, with and without the local leading zero', () => {
@@ -65,6 +73,20 @@ describe('bookingFilterWhere (2026-09 engineering audit DATA-04)', () => {
     );
     expect(params).toContain('%0512345%');
     expect(params).toContain('%512345%');
+    expect(render(bookingFilterWhere({ q: '+966 (51) 234-5', todayStr: today })).params).toContain(
+      '%966512345%',
+    );
+  });
+
+  it('ignores bidi control characters pasted around a phone or a reference', () => {
+    // WhatsApp in an Arabic UI wraps a copied number in U+202A…U+202C; our
+    // own messages wrap a reference in U+2068…U+2069 (bidiIsolate).
+    const phone = render(bookingFilterWhere({ q: '\u202A+966 51 234 5\u202C', todayStr: today }));
+    expect(phone.sql).toContain('regexp_replace');
+    expect(phone.params).toContain('%966512345%');
+    const ref = render(bookingFilterWhere({ q: '\u2068GH-ABC7DE\u2069', todayStr: today }));
+    expect(ref.sql).not.toContain('regexp_replace');
+    expect(ref.params).toEqual(Array(5).fill('%gh-abc7de%'));
   });
 
   it('escapes LIKE metacharacters in the needle', () => {
