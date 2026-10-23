@@ -83,8 +83,12 @@ vi.mock('@/features/bookings/lib/refund', () => ({
 }));
 
 const sendDisputeResolvedEmail = vi.fn<(...args: unknown[]) => Promise<void>>(async () => {});
+const sendDisputeReceivedEmail = vi.fn<(...args: unknown[]) => Promise<void>>(async () => {});
+const sendHostDisputeOpenedEmail = vi.fn<(...args: unknown[]) => Promise<void>>(async () => {});
 vi.mock('@/features/disputes/lib/dispute-email', () => ({
   sendDisputeResolvedEmail: (...args: unknown[]) => sendDisputeResolvedEmail(...args),
+  sendDisputeReceivedEmail: (...args: unknown[]) => sendDisputeReceivedEmail(...args),
+  sendHostDisputeOpenedEmail: (...args: unknown[]) => sendHostDisputeOpenedEmail(...args),
 }));
 
 interface RefundableBooking {
@@ -174,6 +178,8 @@ beforeEach(() => {
   notifyAdmin.mockClear();
   executeRefund.mockClear();
   sendDisputeResolvedEmail.mockClear();
+  sendDisputeReceivedEmail.mockClear();
+  sendHostDisputeOpenedEmail.mockClear();
   currentUser = null;
   isAdmin = false;
   viewerCanAccess = true;
@@ -252,6 +258,16 @@ describe('createDispute', () => {
       },
     ]);
     expect(notifyAdmin).toHaveBeenCalledWith('dispute_opened', { reference: 'GH-QTW3J9' });
+  });
+
+  it('hands both acknowledgement senders the reference UUID, not the GH- code', async () => {
+    const state = await createDispute({ success: false }, disputeForm());
+    expect(state).toEqual({ success: true });
+    // The senders look the booking up by idempotencyKey; the GH- code
+    // matched no row, so neither the guest nor the host heard anything.
+    expect(sendDisputeReceivedEmail).toHaveBeenCalledWith(REFERENCE);
+    expect(sendHostDisputeOpenedEmail).toHaveBeenCalledWith(REFERENCE);
+    expect(reportError).not.toHaveBeenCalled();
   });
 
   it('maps the unique-index race loser to already_open, not server', async () => {
