@@ -25,6 +25,16 @@ export interface MomentActionState {
   /** `locked_live` is host-only: live listings need a (re-review) edit first. */
   message?: 'forbidden' | 'no_db' | 'not_found' | 'locked_live' | 'validation' | 'server';
   fields?: Record<string, string>;
+  /** Echoed on `validation` so the uncontrolled inputs keep what was typed. */
+  values?: MomentValues;
+}
+
+export interface MomentValues {
+  timeOfDay: string;
+  titleEn: string;
+  descriptionEn: string;
+  titleAr: string;
+  descriptionAr: string;
 }
 
 const momentSchema = z.object({
@@ -38,6 +48,16 @@ const momentSchema = z.object({
 function val(formData: FormData, key: string): string {
   const v = formData.get(key);
   return typeof v === 'string' ? v : '';
+}
+
+function momentValues(formData: FormData): MomentValues {
+  return {
+    timeOfDay: val(formData, 'timeOfDay'),
+    titleEn: val(formData, 'titleEn'),
+    descriptionEn: val(formData, 'descriptionEn'),
+    titleAr: val(formData, 'titleAr'),
+    descriptionAr: val(formData, 'descriptionAr'),
+  };
 }
 
 async function requireAdmin(): Promise<{ adminUserId: string } | { error: MomentActionState }> {
@@ -79,7 +99,7 @@ export async function addMoment(
       const k = issue.path[0];
       if (typeof k === 'string') fields[k] = issue.message;
     }
-    return { success: false, message: 'validation', fields };
+    return { success: false, message: 'validation', fields, values: momentValues(formData) };
   }
   const input = parsed.data;
 
@@ -131,7 +151,7 @@ export async function updateMoment(
       const k = issue.path[0];
       if (typeof k === 'string') fields[k] = issue.message;
     }
-    return { success: false, message: 'validation', fields };
+    return { success: false, message: 'validation', fields, values: momentValues(formData) };
   }
   const input = parsed.data;
 

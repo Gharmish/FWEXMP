@@ -11,7 +11,7 @@ import { experiences, moments } from '@/db/schema';
 import { reportError } from '@/lib/log';
 import { getCurrentUser } from '@/features/auth/queries';
 import { getCurrentHostIdForWrite } from '@/features/host-experiences/queries';
-import type { MomentActionState } from '@/features/admin/experiences/moment-actions';
+import type { MomentActionState, MomentValues } from '@/features/admin/experiences/moment-actions';
 
 /**
  * Host CRUD for their own experience's timeline. Same shape as the
@@ -52,6 +52,16 @@ const hostMomentSchema = z.object({
 function val(formData: FormData, key: string): string {
   const v = formData.get(key);
   return typeof v === 'string' ? v : '';
+}
+
+function momentValues(formData: FormData): MomentValues {
+  return {
+    timeOfDay: val(formData, 'timeOfDay'),
+    titleEn: val(formData, 'titleEn'),
+    descriptionEn: val(formData, 'descriptionEn'),
+    titleAr: val(formData, 'titleAr'),
+    descriptionAr: val(formData, 'descriptionAr'),
+  };
 }
 
 interface OwnedExperience {
@@ -130,7 +140,9 @@ function parseFields(
       const k = issue.path[0];
       if (typeof k === 'string') fields[k] = issue.message;
     }
-    return { error: { success: false, message: 'validation', fields } };
+    return {
+      error: { success: false, message: 'validation', fields, values: momentValues(formData) },
+    };
   }
   return { input: parsed.data };
 }

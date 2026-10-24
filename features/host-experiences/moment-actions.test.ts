@@ -99,6 +99,27 @@ describe('host moments', () => {
     expect(fake.current?.inserts).toEqual([]);
   });
 
+  it('a refused add or update echoes what was typed, so the form does not reset', async () => {
+    const typed = {
+      timeOfDay: '06:00',
+      titleEn: 'D',
+      descriptionEn: 'We walk the old terraces at first light.',
+      titleAr: 'الفجر',
+      descriptionAr: 'نمشي في المدرجات القديمة',
+    };
+    expect(await addMomentAsHost(initial, form({ experienceId: EXP, ...typed }))).toEqual({
+      success: false,
+      message: 'validation',
+      fields: { titleEn: 'title_short' },
+      values: typed,
+    });
+    expect(await updateMomentAsHost(initial, form({ momentId: 'm1', ...typed }))).toMatchObject({
+      message: 'validation',
+      values: typed,
+    });
+    expect(fake.current?.inserts).toHaveLength(0);
+  });
+
   it('a blank or placeholder Arabic field falls back to the placeholder', async () => {
     expect(
       await addMomentAsHost(

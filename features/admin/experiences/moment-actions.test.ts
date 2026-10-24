@@ -45,6 +45,7 @@ describe('moments (admin)', () => {
     expect(await addMoment(initial, form({ titleEn: 'x', descriptionEn: 'y' }))).toMatchObject({
       message: 'validation',
       fields: { titleEn: 'title_short', descriptionEn: 'description_short' },
+      values: { timeOfDay: '', titleEn: 'x', descriptionEn: 'y', titleAr: '', descriptionAr: '' },
     });
     expect(
       await addMoment(

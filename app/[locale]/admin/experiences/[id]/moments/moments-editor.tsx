@@ -11,6 +11,7 @@ import {
   deleteMoment,
   moveMoment,
   type MomentActionState,
+  type MomentValues,
 } from '@/features/admin/experiences/moment-actions';
 import type { AdminMoment } from '@/features/admin/experiences/queries';
 import { MomentActionButton } from '@/app/[locale]/admin/experiences/[id]/moments/moment-action-button';
@@ -80,11 +81,14 @@ function Fields({
   moment,
   copy,
   fields,
+  values,
   hideArabic,
 }: {
   moment?: AdminMoment;
   copy: MomentsCopy;
   fields: Record<string, string>;
+  /** What the refused submit carried — wins over the stored moment. */
+  values?: MomentValues;
   hideArabic?: boolean;
 }) {
   const invalid = (name: string) => (fields[name] ? 'true' : undefined);
@@ -93,7 +97,11 @@ function Fields({
       <div className="grid gap-4 sm:grid-cols-2">
         <label className="flex flex-col gap-1 text-sm font-medium">
           {copy.timeOfDay}
-          <Input name="timeOfDay" dir="auto" defaultValue={moment?.timeOfDay ?? ''} />
+          <Input
+            name="timeOfDay"
+            dir="auto"
+            defaultValue={values?.timeOfDay ?? moment?.timeOfDay ?? ''}
+          />
         </label>
         <label className="flex flex-col gap-1 text-sm font-medium">
           {copy.titleEn}
@@ -102,7 +110,7 @@ function Fields({
           <Input
             name="titleEn"
             dir="ltr"
-            defaultValue={moment?.titleEn ?? ''}
+            defaultValue={values?.titleEn ?? moment?.titleEn ?? ''}
             aria-invalid={invalid('titleEn')}
           />
         </label>
@@ -113,7 +121,7 @@ function Fields({
           name="descriptionEn"
           dir="ltr"
           rows={2}
-          defaultValue={moment?.descriptionEn ?? ''}
+          defaultValue={values?.descriptionEn ?? moment?.descriptionEn ?? ''}
           className={TEXTAREA_CLASS}
           aria-invalid={invalid('descriptionEn')}
         />
@@ -123,7 +131,11 @@ function Fields({
           <div className="grid gap-4 sm:grid-cols-2">
             <label className="flex flex-col gap-1 text-sm font-medium">
               {copy.titleAr}
-              <Input name="titleAr" dir="rtl" defaultValue={momentArTitle(moment)} />
+              <Input
+                name="titleAr"
+                dir="rtl"
+                defaultValue={values?.titleAr ?? momentArTitle(moment)}
+              />
             </label>
             <label className="flex flex-col gap-1 text-sm font-medium">
               {copy.descriptionAr}
@@ -131,7 +143,7 @@ function Fields({
                 name="descriptionAr"
                 rows={2}
                 dir="rtl"
-                defaultValue={momentArDesc(moment)}
+                defaultValue={values?.descriptionAr ?? momentArDesc(moment)}
                 className={TEXTAREA_CLASS}
               />
             </label>
@@ -206,7 +218,13 @@ export function MomentCard({
       <form action={action} className="flex flex-col gap-4">
         <input type="hidden" name="momentId" value={moment.id} />
         <input type="hidden" name="experienceId" value={experienceId} />
-        <Fields moment={moment} copy={copy} fields={fields} hideArabic={hideArabic} />
+        <Fields
+          moment={moment}
+          copy={copy}
+          fields={fields}
+          values={state.values}
+          hideArabic={hideArabic}
+        />
         <div className="flex items-center gap-3">
           <Saver label={copy.save} pendingLabel={copy.saving} />
           {error && (
@@ -249,7 +267,7 @@ export function AddMomentForm({
     >
       <h2 className="text-h3">{copy.addHeading}</h2>
       <input type="hidden" name="experienceId" value={experienceId} />
-      <Fields copy={copy} fields={fields} hideArabic={hideArabic} />
+      <Fields copy={copy} fields={fields} values={state.values} hideArabic={hideArabic} />
       <div className="flex items-center gap-3">
         <Saver label={copy.add} pendingLabel={copy.adding} />
         {error && (
