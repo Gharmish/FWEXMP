@@ -47,7 +47,11 @@ export async function HostReviews({ slug, locale }: HostReviewsProps) {
                 rating={review.rating}
                 label={tr('ratingLabel', { rating: review.rating })}
               />
-              {text && <p className="text-sarat-black-800 text-base leading-relaxed">“{text}”</p>}
+              {text && (
+                <p dir="auto" className="text-sarat-black-800 text-base leading-relaxed">
+                  “{text}”
+                </p>
+              )}
               <p className="text-sarat-black-600 mt-auto text-sm">
                 {review.guestName}
                 {' · '}

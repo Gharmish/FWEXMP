@@ -55,7 +55,11 @@ export function ReviewCard({ review, locale }: ReviewCardProps) {
         </div>
       </header>
 
-      {body && <p className="text-sarat-black text-base leading-relaxed">{body}</p>}
+      {body && (
+        <p dir="auto" className="text-sarat-black text-base leading-relaxed">
+          {body}
+        </p>
+      )}
 
       {review.hostReply && (
         <div className="border-sarat-black/12 mt-2 flex flex-col gap-1 border-s ps-4">
