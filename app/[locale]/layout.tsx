@@ -153,7 +153,11 @@ export default async function LocaleLayout({
                 </a>
                 {children}
                 <CookieNotice />
-                <MarketingPixels />
+                {/* useSearchParams consumer (the #190 capability-URL guard) —
+                    Suspense keeps prerender happy, as for ScrollToTop below. */}
+                <Suspense fallback={null}>
+                  <MarketingPixels />
+                </Suspense>
                 <WebVitalsReporter />
                 {/* Vercel Web Analytics: cookieless, no cross-site identifier, so
                     it sits outside the consent gate like the first-party

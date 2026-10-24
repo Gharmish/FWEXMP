@@ -2,9 +2,10 @@
 
 import Script from 'next/script';
 import { useEffect, useRef, useSyncExternalStore } from 'react';
-import { usePathname } from 'next/navigation';
+import { usePathname, useSearchParams } from 'next/navigation';
 import { clientEnv, hasMarketingPixels } from '@/lib/env-client';
 import { readConsent, subscribeConsent } from '@/lib/consent-client';
+import { marketingPixelsAllowed } from '@/lib/marketing-pixel-scope';
 
 /**
  * Snap Pixel + TikTok Pixel + Google Analytics 4 loader. Renders nothing
@@ -27,6 +28,14 @@ import { readConsent, subscribeConsent } from '@/lib/consent-client';
  * loading order ever changes. All Google ads signals stay denied in
  * both calls — the policy discloses site analytics, not Google ad
  * personalisation.
+ *
+ * Never on a booking route, and never on a URL carrying a capability
+ * parameter (`k`, `supersedesToken`): all three SDKs read `location.href`
+ * for their page views, which sent the permanent booking link token to
+ * three vendors (2026-10-24, #190; the rule lives in
+ * `lib/marketing-pixel-scope.ts`). `useSearchParams` is what makes the
+ * query check follow client-side navigation, so the layout mounts this
+ * inside a Suspense boundary.
  */
 
 declare global {
@@ -49,15 +58,29 @@ function getServerSnapshot(): boolean {
   return false;
 }
 
+/**
+ * `lastTracked` marker for "the trackers were live, then a booking route
+ * took them out of scope". Never equal to a real pathname, so the next
+ * allowed page is tracked by the effect below: the vendor scripts stay in
+ * the window once loaded and next/script never re-runs a snippet it has
+ * run, so the base snippets cannot cover that view.
+ */
+const OFF_SCOPE = '';
+
 export function MarketingPixels() {
-  const active = useSyncExternalStore(subscribeConsent, getSnapshot, getServerSnapshot);
+  const consented = useSyncExternalStore(subscribeConsent, getSnapshot, getServerSnapshot);
   const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const active = consented && marketingPixelsAllowed(pathname, searchParams);
   // The pathname already tracked — starts null so the mount run only
   // records (the base snippets cover the first view) and never double-fires.
   const lastTracked = useRef<string | null>(null);
 
   useEffect(() => {
-    if (!active) return;
+    if (!active) {
+      if (lastTracked.current !== null) lastTracked.current = OFF_SCOPE;
+      return;
+    }
     if (lastTracked.current === null || lastTracked.current === pathname) {
       lastTracked.current = pathname;
       return;
