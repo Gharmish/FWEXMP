@@ -1,4 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { PgDialect } from 'drizzle-orm/pg-core';
+import type { SQL } from 'drizzle-orm';
 import { createDbFake } from '@/lib/test/db-fake';
 
 vi.mock('next/cache', () => ({ revalidatePath: vi.fn() }));
@@ -63,6 +65,11 @@ const removeForm = (url: string) => {
 };
 const initial = { success: false };
 
+// The gallery writes are in-place SQL now (galleryAppend/galleryRemove), so
+// render them to see what Postgres is asked to do.
+const dialect = new PgDialect({ casing: 'snake_case' });
+const rendered = (value: unknown) => dialect.sqlToQuery(value as SQL);
+
 beforeEach(() => {
   env.supabase = true;
   actor = { adminUserId: 'admin-1' };
@@ -103,9 +110,9 @@ describe('uploadGalleryImage', () => {
   it('appends the new public URL to the gallery; a storage failure writes nothing', async () => {
     expect(await uploadGalleryImage(initial, uploadForm(jpeg()))).toEqual({ success: true });
     expect(storage.uploaded[0]).toMatch(/^experiences\/walk\//);
-    const images = fake.current?.updates[0]?.images as string[];
-    expect(images[0]).toBe(OLD);
-    expect(images[1]).toContain('/photos/experiences/walk/');
+    const append = rendered(fake.current?.updates[0]?.images);
+    expect(append.sql).toBe('array_append("experiences"."images", $1)');
+    expect(append.params[0]).toContain('/photos/experiences/walk/');
     storage.uploadError = { message: 'boom' };
     expect(await uploadGalleryImage(initial, uploadForm(jpeg()))).toMatchObject({
       message: 'upload_failed',
@@ -120,7 +127,10 @@ describe('removeGalleryImage', () => {
       message: 'not_found',
     });
     expect(await removeGalleryImage(initial, removeForm(OLD))).toEqual({ success: true });
-    expect(fake.current?.updates[0]).toEqual({ images: [] });
+    expect(rendered(fake.current?.updates[0]?.images)).toMatchObject({
+      sql: 'array_remove("experiences"."images", $1)',
+      params: [OLD],
+    });
     expect(storage.removed).toEqual([['experiences/walk/gallery-1.jpg']]);
   });
 });

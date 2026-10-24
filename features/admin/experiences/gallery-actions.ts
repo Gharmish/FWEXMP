@@ -7,6 +7,7 @@ import { db } from '@/lib/db';
 import { hasSupabaseAuth } from '@/lib/env';
 import { experiences } from '@/db/schema';
 import { reportError } from '@/lib/log';
+import { galleryAppend, galleryRemove } from '@/features/listings/lib/gallery-sql';
 import { getSupabaseUserStorage } from '@/lib/supabase/server';
 import { adminFailureMessage, adminGateRefused, requireAdminActor } from '@/features/admin/guard';
 import {
@@ -110,7 +111,7 @@ export async function uploadGalleryImage(
 
     await db
       .update(experiences)
-      .set({ images: [...experience.images, publicUrl] })
+      .set({ images: galleryAppend(publicUrl) })
       .where(eq(experiences.id, experienceId));
   } catch (error) {
     reportError(error, { surface: 'admin:uploadGalleryImage', experienceId });
@@ -145,8 +146,10 @@ export async function removeGalleryImage(
     // both sides identical (2026-07-28 third audit).
     if (!experience.images.includes(url)) return { success: false, message: 'not_found' };
 
-    const next = experience.images.filter((u) => u !== url);
-    await db.update(experiences).set({ images: next }).where(eq(experiences.id, experienceId));
+    await db
+      .update(experiences)
+      .set({ images: galleryRemove(url) })
+      .where(eq(experiences.id, experienceId));
 
     // Best-effort storage cleanup — a failure here doesn't fail the action
     // (the row no longer references the object).

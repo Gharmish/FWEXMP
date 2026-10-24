@@ -1,4 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { PgDialect } from 'drizzle-orm/pg-core';
+import type { SQL } from 'drizzle-orm';
 import { createDbFake, referencedColumns, relationalWhereColumns } from '@/lib/test/db-fake';
 import { experiences } from '@/db/schema';
 
@@ -61,6 +63,11 @@ const form = (fields: Record<string, string | File>) => {
   return fd;
 };
 const initial = { success: false as const };
+
+// The gallery writes are in-place SQL now (galleryAppend/galleryRemove), so
+// render them to see what Postgres is asked to do.
+const dialect = new PgDialect({ casing: 'snake_case' });
+const rendered = (value: unknown) => dialect.sqlToQuery(value as SQL);
 const run = async (fn: () => Promise<unknown>) => {
   try {
     return await fn();
@@ -147,13 +154,18 @@ describe('gallery as host', () => {
     expect(await uploadGalleryImageAsHost(initial, form({ photo: jpeg() }))).toEqual({
       success: true,
     });
-    const images = fake.current?.updates[0]?.images as string[];
-    expect(images).toHaveLength(2);
+    // Appended in place: a remove racing this upload is not undone by a stale copy.
+    const append = rendered(fake.current?.updates[0]?.images);
+    expect(append.sql).toBe('array_append("experiences"."images", $1)');
+    expect(append.params[0]).toContain('/experiences/walk/');
     expect(
       await removeGalleryImageAsHost(initial, form({ url: 'https://x/not-mine.jpg' })),
     ).toMatchObject({ message: 'not_found' });
     expect(await removeGalleryImageAsHost(initial, form({ url: OLD }))).toEqual({ success: true });
-    expect(fake.current?.updates[1]).toEqual({ images: [] });
+    expect(rendered(fake.current?.updates[1]?.images)).toMatchObject({
+      sql: 'array_remove("experiences"."images", $1)',
+      params: [OLD],
+    });
     expect(storage.removed).toEqual([['experiences/walk/gallery-1.jpg']]);
   });
 });
