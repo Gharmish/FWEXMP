@@ -21,8 +21,14 @@
  * (`lib/analytics/server-events.ts`, same event id).
  */
 
-/** Query parameters that grant access to a booking. */
-const CAPABILITY_PARAMS = ['k', 'supersedesToken'] as const;
+/**
+ * Query parameters that name a booking: the link token (`k`), the signed
+ * token the "change date or guests" flow carries to the listing
+ * (`supersedesToken`), and the bare reference it replaces (`supersedes`;
+ * not a capability since SEC-02, but the same UUID the `/book/*` ban
+ * keeps out of the vendors' stores, and only ever set by that one link).
+ */
+const CAPABILITY_PARAMS = ['k', 'supersedesToken', 'supersedes'] as const;
 
 /** The route root after the locale prefix (`/ar/book/…` → `book`). */
 function routeRoot(pathname: string): string | undefined {
@@ -44,4 +50,36 @@ export function marketingPixelsAllowed(
   if (routeRoot(pathname) === 'book') return false;
   const params = typeof search === 'string' ? new URLSearchParams(search) : search;
   return !CAPABILITY_PARAMS.some((name) => params.has(name));
+}
+
+/**
+ * `tracked` marker for "the trackers were live, then a booking route took
+ * them out of scope". Never equal to a real pathname, so the next allowed
+ * page is tracked by the loader's effect: the vendor scripts stay in the
+ * window once loaded and next/script never re-runs a snippet it has run,
+ * so the base snippets cannot cover that view.
+ */
+export const OFF_SCOPE = '';
+
+export interface PageViewStep {
+  /** The pathname to remember as tracked (null = never tracked yet). */
+  tracked: string | null;
+  /** Fire the Snap / TikTok page view for `pathname` now. */
+  fire: boolean;
+}
+
+/**
+ * One step of the loader's SPA page-view bookkeeping. `previous` is the
+ * last tracked pathname: null until the trackers first go live (the base
+ * snippets fire that first view themselves), the pathname afterwards, or
+ * `OFF_SCOPE` after a booking route unmounted the loader.
+ */
+export function pageViewStep(
+  previous: string | null,
+  active: boolean,
+  pathname: string,
+): PageViewStep {
+  if (!active) return { tracked: previous === null ? null : OFF_SCOPE, fire: false };
+  if (previous === null || previous === pathname) return { tracked: pathname, fire: false };
+  return { tracked: pathname, fire: true };
 }

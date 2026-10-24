@@ -5,7 +5,7 @@ import { useEffect, useRef, useSyncExternalStore } from 'react';
 import { usePathname, useSearchParams } from 'next/navigation';
 import { clientEnv, hasMarketingPixels } from '@/lib/env-client';
 import { readConsent, subscribeConsent } from '@/lib/consent-client';
-import { marketingPixelsAllowed } from '@/lib/marketing-pixel-scope';
+import { marketingPixelsAllowed, pageViewStep } from '@/lib/marketing-pixel-scope';
 
 /**
  * Snap Pixel + TikTok Pixel + Google Analytics 4 loader. Renders nothing
@@ -35,7 +35,13 @@ import { marketingPixelsAllowed } from '@/lib/marketing-pixel-scope';
  * three vendors (2026-10-24, #190; the rule lives in
  * `lib/marketing-pixel-scope.ts`). `useSearchParams` is what makes the
  * query check follow client-side navigation, so the layout mounts this
- * inside a Suspense boundary.
+ * inside a Suspense boundary. Unmounting is not enough for GA4: once
+ * gtag.js is in the window its history hook reports every soft
+ * navigation — and in the app router browser Back onto a hard-loaded
+ * `?k=` entry is one — so the per-property opt-out flag
+ * (`window['ga-disable-<id>']`, read by gtag.js at dispatch) is raised
+ * whenever the URL is out of scope, from a capture-phase popstate
+ * listener that runs before gtag.js's own.
  */
 
 declare global {
@@ -47,7 +53,14 @@ declare global {
     };
     gtag?: (...args: unknown[]) => void;
     dataLayer?: unknown[];
+    /** GA4's documented per-property opt-out: `window['ga-disable-G-…'] = true`. */
+    [flag: `ga-disable-${string}`]: boolean | undefined;
   }
+}
+
+function setGaDisabled(disabled: boolean) {
+  const gaId = clientEnv.NEXT_PUBLIC_GA_MEASUREMENT_ID;
+  if (gaId) window[`ga-disable-${gaId}`] = disabled;
 }
 
 function getSnapshot(): boolean {
@@ -58,34 +71,33 @@ function getServerSnapshot(): boolean {
   return false;
 }
 
-/**
- * `lastTracked` marker for "the trackers were live, then a booking route
- * took them out of scope". Never equal to a real pathname, so the next
- * allowed page is tracked by the effect below: the vendor scripts stay in
- * the window once loaded and next/script never re-runs a snippet it has
- * run, so the base snippets cannot cover that view.
- */
-const OFF_SCOPE = '';
-
 export function MarketingPixels() {
   const consented = useSyncExternalStore(subscribeConsent, getSnapshot, getServerSnapshot);
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const active = consented && marketingPixelsAllowed(pathname, searchParams);
   // The pathname already tracked — starts null so the mount run only
-  // records (the base snippets cover the first view) and never double-fires.
+  // records (the base snippets cover the first view) and never double-fires;
+  // see `pageViewStep` for the bookkeeping.
   const lastTracked = useRef<string | null>(null);
 
   useEffect(() => {
-    if (!active) {
-      if (lastTracked.current !== null) lastTracked.current = OFF_SCOPE;
-      return;
-    }
-    if (lastTracked.current === null || lastTracked.current === pathname) {
-      lastTracked.current = pathname;
-      return;
-    }
-    lastTracked.current = pathname;
+    // Back/Forward restores the URL before React renders, and gtag.js
+    // reports it from its own popstate listener. Decide from the restored
+    // URL here first: at-target capture listeners run before non-capture
+    // ones in current browsers, whatever the registration order.
+    const onPopState = () => {
+      setGaDisabled(!marketingPixelsAllowed(window.location.pathname, window.location.search));
+    };
+    window.addEventListener('popstate', onPopState, true);
+    return () => window.removeEventListener('popstate', onPopState, true);
+  }, []);
+
+  useEffect(() => {
+    setGaDisabled(!active);
+    const step = pageViewStep(lastTracked.current, active, pathname);
+    lastTracked.current = step.tracked;
+    if (!step.fire) return;
     window.snaptr?.('track', 'PAGE_VIEW');
     window.ttq?.page();
   }, [active, pathname]);

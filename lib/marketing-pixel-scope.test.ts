@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { marketingPixelsAllowed } from './marketing-pixel-scope';
+import { OFF_SCOPE, marketingPixelsAllowed, pageViewStep } from './marketing-pixel-scope';
 
 /**
  * #190: the `?k=` booking token, the booking UUID and `supersedesToken`
@@ -28,6 +28,11 @@ describe('marketingPixelsAllowed', () => {
       ),
     ).toBe(false);
     expect(marketingPixelsAllowed('/ar/experiences/soudah-sunrise', '?k=tok')).toBe(false);
+    // The same-device edit carries the bare reference only: the UUID the
+    // `/book/*` ban exists to keep out of the vendors' stores.
+    expect(
+      marketingPixelsAllowed('/en/experiences/soudah-sunrise', '?date=2026-11-01&supersedes=abc'),
+    ).toBe(false);
     // An empty token still names the parameter: keep it out.
     expect(marketingPixelsAllowed('/en/experiences/soudah-sunrise', '?supersedesToken=')).toBe(
       false,
@@ -55,5 +60,52 @@ describe('marketingPixelsAllowed', () => {
     // and a listing slug that merely contains "book" stays tracked.
     expect(marketingPixelsAllowed('/en/host/bookings', '')).toBe(true);
     expect(marketingPixelsAllowed('/en/experiences/bookbinding-workshop', '')).toBe(true);
+  });
+});
+
+describe('pageViewStep', () => {
+  it('records the first allowed page without firing: the base snippets cover it', () => {
+    expect(pageViewStep(null, true, '/en/experiences')).toEqual({
+      tracked: '/en/experiences',
+      fire: false,
+    });
+  });
+
+  it('fires for a new pathname and stays quiet for the same one', () => {
+    expect(pageViewStep('/en/experiences', true, '/en/experiences/x')).toEqual({
+      tracked: '/en/experiences/x',
+      fire: true,
+    });
+    expect(pageViewStep('/en/experiences', true, '/en/experiences')).toEqual({
+      tracked: '/en/experiences',
+      fire: false,
+    });
+  });
+
+  it('cold load on a booking route, then a public page: records only, no double view', () => {
+    // /ar/book/<uuid>/pay?k=… hard load — nothing tracked, nothing loaded.
+    const step1 = pageViewStep(null, false, '/ar/book/uuid/pay');
+    expect(step1).toEqual({ tracked: null, fire: false });
+    // Header link to the catalog: the base snippets mount and fire.
+    expect(pageViewStep(step1.tracked, true, '/ar/experiences')).toEqual({
+      tracked: '/ar/experiences',
+      fire: false,
+    });
+  });
+
+  it('public page, booking route, back to the same public page: fires once', () => {
+    const live = pageViewStep(null, true, '/en/experiences/x');
+    const off = pageViewStep(live.tracked, false, '/en/book/uuid/pay');
+    expect(off).toEqual({ tracked: OFF_SCOPE, fire: false });
+    // The scripts are still in the window and next/script will not re-run
+    // the snippets, so this view must come from the effect.
+    expect(pageViewStep(off.tracked, true, '/en/experiences/x')).toEqual({
+      tracked: '/en/experiences/x',
+      fire: true,
+    });
+  });
+
+  it('consent given on a booking route leaves the slate clean', () => {
+    expect(pageViewStep(null, false, '/en/book/uuid/pay')).toEqual({ tracked: null, fire: false });
   });
 });
