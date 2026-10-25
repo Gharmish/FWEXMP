@@ -472,6 +472,9 @@ export async function sendBookingApprovedEmail(reference: string): Promise<void>
   });
 }
 
+/** The `3a-payment-nudge` pass's lead (features/maintenance/passes/comms.ts). */
+const REMINDER_MIN_WINDOW_MS = 150 * 60_000;
+
 /**
  * Payment-hold rail (2026-08-15 marketing audit). One sender, two stages:
  *
@@ -500,6 +503,15 @@ export async function sendBookingAwaitingPaymentEmail(
   if (booking.status !== 'confirmed' && booking.status !== 'pending') return;
   const deadline = new Date(booking.paymentDeadline);
   if (deadline.getTime() <= Date.now()) return;
+  // The reminder is for a window longer than the cron's 150-minute nudge
+  // lead (an approved request's). An instant hold's 30-minute window, or
+  // an approval clamped close to the slot, always falls inside that lead,
+  // so the hourly pass would repeat the "awaiting payment" / "approved"
+  // message minutes after it went out, often mid-checkout.
+  if (stage === 'reminder') {
+    const openedAt = Date.parse(booking.approvedAt ?? booking.createdAt);
+    if (deadline.getTime() - openedAt <= REMINDER_MIN_WINDOW_MS) return;
+  }
 
   const locale = booking.guestPreferredLanguage;
   const t = await getTranslations({ locale, namespace: 'bookingEmail' });
