@@ -88,7 +88,7 @@ export async function uploadGalleryImage(
   try {
     const experience = await db.query.experiences.findFirst({
       where: (e) => eq(e.id, experienceId),
-      columns: { id: true, slug: true, images: true },
+      columns: { id: true, slug: true },
     });
     if (!experience) return { success: false, message: 'not_found' };
 
