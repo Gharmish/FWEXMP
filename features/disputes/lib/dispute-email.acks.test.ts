@@ -11,6 +11,11 @@ import { bookings } from '@/db/schema';
  * email must not carry the guest's manage-link capability at all).
  * actions.test.ts mocks these senders, so without this file the two
  * sides could drift apart again.
+ *
+ * Named `dispute-email.acks.test.ts` (the repo's `module.topic.test.ts`
+ * form, as in `identity.challenge.test.ts`) because #135 adds a
+ * `dispute-email.test.ts` of its own for the resolved-notice sender; the
+ * two PRs merge cleanly in either order this way.
  */
 
 vi.mock('server-only', () => ({}));
