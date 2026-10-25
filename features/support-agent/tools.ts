@@ -6,6 +6,7 @@ import { and, eq, gte, inArray, desc } from 'drizzle-orm';
 import { bookings, conversations, experiences, guests, hosts, supportTickets } from '@/db/schema';
 import { executeBookingTransition } from '@/features/bookings/lib/transition-executor';
 import { reportError } from '@/lib/log';
+import { notifyAdmin } from '@/lib/admin-alerts';
 import { whatsappLink } from '@/lib/whatsapp';
 import {
   getBookingsForGuest,
@@ -789,6 +790,24 @@ export async function runTool(
               .update(conversations)
               .set({ state: 'human', updatedAt: new Date() })
               .where(eq(conversations.id, ctx.conversationId));
+            // No new ticket means no ticket page, and the agent's reply
+            // hides the thread from "awaiting reply" and the sweeps — so
+            // page once here, on the inbound fingerprint and its quiet
+            // window, or a human-owned thread sits unseen.
+            await notifyAdmin(
+              'guest_whatsapp_inbound',
+              {
+                from: ctx.address,
+                conversationId: ctx.conversationId,
+                message: `(handed to a person, ticket cap reached: ${recent[0].reference}) ${
+                  str(input, 'summary') ?? ''
+                }`.slice(0, 280),
+              },
+              {
+                fingerprint: `whatsapp-inbound:${ctx.conversationId}`,
+                quietWindowMs: 30 * 60_000,
+              },
+            );
           }
           return {
             result: JSON.stringify({
