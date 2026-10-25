@@ -363,6 +363,25 @@ describe('host notice retries re-fire only the notice that failed', () => {
     await senders.RETRYABLE_BOOKING_SENDERS.host_new_booking('ref-1', 'ar');
     expect(sent()).toHaveLength(0);
   });
+
+  // The table cases above swapped these two senders' `blocked` fixture
+  // from `experienceSlug: null` to a status, so the listing guard and the
+  // unpaid branch are pinned here (review of #188).
+  it('both host notices still skip a booking whose listing is gone', async () => {
+    booking = base({ experienceSlug: null });
+    await senders.sendHostNewBookingEmail('ref-1');
+    await senders.sendHostPaymentReceivedEmail('ref-1');
+    expect(sent()).toHaveLength(0);
+  });
+
+  it('drops a payment-received notice while a confirmed booking is still unpaid', async () => {
+    booking = base({ status: 'confirmed', paymentStatus: 'unpaid', paidAt: null });
+    await senders.sendHostPaymentReceivedEmail('ref-1');
+    expect(sent()).toHaveLength(0);
+    booking = base({ status: 'confirmed', paymentStatus: 'processing', paidAt: null });
+    await senders.RETRYABLE_BOOKING_SENDERS.host_payment_received('ref-1', 'ar');
+    expect(sent()).toHaveLength(0);
+  });
 });
 
 describe('sendBookingCompletedEmails', () => {
