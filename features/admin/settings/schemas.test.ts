@@ -53,6 +53,24 @@ describe('updateSettingsSchema', () => {
     expect(updateSettingsSchema.safeParse({ ...base, commissionPct: '51' }).success).toBe(false);
   });
 
+  it('rejects a blank or missing commission instead of saving 0%', () => {
+    for (const commissionPct of ['', '   ', null]) {
+      const parsed = updateSettingsSchema.safeParse({ ...base, commissionPct });
+      expect(parsed.success).toBe(false);
+      if (!parsed.success) {
+        expect(parsed.error.issues[0]).toMatchObject({
+          path: ['commissionPct'],
+          message: 'commission_range',
+        });
+      }
+    }
+  });
+
+  it('still accepts an explicit 0% commission', () => {
+    const parsed = updateSettingsSchema.safeParse({ ...base, commissionPct: '0' });
+    expect(parsed.success && parsed.data.commissionPct).toBe(0);
+  });
+
   it('requires at least one enabled category', () => {
     const parsed = updateSettingsSchema.safeParse({ ...base, enabledCategories: [] });
     expect(parsed.success).toBe(false);
