@@ -64,6 +64,36 @@ describe('moments (admin)', () => {
     });
   });
 
+  it('a DB error on add or update echoes what was typed (review of #196)', async () => {
+    const typed = {
+      timeOfDay: '06:00',
+      titleEn: 'Dawn',
+      descriptionEn: 'We walk the old terraces at first light.',
+      titleAr: 'الفجر',
+      descriptionAr: 'نمشي في المدرجات القديمة',
+    };
+    fake.current = createDbFake({
+      select: () => {
+        throw new Error('connection reset');
+      },
+    });
+    expect(await addMoment(initial, form(typed))).toEqual({
+      success: false,
+      message: 'server',
+      values: typed,
+    });
+    fake.current.update = () => {
+      throw new Error('connection reset');
+    };
+    expect(await updateMoment(initial, form({ momentId: 'm1', ...typed }))).toEqual({
+      success: false,
+      message: 'server',
+      values: typed,
+    });
+    expect(fake.current.inserts).toHaveLength(0);
+    expect(fake.current.updates).toHaveLength(0);
+  });
+
   it('updates and deletes by id', async () => {
     expect(
       await updateMoment(

@@ -25,7 +25,10 @@ export interface MomentActionState {
   /** `locked_live` is host-only: live listings need a (re-review) edit first. */
   message?: 'forbidden' | 'no_db' | 'not_found' | 'locked_live' | 'validation' | 'server';
   fields?: Record<string, string>;
-  /** Echoed on `validation` so the uncontrolled inputs keep what was typed. */
+  /**
+   * Echoed on every refused add or update (validation, guard, DB error) so
+   * the uncontrolled inputs keep what was typed (2026-10-25, review of #196).
+   */
   values?: MomentValues;
 }
 
@@ -120,7 +123,7 @@ export async function addMoment(
     });
   } catch (error) {
     reportError(error, { surface: 'admin:addMoment', experienceId });
-    return { success: false, message: 'server' };
+    return { success: false, message: 'server', values: momentValues(formData) };
   }
 
   revalidate(experienceId);
@@ -168,7 +171,7 @@ export async function updateMoment(
       .where(eq(moments.id, momentId));
   } catch (error) {
     reportError(error, { surface: 'admin:updateMoment', momentId });
-    return { success: false, message: 'server' };
+    return { success: false, message: 'server', values: momentValues(formData) };
   }
 
   revalidate(experienceId);
