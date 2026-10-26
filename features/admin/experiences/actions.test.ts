@@ -119,6 +119,22 @@ describe('adminUpdateExperience', () => {
     expect(fake.current?.updates).toEqual([]);
   });
 
+  it('refuses a blank commission instead of saving 0%, and keeps an explicit 0', async () => {
+    for (const commissionPct of ['', '   ']) {
+      expect(await adminUpdateExperience(initial, form({ commissionPct }))).toMatchObject({
+        message: 'validation',
+        fields: { commissionPct: 'commission_range' },
+        values: { commissionPct },
+      });
+    }
+    expect(fake.current?.updates).toEqual([]);
+
+    expect(await run(() => adminUpdateExperience(initial, form({ commissionPct: '0' })))).toBe(
+      `REDIRECT:/admin/experience-moderation/${ID}`,
+    );
+    expect(fake.current?.updates[0]).toMatchObject({ commissionBps: 0 });
+  });
+
   it('a live listing needs the Arabic side of every list; a draft may leave it for later', async () => {
     expect(
       await adminUpdateExperience(initial, form({ inclusionsArRaw: '', whatToBringArRaw: '' })),
