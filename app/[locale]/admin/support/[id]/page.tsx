@@ -50,7 +50,10 @@ export default async function AdminSupportThreadPage({
     due: (date) => t('support.ticket.due', { date }),
     overdue: t('support.ticket.overdue'),
     escalated: t('support.ticket.escalated'),
-    openedBy: (who) => t('support.ticket.openedBy', { who }),
+    openedBy: (who) =>
+      t('support.ticket.openedBy', {
+        who: t.has(`support.ticket.opener.${who}`) ? t(`support.ticket.opener.${who}`) : who,
+      }),
     openThread: t('support.ticket.openThread'),
     booking: (reference) => t('support.ticket.booking', { reference }),
     priority: {

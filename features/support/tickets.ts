@@ -6,6 +6,7 @@ import { serverEnv } from '@/lib/env';
 import { supportTicketEvents, supportTickets } from '@/db/schema';
 import { reportError } from '@/lib/log';
 import { notifyAdmin } from '@/lib/admin-alerts';
+import type { TicketOpener } from '@/features/support/types';
 
 /**
  * Ticket service — the one place escalations are created, so the agent,
@@ -40,7 +41,10 @@ const PRIORITY_FLOOR: Partial<Record<TicketCategory, TicketPriority>> = {
 
 const RANK: Record<TicketPriority, number> = { urgent: 3, high: 2, normal: 1 };
 
-export function effectivePriority(category: TicketCategory, requested: TicketPriority): TicketPriority {
+export function effectivePriority(
+  category: TicketCategory,
+  requested: TicketPriority,
+): TicketPriority {
   const floor = PRIORITY_FLOOR[category];
   return floor && RANK[floor] > RANK[requested] ? floor : requested;
 }
@@ -61,7 +65,7 @@ export interface OpenTicketInput {
   conversationId?: string | null;
   bookingId?: string | null;
   guestId?: string | null;
-  openedBy: 'agent' | 'admin' | 'system' | 'guest';
+  openedBy: TicketOpener;
   /** Extra rows for the admin page (phone, reference…). */
   detail?: Record<string, string | number | null | undefined>;
 }
