@@ -8,6 +8,7 @@ import { serverEnv, hasSupabaseAuth } from '@/lib/env';
 import { getCurrentUser } from '@/features/auth/queries';
 import { getCurrentUserHostApplication } from '@/features/host-applications/queries';
 import { HostApplyForm } from '@/app/[locale]/(site)/host/apply/host-apply-form';
+import { RejectedApplicationNotice } from '@/app/[locale]/(site)/host/apply/rejected-application-notice';
 import { HOST_LANGUAGE_OPTIONS } from '@/features/host-applications/types';
 import { todayInRiyadh, yearsBefore } from '@/lib/riyadh-time';
 
@@ -138,6 +139,15 @@ export default async function HostApplyPage({ params }: { params: Promise<{ loca
           <p className="text-sarat-black-600 max-w-2xl text-lg leading-relaxed">{t('intro')}</p>
           <p className="text-sarat-black-600 max-w-2xl text-sm leading-relaxed">{t('introMeta')}</p>
         </div>
+
+        {existing?.status === 'rejected' && (
+          <RejectedApplicationNotice
+            eyebrow={t('status.rejected.eyebrow')}
+            title={t('status.rejected.title', { name: existing.displayName })}
+            description={t('status.rejected.description')}
+            reviewerNotes={existing.reviewerNotes}
+          />
+        )}
 
         <div className="border-sarat-black/12 mt-12 border-t pt-12">
           <HostApplyForm
