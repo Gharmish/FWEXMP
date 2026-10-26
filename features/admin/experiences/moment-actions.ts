@@ -84,7 +84,7 @@ export async function addMoment(
   formData: FormData,
 ): Promise<MomentActionState> {
   const guard = await requireAdmin();
-  if ('error' in guard) return guard.error;
+  if ('error' in guard) return { ...guard.error, values: momentValues(formData) };
 
   const experienceId = val(formData, 'experienceId');
   if (!experienceId) return { success: false, message: 'not_found' };
@@ -135,7 +135,7 @@ export async function updateMoment(
   formData: FormData,
 ): Promise<MomentActionState> {
   const guard = await requireAdmin();
-  if ('error' in guard) return guard.error;
+  if ('error' in guard) return { ...guard.error, values: momentValues(formData) };
 
   const momentId = val(formData, 'momentId');
   const experienceId = val(formData, 'experienceId');
