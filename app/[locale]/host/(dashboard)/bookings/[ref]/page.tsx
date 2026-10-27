@@ -12,6 +12,7 @@ import { getBookingForHost } from '@/features/host-bookings/queries';
 import { BookingRow } from '@/features/host-bookings/components/booking-row';
 import { OutcomeNotice } from '@/features/host-bookings/components/outcome-notice';
 import { buildTransitionCopy } from '@/features/host-bookings/lib/booking-copy';
+import { showsHostPayout } from '@/features/host-bookings/lib/payout-visibility';
 
 export async function generateMetadata({
   params,
@@ -93,12 +94,22 @@ export default async function HostBookingDetailPage({
 
   const facts: Array<{ label: string; value: React.ReactNode }> = [
     { label: t('detail.facts.policy'), value: t(`detail.policy.${booking.policyTier}`) },
-    {
+  ];
+  // Money lines only where money moved or still can: a declined or
+  // expired request was never paid, and a cancelled or refunded booking
+  // pays the host nothing.
+  if (booking.paymentStatus === 'paid') {
+    facts.push({
       label: t('detail.facts.guestPaid'),
       value: <Price amount={booking.totalAmountSar} locale={loc} />,
-    },
-    { label: t('detail.facts.payout'), value: <Price amount={booking.payoutSar} locale={loc} /> },
-  ];
+    });
+  }
+  if (showsHostPayout(booking.status)) {
+    facts.push({
+      label: t('detail.facts.payout'),
+      value: <Price amount={booking.payoutSar} locale={loc} />,
+    });
+  }
   if (booking.paymentBrand) {
     facts.push({ label: t('detail.facts.paymentBrand'), value: booking.paymentBrand });
   }
