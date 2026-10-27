@@ -4,6 +4,7 @@ import {
   MAX_RESCHEDULES,
   bookingOptions,
   policySnapshotFor,
+  reachablePartialDeadline,
   type BookingOptionsInput,
 } from '@/features/bookings/lib/policy';
 
@@ -226,5 +227,37 @@ describe('bookingOptions — reschedule', () => {
       allowed: false,
       reason: 'limit_reached',
     });
+  });
+});
+
+describe('reachablePartialDeadline', () => {
+  function cancelAt(now: string, overrides: Partial<BookingOptionsInput> = {}) {
+    const { cancel } = at(now, overrides);
+    if (!cancel.allowed) throw new Error('expected an allowed cancel');
+    return cancel;
+  }
+
+  it('keeps the partial step when it follows the full-refund deadline', () => {
+    const cancel = cancelAt('2026-06-10T00:00:00Z');
+    expect(reachablePartialDeadline(cancel)).toEqual(new Date('2026-06-19T06:00:00Z'));
+  });
+
+  it('drops it when the post-booking grace outlasts the partial deadline', () => {
+    // Strict (50% until start-72h), booked 80h before a 09:00 start: the
+    // grace runs to start-48h, so cancelling goes full → forfeited and
+    // "50% until <start-72h>" would name an instant already behind us.
+    const created = new Date('2026-06-16T22:00:00Z');
+    const overrides = { snapshot: CANCELLATION_TIERS.strict, createdAt: created };
+    const cancel = cancelAt('2026-06-16T22:01:00Z', overrides);
+    expect(cancel.refund).toBe('full');
+    expect(cancel.partialDeadline!.getTime()).toBeLessThan(cancel.fullRefundUntil.getTime());
+    expect(reachablePartialDeadline(cancel)).toBeNull();
+    // ...and the engine agrees: once the grace ends nothing is refunded.
+    expect(at('2026-06-18T06:01:00Z', overrides).cancel).toMatchObject({ refund: 'forfeited' });
+  });
+
+  it('is null for a tier without a partial step', () => {
+    const cancel = cancelAt('2026-06-10T00:00:00Z', { snapshot: CANCELLATION_TIERS.flexible });
+    expect(reachablePartialDeadline(cancel)).toBeNull();
   });
 });

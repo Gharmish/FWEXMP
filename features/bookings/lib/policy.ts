@@ -130,6 +130,22 @@ export type CancelOption =
       fullRefundUntil: Date;
     };
 
+/**
+ * The partial-refund deadline a guest can still reach, or null. When the
+ * post-booking grace pushes `fullRefundUntil` past the tier's partial
+ * deadline (a strict booking made ~3-4 days out), cancelling goes from
+ * full straight to forfeited, so surfaces must not promise a partial
+ * step "until" an instant that is already behind the full-refund one.
+ */
+export function reachablePartialDeadline(
+  cancel: Pick<Extract<CancelOption, { allowed: true }>, 'partialDeadline' | 'fullRefundUntil'>,
+): Date | null {
+  const { partialDeadline, fullRefundUntil } = cancel;
+  return partialDeadline && partialDeadline.getTime() > fullRefundUntil.getTime()
+    ? partialDeadline
+    : null;
+}
+
 export type RescheduleOption =
   | {
       allowed: false;
