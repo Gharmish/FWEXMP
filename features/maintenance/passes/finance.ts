@@ -21,6 +21,15 @@ import { RECONCILE_LIMIT } from '@/features/maintenance/runner';
  * is isolated, named and counted.
  */
 
+/**
+ * 5a and 5c re-run hourly over a 48h / 24h lookback, so one unstamped or
+ * negative-take booking matched every run and re-paged email + WhatsApp
+ * each hour (OPS-08 named both kinds; only the cron kinds got a quiet
+ * window). Each run still persists its row for /admin/alerts.
+ */
+export const VAT_STAMP_ALERT_QUIET_MS = 24 * 3_600_000;
+export const NEGATIVE_TAKE_ALERT_QUIET_MS = 6 * 3_600_000;
+
 export async function vatGuards(run: PassRunner) {
   // Pass 5 — VAT accounting guards (daily, best-effort; failures are
   // logged but never block the operational passes above).
@@ -52,11 +61,15 @@ export async function vatGuards(run: PassRunner) {
             ),
           );
         if (unstamped && unstamped.count > 0) {
-          await notifyAdmin('vat_stamp_missing', {
-            count: unstamped.count,
-            window: 'last 48 hours',
-            action: 'stamp these bookings before the next VAT filing (/admin/vat)',
-          });
+          await notifyAdmin(
+            'vat_stamp_missing',
+            {
+              count: unstamped.count,
+              window: 'last 48 hours',
+              action: 'stamp these bookings before the next VAT filing (/admin/vat)',
+            },
+            { fingerprint: 'vat-stamp', quietWindowMs: VAT_STAMP_ALERT_QUIET_MS },
+          );
         }
       }
 
@@ -121,12 +134,16 @@ export async function watchNegativeTake(run: PassRunner) {
           ),
         );
       if (negative && negative.count > 0) {
-        await notifyAdmin('negative_take', {
-          bookings: negative.count,
-          platformLossSar: negative.lossSar,
-          window: 'last 24 hours',
-          action: 'review promo/credit stacking on these bookings (/admin/bookings)',
-        });
+        await notifyAdmin(
+          'negative_take',
+          {
+            bookings: negative.count,
+            platformLossSar: negative.lossSar,
+            window: 'last 24 hours',
+            action: 'review promo/credit stacking on these bookings (/admin/bookings)',
+          },
+          { fingerprint: 'negative-take', quietWindowMs: NEGATIVE_TAKE_ALERT_QUIET_MS },
+        );
       }
     },
     undefined,
