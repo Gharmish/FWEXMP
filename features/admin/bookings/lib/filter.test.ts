@@ -87,6 +87,11 @@ describe('bookingFilterWhere (2026-09 engineering audit DATA-04)', () => {
     const ref = render(bookingFilterWhere({ q: '\u2068GH-ABC7DE\u2069', todayStr: today }));
     expect(ref.sql).not.toContain('regexp_replace');
     expect(ref.params).toEqual(Array(5).fill('%gh-abc7de%'));
+    // U+061C (ARABIC LETTER MARK) is the mark Arabic keyboards and some
+    // Arabic UIs insert next to a `+` (PR #178 review).
+    const alm = render(bookingFilterWhere({ q: '\u061C+966 51 234 5', todayStr: today }));
+    expect(alm.sql).toContain('regexp_replace');
+    expect(alm.params).toContain('%966512345%');
   });
 
   it('escapes LIKE metacharacters in the needle', () => {

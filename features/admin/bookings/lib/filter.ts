@@ -53,12 +53,13 @@ function likePattern(needle: string): string {
 const PHONE_SHAPED = /^[\d\s+().-]+$/;
 
 /**
- * Invisible bidi marks and embeddings (U+200E/F, U+202A–E, U+2066–9). A
- * phone copied from an RTL context, or a reference copied from one of our
- * own WhatsApp messages (`bidiIsolate`), carries them; they are never part
- * of what the admin means to search for (2026-10-23, PR #178 review).
+ * Invisible bidi marks and embeddings (U+061C, U+200E/F, U+202A–E,
+ * U+2066–9). A phone copied from an RTL context, or a reference copied
+ * from one of our own WhatsApp messages (`bidiIsolate`), carries them;
+ * they are never part of what the admin means to search for (2026-10-23,
+ * PR #178 review; the Arabic letter mark added 2026-10-27).
  */
-const BIDI_CONTROLS = /[\u200E\u200F\u202A-\u202E\u2066-\u2069]/g;
+const BIDI_CONTROLS = /[\u061C\u200E\u200F\u202A-\u202E\u2066-\u2069]/g;
 
 /**
  * The free-text search as SQL (2026-09 engineering audit DATA-04 — the
