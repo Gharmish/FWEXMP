@@ -97,14 +97,15 @@ export default async function HostBookingDetailPage({
   ];
   // Money lines only where money moved or still can: a declined or
   // expired request was never paid, and a cancelled or refunded booking
-  // pays the host nothing.
+  // pays the host nothing — unless it was paid out before the refund, in
+  // which case the figure stays next to the "Paid to you" event above.
   if (booking.paymentStatus === 'paid') {
     facts.push({
       label: t('detail.facts.guestPaid'),
       value: <Price amount={booking.totalAmountSar} locale={loc} />,
     });
   }
-  if (showsHostPayout(booking.status)) {
+  if (showsHostPayout(booking.status, booking.hostPaidAt)) {
     facts.push({
       label: t('detail.facts.payout'),
       value: <Price amount={booking.payoutSar} locale={loc} />,

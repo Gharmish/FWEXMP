@@ -10,6 +10,14 @@ describe('showsHostPayout', () => {
     'hides the payout for %s',
     (status) => {
       expect(showsHostPayout(status)).toBe(false);
+      expect(showsHostPayout(status, null)).toBe(false);
     },
   );
+
+  // Paid out, then refunded: the timeline still says "Paid to you" and the
+  // earnings page keeps the row in "paid to date", so the figure stays.
+  it('keeps the payout on a refunded booking that was already paid out', () => {
+    expect(showsHostPayout('refunded', '2026-10-20T09:00:00.000Z')).toBe(true);
+    expect(showsHostPayout('cancelled', '2026-10-20T09:00:00.000Z')).toBe(true);
+  });
 });
