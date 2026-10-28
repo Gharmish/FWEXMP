@@ -49,8 +49,19 @@ export interface AdminModerationResult {
     /** The listing's host is suspended — nothing of theirs may go live (2026-10-09). */
     | 'host_suspended';
   fieldError?: string;
-  /** Echo of the reviewer's typed note so a failed submit never wipes it (2026-09 UX audit P1-6). */
-  values?: { reviewerNotes: string };
+  /**
+   * Echo of what the admin typed so a failed submit never wipes it
+   * (2026-09 UX audit P1-6): the reviewer note on a decision, the four
+   * Arabic fields on an Arabic-copy save.
+   */
+  values?: Partial<ArabicCopyValues & { reviewerNotes: string }>;
+}
+
+interface ArabicCopyValues {
+  titleAr: string;
+  descriptionAr: string;
+  inclusionsArRaw: string;
+  whatToBringArRaw: string;
 }
 
 function formValue(formData: FormData, key: string): string {
@@ -223,12 +234,16 @@ export async function updateExperienceArabicCopy(
   const guard = await requireAdmin();
   if ('error' in guard) return guard.error;
 
-  const parsed = updateArabicCopySchema.safeParse({
-    experienceId: formValue(formData, 'experienceId'),
+  const values: ArabicCopyValues = {
     titleAr: formValue(formData, 'titleAr'),
     descriptionAr: formValue(formData, 'descriptionAr'),
     inclusionsArRaw: formValue(formData, 'inclusionsArRaw'),
     whatToBringArRaw: formValue(formData, 'whatToBringArRaw'),
+  };
+
+  const parsed = updateArabicCopySchema.safeParse({
+    experienceId: formValue(formData, 'experienceId'),
+    ...values,
     locale: formValue(formData, 'locale'),
   });
   if (!parsed.success) {
@@ -237,6 +252,7 @@ export async function updateExperienceArabicCopy(
       success: false,
       message: 'validation',
       fieldError: issue?.message ?? 'invalid',
+      values,
     };
   }
   const { experienceId, titleAr, descriptionAr, locale } = parsed.data;
@@ -254,7 +270,7 @@ export async function updateExperienceArabicCopy(
       .where(eq(experiences.id, experienceId))
       .returning({ status: experiences.status });
     if (updated.length === 0) {
-      return { success: false, message: 'not_found' };
+      return { success: false, message: 'not_found', values };
     }
     await db.insert(experienceModerationEvents).values({
       experienceId,
@@ -265,7 +281,7 @@ export async function updateExperienceArabicCopy(
     });
   } catch (error) {
     reportError(error, { surface: 'admin:updateExperienceArabicCopy', experienceId });
-    return { success: false, message: 'server' };
+    return { success: false, message: 'server', values };
   }
 
   revalidateExperienceCaches();

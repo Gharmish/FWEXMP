@@ -202,6 +202,7 @@ describe('rejectExperience / requestExperienceChanges / updateExperienceArabicCo
     ).toMatchObject({
       message: 'validation',
       fieldError: 'title_ar_invalid',
+      values: { titleAr: 'x', descriptionAr: 'y', inclusionsArRaw: '', whatToBringArRaw: '' },
     });
     updated = [{ status: 'pending_review' }];
     expect(

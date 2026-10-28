@@ -89,6 +89,9 @@ export function ArabicEditor({
   const whatToBringId = useId();
 
   const error = errorMessage(state, copy);
+  // A refused save echoes what was typed — React resets uncontrolled
+  // inputs after an action, so without it the fields revert to the row.
+  const typed = state.values;
   const isPending = titleAr.startsWith('TODO(ar') || descriptionAr.startsWith('TODO(ar');
 
   return (
@@ -107,7 +110,13 @@ export function ArabicEditor({
         <label htmlFor={titleId} className="text-sm font-medium">
           {copy.titleLabel}
         </label>
-        <Input id={titleId} name="titleAr" dir="rtl" maxLength={160} defaultValue={titleAr} />
+        <Input
+          id={titleId}
+          name="titleAr"
+          dir="rtl"
+          maxLength={160}
+          defaultValue={typed?.titleAr ?? titleAr}
+        />
       </div>
 
       <div className="flex flex-col gap-2">
@@ -120,7 +129,7 @@ export function ArabicEditor({
           rows={6}
           dir="rtl"
           maxLength={5000}
-          defaultValue={descriptionAr}
+          defaultValue={typed?.descriptionAr ?? descriptionAr}
           className={TEXTAREA_CLASS}
         />
       </div>
@@ -135,7 +144,7 @@ export function ArabicEditor({
             name="inclusionsArRaw"
             rows={4}
             dir="rtl"
-            defaultValue={inclusionsAr.join('\n')}
+            defaultValue={typed?.inclusionsArRaw ?? inclusionsAr.join('\n')}
             className={TEXTAREA_CLASS}
           />
         </div>
@@ -148,7 +157,7 @@ export function ArabicEditor({
             name="whatToBringArRaw"
             rows={4}
             dir="rtl"
-            defaultValue={whatToBringAr.join('\n')}
+            defaultValue={typed?.whatToBringArRaw ?? whatToBringAr.join('\n')}
             className={TEXTAREA_CLASS}
           />
         </div>
