@@ -29,7 +29,9 @@ import { createPassRunner } from '@/features/maintenance/runner';
 import {
   NEGATIVE_TAKE_ALERT_QUIET_MS,
   VAT_STAMP_ALERT_QUIET_MS,
+  negativeTakeAlertFingerprint,
   vatGuards,
+  vatStampAlertFingerprint,
   watchNegativeTake,
 } from './finance';
 
@@ -55,7 +57,7 @@ describe('finance guard alerts', () => {
     expect(run.failedPasses).toEqual([]);
     expect(notifyAdmin).toHaveBeenCalledTimes(1);
     expect(notifyAdmin).toHaveBeenCalledWith('vat_stamp_missing', expect.anything(), {
-      fingerprint: 'vat-stamp',
+      fingerprint: vatStampAlertFingerprint(1),
       quietWindowMs: VAT_STAMP_ALERT_QUIET_MS,
     });
   });
@@ -66,9 +68,35 @@ describe('finance guard alerts', () => {
     await watchNegativeTake(run);
     expect(run.failedPasses).toEqual([]);
     expect(notifyAdmin).toHaveBeenCalledWith('negative_take', expect.anything(), {
-      fingerprint: 'negative-take',
+      fingerprint: negativeTakeAlertFingerprint(2),
       quietWindowMs: NEGATIVE_TAKE_ALERT_QUIET_MS,
     });
+  });
+
+  // A constant fingerprint silenced NEW losses for the whole window (review
+  // of this fix): the key must change as soon as the matched count grows,
+  // so a farmed code producing more bookings pages again within the hour.
+  it('pages again when a growing loss changes the fingerprint', async () => {
+    state.results = [[{ count: 1, lossSar: 20 }]];
+    await watchNegativeTake(createPassRunner());
+    state.results = [[{ count: 31, lossSar: 620 }]];
+    await watchNegativeTake(createPassRunner());
+    expect(notifyAdmin).toHaveBeenCalledTimes(2);
+    const [first, second] = notifyAdmin.mock.calls.map((call) => call[2]);
+    expect(first).toEqual({
+      fingerprint: negativeTakeAlertFingerprint(1),
+      quietWindowMs: NEGATIVE_TAKE_ALERT_QUIET_MS,
+    });
+    expect(second).toEqual({
+      fingerprint: negativeTakeAlertFingerprint(31),
+      quietWindowMs: NEGATIVE_TAKE_ALERT_QUIET_MS,
+    });
+    expect(first).not.toEqual(second);
+  });
+
+  it('keeps an identical repeat under the same fingerprint', () => {
+    expect(negativeTakeAlertFingerprint(3)).toBe(negativeTakeAlertFingerprint(3));
+    expect(vatStampAlertFingerprint(2)).not.toBe(vatStampAlertFingerprint(3));
   });
 
   it('stays silent when nothing matched', async () => {

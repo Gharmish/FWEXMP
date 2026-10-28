@@ -26,9 +26,23 @@ import { RECONCILE_LIMIT } from '@/features/maintenance/runner';
  * negative-take booking matched every run and re-paged email + WhatsApp
  * each hour (OPS-08 named both kinds; only the cron kinds got a quiet
  * window). Each run still persists its row for /admin/alerts.
+ *
+ * The fingerprint carries the matched count (2026-10-28 review of this
+ * fix): a constant key would have silenced NEW losses too, so a farmed
+ * promo code producing thirty more negative-take bookings after the first
+ * page stayed unpaged for the whole window. Keying on the count keeps an
+ * identical repeat quiet and pages again the moment the picture grows.
  */
 export const VAT_STAMP_ALERT_QUIET_MS = 24 * 3_600_000;
 export const NEGATIVE_TAKE_ALERT_QUIET_MS = 6 * 3_600_000;
+
+export function vatStampAlertFingerprint(count: number): string {
+  return `vat-stamp:${count}`;
+}
+
+export function negativeTakeAlertFingerprint(count: number): string {
+  return `negative-take:${count}`;
+}
 
 export async function vatGuards(run: PassRunner) {
   // Pass 5 — VAT accounting guards (daily, best-effort; failures are
@@ -68,7 +82,10 @@ export async function vatGuards(run: PassRunner) {
               window: 'last 48 hours',
               action: 'stamp these bookings before the next VAT filing (/admin/vat)',
             },
-            { fingerprint: 'vat-stamp', quietWindowMs: VAT_STAMP_ALERT_QUIET_MS },
+            {
+              fingerprint: vatStampAlertFingerprint(unstamped.count),
+              quietWindowMs: VAT_STAMP_ALERT_QUIET_MS,
+            },
           );
         }
       }
@@ -142,7 +159,10 @@ export async function watchNegativeTake(run: PassRunner) {
             window: 'last 24 hours',
             action: 'review promo/credit stacking on these bookings (/admin/bookings)',
           },
-          { fingerprint: 'negative-take', quietWindowMs: NEGATIVE_TAKE_ALERT_QUIET_MS },
+          {
+            fingerprint: negativeTakeAlertFingerprint(negative.count),
+            quietWindowMs: NEGATIVE_TAKE_ALERT_QUIET_MS,
+          },
         );
       }
     },
