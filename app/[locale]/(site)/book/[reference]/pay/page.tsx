@@ -33,6 +33,7 @@ import { PromoCodeField } from '@/features/promo-codes/components/promo-code-fie
 import { WalletCheckoutField } from '@/features/wallet/components/wallet-checkout-field';
 import { getSessionGuestId } from '@/features/wallet/queries';
 import { getWalletBalanceSar } from '@/features/wallet/ledger';
+import { walletFieldVisible } from '@/features/wallet/lib/checkout-field';
 import { PaymentMarks } from '@/components/layout/payment-marks';
 import { VerifiedBadge } from '@/features/hosts/components/verified-badge';
 import { toArabicText } from '@/features/experiences/lib/arabic-content';
@@ -146,7 +147,12 @@ export default async function PaymentPage({ params, searchParams }: PageParams) 
     // `defaults` below; `country` falls back to KSA there).
     getStoredBillingForBooking(reference),
   ]);
-  const showWalletField = walletOwner && (walletBalanceSar > 0 || booking.walletAppliedSar > 0);
+  const showWalletField = walletFieldVisible({
+    walletOwner,
+    balanceSar: walletBalanceSar,
+    appliedSar: booking.walletAppliedSar,
+    totalSar: booking.totalAmountSar,
+  });
 
   // The consent line links to the generic policy page; this note states
   // what the policy means for THIS booking, from its own cancellation-
