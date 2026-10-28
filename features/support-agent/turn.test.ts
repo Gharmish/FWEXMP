@@ -61,11 +61,14 @@ let conversationState = 'bot';
 let extensionMisses = false;
 /** Agent turns counted by the daily budget query (per conversation and global). */
 let budgetCount = 0;
+/** Bot-owned conversations the cron sweep's candidate query returns. */
+let sweepRows: Array<Record<string, unknown>> = [];
 
 vi.mock('@/lib/db', () => ({
   db: {
     query: {
       conversations: { findFirst: async () => ({ state: conversationState }) },
+      conversationMessages: { findFirst: async () => ({ id: 'm1', direction: 'in' }) },
     },
     update: () => ({
       set: (values: Record<string, unknown>) => {
@@ -86,24 +89,27 @@ vi.mock('@/lib/db', () => ({
         };
       },
     }),
-    select: (shape: Record<string, unknown>) => ({
-      from: () => ({
-        // Awaited directly by the daily budget counts ({ n }); chained
-        // through orderBy/limit by loadThread (message shape) and the
-        // post-reply re-check ({ id }).
-        where: () =>
-          Object.assign(Promise.resolve([{ n: budgetCount }]), {
-            orderBy: () => ({
-              limit: async () =>
-                'direction' in shape ? [...history].reverse() : (newerQueue.shift() ?? []),
-            }),
+    select: (shape: Record<string, unknown>) => {
+      // Awaited directly by the daily budget counts ({ n }); chained
+      // through orderBy/limit by loadThread (message shape), the
+      // post-reply re-check ({ id }) and the cron sweep (address shape).
+      const where = () =>
+        Object.assign(Promise.resolve([{ n: budgetCount }]), {
+          orderBy: () => ({
+            limit: async () =>
+              'address' in shape
+                ? sweepRows
+                : 'direction' in shape
+                  ? [...history].reverse()
+                  : (newerQueue.shift() ?? []),
           }),
-      }),
-    }),
+        });
+      return { from: () => ({ where, leftJoin: () => ({ where }) }) };
+    },
   },
 }));
 
-import { runAgentTurn, setAnthropicClientForTests } from './agent';
+import { runAgentTurn, setAnthropicClientForTests, sweepPendingAgentTurns } from './agent';
 import { runTool } from './tools';
 
 function textReplyClient(texts: string[]): Anthropic {
@@ -153,6 +159,7 @@ beforeEach(() => {
   conversationState = 'bot';
   extensionMisses = false;
   budgetCount = 0;
+  sweepRows = [];
   sendConversationReply.mockClear();
 });
 
@@ -411,5 +418,38 @@ describe('runAgentTurn spend ceiling (2026-09 engineering audit AI-02)', () => {
     expect(sendConversationReply).toHaveBeenCalledTimes(1);
     const ack = (sendConversationReply.mock.calls[0] as unknown as [{ type: string }])[0];
     expect(ack.type).toBe('support_ack');
+  });
+});
+
+describe('sweepPendingAgentTurns', () => {
+  it("re-runs a stranded turn with the guest's stored name, not 'unknown'", async () => {
+    const prompts: string[] = [];
+    setAnthropicClientForTests({
+      messages: {
+        create: async (params: { system: Array<{ text: string }> }) => {
+          prompts.push(params.system.map((b) => b.text).join('\n'));
+          return {
+            id: 'm',
+            type: 'message',
+            role: 'assistant',
+            stop_reason: 'end_turn',
+            content: [{ type: 'text', text: 'Hello Sara', citations: null }],
+          };
+        },
+      },
+    } as unknown as Anthropic);
+    sweepRows = [
+      {
+        id: 'c1',
+        address: '+966500000001',
+        locale: 'en',
+        lastInboundAt: new Date(FIXED_NOW.getTime() - 10 * 60 * 1000),
+        lastOutboundAt: null,
+        guestName: 'Sara',
+      },
+    ];
+    const handled = await sweepPendingAgentTurns();
+    expect(handled).toBe(1);
+    expect(prompts[0]).toContain("Guest's stored name: Sara");
   });
 });
