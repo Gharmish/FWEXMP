@@ -269,6 +269,15 @@ describe('createDispute', () => {
     expect(notifyAdmin).not.toHaveBeenCalled();
   });
 
+  it('maps the race loser to already_open when drizzle wraps the driver error', async () => {
+    insertError = new Error('Failed query: insert into "disputes" ...', {
+      cause: { code: '23505', constraint_name: 'disputes_one_open_per_booking' },
+    });
+    const state = await createDispute({ success: false }, disputeForm());
+    expect(state).toMatchObject({ success: false, message: 'already_open' });
+    expect(reportError).not.toHaveBeenCalled();
+  });
+
   it('reports an unrelated insert failure as server', async () => {
     insertError = Object.assign(new Error('boom'), { code: '23503' });
     const state = await createDispute({ success: false }, disputeForm());
