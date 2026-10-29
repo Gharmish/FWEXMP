@@ -11,7 +11,7 @@ import { experiences, moments } from '@/db/schema';
 import { reportError } from '@/lib/log';
 import { getCurrentUser } from '@/features/auth/queries';
 import { getCurrentHostIdForWrite } from '@/features/host-experiences/queries';
-import type { MomentActionState } from '@/features/admin/experiences/moment-actions';
+import type { MomentActionState, MomentValues } from '@/features/admin/experiences/moment-actions';
 
 /**
  * Host CRUD for their own experience's timeline. Same shape as the
@@ -52,6 +52,16 @@ const hostMomentSchema = z.object({
 function val(formData: FormData, key: string): string {
   const v = formData.get(key);
   return typeof v === 'string' ? v : '';
+}
+
+function momentValues(formData: FormData): MomentValues {
+  return {
+    timeOfDay: val(formData, 'timeOfDay'),
+    titleEn: val(formData, 'titleEn'),
+    descriptionEn: val(formData, 'descriptionEn'),
+    titleAr: val(formData, 'titleAr'),
+    descriptionAr: val(formData, 'descriptionAr'),
+  };
 }
 
 interface OwnedExperience {
@@ -130,7 +140,9 @@ function parseFields(
       const k = issue.path[0];
       if (typeof k === 'string') fields[k] = issue.message;
     }
-    return { error: { success: false, message: 'validation', fields } };
+    return {
+      error: { success: false, message: 'validation', fields, values: momentValues(formData) },
+    };
   }
   return { input: parsed.data };
 }
@@ -141,8 +153,13 @@ export async function addMomentAsHost(
 ): Promise<MomentActionState> {
   const experienceId = val(formData, 'experienceId');
   if (!experienceId) return { success: false, message: 'not_found' };
+  // Every refusal of an add or update echoes `values` (2026-10-25, review
+  // of #196): React resets the uncontrolled inputs after any action
+  // result, so a guard refusal or a DB error would otherwise lose a long
+  // bilingual description the same way a validation refusal did.
+  const values = momentValues(formData);
   const guard = await requireEditableExperience(experienceId);
-  if ('error' in guard) return guard.error;
+  if ('error' in guard) return { ...guard.error, values };
 
   const parsed = parseFields(formData);
   if ('error' in parsed) return parsed.error;
@@ -164,7 +181,7 @@ export async function addMomentAsHost(
     });
   } catch (error) {
     reportError(error, { surface: 'host-moments:add', experienceId });
-    return { success: false, message: 'server' };
+    return { success: false, message: 'server', values };
   }
 
   revalidate();
@@ -181,12 +198,13 @@ export async function updateMomentAsHost(
   const parsed = parseFields(formData);
   if ('error' in parsed) return parsed.error;
   const { input } = parsed;
+  const values = momentValues(formData);
 
   try {
     const experienceId = await experienceIdOfMoment(momentId);
-    if (!experienceId) return { success: false, message: 'not_found' };
+    if (!experienceId) return { success: false, message: 'not_found', values };
     const guard = await requireEditableExperience(experienceId);
-    if ('error' in guard) return guard.error;
+    if ('error' in guard) return { ...guard.error, values };
 
     // The editor prefills the stored Arabic (placeholder-stripped), so
     // saves round-trip existing translations; a blank field reverts to
@@ -203,7 +221,7 @@ export async function updateMomentAsHost(
       .where(eq(moments.id, momentId));
   } catch (error) {
     reportError(error, { surface: 'host-moments:update', momentId });
-    return { success: false, message: 'server' };
+    return { success: false, message: 'server', values };
   }
 
   revalidate();

@@ -99,6 +99,84 @@ describe('host moments', () => {
     expect(fake.current?.inserts).toEqual([]);
   });
 
+  it('a refused add or update echoes what was typed, so the form does not reset', async () => {
+    const typed = {
+      timeOfDay: '06:00',
+      titleEn: 'D',
+      descriptionEn: 'We walk the old terraces at first light.',
+      titleAr: 'الفجر',
+      descriptionAr: 'نمشي في المدرجات القديمة',
+    };
+    expect(await addMomentAsHost(initial, form({ experienceId: EXP, ...typed }))).toEqual({
+      success: false,
+      message: 'validation',
+      fields: { titleEn: 'title_short' },
+      values: typed,
+    });
+    expect(await updateMomentAsHost(initial, form({ momentId: 'm1', ...typed }))).toMatchObject({
+      message: 'validation',
+      values: typed,
+    });
+    expect(fake.current?.inserts).toHaveLength(0);
+  });
+
+  it('a guard refusal or a DB error on add / update echoes what was typed too (review of #196)', async () => {
+    const typed = {
+      timeOfDay: '06:00',
+      titleEn: 'Dawn',
+      descriptionEn: 'We walk the old terraces at first light.',
+      titleAr: 'الفجر',
+      descriptionAr: 'نمشي في المدرجات القديمة',
+    };
+    // Guard: the listing is under review, so the add is refused before any write.
+    experience = { id: EXP, hostId: 'h1', status: 'pending_review' };
+    expect(await addMomentAsHost(initial, form({ experienceId: EXP, ...typed }))).toEqual({
+      success: false,
+      message: 'locked_live',
+      values: typed,
+    });
+    expect(await updateMomentAsHost(initial, form({ momentId: 'm1', ...typed }))).toEqual({
+      success: false,
+      message: 'locked_live',
+      values: typed,
+    });
+    // The moment the edit card was opened from is gone.
+    experience = { id: EXP, hostId: 'h1', status: 'draft' };
+    moment = undefined;
+    expect(await updateMomentAsHost(initial, form({ momentId: 'm1', ...typed }))).toEqual({
+      success: false,
+      message: 'not_found',
+      values: typed,
+    });
+    // DB error: the order-index read on add, the moment lookup on update.
+    moment = { experienceId: EXP };
+    fake.current = createDbFake({
+      query: {
+        experiences: { findFirst: () => experience },
+        moments: {
+          findFirst: () => {
+            throw new Error('connection reset');
+          },
+        },
+      },
+      select: () => {
+        throw new Error('connection reset');
+      },
+    });
+    expect(await addMomentAsHost(initial, form({ experienceId: EXP, ...typed }))).toEqual({
+      success: false,
+      message: 'server',
+      values: typed,
+    });
+    expect(await updateMomentAsHost(initial, form({ momentId: 'm1', ...typed }))).toEqual({
+      success: false,
+      message: 'server',
+      values: typed,
+    });
+    expect(fake.current?.inserts).toHaveLength(0);
+    expect(fake.current?.updates).toHaveLength(0);
+  });
+
   it('a blank or placeholder Arabic field falls back to the placeholder', async () => {
     expect(
       await addMomentAsHost(

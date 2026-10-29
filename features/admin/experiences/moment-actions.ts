@@ -25,6 +25,19 @@ export interface MomentActionState {
   /** `locked_live` is host-only: live listings need a (re-review) edit first. */
   message?: 'forbidden' | 'no_db' | 'not_found' | 'locked_live' | 'validation' | 'server';
   fields?: Record<string, string>;
+  /**
+   * Echoed on every refused add or update (validation, guard, DB error) so
+   * the uncontrolled inputs keep what was typed (2026-10-25, review of #196).
+   */
+  values?: MomentValues;
+}
+
+export interface MomentValues {
+  timeOfDay: string;
+  titleEn: string;
+  descriptionEn: string;
+  titleAr: string;
+  descriptionAr: string;
 }
 
 const momentSchema = z.object({
@@ -38,6 +51,16 @@ const momentSchema = z.object({
 function val(formData: FormData, key: string): string {
   const v = formData.get(key);
   return typeof v === 'string' ? v : '';
+}
+
+function momentValues(formData: FormData): MomentValues {
+  return {
+    timeOfDay: val(formData, 'timeOfDay'),
+    titleEn: val(formData, 'titleEn'),
+    descriptionEn: val(formData, 'descriptionEn'),
+    titleAr: val(formData, 'titleAr'),
+    descriptionAr: val(formData, 'descriptionAr'),
+  };
 }
 
 async function requireAdmin(): Promise<{ adminUserId: string } | { error: MomentActionState }> {
@@ -61,7 +84,7 @@ export async function addMoment(
   formData: FormData,
 ): Promise<MomentActionState> {
   const guard = await requireAdmin();
-  if ('error' in guard) return guard.error;
+  if ('error' in guard) return { ...guard.error, values: momentValues(formData) };
 
   const experienceId = val(formData, 'experienceId');
   if (!experienceId) return { success: false, message: 'not_found' };
@@ -79,7 +102,7 @@ export async function addMoment(
       const k = issue.path[0];
       if (typeof k === 'string') fields[k] = issue.message;
     }
-    return { success: false, message: 'validation', fields };
+    return { success: false, message: 'validation', fields, values: momentValues(formData) };
   }
   const input = parsed.data;
 
@@ -100,7 +123,7 @@ export async function addMoment(
     });
   } catch (error) {
     reportError(error, { surface: 'admin:addMoment', experienceId });
-    return { success: false, message: 'server' };
+    return { success: false, message: 'server', values: momentValues(formData) };
   }
 
   revalidate(experienceId);
@@ -112,7 +135,7 @@ export async function updateMoment(
   formData: FormData,
 ): Promise<MomentActionState> {
   const guard = await requireAdmin();
-  if ('error' in guard) return guard.error;
+  if ('error' in guard) return { ...guard.error, values: momentValues(formData) };
 
   const momentId = val(formData, 'momentId');
   const experienceId = val(formData, 'experienceId');
@@ -131,7 +154,7 @@ export async function updateMoment(
       const k = issue.path[0];
       if (typeof k === 'string') fields[k] = issue.message;
     }
-    return { success: false, message: 'validation', fields };
+    return { success: false, message: 'validation', fields, values: momentValues(formData) };
   }
   const input = parsed.data;
 
@@ -148,7 +171,7 @@ export async function updateMoment(
       .where(eq(moments.id, momentId));
   } catch (error) {
     reportError(error, { surface: 'admin:updateMoment', momentId });
-    return { success: false, message: 'server' };
+    return { success: false, message: 'server', values: momentValues(formData) };
   }
 
   revalidate(experienceId);
