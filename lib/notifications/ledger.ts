@@ -66,7 +66,11 @@ export type ClaimResult =
  * the retry sweep — or a naturally double-fired flow — can re-drive a
  * send the provider rejected, while anything `sent`/`delivered`/
  * `suppressed` stays firmly deduped. Suppressed claims never re-claim:
- * they only record the refusal. Without a DB the claim trivially
+ * they only record the refusal — and close a `failed` row on the same
+ * slot as `suppressed` (2026-10-22). A hard bounce marks the row failed
+ * and suppresses the address; left at failed, the retry sweep re-picked
+ * it every hour for 48h (the suppressed claim never bumped `attempts`),
+ * squatting on the bounded retry budget. Without a DB the claim trivially
  * succeeds (id null) so dev flows still send. A ledger error also lets
  * the send proceed — observability must never cost a receipt.
  */
@@ -88,7 +92,12 @@ export async function claimDelivery(input: ClaimInput): Promise<ClaimResult> {
       ? await db
           .insert(notificationDeliveries)
           .values(values)
-          .onConflictDoNothing({ target })
+          .onConflictDoUpdate({
+            target,
+            set: { status: 'suppressed', statusUpdatedAt: new Date() },
+            // Only a failed row is closed; sent/delivered/queued keep their status.
+            setWhere: eq(notificationDeliveries.status, 'failed'),
+          })
           .returning({ id: notificationDeliveries.id })
       : await db
           .insert(notificationDeliveries)
@@ -162,6 +171,11 @@ export async function applyProviderStatus(
       columns: { id: true, status: true },
     });
     if (!row) return;
+    // A row closed as `suppressed` is terminal (2026-10-22): it ranks 0,
+    // so a late Twilio `sent`/`delivered` callback for the original
+    // message would otherwise reopen it. Before the suppressed claim
+    // closed `failed` rows, their top rank blocked those callbacks.
+    if (row.status === 'suppressed') return;
     const currentRank = row.status in STATUS_RANK ? STATUS_RANK[row.status as WebhookStatus] : 0;
     if (STATUS_RANK[status] <= currentRank) return;
     await db
