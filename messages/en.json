@@ -1613,6 +1613,12 @@
         "overdue": "Overdue",
         "escalated": "Re-paged",
         "openedBy": "Opened by {who}",
+        "opener": {
+          "agent": "the AI agent",
+          "admin": "an admin",
+          "system": "the system",
+          "guest": "the guest"
+        },
         "openThread": "Open conversation",
         "booking": "Booking {reference}",
         "priority": {

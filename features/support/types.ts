@@ -2,6 +2,10 @@ import type { Locale } from '@/lib/i18n';
 
 export type ConversationState = 'bot' | 'human' | 'closed';
 
+/** Who opened a support ticket (`support_tickets.opened_by`). */
+export const TICKET_OPENERS = ['agent', 'admin', 'system', 'guest'] as const;
+export type TicketOpener = (typeof TICKET_OPENERS)[number];
+
 export interface AdminConversationRow {
   id: string;
   address: string;

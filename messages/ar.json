@@ -1613,6 +1613,12 @@
         "overdue": "متأخرة",
         "escalated": "أُعيد التنبيه",
         "openedBy": "فتحها {who}",
+        "opener": {
+          "agent": "المساعد الآلي",
+          "admin": "أحد المشرفين",
+          "system": "النظام",
+          "guest": "الضيف"
+        },
         "openThread": "فتح المحادثة",
         "booking": "الحجز {reference}",
         "priority": {
