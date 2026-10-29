@@ -1,6 +1,6 @@
 'use server';
 
-import { and, eq, isNull } from 'drizzle-orm';
+import { and, eq, inArray, isNull } from 'drizzle-orm';
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 import { db } from '@/lib/db';
@@ -8,9 +8,13 @@ import { serverEnv } from '@/lib/env';
 import { reportError } from '@/lib/log';
 import { adminAlerts } from '@/db/schema';
 import { adminFailureMessage, adminGateRefused, requireAdminActor } from '@/features/admin/guard';
+import { OPEN_ALERTS_LIMIT } from '@/features/admin/alerts/queries';
 import type { AlertActionState } from '@/features/admin/alerts/types';
 
 const alertIdSchema = z.object({ alertId: z.uuid() });
+// The page never renders more open ids than OPEN_ALERTS_LIMIT, so a
+// post of exactly the cap must pass (2026-10-22).
+const alertIdsSchema = z.object({ alertIds: z.array(z.uuid()).min(1).max(OPEN_ALERTS_LIMIT) });
 
 function revalidateAlertSurfaces() {
   revalidatePath('/[locale]/admin/alerts', 'page');
@@ -48,16 +52,29 @@ export async function acknowledgeAlert(
   return { success: true };
 }
 
-/** Clear the whole open list after a review session. */
-export async function acknowledgeAllAlerts(): Promise<AlertActionState> {
+/**
+ * Clear the open list after a review session — only the rows the page
+ * showed (2026-10-22). An unconditional UPDATE also closed every alert
+ * raised between page load and the click, unseen.
+ */
+export async function acknowledgeAllAlerts(
+  _previous: AlertActionState,
+  formData: FormData,
+): Promise<AlertActionState> {
   const actor = await requireAdminActor();
   if (adminGateRefused(actor)) return { success: false, message: adminFailureMessage(actor) };
   if (!serverEnv.DATABASE_URL) return { success: false, message: 'no_db' };
+
+  const parsed = alertIdsSchema.safeParse({ alertIds: formData.getAll('alertIds') });
+  if (!parsed.success) return { success: false, message: 'validation' };
+
   try {
     await db
       .update(adminAlerts)
       .set({ acknowledgedAt: new Date() })
-      .where(isNull(adminAlerts.acknowledgedAt));
+      .where(
+        and(inArray(adminAlerts.id, parsed.data.alertIds), isNull(adminAlerts.acknowledgedAt)),
+      );
   } catch (error) {
     reportError(error, { surface: 'admin:alerts:acknowledgeAll' });
     return { success: false, message: 'server' };

@@ -6,7 +6,11 @@ import type { Locale } from '@/lib/i18n';
 import { Badge } from '@/components/ui/badge';
 import { EmptyState } from '@/components/ui/empty-state';
 import { formatDate } from '@/lib/format';
-import { listAdminAlerts } from '@/features/admin/alerts/queries';
+import {
+  OPEN_ALERTS_LIMIT,
+  countOpenAlerts,
+  listAdminAlerts,
+} from '@/features/admin/alerts/queries';
 import type { AdminAlertRow } from '@/features/admin/alerts/types';
 import { AcknowledgeButton } from '@/app/[locale]/admin/alerts/acknowledge-button';
 
@@ -51,6 +55,10 @@ export default async function AdminAlertsPage({ params }: { params: Promise<{ lo
   const [t, rows] = await Promise.all([getTranslations('admin'), listAdminAlerts()]);
   const open = (rows ?? []).filter((r) => r.acknowledgedAt === null);
   const acknowledged = (rows ?? []).filter((r) => r.acknowledgedAt !== null);
+  // At the cap the list is a window, so the heading counts what the rail
+  // badge counts and a line says how many are still hidden (2026-10-22).
+  const openTotal =
+    open.length >= OPEN_ALERTS_LIMIT ? Math.max(await countOpenAlerts(), open.length) : open.length;
 
   const buttonCopy = {
     label: t('alerts.acknowledge'),
@@ -154,10 +162,11 @@ export default async function AdminAlertsPage({ params }: { params: Promise<{ lo
           <section className="flex flex-col gap-4" aria-labelledby="alerts-open">
             <div className="flex flex-wrap items-center justify-between gap-4">
               <h2 id="alerts-open" className="text-h2">
-                {t('alerts.open', { count: open.length })}
+                {t('alerts.open', { count: openTotal })}
               </h2>
               {open.length > 1 && (
                 <AcknowledgeButton
+                  alertIds={open.map((r) => r.id)}
                   copy={{
                     ...buttonCopy,
                     label: t('alerts.acknowledgeAll'),
@@ -166,6 +175,11 @@ export default async function AdminAlertsPage({ params }: { params: Promise<{ lo
                 />
               )}
             </div>
+            {openTotal > open.length && (
+              <p className="text-sarat-black-600 text-sm">
+                {t('alerts.openCapped', { shown: open.length, total: openTotal })}
+              </p>
+            )}
             {open.length === 0 ? (
               <EmptyState
                 icon={BellRing}
