@@ -4,6 +4,7 @@ import { cn } from '@/lib/utils';
 import { Link } from '@/lib/i18n';
 import type { Locale } from '@/lib/i18n';
 import { getRecentReviews } from '@/features/reviews/queries';
+import { reviewText } from '@/features/reviews/lib/review-text';
 
 /**
  * Home-page social proof — the three latest high-rated guest reviews,
@@ -40,7 +41,7 @@ export async function SocialProofStrip({ locale }: SocialProofStripProps) {
         </div>
         <ul className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
           {reviews.map((review) => {
-            const text = locale === 'ar' ? (review.textAr ?? review.textEn) : review.textEn;
+            const text = reviewText(review, locale);
             const title = locale === 'ar' ? review.experienceTitleAr : review.experienceTitleEn;
             return (
               <li
@@ -51,7 +52,11 @@ export async function SocialProofStrip({ locale }: SocialProofStripProps) {
                   rating={review.rating}
                   label={t('ratingLabel', { rating: review.rating })}
                 />
-                {text && <p className="text-sarat-black-800 text-base leading-relaxed">“{text}”</p>}
+                {text && (
+                  <p dir="auto" className="text-sarat-black-800 text-base leading-relaxed">
+                    “{text}”
+                  </p>
+                )}
                 <p className="text-sarat-black-600 mt-auto text-sm">
                   {review.guestName}
                   {' · '}
