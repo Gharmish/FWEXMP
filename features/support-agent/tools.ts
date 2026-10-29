@@ -13,7 +13,7 @@ import {
   getHostContactPhoneForBooking,
   type GuestBookingSummary,
 } from '@/features/bookings/queries';
-import { bookingOptions } from '@/features/bookings/lib/policy';
+import { bookingOptions, reachablePartialDeadline } from '@/features/bookings/lib/policy';
 import { bookingManageUrl } from '@/lib/booking-link-token';
 import { cancelBookingCore } from '@/features/bookings/lib/cancel-core';
 import { saveRefundBankDetails } from '@/features/bookings/lib/refund-bank-core';
@@ -557,7 +557,7 @@ export async function runTool(
               refund_if_cancelled_now: options.cancel.refund,
               refund_amount_sar: options.cancel.amountSar,
               full_refund_until: options.cancel.fullRefundUntil.toISOString(),
-              partial_refund_until: options.cancel.partialDeadline?.toISOString() ?? null,
+              partial_refund_until: reachablePartialDeadline(options.cancel)?.toISOString() ?? null,
             }
           : { allowed: false, reason: options.cancel.reason };
         const reschedule = options.reschedule.allowed

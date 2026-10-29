@@ -13,7 +13,7 @@ import { CancelBookingButton } from '@/features/bookings/components/cancel-booki
 import { startInstant } from '@/features/bookings/lib/cancellation';
 import { VerifiedBadge } from '@/features/hosts/components/verified-badge';
 import { RescheduleBooking } from '@/features/bookings/components/reschedule-booking';
-import { bookingOptions } from '@/features/bookings/lib/policy';
+import { bookingOptions, reachablePartialDeadline } from '@/features/bookings/lib/policy';
 import {
   addDays,
   bookableDates,
@@ -89,6 +89,7 @@ export async function BookingManageSections({
       })
     : null;
   const cancelView = options && options.cancel.allowed ? options.cancel : null;
+  const partialStepUntil = cancelView ? reachablePartialDeadline(cancelView) : null;
   const rescheduleView = options && options.reschedule.allowed ? options.reschedule : null;
 
   const RESCHEDULE_HORIZON_DAYS = 60;
@@ -363,14 +364,15 @@ export async function BookingManageSections({
             {cancelView.refund === 'none_needed'
               ? t('cancel.policyUnpaid')
               : cancelView.refund === 'full'
-                ? cancelView.partialDeadline
+                ? partialStepUntil
                   ? // Moderate/strict: disclose the 50% step up front. The
                     // full-refund deadline is the grace-aware one — after a
-                    // late booking it can sit past the tier deadline.
+                    // late booking it can sit past the tier deadline, and
+                    // then there is no partial step left to promise.
                     t('cancel.policyRefundableThenPartial', {
                       deadline: formatDeadline(cancelView.fullRefundUntil),
                       amount: formatSAR(partialAmountSar, loc),
-                      partialDeadline: formatDeadline(cancelView.partialDeadline),
+                      partialDeadline: formatDeadline(partialStepUntil),
                     })
                   : t('cancel.policyRefundable', {
                       deadline: formatDeadline(cancelView.fullRefundUntil),
