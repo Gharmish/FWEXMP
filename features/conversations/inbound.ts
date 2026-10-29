@@ -394,14 +394,19 @@ export async function sendConversationReply(
         })
         .returning({ id: conversationMessages.id });
       messageId = row?.id ?? null;
-      await db
-        .update(conversations)
-        .set({
-          lastOutboundAt: now,
-          updatedAt: now,
-          ...(input.type === 'support_ack' ? { lastAckAt: now } : {}),
-        })
-        .where(eq(conversations.id, input.conversationId));
+      // Only a send the provider accepted counts as a reply: a failed one
+      // keeps the thread in the admin's "Awaiting reply" group and leaves
+      // the ack throttle open so the next inbound acks again.
+      if (result.ok) {
+        await db
+          .update(conversations)
+          .set({
+            lastOutboundAt: now,
+            updatedAt: now,
+            ...(input.type === 'support_ack' ? { lastAckAt: now } : {}),
+          })
+          .where(eq(conversations.id, input.conversationId));
+      }
     } catch (error) {
       reportError(error, { surface: 'conversations:persist-outbound' });
     }
