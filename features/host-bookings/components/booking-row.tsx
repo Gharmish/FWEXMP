@@ -16,6 +16,7 @@ import type { HostBookingRow } from '@/features/host-bookings/types';
 import { HostTransitionButton } from '@/features/host-bookings/components/host-transition-button';
 import { SlaCountdown } from '@/features/host-bookings/components/sla-countdown';
 import type { buildTransitionCopy } from '@/features/host-bookings/lib/booking-copy';
+import { showsHostPayout } from '@/features/host-bookings/lib/payout-visibility';
 
 export interface BookingRowProps {
   row: HostBookingRow;
@@ -259,12 +260,16 @@ export async function BookingRow({
           )}
 
           <div className="text-sarat-black-600 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
-            <span>
-              {t.rich('payout', {
-                amount: () => <Price amount={row.payoutSar} locale={locale} />,
-              })}
-            </span>
-            <span aria-hidden>·</span>
+            {showsHostPayout(row.status) && (
+              <>
+                <span>
+                  {t.rich('payout', {
+                    amount: () => <Price amount={row.payoutSar} locale={locale} />,
+                  })}
+                </span>
+                <span aria-hidden>·</span>
+              </>
+            )}
             {referenceChip}
             <span aria-hidden>·</span>
             <span>{t('requestedOn', { date: formatDate(new Date(row.createdAt), locale) })}</span>
