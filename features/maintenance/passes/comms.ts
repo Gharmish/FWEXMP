@@ -238,6 +238,9 @@ export async function maskIbansAtRest(run: PassRunner) {
   // then ENCRYPTED on the booking — while the message body kept it in
   // plaintext for the 12-month retention. Two days is enough for the
   // refund flow and an admin's eyes; after that keep the last four.
+  // Both directions: the agent reads the IBAN back to the guest before
+  // submitting it (prompt + tool notes), and an admin may quote it in a
+  // reply, so the outbound row carries the same plaintext.
   const ibansMasked = await run.pass(
     '3e-iban-masking',
     async () => {
@@ -252,8 +255,7 @@ export async function maskIbansAtRest(run: PassRunner) {
         .where(
           sql`${conversationMessages.id} in (
             select id from ${conversationMessages}
-            where ${conversationMessages.direction} = 'in'
-              and ${conversationMessages.createdAt} <= now() - interval '48 hours'
+            where ${conversationMessages.createdAt} <= now() - interval '48 hours'
               and ${conversationMessages.body} ~* '\\mSA\\s?(\\d\\s?){22}'
             limit ${RETRY_LIMIT}
           )`,
