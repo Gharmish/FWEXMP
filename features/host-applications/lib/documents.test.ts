@@ -1,4 +1,6 @@
 import { describe, expect, it } from 'vitest';
+import en from '@/messages/en.json';
+import ar from '@/messages/ar.json';
 import {
   MAX_DOCUMENT_BYTES,
   documentTypesFor,
@@ -70,5 +72,20 @@ describe('kycObjectKey', () => {
     expect(kycObjectKey('user-1', 'iban_letter', 1720000000000, 'pdf')).toBe(
       'user-1/iban_letter-1720000000000.pdf',
     );
+  });
+});
+
+describe('over-cap submission copy (#72)', () => {
+  // A first submission is refused with doc_required for any missing
+  // required document, and a pending application shows no upload form,
+  // so the over-4MB message must not tell the host to send the rest in
+  // a second submission.
+  it('asks for smaller files instead of a second submission', () => {
+    const enCopy = en.hostApply.errors.fields.docTotal;
+    const arCopy = ar.hostApply.errors.fields.docTotal;
+    expect(enCopy).not.toMatch(/second submission|the rest/i);
+    expect(enCopy).toMatch(/smaller/i);
+    expect(arCopy).not.toMatch(/إرسال ثانٍ|والباقي/);
+    expect(arCopy).toMatch(/صغّر/);
   });
 });

@@ -22,8 +22,11 @@ export const MAX_DOCUMENT_BYTES = 4 * 1024 * 1024;
  * All documents in one submission must fit one server-action request:
  * Vercel rejects bodies over 4.5MB before the function runs
  * (next.config.ts bodySizeLimit; 2026-09 engineering audit DEPS-06).
- * The apply form refuses to submit past this and asks the host to send
- * the rest in a second round — the form carries earlier uploads over.
+ * The apply form refuses to submit past this and asks the host to make
+ * the files smaller. It must not suggest sending the rest later: every
+ * required document needs a file on the first submission, and a pending
+ * application has no upload form (#72, 2026-10-14). A second upload round
+ * arrives with Plan N4 (#17).
  */
 export const MAX_SUBMISSION_BYTES = 4 * 1024 * 1024;
 
