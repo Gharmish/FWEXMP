@@ -1,9 +1,10 @@
-import { eq } from 'drizzle-orm';
+import { and, eq, isNull } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import { guests, type Guest } from '@/db/schema';
 import { getCurrentUser } from '@/features/auth/queries';
 import { isUniqueViolation, resolveGuestForUser } from '@/features/account/profile/guest-identity';
 import type { BookingRequestInput } from '@/features/bookings/lib/request/form';
+import { noOtherBookingOnGuestRow } from '@/features/bookings/lib/shared-guest';
 
 export type BookingGuest = Pick<Guest, 'id' | 'authUserId' | 'phone' | 'email' | 'suspendedAt'>;
 
@@ -82,9 +83,22 @@ export async function resolveBookingGuest(
   // bookings). Anonymous rows (authUserId null) still take the phone:
   // the row was created by this same form and hosts read `guests.phone`
   // to reach the guest.
-  const patch: Partial<{ phone: string; email: string; marketingConsentAt: Date }> = {};
+  const patch: Partial<{ phone: string; marketingConsentAt: Date }> = {};
   if (!guest.phone && !guest.authUserId) patch.phone = input.phone;
-  if (input.email && !guest.email) patch.email = input.email;
+  // The email backfill is its own guarded write (2026-10-17, issue #120):
+  // onto an ANONYMOUS row that already carries a booking it would
+  // redirect that booking's emails (and their `?k=` links) to whoever
+  // typed this phone now, so the WHERE refuses it — in the write itself,
+  // so two first bookings racing onto a fresh row cannot both pass a
+  // read. The new booking still goes through on the row, without an
+  // email of its own. An account-linked row is the signed-in caller's
+  // own (#40) and takes the backfill as before.
+  if (input.email && !guest.email) {
+    await db
+      .update(guests)
+      .set({ email: input.email })
+      .where(and(eq(guests.id, guest.id), isNull(guests.email), noOtherBookingOnGuestRow(null)));
+  }
   // A ticked box refreshes the consent stamp; an unticked one never
   // clears it (withdrawal is an explicit flow, not a forgotten tick).
   if (input.marketingConsent) patch.marketingConsentAt = new Date();

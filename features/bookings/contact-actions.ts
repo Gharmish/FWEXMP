@@ -10,6 +10,7 @@ import { reportError } from '@/lib/log';
 import { normalizeToE164 } from '@/lib/phone';
 import { bookingViewerCanAccess } from '@/features/bookings/lib/access';
 import { isHoldExpired } from '@/features/bookings/lib/availability';
+import { guestRowIsShared, noOtherBookingOnGuestRow } from '@/features/bookings/lib/shared-guest';
 
 /**
  * Contact typo safety net (2026-08-28 audit): every lifecycle
@@ -26,7 +27,10 @@ import { isHoldExpired } from '@/features/bookings/lib/availability';
  *  - email → `guests.email`, only while the guest row is NOT
  *    account-linked: on a linked row the email came from the verified
  *    account and this unverified form must not overwrite it (same
- *    posture as the identity-linking rule, 2026-07-28 audit).
+ *    posture as the identity-linking rule, 2026-07-28 audit) — and only
+ *    while NO OTHER booking reads the row: an anonymous row is shared by
+ *    every signed-out booking typed with its phone, so a write proved by
+ *    this booking alone would redirect the others' emails (#120).
  *
  * Authorization is `bookingViewerCanAccess` ONLY — deliberately not
  * the signed link token: the token travels inside emails and WhatsApp
@@ -80,6 +84,7 @@ export type UpdateBookingContactState =
         | 'not_found'
         | 'wrong_state'
         | 'account_email'
+        | 'shared_guest'
         | 'validation'
         | 'server';
       fields?: Partial<Record<'email' | 'phone', string>>;
@@ -110,7 +115,8 @@ export async function updateBookingContact(
     }
     return { success: false, message: 'validation', fields, values };
   }
-  const { reference, email, phone } = parsed.data;
+  const { reference, phone } = parsed.data;
+  let { email } = parsed.data;
 
   if (!serverEnv.DATABASE_URL) return { success: false, message: 'no_db', values };
 
@@ -126,7 +132,7 @@ export async function updateBookingContact(
         settleAnomalyAt: true,
         checkoutSupersededAt: true,
       },
-      with: { guest: { columns: { authUserId: true } } },
+      with: { guest: { columns: { authUserId: true, email: true } } },
     });
     if (!booking) return { success: false, message: 'not_found', values };
 
@@ -155,21 +161,43 @@ export async function updateBookingContact(
       return { success: false, message: 'wrong_state', values };
     }
 
+    // The form prefills the row's current email and always posts it, so
+    // a phone-only fix arrives with an unchanged email: not a change.
+    if (email && email === booking.guest.email?.toLowerCase()) email = undefined;
+
     if (email && booking.guest.authUserId) {
       // Account-linked rows carry the verified account email.
       return { success: false, message: 'account_email', values };
     }
-
-    if (phone) {
-      await db.update(bookings).set({ contactPhone: phone }).where(eq(bookings.id, booking.id));
+    if (email && (await guestRowIsShared(booking.guestId, booking.id))) {
+      // The row's email is read by another booking too (2026-10-17,
+      // issue #120): this booking's cookie proves nothing about that one.
+      return { success: false, message: 'shared_guest', values };
     }
+
     if (email) {
-      // The `authUserId IS NULL` guard is re-applied in the WHERE so a
-      // claim landing between the read and this write can't be raced.
-      await db
+      // The `authUserId IS NULL` and not-shared guards are re-applied in
+      // the WHERE so a claim or a booking landing between the read and
+      // this write can't be raced. A write that matches no row lost that
+      // race and saved nothing, so it must not report success (#127
+      // review): the email goes first so a refusal means nothing changed.
+      const written = await db
         .update(guests)
         .set({ email })
-        .where(and(eq(guests.id, booking.guestId), isNull(guests.authUserId)));
+        .where(
+          and(
+            eq(guests.id, booking.guestId),
+            isNull(guests.authUserId),
+            noOtherBookingOnGuestRow(booking.id),
+          ),
+        )
+        .returning({ id: guests.id });
+      if (written.length === 0) {
+        return { success: false, message: 'shared_guest', values };
+      }
+    }
+    if (phone) {
+      await db.update(bookings).set({ contactPhone: phone }).where(eq(bookings.id, booking.id));
     }
   } catch (error) {
     reportError(error, { surface: 'bookings:updateContact', reference });

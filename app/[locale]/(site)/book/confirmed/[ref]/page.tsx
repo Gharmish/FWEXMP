@@ -664,6 +664,7 @@ export default async function BookingConfirmedPage({ params, searchParams }: Pag
                   not_found: t('contact.errors.notFound'),
                   wrong_state: t('contact.errors.wrongState'),
                   account_email: t('contact.errors.accountEmail'),
+                  shared_guest: t('contact.errors.sharedGuest'),
                   validation: t('contact.errors.validation'),
                   server: t('contact.errors.server'),
                 },

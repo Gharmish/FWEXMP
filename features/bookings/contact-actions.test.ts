@@ -1,5 +1,22 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { createDbFake } from '@/lib/test/db-fake';
+import { is, StringChunk } from 'drizzle-orm';
+import { createDbFake, referencedColumns } from '@/lib/test/db-fake';
+
+/** Every raw string chunk in a drizzle SQL tree. */
+function rawChunksIn(node: unknown, found: string[] = [], seen = new WeakSet<object>()): string[] {
+  if (!node || typeof node !== 'object') return found;
+  if (seen.has(node)) return found;
+  seen.add(node);
+  if (is(node, StringChunk)) {
+    found.push(node.value.join(''));
+    return found;
+  }
+  for (const value of Object.values(node as Record<string, unknown>)) {
+    if (Array.isArray(value)) value.forEach((v) => rawChunksIn(v, found, seen));
+    else if (value && typeof value === 'object') rawChunksIn(value, found, seen);
+  }
+  return found;
+}
 
 vi.mock('next/cache', () => ({ revalidatePath: vi.fn() }));
 vi.mock('@/lib/log', () => ({ reportError: vi.fn() }));
@@ -12,6 +29,11 @@ vi.mock('@/features/bookings/lib/access', () => ({
 
 type Row = Record<string, unknown>;
 let booking: Row | undefined;
+/** Other bookings on the guest row (issue #120): the row is shared when non-empty. */
+let otherBookings: Row[] = [];
+const sharedChecks: Row[] = [];
+/** Rows the guarded guest UPDATE matches (its WHERE lost the race when empty). */
+let guestRowsWritten: Row[] = [{ id: 'g1' }];
 const fake = vi.hoisted(() => ({ current: null as ReturnType<typeof createDbFake> | null }));
 vi.mock('@/lib/db', () => ({
   get db() {
@@ -32,7 +54,7 @@ function pending(over: Row = {}): Row {
     paymentDeadline: null,
     settleAnomalyAt: null,
     checkoutSupersededAt: null,
-    guest: { authUserId: null },
+    guest: { authUserId: null, email: 'first@example.com' },
     ...over,
   };
 }
@@ -49,7 +71,17 @@ beforeEach(() => {
   env.DATABASE_URL = 'postgres://test';
   access.allowed = true;
   booking = pending();
-  fake.current = createDbFake({ query: { bookings: { findFirst: () => booking } } });
+  otherBookings = [];
+  sharedChecks.length = 0;
+  guestRowsWritten = [{ id: 'g1' }];
+  fake.current = createDbFake({
+    query: { bookings: { findFirst: () => booking } },
+    select: (shape) => {
+      sharedChecks.push(shape);
+      return otherBookings;
+    },
+    update: (values) => ('email' in values ? guestRowsWritten : [{ id: 'b1' }]),
+  });
 });
 
 describe('updateBookingContact', () => {
@@ -91,6 +123,33 @@ describe('updateBookingContact', () => {
     });
   });
 
+  it('refuses an email change when another booking reads the same anonymous row (#120)', async () => {
+    // A stranger who booked with the victim's phone shares the row; their
+    // own cookie must not let them redirect the victim's booking emails.
+    otherBookings = [{ id: 'b-victim' }];
+    expect(await updateBookingContact(initial, form({ email: 'attacker@example.com' }))).toEqual({
+      success: false,
+      message: 'shared_guest',
+      values: { email: 'attacker@example.com', phone: '' },
+    });
+    expect(sharedChecks).toEqual([{ id: expect.anything() }]);
+    expect(fake.current?.updates).toEqual([]);
+  });
+
+  it('still lets a shared-row booking fix its own phone, which is per booking', async () => {
+    // The form prefills and always posts the row's current email, so a
+    // phone-only fix arrives with an unchanged (here re-cased) email.
+    otherBookings = [{ id: 'b-victim' }];
+    expect(
+      await updateBookingContact(
+        initial,
+        form({ phone: '0512345678', email: 'First@Example.com' }),
+      ),
+    ).toEqual({ success: true });
+    expect(sharedChecks).toEqual([]);
+    expect(fake.current?.updates).toEqual([{ contactPhone: '+966512345678' }]);
+  });
+
   it('writes the phone onto the booking and the email onto the anonymous guest row', async () => {
     expect(
       await updateBookingContact(initial, form({ email: 'Sara@Example.com', phone: '0512345678' })),
@@ -98,8 +157,30 @@ describe('updateBookingContact', () => {
       success: true,
     });
     expect(fake.current?.updates).toEqual([
-      { contactPhone: '+966512345678' },
       { email: 'sara@example.com' },
+      { contactPhone: '+966512345678' },
     ]);
+    // The email write re-applies the guards in its WHERE (account link
+    // and shared row), so a race between the read and the write loses.
+    // The subquery's exact SQL is pinned in shared-guest.render.test.ts.
+    const emailWhere = fake.current?.updateConditions[0];
+    expect(referencedColumns(emailWhere)).toEqual(expect.arrayContaining(['id', 'authUserId']));
+    expect(rawChunksIn(emailWhere)).toContain('not exists ');
+  });
+
+  it('reports shared_guest, and saves nothing, when the guarded email write matches no row', async () => {
+    // The read said "not shared", then a booking landed on the row (or an
+    // account claimed it) before the write: the WHERE refuses, zero rows
+    // change, and the guest must not be told the email was saved. The
+    // phone write comes after the email so a refusal means nothing changed.
+    guestRowsWritten = [];
+    expect(
+      await updateBookingContact(initial, form({ email: 'sara@example.com', phone: '0512345678' })),
+    ).toEqual({
+      success: false,
+      message: 'shared_guest',
+      values: { email: 'sara@example.com', phone: '0512345678' },
+    });
+    expect(fake.current?.updates).toEqual([{ email: 'sara@example.com' }]);
   });
 });
