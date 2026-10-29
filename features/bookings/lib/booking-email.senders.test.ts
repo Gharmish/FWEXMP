@@ -438,3 +438,41 @@ describe('wallet credit to an account-less booker (issue #57)', () => {
     expect(call).not.toMatch(/email address you gave/);
   });
 });
+
+describe('the pre-lapse payment reminder skips short holds', () => {
+  const hold = (over: BookingRow) =>
+    base({ paymentStatus: 'unpaid', paidAt: null, approvedAt: null, ...over });
+  const inMinutes = (m: number) => new Date(Date.now() + m * 60_000).toISOString();
+
+  it('skips an instant hold whose 30-minute window opened minutes ago', async () => {
+    booking = hold({ createdAt: inMinutes(-10), paymentDeadline: inMinutes(20) });
+    await senders.sendBookingAwaitingPaymentEmail('ref-1', 'reminder');
+    expect(sent()).toHaveLength(0);
+  });
+
+  it('skips a processing instant hold too (the guest is mid-checkout)', async () => {
+    booking = hold({
+      paymentStatus: 'processing',
+      createdAt: inMinutes(-5),
+      paymentDeadline: inMinutes(25),
+    });
+    await senders.sendBookingAwaitingPaymentEmail('ref-1', 'reminder');
+    expect(sent()).toHaveLength(0);
+  });
+
+  it('still reminds an approved request with a long payment window', async () => {
+    booking = hold({
+      createdAt: inMinutes(-30 * 60),
+      approvedAt: inMinutes(-20 * 60),
+      paymentDeadline: inMinutes(120),
+    });
+    await senders.sendBookingAwaitingPaymentEmail('ref-1', 'reminder');
+    expect(sent()).toHaveLength(1);
+  });
+
+  it('still sends the instant hold its "created" message', async () => {
+    booking = hold({ createdAt: inMinutes(-1), paymentDeadline: inMinutes(29) });
+    await senders.sendBookingAwaitingPaymentEmail('ref-1', 'created');
+    expect(sent()).toHaveLength(1);
+  });
+});
