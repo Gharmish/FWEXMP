@@ -263,6 +263,40 @@ export const getExperienceBySlug = cache(
 );
 
 /**
+ * Any-status detail read for BOOKING surfaces (2026-10-17 scan,
+ * BOOKING-02). A booking outlives its listing's status: pausing a
+ * listing, or a material edit sending it back to review, must not strip
+ * the title, meeting point and map link from bookings already made —
+ * the confirmed / invoice / pay pages, the calendar file and every
+ * booking email used to read the live-only `getExperienceBySlug` and
+ * silently lost them. The slug always comes from a booking row the
+ * viewer has already proved access to, never from the URL, so this read
+ * exposes nothing a stranger could probe; the public detail page stays
+ * live-only. Same shape as `getExperienceBySlug` so call sites swap 1:1.
+ */
+const loadBookingDetailBySlug = unstable_cache(
+  async (slug: string): Promise<Unrated<ExperienceDetail> | null> => {
+    const row = await boundedQuery('experiences:bookingDetailBySlug', () =>
+      db.query.experiences.findFirst({
+        where: (e) => eq(e.slug, slug),
+        with: { host: true, moments: true },
+      }),
+    );
+    return row ? { value: toDetail(row, NO_RATINGS), createdAtMs: row.createdAt.getTime() } : null;
+  },
+  ['experience-booking-detail'],
+  { revalidate: 60, tags: [EXPERIENCES_CACHE_TAG] },
+);
+
+export const getExperienceForBooking = cache(
+  async (slug: string): Promise<ExperienceDetail | undefined> => {
+    if (!hasDb()) return sample.getExperienceBySlug(slug);
+    const [entry, ratings] = await Promise.all([loadBookingDetailBySlug(slug), getRatingsBySlug()]);
+    return entry ? withRatings(entry, ratings) : undefined;
+  },
+);
+
+/**
  * Any-status detail read for the owner's pre-publish preview
  * (`/experiences/[slug]?preview=1`). Gated hard: only the listing's own
  * host (via `hosts.userId`) or an admin gets a row back — everyone else

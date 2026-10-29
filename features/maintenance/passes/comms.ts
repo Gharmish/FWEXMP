@@ -16,6 +16,7 @@ import { startInstant } from '@/features/bookings/lib/cancellation';
 import { paymentCollected } from '@/features/bookings/lib/payout-sql';
 import type { PassRunner } from '@/features/maintenance/runner';
 import { REMINDER_LIMIT, RETRY_LIMIT } from '@/features/maintenance/runner';
+import { paymentNudgeWindow } from '@/features/maintenance/passes/nudge-window';
 
 /**
  * Guest-facing comms: the two-stage reminders, the pre-lapse payment nudge,
@@ -150,8 +151,9 @@ export async function nudgeUnpaidHolds(run: PassRunner) {
             inArray(bookings.status, ['pending', 'confirmed']),
             ne(bookings.paymentStatus, 'paid'),
             isNotNull(bookings.paymentDeadline),
-            sql`${bookings.paymentDeadline} > now()`,
-            sql`${bookings.paymentDeadline} <= now() + interval '150 minutes'`,
+            // Lead time + minimum hold length — see nudge-window.ts for
+            // why a 30-minute instant hold is skipped (COMMS-02).
+            paymentNudgeWindow(),
           ),
         )
         .orderBy(asc(bookings.paymentDeadline))

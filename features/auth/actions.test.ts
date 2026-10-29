@@ -32,7 +32,7 @@ vi.mock('@/lib/env', () => ({
 }));
 const supa = vi.hoisted(() => ({
   signInError: null as { status?: number; code?: string; name?: string } | null,
-  verifyError: null as { status?: number } | null,
+  verifyError: null as { status?: number; code?: string } | null,
   session: { access_token: 't' } as object | null,
   calls: [] as Array<Record<string, unknown>>,
 }));
@@ -196,6 +196,29 @@ describe('verifyOtp', () => {
       await run(() => verifyOtp(idle, form({ phone: PHONE, code: '123456', next: '/host' }))),
     ).toBe('REDIRECT:ar:/host');
     expect(supa.calls.at(-1)).toEqual({ verify: { phone: PHONE, token: '123456', type: 'sms' } });
+  });
+
+  it("counts the live server's 403 otp_expired as a wrong code, in both branches", async () => {
+    // What POST /auth/v1/verify answers today for a mistyped or stale code
+    // (SECURITY-03, 2026-10-17 scan): before the fix this surfaced as a
+    // generic server error and never reached the brute-force counter.
+    supa.verifyError = { status: 403, code: 'otp_expired' };
+    expect(await verifyOtp(idle, form({ phone: PHONE, code: '123456' }))).toMatchObject({
+      message: 'invalid_code',
+      fields: { code: 'invalid_code' },
+    });
+    expect(
+      await verifyOtp(idle, form({ method: 'email', email: 'g@example.com', code: '123456' })),
+    ).toMatchObject({ method: 'email', message: 'invalid_code', fields: { code: 'invalid_code' } });
+    expect(recordFailure).toHaveBeenCalledTimes(2);
+  });
+
+  it('a 403 with a configuration code is a server fault and is not counted as a guess', async () => {
+    supa.verifyError = { status: 403, code: 'otp_disabled' };
+    expect(await verifyOtp(idle, form({ phone: PHONE, code: '123456' }))).toMatchObject({
+      message: 'server',
+    });
+    expect(recordFailure).not.toHaveBeenCalled();
   });
 
   it('stub mode accepts only the stub code and sets the stub session cookie', async () => {

@@ -127,12 +127,26 @@ export default async function AdminExperienceNewPage({
     formNotFound: tE('formNotFound'),
     formForbidden: tE('formForbidden'),
     formScheduleHasBookings: tE('formScheduleHasBookings'),
+    formWrongState: tE('formWrongState'),
+    formNeedsHero: tE('formNeedsHero'),
+    formNeedsArabic: tE('formNeedsArabic'),
+    formNeedsEnglish: tE('formNeedsEnglish'),
+    formNeedsArabicMoments: tE('formNeedsArabicMoments'),
+    formNeedsArabicLists: tE('formNeedsArabicLists'),
+    formHostSuspended: tE('formHostSuspended'),
+    formHostUnverified: tE('formHostUnverified'),
     host: tE('host'),
     weekdays: WEEKDAY_KEYS.map((k) => tWeek(k)),
     categories: EXPERIENCE_CATEGORIES.filter((c) => settings.enabledCategories.includes(c)).map(
       (c) => ({ value: c, label: tCat(c) }),
     ),
-    statuses: EXPERIENCE_STATUSES.map((s) => ({ value: s, label: tStatus(s) })),
+    // A listing is born without a hero photo or timeline, so it cannot
+    // pass the live gate at creation (adminCreateExperience refuses it):
+    // the select never offers `live` here (#135 review).
+    statuses: EXPERIENCE_STATUSES.filter((s) => s !== 'live').map((s) => ({
+      value: s,
+      label: tStatus(s),
+    })),
     modes: BOOKING_MODES.map((m) => ({ value: m, label: tMode(m) })),
   };
 

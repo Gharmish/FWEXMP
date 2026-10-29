@@ -6,7 +6,7 @@ import { renderBookingIcs } from '@/features/bookings/lib/booking-ics';
 import { calendarEventDescription, googleMapsLink } from '@/features/bookings/lib/calendar-links';
 import { startInstant } from '@/features/bookings/lib/cancellation';
 import { getBookingViewForViewer } from '@/features/bookings/queries';
-import { getExperienceBySlug } from '@/features/experiences/queries';
+import { getExperienceForBooking } from '@/features/experiences/queries';
 import { toArabicText } from '@/features/experiences/lib/arabic-content';
 
 /** UUID v4 shape — the only thing we accept as a public reference. */
@@ -79,7 +79,7 @@ export async function GET(
   }
 
   const [experience, t, tEmail] = await Promise.all([
-    getExperienceBySlug(booking.experienceSlug),
+    getExperienceForBooking(booking.experienceSlug),
     getTranslations({ locale, namespace: 'bookingConfirmed' }),
     getTranslations({ locale, namespace: 'bookingEmail' }),
   ]);

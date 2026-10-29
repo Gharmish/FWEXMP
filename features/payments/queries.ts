@@ -78,9 +78,15 @@ export async function getStoredBillingForBooking(reference: string): Promise<Sto
  */
 export async function getCheckoutIdForReference(reference: string): Promise<string | null> {
   if (!serverEnv.DATABASE_URL) return null;
-  const row = await db.query.bookings.findFirst({
-    where: eq(bookings.idempotencyKey, reference),
-    columns: { checkoutId: true },
-  });
+  // Runs on the pay/return redirect and the OPPWA webhook — both public
+  // paths — so it is hang-bounded like every other public read
+  // (2026-10-17 scan, DATA-02). A DeadlineError still propagates: the
+  // callers answer a retryable status rather than guessing.
+  const row = await boundedQuery('payments:checkoutId', () =>
+    db.query.bookings.findFirst({
+      where: eq(bookings.idempotencyKey, reference),
+      columns: { checkoutId: true },
+    }),
+  );
   return row?.checkoutId ?? null;
 }

@@ -10,6 +10,8 @@ import { clientEnv, hasSupabaseAuth } from '@/lib/env-client';
 import { STUB_SESSION_COOKIE } from '@/features/auth/lib/stub-session';
 import { pathRequiresAuth } from '@/proxy-rules';
 
+// The hreflang Link header is switched off in `routing` itself
+// (`alternateLinks: false`, lib/i18n.ts — SEO-01).
 const intlMiddleware = createMiddleware(routing);
 
 /**

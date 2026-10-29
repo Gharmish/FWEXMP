@@ -7,10 +7,13 @@ import { reportError } from '@/lib/log';
 import { bookingOptions } from '@/features/bookings/lib/policy';
 import {
   ACTIVE_BOOKING_STATUSES,
+  MIN_PAYMENT_WINDOW_MS,
+  clampDeadlineToSlot,
   isDateBookable,
   isHoldExpired,
   nowMinutesInRiyadh,
   remainingCapacity,
+  slotCloseInstantMs,
   todayInRiyadh,
 } from '@/features/bookings/lib/availability';
 import { holdStillCounts } from '@/features/bookings/lib/capacity-sql';
@@ -70,6 +73,7 @@ export async function rescheduleBookingCore(
         totalAmount: true,
         createdAt: true,
         paymentDeadline: true,
+        approvalDeadline: true,
         policyTier: true,
         freeCancelHours: true,
         partialRefundHours: true,
@@ -140,6 +144,43 @@ export async function rescheduleBookingCore(
       return { success: false, message: 'date_unavailable' };
     }
 
+    // Re-clamp the open deadline to the NEW slot (2026-10-17 scan,
+    // BOOKING-01). The approval window was clamped to the original slot at
+    // creation and the payment window at approval; a move to an earlier
+    // date left a deadline that could sit past the new start — a request
+    // that stays pending through its own experience, or a pay button that
+    // createCheckout refuses while the page still promises hours. A new
+    // slot that leaves less than the minimum payable window is refused
+    // like any other unavailable date — but only when the clamp actually
+    // moved the deadline earlier (#135 review): an unpaid instant hold
+    // is born with a 30-minute payment window, so a move to a LATER date
+    // keeps its deadline and must not be refused for the minutes already
+    // spent on it.
+    let deadlineStamp: { approvalDeadline?: Date | null; paymentDeadline?: Date | null } = {};
+    if (booking.status === 'pending') {
+      const approvalDeadline = clampDeadlineToSlot(
+        booking.approvalDeadline,
+        slotCloseInstantMs(newDate, experience.startTime, experience.bookingCutoffHours * 60),
+      );
+      if (approvalDeadline !== null && approvalDeadline.getTime() <= now.getTime()) {
+        return { success: false, message: 'date_unavailable' };
+      }
+      deadlineStamp = { approvalDeadline };
+    } else if (booking.paymentDeadline !== null && booking.paymentStatus !== 'paid') {
+      const paymentDeadline = clampDeadlineToSlot(
+        booking.paymentDeadline,
+        slotCloseInstantMs(newDate, experience.startTime, 0),
+      );
+      if (
+        paymentDeadline !== null &&
+        paymentDeadline.getTime() < booking.paymentDeadline.getTime() &&
+        paymentDeadline.getTime() - now.getTime() < MIN_PAYMENT_WINDOW_MS
+      ) {
+        return { success: false, message: 'date_unavailable' };
+      }
+      deadlineStamp = { paymentDeadline };
+    }
+
     // Capacity + move under the experience row lock — identical discipline
     // to booking creation, so a concurrent booking/move for the same date
     // serializes instead of overbooking. The UPDATE re-asserts status,
@@ -178,6 +219,7 @@ export async function rescheduleBookingCore(
           // Re-arm both reminder crons for the new date.
           reminderSentAt: null,
           finalReminderSentAt: null,
+          ...deadlineStamp,
         })
         .where(
           and(

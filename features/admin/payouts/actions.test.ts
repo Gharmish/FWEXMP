@@ -19,7 +19,10 @@ vi.mock('@/features/admin/guard', () => ({
   adminGateRefused: (a: Record<string, unknown>) => 'refused' in a,
   adminFailureMessage: () => 'forbidden',
 }));
-vi.mock('@/features/bookings/lib/payout-sql', () => ({ paymentCollected: () => undefined }));
+vi.mock('@/features/bookings/lib/payout-sql', () => ({
+  paymentCollected: () => undefined,
+  noOpenDispute: () => undefined,
+}));
 const sendHostPayoutPaidEmail = vi.fn(async () => undefined);
 vi.mock('@/lib/pii-crypto', () => ({
   decryptPii: (value: string | null) => (value?.startsWith('enc:') ? value.slice(4) : value),

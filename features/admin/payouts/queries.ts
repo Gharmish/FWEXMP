@@ -4,7 +4,7 @@ import { asc, eq, isNull, sql } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import { reportError } from '@/lib/log';
 import { bookings, experiences, hosts, payoutClawbacks } from '@/db/schema';
-import { paymentCollected, payoutExpr } from '@/features/bookings/lib/payout-sql';
+import { noOpenDispute, paymentCollected, payoutExpr } from '@/features/bookings/lib/payout-sql';
 import { planClawbackDeduction } from '@/features/bookings/lib/clawback';
 import { adminGuard } from '@/features/admin/guard';
 import { decryptPii } from '@/lib/pii-crypto';
@@ -28,9 +28,14 @@ export interface PayoutRow {
   hostName: string;
   /** Payout destination (self-managed by the host). Null = not provided. */
   payoutIban: string | null;
-  /** Gross owed from completed+collected bookings not yet paid out. */
+  /** Gross owed from completed+collected bookings not yet paid out (and not under an open dispute). */
   owedSar: number;
   owedCount: number;
+  /**
+   * Completed, collected, unpaid bookings held back because a dispute is
+   * still open on them (MONEY-02) — they rejoin "owed" once it is resolved.
+   */
+  heldCount: number;
   /**
    * Clawback deduction the next "Mark paid" will apply (refunds issued
    * after this host was already paid out — greedy oldest-first plan,
@@ -62,8 +67,11 @@ export async function listPayouts(): Promise<readonly PayoutRow[]> {
         hostId: hosts.id,
         hostName: hosts.name,
         payoutIban: hosts.payoutIban,
-        owedSar: sql<number>`coalesce(sum(${payout}) filter (where ${bookings.hostPaidAt} is null and ${paymentCollected()}), 0)::int`,
-        owedCount: sql<number>`coalesce(count(*) filter (where ${bookings.hostPaidAt} is null and ${paymentCollected()}), 0)::int`,
+        // Same predicate the mark-paid action locks on: a booking under an
+        // open dispute is held back, not owed (MONEY-02).
+        owedSar: sql<number>`coalesce(sum(${payout}) filter (where ${bookings.hostPaidAt} is null and ${paymentCollected()} and ${noOpenDispute()}), 0)::int`,
+        owedCount: sql<number>`coalesce(count(*) filter (where ${bookings.hostPaidAt} is null and ${paymentCollected()} and ${noOpenDispute()}), 0)::int`,
+        heldCount: sql<number>`coalesce(count(*) filter (where ${bookings.hostPaidAt} is null and ${paymentCollected()} and not ${noOpenDispute()}), 0)::int`,
         paidSar: sql<number>`coalesce(sum(${payout}) filter (where ${bookings.hostPaidAt} is not null), 0)::int`,
         paidCount: sql<number>`coalesce(count(*) filter (where ${bookings.hostPaidAt} is not null), 0)::int`,
       })

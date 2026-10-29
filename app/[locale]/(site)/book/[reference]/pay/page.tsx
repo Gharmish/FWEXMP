@@ -17,7 +17,7 @@ import { halalasToSar, vatPortionHalalas, vatRatePercent } from '@/features/book
 import { getPlatformSettings } from '@/lib/platform-settings';
 import { isHoldExpired } from '@/features/bookings/lib/availability';
 import { bookingOptions } from '@/features/bookings/lib/policy';
-import { getExperienceBySlug } from '@/features/experiences/queries';
+import { getExperienceBySlug, getExperienceForBooking } from '@/features/experiences/queries';
 import { hyperpayBaseUrl } from '@/features/payments/lib/hyperpay';
 import {
   PaymentDetailsForm,
@@ -116,7 +116,14 @@ export default async function PaymentPage({ params, searchParams }: PageParams) 
   // wave A, and the wallet balance needs the session read, so it waits
   // for wave B.
   const [experience, sessionGuestId, { vatEnabled, vatRateBps }] = await Promise.all([
-    experienceSlug ? getExperienceBySlug(experienceSlug) : Promise.resolve(undefined),
+    // The booking's own listing is read at any status (a paused listing
+    // must not blank the pay page); only the legacy ?slug= fallback stays
+    // on the live-only read, since that slug comes from the URL.
+    booking.experienceSlug
+      ? getExperienceForBooking(booking.experienceSlug)
+      : slugFromQuery
+        ? getExperienceBySlug(slugFromQuery)
+        : Promise.resolve(undefined),
     getSessionGuestId(),
     // Platform settings feed the VAT disclosure in the summary below.
     getPlatformSettings(),

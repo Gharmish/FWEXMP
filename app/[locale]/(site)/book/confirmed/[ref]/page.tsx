@@ -10,7 +10,7 @@ import type { Locale } from '@/lib/i18n';
 import { buttonVariants } from '@/components/ui/button';
 import { formatDate, formatInteger, formatSAR, formatTime } from '@/lib/format';
 import { Price } from '@/components/ui/price';
-import { getExperienceBySlug } from '@/features/experiences/queries';
+import { getExperienceForBooking } from '@/features/experiences/queries';
 import { getBookingViewForViewer } from '@/features/bookings/queries';
 import { BookingAccessNotice } from '@/features/bookings/components/booking-access-notice';
 import { BookingManageSections } from '@/features/bookings/components/booking-manage-sections';
@@ -172,7 +172,7 @@ export default async function BookingConfirmedPage({ params, searchParams }: Pag
   // needs the code IN this render to tag the URL, and after the first
   // visit the call is a pure read.
   const [experience, sessionGuestId, bookingReview, referralCode, tMe] = await Promise.all([
-    experienceSlug ? getExperienceBySlug(experienceSlug) : Promise.resolve(undefined),
+    experienceSlug ? getExperienceForBooking(experienceSlug) : Promise.resolve(undefined),
     booking?.status === 'refunded' && booking.refundMethod === 'wallet'
       ? getSessionGuestId()
       : Promise.resolve(null),

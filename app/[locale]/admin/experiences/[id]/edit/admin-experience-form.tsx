@@ -77,6 +77,16 @@ export interface AdminExperienceFormCopy {
   formForbidden: string;
   /** Start time / weekdays edit refused because upcoming bookings depend on them. */
   formScheduleHasBookings: string;
+  /** The listing's status changed under the editor. */
+  formWrongState: string;
+  /** Launch-content gates a flip to live can fail — same set the approve action enforces. */
+  formNeedsHero: string;
+  formNeedsArabic: string;
+  formNeedsEnglish: string;
+  formNeedsArabicMoments: string;
+  formNeedsArabicLists: string;
+  formHostSuspended: string;
+  formHostUnverified: string;
   /** Create mode only: the owner-host selector label. */
   host?: string;
   weekdays: string[];
@@ -222,18 +232,22 @@ export function AdminExperienceForm({
   const commissionPct = v?.commissionPct ?? (ex.commissionBps / 100).toString();
   const startTimeDefault = v?.startTime ?? ex.startTime;
 
-  const formError =
-    state.message === 'server'
-      ? copy.formServer
-      : state.message === 'schedule_has_bookings'
-        ? copy.formScheduleHasBookings
-        : state.message === 'not_found'
-          ? copy.formNotFound
-          : state.message === 'forbidden'
-            ? copy.formForbidden
-            : state.message === 'validation'
-              ? copy.formValidation
-              : undefined;
+  const formErrors: Partial<Record<NonNullable<typeof state.message>, string>> = {
+    server: copy.formServer,
+    schedule_has_bookings: copy.formScheduleHasBookings,
+    not_found: copy.formNotFound,
+    forbidden: copy.formForbidden,
+    validation: copy.formValidation,
+    wrong_state: copy.formWrongState,
+    needs_hero: copy.formNeedsHero,
+    needs_arabic: copy.formNeedsArabic,
+    needs_english: copy.formNeedsEnglish,
+    needs_arabic_moments: copy.formNeedsArabicMoments,
+    needs_arabic_lists: copy.formNeedsArabicLists,
+    host_suspended: copy.formHostSuspended,
+    host_unverified: copy.formHostUnverified,
+  };
+  const formError = state.message ? formErrors[state.message] : undefined;
 
   const labelClass = 'text-sm font-medium';
   const hintClass = 'text-sarat-black-600 text-sm';

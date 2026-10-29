@@ -14,7 +14,7 @@ import { halalasToSar, vatPortionHalalas, vatRatePercent } from '@/features/book
 import { startInstant } from '@/features/bookings/lib/cancellation';
 import { zatcaQrPayload } from '@/features/bookings/lib/zatca-qr';
 import { renderInvoicePdf, type InvoicePdfRow } from '@/features/bookings/lib/invoice-pdf';
-import { getExperienceBySlug } from '@/features/experiences/queries';
+import { getExperienceForBooking } from '@/features/experiences/queries';
 import { toArabicText } from '@/features/experiences/lib/arabic-content';
 import { renderBookingIcs } from './booking-ics';
 import { guestBookingUrls } from './booking-email-links';
@@ -76,7 +76,7 @@ export async function sendBookingReceiptEmail(reference: string): Promise<void> 
   if (!booking.guestEmail && !booking.guestPhone) return;
 
   const experience = booking.experienceSlug
-    ? await getExperienceBySlug(booking.experienceSlug)
+    ? await getExperienceForBooking(booking.experienceSlug)
     : undefined;
   // Prefer the immutable settlement snapshot; fall back to the live title
   // for rows settled before the snapshot columns existed (mirrors the

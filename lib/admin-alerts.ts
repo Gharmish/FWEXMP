@@ -62,6 +62,16 @@ export interface NotifyAdminOptions {
    */
   fingerprint?: string;
   quietWindowMs?: number;
+  /**
+   * Whether a repeat inside the quiet window is still written to
+   * `admin_alerts` (default true — the row is the history an operator
+   * reads). Set false for alerts an UNAUTHENTICATED caller can raise at
+   * will (the HyperPay webhook's failed-decrypt path): there, every
+   * suppressed repeat is a database write and an inbox row a stranger
+   * controls, so only the paged alert per window is kept and the rest
+   * are logged (2026-10-17 scan, SECURITY-02).
+   */
+  persistSuppressed?: boolean;
 }
 
 export async function notifyAdmin(
@@ -100,6 +110,7 @@ export async function notifyAdmin(
   const persisted = fingerprint
     ? { ...detail, fingerprint, ...(suppressed ? { suppressed: 'quiet-window' } : {}) }
     : detail;
+  if (suppressed && options.persistSuppressed === false) return;
 
   // Persist first (2026-08-21): the rails below are fire-and-forget, so
   // this row is the only record that an alert ever happened — what the

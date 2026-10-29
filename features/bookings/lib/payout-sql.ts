@@ -95,6 +95,24 @@ export function paymentCollected(): SQL {
 }
 
 /**
+ * The booking carries no OPEN dispute (2026-10-17 scan, MONEY-02). A
+ * completed, collected booking under a live report must not be paid out:
+ * if the report ends in a refund, the host's share would already be
+ * gone and the platform could only claw it back from the host's FUTURE
+ * payouts — none, for a one-listing host who never earns again. Both
+ * the payouts page and the mark-paid action filter the owed set on this.
+ *
+ * Written with raw identifiers on purpose: drizzle renders a
+ * single-table select's columns unqualified, so `${bookings.id}` inside
+ * a correlated subquery over `disputes` would be an ambiguous `"id"`
+ * (42702 — only at runtime). Both callers select from `bookings` with no
+ * alias, so naming the table in full is exact.
+ */
+export function noOpenDispute(): SQL {
+  return sql`not exists (select 1 from disputes d where d.booking_id = bookings.id and d.status = 'open')`;
+}
+
+/**
  * The ONE definition of "counts as GMV": a revenue-shaped booking whose
  * money the platform actually collected. Every money aggregate — the
  * `/admin` landing tile, the `/admin/analytics` headline, and every

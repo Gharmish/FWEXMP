@@ -8,7 +8,7 @@ import { SITE_URL } from '@/lib/site';
 import { getBookingByReference } from '@/features/bookings/queries';
 import { startInstant } from '@/features/bookings/lib/cancellation';
 import { splitCommission } from '@/features/bookings/lib/commission';
-import { getExperienceBySlug } from '@/features/experiences/queries';
+import { getExperienceForBooking } from '@/features/experiences/queries';
 import { guestBookingUrls } from './booking-email-links';
 import { renderReceiptEmail, type ReceiptRow } from './booking-email-render';
 import { getPlatformSettings } from '@/lib/platform-settings';
@@ -77,7 +77,7 @@ export async function sendBookingCancellationEmail(
   const locale = booking.guestPreferredLanguage;
 
   const experience = booking.experienceSlug
-    ? await getExperienceBySlug(booking.experienceSlug)
+    ? await getExperienceForBooking(booking.experienceSlug)
     : undefined;
   const title = experience ? (locale === 'ar' ? experience.titleAr : experience.titleEn) : null;
 

@@ -11,7 +11,7 @@ import { hostApplications } from '@/db/schema';
 import { getBookingByReference } from '@/features/bookings/queries';
 import { startInstant } from '@/features/bookings/lib/cancellation';
 import { bookingOptions } from '@/features/bookings/lib/policy';
-import { getExperienceBySlug } from '@/features/experiences/queries';
+import { getExperienceForBooking } from '@/features/experiences/queries';
 import { type ReceiptRow } from './booking-email-render';
 
 /**
@@ -136,7 +136,7 @@ export async function lifecycleDetails(
   t: Awaited<ReturnType<typeof getTranslations<'bookingEmail'>>>,
 ): Promise<LifecycleDetails> {
   const experience = booking.experienceSlug
-    ? await getExperienceBySlug(booking.experienceSlug)
+    ? await getExperienceForBooking(booking.experienceSlug)
     : undefined;
   const title = experience ? (locale === 'ar' ? experience.titleAr : experience.titleEn) : null;
   const startsAt = startInstant(booking.date, booking.startTime);

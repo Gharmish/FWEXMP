@@ -10,7 +10,7 @@ import { reportError } from '@/lib/log';
 import { decryptPii } from '@/lib/pii-crypto';
 import { adminFailureMessage, adminGateRefused, requireAdminActor } from '@/features/admin/guard';
 import { splitCommission } from '@/features/bookings/lib/commission';
-import { paymentCollected } from '@/features/bookings/lib/payout-sql';
+import { noOpenDispute, paymentCollected } from '@/features/bookings/lib/payout-sql';
 import { planClawbackDeduction } from '@/features/bookings/lib/clawback';
 import { sendHostPayoutPaidEmail } from '@/features/admin/payouts/payout-email';
 
@@ -101,6 +101,10 @@ export async function markHostPaid(
             eq(bookings.status, 'completed'),
             isNull(bookings.hostPaidAt),
             paymentCollected(),
+            // A booking under an open dispute stays out of the transfer
+            // (MONEY-02): a refund decided tomorrow could otherwise only
+            // be recovered from the host's future payouts.
+            noOpenDispute(),
             inArray(bookings.experienceId, hostExperienceIds),
           ),
         )

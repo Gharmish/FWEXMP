@@ -28,6 +28,12 @@ export const ACTIVE_BOOKING_STATUSES = ['pending', 'confirmed', 'completed'] as 
  * Tunable here without touching the release job.
  */
 export const PAYMENT_HOLD_MINUTES = 30;
+/**
+ * The least payable time a pay-after-approval window may open with:
+ * under this, approval (and a reschedule of an unpaid hold) is refused
+ * rather than handing the guest a deadline they cannot realistically use.
+ */
+export const MIN_PAYMENT_WINDOW_MS = 30 * 60_000;
 
 /**
  * How long before an experience's local start time it stops accepting new
@@ -175,6 +181,24 @@ export function slotCloseInstantMs(
   const midnightMs = Date.parse(`${dateStr}T00:00:00+03:00`);
   if (Number.isNaN(midnightMs)) return null;
   return midnightMs + (start - cutoffMinutes) * 60_000;
+}
+
+/**
+ * Re-clamp an open deadline to a slot that just moved (2026-10-17 scan,
+ * BOOKING-01). Creation clamps the approval deadline to the slot and
+ * approval clamps the payment deadline the same way, but a reschedule
+ * used to leave both untouched — so a request moved to an earlier date
+ * could stay "pending" straight through its own start, and a pay button
+ * could promise hours the checkout then refused. The deadline only ever
+ * moves EARLIER (never extended by a move); a missing deadline or an
+ * unparseable slot leaves it as it was.
+ */
+export function clampDeadlineToSlot(
+  existing: Date | null,
+  slotCloseMs: number | null,
+): Date | null {
+  if (existing === null || slotCloseMs === null) return existing;
+  return new Date(Math.min(existing.getTime(), slotCloseMs));
 }
 
 /**

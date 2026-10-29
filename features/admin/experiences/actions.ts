@@ -1,6 +1,6 @@
 'use server';
 
-import { eq } from 'drizzle-orm';
+import { and, eq } from 'drizzle-orm';
 import { revalidatePath } from 'next/cache';
 import { revalidateExperienceCaches } from '@/lib/cache-tags';
 import { db } from '@/lib/db';
@@ -14,6 +14,10 @@ import {
 } from '@/features/admin/experiences/schemas';
 import { experienceSlugFromTitle } from '@/features/listings/lib/slug';
 import { scheduleChangeBlocked } from '@/features/listings/lib/schedule-guard';
+import {
+  liveGateBlocker,
+  type LiveGateBlocker,
+} from '@/features/admin/experience-moderation/lib/live-gate';
 
 // Abha city centre — default location until the map picker lands
 // (mirrors the host create action).
@@ -40,6 +44,10 @@ export interface AdminExperienceEditState {
     | 'validation'
     /** Start time / operating weekdays changed while upcoming live bookings depend on them. */
     | 'schedule_has_bookings'
+    /** The listing's status changed under the editor (a moderation decision landed first). */
+    | 'wrong_state'
+    /** Flipping to live failed one of the launch-content gates the approve action enforces. */
+    | LiveGateBlocker
     | 'server';
   fields?: Record<string, string>;
   /**
@@ -162,9 +170,44 @@ export async function adminUpdateExperience(
   try {
     const existing = await db.query.experiences.findFirst({
       where: eq(experiences.id, experienceId),
-      columns: { id: true, status: true, startTime: true, availabilityWeekdays: true },
+      columns: {
+        id: true,
+        status: true,
+        startTime: true,
+        availabilityWeekdays: true,
+        heroImage: true,
+      },
+      with: {
+        moments: { columns: { titleAr: true, descriptionAr: true } },
+        host: { columns: { verificationStatus: true } },
+      },
     });
     if (!existing) return { success: false, message: 'not_found' };
+
+    // Flipping a listing to live from this editor used to bypass every
+    // gate the moderation approve action enforces (2026-10-17 scan,
+    // ADMIN-HOST-01): no hero photo, placeholder Arabic, an English-only
+    // timeline or a suspended host could all be published with one
+    // select. Same gate, evaluated against the row as it will be saved —
+    // the form's copy and lists, the stored hero, moments and host.
+    if (input.status === 'live' && existing.status !== 'live') {
+      const blocker = liveGateBlocker({
+        hostVerificationStatus: existing.host.verificationStatus,
+        heroImage: existing.heroImage,
+        titleEn: input.titleEn,
+        descriptionEn: input.descriptionEn,
+        titleAr: input.titleAr,
+        descriptionAr: input.descriptionAr,
+        inclusions: input.inclusionsRaw,
+        inclusionsAr: input.inclusionsArRaw,
+        whatToBring: input.whatToBringRaw,
+        whatToBringAr: input.whatToBringArRaw,
+        moments: existing.moments,
+      });
+      if (blocker !== null) {
+        return { success: false, message: blocker, values: collectValues(formData) };
+      }
+    }
 
     // Same guard as the host form (2026-09 engineering audit GAPA-01): an
     // admin editing on a host's behalf must not strand live bookings either.
@@ -182,7 +225,7 @@ export async function adminUpdateExperience(
       };
     }
 
-    await db
+    const updated = await db
       .update(experiences)
       .set({
         titleEn: input.titleEn,
@@ -213,7 +256,14 @@ export async function adminUpdateExperience(
         featured: input.featured,
         updatedAt: new Date(),
       })
-      .where(eq(experiences.id, experienceId));
+      // Re-assert the status the editor was opened on: a moderation
+      // decision (approve / reject / request changes) that landed while
+      // the admin typed must not be overwritten by a stale form.
+      .where(and(eq(experiences.id, experienceId), eq(experiences.status, existing.status)))
+      .returning({ id: experiences.id });
+    if (updated.length === 0) {
+      return { success: false, message: 'wrong_state', values: collectValues(formData) };
+    }
 
     await db.insert(experienceModerationEvents).values({
       experienceId,
@@ -295,6 +345,14 @@ export async function adminCreateExperience(
   const input = parsed.data;
   const locale = input.locale;
   const commissionBps = Math.round(input.commissionPct * 100);
+
+  // A listing is born without a hero photo or timeline, so it can never
+  // pass the live gate at creation (lib/live-gate.ts): create it as a
+  // draft or send it to review, add the gallery, then publish from the
+  // editor (2026-10-17 scan, ADMIN-HOST-01 / ADMIN-HOST-12).
+  if (input.status === 'live') {
+    return { success: false, message: 'needs_hero', values: collectValues(formData) };
+  }
 
   let newId: string | undefined;
   try {
