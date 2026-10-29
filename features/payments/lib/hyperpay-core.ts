@@ -21,9 +21,17 @@ export const LIVE_BASE_URL = 'https://eu-prod.oppwa.com/';
  * `SUCCESS` = successfully processed; `MANUAL_REVIEW` = processed but
  * flagged by risk (funds captured — treated as success); `PENDING` = an
  * async result is still arriving.
+ *
+ * Both patterns are the reference's own, verbatim. The `000.400.1[12]0`
+ * branch of SUCCESS is the 3DS "authentication successful" pair (`.110`
+ * frictionless, `.120` data-only); an earlier transcription dropped it and
+ * covered `.110` by accident through a `[0-1]{2}0` class that missed
+ * `.120`, so a data-only 3DS capture read as a card decline: the booking
+ * flipped to `failed`, the guest was emailed "your payment didn't go
+ * through" and invited to pay again (#235, 2026-10-29).
  */
-const SUCCESS_RE = /^(000\.000\.|000\.100\.1|000\.[36])/;
-const MANUAL_REVIEW_RE = /^(000\.400\.0[^3]|000\.400\.[0-1]{2}0)/;
+const SUCCESS_RE = /^(000\.000\.|000\.100\.1|000\.[36]|000\.400\.[1][12]0)/;
+const MANUAL_REVIEW_RE = /^(000\.400\.0[^3]|000\.400\.100)/;
 const PENDING_RE = /^(000\.200|800\.400\.5|100\.400\.500)/;
 
 /**

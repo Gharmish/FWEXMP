@@ -109,6 +109,22 @@ describe('classifyResult', () => {
   it('treats risk manual-review codes as success (funds captured)', () => {
     expect(classifyResult('000.400.000')).toBe('success');
     expect(classifyResult('000.400.010')).toBe('success');
+    expect(classifyResult('000.400.100')).toBe('success');
+  });
+
+  it('treats the 3DS "authentication successful" codes as success (#235)', () => {
+    // 000.400.110 is the frictionless flow, 000.400.120 the data-only
+    // flow. Both are in OPPWA's "successfully processed" group: the funds
+    // are captured. Read as a decline, .120 flipped a paid booking to
+    // `failed`, emailed "your payment didn't go through" and invited a
+    // second payment.
+    for (const code of ['000.400.110', '000.400.120']) {
+      expect(classifyResult(code)).toBe('success');
+      expect(isSuccessfulResult(code)).toBe(true);
+    }
+    // The partial failure that OPPWA asks to reverse by hand stays a rejection.
+    expect(classifyResult('000.400.030')).toBe('rejected');
+    expect(isSuccessfulResult('000.400.030')).toBe(false);
   });
 
   it('treats async result codes as pending', () => {
