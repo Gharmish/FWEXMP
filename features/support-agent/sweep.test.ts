@@ -23,6 +23,10 @@ const state = vi.hoisted(() => ({
 vi.mock('@/lib/db', () => {
   const chain = {
     from: () => chain,
+    // The candidate query may join `guests` for the stored name (#231);
+    // the fake answers the join like any other link so both branches
+    // merge in either order (2026-10-29).
+    leftJoin: () => chain,
     where: () => chain,
     orderBy: () => chain,
     limit: async () => state.rows,
