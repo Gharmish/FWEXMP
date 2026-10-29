@@ -5,6 +5,7 @@ import {
   buildRefundBody,
   classifyResult,
   formatAmount,
+  isGatewayFault,
   isSuccessfulResult,
   isThrottled,
   LIVE_BASE_URL,
@@ -54,6 +55,48 @@ const applePayCfg: HyperpayConfig = {
   testConnector: 'external',
   channel: 'applepay',
 };
+
+describe('isGatewayFault', () => {
+  it('names the auth / permission codes (#137)', () => {
+    for (const code of [
+      '800.900.100', // sender authorization failed
+      '800.900.201', // unknown channel (entity)
+      '800.900.300', // user authorization failed
+      '800.900.301', // user access denied
+      '800.900.302', // user access expired
+      '800.900.303', // no token created
+      '800.900.399', // secure registration problem
+      '800.900.401', // invalid IP number
+    ]) {
+      expect(isGatewayFault(code)).toBe(true);
+    }
+  });
+
+  it('leaves the customer-data validation codes of the same group alone (PR #142 review)', () => {
+    // These judge the data in the request (email, phone, birthdate), so
+    // they are a verdict on the attempt the guest can fix by retrying —
+    // thrown, the booking would sit on "pending" with no way to pay again.
+    for (const code of ['800.900.101', '800.900.200', '800.900.450']) {
+      expect(isGatewayFault(code)).toBe(false);
+    }
+  });
+
+  it('leaves real verdicts, the expired session, the throttle and connector results alone', () => {
+    // `900.*` can be a transaction's own result (acquirer down, session
+    // timeout); the HTTP status, not the code, decides for that family.
+    for (const code of [
+      '000.000.000',
+      '000.200.000',
+      '800.100.151',
+      '200.300.404',
+      '800.120.100',
+      '900.100.300',
+      '900.300.600',
+    ]) {
+      expect(isGatewayFault(code)).toBe(false);
+    }
+  });
+});
 
 describe('classifyResult', () => {
   it('treats the standard success groups as success', () => {

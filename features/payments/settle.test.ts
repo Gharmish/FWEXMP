@@ -605,6 +605,32 @@ describe('settleBooking', () => {
     expect(setCalls).toHaveLength(0);
   });
 
+  it('leaves the booking processing when the status read is refused — never a decline (#137)', async () => {
+    // The client THROWS on an auth, permission or system answer (see
+    // hyperpay.test.ts); settle must then answer `error` with the row
+    // untouched, so the webhook or reconcile pass asks again. Before,
+    // the same answer classified as `rejected` and a charged booking
+    // was failed, emailed and later cancelled.
+    const refused = new Error(
+      'HyperPay getPaymentStatus refused the request: 800.900.300 (HTTP 401)',
+    );
+    // Settle retries the read once before giving up.
+    getPaymentStatus.mockRejectedValueOnce(refused).mockRejectedValueOnce(refused);
+
+    const outcome = await settleBooking('ref-1');
+
+    expect(outcome).toBe('error');
+    expect(getPaymentStatus).toHaveBeenCalledTimes(2);
+    expect(setCalls).toHaveLength(0);
+    expect(ledgerEvents).toHaveLength(0);
+    expect(sendBookingPaymentFailedEmail).not.toHaveBeenCalled();
+    expect(queryPaymentsByReference).not.toHaveBeenCalled();
+    expect(reportError).toHaveBeenCalledWith(expect.any(Error), {
+      surface: 'payment-settle',
+      reference: 'ref-1',
+    });
+  });
+
   it('reads a throttled status as "ask again later", never as a decline', async () => {
     // OPPWA refuses the third status GET per checkout per minute with
     // 800.120.100. As `rejected` it flipped a possibly-captured booking to
