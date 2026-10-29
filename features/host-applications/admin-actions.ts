@@ -395,8 +395,11 @@ export async function rejectApplication(
 
 export interface DocumentReviewState {
   success: boolean;
-  /** Reuses the application-action union ('wrong_state' never occurs here). */
-  message?: AdminApplyResult['message'];
+  /**
+   * Reuses the application-action union ('wrong_state' never occurs here),
+   * plus `stale`: the file was replaced since the page loaded (#70).
+   */
+  message?: AdminApplyResult['message'] | 'stale';
   /** Zod message code for the notes field (e.g. 'rejection_note_short'). */
   fieldError?: string;
 }
@@ -417,6 +420,7 @@ export async function reviewDocument(
 
   const parsed = reviewDocumentSchema.safeParse({
     documentId: formValue(formData, 'documentId'),
+    objectKey: formValue(formData, 'objectKey'),
     decision: formValue(formData, 'decision'),
     reviewerNotes: formValue(formData, 'reviewerNotes'),
   });
@@ -428,16 +432,16 @@ export async function reviewDocument(
       fieldError: issue?.message ?? 'invalid',
     };
   }
-  const { documentId, decision, reviewerNotes } = parsed.data;
+  const { documentId, objectKey, decision, reviewerNotes } = parsed.data;
 
   try {
-    const updated = await db.transaction(async (tx) => {
+    const outcome = await db.transaction(async (tx) => {
       const [doc] = await tx
         .select({ applicationId: hostApplicationDocuments.applicationId })
         .from(hostApplicationDocuments)
         .where(eq(hostApplicationDocuments.id, documentId))
         .limit(1);
-      if (!doc) return [];
+      if (!doc) return 'not_found' as const;
       // Serialise against approveApplication, which re-checks the
       // documents under this same application-row lock: a verdict either
       // lands before that re-check reads it, or waits until the approval
@@ -448,7 +452,11 @@ export async function reviewDocument(
         .from(hostApplications)
         .where(eq(hostApplications.id, doc.applicationId))
         .for('update');
-      return tx
+      // Only the file the admin actually viewed (2026-10-13, #70). A
+      // resubmission upserts onto the same row id with a new object key
+      // and resets it to pending; keyed on the id alone, a verdict from a
+      // page loaded before that approved a file nobody had opened.
+      const updated = await tx
         .update(hostApplicationDocuments)
         .set({
           status: decision,
@@ -457,10 +465,16 @@ export async function reviewDocument(
           reviewedAt: new Date(),
           updatedAt: new Date(),
         })
-        .where(eq(hostApplicationDocuments.id, documentId))
+        .where(
+          and(
+            eq(hostApplicationDocuments.id, documentId),
+            eq(hostApplicationDocuments.objectKey, objectKey),
+          ),
+        )
         .returning({ id: hostApplicationDocuments.id });
+      return updated.length === 0 ? ('stale' as const) : ('updated' as const);
     });
-    if (updated.length === 0) return { success: false, message: 'not_found' };
+    if (outcome !== 'updated') return { success: false, message: outcome };
   } catch (error) {
     reportError(error, { surface: 'admin:reviewDocument', documentId });
     return { success: false, message: 'server' };

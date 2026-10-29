@@ -71,6 +71,12 @@ export interface HostApplicationView {
  * the row still renders, just without a View link).
  */
 export interface HostApplicationDocumentAdminView extends HostApplicationDocumentView {
+  /**
+   * Storage key of the file on screen. A replacement keeps the row id but
+   * gets a new key, so the verdict form posts it back and a verdict from
+   * a stale page cannot land on a file the admin never opened (#70).
+   */
+  objectKey: string;
   contentType: string;
   sizeBytes: number;
   signedUrl: string | null;

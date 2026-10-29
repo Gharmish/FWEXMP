@@ -702,6 +702,7 @@
         "validation": "Check the form and try again.",
         "server": "We couldn't complete that action. Try again in a moment.",
         "rejectionNoteShort": "Add at least 10 characters of context so the applicant knows how to refile.",
+        "documentStale": "This document was replaced since you opened the page. Reload and review the new file before deciding.",
         "documentsIncomplete": "Every required document must be uploaded and approved before the application can be approved — review the documents above first."
       }
     },
