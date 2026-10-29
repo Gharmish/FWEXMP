@@ -6,7 +6,7 @@ import Anthropic from '@anthropic-ai/sdk';
 import { and, desc, eq, gt, gte, isNull, lt, or, sql } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import { hasSupportAgent, serverEnv } from '@/lib/env';
-import { conversationMessages, conversations } from '@/db/schema';
+import { conversationMessages, conversations, guests } from '@/db/schema';
 import { reportError } from '@/lib/log';
 import { notifyAdmin } from '@/lib/admin-alerts';
 import {
@@ -614,8 +614,12 @@ export async function sweepPendingAgentTurns(
         locale: conversations.locale,
         lastInboundAt: conversations.lastInboundAt,
         lastOutboundAt: conversations.lastOutboundAt,
+        // The live path passes the guest's stored name; a re-run turn must
+        // too, or the prompt reads "Known guest: yes" beside "name: unknown".
+        guestName: guests.name,
       })
       .from(conversations)
+      .leftJoin(guests, eq(guests.id, conversations.guestId))
       .where(eq(conversations.state, 'bot'))
       .orderBy(desc(conversations.lastInboundAt))
       .limit(limit * 4);
@@ -636,7 +640,7 @@ export async function sweepPendingAgentTurns(
           conversationId: row.id,
           messageId: last.id,
           locale: row.locale,
-          guestName: null,
+          guestName: row.guestName,
           shouldAck: false,
           isNew: true,
           state: 'bot',
