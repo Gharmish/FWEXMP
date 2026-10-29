@@ -187,6 +187,21 @@ describe('executeBookingTransition — lifecycle guard', () => {
     });
   });
 
+  it('refuses a host cancelling a pending request (decline is the host move)', async () => {
+    expect(
+      await executeBookingTransition('b-1', 'cancelled', { ...OWNER_HOST, reason: 'other' }),
+    ).toEqual({ error: 'wrong_state' });
+    expect(setCalls).toHaveLength(0);
+    expect(sendBookingCancellationEmail).not.toHaveBeenCalled();
+  });
+
+  it('still lets an admin withdraw a pending request', async () => {
+    expect(await executeBookingTransition('b-1', 'cancelled', ADMIN)).toEqual({
+      ok: 'transitioned',
+    });
+    expect(setCalls[0]).toMatchObject({ status: 'cancelled', cancellationKind: 'operator' });
+  });
+
   it('loses a concurrent-transition race as wrong_state (conditional UPDATE hit 0 rows)', async () => {
     updateRows = [];
     expect(await executeBookingTransition('b-1', 'declined', OWNER_HOST)).toEqual({
