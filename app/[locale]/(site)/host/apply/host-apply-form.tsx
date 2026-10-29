@@ -611,11 +611,13 @@ export function HostApplyForm({
           <label htmlFor="apply-identityNumber" className="text-sm font-medium">
             {copy.identityNumberLabel}
           </label>
+          {/* The schema transliterates ٠-٩ before `\d{10}`, so the hint pattern
+              must admit Arabic-Indic digits too (2026-10-21). */}
           <Input
             id="apply-identityNumber"
             name="identityNumber"
             inputMode="numeric"
-            pattern="\d{10}"
+            pattern="[0-9٠-٩]{10}"
             maxLength={10}
             required
             dir="ltr"
