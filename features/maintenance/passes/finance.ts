@@ -21,6 +21,29 @@ import { RECONCILE_LIMIT } from '@/features/maintenance/runner';
  * is isolated, named and counted.
  */
 
+/**
+ * 5a and 5c re-run hourly over a 48h / 24h lookback, so one unstamped or
+ * negative-take booking matched every run and re-paged email + WhatsApp
+ * each hour (OPS-08 named both kinds; only the cron kinds got a quiet
+ * window). Each run still persists its row for /admin/alerts.
+ *
+ * The fingerprint carries the matched count (2026-10-28 review of this
+ * fix): a constant key would have silenced NEW losses too, so a farmed
+ * promo code producing thirty more negative-take bookings after the first
+ * page stayed unpaged for the whole window. Keying on the count keeps an
+ * identical repeat quiet and pages again the moment the picture grows.
+ */
+export const VAT_STAMP_ALERT_QUIET_MS = 24 * 3_600_000;
+export const NEGATIVE_TAKE_ALERT_QUIET_MS = 6 * 3_600_000;
+
+export function vatStampAlertFingerprint(count: number): string {
+  return `vat-stamp:${count}`;
+}
+
+export function negativeTakeAlertFingerprint(count: number): string {
+  return `negative-take:${count}`;
+}
+
 export async function vatGuards(run: PassRunner) {
   // Pass 5 — VAT accounting guards (daily, best-effort; failures are
   // logged but never block the operational passes above).
@@ -52,11 +75,18 @@ export async function vatGuards(run: PassRunner) {
             ),
           );
         if (unstamped && unstamped.count > 0) {
-          await notifyAdmin('vat_stamp_missing', {
-            count: unstamped.count,
-            window: 'last 48 hours',
-            action: 'stamp these bookings before the next VAT filing (/admin/vat)',
-          });
+          await notifyAdmin(
+            'vat_stamp_missing',
+            {
+              count: unstamped.count,
+              window: 'last 48 hours',
+              action: 'stamp these bookings before the next VAT filing (/admin/vat)',
+            },
+            {
+              fingerprint: vatStampAlertFingerprint(unstamped.count),
+              quietWindowMs: VAT_STAMP_ALERT_QUIET_MS,
+            },
+          );
         }
       }
 
@@ -121,12 +151,19 @@ export async function watchNegativeTake(run: PassRunner) {
           ),
         );
       if (negative && negative.count > 0) {
-        await notifyAdmin('negative_take', {
-          bookings: negative.count,
-          platformLossSar: negative.lossSar,
-          window: 'last 24 hours',
-          action: 'review promo/credit stacking on these bookings (/admin/bookings)',
-        });
+        await notifyAdmin(
+          'negative_take',
+          {
+            bookings: negative.count,
+            platformLossSar: negative.lossSar,
+            window: 'last 24 hours',
+            action: 'review promo/credit stacking on these bookings (/admin/bookings)',
+          },
+          {
+            fingerprint: negativeTakeAlertFingerprint(negative.count),
+            quietWindowMs: NEGATIVE_TAKE_ALERT_QUIET_MS,
+          },
+        );
       }
     },
     undefined,
