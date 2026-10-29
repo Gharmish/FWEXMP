@@ -16,7 +16,12 @@ export const ZATCA_VAT_NUMBER_RE = /^3\d{13}3$/;
 
 export const updateSettingsSchema = z
   .object({
-    commissionPct: z.coerce.number().min(0, 'commission_range').max(50, 'commission_range'),
+    // Blank must not coerce to 0: a cleared input used to save a 0%
+    // default commission on every new listing with only "Saved" shown.
+    commissionPct: z.preprocess(
+      (v) => (v == null || (typeof v === 'string' && v.trim() === '') ? undefined : v),
+      z.coerce.number('commission_range').min(0, 'commission_range').max(50, 'commission_range'),
+    ),
     enabledCategories: z.array(z.enum(EXPERIENCE_CATEGORIES)).min(1, 'categories_min'),
     // Request-to-book: hours a host has to answer before the request
     // auto-expires. Min 1 — a 0 window would expire every request instantly.

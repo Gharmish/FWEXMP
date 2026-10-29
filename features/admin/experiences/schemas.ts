@@ -71,7 +71,13 @@ const adminExperienceBase = hostExperienceInputSchema.omit({ lat: true, lng: tru
   startTime: z.string().regex(HHMM_RE, 'start_time_invalid'),
   bookingMode: z.enum(BOOKING_MODES),
   // Percentage in the UI (0–50); stored as basis points by the action.
-  commissionPct: z.coerce.number().min(0, 'commission_range').max(50, 'commission_range'),
+  // Blank must not coerce to 0: a cleared input used to save a 0% commission
+  // on the listing with only "Saved" shown (2026-10-26, same guard as the
+  // platform default in features/admin/settings/schemas.ts).
+  commissionPct: z.preprocess(
+    (v) => (v == null || (typeof v === 'string' && v.trim() === '') ? undefined : v),
+    z.coerce.number('commission_range').min(0, 'commission_range').max(50, 'commission_range'),
+  ),
   status: z.enum(EXPERIENCE_STATUSES),
   // Unchecked checkbox → '' → false; 'on' → true.
   featured: z.coerce.boolean(),
