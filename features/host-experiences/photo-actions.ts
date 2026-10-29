@@ -11,6 +11,7 @@ import { redirect } from '@/lib/i18n';
 import { reportError } from '@/lib/log';
 import { getSupabaseUserStorage } from '@/lib/supabase/server';
 import { getCurrentHostIdForWrite } from '@/features/host-experiences/queries';
+import { galleryAppend, galleryRemove } from '@/features/listings/lib/gallery-sql';
 import {
   PHOTO_BUCKET,
   galleryObjectKey,
@@ -216,7 +217,7 @@ export async function uploadGalleryImageAsHost(
 
     await db
       .update(experiences)
-      .set({ images: [...experience.images, publicUrl] })
+      .set({ images: galleryAppend(publicUrl) })
       .where(and(eq(experiences.id, experienceId), eq(experiences.hostId, hostId)));
   } catch (error) {
     reportError(error, { surface: 'host-experiences:uploadGallery', experienceId });
@@ -254,10 +255,9 @@ export async function removeGalleryImageAsHost(
     // authorization for the delete.
     if (!experience.images.includes(url)) return { success: false, message: 'not_found' };
 
-    const next = experience.images.filter((u) => u !== url);
     await db
       .update(experiences)
-      .set({ images: next })
+      .set({ images: galleryRemove(url) })
       .where(and(eq(experiences.id, experienceId), eq(experiences.hostId, hostId)));
 
     // Best-effort storage cleanup — a failure here doesn't fail the
