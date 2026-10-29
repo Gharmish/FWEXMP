@@ -121,12 +121,12 @@ export async function sendDisputeResolvedEmail(
  * disputed again after an earlier report was resolved, and each deserves
  * its ack. Best-effort, email-only.
  */
-export async function sendDisputeReceivedEmail(referenceCode: string): Promise<void> {
+export async function sendDisputeReceivedEmail(reference: string): Promise<void> {
   if (!hasEmail()) return;
 
   const booking = await db.query.bookings.findFirst({
-    where: (b) => eq(b.idempotencyKey, referenceCode),
-    columns: { id: true, idempotencyKey: true },
+    where: (b) => eq(b.idempotencyKey, reference),
+    columns: { id: true, idempotencyKey: true, referenceCode: true },
     with: { guest: true, experience: { columns: { titleEn: true, titleAr: true } } },
   });
   if (!booking?.guest.email) return;
@@ -143,7 +143,7 @@ export async function sendDisputeReceivedEmail(referenceCode: string): Promise<v
     intro: t('receivedIntro'),
     rows: [
       { label: t('bookingLabel'), value: title },
-      { label: t('referenceLabel'), value: booking.idempotencyKey },
+      { label: t('referenceLabel'), value: booking.referenceCode },
     ],
     cta: {
       label: t('viewBookingCta'),
@@ -167,12 +167,12 @@ export async function sendDisputeReceivedEmail(referenceCode: string): Promise<v
  * of that booking is underway. No dedupe key, same re-dispute rationale
  * as the guest ack. Best-effort, email-only.
  */
-export async function sendHostDisputeOpenedEmail(referenceCode: string): Promise<void> {
+export async function sendHostDisputeOpenedEmail(reference: string): Promise<void> {
   if (!hasEmail()) return;
 
   const booking = await db.query.bookings.findFirst({
-    where: (b) => eq(b.idempotencyKey, referenceCode),
-    columns: { id: true, idempotencyKey: true },
+    where: (b) => eq(b.idempotencyKey, reference),
+    columns: { id: true, idempotencyKey: true, referenceCode: true },
     with: { experience: { columns: { titleEn: true, titleAr: true, hostId: true } } },
   });
   if (!booking) return;
@@ -191,7 +191,7 @@ export async function sendHostDisputeOpenedEmail(referenceCode: string): Promise
     intro: t('hostOpenedIntro'),
     rows: [
       { label: t('bookingLabel'), value: title },
-      { label: t('referenceLabel'), value: booking.idempotencyKey },
+      { label: t('referenceLabel'), value: booking.referenceCode },
     ],
     closing: t('hostOpenedClosing'),
     footer: t('footer'),

@@ -159,13 +159,15 @@ export async function createDispute(
   // guest ack silently suppressed the host notice, so the host never
   // heard a review of their booking — and its potential refund — was
   // underway.
+  // Both senders look the booking up by the reference UUID, not the
+  // GH- code: handed the code, they found no row and sent nothing.
   try {
-    await sendDisputeReceivedEmail(referenceCode);
+    await sendDisputeReceivedEmail(reference);
   } catch (error) {
     reportError(error, { surface: 'disputes:guestAckEmail', reference: referenceCode });
   }
   try {
-    await sendHostDisputeOpenedEmail(referenceCode);
+    await sendHostDisputeOpenedEmail(reference);
   } catch (error) {
     reportError(error, { surface: 'disputes:hostOpenedEmail', reference: referenceCode });
   }
