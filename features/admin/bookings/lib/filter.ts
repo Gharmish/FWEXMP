@@ -6,7 +6,7 @@ export type BookingView = 'all' | 'upcoming';
 export type BookingStatusFilter = AdminBookingStatus | 'all';
 
 export interface BookingFilter {
-  /** Free-text match across reference, phone, guest name, experience title. */
+  /** Free-text match across reference, phone, guest name, experience title (either language). */
   q?: string;
   status?: BookingStatusFilter;
   view?: BookingView;
@@ -49,16 +49,32 @@ function likePattern(needle: string): string {
   return `%${needle.replace(/[\\%_]/g, (c) => `\\${c}`)}%`;
 }
 
+/** Digits with the punctuation people type into phone numbers, nothing else. */
+const PHONE_SHAPED = /^[\d\s+().-]+$/;
+
+/**
+ * Invisible bidi marks and embeddings (U+061C, U+200E/F, U+202A–E,
+ * U+2066–9). A phone copied from an RTL context, or a reference copied
+ * from one of our own WhatsApp messages (`bidiIsolate`), carries them;
+ * they are never part of what the admin means to search for (2026-10-23,
+ * PR #178 review; the Arabic letter mark added 2026-10-27).
+ */
+const BIDI_CONTROLS = /[\u061C\u200E\u200F\u202A-\u202E\u2066-\u2069]/g;
+
 /**
  * The free-text search as SQL (2026-09 engineering audit DATA-04 — the
  * queue used to load the newest 500 rows and filter them in memory, so
  * older bookings were invisible to every search). Reference, short code,
- * guest name and experience title match case-insensitively; a phone
- * search compares digits only, with and without the local leading zero,
- * against the booking's contact phone or the guest's stored one.
+ * guest name and experience title (either language) match
+ * case-insensitively; a phone search compares digits only, with and
+ * without the local leading zero, against the booking's contact phone or
+ * the guest's stored one. Only a needle shaped like a phone (digits and
+ * phone punctuation, no letters) takes the phone branch: a short code
+ * such as GH-ABC7DE carries a digit or two, and `like '%7%'` matched most
+ * of the ledger, burying the booking searched for under the row cap.
  */
 function searchWhere(q: string): SQL | undefined {
-  const needle = q.trim().toLowerCase();
+  const needle = q.replace(BIDI_CONTROLS, '').trim().toLowerCase();
   if (!needle) return undefined;
   const pattern = likePattern(needle);
   const parts: SQL[] = [
@@ -66,9 +82,10 @@ function searchWhere(q: string): SQL | undefined {
     ilike(bookings.referenceCode, pattern),
     ilike(guests.name, pattern),
     ilike(experiences.titleEn, pattern),
+    ilike(experiences.titleAr, pattern),
   ];
   const digits = needle.replace(/\D/g, '');
-  if (digits.length > 0) {
+  if (digits.length > 0 && PHONE_SHAPED.test(needle)) {
     const phoneDigits = sql`regexp_replace(coalesce(${bookings.contactPhone}, ${guests.phone}, ''), '\\D', '', 'g')`;
     parts.push(sql`${phoneDigits} like ${`%${digits}%`}`);
     const localized = digits.replace(/^0+/, '');
