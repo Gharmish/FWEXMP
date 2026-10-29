@@ -4537,6 +4537,8 @@
     "approvedIntro": "Your experience passed review and is now live — guests can find and book it.",
     "approvedCta": "View your live experience",
     "approvedClosing": "Keep your calendar up to date so guests always see real availability.",
+    "approvedPausedSubject": "Your changes are approved: {experience}",
+    "approvedPausedIntro": "Your changes passed review. The experience stays paused, as you left it — republish it from your experience page when you're ready to take bookings again.",
     "rejectedSubject": "Update on your experience: {experience}",
     "rejectedIntro": "We couldn't approve this experience as submitted. The reviewer left a note explaining why on the experience page — you can revise and resubmit anytime.",
     "changesSubject": "Changes requested: {experience}",
