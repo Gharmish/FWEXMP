@@ -527,6 +527,21 @@ describe('settleBooking', () => {
     expect(sendHostPaymentReceivedEmail).not.toHaveBeenCalled();
   });
 
+  it('settles a data-only 3DS capture (000.400.120) instead of failing the booking (#235)', async () => {
+    // Before the fix this code read as a decline: the booking flipped to
+    // `failed`, a settle_failed row was written and the guest was told the
+    // payment did not go through, while the gateway held the capture.
+    gatewayStatus = { ...gatewayStatus, result: { code: '000.400.120' } };
+
+    const outcome = await settleBooking('ref-1');
+
+    expect(outcome).toBe('success');
+    expect(setCalls[0]).toMatchObject({ paymentStatus: 'paid', paymentReference: 'pay-1' });
+    expect(ledgerEvents.map((e) => e.type)).toEqual(['settle_succeeded']);
+    expect(sendBookingPaymentFailedEmail).not.toHaveBeenCalled();
+    expect(sendHostPaymentReceivedEmail).toHaveBeenCalledTimes(1);
+  });
+
   it('marks a rejected capture failed and records it', async () => {
     gatewayStatus = { id: 'pay-1', result: { code: '800.100.151' } };
 
