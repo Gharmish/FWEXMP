@@ -181,3 +181,26 @@ describe('notifyAdmin quiet window', () => {
     expect(sendEmail).toHaveBeenCalledTimes(1);
   });
 });
+
+describe('notifyAdmin admin link', () => {
+  it('links an inbound guest message to its conversation on both rails', async () => {
+    await notifyAdmin('guest_whatsapp_inbound', {
+      from: '+966500000001',
+      message: 'hello',
+      conversationId: 'conv-1',
+    });
+    const [email] = sendEmail.mock.calls[0] as unknown as [{ text: string }];
+    expect(email.text).toContain('https://example.test/en/admin/support/conv-1');
+    expect(email.text).not.toContain('/en/admin/guests?q=');
+    const [notification] = dispatchNotification.mock.calls[0] as unknown as [
+      { whatsapp: { vars: { adminPath: string } } },
+    ];
+    expect(notification.whatsapp.vars.adminPath).toBe('en/admin/support/conv-1');
+  });
+
+  it('falls back to the guest search when no conversation is known', async () => {
+    await notifyAdmin('guest_whatsapp_inbound', { from: '+966500000001', message: 'hi' });
+    const [email] = sendEmail.mock.calls[0] as unknown as [{ text: string }];
+    expect(email.text).toContain('/en/admin/guests?q=%2B966500000001');
+  });
+});
