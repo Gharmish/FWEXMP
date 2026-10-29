@@ -34,13 +34,23 @@ import {
 
 /**
  * "You have a new booking" notice to the host. Locale follows the
- * host's first listed language (Arabic-first default).
+ * host's first listed language (Arabic-first default). `expected` is
+ * the notice the retry sweep is re-firing: the type is derived from the
+ * current status, so without it a failed request notice retried after
+ * the host approved went out as a fresh "new booking" under a new key.
  */
-export async function sendHostNewBookingEmail(reference: string): Promise<void> {
+export async function sendHostNewBookingEmail(
+  reference: string,
+  expected?: 'request' | 'booking',
+): Promise<void> {
   if (!notificationsConfigured()) return;
 
   const booking = await getBookingByReference(reference);
   if (!booking?.experienceSlug) return;
+  const isRequest = booking.status === 'pending';
+  // Declined, cancelled, expired: the host has nothing new to act on.
+  if (!isRequest && booking.status !== 'confirmed') return;
+  if (expected && (expected === 'request') !== isRequest) return;
   const host = await hostEmailContext(booking.experienceSlug);
   if (!host) return;
 
@@ -58,7 +68,6 @@ export async function sendHostNewBookingEmail(reference: string): Promise<void> 
   const rows = hostRows(booking, host, t);
   rows.push({ label: t('hostNewPayoutLabel'), value: formatSAR(payoutSar, host.locale) });
 
-  const isRequest = booking.status === 'pending';
   const subject = isRequest
     ? t('hostNewRequestSubject', { experience: host.title })
     : t('hostNewBookingSubject', { experience: host.title });
@@ -252,6 +261,8 @@ export async function sendHostPaymentReceivedEmail(reference: string): Promise<v
 
   const booking = await getBookingByReference(reference);
   if (!booking?.experienceSlug) return;
+  // A retry after the guest cancelled must not announce a secured booking.
+  if (booking.status !== 'confirmed' || booking.paymentStatus !== 'paid') return;
   const host = await hostEmailContext(booking.experienceSlug);
   if (!host) return;
 

@@ -274,7 +274,7 @@ const HOST_CASES: Case[] = [
     name: 'sendHostNewBookingEmail',
     run: () => senders.sendHostNewBookingEmail('ref-1'),
     ok: {},
-    blocked: { experienceSlug: null },
+    blocked: { status: 'declined' },
     kind: 'host',
   },
   {
@@ -302,7 +302,7 @@ const HOST_CASES: Case[] = [
     name: 'sendHostPaymentReceivedEmail',
     run: () => senders.sendHostPaymentReceivedEmail('ref-1'),
     ok: {},
-    blocked: { experienceSlug: null },
+    blocked: { status: 'cancelled' },
     kind: 'host',
   },
   {
@@ -345,6 +345,45 @@ describe('host senders without a reachable host', () => {
   it('skip when the experience has no host contact', async () => {
     hostRow = undefined;
     await senders.sendHostNewBookingEmail('ref-1');
+    expect(sent()).toHaveLength(0);
+  });
+});
+
+describe('host notice retries re-fire only the notice that failed', () => {
+  it('drops a retried request notice once the host has approved it', async () => {
+    booking = base({ status: 'confirmed', paymentStatus: 'unpaid', paidAt: null });
+    await senders.RETRYABLE_BOOKING_SENDERS.host_new_request('ref-1', 'ar');
+    expect(sent()).toHaveLength(0);
+  });
+
+  it('still re-fires a request notice while the request is pending', async () => {
+    booking = base({ status: 'pending', paymentStatus: 'unpaid', paidAt: null });
+    await senders.RETRYABLE_BOOKING_SENDERS.host_new_request('ref-1', 'ar');
+    expect(sent().map((call) => call.type)).toEqual(['host_new_request']);
+  });
+
+  it('drops a retried new-booking notice for a cancelled booking', async () => {
+    booking = base({ status: 'cancelled' });
+    await senders.RETRYABLE_BOOKING_SENDERS.host_new_booking('ref-1', 'ar');
+    expect(sent()).toHaveLength(0);
+  });
+
+  // The table cases above swapped these two senders' `blocked` fixture
+  // from `experienceSlug: null` to a status, so the listing guard and the
+  // unpaid branch are pinned here (review of #188).
+  it('both host notices still skip a booking whose listing is gone', async () => {
+    booking = base({ experienceSlug: null });
+    await senders.sendHostNewBookingEmail('ref-1');
+    await senders.sendHostPaymentReceivedEmail('ref-1');
+    expect(sent()).toHaveLength(0);
+  });
+
+  it('drops a payment-received notice while a confirmed booking is still unpaid', async () => {
+    booking = base({ status: 'confirmed', paymentStatus: 'unpaid', paidAt: null });
+    await senders.sendHostPaymentReceivedEmail('ref-1');
+    expect(sent()).toHaveLength(0);
+    booking = base({ status: 'confirmed', paymentStatus: 'processing', paidAt: null });
+    await senders.RETRYABLE_BOOKING_SENDERS.host_payment_received('ref-1', 'ar');
     expect(sent()).toHaveLength(0);
   });
 });
