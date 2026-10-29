@@ -50,7 +50,7 @@ export type SupportActionState =
         | 'validation'
         | 'send_failed'
         | 'server';
-      values?: { body?: string };
+      values?: { body?: string; resolutionNote?: string };
     };
 
 function formValue(formData: FormData, key: string): string {
@@ -151,18 +151,22 @@ export async function resolveTicket(
   _previous: SupportActionState,
   formData: FormData,
 ): Promise<SupportActionState> {
+  // Every failure echoes the note: the textarea is uncontrolled, so React
+  // would otherwise reset it to empty after the action.
+  const resolutionNote = formValue(formData, 'resolutionNote');
+  const values = { resolutionNote };
   // The write that stamps an audit actor must use the actor-resolving
   // gate, not the read-side one plus a second session lookup that
   // tolerates null (2026-09 engineering audit ACTIONS-09).
   const actor = await requireAdminActor();
   if (adminGateRefused(actor)) {
-    return { success: false, message: adminFailureMessage(actor) };
+    return { success: false, message: adminFailureMessage(actor), values };
   }
   const parsed = resolveTicketSchema.safeParse({
     ticketId: formValue(formData, 'ticketId'),
-    resolutionNote: formValue(formData, 'resolutionNote') || undefined,
+    resolutionNote: resolutionNote || undefined,
   });
-  if (!parsed.success) return { success: false, message: 'validation' };
+  if (!parsed.success) return { success: false, message: 'validation', values };
   try {
     const now = new Date();
     const updated = await db
@@ -182,7 +186,7 @@ export async function resolveTicket(
         reference: supportTickets.reference,
         conversationId: supportTickets.conversationId,
       });
-    if (updated.length === 0) return { success: false, message: 'not_found' };
+    if (updated.length === 0) return { success: false, message: 'not_found', values };
     await db.insert(supportTicketEvents).values({
       ticketId: updated[0].id,
       kind: 'resolved',
@@ -231,7 +235,7 @@ export async function resolveTicket(
     return { success: true };
   } catch (error) {
     reportError(error, { surface: 'support:resolveTicket' });
-    return { success: false, message: 'server' };
+    return { success: false, message: 'server', values };
   }
 }
 
