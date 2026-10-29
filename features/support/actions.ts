@@ -84,6 +84,15 @@ export async function replyToConversation(
     if (!inbound || Date.now() - inbound >= SERVICE_WINDOW_MS) {
       return { success: false, message: 'window_closed', values: { body } };
     }
+    // Take the thread BEFORE the provider round-trip: a bot turn whose
+    // model call returns while the send is in flight re-checks `state`
+    // before its own send, and must already see `human` (2026-10-13). The
+    // flip applied whether the send succeeds or fails, so moving it up
+    // changes nothing else.
+    await db
+      .update(conversations)
+      .set({ state: 'human', updatedAt: new Date() })
+      .where(eq(conversations.id, conversation.id));
     // Shared outbound primitive: ledgered, transcript row, timestamps.
     const result = await sendConversationReply({
       conversationId: conversation.id,
@@ -94,10 +103,6 @@ export async function replyToConversation(
       locale: conversation.locale,
       dedupeKey: `support_reply:${conversation.id}:${Date.now()}`,
     });
-    await db
-      .update(conversations)
-      .set({ state: 'human', updatedAt: new Date() })
-      .where(eq(conversations.id, conversation.id));
 
     revalidatePath('/[locale]/admin/support/[id]', 'page');
     revalidatePath('/[locale]/admin/support', 'page');
