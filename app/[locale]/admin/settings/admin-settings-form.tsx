@@ -137,6 +137,11 @@ export function AdminSettingsForm({
       {[...enabled].map((cat) => (
         <input key={cat} type="hidden" name="enabledCategories" value={cat} />
       ))}
+      {/* The set this page loaded: the action writes categories only when
+          they differ, so a catalog toggle made since is not undone. */}
+      {defaultEnabled.map((cat) => (
+        <input key={cat} type="hidden" name="loadedCategories" value={cat} />
+      ))}
 
       {/* Commission */}
       <fieldset className="flex flex-col gap-2">
