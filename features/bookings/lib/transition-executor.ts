@@ -76,7 +76,15 @@ export type TransitionResult =
    *  expired instead (and the guest emailed). */
   | { ok: 'expired_instead' }
   | {
-      error: 'not_found' | 'wrong_state' | 'over_capacity' | 'too_early' | 'too_late' | 'unpaid';
+      error:
+        | 'not_found'
+        | 'wrong_state'
+        | 'over_capacity'
+        | 'too_early'
+        | 'too_late'
+        | 'unpaid'
+        /** Host-only: approving a request on a listing that is not live. */
+        | 'listing_not_live';
     };
 
 export async function executeBookingTransition(
@@ -103,7 +111,9 @@ export async function executeBookingTransition(
         idempotencyKey: true,
       },
       with: {
-        experience: { columns: { hostId: true, maxGroupSize: true, bookingCutoffHours: true } },
+        experience: {
+          columns: { hostId: true, maxGroupSize: true, bookingCutoffHours: true, status: true },
+        },
         guest: { columns: { preferredLanguage: true } },
       },
     });
@@ -164,6 +174,16 @@ export async function executeBookingTransition(
     // was never charged). The release-holds cron frees the spot if the
     // guest never pays.
     const isApproval = to === 'confirmed' && booking.status === 'pending';
+
+    // A host approving a request on a listing that is no longer live
+    // (paused, or demoted to review by a material edit) would tell the
+    // guest "approved, pay now" while createCheckout refuses every
+    // non-live listing — a dead pay link that lapses into a "payment
+    // lapsed" notice for both sides (#78, 2026-10-14). The request stays
+    // pending: relisting makes it approvable again within its window.
+    if (actor.kind === 'host' && isApproval && booking.experience.status !== 'live') {
+      return 'listing_not_live' as const;
+    }
 
     // Lapsed approval window — actor-dependent, see the header.
     if (
