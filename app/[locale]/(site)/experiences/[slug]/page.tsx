@@ -35,6 +35,7 @@ import { Link, ogLocaleFor } from '@/lib/i18n';
 import type { Locale } from '@/lib/i18n';
 import { routing } from '@/lib/i18n';
 import { SITE_URL, SITE_NAME } from '@/lib/site';
+import { clampDescription } from '@/lib/meta-description';
 import { JsonLd } from '@/components/seo/json-ld';
 import { BookingRequestForm } from '@/features/bookings/components/booking-request-form';
 import { consentLinkRenderers } from '@/features/bookings/components/consent-links';
@@ -94,21 +95,6 @@ import type { Category } from '@/features/experiences/types';
  * weather section on /cancellation-policy covers everyone regardless.
  */
 const OUTDOOR_CATEGORIES: ReadonlySet<Category> = new Set<Category>(['nature', 'adventure']);
-
-/**
- * Host-authored descriptions are DB free text with no length guarantee.
- * Clamp to ~160 characters at a word boundary so the SERP snippet never
- * gets machine-truncated mid-word. (Same rule as hosts/[slug].)
- */
-const META_DESCRIPTION_MAX = 160;
-
-function clampDescription(text: string): string {
-  const normalized = text.replace(/\s+/g, ' ').trim();
-  if (normalized.length <= META_DESCRIPTION_MAX) return normalized;
-  const cut = normalized.slice(0, META_DESCRIPTION_MAX - 1);
-  const lastSpace = cut.lastIndexOf(' ');
-  return `${lastSpace > 0 ? cut.slice(0, lastSpace) : cut}…`;
-}
 
 export async function generateMetadata({
   params,

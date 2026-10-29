@@ -6,6 +6,8 @@ import { Link, routing, ogLocaleFor } from '@/lib/i18n';
 import { SITE_URL } from '@/lib/site';
 import { JsonLd } from '@/components/seo/json-ld';
 import { EMPTY_CRITERIA } from '@/features/experiences/lib/search';
+import { CATEGORIES } from '@/features/experiences/lib/sample-data';
+import { categoryUrlSlug } from '@/features/experiences/lib/category-landing';
 import { getExperiencesFiltered } from '@/features/experiences/queries';
 import { ExperienceCard } from '@/features/experiences/components/experience-card';
 import { WishlistButton } from '@/features/wishlist/components/wishlist-button';
@@ -145,6 +147,27 @@ export default async function AbhaPage({
           </div>
         </section>
       )}
+
+      {/* Crawl path to the seven category landings, which were linked only
+          from the home page (2026-10-14 SEO run). Server-rendered links,
+          no client JS. */}
+      <nav aria-labelledby="abha-categories" className="mt-12">
+        <h2 id="abha-categories" className="text-h2">
+          {t('categoriesHeading')}
+        </h2>
+        <ul className="mt-6 flex flex-wrap gap-3">
+          {CATEGORIES.map((category) => (
+            <li key={category.key}>
+              <Link
+                href={`/experiences/${categoryUrlSlug(category.key)}`}
+                className="border-sarat-black/12 text-sarat-black hover:border-sarat-black/40 inline-flex min-h-11 items-center rounded-full border px-4 text-sm transition-colors duration-200"
+              >
+                {loc === 'ar' ? category.labelAr : category.labelEn}
+              </Link>
+            </li>
+          ))}
+        </ul>
+      </nav>
 
       <div className="mt-12 flex flex-wrap items-center gap-x-8 gap-y-3">
         <Link
