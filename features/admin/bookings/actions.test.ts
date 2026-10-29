@@ -97,7 +97,7 @@ function paidConfirmed(over: BookingRow = {}): BookingRow {
     walletAppliedSar: 50,
     refundDueSar: null,
     idempotencyKey: 'ref-1',
-    guest: { preferredLanguage: 'en' },
+    guest: { preferredLanguage: 'en', phone: '+966500000000', authUserId: null },
     ...over,
   };
 }
@@ -206,6 +206,38 @@ describe('emergencyCancelBooking', () => {
       'wallet_credited',
       expect.objectContaining({ cancelledBy: 'operator', refundAmountSar: 350 }),
     );
+  });
+
+  it('refuses a paid booking on a phone-less, account-less guest row: its credit is unreachable (#68)', async () => {
+    booking = paidConfirmed({ guest: { preferredLanguage: 'en', phone: null, authUserId: null } });
+    expect(await emergencyCancelBooking(initial, form())).toEqual({
+      success: false,
+      message: 'wallet_unreachable',
+      values: { reason: 'Host taken ill — cancelling today' },
+    });
+    expect(fake.current?.updates).toEqual([]);
+    expect(creditWalletTxIdempotent).not.toHaveBeenCalled();
+    expect(sendBookingCancellationEmail).not.toHaveBeenCalled();
+  });
+
+  it('still credits a phone-less row that an account owns', async () => {
+    booking = paidConfirmed({ guest: { preferredLanguage: 'en', phone: null, authUserId: 'u1' } });
+    expect(await redirected(emergencyCancelBooking(initial, form()))).toBe(
+      'REDIRECT:/admin/bookings',
+    );
+    expect(creditWalletTxIdempotent).toHaveBeenCalledTimes(1);
+  });
+
+  it('still cancels an UNPAID booking on a phone-less, account-less row (no credit moves)', async () => {
+    booking = paidConfirmed({
+      paymentStatus: 'unpaid',
+      walletAppliedSar: 0,
+      guest: { preferredLanguage: 'en', phone: null, authUserId: null },
+    });
+    expect(await redirected(emergencyCancelBooking(initial, form()))).toBe(
+      'REDIRECT:/admin/bookings',
+    );
+    expect(creditWalletTxIdempotent).not.toHaveBeenCalled();
   });
 
   it('unpaid booking with applied credit: releases the reservation and credits nothing', async () => {
