@@ -56,7 +56,10 @@ export default async function AboutPage({ params }: { params: Promise<{ locale: 
   const { locale } = await params;
   setRequestLocale(locale);
   const loc = locale as Locale;
-  const t = await getTranslations({ locale, namespace: 'about' });
+  const [t, tSite] = await Promise.all([
+    getTranslations({ locale, namespace: 'about' }),
+    getTranslations({ locale, namespace: 'siteMeta' }),
+  ]);
   const whatsapp = supportWhatsappE164();
   const whatsappHref = whatsapp ? whatsappLink(whatsapp) : null;
 
@@ -70,7 +73,7 @@ export default async function AboutPage({ params }: { params: Promise<{ locale: 
       name: SITE_NAME,
       url: SITE_URL,
       email: SUPPORT_EMAIL,
-      areaServed: 'Aseer, Saudi Arabia',
+      areaServed: tSite('areaServed'),
       contactPoint: {
         '@type': 'ContactPoint',
         contactType: 'customer support',
