@@ -1,5 +1,6 @@
 import { clientEnv, hasMarketingPixels } from '@/lib/env-client';
 import { readConsent } from '@/lib/consent-client';
+import { marketingPixelsAllowed } from '@/lib/marketing-pixel-scope';
 
 /**
  * Shopping-funnel events for the consent-gated trackers (TikTok, Snap,
@@ -65,6 +66,12 @@ function trackersPending(): boolean {
  */
 export function fireWhenReady(deliver: () => void) {
   if (!hasMarketingPixels() || readConsent() !== 'all') return;
+  // Same scope as the loader (2026-10-24, #190): the SDKs attach the page
+  // URL to every event, a booking route reached by soft navigation still
+  // has the scripts of the page before it in the window, and a hard-loaded
+  // one has none — so checkout and purchase events report the same way on
+  // both paths: not from `/book/*`. TikTok's purchase is server-side.
+  if (!marketingPixelsAllowed(window.location.pathname, window.location.search)) return;
   let attempts = 0;
   const attempt = () => {
     if (trackersPending() && attempts++ < 20) {

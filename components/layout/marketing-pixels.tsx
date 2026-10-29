@@ -2,9 +2,10 @@
 
 import Script from 'next/script';
 import { useEffect, useRef, useSyncExternalStore } from 'react';
-import { usePathname } from 'next/navigation';
+import { usePathname, useSearchParams } from 'next/navigation';
 import { clientEnv, hasMarketingPixels } from '@/lib/env-client';
 import { readConsent, subscribeConsent } from '@/lib/consent-client';
+import { marketingPixelsAllowed, pageViewStep } from '@/lib/marketing-pixel-scope';
 
 /**
  * Snap Pixel + TikTok Pixel + Google Analytics 4 loader. Renders nothing
@@ -27,6 +28,20 @@ import { readConsent, subscribeConsent } from '@/lib/consent-client';
  * loading order ever changes. All Google ads signals stay denied in
  * both calls — the policy discloses site analytics, not Google ad
  * personalisation.
+ *
+ * Never on a booking route, and never on a URL carrying a capability
+ * parameter (`k`, `supersedesToken`): all three SDKs read `location.href`
+ * for their page views, which sent the permanent booking link token to
+ * three vendors (2026-10-24, #190; the rule lives in
+ * `lib/marketing-pixel-scope.ts`). `useSearchParams` is what makes the
+ * query check follow client-side navigation, so the layout mounts this
+ * inside a Suspense boundary. Unmounting is not enough for GA4: once
+ * gtag.js is in the window its history hook reports every soft
+ * navigation — and in the app router browser Back onto a hard-loaded
+ * `?k=` entry is one — so the per-property opt-out flag
+ * (`window['ga-disable-<id>']`, read by gtag.js at dispatch) is raised
+ * whenever the URL is out of scope, from a capture-phase popstate
+ * listener that runs before gtag.js's own.
  */
 
 declare global {
@@ -38,7 +53,14 @@ declare global {
     };
     gtag?: (...args: unknown[]) => void;
     dataLayer?: unknown[];
+    /** GA4's documented per-property opt-out: `window['ga-disable-G-…'] = true`. */
+    [flag: `ga-disable-${string}`]: boolean | undefined;
   }
+}
+
+function setGaDisabled(disabled: boolean) {
+  const gaId = clientEnv.NEXT_PUBLIC_GA_MEASUREMENT_ID;
+  if (gaId) window[`ga-disable-${gaId}`] = disabled;
 }
 
 function getSnapshot(): boolean {
@@ -50,19 +72,32 @@ function getServerSnapshot(): boolean {
 }
 
 export function MarketingPixels() {
-  const active = useSyncExternalStore(subscribeConsent, getSnapshot, getServerSnapshot);
+  const consented = useSyncExternalStore(subscribeConsent, getSnapshot, getServerSnapshot);
   const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const active = consented && marketingPixelsAllowed(pathname, searchParams);
   // The pathname already tracked — starts null so the mount run only
-  // records (the base snippets cover the first view) and never double-fires.
+  // records (the base snippets cover the first view) and never double-fires;
+  // see `pageViewStep` for the bookkeeping.
   const lastTracked = useRef<string | null>(null);
 
   useEffect(() => {
-    if (!active) return;
-    if (lastTracked.current === null || lastTracked.current === pathname) {
-      lastTracked.current = pathname;
-      return;
-    }
-    lastTracked.current = pathname;
+    // Back/Forward restores the URL before React renders, and gtag.js
+    // reports it from its own popstate listener. Decide from the restored
+    // URL here first: at-target capture listeners run before non-capture
+    // ones in current browsers, whatever the registration order.
+    const onPopState = () => {
+      setGaDisabled(!marketingPixelsAllowed(window.location.pathname, window.location.search));
+    };
+    window.addEventListener('popstate', onPopState, true);
+    return () => window.removeEventListener('popstate', onPopState, true);
+  }, []);
+
+  useEffect(() => {
+    setGaDisabled(!active);
+    const step = pageViewStep(lastTracked.current, active, pathname);
+    lastTracked.current = step.tracked;
+    if (!step.fire) return;
     window.snaptr?.('track', 'PAGE_VIEW');
     window.ttq?.page();
   }, [active, pathname]);

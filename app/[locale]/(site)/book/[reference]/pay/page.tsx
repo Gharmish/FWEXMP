@@ -623,7 +623,7 @@ export default async function PaymentPage({ params, searchParams }: PageParams) 
           </section>
 
           {experienceSlug && (
-            <Link
+            <a
               // Carry the held choices back so the form opens pre-filled —
               // changing a date must not mean re-entering everything.
               // `supersedes` names the hold this edit replaces, so the
@@ -632,14 +632,21 @@ export default async function PaymentPage({ params, searchParams }: PageParams) 
               // `supersedesToken` carries this booking's signed link token
               // so the release is authorized by proof of THIS reference —
               // never by a bare reference an attacker could guess.
-              href={`/experiences/${experienceSlug}?date=${booking.date}&party=${booking.partySize}&supersedes=${reference}${
+              //
+              // A plain anchor, not `Link`: a guest who reached this page
+              // from the booking form may still have the GA4 script in the
+              // window, and its history hook reports every client-side
+              // navigation with the full URL — token included. A full
+              // load lets `MarketingPixels` see `supersedesToken` before
+              // any script runs and stay off (2026-10-24, #190).
+              href={`/${locale}/experiences/${experienceSlug}?date=${booking.date}&party=${booking.partySize}&supersedes=${reference}${
                 linkToken ? `&supersedesToken=${encodeURIComponent(linkToken)}` : ''
               }`}
               className="text-sarat-black-600 hover:text-sarat-black mt-4 inline-flex items-center gap-2 text-sm transition-colors duration-200"
             >
               <ArrowLeft className="size-4 shrink-0 rtl:rotate-180" aria-hidden />
               {t('editBooking')}
-            </Link>
+            </a>
           )}
         </aside>
 
