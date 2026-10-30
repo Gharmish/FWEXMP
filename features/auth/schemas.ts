@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { isValidE164, normalizeToE164 } from '@/lib/phone';
+import { isValidE164, normalizeToE164, toAsciiDigits } from '@/lib/phone';
 import { sanitizeNextPath } from '@/features/auth/lib/next-path';
 
 /**
@@ -48,15 +48,25 @@ export const requestOtpSchema = z.object({
 
 export type RequestOtpInput = z.infer<typeof requestOtpSchema>;
 
+/**
+ * The 6-digit code, as typed. KSA SMS providers send ASCII digits
+ * (Supabase default), but an Arabic keyboard types them back as
+ * Arabic-Indic (١٢٣٤٥٦) and JS `\d` is ASCII-only, so the code is
+ * transliterated before the shape check — the same step the phone field
+ * already takes in `toE164Saudi` (#182, 2026-10-30). The provider still
+ * receives ASCII.
+ */
+const otpCode = z
+  .string()
+  .trim()
+  .transform(toAsciiDigits)
+  .pipe(z.string().regex(/^\d{6}$/, 'invalid_code'));
+
 export const verifyOtpSchema = z.object({
   // Pre-canonicalised by the requestOtp step and round-tripped via a
   // hidden field — we re-validate the shape here defensively.
   phone: z.string().refine(isValidE164, 'invalid_phone'),
-  // KSA SMS providers send 6-digit numeric OTPs (Supabase default).
-  code: z
-    .string()
-    .trim()
-    .regex(/^\d{6}$/, 'invalid_code'),
+  code: otpCode,
   locale: z.enum(['en', 'ar']),
   next: nextPath,
 });
@@ -79,10 +89,7 @@ export const requestEmailOtpSchema = z.object({
 
 export const verifyEmailOtpSchema = z.object({
   email: emailSchema,
-  code: z
-    .string()
-    .trim()
-    .regex(/^\d{6}$/, 'invalid_code'),
+  code: otpCode,
   locale: z.enum(['en', 'ar']),
   next: nextPath,
 });
