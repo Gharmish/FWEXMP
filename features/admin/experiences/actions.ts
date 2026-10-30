@@ -185,6 +185,16 @@ export async function adminUpdateExperience(
     });
     if (!existing) return { success: false, message: 'not_found' };
 
+    // The status the editor was rendered with. Re-reading it here would
+    // only catch a decision landing in the milliseconds between this read
+    // and the UPDATE: a rejection made while the admin typed would then be
+    // overwritten by the form's status select. A form posted without it
+    // (rendered before this field existed) falls back to the old check.
+    const openedStatus = formValue(formData, 'openedStatus') || existing.status;
+    if (openedStatus !== existing.status) {
+      return { success: false, message: 'wrong_state', values: collectValues(formData) };
+    }
+
     // Flipping a listing to live from this editor used to bypass every
     // gate the moderation approve action enforces (2026-10-17 scan,
     // ADMIN-HOST-01): no hero photo, placeholder Arabic, an English-only

@@ -262,6 +262,9 @@ export function AdminExperienceForm({
     >
       <input type="hidden" name="locale" value={locale} />
       {!isCreate && experience && <input type="hidden" name="experienceId" value={experience.id} />}
+      {!isCreate && experience && (
+        <input type="hidden" name="openedStatus" value={experience.status} />
+      )}
 
       {/* Publishing & commercial */}
       <fieldset className="flex flex-col gap-6">
