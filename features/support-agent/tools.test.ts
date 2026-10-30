@@ -518,9 +518,11 @@ describe('booking reads are scoped to the number that received them (#234)', () 
     expect(codes(out)).toEqual(['GH-ADDRES']);
   });
 
-  it("refuses booking_detail on the account's other booking", async () => {
+  it("refuses booking_detail on the account's other booking and points at the email check", async () => {
     const out = await runTool('booking_detail', { reference_code: 'GH-OTHER0' }, base);
-    expect(JSON.parse(out.result)).toMatchObject({ error: 'not_found' });
+    const parsed = JSON.parse(out.result) as { error: string; note: string };
+    expect(parsed.error).toBe('not_found');
+    expect(parsed.note).toContain('verify_identity');
   });
 
   it('still finds the booking addressed to the sender (same lookup every per-booking tool uses)', async () => {

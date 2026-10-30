@@ -272,7 +272,7 @@ export const TOOLS: Anthropic.Tool[] = [
   {
     name: 'verify_identity',
     description:
-      "Check the email address on the guest's booking, so you may then cancel, reschedule or take refund bank details. Ask ONCE, in one short message: 'to make that change I need to check the email on your booking — what is it?'. Pass exactly what they reply. You do NOT know the address and must never guess it, offer it, spell part of it, or confirm whether a guess is close — the answer here is the only thing that tells you. On `mismatch` say it does not match and ask them to try the address they booked with; after two failures open_ticket instead. This tool is not about doubting the guest: their WhatsApp number was typed into a booking form and never verified, so it is not on its own proof that the booking is theirs.",
+      "Check the email address on the guest's booking, so you may then cancel, reschedule or take refund bank details — and, when this number is only the contact phone on a booking, see the other bookings on the account too. Ask ONCE, in one short message: 'to make that change I need to check the email on your booking — what is it?'. Pass exactly what they reply. You do NOT know the address and must never guess it, offer it, spell part of it, or confirm whether a guess is close — the answer here is the only thing that tells you. On `mismatch` say it does not match and ask them to try the address they booked with; after two failures open_ticket instead. This tool is not about doubting the guest: their WhatsApp number was typed into a booking form and never verified, so it is not on its own proof that the booking is theirs.",
     input_schema: {
       type: 'object',
       properties: {
@@ -545,7 +545,10 @@ export async function runTool(
           return {
             result: JSON.stringify({
               error: 'not_found',
-              note: 'No booking with that reference belongs to this guest. Do not guess; ask them to check the code on their confirmation.',
+              note:
+                ctx.bookingScope === 'contact' && !ctx.identityVerified
+                  ? 'No booking with that reference is addressed to this number. This number is the contact phone on a booking, not the account itself, so only bookings sent to it are visible (#234). If the guest says the booking is on their account, ask for the email on the booking and pass it to verify_identity, then try again. Do not guess.'
+                  : 'No booking with that reference belongs to this guest. Do not guess; ask them to check the code on their confirmation.',
             }),
           };
         }

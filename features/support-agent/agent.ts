@@ -157,11 +157,26 @@ export async function runAgentLoop(
   api: Anthropic = anthropic(),
 ): Promise<AgentRunOutput> {
   const knowledge = await buildKnowledge();
+  // A number that only matched a booking's contact phone is not the
+  // account holder (#234, 2026-10-30): the model must not greet the
+  // sender by the account's name, and must know its reads are limited
+  // and how the guest can widen them.
+  const contactOnly = input.ctx.bookingScope === 'contact' && !input.ctx.identityVerified;
   const volatile = [
     `# This conversation`,
-    `- Guest's stored name: ${input.guestName ?? 'unknown'}`,
+    `- Guest's stored name: ${
+      contactOnly
+        ? "withheld — this number is the contact phone on a booking, not the account holder's own number, so the stored name may be someone else's; do not use a name unless the guest gives one"
+        : (input.guestName ?? 'unknown')
+    }`,
     `- Guest's stored language: ${input.ctx.locale === 'ar' ? 'Arabic' : 'English'}`,
-    `- Known guest: ${input.ctx.guestId ? 'yes — list_my_bookings will return their bookings' : 'no — this number has no booking on file'}`,
+    `- Known guest: ${
+      input.ctx.guestId
+        ? contactOnly
+          ? 'partly — this number was typed as the contact phone on a booking; list_my_bookings and booking_detail return ONLY the bookings addressed to it. If the guest asks about another trip on the same account, say you can only see bookings sent to this number, and that checking the email on the booking (verify_identity) lets you see the rest'
+          : 'yes — list_my_bookings will return their bookings'
+        : 'no — this number has no booking on file'
+    }`,
     `- Identity checked: ${
       input.ctx.identityVerified
         ? 'YES — this sender confirmed the email on the booking; cancel, reschedule and refund bank details are available'

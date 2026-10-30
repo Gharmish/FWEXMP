@@ -140,6 +140,27 @@ describe('runAgentLoop', () => {
     expect(system[1].text).toContain('Sara');
   });
 
+  it("withholds the account holder's name from a contact-phone sender and says reads are limited (#234)", async () => {
+    const { api, calls } = fakeClient([
+      {
+        stop_reason: 'end_turn',
+        content: [{ type: 'text', text: 'Hello.', citations: null }],
+      },
+    ]);
+    await runAgentLoop(
+      {
+        history: [{ direction: 'in', body: 'my bookings?' }],
+        ctx: { ...ctx, identityVerified: false, bookingScope: 'contact' },
+        guestName: 'Sara',
+      },
+      api,
+    );
+    const system = calls[0].system as Anthropic.TextBlockParam[];
+    expect(system[1].text).not.toContain('Sara');
+    expect(system[1].text).toContain('ONLY the bookings addressed to it');
+    expect(system[1].text).toContain('verify_identity');
+  });
+
   it('reports a handoff when the escalate tool fires', async () => {
     runTool.mockResolvedValueOnce({
       result: '{"ticket_reference":"TK-1"}',
