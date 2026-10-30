@@ -50,6 +50,7 @@ describe('ticket cap (AI-03)', () => {
     identityVerified: false,
     identityVerifiedAt: null,
     guestHasEmail: false,
+    bookingScope: 'account',
     locale: 'en',
     now: new Date('2026-08-21T09:00:00Z'),
     lastInbound: 'I need a person now',

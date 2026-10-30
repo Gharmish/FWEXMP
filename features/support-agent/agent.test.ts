@@ -36,6 +36,7 @@ const ctx = {
   // the gate has its own tests in tools.test.ts.
   identityVerified: true,
   guestHasEmail: true,
+  bookingScope: 'account' as const,
 };
 
 function fakeClient(responses: Array<Partial<Anthropic.Message>>): {

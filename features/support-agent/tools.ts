@@ -27,7 +27,7 @@ import {
   todayInRiyadh,
 } from '@/features/bookings/lib/availability';
 import { openTicket, type TicketCategory, type TicketPriority } from '@/features/support/tickets';
-import { attemptIdentityChallenge } from './identity';
+import { attemptIdentityChallenge, type BookingScope } from './identity';
 
 /**
  * Tools the support agent may call. Identity is never a parameter: every
@@ -57,6 +57,13 @@ export interface ToolContext {
   identityVerifiedAt?: Date | null;
   /** The guest has an email to challenge against; false ⇒ no challenge is possible. */
   guestHasEmail: boolean;
+  /**
+   * Which of the guest's bookings this number may read (#234, 2026-10-30):
+   * `account` when the number is the guest row's own phone, `contact`
+   * when it was only typed as one booking's contact phone. See
+   * {@link BookingScope}.
+   */
+  bookingScope: BookingScope;
 }
 
 /** Bank-detail writes need a recent proof, not a day-old one (AI-04). */
@@ -475,13 +482,33 @@ function bankInvalid(parsed: {
   };
 }
 
+/**
+ * The bookings this sender may see (#234, 2026-10-30). The conversation
+ * is bound to a GUEST, but a number that only appears as one booking's
+ * `contact_phone` is not that guest: an account holder who booked for a
+ * relative, or mistyped a digit, must not have every trip on their
+ * account — each with its tokenised link, meeting place and host contact
+ * — read out to whoever holds that number. Such a sender sees only the
+ * booking(s) addressed to them (`guestPhone` is `contact_phone ??
+ * guests.phone`, and in `contact` scope the row's own phone is not this
+ * number, so the match is on the contact phone). A passed email
+ * challenge proves the account and lifts the limit.
+ */
+async function readableBookings(ctx: ToolContext): Promise<GuestBookingSummary[]> {
+  if (!ctx.guestId) return [];
+  const all = await getBookingsForGuest(ctx.guestId);
+  if (ctx.identityVerified || ctx.bookingScope === 'account') return all;
+  const sender = ctx.address.replace(/\D/g, '');
+  return all.filter((b) => b.guestPhone !== null && b.guestPhone.replace(/\D/g, '') === sender);
+}
+
 async function findOwnBooking(
   ctx: ToolContext,
   referenceCode: string,
 ): Promise<GuestBookingSummary | null> {
   if (!ctx.guestId) return null;
   const code = referenceCode.trim().toUpperCase();
-  const all = await getBookingsForGuest(ctx.guestId);
+  const all = await readableBookings(ctx);
   return all.find((b) => b.referenceCode.toUpperCase() === code) ?? null;
 }
 
@@ -504,7 +531,7 @@ export async function runTool(
             }),
           };
         }
-        const rows = await getBookingsForGuest(ctx.guestId);
+        const rows = await readableBookings(ctx);
         return {
           result: JSON.stringify({
             bookings: rows.slice(0, 10).map((b) => summarize(b, ctx.locale)),

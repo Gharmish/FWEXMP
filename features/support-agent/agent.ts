@@ -484,7 +484,7 @@ export async function runAgentTurn(
       // Read per turn, never cached across turns: the challenge can be
       // passed mid-conversation, and a conversation can be re-identified to
       // a different guest between messages.
-      const identity = await readIdentityState(conversationId, guestId);
+      const identity = await readIdentityState(conversationId, guestId, address);
       const output = await runAgentLoop({
         history,
         guestName: recorded.guestName,
@@ -500,6 +500,7 @@ export async function runAgentTurn(
           identityVerified: identity.verified,
           identityVerifiedAt: identity.verifiedAt ?? null,
           guestHasEmail: identity.hasEmail,
+          bookingScope: identity.bookingScope,
         },
       });
 

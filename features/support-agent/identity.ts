@@ -76,6 +76,28 @@ export function emailMatches(submitted: string, stored: string | null): boolean 
   return timingSafeEqual(a, b);
 }
 
+/**
+ * Which of the bound guest's bookings the sender's number may read
+ * (2026-10-30, #234).
+ *
+ * `identifyGuest` binds a conversation to a guest row in two ways: the
+ * number is the row's own `guests.phone`, or it is merely the
+ * `bookings.contact_phone` typed on ONE booking (an account holder
+ * booking for a relative, or a mistyped digit of their own number). The
+ * rationale for ungated reads — "the number already receives the
+ * booking's full detail" — holds only for that one booking, so a
+ * contact-phone binding must not open every booking on the account.
+ *
+ * - `account`: the number is the guest row's own phone → every booking.
+ * - `contact`: the number only appears as a booking's contact phone →
+ *   only the bookings whose contact phone is this number.
+ *
+ * A passed email challenge lifts the restriction (the sender proved the
+ * account's email). Recomputed per turn, never stored, so a corrected
+ * phone or a re-identified thread takes effect on the next message.
+ */
+export type BookingScope = 'account' | 'contact';
+
 export interface IdentityState {
   /** This conversation has proven the email for the guest it is bound to. */
   verified: boolean;
@@ -83,6 +105,15 @@ export interface IdentityState {
   hasEmail: boolean;
   /** When the challenge was passed (null = never / for another guest). */
   verifiedAt?: Date | null;
+  /** How much of the bound guest's history this sender may read. */
+  bookingScope: BookingScope;
+}
+
+/** Digits only — `conversations.address` and `guests.phone` are both E.164, but never trust the punctuation. */
+function sameNumber(a: string | null | undefined, b: string): boolean {
+  if (!a) return false;
+  const da = a.replace(/\D/g, '');
+  return da.length > 0 && da === b.replace(/\D/g, '');
 }
 
 /**
@@ -116,8 +147,10 @@ export function identityStillValid(
 export async function readIdentityState(
   conversationId: string,
   guestId: string | null,
+  /** The sender's canonical WhatsApp number (`conversations.address`). */
+  address: string,
 ): Promise<IdentityState> {
-  if (!guestId) return { verified: false, hasEmail: false };
+  if (!guestId) return { verified: false, hasEmail: false, bookingScope: 'contact' };
   try {
     const [row] = await db
       .select({
@@ -129,18 +162,20 @@ export async function readIdentityState(
       .limit(1);
     const guest = await db.query.guests.findFirst({
       where: eq(guests.id, guestId),
-      columns: { email: true },
+      columns: { email: true, phone: true },
     });
     const verifiedAt = row?.verifiedAt ?? null;
     return {
       verified: identityStillValid(verifiedAt, row?.verifiedGuestId ?? null, guestId, new Date()),
       verifiedAt,
       hasEmail: Boolean(guest?.email),
+      bookingScope: sameNumber(guest?.phone, address) ? 'account' : 'contact',
     };
   } catch (error) {
-    // Fail CLOSED: an unreadable state means no write tools this turn.
+    // Fail CLOSED: an unreadable state means no write tools this turn,
+    // and only the sender's own booking(s) to read.
     reportError(error, { surface: 'support-agent:identity-state', conversationId });
-    return { verified: false, hasEmail: false };
+    return { verified: false, hasEmail: false, bookingScope: 'contact' };
   }
 }
 
