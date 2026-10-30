@@ -5,6 +5,7 @@ import { useActionState, useId, useState } from 'react';
 import { useFormStatus } from 'react-dom';
 import type { Locale } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
+import { fieldMessageKey } from '@/features/admin/experiences/lib/field-message';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { RiyalSymbol } from '@/components/ui/riyal-symbol';
@@ -71,6 +72,7 @@ export interface AdminExperienceFormCopy {
   /** Arabic field still carries a `TODO(ar)` marker (schema refine code `*_ar_placeholder`). */
   fieldArPlaceholder: string;
   fieldArRequired: string;
+  fieldEnRequired: string;
   formValidation: string;
   formServer: string;
   formNotFound: string;
@@ -208,15 +210,8 @@ export function AdminExperienceForm({
   const eid = (k: string) => `${errorPrefix}-${k}`;
 
   // Field errors carry the zod issue code (features/admin/experiences/
-  // actions.ts). Most codes are length bounds and share one generic line;
-  // the `TODO(ar)` placeholder refusals get their own, because "check this
-  // field" on a 2–160-character Arabic title explains nothing.
-  const fieldMessage = (code: string) =>
-    code.endsWith('_ar_placeholder')
-      ? copy.fieldArPlaceholder
-      : code.endsWith('_ar_required')
-        ? copy.fieldArRequired
-        : copy.fieldInvalid;
+  // actions.ts); fieldMessageKey picks the line that names the problem.
+  const fieldMessage = (code: string) => copy[fieldMessageKey(code)];
   const err = (name: string) =>
     fields[name] ? (
       <p id={eid(name)} className="text-al-qatt-red-800 text-sm">
@@ -621,7 +616,9 @@ export function AdminExperienceForm({
             rows={4}
             defaultValue={v?.inclusionsRaw ?? ex.inclusions.join('\n')}
             className={TEXTAREA_CLASS}
+            {...aria('inclusionsRaw')}
           />
+          {err('inclusionsRaw')}
           <p className={hintClass}>{copy.inclusionsHint}</p>
         </div>
         {/* The Arabic lists live in the same schema as the English ones —
@@ -638,7 +635,9 @@ export function AdminExperienceForm({
             dir="rtl"
             defaultValue={v?.inclusionsArRaw ?? ex.inclusionsAr.join('\n')}
             className={TEXTAREA_CLASS}
+            {...aria('inclusionsArRaw')}
           />
+          {err('inclusionsArRaw')}
           <p className={hintClass}>{copy.inclusionsHint}</p>
         </div>
         <div className="flex flex-col gap-2">
@@ -651,7 +650,9 @@ export function AdminExperienceForm({
             rows={4}
             defaultValue={v?.whatToBringRaw ?? ex.whatToBring.join('\n')}
             className={TEXTAREA_CLASS}
+            {...aria('whatToBringRaw')}
           />
+          {err('whatToBringRaw')}
           <p className={hintClass}>{copy.whatToBringHint}</p>
         </div>
         <div className="flex flex-col gap-2">
@@ -665,7 +666,9 @@ export function AdminExperienceForm({
             dir="rtl"
             defaultValue={v?.whatToBringArRaw ?? ex.whatToBringAr.join('\n')}
             className={TEXTAREA_CLASS}
+            {...aria('whatToBringArRaw')}
           />
+          {err('whatToBringArRaw')}
           <p className={hintClass}>{copy.whatToBringHint}</p>
         </div>
         <div className="flex flex-col gap-2">
