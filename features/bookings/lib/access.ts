@@ -50,7 +50,8 @@ export async function bookingViewerCanAccess(
     where: eq(guests.id, bookingGuestId),
     columns: { authUserId: true },
   });
-  return !owner?.authUserId;
+  // Fail closed: a row we cannot see is not proven anonymous.
+  return owner !== undefined && owner.authUserId === null;
 }
 
 /**

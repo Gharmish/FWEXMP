@@ -460,6 +460,10 @@ describe('requestBooking — replay cookie needs proven ownership (issue #24)', 
 
   it('fast path: a genuine double-tap (this browser already holds the cookie) keeps it', async () => {
     replayRow = paidRow;
+    // The cookie vouches for an ANONYMOUS booking only (#180, 2026-10-30):
+    // the access check now reads the booking's guest row, so the fixture
+    // has to be the account-less owner.
+    guestRow = { id: 'g-owner', authUserId: null, phone: null, email: null, suspendedAt: null };
     lastBookingCookie = serializeLastBookingCookie({
       reference: IDEMPOTENCY_KEY,
       experienceSlug: 'asiri-coffee',

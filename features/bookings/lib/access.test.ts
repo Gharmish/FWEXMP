@@ -144,6 +144,12 @@ describe('bookingViewerCanAccess', () => {
 
       expect(await bookingViewerCanAccess(REFERENCE, BOOKING_GUEST_ID)).toBe(true);
     });
+
+    it('fails closed when the booking guest row cannot be read', async () => {
+      bookingGuestRow = undefined;
+
+      expect(await bookingViewerCanAccess(REFERENCE, BOOKING_GUEST_ID)).toBe(false);
+    });
   });
 });
 
