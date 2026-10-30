@@ -616,7 +616,9 @@ export function AdminExperienceForm({
             rows={4}
             defaultValue={v?.inclusionsRaw ?? ex.inclusions.join('\n')}
             className={TEXTAREA_CLASS}
+            {...aria('inclusionsRaw')}
           />
+          {err('inclusionsRaw')}
           <p className={hintClass}>{copy.inclusionsHint}</p>
         </div>
         {/* The Arabic lists live in the same schema as the English ones —
@@ -633,7 +635,9 @@ export function AdminExperienceForm({
             dir="rtl"
             defaultValue={v?.inclusionsArRaw ?? ex.inclusionsAr.join('\n')}
             className={TEXTAREA_CLASS}
+            {...aria('inclusionsArRaw')}
           />
+          {err('inclusionsArRaw')}
           <p className={hintClass}>{copy.inclusionsHint}</p>
         </div>
         <div className="flex flex-col gap-2">
@@ -646,7 +650,9 @@ export function AdminExperienceForm({
             rows={4}
             defaultValue={v?.whatToBringRaw ?? ex.whatToBring.join('\n')}
             className={TEXTAREA_CLASS}
+            {...aria('whatToBringRaw')}
           />
+          {err('whatToBringRaw')}
           <p className={hintClass}>{copy.whatToBringHint}</p>
         </div>
         <div className="flex flex-col gap-2">
@@ -660,7 +666,9 @@ export function AdminExperienceForm({
             dir="rtl"
             defaultValue={v?.whatToBringArRaw ?? ex.whatToBringAr.join('\n')}
             className={TEXTAREA_CLASS}
+            {...aria('whatToBringArRaw')}
           />
+          {err('whatToBringArRaw')}
           <p className={hintClass}>{copy.whatToBringHint}</p>
         </div>
         <div className="flex flex-col gap-2">
