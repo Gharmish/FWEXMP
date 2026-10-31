@@ -809,6 +809,7 @@ describe('requestBooking — superseding an unpaid hold (third-round R7)', () =>
   const HOLD_REF = '9a9a9a9a-2222-4333-8444-555566667777';
   const liveHold = () => ({
     id: 'hold-1',
+    guestId: 'g-owner',
     contactPhone: '+966512345678',
     status: 'confirmed',
     paymentStatus: 'unpaid',
@@ -832,6 +833,9 @@ describe('requestBooking — superseding an unpaid hold (third-round R7)', () =>
   it('the device cookie proves ownership: the hold is discounted, released with its liveness re-asserted, and its credit returned', async () => {
     holdRow = liveHold();
     releasedRows = [{ id: 'hold-1' }];
+    // The cookie vouches for an ANONYMOUS hold only (#180 / #258,
+    // 2026-10-31): the ownership check reads the hold's guest row.
+    guestRow = { id: 'g-owner', authUserId: null, phone: null, email: null, suspendedAt: null };
     lastBookingCookie = serializeLastBookingCookie({
       reference: HOLD_REF,
       experienceSlug: 'asiri-coffee',
