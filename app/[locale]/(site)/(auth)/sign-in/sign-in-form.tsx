@@ -11,6 +11,7 @@ import { Input } from '@/components/ui/input';
 import { SPRING } from '@/components/ui/motion';
 import type { Locale } from '@/lib/i18n';
 import { PhoneInput } from '@/components/ui/phone-input';
+import { toAsciiDigits } from '@/lib/phone';
 import {
   requestOtp,
   verifyOtp,
@@ -350,14 +351,19 @@ export function SignInForm({ locale, next, isStubMode, copy }: SignInFormProps) 
             type="text"
             inputMode="numeric"
             autoComplete="one-time-code"
-            pattern="\d{6}"
+            // Arabic keyboards type the code as ١٢٣٤٥٦; the browser's
+            // `\d` is ASCII-only and would refuse to submit it (#182,
+            // 2026-10-30). The server transliterates (`verifyOtpSchema`).
+            pattern="[0-9٠-٩۰-۹]{6}"
             maxLength={6}
             required
             dir="ltr"
             onChange={(e) => {
               // Auto-submit on a complete code — this is what makes a
               // tapped keyboard suggestion (iOS) or paste one-step.
-              if (/^\d{6}$/.test(e.target.value)) codeFormRef.current?.requestSubmit();
+              if (/^\d{6}$/.test(toAsciiDigits(e.target.value))) {
+                codeFormRef.current?.requestSubmit();
+              }
             }}
             aria-invalid={verifyState.fields?.code ? 'true' : undefined}
             aria-describedby={

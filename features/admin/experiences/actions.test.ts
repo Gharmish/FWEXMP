@@ -171,6 +171,20 @@ describe('adminUpdateExperience', () => {
     expect(fake.current?.inserts).toEqual([]);
   });
 
+  it('a moderation decision made while the editor was open is wrong_state, not overwritten', async () => {
+    // Opened on pending_review; an admin rejected it (back to draft) before
+    // this save. The row now reads draft, so a re-read alone would match.
+    existing = { ...inReview(), status: 'draft' };
+    expect(
+      await adminUpdateExperience(
+        initial,
+        form({ status: 'pending_review', openedStatus: 'pending_review' }),
+      ),
+    ).toMatchObject({ message: 'wrong_state', values: { titleEn: 'Sunrise coffee walk in Abha' } });
+    expect(fake.current?.updates).toEqual([]);
+    expect(fake.current?.inserts).toEqual([]);
+  });
+
   it('returns per-field codes and echoes every value, including the weekday list', async () => {
     const out = await adminUpdateExperience(
       initial,
