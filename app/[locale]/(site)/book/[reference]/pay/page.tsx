@@ -142,7 +142,7 @@ export default async function PaymentPage({ params, searchParams }: PageParams) 
   // render; the apply action re-reads it under lock, so staleness here
   // only affects the button label, never the money.
   const walletOwner = sessionGuestId !== null && sessionGuestId === booking.guestId;
-  const [walletBalanceSar, rowReadable] = await Promise.all([
+  const [walletBalanceSar, rowReadable, savedBilling] = await Promise.all([
     walletOwner && booking.walletAppliedSar === 0
       ? getWalletBalanceSar(booking.guestId).catch((error: unknown) => {
           // Display-only read — a transient wallet error must degrade to
@@ -156,11 +156,13 @@ export default async function PaymentPage({ params, searchParams }: PageParams) 
     // phone. They are offered only when this booking is alone on the row
     // or the row is an account's (#264, 2026-10-31).
     guestRowReadableForBooking(booking),
+    // Billing address the guest saved on a previous checkout — so a
+    // returning guest confirms instead of retyping it (spread into
+    // `defaults` below; `country` falls back to KSA there). Read in the
+    // same wave and dropped unread when the row is not this booking's.
+    getStoredBillingForBooking(reference),
   ]);
-  // Billing address the guest saved on a previous checkout — so a
-  // returning guest confirms instead of retyping it (spread into
-  // `defaults` below; `country` falls back to KSA there).
-  const storedBilling = rowReadable ? await getStoredBillingForBooking(reference) : {};
+  const storedBilling = rowReadable ? savedBilling : {};
   const showWalletField = walletFieldVisible({
     walletOwner,
     balanceSar: walletBalanceSar,

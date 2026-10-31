@@ -543,17 +543,20 @@ export default async function BookingConfirmedPage({ params, searchParams }: Pag
   // pending or payment is still owed, show which unverified email/phone
   // the notifications go to, with an inline corrector. Never for
   // token-only viewers — the update action requires the cookie/session.
-  // Never when the email belongs to a guest ROW another booking shares
-  // (#264, 2026-10-31): a signed-out booking with someone else's phone
-  // would read that person's email here, and the corrector refuses such
-  // a row anyway (`shared_guest`).
   const contactEditable = Boolean(
     booking &&
     !tokenOnly &&
     booking.guestEmail &&
-    (booking.status === 'pending' || isAwaitingPayment) &&
-    (await guestRowReadableForBooking(booking)),
+    (booking.status === 'pending' || isAwaitingPayment),
   );
+  // The email, the name on the review notice and the corrector's email
+  // default belong to the guest ROW, which a signed-out booking shares
+  // with everyone who typed that phone (#264, 2026-10-31): a booking made
+  // with someone else's number must not read that person's details here.
+  // The phone is the booking's own snapshot, so the corrector keeps
+  // working for the phone (the action refuses an email write on such a
+  // row anyway, `shared_guest`).
+  const rowReadable = booking ? await guestRowReadableForBooking(booking) : false;
 
   // "Add to calendar" — only an upcoming confirmed booking with nothing
   // owed belongs in a guest's calendar (the same settled gate as the
@@ -639,18 +642,29 @@ export default async function BookingConfirmedPage({ params, searchParams }: Pag
             scrambling inside Arabic sentences. */}
         {booking && contactEditable && booking.guestEmail && (
           <div className="flex flex-col gap-2">
-            <p className="text-sarat-black-600 max-w-2xl text-base leading-relaxed">
-              {booking.guestPhone
-                ? t('contact.sendToWithPhone', {
-                    email: `\u2066${booking.guestEmail}\u2069`,
-                    phone: `\u2066${booking.guestPhone}\u2069`,
-                  })
-                : t('contact.sendTo', { email: `\u2066${booking.guestEmail}\u2069` })}
-            </p>
+            {rowReadable ? (
+              <p className="text-sarat-black-600 max-w-2xl text-base leading-relaxed">
+                {booking.guestPhone
+                  ? t('contact.sendToWithPhone', {
+                      email: `\u2066${booking.guestEmail}\u2069`,
+                      phone: `\u2066${booking.guestPhone}\u2069`,
+                    })
+                  : t('contact.sendTo', { email: `\u2066${booking.guestEmail}\u2069` })}
+              </p>
+            ) : (
+              booking.guestPhone && (
+                <p className="text-sarat-black-600 max-w-2xl text-base leading-relaxed">
+                  {t('contact.sendToPhoneOnly', { phone: `\u2066${booking.guestPhone}\u2069` })}
+                </p>
+              )
+            )}
             <BookingContactForm
               reference={ref}
               locale={loc}
-              defaults={{ email: booking.guestEmail, phone: booking.guestPhone }}
+              defaults={{
+                email: rowReadable ? booking.guestEmail : null,
+                phone: booking.guestPhone,
+              }}
               copy={{
                 summary: t('contact.updateSummary'),
                 emailLabel: t('contact.emailLabel'),
@@ -1039,7 +1053,7 @@ export default async function BookingConfirmedPage({ params, searchParams }: Pag
             <ReviewForm
               bookingReference={ref}
               locale={loc}
-              guestName={booking.guestName}
+              guestName={rowReadable ? booking.guestName : undefined}
               mode="edit"
               initialRating={bookingReview.rating}
               initialText={(loc === 'ar' ? bookingReview.textAr : bookingReview.textEn) ?? ''}
@@ -1083,7 +1097,7 @@ export default async function BookingConfirmedPage({ params, searchParams }: Pag
             <ReviewForm
               bookingReference={ref}
               locale={loc}
-              guestName={booking.guestName}
+              guestName={rowReadable ? booking.guestName : undefined}
               copy={{
                 ...reviewCopy,
                 heading: tMe('review.heading'),

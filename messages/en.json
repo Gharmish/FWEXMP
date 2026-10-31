@@ -3381,6 +3381,7 @@
     "contact": {
       "sendTo": "We'll send your confirmation and payment link to {email}.",
       "sendToWithPhone": "We'll send your confirmation and payment link to {email}, and WhatsApp updates to {phone}.",
+      "sendToPhoneOnly": "We'll send WhatsApp updates to {phone}.",
       "updateSummary": "Wrong? Update it",
       "emailLabel": "Email address",
       "phoneLabel": "Phone (WhatsApp)",

@@ -9,6 +9,9 @@ import { createDbFake } from '@/lib/test/db-fake';
  */
 const reportError = vi.fn();
 vi.mock('@/lib/log', () => ({ reportError: (...args: unknown[]) => reportError(...args) }));
+vi.mock('@/lib/deadline', () => ({
+  boundedQuery: async <T>(_key: string, fn: () => Promise<T>) => fn(),
+}));
 
 const state = vi.hoisted(() => ({
   otherBookings: [] as Array<{ id: string }>,

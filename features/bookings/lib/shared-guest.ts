@@ -1,5 +1,6 @@
 import { and, eq, isNotNull, ne, notExists, or, sql, type SQL } from 'drizzle-orm';
 import { db } from '@/lib/db';
+import { boundedQuery } from '@/lib/deadline';
 import { bookings, guests } from '@/db/schema';
 import { reportError } from '@/lib/log';
 
@@ -48,11 +49,16 @@ export async function guestRowIsShared(
   exceptBookingId: string | null,
 ): Promise<boolean> {
   const onRow = eq(bookings.guestId, guestId);
-  const rows = await db
-    .select({ id: bookings.id })
-    .from(bookings)
-    .where(exceptBookingId ? and(onRow, ne(bookings.id, exceptBookingId)) : onRow)
-    .limit(1);
+  // Deadline-bounded: since #264 this read sits on the pay and
+  // confirmation page renders, where a hung pooled connection would
+  // stall the page instead of reaching a catch.
+  const rows = await boundedQuery('bookings:guestRowShared', () =>
+    db
+      .select({ id: bookings.id })
+      .from(bookings)
+      .where(exceptBookingId ? and(onRow, ne(bookings.id, exceptBookingId)) : onRow)
+      .limit(1),
+  );
   return rows.length > 0;
 }
 
