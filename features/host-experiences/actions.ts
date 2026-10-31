@@ -10,6 +10,7 @@ import { serverEnv } from '@/lib/env';
 import { bookings, experiences, experienceModerationEvents, hosts, moments } from '@/db/schema';
 import { redirect } from '@/lib/i18n';
 import { reportError } from '@/lib/log';
+import { listLanguageBlocker } from '@/features/admin/experience-moderation/lib/live-gate';
 import {
   durationMinutesFromPair,
   hostExperienceDraftSchema,
@@ -65,6 +66,9 @@ export interface HostExperienceState {
     | 'has_bookings'
     /** Start time / operating weekdays changed while upcoming live bookings depend on them. */
     | 'schedule_has_bookings'
+    /** A live or paused listing's list exists in one language only (#121); same codes as the approval gate. */
+    | 'needs_english'
+    | 'needs_arabic_lists'
     | 'suspended'
     | 'server'
     | 'no_db';
@@ -562,6 +566,18 @@ export async function updateHostExperience(
         reviewerNotes: null,
       });
     } else {
+      if (demotableStatus) {
+        // A non-material save lands on the public row without review, so
+        // it must keep what approval checked: both languages of "What's
+        // included" and "What to bring" (#121, 2026-10-31). The approval
+        // gate (`liveGateBlocker`) runs only when a reviewer approves, so a
+        // host adding an English-only line, or clearing the Arabic list,
+        // put a one-language list on the live page.
+        const lists = listLanguageBlocker(payload);
+        if (lists !== null) {
+          return { success: false, message: lists, values: collectValues(formData) };
+        }
+      }
       await db
         .update(experiences)
         .set({ ...payload, updatedAt: new Date() })

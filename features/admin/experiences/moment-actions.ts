@@ -22,8 +22,19 @@ import { adminFailureMessage, adminGateRefused, requireAdminActor } from '@/feat
 
 export interface MomentActionState {
   success: boolean;
-  /** `locked_live` is host-only: live listings need a (re-review) edit first. */
-  message?: 'forbidden' | 'no_db' | 'not_found' | 'locked_live' | 'validation' | 'server';
+  /**
+   * `locked_live` and `needs_arabic` are host-only: a listing under review
+   * is frozen, and a moment on a live or paused listing needs both
+   * languages (#121).
+   */
+  message?:
+    | 'forbidden'
+    | 'no_db'
+    | 'not_found'
+    | 'locked_live'
+    | 'needs_arabic'
+    | 'validation'
+    | 'server';
   fields?: Record<string, string>;
   /**
    * Echoed on every refused add or update (validation, guard, DB error) so
