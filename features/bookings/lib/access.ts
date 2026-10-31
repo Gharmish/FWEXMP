@@ -18,6 +18,14 @@ import { bookingLinkTokenValid } from '@/lib/booking-link-token';
  *   2. the browser holding this exact reference in its last-booking cookie
  *      (set at booking time) — covers the anonymous guest with no account.
  *
+ * The cookie is proof for an ANONYMOUS booking only (#180, 2026-10-30).
+ * It is written for signed-in bookings too, and it used to outlive a
+ * sign-out, so on a shared device the next person could open, cancel
+ * and redirect the refund of an account's booking without that account.
+ * A booking whose guest row belongs to an account therefore needs that
+ * account's session — the same rule `features/account/guest-prefill.ts`
+ * already applies to the cookie.
+ *
  * This mirrors the ownership check the review action already applies
  * (features/reviews/actions.ts), extended with the cookie path so the
  * account-less booking flow keeps working.
@@ -37,7 +45,13 @@ export async function bookingViewerCanAccess(
 
   const store = await cookies();
   const hint = parseLastBookingCookie(store.get(LAST_BOOKING_COOKIE)?.value);
-  return hint?.reference === reference;
+  if (hint?.reference !== reference) return false;
+  const owner = await db.query.guests.findFirst({
+    where: eq(guests.id, bookingGuestId),
+    columns: { authUserId: true },
+  });
+  // Fail closed: a row we cannot see is not proven anonymous.
+  return owner !== undefined && owner.authUserId === null;
 }
 
 /**

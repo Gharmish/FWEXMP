@@ -1,10 +1,8 @@
 import { and, eq, inArray, isNull } from 'drizzle-orm';
-import { cookies } from 'next/headers';
 import { db } from '@/lib/db';
 import { bookings } from '@/db/schema';
 import { reportError } from '@/lib/log';
-import { bookingLinkTokenValid } from '@/lib/booking-link-token';
-import { LAST_BOOKING_COOKIE, parseLastBookingCookie } from '@/features/account/cookie';
+import { checkoutViewerCanAccess } from '@/features/bookings/lib/access';
 import { releaseWalletReservation } from '@/features/wallet/reservation';
 import { recordPaymentEvent } from '@/features/payments/ledger';
 import type { BookingRequestInput } from '@/features/bookings/lib/request/form';
@@ -61,14 +59,21 @@ function isLiveHold(hold: HoldLiveness): boolean {
 }
 
 /**
- * Proof of ownership: same-device cookie OR a valid signed link token for
- * THIS reference (HMAC-bound, so a guessed/leaked bare reference can't
- * forge it). Phone match is deliberately excluded.
+ * Proof of ownership: a valid signed link token for THIS reference
+ * (HMAC-bound, so a guessed/leaked bare reference can't forge it), the
+ * owning account's session, or the same-device cookie — the cookie only
+ * for a hold whose guest row has no account, the rule every other
+ * reference-addressed surface applies (#180, #258 supersede half,
+ * 2026-10-31). Before, the bare cookie alone released an account's hold
+ * after that account's session had lapsed on a shared device. Phone match
+ * is deliberately excluded.
  */
-async function ownsHold(reference: string, token: string | undefined): Promise<boolean> {
-  const store = await cookies();
-  const hint = parseLastBookingCookie(store.get(LAST_BOOKING_COOKIE)?.value);
-  return hint?.reference === reference || bookingLinkTokenValid(reference, token);
+function ownsHold(
+  reference: string,
+  guestId: string,
+  token: string | undefined,
+): Promise<boolean> {
+  return checkoutViewerCanAccess(reference, guestId, token);
 }
 
 /**
@@ -95,6 +100,7 @@ export async function resolveSupersededHold(
       where: (b) => eq(b.idempotencyKey, supersedesRef),
       columns: {
         id: true,
+        guestId: true,
         contactPhone: true,
         status: true,
         paymentStatus: true,
@@ -106,7 +112,7 @@ export async function resolveSupersededHold(
       },
     });
     if (!hold || !isLiveHold(hold)) return null;
-    if (!(await ownsHold(supersedesRef, input.supersedesToken))) return null;
+    if (!(await ownsHold(supersedesRef, hold.guestId, input.supersedesToken))) return null;
     return {
       id: hold.id,
       walletAppliedSar: hold.walletAppliedSar,
@@ -232,6 +238,7 @@ export async function supersededHoldSeats(
     const hold = await db.query.bookings.findFirst({
       where: (b) => eq(b.idempotencyKey, supersedesRef),
       columns: {
+        guestId: true,
         experienceId: true,
         date: true,
         partySize: true,
@@ -242,7 +249,7 @@ export async function supersededHoldSeats(
       },
     });
     if (!hold || hold.experienceId !== experienceId || !isLiveHold(hold)) return null;
-    if (!(await ownsHold(supersedesRef, supersedesToken))) return null;
+    if (!(await ownsHold(supersedesRef, hold.guestId, supersedesToken))) return null;
     return { date: hold.date, partySize: hold.partySize };
   } catch (error) {
     reportError(error, { surface: 'experience-page:supersededHoldSeats' });
