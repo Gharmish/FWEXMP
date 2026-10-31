@@ -3381,6 +3381,7 @@
     "contact": {
       "sendTo": "سنرسل تأكيد حجزك ورابط الدفع إلى {email}.",
       "sendToWithPhone": "سنرسل تأكيد حجزك ورابط الدفع إلى {email}، وتحديثات واتساب إلى {phone}.",
+      "sendToPhoneOnly": "سنرسل تحديثات واتساب إلى {phone}.",
       "updateSummary": "هل البيانات غير صحيحة؟ حدّثها",
       "emailLabel": "البريد الإلكتروني",
       "phoneLabel": "الجوال (واتساب)",
