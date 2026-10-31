@@ -10,6 +10,7 @@ import { serverEnv } from '@/lib/env';
 import { bookings, experiences, experienceModerationEvents, hosts, moments } from '@/db/schema';
 import { redirect } from '@/lib/i18n';
 import { reportError } from '@/lib/log';
+import { listLanguageBlocker } from '@/features/admin/experience-moderation/lib/live-gate';
 import {
   durationMinutesFromPair,
   hostExperienceDraftSchema,
@@ -65,6 +66,9 @@ export interface HostExperienceState {
     | 'has_bookings'
     /** Start time / operating weekdays changed while upcoming live bookings depend on them. */
     | 'schedule_has_bookings'
+    /** A live or paused listing's list exists in one language only (#121); same codes as the approval gate. */
+    | 'needs_english'
+    | 'needs_arabic_lists'
     | 'suspended'
     | 'server'
     | 'no_db';
@@ -413,6 +417,20 @@ const MATERIAL_FIELDS = [
   'cancellationTier',
 ] as const satisfies readonly (keyof ReturnType<typeof payloadForWrite>)[];
 
+const LIST_FIELDS = ['inclusions', 'inclusionsAr', 'whatToBring', 'whatToBringAr'] as const;
+
+function sameList(a: readonly string[], b: readonly string[]): boolean {
+  return a.length === b.length && a.every((item, i) => item === b[i]);
+}
+
+/** Whether the save touches any of the four bilingual lists (#121). */
+function listsChanged(
+  next: ReturnType<typeof payloadForWrite>,
+  current: Pick<typeof experiences.$inferSelect, (typeof LIST_FIELDS)[number]>,
+): boolean {
+  return LIST_FIELDS.some((key) => !sameList(next[key], current[key]));
+}
+
 function hasMaterialChange(
   next: ReturnType<typeof payloadForWrite>,
   current: Pick<typeof experiences.$inferSelect, (typeof MATERIAL_FIELDS)[number]>,
@@ -562,6 +580,22 @@ export async function updateHostExperience(
         reviewerNotes: null,
       });
     } else {
+      if (demotableStatus && listsChanged(payload, current)) {
+        // A non-material save lands on the public row without review, so
+        // it must keep what approval checked: both languages of "What's
+        // included" and "What to bring" (#121, 2026-10-31). The approval
+        // gate (`liveGateBlocker`) runs only when a reviewer approves, so a
+        // host adding an English-only line, or clearing the Arabic list,
+        // put a one-language list on the live page. Only a save that
+        // CHANGES a list is checked: seeded listings carry English lists
+        // and empty Arabic ones (the Arabic page falls back to the seed
+        // dictionary), and a start-time or typo fix must not be held
+        // hostage to a mismatch the host did not introduce.
+        const lists = listLanguageBlocker(payload);
+        if (lists !== null) {
+          return { success: false, message: lists, values: collectValues(formData) };
+        }
+      }
       await db
         .update(experiences)
         .set({ ...payload, updatedAt: new Date() })

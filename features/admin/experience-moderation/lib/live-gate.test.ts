@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { liveGateBlocker, type LiveGateCandidate } from './live-gate';
+import { listLanguageBlocker, liveGateBlocker, type LiveGateCandidate } from './live-gate';
 
 const ready = (over: Partial<LiveGateCandidate> = {}): LiveGateCandidate => ({
   hostVerificationStatus: 'verified',
@@ -51,5 +51,33 @@ describe('liveGateBlocker', () => {
         ready({ inclusions: [], inclusionsAr: [], whatToBring: [], whatToBringAr: [] }),
       ),
     ).toBeNull();
+  });
+});
+
+/**
+ * The list half of the gate on its own — what the host's in-place save
+ * on a live or paused listing runs, since that save bypasses review
+ * (#121, 2026-10-31).
+ */
+describe('listLanguageBlocker', () => {
+  const lists = (over: Partial<LiveGateCandidate> = {}) => {
+    const { inclusions, inclusionsAr, whatToBring, whatToBringAr } = ready(over);
+    return { inclusions, inclusionsAr, whatToBring, whatToBringAr };
+  };
+
+  it('passes matching lists, and two empty lists', () => {
+    expect(listLanguageBlocker(lists())).toBeNull();
+    expect(
+      listLanguageBlocker(lists({ inclusions: [], inclusionsAr: [], whatToBring: [], whatToBringAr: [] })),
+    ).toBeNull();
+  });
+
+  it.each<[Partial<LiveGateCandidate>, string]>([
+    [{ inclusions: [] }, 'needs_english'],
+    [{ whatToBring: [] }, 'needs_english'],
+    [{ inclusionsAr: [] }, 'needs_arabic_lists'],
+    [{ whatToBringAr: [] }, 'needs_arabic_lists'],
+  ])('%o → %s', (over, blocker) => {
+    expect(listLanguageBlocker(lists(over))).toBe(blocker);
   });
 });
