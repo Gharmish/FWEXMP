@@ -27,12 +27,24 @@ export async function getScheduleData(
   return scheduleDataById(experienceId, fromStr, toStr);
 }
 
-/** Schedule by public slug — for the guest-facing date picker on the detail page. */
+/**
+ * Schedule by public slug — for the GUEST-facing date pickers: the detail
+ * page, the booking page's reschedule calendar and the support agent's
+ * `available_dates`. A guest may only be offered dates on a listing that
+ * takes new bookings, so the slug path answers null for a listing that is
+ * not `live` or whose host is suspended, the gate `loadBookableExperience`
+ * applies to a new booking (#169, 2026-10-31). The host and admin editors
+ * use `getScheduleData` (by id, any status) instead.
+ */
 export async function getScheduleDataBySlug(
   slug: string,
   fromStr: string,
   toStr: string,
-  /** Skip the slug lookup when the caller already holds the row id (PERF-02). */
+  /**
+   * Skip the slug lookup when the caller already holds the row id
+   * (PERF-02). The detail page passes it after its own live-only read
+   * (or the owner's preview), so the listing gate is already decided.
+   */
   experienceId?: string,
 ): Promise<ScheduleData | null> {
   if (!serverEnv.DATABASE_URL) return null;
@@ -44,10 +56,13 @@ export async function getScheduleDataBySlug(
     const exp = await boundedQuery('availability:slugLookup', () =>
       db.query.experiences.findFirst({
         where: (e) => eq(e.slug, slug),
-        columns: { id: true },
+        columns: { id: true, status: true },
+        with: { host: { columns: { verificationStatus: true } } },
       }),
     );
-    if (!exp) return null;
+    if (!exp || exp.status !== 'live' || exp.host.verificationStatus === 'suspended') {
+      return null;
+    }
     return scheduleDataById(exp.id, fromStr, toStr);
   } catch (error) {
     reportError(error, { surface: 'availability:getScheduleDataBySlug', slug });

@@ -40,6 +40,7 @@ export type RescheduleBookingState =
         | 'already_started'
         | 'window_passed'
         | 'limit_reached'
+        | 'listing_unavailable'
         | 'date_unavailable'
         | 'date_full'
         | 'validation'
@@ -122,6 +123,7 @@ export async function rescheduleBookingCore(
       where: (e) => eq(e.id, booking.experienceId),
       columns: {
         id: true,
+        status: true,
         maxGroupSize: true,
         startTime: true,
         bookingCutoffHours: true,
@@ -129,8 +131,22 @@ export async function rescheduleBookingCore(
         blackoutDates: true,
         stopSellDates: true,
       },
+      with: { host: { columns: { verificationStatus: true } } },
     });
     if (!experience) return { success: false, message: 'not_found' };
+
+    // A move is a NEW commitment on the listing, so it needs the same
+    // listing and host gate as a new booking (`loadBookableExperience`):
+    // a paused, archived or in-review listing, or a suspended host's,
+    // takes no new dates. Reschedule copied the date rules but not this
+    // gate, so withdrawn supply kept getting fresh bookings (#169,
+    // 2026-10-31). The existing booking itself is untouched.
+    if (
+      experience.status !== 'live' ||
+      experience.host.verificationStatus === 'suspended'
+    ) {
+      return { success: false, message: 'listing_unavailable' };
+    }
 
     // The target date must be open to NEW bookings — schedule, blackout,
     // stop-sell, and the same lead-time cutoff the booking form enforces.
