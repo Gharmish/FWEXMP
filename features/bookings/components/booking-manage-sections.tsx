@@ -315,6 +315,7 @@ export async function BookingManageSections({
                   already_started: t('reschedule.errors.alreadyStarted'),
                   window_passed: t('reschedule.errors.windowPassed'),
                   limit_reached: t('reschedule.errors.limitReached'),
+                  listing_unavailable: t('reschedule.errors.listingUnavailable'),
                   date_unavailable: t('reschedule.errors.dateUnavailable'),
                   date_full: t('reschedule.errors.dateFull'),
                   validation: t('reschedule.errors.validation'),
