@@ -46,6 +46,7 @@ import { halalasToSar, vatPortionHalalas, vatRatePercent } from '@/features/book
 import { PendingPaymentRefresh } from '@/features/payments/components/pending-payment-refresh';
 import { CheckoutProgress } from '@/features/payments/components/checkout-progress';
 import { PurchaseConversion } from '@/features/bookings/components/purchase-conversion';
+import { guestRowReadableForBooking } from '@/features/bookings/lib/shared-guest';
 import { toArabicText } from '@/features/experiences/lib/arabic-content';
 import { Draw, Pop, Stagger, StaggerItem } from '@/components/ui/motion';
 
@@ -542,11 +543,16 @@ export default async function BookingConfirmedPage({ params, searchParams }: Pag
   // pending or payment is still owed, show which unverified email/phone
   // the notifications go to, with an inline corrector. Never for
   // token-only viewers — the update action requires the cookie/session.
+  // Never when the email belongs to a guest ROW another booking shares
+  // (#264, 2026-10-31): a signed-out booking with someone else's phone
+  // would read that person's email here, and the corrector refuses such
+  // a row anyway (`shared_guest`).
   const contactEditable = Boolean(
     booking &&
     !tokenOnly &&
     booking.guestEmail &&
-    (booking.status === 'pending' || isAwaitingPayment),
+    (booking.status === 'pending' || isAwaitingPayment) &&
+    (await guestRowReadableForBooking(booking)),
   );
 
   // "Add to calendar" — only an upcoming confirmed booking with nothing

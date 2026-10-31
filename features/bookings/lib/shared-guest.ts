@@ -1,6 +1,7 @@
 import { and, eq, isNotNull, ne, notExists, or, sql, type SQL } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import { bookings, guests } from '@/db/schema';
+import { reportError } from '@/lib/log';
 
 /**
  * A signed-out booking lands on the guest row keyed by the TYPED,
@@ -53,4 +54,28 @@ export async function guestRowIsShared(
     .where(exceptBookingId ? and(onRow, ne(bookings.id, exceptBookingId)) : onRow)
     .limit(1);
   return rows.length > 0;
+}
+
+/**
+ * May a page addressed by ONE booking show the guest ROW's details —
+ * name, email, saved billing address — to its viewer? The row is the
+ * account's own, or no other booking shares it. The write-side guard
+ * stopped strangers redirecting a shared row's emails (#120); the pay
+ * and confirmation pages still READ the row, so booking with a guest's
+ * phone pre-filled a stranger's form with that guest's name, email and
+ * home address (#264, 2026-10-31). Fail closed: an unreadable answer
+ * shows nothing, which only costs a returning guest a retype.
+ */
+export async function guestRowReadableForBooking(booking: {
+  id: string;
+  guestId: string;
+  guestHasAccount: boolean;
+}): Promise<boolean> {
+  if (booking.guestHasAccount) return true;
+  try {
+    return !(await guestRowIsShared(booking.guestId, booking.id));
+  } catch (error) {
+    reportError(error, { surface: 'booking:guestRowReadable', bookingId: booking.id });
+    return false;
+  }
 }

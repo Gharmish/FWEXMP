@@ -38,6 +38,8 @@ import { PaymentMarks } from '@/components/layout/payment-marks';
 import { VerifiedBadge } from '@/features/hosts/components/verified-badge';
 import { toArabicText } from '@/features/experiences/lib/arabic-content';
 import { MIN_CHARGE_SAR } from '@/features/promo-codes/lib/discount';
+import { paymentPrefill } from '@/features/payments/lib/prefill';
+import { guestRowReadableForBooking } from '@/features/bookings/lib/shared-guest';
 import { cn } from '@/lib/utils';
 import { reportError } from '@/lib/log';
 import { BOOKING_LINK_TOKEN_PARAM } from '@/lib/booking-link-token';
@@ -140,7 +142,7 @@ export default async function PaymentPage({ params, searchParams }: PageParams) 
   // render; the apply action re-reads it under lock, so staleness here
   // only affects the button label, never the money.
   const walletOwner = sessionGuestId !== null && sessionGuestId === booking.guestId;
-  const [walletBalanceSar, storedBilling] = await Promise.all([
+  const [walletBalanceSar, rowReadable] = await Promise.all([
     walletOwner && booking.walletAppliedSar === 0
       ? getWalletBalanceSar(booking.guestId).catch((error: unknown) => {
           // Display-only read — a transient wallet error must degrade to
@@ -149,11 +151,16 @@ export default async function PaymentPage({ params, searchParams }: PageParams) 
           return 0;
         })
       : Promise.resolve(0),
-    // Billing address the guest saved on a previous checkout — so a
-    // returning guest confirms instead of retyping it (spread into
-    // `defaults` below; `country` falls back to KSA there).
-    getStoredBillingForBooking(reference),
+    // The name, email and billing address below belong to the guest ROW,
+    // which a signed-out booking shares with everyone who typed that
+    // phone. They are offered only when this booking is alone on the row
+    // or the row is an account's (#264, 2026-10-31).
+    guestRowReadableForBooking(booking),
   ]);
+  // Billing address the guest saved on a previous checkout — so a
+  // returning guest confirms instead of retyping it (spread into
+  // `defaults` below; `country` falls back to KSA there).
+  const storedBilling = rowReadable ? await getStoredBillingForBooking(reference) : {};
   const showWalletField = walletFieldVisible({
     walletOwner,
     balanceSar: walletBalanceSar,
@@ -327,37 +334,21 @@ export default async function PaymentPage({ params, searchParams }: PageParams) 
     },
   };
 
-  // Split the booking's guest name into given/surname to prefill the form
-  // (the server echo still wins on a failed submit). Most names have a final
-  // token as the surname; a single token (a given name alone is common in
-  // Arabic entries) fills BOTH — the gateway's 3DS2 fields just need a
-  // non-empty surname, and leaving it blank reopened the identity block
-  // for exactly the guests with the least to type. Editable on the form.
-  const fullName = booking.guestName.trim();
-  const lastSpace = fullName.lastIndexOf(' ');
-  const nameDefaults =
-    lastSpace === -1
-      ? { givenName: fullName, surname: fullName }
-      : {
-          givenName: fullName.slice(0, lastSpace).trim(),
-          surname: fullName.slice(lastSpace + 1).trim(),
-        };
-  const defaults = {
-    ...nameDefaults,
-    ...(booking.guestEmail ? { email: booking.guestEmail } : {}),
-    ...storedBilling,
-    country: storedBilling.country ?? 'SA',
-  };
+  // Form defaults from the guest row (name split into given/surname, the
+  // email, the saved billing address) — or nothing when the row is not
+  // this booking's to show (see `paymentPrefill`).
+  const { defaults, identityComplete, addressComplete } = paymentPrefill({
+    guestName: booking.guestName,
+    guestEmail: booking.guestEmail,
+    storedBilling,
+    rowReadable,
+  });
   // Nothing left to type? Then the payment step prepares the checkout on
   // load and the widget is the first thing the guest sees (see
   // PaymentAutoContinue). Identity + consent are decided here from the
   // booking row; a stored billing address makes a card checkout
   // preparable blind, and the Apple Pay entity flag lets the DEVICE
   // decide the wallet path client-side.
-  const identityComplete = Boolean(defaults.givenName && defaults.surname && defaults.email);
-  const addressComplete = Boolean(
-    storedBilling.street1 && storedBilling.city && storedBilling.postcode,
-  );
   const autoContinue: PaymentAutoContinue | null =
     termsCarried && identityComplete
       ? { applePay: hasHyperpayApplePay(), cardReady: addressComplete }
