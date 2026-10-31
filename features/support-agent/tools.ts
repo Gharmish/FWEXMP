@@ -27,7 +27,7 @@ import {
   todayInRiyadh,
 } from '@/features/bookings/lib/availability';
 import { openTicket, type TicketCategory, type TicketPriority } from '@/features/support/tickets';
-import { attemptIdentityChallenge, type BookingScope } from './identity';
+import { attemptIdentityChallenge, sameNumber, type BookingScope } from './identity';
 
 /**
  * Tools the support agent may call. Identity is never a parameter: every
@@ -498,8 +498,7 @@ async function readableBookings(ctx: ToolContext): Promise<GuestBookingSummary[]
   if (!ctx.guestId) return [];
   const all = await getBookingsForGuest(ctx.guestId);
   if (ctx.identityVerified || ctx.bookingScope === 'account') return all;
-  const sender = ctx.address.replace(/\D/g, '');
-  return all.filter((b) => b.guestPhone !== null && b.guestPhone.replace(/\D/g, '') === sender);
+  return all.filter((b) => sameNumber(b.guestPhone, ctx.address));
 }
 
 async function findOwnBooking(
@@ -656,6 +655,18 @@ export async function runTool(
           address: ctx.address,
           submittedEmail: str(input, 'email') ?? '',
         });
+        // The context is built once per turn and handed to every tool
+        // call in it (agent.ts). Without writing the pass back, the
+        // write tools stayed denied and a contact-scope read stayed
+        // narrow until the guest's NEXT message, so the agent asked for
+        // the email again or said the booking did not exist right after
+        // the guest proved it (#134, #234 review, 2026-10-31). The
+        // persisted state is what `attemptIdentityChallenge` just wrote;
+        // this mirrors it for the rest of this turn only.
+        if (outcome === 'verified') {
+          ctx.identityVerified = true;
+          ctx.identityVerifiedAt = ctx.now;
+        }
         return { result: JSON.stringify(IDENTITY_RESULTS[outcome]) };
       }
       case 'cancel_booking':

@@ -109,8 +109,13 @@ export interface IdentityState {
   bookingScope: BookingScope;
 }
 
-/** Digits only — `conversations.address` and `guests.phone` are both E.164, but never trust the punctuation. */
-function sameNumber(a: string | null | undefined, b: string): boolean {
+/**
+ * Digits only — `conversations.address` and `guests.phone` are both E.164,
+ * but never trust the punctuation. The one phone comparison the agent
+ * makes, shared with the booking-scope filter in ./tools so the two can
+ * never drift apart (#234 review, 2026-10-31).
+ */
+export function sameNumber(a: string | null | undefined, b: string): boolean {
   if (!a) return false;
   const da = a.replace(/\D/g, '');
   return da.length > 0 && da === b.replace(/\D/g, '');
