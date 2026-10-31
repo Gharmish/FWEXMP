@@ -12,4 +12,10 @@
  * the pages displayed 7 July, so consent evidence referenced a version no
  * user ever saw. Keep the three in lockstep.
  */
-export const CURRENT_TERMS_VERSION = '2026-08-02';
+//
+// 2026-10-11: the Gharmish Credit clause of the Terms changed (credit
+// rail actually offered, how to reach the credit) without a bump, so
+// acceptances of the 2026-08-02 wording carried over to text the guest
+// never saw (#105). Bumped 2026-10-30 to the date of that change;
+// lib/legal.test.ts now pins the legal copy to this version.
+export const CURRENT_TERMS_VERSION = '2026-10-11';
