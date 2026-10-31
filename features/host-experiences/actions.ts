@@ -417,6 +417,20 @@ const MATERIAL_FIELDS = [
   'cancellationTier',
 ] as const satisfies readonly (keyof ReturnType<typeof payloadForWrite>)[];
 
+const LIST_FIELDS = ['inclusions', 'inclusionsAr', 'whatToBring', 'whatToBringAr'] as const;
+
+function sameList(a: readonly string[], b: readonly string[]): boolean {
+  return a.length === b.length && a.every((item, i) => item === b[i]);
+}
+
+/** Whether the save touches any of the four bilingual lists (#121). */
+function listsChanged(
+  next: ReturnType<typeof payloadForWrite>,
+  current: Pick<typeof experiences.$inferSelect, (typeof LIST_FIELDS)[number]>,
+): boolean {
+  return LIST_FIELDS.some((key) => !sameList(next[key], current[key]));
+}
+
 function hasMaterialChange(
   next: ReturnType<typeof payloadForWrite>,
   current: Pick<typeof experiences.$inferSelect, (typeof MATERIAL_FIELDS)[number]>,
@@ -566,13 +580,17 @@ export async function updateHostExperience(
         reviewerNotes: null,
       });
     } else {
-      if (demotableStatus) {
+      if (demotableStatus && listsChanged(payload, current)) {
         // A non-material save lands on the public row without review, so
         // it must keep what approval checked: both languages of "What's
         // included" and "What to bring" (#121, 2026-10-31). The approval
         // gate (`liveGateBlocker`) runs only when a reviewer approves, so a
         // host adding an English-only line, or clearing the Arabic list,
-        // put a one-language list on the live page.
+        // put a one-language list on the live page. Only a save that
+        // CHANGES a list is checked: seeded listings carry English lists
+        // and empty Arabic ones (the Arabic page falls back to the seed
+        // dictionary), and a start-time or typo fix must not be held
+        // hostage to a mismatch the host did not introduce.
         const lists = listLanguageBlocker(payload);
         if (lists !== null) {
           return { success: false, message: lists, values: collectValues(formData) };

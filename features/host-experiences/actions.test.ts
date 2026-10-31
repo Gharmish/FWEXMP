@@ -258,6 +258,10 @@ describe('updateHostExperience — list languages on a public listing (#121)', (
     cancellationTier: 'moderate',
     startTime: '06:00',
     availabilityWeekdays: [5, 6],
+    inclusions: [] as string[],
+    inclusionsAr: [] as string[],
+    whatToBring: [] as string[],
+    whatToBringAr: [] as string[],
   };
 
   /** Same facts as the row (no material change) with the given lists. */
@@ -289,9 +293,9 @@ describe('updateHostExperience — list languages on a public listing (#121)', (
     return fd;
   }
 
-  function publicRow(status: 'live' | 'paused') {
+  function publicRow(status: 'live' | 'paused', row: Partial<typeof LIVE_ROW> = {}) {
     fake.current = createDbFake({
-      query: { experiences: { findFirst: () => ({ ...LIVE_ROW, status }) } },
+      query: { experiences: { findFirst: () => ({ ...LIVE_ROW, ...row, status }) } },
       update: () => [{ id: OWN }],
       select: () => [],
     });
@@ -320,13 +324,26 @@ describe('updateHostExperience — list languages on a public listing (#121)', (
     expect(fake.current?.updates).toEqual([]);
   });
 
+  it('leaves a seeded one-language list alone when the save does not touch the lists', async () => {
+    // Seeded listings carry English lists and empty Arabic ones (the Arabic
+    // page uses the seed dictionary); an unrelated save must still go through.
+    publicRow('live', { inclusions: ['Coffee', 'Dates'] });
+    await expect(
+      updateHostExperience(initial, listForm({ inclusionsRaw: 'Coffee\nDates' })),
+    ).rejects.toThrow(`REDIRECT:/host/experiences/${OWN}?saved=1`);
+    expect(fake.current?.updates).toHaveLength(1);
+    // The moment the host edits that list, it has to come with its Arabic.
+    publicRow('live', { inclusions: ['Coffee', 'Dates'] });
+    expect(
+      await updateHostExperience(initial, listForm({ inclusionsRaw: 'Coffee\nDates\nTea' })),
+    ).toMatchObject({ success: false, message: 'needs_arabic_lists' });
+    expect(fake.current?.updates).toEqual([]);
+  });
+
   it('saves matching lists in place with an edited event, as before', async () => {
     publicRow('live');
     await expect(
-      updateHostExperience(
-        initial,
-        listForm({ inclusionsRaw: 'Coffee', inclusionsArRaw: 'قهوة' }),
-      ),
+      updateHostExperience(initial, listForm({ inclusionsRaw: 'Coffee', inclusionsArRaw: 'قهوة' })),
     ).rejects.toThrow(`REDIRECT:/host/experiences/${OWN}?saved=1`);
     expect(fake.current?.updates).toEqual([
       expect.objectContaining({ inclusions: ['Coffee'], inclusionsAr: ['قهوة'] }),
