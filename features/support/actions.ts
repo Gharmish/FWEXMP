@@ -223,6 +223,9 @@ export async function resolveTicket(
               vars: { ticketReference: updated[0].reference },
               dedupeKey: `support_ticket_resolved:${updated[0].id}`,
               transcript: `[template support_ticket_resolved · ${updated[0].reference}]`,
+              // Same attribution as the in-window notice above: a system
+              // line, not a reply that clears "awaiting reply" (#112).
+              author: 'system',
             });
           }
         }
