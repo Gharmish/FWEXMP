@@ -34,8 +34,9 @@ export async function sendGuestReminders(run: PassRunner) {
   // ~24h "get ready" and a ~3h day-of "see you soon". Each has its own dedupe flag
   // (`reminderSentAt` / `finalReminderSentAt`), so the hourly cadence,
   // manual triggers, and retries never double-send. Timing is computed
-  // per booking from its Riyadh start instant, not the calendar day, so
-  // an evening experience and a dawn one are each reminded on schedule.
+  // per booking from its Riyadh start instant, so an evening experience
+  // and a dawn one are each reminded on schedule; the "get ready" stage
+  // is additionally gated on the Riyadh calendar day its copy names.
   const nowMs = Date.now();
   const HOUR_MS = 60 * 60 * 1000;
   const todayRiyadh = todayInRiyadh();
@@ -108,8 +109,18 @@ export async function sendGuestReminders(run: PassRunner) {
             reminded += 1;
             continue;
           }
-          // "Get ready" (~24h).
-          if (row.reminderSentAt === null && hoursUntil <= 24) {
+          // "Get ready" (~24h). Every piece of this stage's copy (the email
+          // subject and intro, the guest and host WhatsApp templates) says
+          // "tomorrow", so it goes out only when the booking really is on
+          // the next Riyadh day (#273, 2026-11-01). A same-day booking
+          // made that morning used to get "see you tomorrow" for an
+          // experience starting that evening; it now waits for the ~3h
+          // departure reminder, which says "today" and stamps both flags.
+          // The hour bound keeps one cron cadence of slack (the pass runs at
+          // minute 0): a start at 23:30 tomorrow is 24.5h out on the 23:00
+          // run and already "today" on the next, so a strict 24 would skip
+          // it for good. The date gate keeps the copy honest either way.
+          if (row.reminderSentAt === null && hoursUntil <= 25 && row.date === tomorrowRiyadh) {
             await sendBookingPrepareReminderEmail(row.reference, row.preferredLanguage);
             await db
               .update(bookings)
