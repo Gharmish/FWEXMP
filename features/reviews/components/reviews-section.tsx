@@ -3,11 +3,12 @@ import { Link } from '@/lib/i18n';
 import type { Locale } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
 import { getReviewsForExperience } from '@/features/reviews/queries';
-import type { ReviewAggregate, ReviewSummary } from '@/features/reviews/types';
+import type { ReviewAggregate } from '@/features/reviews/types';
 import { JsonLd } from '@/components/seo/json-ld';
 import { Stagger, StaggerItem } from '@/components/ui/motion';
 import { RatingSummary } from '@/features/reviews/components/rating-summary';
 import { ReviewCard } from '@/features/reviews/components/review-card';
+import { reviewJsonLd } from '@/features/reviews/lib/review-json-ld';
 
 interface ReviewsSectionProps {
   experienceSlug: string;
@@ -35,30 +36,6 @@ interface ReviewsSectionProps {
    * section blocking the page body's own JSON-LD. Omit on previews.
    */
   productId?: string;
-}
-
-function reviewJsonLd(review: ReviewSummary, locale: Locale): Record<string, unknown> {
-  // Same pick as ReviewCard, so the structured layer states exactly the
-  // text the page shows: the Arabic page carried the English body while
-  // rendering the Arabic one (2026-10-14 SEO run).
-  const body =
-    locale === 'ar' ? (review.textAr ?? review.textEn) : (review.textEn ?? review.textAr);
-  return {
-    '@type': 'Review',
-    // guestName is ALREADY the public display form (first name + initial,
-    // compound-name aware) — derived once at the query layer via
-    // reviewDisplayName. Re-abbreviating here would re-split an
-    // already-abbreviated name and mangle Arabic compound names.
-    author: { '@type': 'Person', name: review.guestName },
-    datePublished: review.createdAt.slice(0, 10),
-    reviewRating: {
-      '@type': 'Rating',
-      ratingValue: review.rating,
-      bestRating: 5,
-      worstRating: 1,
-    },
-    ...(body ? { reviewBody: body } : {}),
-  };
 }
 
 /** Initial reviews shown before the "show all" link. */
