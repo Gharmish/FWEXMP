@@ -1,5 +1,13 @@
 import type { NextRequest } from 'next/server';
 import { getExperiences } from '@/features/experiences/queries';
+import { getLiveScheduleData, type ScheduleData } from '@/features/availability/queries';
+import {
+  BOOKING_HORIZON_DAYS,
+  addDays,
+  bookableDates,
+  nowMinutesInRiyadh,
+  todayInRiyadh,
+} from '@/features/bookings/lib/availability';
 import { SITE_URL } from '@/lib/site';
 import { csvCell } from '@/lib/csv';
 
@@ -26,6 +34,19 @@ import { csvCell } from '@/lib/csv';
  * products out of the catalog anyway; skipping makes the drop explicit
  * and keeps the feed valid. Relative image paths are absolutized (the
  * detail page guards `startsWith('http')` for the same reason).
+ *
+ * `availability` is derived from the live schedule (issue #303,
+ * 2026-11-04): a listing is `in stock` only when it has at least one
+ * bookable date in the booking horizon, by the same `bookableDates` rule
+ * the detail page uses for its Product JSON-LD, so the feed and the
+ * landing page never contradict each other for the same SKU. The
+ * schedules come from one batch read. A live listing missing from that
+ * read is `out of stock` (an ad for an unbookable listing costs more
+ * than a paused one). When the read itself is unavailable (no DB, or a
+ * failed query) the feed answers 503 with `no-store` instead of a
+ * catalog that pauses every product: the CDN would cache that for an
+ * hour and TikTok's scheduled fetch would ingest it until its next run,
+ * whereas a failed fetch keeps the last good catalog.
  */
 
 // No `revalidate` export: reading `request.nextUrl.searchParams` makes the
@@ -47,9 +68,42 @@ function absoluteImage(heroImage: string): string {
   return `${SITE_URL}${heroImage.startsWith('/') ? '' : '/'}${heroImage}`;
 }
 
+/** TikTok's `availability` column: `in stock` only with a bookable date in the horizon. */
+function stockLabel(
+  schedule: ScheduleData | undefined,
+  todayRiyadh: string,
+  nowMinutes: number,
+): 'in stock' | 'out of stock' {
+  if (!schedule) return 'out of stock';
+  const dates = bookableDates({
+    fromStr: todayRiyadh,
+    days: BOOKING_HORIZON_DAYS + 1,
+    availabilityWeekdays: schedule.availabilityWeekdays,
+    blackoutDates: schedule.blackoutDates,
+    stopSellDates: schedule.stopSellDates,
+    maxGroupSize: schedule.maxGroupSize,
+    bookedByDate: schedule.bookedByDate,
+    startTime: schedule.startTime,
+    nowMinutes,
+    cutoffMinutes: schedule.bookingCutoffHours * 60,
+  });
+  return dates.length > 0 ? 'in stock' : 'out of stock';
+}
+
 export async function GET(request: NextRequest) {
   const locale = request.nextUrl.searchParams.get('locale') === 'ar' ? 'ar' : 'en';
-  const experiences = await getExperiences();
+  const todayRiyadh = todayInRiyadh();
+  const nowMinutes = nowMinutesInRiyadh();
+  const [experiences, schedules] = await Promise.all([
+    getExperiences(),
+    getLiveScheduleData(todayRiyadh, addDays(todayRiyadh, BOOKING_HORIZON_DAYS)),
+  ]);
+  if (!schedules) {
+    return new Response('availability unavailable', {
+      status: 503,
+      headers: { 'Content-Type': 'text/plain; charset=utf-8', 'Cache-Control': 'no-store' },
+    });
+  }
   const header =
     'sku_id,title,description,availability,condition,price,link,image_link,brand,product_type';
   const rows = experiences
@@ -59,11 +113,7 @@ export async function GET(request: NextRequest) {
         field(e.slug),
         field(locale === 'ar' ? e.titleAr : e.titleEn),
         field(locale === 'ar' ? e.descriptionAr : e.descriptionEn),
-        // TODO(analytics): derive from live schedule capacity ("out of
-        // stock" when no bookable date remains) — needs a batch
-        // availability read alongside this cached loader, not a per-row
-        // fan-out against the pooler.
-        'in stock',
+        stockLabel(schedules.get(e.id), todayRiyadh, nowMinutes),
         'new',
         `${e.priceSar.toFixed(2)} SAR`,
         field(`${SITE_URL}/${locale}/experiences/${e.slug}`),

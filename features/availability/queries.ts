@@ -55,6 +55,79 @@ export async function getScheduleDataBySlug(
   }
 }
 
+/**
+ * Schedule for EVERY live listing over one date range, keyed by experience
+ * id (issue #303, 2026-11-04). Built for the TikTok catalog feed, which
+ * must say "out of stock" for a live listing with no bookable date: two
+ * statements for the whole set (the schedule columns, then booked seats
+ * grouped by listing and date) instead of a per-row fan-out against the
+ * pooler. Returns null without a DB or when either read fails, so the
+ * caller can degrade to the safe stock signal rather than assert stock.
+ */
+export async function getLiveScheduleData(
+  fromStr: string,
+  toStr: string,
+): Promise<ReadonlyMap<string, ScheduleData> | null> {
+  if (!serverEnv.DATABASE_URL) return null;
+  try {
+    const rows = await boundedQuery('availability:liveSchedules', () =>
+      db.query.experiences.findMany({
+        where: (e) => eq(e.status, 'live'),
+        columns: {
+          id: true,
+          availabilityWeekdays: true,
+          blackoutDates: true,
+          stopSellDates: true,
+          maxGroupSize: true,
+          startTime: true,
+          bookingCutoffHours: true,
+        },
+      }),
+    );
+    const schedules = new Map<string, ScheduleData>();
+    for (const row of rows) {
+      schedules.set(row.id, {
+        availabilityWeekdays: [...row.availabilityWeekdays],
+        blackoutDates: [...row.blackoutDates],
+        stopSellDates: [...row.stopSellDates],
+        maxGroupSize: row.maxGroupSize,
+        startTime: row.startTime,
+        bookingCutoffHours: row.bookingCutoffHours,
+        bookedByDate: {},
+      });
+    }
+    if (schedules.size === 0) return schedules;
+
+    const booked = await boundedQuery('availability:liveBookedByDate', () =>
+      db
+        .select({
+          experienceId: bookings.experienceId,
+          date: bookings.date,
+          booked: sql<number>`coalesce(sum(${bookings.partySize}), 0)::int`,
+        })
+        .from(bookings)
+        .where(
+          and(
+            inArray(bookings.experienceId, [...schedules.keys()]),
+            gte(bookings.date, fromStr),
+            lte(bookings.date, toStr),
+            inArray(bookings.status, [...ACTIVE_STATUSES]),
+            holdStillCounts(),
+          ),
+        )
+        .groupBy(bookings.experienceId, bookings.date),
+    );
+    for (const row of booked) {
+      const schedule = schedules.get(row.experienceId);
+      if (schedule) schedule.bookedByDate[row.date] = row.booked;
+    }
+    return schedules;
+  } catch (error) {
+    reportError(error, { surface: 'availability:getLiveScheduleData' });
+    return null;
+  }
+}
+
 async function scheduleDataById(
   experienceId: string,
   fromStr: string,
