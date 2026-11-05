@@ -801,6 +801,11 @@ export async function duplicateHostExperience(
       with: { moments: true },
     });
     if (!source) return { success: false, message: 'not_found' };
+    // Archived rows are read-only for the host (an admin takedown): the
+    // dashboard hides Duplicate, and the server must refuse it as every
+    // other host write does, or a hand-made post copies the taken-down
+    // content into a fresh draft.
+    if (source.status === 'archived') return { success: false, message: 'wrong_state' };
 
     // Suffix whichever titles are real so two near-identical drafts are
     // tellable apart in either language; an unset side stays unset.
