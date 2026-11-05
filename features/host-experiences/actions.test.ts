@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { createDbFake } from '@/lib/test/db-fake';
+import { duplicateHostExperience } from './actions';
 
 /**
  * Cross-tenant guards on the host listing mutations (2026-09 engineering
@@ -35,12 +36,7 @@ vi.mock('@/lib/db', () => ({
   },
 }));
 
-import {
-  deleteDraftExperience,
-  duplicateHostExperience,
-  pauseHostExperience,
-  updateHostExperience,
-} from './actions';
+import { deleteDraftExperience, pauseHostExperience, updateHostExperience } from './actions';
 
 function form(experienceId: string): FormData {
   const fd = new FormData();
@@ -114,6 +110,46 @@ describe('pauseHostExperience on an owned listing', () => {
     ownership(true);
     expect(await pauseHostExperience(initial, form(OWN))).toMatchObject({ message: 'wrong_state' });
     expect(fake.current?.updates).toHaveLength(1);
+  });
+});
+
+/**
+ * The dashboard hides Duplicate on an archived listing (an admin
+ * takedown), and every other host write refuses `archived` on the
+ * server. A hand-made post of the duplicate action must be refused too,
+ * not copy the taken-down content into a fresh draft.
+ */
+describe('duplicateHostExperience on an archived listing', () => {
+  function sourceRow(status: string) {
+    fake.current = createDbFake({
+      query: {
+        experiences: {
+          findFirst: () => ({
+            id: OWN,
+            status,
+            slug: 'x',
+            titleEn: 'Title',
+            titleAr: 'عنوان',
+            inclusions: [],
+            inclusionsAr: [],
+            whatToBring: [],
+            whatToBringAr: [],
+            availabilityWeekdays: [],
+            moments: [],
+          }),
+        },
+      },
+      insert: () => [{ id: '55555555-5555-4555-8555-555555555555' }],
+    });
+  }
+
+  it('refuses as wrong_state without inserting a copy', async () => {
+    sourceRow('archived');
+    expect(await duplicateHostExperience(initial, form(OWN))).toMatchObject({
+      success: false,
+      message: 'wrong_state',
+    });
+    expect(fake.current?.inserts).toEqual([]);
   });
 });
 
@@ -228,46 +264,6 @@ describe('updateHostExperience — material edit vs a concurrent status change',
     });
     const priced = fake.current?.updates.filter((u) => u.priceSar === 350) ?? [];
     expect(priced.every((u) => u.status === 'pending_review')).toBe(true);
-    expect(fake.current?.inserts).toEqual([]);
-  });
-});
-
-/**
- * The dashboard hides Duplicate on an archived listing (an admin
- * takedown), and every other host write refuses `archived` on the
- * server. A hand-made post of the duplicate action must be refused too,
- * not copy the taken-down content into a fresh draft.
- */
-describe('duplicateHostExperience on an archived listing', () => {
-  function sourceRow(status: string) {
-    fake.current = createDbFake({
-      query: {
-        experiences: {
-          findFirst: () => ({
-            id: OWN,
-            status,
-            slug: 'x',
-            titleEn: 'Title',
-            titleAr: 'عنوان',
-            inclusions: [],
-            inclusionsAr: [],
-            whatToBring: [],
-            whatToBringAr: [],
-            availabilityWeekdays: [],
-            moments: [],
-          }),
-        },
-      },
-      insert: () => [{ id: '55555555-5555-4555-8555-555555555555' }],
-    });
-  }
-
-  it('refuses as wrong_state without inserting a copy', async () => {
-    sourceRow('archived');
-    expect(await duplicateHostExperience(initial, form(OWN))).toMatchObject({
-      success: false,
-      message: 'wrong_state',
-    });
     expect(fake.current?.inserts).toEqual([]);
   });
 });
