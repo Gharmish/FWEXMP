@@ -5,6 +5,7 @@ import { db } from '@/lib/db';
 import { serverEnv } from '@/lib/env';
 import { bookings, experiences, reviews } from '@/db/schema';
 import { reportError } from '@/lib/log';
+import { isUuid } from '@/lib/uuid';
 import { getCurrentHostRef } from '@/features/host-dashboard/queries';
 export type { HostExperienceRow, HostListingStats } from '@/features/host-experiences/types';
 import type { HostExperienceRow, HostListingStats } from '@/features/host-experiences/types';
@@ -78,8 +79,12 @@ export async function listMyExperiences(): Promise<readonly HostExperienceRow[]>
       .orderBy(desc(experiences.createdAt));
     return rows.map(rowToView);
   } catch (error) {
+    // Rethrow: an empty list here tells a host with live listings they
+    // have none ("Create your first"). The dashboard's error boundary
+    // owns failures, as for the bookings and earnings reads (2026-09 UX
+    // audit P1-7/P1-8).
     reportError(error, { surface: 'host-experiences:listMy' });
-    return [];
+    throw error;
   }
 }
 
@@ -89,6 +94,9 @@ export async function listMyExperiences(): Promise<readonly HostExperienceRow[]>
  * "this id exists but you can't see it" via the response.
  */
 export async function getMyExperienceById(id: string): Promise<HostExperienceRow | null> {
+  // A non-UUID path segment can't match a row; Postgres would reject it
+  // as invalid uuid input, which must stay a 404, not an error page.
+  if (!isUuid(id)) return null;
   const hostId = await resolveHostIdForCurrentUser();
   if (!hostId) return null;
   try {
@@ -97,8 +105,9 @@ export async function getMyExperienceById(id: string): Promise<HostExperienceRow
     });
     return row ? rowToView(row) : null;
   } catch (error) {
+    // Rethrow: null here 404s the host's own listing during a DB blip.
     reportError(error, { surface: 'host-experiences:getMy', experienceId: id });
-    return null;
+    throw error;
   }
 }
 
