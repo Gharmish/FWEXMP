@@ -42,7 +42,7 @@ vi.mock('@/features/support/tickets', () => ({
 vi.mock('./knowledge', () => ({ buildKnowledge: async () => 'KB' }));
 vi.mock('./tools', () => ({ TOOLS: [], toolsFor: () => [], runTool: vi.fn() }));
 vi.mock('./identity', () => ({
-  readIdentityState: async () => ({ verified: false, hasEmail: true }),
+  readIdentityState: async () => ({ verified: false, hasEmail: true, bookingScope: 'account' }),
 }));
 
 const T0 = new Date('2026-09-11T10:00:00.000Z');

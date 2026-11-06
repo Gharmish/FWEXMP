@@ -43,12 +43,16 @@ vi.mock('@/features/bookings/lib/transition-executor', () => ({
   executeBookingTransition: (...args: unknown[]) => executeBookingTransition(...args),
 }));
 const attemptIdentityChallenge = vi.fn();
-vi.mock('./identity', () => ({
+vi.mock('./identity', async (importOriginal) => ({
+  // `sameNumber` is pure and is what the booking-scope filter runs on;
+  // only the challenge itself is faked.
+  ...(await importOriginal<typeof import('./identity')>()),
   attemptIdentityChallenge: (...args: unknown[]) => attemptIdentityChallenge(...args),
 }));
 
-import { confirmationPresent, runTool, TOOLS, type ToolContext } from './tools';
+import { confirmationPresent, runTool, toolsFor, TOOLS, type ToolContext } from './tools';
 import { getBookingsForGuest } from '@/features/bookings/queries';
+import { getScheduleDataBySlug } from '@/features/availability/queries';
 
 describe('confirmationPresent', () => {
   it("accepts the guest's words when they are in the latest message", () => {
@@ -96,6 +100,7 @@ describe('refund bank details via the agent', () => {
     identityVerified: true,
     identityVerifiedAt: new Date(),
     guestHasEmail: true,
+    bookingScope: 'account',
     locale: 'en',
     now: new Date('2026-08-21T09:00:00Z'),
     lastInbound: 'yes cancel it',
@@ -226,6 +231,7 @@ describe('write tools refuse an unverified sender', () => {
     hostId: null,
     identityVerified: false,
     guestHasEmail: true,
+    bookingScope: 'account',
     locale: 'en',
     now: new Date('2026-08-21T10:00:00Z'),
     lastInbound: 'yes cancel it',
@@ -282,6 +288,7 @@ describe('verify_identity results', () => {
     hostId: null,
     identityVerified: false,
     guestHasEmail: true,
+    bookingScope: 'account',
     locale: 'en',
     now: new Date('2026-08-21T10:00:00Z'),
     lastInbound: 'sara@example.com',
@@ -320,6 +327,39 @@ describe('verify_identity results', () => {
       submittedEmail: 'x@y.com',
     });
   });
+
+  // The same `ctx` object serves every tool call of a turn (agent.ts).
+  // A pass must be visible to the calls that follow it in that turn, or
+  // the agent asks for the email it was just given (#134).
+  it('unlocks the write tools for the rest of the same turn once verified (#134)', async () => {
+    attemptIdentityChallenge.mockResolvedValue('verified');
+    const turn: ToolContext = { ...ctx, identityVerified: false, identityVerifiedAt: null };
+    expect(toolsFor(turn).map((t) => t.name)).not.toContain('cancel_booking');
+
+    await runTool('verify_identity', { email: 'sara@example.com' }, turn);
+
+    expect(turn.identityVerified).toBe(true);
+    expect(turn.identityVerifiedAt).toEqual(turn.now);
+    const names = toolsFor(turn).map((t) => t.name);
+    expect(names).toContain('cancel_booking');
+    expect(names).not.toContain('verify_identity');
+    // Past the identity gate: the next refusal is the missing booking, not the identity.
+    vi.mocked(getBookingsForGuest).mockResolvedValueOnce([]);
+    const out = JSON.parse(
+      (await runTool('cancel_booking', { reference_code: 'GH-NONE00' }, turn)).result,
+    );
+    expect(out.error).toBe('not_found');
+  });
+
+  it('leaves the turn locked on every other outcome', async () => {
+    for (const outcome of ['mismatch', 'no_email_on_file', 'throttled', 'unavailable']) {
+      attemptIdentityChallenge.mockResolvedValue(outcome);
+      const turn: ToolContext = { ...ctx, identityVerified: false, identityVerifiedAt: null };
+      await runTool('verify_identity', { email: 'guess@attacker.com' }, turn);
+      expect(turn.identityVerified).toBe(false);
+      expect(turn.identityVerifiedAt).toBeNull();
+    }
+  });
 });
 
 describe('decide_booking_request (issue #41)', () => {
@@ -331,6 +371,7 @@ describe('decide_booking_request (issue #41)', () => {
     identityVerified: false,
     identityVerifiedAt: null,
     guestHasEmail: false,
+    bookingScope: 'account',
     locale: 'en',
     now: new Date('2026-08-21T09:00:00Z'),
     lastInbound: 'yes approve it',
@@ -387,6 +428,7 @@ describe('write tools after an admin takes the thread (#69)', () => {
     identityVerified: true,
     identityVerifiedAt: new Date(),
     guestHasEmail: true,
+    bookingScope: 'account',
     locale: 'en',
     now: new Date('2026-08-21T09:00:00Z'),
     lastInbound: 'yes cancel it',
@@ -439,5 +481,127 @@ describe('write tools after an admin takes the thread (#69)', () => {
     conversationState = 'human';
     const out = await runTool('list_my_bookings', {}, ctx);
     expect(JSON.parse(out.result)).toHaveProperty('bookings');
+  });
+});
+
+/**
+ * A conversation bound through `bookings.contact_phone` is not the
+ * account (#234, 2026-10-30): the number was typed on ONE booking, by
+ * someone else or by mistake, so the read tools must show that booking
+ * and nothing else on the account until the sender passes the email
+ * challenge.
+ */
+describe('booking reads are scoped to the number that received them (#234)', () => {
+  const SENDER = '+966500000002';
+  const base: ToolContext = {
+    conversationId: 'c-1',
+    address: SENDER,
+    guestId: 'g-1',
+    hostId: null,
+    identityVerified: false,
+    identityVerifiedAt: null,
+    guestHasEmail: true,
+    bookingScope: 'contact',
+    locale: 'en',
+    now: new Date('2026-08-21T09:00:00Z'),
+    lastInbound: 'what are my bookings?',
+  };
+  /** The booking whose contact phone is the sender. */
+  const addressed = {
+    id: 'b-addressed',
+    reference: 'ref-addressed',
+    referenceCode: 'GH-ADDRES',
+    guestPhone: SENDER,
+    status: 'confirmed',
+    paymentStatus: 'paid',
+    totalAmountSar: 200,
+    walletAppliedSar: 0,
+    createdAt: '2026-08-01T09:00:00.000Z',
+  };
+  /** Another trip on the same account, addressed to the account's own phone. */
+  const unrelated = {
+    id: 'b-other',
+    reference: 'ref-other',
+    referenceCode: 'GH-OTHER0',
+    guestPhone: '+966500000001',
+    status: 'confirmed',
+    paymentStatus: 'paid',
+    totalAmountSar: 300,
+    walletAppliedSar: 0,
+    createdAt: '2026-08-02T09:00:00.000Z',
+  };
+  const codes = (out: { result: string }) =>
+    (JSON.parse(out.result).bookings as Array<{ reference_code: string }>).map(
+      (b) => b.reference_code,
+    );
+
+  beforeEach(() => {
+    conversationState = 'bot';
+    vi.mocked(getBookingsForGuest).mockResolvedValue([unrelated, addressed] as never);
+  });
+
+  it('lists only the booking addressed to a contact-phone sender', async () => {
+    const out = await runTool('list_my_bookings', {}, base);
+    expect(codes(out)).toEqual(['GH-ADDRES']);
+  });
+
+  it('matches the number on its digits, whatever the punctuation', async () => {
+    const out = await runTool(
+      'list_my_bookings',
+      {},
+      { ...base, address: 'whatsapp:+966 50 000 0002' },
+    );
+    expect(codes(out)).toEqual(['GH-ADDRES']);
+  });
+
+  it("refuses booking_detail on the account's other booking and points at the email check", async () => {
+    const out = await runTool('booking_detail', { reference_code: 'GH-OTHER0' }, base);
+    const parsed = JSON.parse(out.result) as { error: string; note: string };
+    expect(parsed.error).toBe('not_found');
+    expect(parsed.note).toContain('verify_identity');
+  });
+
+  it('still finds the booking addressed to the sender (same lookup every per-booking tool uses)', async () => {
+    // `available_dates` goes through the same `findOwnBooking` as
+    // booking_detail, cancel and reschedule, with the smallest fixture.
+    vi.mocked(getScheduleDataBySlug).mockResolvedValueOnce(null as never);
+    const out = await runTool('available_dates', { reference_code: 'GH-ADDRES' }, base);
+    expect(JSON.parse(out.result)).toMatchObject({ error: 'unavailable' });
+    expect(getScheduleDataBySlug).toHaveBeenCalledTimes(1);
+  });
+
+  it("shows the whole account when the number is the guest row's own phone", async () => {
+    const out = await runTool('list_my_bookings', {}, { ...base, bookingScope: 'account' });
+    expect(codes(out)).toEqual(['GH-OTHER0', 'GH-ADDRES']);
+  });
+
+  it('shows the whole account once the sender has proven the email on it', async () => {
+    const out = await runTool(
+      'list_my_bookings',
+      {},
+      { ...base, identityVerified: true, identityVerifiedAt: new Date() },
+    );
+    expect(codes(out)).toEqual(['GH-OTHER0', 'GH-ADDRES']);
+  });
+
+  it('widens the view within the same turn as the passed email check (#234 review)', async () => {
+    // The `not_found` note tells the model to verify_identity "then try
+    // again"; the retry happens in the same turn, on the same ctx.
+    attemptIdentityChallenge.mockResolvedValue('verified');
+    vi.mocked(getScheduleDataBySlug).mockReset();
+    vi.mocked(getScheduleDataBySlug).mockResolvedValue(null as never);
+    const turn: ToolContext = { ...base };
+    // `available_dates` shares `findOwnBooking` with booking_detail and the
+    // write tools; the schedule read runs only once the booking is found.
+    const before = await runTool('available_dates', { reference_code: 'GH-OTHER0' }, turn);
+    expect(JSON.parse(before.result)).toMatchObject({ error: 'not_found' });
+    expect(getScheduleDataBySlug).not.toHaveBeenCalled();
+
+    await runTool('verify_identity', { email: 'sara@example.com' }, turn);
+
+    const after = await runTool('available_dates', { reference_code: 'GH-OTHER0' }, turn);
+    expect(JSON.parse(after.result)).toMatchObject({ error: 'unavailable' });
+    expect(getScheduleDataBySlug).toHaveBeenCalledTimes(1);
+    expect(codes(await runTool('list_my_bookings', {}, turn))).toEqual(['GH-OTHER0', 'GH-ADDRES']);
   });
 });
