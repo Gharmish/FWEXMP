@@ -219,7 +219,7 @@ describe('setConversationState / resolveTicket / nudgeConversation', () => {
     conversation = { ...conversation, lastInboundAt: new Date(Date.now() - 30 * 3_600_000) };
     expect(await resolveTicket(initial, form({ ticketId: CID }))).toEqual({ success: true });
     expect(template).toHaveBeenCalledWith(
-      expect.objectContaining({ templateId: 'support_ticket_resolved' }),
+      expect.objectContaining({ templateId: 'support_ticket_resolved', author: 'system' }),
     );
     updated = [];
     expect(await resolveTicket(initial, form({ ticketId: CID }))).toMatchObject({
