@@ -3,13 +3,18 @@ import { createDbFake } from '@/lib/test/db-fake';
 
 vi.mock('@/lib/log', () => ({ reportError: vi.fn() }));
 vi.mock('next/headers', () => ({ cookies: async () => ({ get: () => undefined }) }));
+/** The reference the device's last-booking cookie points at (null = no cookie). */
+let cookieReference: string | null = null;
 vi.mock('@/features/account/cookie', () => ({
   LAST_BOOKING_COOKIE: 'gh_last_booking',
-  parseLastBookingCookie: () => null,
+  parseLastBookingCookie: () => (cookieReference ? { reference: cookieReference } : null),
 }));
 vi.mock('@/lib/booking-link-token', () => ({
   bookingLinkTokenValid: (_ref: string, token: string | undefined) => token === 'signed-ok',
 }));
+vi.mock('@/features/auth/queries', () => ({ getCurrentUser: async () => null }));
+/** The hold's guest row — `authUserId` set means an account owns it (#180 / #258). */
+let holdGuest: { authUserId: string | null } | undefined = { authUserId: null };
 const releaseWalletReservation = vi.fn<(id: string) => Promise<{ released: boolean }>>(
   async () => ({ released: true }),
 );
@@ -58,8 +63,11 @@ const input = {
 beforeEach(() => {
   releaseWalletReservation.mockClear();
   ledger.mockClear();
+  cookieReference = null;
+  holdGuest = { authUserId: null };
   hold = {
     id: 'b-old',
+    guestId: 'g-old',
     contactPhone: '+966541104000',
     status: 'confirmed',
     paymentStatus: 'processing',
@@ -70,7 +78,7 @@ beforeEach(() => {
     totalAmount: 250,
   };
   fake.current = createDbFake({
-    query: { bookings: { findFirst: () => hold } },
+    query: { bookings: { findFirst: () => hold }, guests: { findFirst: () => holdGuest } },
     update: () => [{ id: 'b-old' }],
   });
 });
@@ -95,6 +103,27 @@ describe('resolveSupersededHold', () => {
 
   it('still demands proof of ownership', async () => {
     expect(await resolveSupersededHold({ ...input, supersedesToken: 'forged' }, NEW)).toBeNull();
+  });
+
+  /**
+   * The device cookie proves an ANONYMOUS booking only (#180). A hold that
+   * belongs to an account needs that account's session or the signed
+   * link; otherwise anyone on a shared device whose session lapsed could
+   * cancel the account's hold through "change date or guests" (#258,
+   * supersede half; #257 review).
+   */
+  it("refuses the bare device cookie for an account's hold, and keeps it for an anonymous one", async () => {
+    cookieReference = OLD;
+    const cookieOnly = { ...input, supersedesToken: undefined };
+    holdGuest = { authUserId: 'auth-1' };
+    expect(await resolveSupersededHold(cookieOnly, NEW)).toBeNull();
+    // The signed link still proves it, whoever owns the row.
+    expect(await resolveSupersededHold(input, NEW)).toMatchObject({ id: 'b-old' });
+    // An unreadable guest row is not proven anonymous.
+    holdGuest = undefined;
+    expect(await resolveSupersededHold(cookieOnly, NEW)).toBeNull();
+    holdGuest = { authUserId: null };
+    expect(await resolveSupersededHold(cookieOnly, NEW)).toMatchObject({ id: 'b-old' });
   });
 });
 
@@ -149,6 +178,17 @@ describe('the listing calendar gives the guest their own held seats back (#77)',
 
   it('returns the held seats for a live hold on this listing, proven by token', async () => {
     expect(await supersededHoldSeats(OLD, 'signed-ok', 'exp-1')).toEqual({
+      date: '2026-11-02',
+      partySize: 4,
+    });
+  });
+
+  it("gives nothing back on the bare cookie for an account's hold (#258)", async () => {
+    cookieReference = OLD;
+    holdGuest = { authUserId: 'auth-1' };
+    expect(await supersededHoldSeats(OLD, undefined, 'exp-1')).toBeNull();
+    holdGuest = { authUserId: null };
+    expect(await supersededHoldSeats(OLD, undefined, 'exp-1')).toEqual({
       date: '2026-11-02',
       partySize: 4,
     });
