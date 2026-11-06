@@ -147,6 +147,22 @@ function parseFields(
   return { input: parsed.data };
 }
 
+/**
+ * On a live or paused listing a moment is public the moment it is saved,
+ * so it must carry both languages: the Arabic placeholder the draft flow
+ * stores for the team to fill put an English timeline on the Arabic page
+ * (#121, 2026-10-31). Drafts and change requests keep the placeholder
+ * path, which approval's `needs_arabic_moments` gate still checks.
+ */
+function arabicRequired(
+  status: OwnedExperience['status'],
+  input: z.infer<typeof hostMomentSchema>,
+): MomentActionState | null {
+  if (status !== 'live' && status !== 'paused') return null;
+  if (input.titleAr !== undefined && input.descriptionAr !== undefined) return null;
+  return { success: false, message: 'needs_arabic' };
+}
+
 export async function addMomentAsHost(
   _previous: MomentActionState,
   formData: FormData,
@@ -164,6 +180,8 @@ export async function addMomentAsHost(
   const parsed = parseFields(formData);
   if ('error' in parsed) return parsed.error;
   const { input } = parsed;
+  const arabic = arabicRequired(guard.experience.status, input);
+  if (arabic) return { ...arabic, values };
 
   try {
     const [{ next }] = await db
@@ -205,6 +223,8 @@ export async function updateMomentAsHost(
     if (!experienceId) return { success: false, message: 'not_found', values };
     const guard = await requireEditableExperience(experienceId);
     if ('error' in guard) return { ...guard.error, values };
+    const arabic = arabicRequired(guard.experience.status, input);
+    if (arabic) return { ...arabic, values };
 
     // The editor prefills the stored Arabic (placeholder-stripped), so
     // saves round-trip existing translations; a blank field reverts to

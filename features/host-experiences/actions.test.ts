@@ -36,6 +36,7 @@ vi.mock('@/lib/db', () => ({
 }));
 
 import { deleteDraftExperience, pauseHostExperience, updateHostExperience } from './actions';
+import { AR_PLACEHOLDER } from '@/lib/ar-placeholder';
 
 function form(experienceId: string): FormData {
   const fd = new FormData();
@@ -224,5 +225,131 @@ describe('updateHostExperience — material edit vs a concurrent status change',
     const priced = fake.current?.updates.filter((u) => u.priceSar === 350) ?? [];
     expect(priced.every((u) => u.status === 'pending_review')).toBe(true);
     expect(fake.current?.inserts).toEqual([]);
+  });
+});
+
+/**
+ * A NON-material save on a live or paused listing writes straight to the
+ * public row, so it must keep both languages of "What's included" and
+ * "What to bring" — the approval gate only runs when a reviewer approves
+ * (#121, 2026-10-31).
+ */
+describe('updateHostExperience — list languages on a public listing (#121)', () => {
+  // The form posts blank Arabic copy as the placeholder, so the stored row
+  // carries it too — otherwise every save reads as a material change.
+  const LIVE_ROW = {
+    id: OWN,
+    status: 'live',
+    slug: 'x',
+    titleEn: 'Sunrise hike on the escarpment',
+    titleAr: AR_PLACEHOLDER,
+    descriptionEn: 'A'.repeat(80),
+    descriptionAr: AR_PLACEHOLDER,
+    category: 'nature',
+    priceSar: 200,
+    placeName: 'Al Soudah',
+    city: 'Abha',
+    region: 'Aseer',
+    lat: 18.2,
+    lng: 42.4,
+    durationMinutes: 180,
+    maxGroupSize: 8,
+    minAge: 0,
+    cancellationTier: 'moderate',
+    startTime: '06:00',
+    availabilityWeekdays: [5, 6],
+    inclusions: [] as string[],
+    inclusionsAr: [] as string[],
+    whatToBring: [] as string[],
+    whatToBringAr: [] as string[],
+  };
+
+  /** Same facts as the row (no material change) with the given lists. */
+  function listForm(lists: Record<string, string>): FormData {
+    const fd = form(OWN);
+    const fields: Record<string, string> = {
+      titleEn: LIVE_ROW.titleEn,
+      descriptionEn: LIVE_ROW.descriptionEn,
+      category: LIVE_ROW.category,
+      priceSar: String(LIVE_ROW.priceSar),
+      placeName: LIVE_ROW.placeName,
+      city: LIVE_ROW.city,
+      region: LIVE_ROW.region,
+      lat: String(LIVE_ROW.lat),
+      lng: String(LIVE_ROW.lng),
+      durationMinutes: String(LIVE_ROW.durationMinutes),
+      maxGroupSize: String(LIVE_ROW.maxGroupSize),
+      minAge: String(LIVE_ROW.minAge),
+      cancellationTier: LIVE_ROW.cancellationTier,
+      startTime: LIVE_ROW.startTime,
+      inclusionsRaw: '',
+      inclusionsArRaw: '',
+      whatToBringRaw: '',
+      whatToBringArRaw: '',
+      ...lists,
+    };
+    for (const [k, v] of Object.entries(fields)) fd.set(k, v);
+    for (const d of LIVE_ROW.availabilityWeekdays) fd.append('availabilityWeekdays', String(d));
+    return fd;
+  }
+
+  function publicRow(status: 'live' | 'paused', row: Partial<typeof LIVE_ROW> = {}) {
+    fake.current = createDbFake({
+      query: { experiences: { findFirst: () => ({ ...LIVE_ROW, ...row, status }) } },
+      update: () => [{ id: OWN }],
+      select: () => [],
+    });
+  }
+
+  it.each(['live', 'paused'] as const)(
+    'refuses an English-only list on a %s listing, echoing the form, and writes nothing',
+    async (status) => {
+      publicRow(status);
+      const out = await updateHostExperience(
+        initial,
+        listForm({ inclusionsRaw: 'Coffee\nDates', inclusionsArRaw: '' }),
+      );
+      expect(out).toMatchObject({ success: false, message: 'needs_arabic_lists' });
+      expect(out.values).toMatchObject({ inclusionsRaw: 'Coffee\nDates' });
+      expect(fake.current?.updates).toEqual([]);
+      expect(fake.current?.inserts).toEqual([]);
+    },
+  );
+
+  it('refuses an Arabic-only list on a live listing as needs_english', async () => {
+    publicRow('live');
+    expect(
+      await updateHostExperience(initial, listForm({ whatToBringArRaw: 'قبعة' })),
+    ).toMatchObject({ success: false, message: 'needs_english' });
+    expect(fake.current?.updates).toEqual([]);
+  });
+
+  it('leaves a seeded one-language list alone when the save does not touch the lists', async () => {
+    // Seeded listings carry English lists and empty Arabic ones (the Arabic
+    // page uses the seed dictionary); an unrelated save must still go through.
+    publicRow('live', { inclusions: ['Coffee', 'Dates'] });
+    await expect(
+      updateHostExperience(initial, listForm({ inclusionsRaw: 'Coffee\nDates' })),
+    ).rejects.toThrow(`REDIRECT:/host/experiences/${OWN}?saved=1`);
+    expect(fake.current?.updates).toHaveLength(1);
+    // The moment the host edits that list, it has to come with its Arabic.
+    publicRow('live', { inclusions: ['Coffee', 'Dates'] });
+    expect(
+      await updateHostExperience(initial, listForm({ inclusionsRaw: 'Coffee\nDates\nTea' })),
+    ).toMatchObject({ success: false, message: 'needs_arabic_lists' });
+    expect(fake.current?.updates).toEqual([]);
+  });
+
+  it('saves matching lists in place with an edited event, as before', async () => {
+    publicRow('live');
+    await expect(
+      updateHostExperience(initial, listForm({ inclusionsRaw: 'Coffee', inclusionsArRaw: 'قهوة' })),
+    ).rejects.toThrow(`REDIRECT:/host/experiences/${OWN}?saved=1`);
+    expect(fake.current?.updates).toEqual([
+      expect.objectContaining({ inclusions: ['Coffee'], inclusionsAr: ['قهوة'] }),
+    ]);
+    expect(fake.current?.inserts).toEqual([
+      expect.objectContaining({ event: 'edited', fromStatus: 'live', toStatus: 'live' }),
+    ]);
   });
 });

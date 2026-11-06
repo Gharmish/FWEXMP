@@ -177,6 +177,7 @@ export default async function EditExperiencePage({
     descriptionAr: t('moments.descriptionAr'),
     arHint: t('moments.arHint'),
     lockedLive: t('moments.lockedLive'),
+    needsArabic: t('moments.needsArabic'),
     save: t('moments.save'),
     saving: t('moments.saving'),
     add: t('moments.add'),
