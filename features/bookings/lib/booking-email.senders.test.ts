@@ -84,6 +84,8 @@ vi.mock('@/lib/db', () => ({
 }));
 
 import * as senders from './booking-email';
+import en from '@/messages/en.json';
+import ar from '@/messages/ar.json';
 
 const PAID_AT = '2026-09-10T08:00:00.000Z';
 const FUTURE = new Date(Date.now() + 6 * 3_600_000).toISOString();
@@ -474,5 +476,49 @@ describe('the pre-lapse payment reminder skips short holds', () => {
     booking = hold({ createdAt: inMinutes(-1), paymentDeadline: inMinutes(29) });
     await senders.sendBookingAwaitingPaymentEmail('ref-1', 'created');
     expect(sent()).toHaveLength(1);
+  });
+});
+
+/**
+ * A settled refund names the rail the money took (#168): on the manual
+ * bank rail the WhatsApp line must not say "your original payment
+ * method", and no "refunded" intro claims "in full" (the rows below the
+ * intro carry the amounts).
+ */
+describe('the refunded WhatsApp line names the rail (#168)', () => {
+  const bank = {
+    bankName: 'Al Rajhi',
+    beneficiaryName: 'Sara',
+    ibanMasked: 'SA** **** 1234',
+    submittedAt: PAID_AT,
+  };
+
+  it('says the money went to the bank account on the manual rail', async () => {
+    booking = base({ status: 'cancelled', refundMethod: 'manual', refundBank: bank });
+    await senders.sendBookingCancellationEmail('ref-1', 'refunded', { refundAmountSar: 100 });
+    const [call] = dispatchNotification.mock.calls.map((c) => JSON.stringify(c));
+    expect(call).toContain('transferred to the bank account you provided');
+    expect(call).not.toContain('original payment method');
+    expect(call).toContain('cancelIntroRefundedBank');
+  });
+
+  it('never claims "in full" in a refunded intro, in either language', () => {
+    for (const messages of [en, ar] as Array<{ bookingEmail: Record<string, string> }>) {
+      for (const framing of ['cancel', 'cancelByHost', 'cancelByOps']) {
+        for (const suffix of ['IntroRefunded', 'IntroRefundedBank']) {
+          const copy = messages.bookingEmail[`${framing}${suffix}`];
+          expect(copy, `${framing}${suffix}`).toBeTypeOf('string');
+          expect(copy).not.toMatch(/in full|كامل/);
+        }
+      }
+    }
+  });
+
+  it('keeps the card wording on the gateway rail', async () => {
+    booking = base({ status: 'cancelled', refundMethod: 'gateway', refundBank: null });
+    await senders.sendBookingCancellationEmail('ref-1', 'refunded', { cancelledBy: 'operator' });
+    const [call] = dispatchNotification.mock.calls.map((c) => JSON.stringify(c));
+    expect(call).toContain('original payment method');
+    expect(call).toContain('cancelByOpsIntroRefunded');
   });
 });
