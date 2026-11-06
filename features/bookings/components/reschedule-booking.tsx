@@ -31,6 +31,7 @@ interface Copy {
     | 'already_started'
     | 'window_passed'
     | 'limit_reached'
+    | 'listing_unavailable'
     | 'date_unavailable'
     | 'date_full'
     | 'validation'
