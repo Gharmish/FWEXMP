@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { ArrowRight, Mail, MessageCircle } from 'lucide-react';
 import type { Locale } from '@/lib/i18n';
-import { Link, routing, ogLocaleFor } from '@/lib/i18n';
+import { Link, routing, ogAlternateLocaleFor, ogLocaleFor } from '@/lib/i18n';
 import { SITE_URL, SITE_NAME, SUPPORT_EMAIL } from '@/lib/site';
 import { supportWhatsappE164 } from '@/lib/env';
 import { whatsappLink } from '@/lib/whatsapp';
@@ -41,6 +41,7 @@ export async function generateMetadata({
       url: path(locale),
       type: 'website',
       locale: ogLocaleFor(locale),
+      alternateLocale: ogAlternateLocaleFor(locale),
       images: [{ url: `${SITE_URL}/${locale}/opengraph-image`, width: 1200, height: 630 }],
     },
     twitter: {

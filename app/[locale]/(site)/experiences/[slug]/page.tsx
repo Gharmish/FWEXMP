@@ -31,7 +31,7 @@ import { startInstant } from '@/features/bookings/lib/cancellation';
  */
 const RIYADH_CLOCK_ANCHOR = '2000-01-01';
 import { Price } from '@/components/ui/price';
-import { Link, ogLocaleFor } from '@/lib/i18n';
+import { Link, ogAlternateLocaleFor, ogLocaleFor } from '@/lib/i18n';
 import type { Locale } from '@/lib/i18n';
 import { routing } from '@/lib/i18n';
 import { SITE_URL, SITE_NAME } from '@/lib/site';
@@ -127,6 +127,7 @@ export async function generateMetadata({
         url: landingPath(locale),
         type: 'website',
         locale: ogLocaleFor(locale),
+        alternateLocale: ogAlternateLocaleFor(locale),
         images: [{ url: `${SITE_URL}/${locale}/opengraph-image`, width: 1200, height: 630 }],
       },
       twitter: {
@@ -169,6 +170,7 @@ export async function generateMetadata({
       url,
       type: 'website',
       locale: ogLocaleFor(locale),
+      alternateLocale: ogAlternateLocaleFor(locale),
       // Point og:image at the `.png` alias, not the opengraph-image
       // convention route: both render the same card, but only the alias
       // carries ISR + a long CDN cache, and the convention URL was the one
