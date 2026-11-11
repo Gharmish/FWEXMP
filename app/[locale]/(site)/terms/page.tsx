@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
-import { Link, routing, ogLocaleFor } from '@/lib/i18n';
+import { Link, routing, ogAlternateLocaleFor, ogLocaleFor } from '@/lib/i18n';
 import { InfoPage } from '@/components/layout/info-page';
 import { getPlatformSettings } from '@/lib/platform-settings';
 import { getCancellationTiers } from '@/features/bookings/lib/cancellation-policy';
@@ -39,6 +39,7 @@ export async function generateMetadata({
       url: `${SITE_URL}/${locale}/terms`,
       type: 'website',
       locale: ogLocaleFor(locale),
+      alternateLocale: ogAlternateLocaleFor(locale),
       images: [{ url: `${SITE_URL}/${locale}/opengraph-image`, width: 1200, height: 630 }],
     },
     twitter: {

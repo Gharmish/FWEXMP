@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { SITE_URL } from '@/lib/site';
-import { routing, ogLocaleFor } from '@/lib/i18n';
+import { routing, ogAlternateLocaleFor, ogLocaleFor } from '@/lib/i18n';
 import { InfoPage } from '@/components/layout/info-page';
 
 export async function generateMetadata({
@@ -35,6 +35,7 @@ export async function generateMetadata({
       url: `${SITE_URL}/${locale}/trust-and-safety`,
       type: 'website',
       locale: ogLocaleFor(locale),
+      alternateLocale: ogAlternateLocaleFor(locale),
       images: [{ url: `${SITE_URL}/${locale}/opengraph-image`, width: 1200, height: 630 }],
     },
     twitter: {

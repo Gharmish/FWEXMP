@@ -80,3 +80,12 @@ export function permanentRedirect(args: Parameters<typeof nav.permanentRedirect>
 export function ogLocaleFor(locale: string): 'ar_SA' | 'en_US' {
   return locale === 'ar' ? 'ar_SA' : 'en_US';
 }
+
+/**
+ * The other locale's Open Graph code, for `og:locale:alternate`: tells
+ * Facebook, WhatsApp and LinkedIn that the page also exists in the second
+ * language (2026-11-11 SEO run, SEO-30). Pages pair it with ogLocaleFor.
+ */
+export function ogAlternateLocaleFor(locale: string): 'ar_SA' | 'en_US' {
+  return locale === 'ar' ? 'en_US' : 'ar_SA';
+}

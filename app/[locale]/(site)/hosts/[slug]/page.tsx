@@ -3,7 +3,7 @@ import type { Metadata } from 'next';
 import { ArrowLeft, Star } from 'lucide-react';
 import { notFound } from 'next/navigation';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
-import { Link, permanentRedirect, ogLocaleFor } from '@/lib/i18n';
+import { Link, permanentRedirect, ogAlternateLocaleFor, ogLocaleFor } from '@/lib/i18n';
 import { routing, type Locale } from '@/lib/i18n';
 import { SITE_URL } from '@/lib/site';
 import { clampDescription } from '@/lib/meta-description';
@@ -70,6 +70,7 @@ export async function generateMetadata({
       url,
       type: 'profile',
       locale: ogLocaleFor(locale),
+      alternateLocale: ogAlternateLocaleFor(locale),
       images: [{ url: `${url}/opengraph-image`, width: 1200, height: 630 }],
     },
     twitter: {

@@ -4,7 +4,7 @@ import { ArrowRight, Search } from 'lucide-react';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { cn } from '@/lib/utils';
 import { Avatar } from '@/components/ui/avatar';
-import { Link, ogLocaleFor } from '@/lib/i18n';
+import { Link, ogAlternateLocaleFor, ogLocaleFor } from '@/lib/i18n';
 import type { Locale } from '@/lib/i18n';
 import { routing } from '@/lib/i18n';
 import type { Category } from '@/lib/colors';
@@ -68,6 +68,7 @@ export async function generateMetadata({
       url: `${SITE_URL}/${locale}`,
       siteName: t('name'),
       locale: ogLocaleFor(locale),
+      alternateLocale: ogAlternateLocaleFor(locale),
       type: 'website',
       images: [{ url: `${SITE_URL}/${locale}/opengraph-image`, width: 1200, height: 630 }],
     },
