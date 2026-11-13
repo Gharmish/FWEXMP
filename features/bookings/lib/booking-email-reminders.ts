@@ -9,6 +9,7 @@ import { dispatchNotification, notificationsConfigured } from '@/lib/notificatio
 import { reportError } from '@/lib/log';
 import { getBookingByReference } from '@/features/bookings/queries';
 import { startInstant } from '@/features/bookings/lib/cancellation';
+import { addDays, todayInRiyadh } from '@/lib/riyadh-time';
 import { getExperienceForBooking } from '@/features/experiences/queries';
 import { toArabicText } from '@/features/experiences/lib/arabic-content';
 import { guestBookingUrls } from './booking-email-links';
@@ -128,6 +129,12 @@ export async function sendBookingPrepareReminderEmail(
   const data = await reminderData(reference, locale);
   if (!data) return;
   const { booking, guestEmail, guestPhone, title, placeName, startsAt, mapUrl, bringList } = data;
+  // Every channel of this reminder says "tomorrow" (subject, intro, the
+  // guest and host WhatsApp templates), so it only ever goes out on the
+  // Riyadh day before the start (#273, 2026-11-01). The cron gates on the
+  // same day; this re-check covers the 48h delivery retry, which could
+  // otherwise re-send a failed "tomorrow" on the day itself.
+  if (booking.date !== addDays(todayInRiyadh(), 1)) return;
 
   const t = await getTranslations({ locale, namespace: 'bookingEmail' });
   const time = formatTime(startsAt, locale, KSA_TIME);
