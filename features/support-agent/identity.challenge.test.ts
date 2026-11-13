@@ -18,7 +18,7 @@ vi.mock('@/features/auth/lib/throttle', () => ({
   },
 }));
 
-let guest: { email: string | null } | undefined;
+let guest: { email: string | null; phone?: string | null } | undefined;
 let failDb = false;
 const fake = vi.hoisted(() => ({ current: null as ReturnType<typeof createDbFake> | null }));
 vi.mock('@/lib/db', () => ({
@@ -27,7 +27,7 @@ vi.mock('@/lib/db', () => ({
   },
 }));
 
-import { attemptIdentityChallenge } from './identity';
+import { attemptIdentityChallenge, readIdentityState } from './identity';
 
 const input = {
   conversationId: 'c1',
@@ -42,6 +42,7 @@ beforeEach(() => {
   guest = { email: 'sara@example.com' };
   failDb = false;
   fake.current = createDbFake({
+    select: () => [{ verifiedAt: null, verifiedGuestId: null }],
     query: {
       guests: {
         findFirst: () => {
@@ -51,6 +52,41 @@ beforeEach(() => {
       },
     },
     update: () => [{ id: 'c1' }],
+  });
+});
+
+/**
+ * The read scope (#234, 2026-10-30): a number that is the guest row's own
+ * phone reads the account; one that only matched a booking's contact
+ * phone reads that booking alone. Recomputed every turn from the row.
+ */
+describe('readIdentityState — booking scope', () => {
+  it("is the account when the sender is the guest row's own phone", async () => {
+    guest = { email: 'sara@example.com', phone: '+966500000001' };
+    const state = await readIdentityState('c1', 'g1', '+966500000001');
+    expect(state.bookingScope).toBe('account');
+    expect(state.hasEmail).toBe(true);
+    expect(state.verified).toBe(false);
+  });
+
+  it('is one booking when the number only matched a contact phone', async () => {
+    guest = { email: 'sara@example.com', phone: '+966500000001' };
+    expect((await readIdentityState('c1', 'g1', '+966500000002')).bookingScope).toBe('contact');
+  });
+
+  it('is one booking for an email-only account with no phone at all', async () => {
+    guest = { email: 'sara@example.com', phone: null };
+    expect((await readIdentityState('c1', 'g1', '+966500000002')).bookingScope).toBe('contact');
+  });
+
+  it('is one booking for an unknown number', async () => {
+    expect((await readIdentityState('c1', null, '+966500000002')).bookingScope).toBe('contact');
+  });
+
+  it('fails closed to one booking on a database error', async () => {
+    failDb = true;
+    const state = await readIdentityState('c1', 'g1', '+966500000001');
+    expect(state).toMatchObject({ verified: false, hasEmail: false, bookingScope: 'contact' });
   });
 });
 
