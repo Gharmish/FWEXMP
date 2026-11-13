@@ -298,6 +298,12 @@ export interface SupportTemplateSend {
   dedupeKey: string;
   /** Transcript placeholder shown in the admin thread. */
   transcript: string;
+  /**
+   * Who the transcript row is attributed to. `admin` (default) counts as
+   * a reply in the inbox's "awaiting reply" flag; a `system` notice such
+   * as the out-of-window ticket-resolved template does not (#112).
+   */
+  author?: 'admin' | 'system';
 }
 
 /**
@@ -324,7 +330,7 @@ export async function sendSupportTemplate(
       await db.insert(conversationMessages).values({
         conversationId: input.conversationId,
         direction: 'out',
-        author: 'admin',
+        author: input.author ?? 'admin',
         body: input.transcript,
       });
       await db

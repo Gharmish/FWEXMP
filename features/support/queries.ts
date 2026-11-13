@@ -42,11 +42,17 @@ function toRow(c: {
   guestAuthUserId: string | null;
   lastInboundAt: Date | null;
   lastOutboundAt: Date | null;
+  lastReplyAt: string | null;
   lastMessagePreview: string | null;
   createdAt: Date;
 }): AdminConversationRow {
   const inbound = c.lastInboundAt?.getTime() ?? 0;
-  const outbound = c.lastOutboundAt?.getTime() ?? 0;
+  // "Awaiting reply" compares the guest's last message against the last
+  // REPLY, not against any outbound: an automatic `system` ack ("we got
+  // your message", "ticket resolved") also moves `lastOutboundAt`, which
+  // hid an unanswered thread from the group the admin triages by (#112,
+  // 2026-11-01). The raw aggregate arrives as a string from postgres.js.
+  const reply = c.lastReplyAt ? new Date(c.lastReplyAt).getTime() : 0;
   return {
     id: c.id,
     address: c.address,
@@ -62,7 +68,7 @@ function toRow(c: {
       : null,
     lastInboundAt: c.lastInboundAt?.toISOString() ?? null,
     lastOutboundAt: c.lastOutboundAt?.toISOString() ?? null,
-    awaitingReply: c.state !== 'closed' && inbound > outbound,
+    awaitingReply: c.state !== 'closed' && inbound > reply,
     windowOpen: inbound > 0 && Date.now() - inbound < SERVICE_WINDOW_MS,
     lastMessagePreview: c.lastMessagePreview ?? '',
     createdAt: c.createdAt.toISOString(),
@@ -73,6 +79,25 @@ const lastPreview = sql<string | null>`(
   select left(m.body, 140) from conversation_messages m
   where m.conversation_id = ${conversations.id}
   order by m.created_at desc limit 1
+)`;
+
+/**
+ * When someone last answered on the thread: the newest outbound written
+ * by an admin, or by the agent while the agent still owns the thread,
+ * whose delivery did not fail or get suppressed. `system` rows (the
+ * automatic ack, the ticket-resolved notice) are not replies. Once the
+ * agent has handed the thread to a person (`state = 'human'`) its own
+ * lines — including "a colleague will contact you" — stop counting, so
+ * the thread waits for that person. A row without a ledger link (an
+ * out-of-window template, `sendSupportTemplate`) counts as sent.
+ */
+const lastReplyAt = sql<string | null>`(
+  select max(m.created_at) from conversation_messages m
+  left join notification_deliveries d on d.id = m.delivery_id
+  where m.conversation_id = ${conversations.id}
+    and m.direction = 'out'
+    and (m.author = 'admin' or (m.author = 'agent' and ${conversations.state} = 'bot'))
+    and (d.id is null or d.status not in ('failed', 'suppressed'))
 )`;
 
 export async function listConversationsForAdmin(): Promise<readonly AdminConversationRow[] | null> {
@@ -92,6 +117,7 @@ export async function listConversationsForAdmin(): Promise<readonly AdminConvers
         guestAuthUserId: guests.authUserId,
         lastInboundAt: conversations.lastInboundAt,
         lastOutboundAt: conversations.lastOutboundAt,
+        lastReplyAt,
         lastMessagePreview: lastPreview,
         createdAt: conversations.createdAt,
       })
@@ -126,6 +152,7 @@ export async function getConversationThread(id: string): Promise<ConversationThr
         guestAuthUserId: guests.authUserId,
         lastInboundAt: conversations.lastInboundAt,
         lastOutboundAt: conversations.lastOutboundAt,
+        lastReplyAt,
         lastMessagePreview: lastPreview,
         createdAt: conversations.createdAt,
       })
