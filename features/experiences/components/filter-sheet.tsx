@@ -9,6 +9,7 @@ import { Pill } from '@/components/ui/pill';
 import { RiyalSymbol } from '@/components/ui/riyal-symbol';
 import { cn } from '@/lib/utils';
 import { GuestStepper } from '@/features/experiences/components/guest-stepper';
+import { toArabicText } from '@/features/experiences/lib/arabic-content';
 import {
   DAY_PRESETS,
   DURATION_BUCKETS,
@@ -176,7 +177,7 @@ function FilterSheetBody({
                   selected={draft.city === value}
                   onClick={() => setDraft((d) => ({ ...d, city: d.city === value ? '' : value }))}
                 >
-                  {city}
+                  {locale === 'ar' ? toArabicText(city) : city}
                 </Pill>
               );
             })}
