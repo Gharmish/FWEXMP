@@ -3322,6 +3322,7 @@
         "alreadyStarted": "This experience has already started, so it can no longer be moved.",
         "windowPassed": "The window for changing the date has passed.",
         "limitReached": "This booking has already been moved once, so it can't be moved again.",
+        "listingUnavailable": "This experience isn't taking new dates right now, so the booking can't be moved. Your current date still stands.",
         "dateUnavailable": "That date is no longer open for booking. Pick another date.",
         "dateFull": "That date just filled up. Pick another date.",
         "validation": "Something about this request was invalid. Refresh and try again.",

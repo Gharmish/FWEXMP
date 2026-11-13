@@ -67,6 +67,8 @@ const baseBooking = () => ({
 
 const baseExperience = () => ({
   id: 'e-1',
+  status: 'live',
+  host: { verificationStatus: 'verified' },
   maxGroupSize: 10,
   startTime: '09:00',
   bookingCutoffHours: 2,
@@ -164,5 +166,36 @@ describe('rescheduleBookingCore deadlines', () => {
     expect(stamp).not.toHaveProperty('approvalDeadline');
     expect(stamp).not.toHaveProperty('paymentDeadline');
     expect(stamp).toMatchObject({ date: '2027-03-02', rescheduleCount: 1 });
+  });
+});
+
+/**
+ * A reschedule is a new commitment on the listing, so it needs the listing
+ * and host gate a new booking has (#169, 2026-10-31): a listing the host
+ * paused, an admin archived or a material edit sent back to review, or a
+ * suspended host's, takes no new dates. The booking keeps its date.
+ */
+describe('rescheduleBookingCore listing gate (#169)', () => {
+  it.each(['paused', 'archived', 'pending_review', 'changes_requested', 'draft'])(
+    'refuses a move onto a %s listing and writes nothing',
+    async (status) => {
+      state.experience = { ...baseExperience(), status };
+      expect(await run('2027-03-09')).toEqual({ success: false, message: 'listing_unavailable' });
+      expect(fake().updates).toEqual([]);
+      expect(emails.guest).not.toHaveBeenCalled();
+      expect(emails.host).not.toHaveBeenCalled();
+    },
+  );
+
+  it("refuses a move onto a suspended host's listing and writes nothing", async () => {
+    state.experience = { ...baseExperience(), host: { verificationStatus: 'suspended' } };
+    expect(await run('2027-03-09')).toEqual({ success: false, message: 'listing_unavailable' });
+    expect(fake().updates).toEqual([]);
+  });
+
+  it('still moves a booking on a live listing of a verified or pending host', async () => {
+    state.experience = { ...baseExperience(), host: { verificationStatus: 'pending' } };
+    expect(await run('2027-03-09')).toEqual({ success: true, newDate: '2027-03-09' });
+    expect(fake().updates).toHaveLength(1);
   });
 });
