@@ -19,8 +19,19 @@ vi.mock('@/features/auth/queries', () => ({
 }));
 
 let callerGuestRow: { id: string } | undefined;
+/** The booking's own guest row — `authUserId` set means an account owns it (#180). */
+let bookingGuestRow: { authUserId: string | null } | undefined = { authUserId: null };
 vi.mock('@/lib/db', () => ({
-  db: { query: { guests: { findFirst: async () => callerGuestRow } } },
+  db: {
+    query: {
+      guests: {
+        // The two lookups are told apart by their projection: the caller
+        // by `id`, the booking's owner by `authUserId`.
+        findFirst: async (args: { columns: Record<string, boolean> }) =>
+          args.columns.authUserId ? bookingGuestRow : callerGuestRow,
+      },
+    },
+  },
 }));
 
 let cookieValue: string | undefined;
@@ -39,6 +50,7 @@ import { bookingViewerCanAccess, checkoutViewerCanAccess } from './access';
 beforeEach(() => {
   currentUser = null;
   callerGuestRow = undefined;
+  bookingGuestRow = { authUserId: null };
   cookieValue = undefined;
 });
 
@@ -90,6 +102,54 @@ describe('bookingViewerCanAccess', () => {
     cookieValue = 'not-json-at-all';
 
     expect(await bookingViewerCanAccess(REFERENCE, BOOKING_GUEST_ID)).toBe(false);
+  });
+
+  /**
+   * The cookie vouches for an ANONYMOUS booking only (#180, 2026-10-30).
+   * It is written for signed-in bookings too and outlived a sign-out, so
+   * the next person on a shared device could cancel the account's booking
+   * and redirect its refund with nothing but the cookie.
+   */
+  describe("an account's booking needs the account, not the device cookie (#180)", () => {
+    beforeEach(() => {
+      cookieValue = serializeLastBookingCookie({
+        reference: REFERENCE,
+        experienceSlug: 'some-slug',
+      });
+      bookingGuestRow = { authUserId: 'auth-1' };
+    });
+
+    it('denies a signed-out viewer holding the cookie', async () => {
+      expect(await bookingViewerCanAccess(REFERENCE, BOOKING_GUEST_ID)).toBe(false);
+    });
+
+    it('denies a DIFFERENT account signed in on the same device', async () => {
+      currentUser = { id: 'auth-2' };
+      callerGuestRow = { id: 'someone-else' };
+
+      expect(await bookingViewerCanAccess(REFERENCE, BOOKING_GUEST_ID)).toBe(false);
+    });
+
+    it('still allows the owning account, with or without the cookie', async () => {
+      currentUser = { id: 'auth-1' };
+      callerGuestRow = { id: BOOKING_GUEST_ID };
+
+      expect(await bookingViewerCanAccess(REFERENCE, BOOKING_GUEST_ID)).toBe(true);
+      cookieValue = undefined;
+      expect(await bookingViewerCanAccess(REFERENCE, BOOKING_GUEST_ID)).toBe(true);
+    });
+
+    it('keeps the cookie path for an anonymous booking', async () => {
+      bookingGuestRow = { authUserId: null };
+
+      expect(await bookingViewerCanAccess(REFERENCE, BOOKING_GUEST_ID)).toBe(true);
+    });
+
+    it('fails closed when the booking guest row cannot be read', async () => {
+      bookingGuestRow = undefined;
+
+      expect(await bookingViewerCanAccess(REFERENCE, BOOKING_GUEST_ID)).toBe(false);
+    });
   });
 });
 
