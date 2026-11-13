@@ -129,6 +129,8 @@ export function buildExperienceFormCopy(
       lockedReview: t('errors.lockedReview'),
       archived: t('errors.archived'),
       scheduleHasBookings: t('errors.scheduleHasBookings'),
+      needsEnglish: t('errors.needsEnglish'),
+      needsArabicLists: t('errors.needsArabicLists'),
       fields: {
         titleShort: t('errors.fields.titleShort'),
         titleLong: t('errors.fields.titleLong'),

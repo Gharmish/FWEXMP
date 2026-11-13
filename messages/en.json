@@ -2804,7 +2804,9 @@
         },
         "lockedReview": "This listing is under review and can't be edited right now.",
         "archived": "This listing is archived and can't be edited.",
-        "scheduleHasBookings": "Guests hold upcoming bookings at the current start time and weekdays. Stop-sell or cancel those dates first, then change the schedule."
+        "scheduleHasBookings": "Guests hold upcoming bookings at the current start time and weekdays. Stop-sell or cancel those dates first, then change the schedule.",
+        "needsEnglish": "Your listing is public, so \"What's included\" and \"What to bring\" need both languages. Add the English list to match the Arabic one, then save again.",
+        "needsArabicLists": "Your listing is public, so \"What's included\" and \"What to bring\" need both languages. Add the Arabic list to match the English one, then save again."
       },
       "startTimeLabel": "Start time",
       "startTimeHint": "Local start time of every occurrence. Guests see it before booking and on their ticket.",
@@ -2844,6 +2846,7 @@
       "heading": "Experience timeline",
       "intro": "The moments of your experience, in order — what guests do from arrival to goodbye. Write in English, and add Arabic if you like; our team fills in the rest.",
       "lockedLive": "The timeline is locked while your listing is under review — it will unlock as soon as the review is decided.",
+      "needsArabic": "Your listing is public, so each moment needs its Arabic title and description too. Add them, then save again.",
       "timeOfDay": "Time of day (optional)",
       "titleEn": "Title",
       "titleAr": "Title (Arabic — optional)",
