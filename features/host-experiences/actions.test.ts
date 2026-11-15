@@ -36,7 +36,12 @@ vi.mock('@/lib/db', () => ({
   },
 }));
 
-import { deleteDraftExperience, pauseHostExperience, updateHostExperience } from './actions';
+import {
+  createDraftExperience,
+  deleteDraftExperience,
+  pauseHostExperience,
+  updateHostExperience,
+} from './actions';
 
 function form(experienceId: string): FormData {
   const fd = new FormData();
@@ -102,6 +107,59 @@ describe.each([
     env.DATABASE_URL = '';
     ownership(true);
     expect(await run(form(OWN))).toMatchObject({ success: false, message: 'no_db' });
+  });
+});
+
+/**
+ * A guard refusal on the listing editor must echo what the host typed:
+ * React resets the uncontrolled form after the action, so a refusal with
+ * no `values` silently reverts every field to the stored row (issue #373).
+ */
+describe('updateHostExperience refusals echo the typed values', () => {
+  function typed(experienceId: string): FormData {
+    const fd = form(experienceId);
+    fd.set('titleEn', 'Typed title');
+    fd.set('descriptionEn', 'Typed description');
+    return fd;
+  }
+
+  it.each([
+    [
+      'forbidden',
+      () => {
+        session.hostId = null;
+        ownership(true);
+      },
+      OWN,
+    ],
+    ['not_found', () => ownership(false), FOREIGN],
+    [
+      'no_db',
+      () => {
+        env.DATABASE_URL = '';
+        ownership(true);
+      },
+      OWN,
+    ],
+  ] as const)('%s keeps the typed title and description', async (message, arrange, id) => {
+    arrange();
+    const result = await updateHostExperience(initial, typed(id));
+    expect(result).toMatchObject({
+      success: false,
+      message,
+      values: { titleEn: 'Typed title', descriptionEn: 'Typed description' },
+    });
+  });
+
+  it('a forbidden new-listing draft keeps the typed title', async () => {
+    session.hostId = null;
+    const fd = new FormData();
+    fd.set('titleEn', 'Typed title');
+    fd.set('locale', 'en');
+    expect(await createDraftExperience(initial, fd)).toMatchObject({
+      message: 'forbidden',
+      values: { titleEn: 'Typed title' },
+    });
   });
 });
 
