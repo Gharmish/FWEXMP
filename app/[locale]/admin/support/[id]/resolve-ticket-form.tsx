@@ -4,9 +4,25 @@ import { useActionState } from 'react';
 import { Button } from '@/components/ui/button';
 import { resolveTicket, type SupportActionState } from '@/features/support/actions';
 
+/** The codes `resolveTicket` can return; each gets its own message (#375). */
+type ResolveErrorKey = 'forbidden' | 'no_db' | 'not_found' | 'validation' | 'server';
+
 export interface ResolveTicketFormProps {
   ticketId: string;
-  copy: { label: string; placeholder: string; resolve: string; resolving: string; error: string };
+  copy: {
+    label: string;
+    placeholder: string;
+    resolve: string;
+    resolving: string;
+    errors: Record<ResolveErrorKey, string>;
+  };
+}
+
+function isResolveErrorKey(
+  message: string,
+  errors: Record<ResolveErrorKey, string>,
+): message is ResolveErrorKey {
+  return Object.hasOwn(errors, message);
 }
 
 const initial: SupportActionState = { success: false };
@@ -31,7 +47,9 @@ export function ResolveTicketForm({ ticketId, copy }: ResolveTicketFormProps) {
       />
       {!state.success && state.message && (
         <p role="alert" className="text-al-qatt-red-800 text-sm">
-          {copy.error}
+          {isResolveErrorKey(state.message, copy.errors)
+            ? copy.errors[state.message]
+            : copy.errors.server}
         </p>
       )}
       <div>
