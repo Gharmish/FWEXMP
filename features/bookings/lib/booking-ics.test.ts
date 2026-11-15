@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { renderBookingIcs } from './booking-ics';
 
 describe('renderBookingIcs', () => {
@@ -19,6 +19,30 @@ describe('renderBookingIcs', () => {
     expect(ics).toContain('DTSTART:20260805T060000Z');
     expect(ics).toContain('DTEND:20260805T090000Z');
     expect(ics).toContain('LOCATION:Rijal Almaa Village');
+  });
+
+  it('stamps DTSTAMP with the render time, not the event start (#374)', () => {
+    const stamp = new Date('2026-07-01T12:34:56Z');
+    expect(renderBookingIcs({ ...input, stamp })).toContain('DTSTAMP:20260701T123456Z');
+    // A copy rendered later for an EARLIER start must still carry the later
+    // stamp, or calendar clients keep the old date.
+    const earlier = renderBookingIcs({
+      ...input,
+      start: new Date('2026-08-03T09:00:00+03:00'),
+      stamp: new Date('2026-07-02T08:00:00Z'),
+    });
+    expect(earlier).toContain('DTSTART:20260803T060000Z');
+    expect(earlier).toContain('DTSTAMP:20260702T080000Z');
+  });
+
+  it('defaults DTSTAMP to now', () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-07-03T00:00:00Z'));
+    try {
+      expect(renderBookingIcs(input)).toContain('DTSTAMP:20260703T000000Z');
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('escapes commas, semicolons, and newlines per RFC 5545', () => {
