@@ -127,10 +127,10 @@ Dropped or linked instead: the chargeback/reversal gap is a defect, filed as **P
 | --- | ----------------------------------------------- | ----- | ---- | -------- | ------------------------------ | ----- | ----- |
 | 1   | F1 NORMAL-tier improvements exempt from the cap | 1     | —    | 🧑‍⚖️       | Founder edits the Fixer prompt | 🧑‍⚖️    | #20   |
 | 2   | E4 Honest no-dates + WhatsApp ask               | 3     | S    | 🤖       | F1                             | —     | #101  |
-| 3   | F2 Track the invisible pages                    | 2     | S    | 🤖       | F1                             | —     | new   |
-| 4   | F3 Approved host → first listing + photographer | 4     | S    | 🤖       | F1                             | —     | new   |
-| 5   | F4 Coverage floor ratchet                       | 1     | S    | 🤖       | F1                             | —     | new   |
-| 6   | F5 Host share links: Arabic + tagged            | 2     | S    | 🤖       | F1                             | —     | new   |
+| 3   | F2 Track the invisible pages                    | 2     | S    | 🤖       | F1                             | —     | #368  |
+| 4   | F3 Approved host → first listing + photographer | 4     | S    | 🤖       | F1                             | —     | #369  |
+| 5   | F4 Coverage floor ratchet                       | 1     | S    | 🤖       | F1                             | —     | #370  |
+| 6   | F5 Host share links: Arabic + tagged            | 2     | S    | 🤖       | F1                             | —     | #371  |
 | 7   | E6 Ages on the admin work queue                 | 4     | S    | 🤖       | F1                             | —     | #277  |
 | 8   | E7 Listing views for hosts                      | 4     | S    | 🤖       | F1; F5 shares the host page    | —     | #278  |
 | 9   | E2 Test-or-real verdict on SAR 4,810            | 4     | —    | 🧑‍⚖️       | 15 minutes in `/admin/payouts` | 🧑‍⚖️    | #279  |
