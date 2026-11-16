@@ -75,7 +75,13 @@ export default async function AdminSupportThreadPage({
     placeholder: t('support.ticket.resolvePlaceholder'),
     resolve: t('support.ticket.resolve'),
     resolving: t('support.ticket.resolving'),
-    error: t('support.thread.errors.server'),
+    errors: {
+      forbidden: t('support.thread.errors.forbidden'),
+      no_db: t('support.thread.errors.no_db'),
+      not_found: t('support.ticket.alreadyResolved'),
+      validation: t('support.ticket.noteTooLong'),
+      server: t('support.thread.errors.server'),
+    },
   };
   const { conversation, messages } = thread;
 
