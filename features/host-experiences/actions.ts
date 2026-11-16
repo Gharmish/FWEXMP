@@ -318,7 +318,9 @@ export async function createDraftExperience(
   formData: FormData,
 ): Promise<HostExperienceState> {
   const guard = await requireHostId();
-  if ('error' in guard) return guard.error;
+  // A refusal echoes the typed titles too: React resets the uncontrolled
+  // form after the action, so an un-echoed field reverts (issue #373).
+  if ('error' in guard) return { ...guard.error, values: collectValues(formData) };
 
   const parsed = newExperienceSchema.safeParse({
     titleEn: formValue(formData, 'titleEn'),
@@ -426,7 +428,9 @@ export async function updateHostExperience(
 ): Promise<HostExperienceState> {
   const experienceId = formValue(formData, 'experienceId');
   const guard = await requireOwnership(experienceId);
-  if ('error' in guard) return guard.error;
+  // A suspended host, a lapsed session or a failed ownership read must not
+  // wipe the host's typed edits (issue #373).
+  if ('error' in guard) return { ...guard.error, values: collectValues(formData) };
 
   let current: typeof experiences.$inferSelect | undefined;
   try {
