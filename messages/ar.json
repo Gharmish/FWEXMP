@@ -1647,7 +1647,9 @@
         "resolvePlaceholder": "ما الذي تم…",
         "resolve": "وضع علامة محلولة",
         "resolving": "جارٍ الحل",
-        "resolvedNote": "محلولة"
+        "resolvedNote": "محلولة",
+        "alreadyResolved": "هذه التذكرة محلولة بالفعل. حدّث الصفحة لرؤيتها.",
+        "noteTooLong": "اجعل ملاحظة الحل في حدود 2000 حرف."
       },
       "stateActions": {
         "toBot": "إعادة إلى المساعد",

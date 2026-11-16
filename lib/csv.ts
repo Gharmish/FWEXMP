@@ -4,13 +4,15 @@
  * doubled. A UTF-8 BOM is prepended so Excel opens Arabic text
  * correctly. Cells starting with a formula trigger (= + - @, plus a
  * leading TAB or CR — OWASP lists both) are prefixed with a quote to
- * defuse CSV-injection in spreadsheet apps.
+ * defuse CSV-injection in spreadsheet apps. A NUMBER value is never
+ * prefixed: it can't carry a formula, and a quoted `'-40` lands in the
+ * sheet as text that SUM skips (negative commission on promo bookings).
  */
 
 export function csvCell(value: string | number | null | undefined): string {
   if (value === null || value === undefined) return '';
   let s = String(value);
-  if (/^[=+\-@\t\r]/.test(s)) s = `'${s}`;
+  if (typeof value !== 'number' && /^[=+\-@\t\r]/.test(s)) s = `'${s}`;
   if (/[",\n\r]/.test(s)) s = `"${s.replace(/"/g, '""')}"`;
   return s;
 }

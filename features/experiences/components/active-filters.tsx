@@ -4,6 +4,7 @@ import { X } from 'lucide-react';
 import { useLocale, useTranslations } from 'next-intl';
 import type { ReactNode } from 'react';
 import { RiyalSymbol } from '@/components/ui/riyal-symbol';
+import { toArabicText } from '@/features/experiences/lib/arabic-content';
 import type { ExperienceCriteria } from '@/features/experiences/lib/search';
 
 interface ActiveFiltersProps {
@@ -80,7 +81,10 @@ export function ActiveFilters({ criteria, cities, onRemove }: ActiveFiltersProps
   }
   if (criteria.city) {
     const display = cities.find((c) => c.toLowerCase() === criteria.city) ?? criteria.city;
-    tokens.push({ key: 'city', label: display, patch: { city: '' } });
+    // The city column is English; the cards and confirmation page already
+    // localize it, so the token must too (nightly bug hunt 2026-11-12).
+    const label = locale === 'ar' ? toArabicText(display) : display;
+    tokens.push({ key: 'city', label, patch: { city: '' } });
   }
 
   if (tokens.length === 0) return null;

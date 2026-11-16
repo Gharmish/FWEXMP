@@ -17,6 +17,12 @@ describe('csvCell', () => {
   it('defuses spreadsheet formula injection', () => {
     expect(csvCell('=SUM(A1)')).toBe("'=SUM(A1)");
     expect(csvCell('+966501234567')).toBe("'+966501234567");
+    expect(csvCell('-1+1')).toBe("'-1+1");
+  });
+
+  it('keeps negative numbers numeric (no formula prefix on a number)', () => {
+    expect(csvCell(-40)).toBe('-40');
+    expect(csvCell(-12.5)).toBe('-12.5');
   });
 });
 

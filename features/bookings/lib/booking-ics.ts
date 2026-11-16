@@ -18,6 +18,11 @@ export interface BookingIcsInput {
   location?: string | null;
   /** Free-text body: reference, booking URL, maps link. */
   description: string;
+  /**
+   * When this copy of the event was produced (`DTSTAMP`, RFC 5545
+   * §3.8.7.2). Defaults to now; tests pass a fixed instant.
+   */
+  stamp?: Date;
 }
 
 /** Escape text per RFC 5545 §3.3.11 (TEXT). */
@@ -59,9 +64,11 @@ export function renderBookingIcs(input: BookingIcsInput): string {
     'METHOD:PUBLISH',
     'BEGIN:VEVENT',
     `UID:${icsEscape(input.uid)}`,
-    // DTSTAMP mirrors the start so the output stays deterministic (and
-    // therefore testable); clients only use it for update ordering.
-    `DTSTAMP:${icsUtc(input.start)}`,
+    // DTSTAMP is the time THIS copy was produced. Clients order copies of
+    // one UID by it (RFC 5546 §2.1.5), so it must never go backwards: it
+    // used to mirror the start, and a reschedule to an earlier date then
+    // looked older than the file already imported and was ignored (#374).
+    `DTSTAMP:${icsUtc(input.stamp ?? new Date())}`,
     `DTSTART:${icsUtc(input.start)}`,
     `DTEND:${icsUtc(end)}`,
     `SUMMARY:${icsEscape(input.summary)}`,

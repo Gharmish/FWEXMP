@@ -322,7 +322,9 @@ export async function createDraftExperience(
   formData: FormData,
 ): Promise<HostExperienceState> {
   const guard = await requireHostId();
-  if ('error' in guard) return guard.error;
+  // A refusal echoes the typed titles too: React resets the uncontrolled
+  // form after the action, so an un-echoed field reverts (issue #373).
+  if ('error' in guard) return { ...guard.error, values: collectValues(formData) };
 
   const parsed = newExperienceSchema.safeParse({
     titleEn: formValue(formData, 'titleEn'),
@@ -444,7 +446,9 @@ export async function updateHostExperience(
 ): Promise<HostExperienceState> {
   const experienceId = formValue(formData, 'experienceId');
   const guard = await requireOwnership(experienceId);
-  if ('error' in guard) return guard.error;
+  // A suspended host, a lapsed session or a failed ownership read must not
+  // wipe the host's typed edits (issue #373).
+  if ('error' in guard) return { ...guard.error, values: collectValues(formData) };
 
   let current: typeof experiences.$inferSelect | undefined;
   try {
@@ -835,6 +839,11 @@ export async function duplicateHostExperience(
       with: { moments: true },
     });
     if (!source) return { success: false, message: 'not_found' };
+    // Archived rows are read-only for the host (an admin takedown): the
+    // dashboard hides Duplicate, and the server must refuse it as every
+    // other host write does, or a hand-made post copies the taken-down
+    // content into a fresh draft.
+    if (source.status === 'archived') return { success: false, message: 'wrong_state' };
 
     // Suffix whichever titles are real so two near-identical drafts are
     // tellable apart in either language; an unset side stays unset.

@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { createDbFake } from '@/lib/test/db-fake';
+import { duplicateHostExperience } from './actions';
 
 /**
  * Cross-tenant guards on the host listing mutations (2026-09 engineering
@@ -35,7 +36,12 @@ vi.mock('@/lib/db', () => ({
   },
 }));
 
-import { deleteDraftExperience, pauseHostExperience, updateHostExperience } from './actions';
+import {
+  createDraftExperience,
+  deleteDraftExperience,
+  pauseHostExperience,
+  updateHostExperience,
+} from './actions';
 import { AR_PLACEHOLDER } from '@/lib/ar-placeholder';
 
 function form(experienceId: string): FormData {
@@ -105,11 +111,104 @@ describe.each([
   });
 });
 
+/**
+ * A guard refusal on the listing editor must echo what the host typed:
+ * React resets the uncontrolled form after the action, so a refusal with
+ * no `values` silently reverts every field to the stored row (issue #373).
+ */
+describe('updateHostExperience refusals echo the typed values', () => {
+  function typed(experienceId: string): FormData {
+    const fd = form(experienceId);
+    fd.set('titleEn', 'Typed title');
+    fd.set('descriptionEn', 'Typed description');
+    return fd;
+  }
+
+  it.each([
+    [
+      'forbidden',
+      () => {
+        session.hostId = null;
+        ownership(true);
+      },
+      OWN,
+    ],
+    ['not_found', () => ownership(false), FOREIGN],
+    [
+      'no_db',
+      () => {
+        env.DATABASE_URL = '';
+        ownership(true);
+      },
+      OWN,
+    ],
+  ] as const)('%s keeps the typed title and description', async (message, arrange, id) => {
+    arrange();
+    const result = await updateHostExperience(initial, typed(id));
+    expect(result).toMatchObject({
+      success: false,
+      message,
+      values: { titleEn: 'Typed title', descriptionEn: 'Typed description' },
+    });
+  });
+
+  it('a forbidden new-listing draft keeps the typed title', async () => {
+    session.hostId = null;
+    const fd = new FormData();
+    fd.set('titleEn', 'Typed title');
+    fd.set('locale', 'en');
+    expect(await createDraftExperience(initial, fd)).toMatchObject({
+      message: 'forbidden',
+      values: { titleEn: 'Typed title' },
+    });
+  });
+});
+
 describe('pauseHostExperience on an owned listing', () => {
   it('gets past the guard and then refuses a draft as wrong_state (only live listings pause)', async () => {
     ownership(true);
     expect(await pauseHostExperience(initial, form(OWN))).toMatchObject({ message: 'wrong_state' });
     expect(fake.current?.updates).toHaveLength(1);
+  });
+});
+
+/**
+ * The dashboard hides Duplicate on an archived listing (an admin
+ * takedown), and every other host write refuses `archived` on the
+ * server. A hand-made post of the duplicate action must be refused too,
+ * not copy the taken-down content into a fresh draft.
+ */
+describe('duplicateHostExperience on an archived listing', () => {
+  function sourceRow(status: string) {
+    fake.current = createDbFake({
+      query: {
+        experiences: {
+          findFirst: () => ({
+            id: OWN,
+            status,
+            slug: 'x',
+            titleEn: 'Title',
+            titleAr: 'عنوان',
+            inclusions: [],
+            inclusionsAr: [],
+            whatToBring: [],
+            whatToBringAr: [],
+            availabilityWeekdays: [],
+            moments: [],
+          }),
+        },
+      },
+      insert: () => [{ id: '55555555-5555-4555-8555-555555555555' }],
+    });
+  }
+
+  it('refuses as wrong_state without inserting a copy', async () => {
+    sourceRow('archived');
+    expect(await duplicateHostExperience(initial, form(OWN))).toMatchObject({
+      success: false,
+      message: 'wrong_state',
+    });
+    expect(fake.current?.inserts).toEqual([]);
   });
 });
 

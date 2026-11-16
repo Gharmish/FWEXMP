@@ -1647,7 +1647,9 @@
         "resolvePlaceholder": "What was done…",
         "resolve": "Mark resolved",
         "resolving": "Resolving",
-        "resolvedNote": "Resolved"
+        "resolvedNote": "Resolved",
+        "alreadyResolved": "This ticket is already resolved. Refresh the page to see it.",
+        "noteTooLong": "Keep the resolution note to 2,000 characters or fewer."
       },
       "stateActions": {
         "toBot": "Hand back to assistant",
