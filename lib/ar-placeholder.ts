@@ -25,3 +25,14 @@ export function pickLocalized(locale: string, en: string, ar: string): string {
   if (en.trim() !== '') return en;
   return arReal ? ar : en;
 }
+
+/**
+ * The value an edit form pre-fills for a notNull Arabic column: the
+ * stored string, or empty when it is still a `TODO(ar)` marker. The
+ * marker is shorter than the forms' Arabic minimum length, so pre-filling
+ * it would fail validation on a field the editor never touched; an empty
+ * Arabic field keeps the stored value on save.
+ */
+export function arEditableValue(text: string): string {
+  return isArPlaceholder(text) ? '' : text;
+}
