@@ -9,6 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { formatDate } from '@/lib/format';
 import { getHostForAdmin, isAdminAndDbReady } from '@/features/admin/hosts/queries';
 import { maskIban, maskIdentityNumber } from '@/features/admin/hosts/lib/mask';
+import { adminListingHref } from '@/features/admin/experiences/lib/listing-href';
 import { CopyButton } from '@/components/ui/copy-button';
 import { HostActions } from '@/app/[locale]/admin/hosts/[id]/host-actions';
 import type {
@@ -253,7 +254,7 @@ export default async function AdminHostDetailPage({
               <li key={exp.id} className="flex items-center justify-between gap-4 p-4">
                 <div className="flex min-w-0 items-center gap-3">
                   <Link
-                    href={`/experiences/${exp.slug}`}
+                    href={adminListingHref(exp.slug, exp.status)}
                     className="truncate text-base font-medium underline-offset-4 hover:underline"
                   >
                     {exp.titleEn}

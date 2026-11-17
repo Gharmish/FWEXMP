@@ -21,6 +21,7 @@ import { ReviewerActions } from '@/app/[locale]/admin/experience-moderation/[id]
 import { ArabicEditor } from '@/app/[locale]/admin/experience-moderation/[id]/arabic-editor';
 import { PhotoUpload } from '@/features/host-experiences/components/photo-upload';
 import { uploadModerationHero } from '@/features/admin/experience-moderation/photo-actions';
+import { adminListingHref } from '@/features/admin/experiences/lib/listing-href';
 import type {
   ExperienceStatus,
   ModerationEventType,
@@ -349,7 +350,7 @@ export default async function AdminExperienceModerationDetailPage({
       {/* Public link (for live / paused) */}
       {(detail.status === 'live' || detail.status === 'paused') && (
         <Link
-          href={`/experiences/${detail.slug}`}
+          href={adminListingHref(detail.slug, detail.status)}
           className="text-sarat-black-600 inline-flex min-h-11 items-center gap-2 self-start text-sm font-medium underline-offset-4 hover:underline"
         >
           <ExternalLink className="size-4 shrink-0" aria-hidden />

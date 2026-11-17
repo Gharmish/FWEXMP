@@ -12,6 +12,7 @@ import { CopyButton } from '@/components/ui/copy-button';
 import { formatDate } from '@/lib/format';
 import { BookingStatusBadge } from '@/features/bookings/components/booking-status-badge';
 import { maskIban, maskIdentityNumber } from '@/features/admin/hosts/lib/mask';
+import { adminListingHref } from '@/features/admin/experiences/lib/listing-href';
 import { getUserDetailForAdmin, isAdminAndDbReady } from '@/features/admin/users/queries';
 import { UserRoleChips } from '@/features/admin/users/components/user-role-chips';
 import { GuestEditForm } from '@/features/admin/users/components/guest-edit-form';
@@ -464,7 +465,7 @@ export default async function AdminUserDetailPage({
                 {user.host.experiences.map((e) => (
                   <li key={e.id} className="flex items-center justify-between gap-4 p-4">
                     <Link
-                      href={`/experiences/${e.slug}`}
+                      href={adminListingHref(e.slug, e.status)}
                       className="truncate text-base font-medium underline-offset-4 hover:underline"
                     >
                       {e.titleEn}
