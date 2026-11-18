@@ -1871,7 +1871,8 @@
       "pending": "Sending",
       "uploading": "Uploading documents…",
       "browseExperiences": "Browse the catalogue",
-      "backToAccount": "Back to your activity"
+      "backToAccount": "Back to your activity",
+      "openDashboard": "Open your host dashboard"
     },
     "status": {
       "pending": {
@@ -1882,7 +1883,7 @@
       "approved": {
         "eyebrow": "Approved",
         "title": "Welcome to Gharmish, {name}.",
-        "description": "Your application has been approved. The team will reach out with next steps — your host dashboard and your first experience."
+        "description": "Your application has been approved. Your host dashboard is ready — start your first experience there whenever you like."
       },
       "rejected": {
         "eyebrow": "Update from the team",
