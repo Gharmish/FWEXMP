@@ -14,6 +14,17 @@ import { spawnSync } from 'node:child_process';
  * complete picture; the summary at the end lists per-step results and
  * the process exits non-zero if anything failed.
  *
+ * The audit step (here and in .github/workflows/ci.yml) honours
+ * `pnpm.auditConfig.ignoreGhsas` in package.json. Entries there, each
+ * one advisory with no patched release yet, re-checked by the Mon/Thu
+ * dependency audit (issue #23) and dropped as soon as a fix ships:
+ *
+ *   - GHSA-fc5q-39xc-vjpf (2026-11-18, #385): picomatch <=4.0.7 ReDoS,
+ *     reached only at build/dev time via @sentry/nextjs >
+ *     @rollup/plugin-commonjs and next-intl > @parcel/watcher. Remove
+ *     the ignore and add a `pnpm.overrides` floor once picomatch >4.0.7
+ *     exists. pnpm prints "2 high (1 ignored)": two paths, one advisory.
+ *
  * `pnpm scan --e2e` appends the Playwright smoke suite (needs the
  * chromium browser installed: `pnpm exec playwright install chromium`).
  */
