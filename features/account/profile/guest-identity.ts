@@ -53,7 +53,13 @@ export { isUniqueViolation };
  *     their own booking on the guest's row; accepted for the whole row,
  *     that one booking was the takeover again (issue #392, 2026-11-19).
  *     With another booking on the row the cookie proves nothing about
- *     whose row it is, and the claim falls back to rule 2b.
+ *     whose row it is, and the claim falls back to rule 2b. That also
+ *     refuses an honest repeat guest — "change date or guests" cancels
+ *     the old hold in place, so one browser can leave two bookings on
+ *     its own row — who keeps every booking through the signed links
+ *     and the booking page; a narrower rule (ignore cancelled rows) would
+ *     hand a row holding only a stranger's lapsed hold, PII and credit
+ *     to whoever books next on that number, so the safe side wins.
  *
  * A plain `===` on normalized addresses is right here: both sides come
  * from the session and the database, there is no attacker-supplied guess
@@ -168,7 +174,8 @@ export async function resolveGuestForUser(user: AuthUser, seed: GuestSeed): Prom
         // H4 takeover. Leave the row untouched — the anonymous guest's
         // bookings, wallet and PII stay theirs — and give this account
         // its own. Reported (never the phone itself) because a refusal
-        // means a recycled number, a typo, or someone trying.
+        // means a recycled number, a typo, someone trying — or, since
+        // #392, a repeat guest whose row carries more than one booking.
         reportError(new Error('guest row not claimed: no evidence the account made its bookings'), {
           surface: 'guest-identity:claim-refused',
           unclaimedGuestId: byPhone.id,

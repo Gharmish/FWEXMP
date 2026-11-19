@@ -37,7 +37,14 @@ vi.mock('@/lib/log', () => ({ reportError }));
 import { resolveGuestForUser } from './guest-identity';
 import type { AuthUser } from '@/features/auth/types';
 
-const user = { id: 'u-b', phone: '+966512345678', email: undefined } as unknown as AuthUser;
+const user: AuthUser = {
+  id: 'u-b',
+  phone: '+966512345678',
+  email: undefined,
+  isStub: false,
+  isAdmin: false,
+  mfa: { enrolled: false, verified: false },
+};
 
 const unclaimedRow: Row = {
   id: 'g-shared',
@@ -58,8 +65,17 @@ function setUp(bookingCount: number) {
             ? unclaimedRow
             : undefined,
       },
-      // The cookie's booking does sit on the row.
-      bookings: { findFirst: () => ({ id: 'b-own' }) },
+      // The cookie's booking does sit on the row — but only when the
+      // lookup is scoped to it: a cookie for a booking on ANOTHER row must
+      // never vouch for this one.
+      bookings: {
+        findFirst: (args) => {
+          const cols = referencedColumns((args as { where?: unknown }).where);
+          return cols.includes('idempotencyKey') && cols.includes('guestId')
+            ? { id: 'b-own' }
+            : undefined;
+        },
+      },
     },
     select: (shape) => ('bookingCount' in shape ? [{ bookingCount }] : []),
     update: (values) => [{ ...unclaimedRow, ...values }],
@@ -102,7 +118,7 @@ describe('resolveGuestForUser — own_browser on a shared row (#392)', () => {
 
   it('a verified email still claims a shared row — only the cookie leg is narrowed', async () => {
     setUp(2);
-    const emailUser = { ...user, email: 'sara@example.com' } as unknown as AuthUser;
+    const emailUser: AuthUser = { ...user, email: 'sara@example.com' };
     const row = await resolveGuestForUser(emailUser, { name: 'Sara' });
 
     expect(fake.current?.updates).toEqual([{ authUserId: 'u-b' }]);
