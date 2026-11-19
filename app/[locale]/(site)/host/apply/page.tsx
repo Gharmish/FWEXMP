@@ -9,6 +9,7 @@ import { getCurrentUser } from '@/features/auth/queries';
 import { getCurrentUserHostApplication } from '@/features/host-applications/queries';
 import { HostApplyForm } from '@/app/[locale]/(site)/host/apply/host-apply-form';
 import { RejectedApplicationNotice } from '@/app/[locale]/(site)/host/apply/rejected-application-notice';
+import { statusActions } from '@/app/[locale]/(site)/host/apply/status-actions';
 import { HOST_LANGUAGE_OPTIONS } from '@/features/host-applications/types';
 import { todayInRiyadh, yearsBefore } from '@/lib/riyadh-time';
 
@@ -115,15 +116,15 @@ export default async function HostApplyPage({ params }: { params: Promise<{ loca
           )}
 
           <div className="mt-12 flex flex-wrap gap-3">
-            <Link
-              href="/experiences"
-              className={cn(buttonVariants({ variant: 'secondary', size: 'md' }))}
-            >
-              {t('actions.browseExperiences')}
-            </Link>
-            <Link href="/me" className={cn(buttonVariants({ variant: 'primary', size: 'md' }))}>
-              {t('actions.backToAccount')}
-            </Link>
+            {statusActions(existing.status).map((action) => (
+              <Link
+                key={action.href}
+                href={action.href}
+                className={cn(buttonVariants({ variant: action.variant, size: 'md' }))}
+              >
+                {t(`actions.${action.labelKey}`)}
+              </Link>
+            ))}
           </div>
         </section>
       </div>
