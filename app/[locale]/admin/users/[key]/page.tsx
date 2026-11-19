@@ -10,6 +10,7 @@ import { Badge } from '@/components/ui/badge';
 import { Price } from '@/components/ui/price';
 import { CopyButton } from '@/components/ui/copy-button';
 import { formatDate } from '@/lib/format';
+import { arEditableValue } from '@/lib/ar-placeholder';
 import { BookingStatusBadge } from '@/features/bookings/components/booking-status-badge';
 import { maskIban, maskIdentityNumber } from '@/features/admin/hosts/lib/mask';
 import { adminListingHref } from '@/features/admin/experiences/lib/listing-href';
@@ -425,7 +426,10 @@ export default async function AdminUserDetailPage({
 
           <HostEditForm
             personKey={user.key}
-            host={user.host}
+            // A host who never wrote an Arabic bio holds a `TODO(ar)` marker,
+            // shorter than the form's 40-character minimum: pre-filling it
+            // would fail every save with `bio_ar_short`.
+            host={{ ...user.host, bioAr: arEditableValue(user.host.bioAr) }}
             copy={{
               toggle: t('users.edit.hostToggle'),
               name: t('users.edit.name'),
