@@ -55,7 +55,7 @@ describe('claimDecision', () => {
     expect(claimDecision(facts({ sessionEmail: '' }))).toBeNull();
   });
 
-  it('allows when this browser holds the signed cookie for one of the row bookings', () => {
+  it('allows when this browser holds the signed cookie for the row\u2019s only booking', () => {
     expect(claimDecision(facts({ browserOwnsRowBooking: true }))).toBe('own_browser');
   });
 
