@@ -238,9 +238,15 @@ describe('verifyOtp', () => {
 });
 
 describe('signOut', () => {
-  it('ends the Supabase session, clears both cookies and returns home in the locale', async () => {
+  it('ends the Supabase session, clears the session, MFA and last-booking cookies and returns home in the locale', async () => {
     expect(await run(() => signOut(form({ locale: 'en' })))).toBe('REDIRECT:en:/');
     expect(supa.calls).toEqual([{ signOut: true }]);
-    expect(jar.deletes).toEqual(['gharmish_stub_session', 'gharmish_admin_mfa']);
+    // The last-booking cookie is a booking-access proof; it must not
+    // outlive the sign-out on a shared device (#180, 2026-10-30).
+    expect(jar.deletes).toEqual([
+      'gharmish_stub_session',
+      'gharmish_admin_mfa',
+      'gharmish_last_booking',
+    ]);
   });
 });
