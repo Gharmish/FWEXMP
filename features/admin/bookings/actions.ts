@@ -112,6 +112,7 @@ export async function refundBooking(
         walletAppliedSar: true,
         refundDueSar: true,
         idempotencyKey: true,
+        cancellationKind: true,
       },
       with: { guest: { columns: { preferredLanguage: true } } },
     });
@@ -356,10 +357,21 @@ export async function refundBooking(
       reportError(error, { surface: 'admin:refundBooking:ledger', bookingId });
     }
 
-    // Tell the guest their money is on the way back — best-effort.
+    // Tell the guest their money is on the way back — best-effort. The
+    // framing follows who cancelled (#168, 2026-11-01): settling a guest's
+    // own queued refund used to say "the Gharmish team has cancelled this
+    // booking", and a host cancellation lost its host framing. A refund on
+    // a booking nobody cancelled (confirmed/completed, or a system release)
+    // is the team's decision, so it keeps the ops framing.
+    const cancelledBy =
+      booking.cancellationKind === 'host'
+        ? 'host'
+        : booking.cancellationKind === 'guest' || booking.cancellationKind === 'agent'
+          ? undefined
+          : 'operator';
     try {
       await sendBookingCancellationEmail(booking.idempotencyKey, 'refunded', {
-        cancelledBy: 'operator',
+        cancelledBy,
         // The amount ACTUALLY returned by this action (2026-07-28
         // eighth audit). Omitted, the template defaulted to the full
         // card charge — so settling a 50%-policy queue entry on a 400

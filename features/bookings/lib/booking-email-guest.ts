@@ -50,10 +50,12 @@ import {
  * issued), `refund_pending` (we owe it, transfer is manual),
  * `wallet_credited` (emergency cancellation — the full payment landed
  * as Gharmish Credit), `forfeited` (inside the window, payment kept),
- * `none` (nothing was paid). `cancelledBy` selects the framing: `guest`
- * ("you cancelled") vs `operator` (host/admin called it off — always
- * refunded in full when paid, never forfeited). Same best-effort
- * posture as the receipt: gated, never throws upward.
+ * `none` (nothing was paid). `cancelledBy` selects the framing: omitted
+ * ("you cancelled" — the guest, or the agent on their behalf), `host`
+ * (the host called it off) or `operator` (the Gharmish team). A settled
+ * queue entry can be partial, so no refunded intro claims "in full"
+ * (#168). Same best-effort posture as the receipt: gated, never throws
+ * upward.
  */
 export async function sendBookingCancellationEmail(
   reference: string,
@@ -189,7 +191,7 @@ export async function sendBookingCancellationEmail(
   const refundAmountText = waMoney(options?.refundAmountSar ?? booking.totalAmountSar, locale);
   const refundLine =
     refund === 'refunded'
-      ? REFUND_LINES.refunded[locale](refundAmountText)
+      ? REFUND_LINES[refundedToBank ? 'refunded_bank' : 'refunded'][locale](refundAmountText)
       : refund === 'refund_pending'
         ? (pendingNeedsBank ? REFUND_LINES.needs_payee : REFUND_LINES.refund_pending)[locale](
             refundAmountText,

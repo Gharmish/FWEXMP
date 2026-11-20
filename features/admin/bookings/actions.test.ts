@@ -257,6 +257,53 @@ describe('emergencyCancelBooking', () => {
   });
 });
 
+describe('refundBooking tells the guest who cancelled (#168)', () => {
+  const settled = (over: BookingRow) =>
+    paidConfirmed({ status: 'cancelled', refundDueSar: 150, ...over });
+  const emailOptions = () => {
+    expect(sendBookingCancellationEmail).toHaveBeenCalledTimes(1);
+    const [reference, refund, options] = sendBookingCancellationEmail.mock.calls[0] as unknown as [
+      string,
+      string,
+      Record<string, unknown>,
+    ];
+    expect(reference).toBe('ref-1');
+    expect(refund).toBe('refunded');
+    return options;
+  };
+
+  it("keeps the guest's own framing when settling their queued partial refund", async () => {
+    booking = settled({ cancellationKind: 'guest' });
+    expect(await redirected(refundBooking(initial, form()))).toBe('REDIRECT:/admin/bookings');
+    expect(emailOptions()).toMatchObject({ refundAmountSar: 150 });
+    expect(emailOptions().cancelledBy).toBeUndefined();
+  });
+
+  it('keeps the host framing when the host called the booking off', async () => {
+    booking = settled({ cancellationKind: 'host' });
+    await redirected(refundBooking(initial, form()));
+    expect(emailOptions().cancelledBy).toBe('host');
+  });
+
+  it("treats a cancellation by the WhatsApp agent as the guest's own", async () => {
+    booking = settled({ cancellationKind: 'agent' });
+    await redirected(refundBooking(initial, form()));
+    expect(emailOptions().cancelledBy).toBeUndefined();
+  });
+
+  it('keeps the ops framing for an emergency cancellation', async () => {
+    booking = settled({ cancellationKind: 'emergency' });
+    await redirected(refundBooking(initial, form()));
+    expect(emailOptions().cancelledBy).toBe('operator');
+  });
+
+  it('keeps the ops framing for a refund the team decided on its own', async () => {
+    booking = paidConfirmed({ cancellationKind: null });
+    await redirected(refundBooking(initial, form()));
+    expect(emailOptions().cancelledBy).toBe('operator');
+  });
+});
+
 describe('refundBooking eligibility', () => {
   it('validates the id', async () => {
     expect(await refundBooking(initial, form({ bookingId: 'x' }))).toMatchObject({
