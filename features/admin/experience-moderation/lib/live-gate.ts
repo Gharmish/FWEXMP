@@ -39,6 +39,34 @@ export interface LiveGateCandidate {
 
 const isPlaceholder = (value: string): boolean => value.startsWith('TODO(ar');
 
+export type ListLanguageBlocker = Extract<LiveGateBlocker, 'needs_english' | 'needs_arabic_lists'>;
+
+/**
+ * The two-language rule for "What's included" and "What to bring" on its
+ * own: an Arabic-only list leaves the English page without one, an
+ * English-only list renders in English to the Arabic-first audience. Part
+ * of {@link liveGateBlocker}; also run by the host's in-place save on a
+ * live or paused listing, which bypasses review and so bypassed this
+ * check (#121, 2026-10-31).
+ */
+export function listLanguageBlocker(
+  c: Pick<LiveGateCandidate, 'inclusions' | 'inclusionsAr' | 'whatToBring' | 'whatToBringAr'>,
+): ListLanguageBlocker | null {
+  if (
+    (c.inclusionsAr.length > 0 && c.inclusions.length === 0) ||
+    (c.whatToBringAr.length > 0 && c.whatToBring.length === 0)
+  ) {
+    return 'needs_english';
+  }
+  if (
+    (c.inclusions.length > 0 && c.inclusionsAr.length === 0) ||
+    (c.whatToBring.length > 0 && c.whatToBringAr.length === 0)
+  ) {
+    return 'needs_arabic_lists';
+  }
+  return null;
+}
+
 export function liveGateBlocker(c: LiveGateCandidate): LiveGateBlocker | null {
   // Suspending a host pauses their LIVE listings; one going live now
   // would land in a catalog where nobody can book it (the booking action
@@ -51,12 +79,8 @@ export function liveGateBlocker(c: LiveGateCandidate): LiveGateBlocker | null {
   // Hosts may draft in Arabic only (2026-08-22) — the English side is the
   // team's to fill before the listing reaches the catalog, lists included:
   // an Arabic-only "What's included" leaves the English page without one.
-  if (
-    c.titleEn.trim() === '' ||
-    c.descriptionEn.trim() === '' ||
-    (c.inclusionsAr.length > 0 && c.inclusions.length === 0) ||
-    (c.whatToBringAr.length > 0 && c.whatToBring.length === 0)
-  ) {
+  const lists = listLanguageBlocker(c);
+  if (c.titleEn.trim() === '' || c.descriptionEn.trim() === '' || lists === 'needs_english') {
     return 'needs_english';
   }
   // Host-added moments carry the same placeholder — without this the
@@ -66,12 +90,7 @@ export function liveGateBlocker(c: LiveGateCandidate): LiveGateBlocker | null {
   }
   // Empty Arabic lists fall back to the seed dictionary, which only covers
   // seeded strings — host-typed items would render in English.
-  if (
-    (c.inclusions.length > 0 && c.inclusionsAr.length === 0) ||
-    (c.whatToBring.length > 0 && c.whatToBringAr.length === 0)
-  ) {
-    return 'needs_arabic_lists';
-  }
+  if (lists === 'needs_arabic_lists') return 'needs_arabic_lists';
   if (c.hostVerificationStatus !== 'verified') return 'host_unverified';
   return null;
 }
