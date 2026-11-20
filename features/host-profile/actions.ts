@@ -1,6 +1,6 @@
 'use server';
 
-import { and, eq, isNotNull } from 'drizzle-orm';
+import { and, eq, ne } from 'drizzle-orm';
 import { revalidatePath } from 'next/cache';
 import { revalidateExperienceCaches } from '@/lib/cache-tags';
 import { db } from '@/lib/db';
@@ -572,21 +572,19 @@ export async function confirmHostContactPhone(
         pendingContactPhoneAt: null,
       })
       .where(eq(hosts.id, host.id));
-    // The OLD number stops being this host on the WhatsApp support line
+    // Every OLD number stops being this host on the WhatsApp support line
     // the moment the new one takes over (conversations.hostId is sticky
-    // otherwise — late identification only fills a null).
-    if (pending.previousPhone && pending.previousPhone !== pending.phone) {
-      await db
-        .update(conversations)
-        .set({ hostId: null })
-        .where(
-          and(
-            eq(conversations.address, pending.previousPhone),
-            eq(conversations.hostId, host.id),
-            isNotNull(conversations.hostId),
-          ),
-        );
-    }
+    // otherwise — late identification only fills a null). Not only the
+    // previous `contact_phone`: a legacy host has none (NULL), and the
+    // line also identified them through the approved application's phone,
+    // so that thread kept the host tools too (#97, 2026-11-01). Clearing
+    // by host id covers every address the identification ever matched;
+    // a number that still identifies the host (their account phone, or
+    // the new contact phone) is re-bound on its next message.
+    await db
+      .update(conversations)
+      .set({ hostId: null })
+      .where(and(eq(conversations.hostId, host.id), ne(conversations.address, pending.phone)));
   } catch (error) {
     reportError(error, { surface: 'host-profile:confirmPhone:write' });
     return { status: 'error', message: 'server', step: 'verify', phone: pending.phone };
