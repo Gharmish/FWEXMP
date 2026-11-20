@@ -79,8 +79,17 @@ export function claimDecision(facts: ClaimFacts): ClaimEvidence | null {
   return null;
 }
 
-/** Gather {@link ClaimFacts} for a row, then apply {@link claimDecision}. */
-async function claimEvidence(row: Guest, user: AuthUser): Promise<ClaimEvidence | null> {
+/**
+ * Gather {@link ClaimFacts} for a row, then apply {@link claimDecision}.
+ * Exported for the one other read of an unclaimed row by phone — the
+ * booking-form prefill (#341, 2026-11-11) — so that read and the claim
+ * below cannot disagree about whose row it is. Takes only the columns it
+ * needs, so a narrow projection can be checked without loading the row.
+ */
+export async function claimEvidence(
+  row: Pick<Guest, 'id' | 'email'>,
+  user: AuthUser,
+): Promise<ClaimEvidence | null> {
   const [{ bookingCount }] = await db
     .select({ bookingCount: count() })
     .from(bookings)
