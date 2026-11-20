@@ -595,7 +595,18 @@ export async function runTool(
           from,
           addDays(from, 30),
         );
-        if (!schedule) return { result: JSON.stringify({ error: 'unavailable' }) };
+        if (!schedule) {
+          // Null covers both a listing that takes no new dates (paused,
+          // archived, under review, or its host suspended — the feed's
+          // guest gate, #169, 2026-10-31) and an unreadable schedule, so
+          // the model must not read it as an outage to retry.
+          return {
+            result: JSON.stringify({
+              error: 'unavailable',
+              note: 'No dates can be offered for this booking right now: the experience is not taking new dates at the moment (paused or under review), or its calendar could not be read. Tell the guest their current date stands and the experience is not open to a change of date just now. Do not retry; offer open_ticket if they want a person to look into it.',
+            }),
+          };
+        }
         const dates = bookableDates({
           fromStr: from,
           days: 31,
