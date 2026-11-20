@@ -27,6 +27,12 @@ vi.mock('@/lib/notifications/dispatch', () => ({
 vi.mock('@/lib/notifications/host-contact', () => ({
   applyChannelPrefs: <T>(contact: T) => contact,
 }));
+// The fixture booking is on 2026-09-20; the "get ready" reminder only
+// goes out on the Riyadh day before the start (#273), so today is 09-19.
+vi.mock('@/lib/riyadh-time', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/lib/riyadh-time')>()),
+  todayInRiyadh: () => '2026-09-19',
+}));
 vi.mock('next-intl/server', () => ({
   getTranslations: async () => {
     const t = (key: string, values?: Record<string, unknown>) =>
@@ -421,6 +427,24 @@ describe('reminders honour the payment gate (GAPA-02)', () => {
     booking = base({ paymentStatus: 'unpaid', paidAt: null, paymentDeadline: null });
     await senders.sendBookingPrepareReminderEmail('ref-1', 'en');
     expect(sent()).toHaveLength(0);
+  });
+});
+
+describe('the "get ready" reminder only goes out the day before (#273)', () => {
+  it('is silent for a booking on the day itself, so a delivery retry cannot say "tomorrow" today', async () => {
+    booking = base({ date: '2026-09-19' });
+    await senders.sendBookingPrepareReminderEmail('ref-1', 'en');
+    expect(sent()).toHaveLength(0);
+  });
+
+  it('still reaches guest and host for a booking tomorrow', async () => {
+    booking = base({ date: '2026-09-20' });
+    await senders.sendBookingPrepareReminderEmail('ref-1', 'en');
+    expect(
+      sent()
+        .map((c) => c.recipient.kind)
+        .sort(),
+    ).toEqual(['guest', 'host']);
   });
 });
 
