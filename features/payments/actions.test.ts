@@ -252,8 +252,20 @@ describe('createCheckout — guest email backfill', () => {
     const at = setCalls.findIndex((v) => v.email === 'sara@example.com');
     expect(at, 'the set-if-empty email write ran').toBeGreaterThanOrEqual(0);
     expect(whereColumns[at]).toEqual(expect.arrayContaining(['id', 'email']));
-    expect(noOtherBookingOnGuestRow).toHaveBeenCalledTimes(1);
-    expect(noOtherBookingOnGuestRow).toHaveBeenCalledWith('b-1');
+    // Once here, once for the billing write below (#264).
+    expect(noOtherBookingOnGuestRow).toHaveBeenNthCalledWith(1, 'b-1');
+    expect(rawChunksIn(whereConditions[at])).toContain('not-shared-guard:b-1');
+  });
+
+  it('saves the billing address only onto a row no other booking reads (#264)', async () => {
+    const out = await createCheckout(initial, form());
+    expect(out.status).toBe('ready');
+    const at = setCalls.findIndex((v) => v.billingStreet1 !== undefined);
+    expect(at, 'the billing write ran').toBeGreaterThanOrEqual(0);
+    expect(whereColumns[at]).toEqual(expect.arrayContaining(['id']));
+    // Email backfill and billing write each carry the guard for THIS booking.
+    expect(noOtherBookingOnGuestRow).toHaveBeenCalledTimes(2);
+    expect(noOtherBookingOnGuestRow).toHaveBeenNthCalledWith(2, 'b-1');
     expect(rawChunksIn(whereConditions[at])).toContain('not-shared-guard:b-1');
   });
 });

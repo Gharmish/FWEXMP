@@ -2,6 +2,7 @@ import { cookies } from 'next/headers';
 import { and, eq, isNull } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import { boundedQuery } from '@/lib/deadline';
+import { guestRowIsShared } from '@/features/bookings/lib/shared-guest';
 import { serverEnv } from '@/lib/env';
 import { bookings, guests } from '@/db/schema';
 import { getCurrentUser } from '@/features/auth/queries';
@@ -104,13 +105,19 @@ export async function getKnownGuestDetails(): Promise<KnownGuestDetails> {
         where: eq(bookings.idempotencyKey, hint.reference),
         // Minimal selection: an empty `columns` object would select every
         // bookings column, and we only need the guest relation.
-        columns: { id: true },
+        columns: { id: true, guestId: true },
         with: {
           guest: { columns: { name: true, phone: true, email: true, authUserId: true } },
         },
       }),
     );
     if (!row) return {};
+    // Nor a row another booking shares (#264, 2026-10-31): a signed-out
+    // booking made with someone else's phone lands on THEIR anonymous
+    // row, and this cookie would then type their name and email into the
+    // next booking form on that browser. The pay page applies the same
+    // rule (`guestRowReadableForBooking`).
+    if (await guestRowIsShared(row.guestId, row.id)) return {};
     // An ACCOUNT-owned row is never prefilled from a cookie (2026-07-28
     // re-audit). `guests.phone` is unique, so booking anonymously with a
     // registered guest's number attaches that booking to their row —

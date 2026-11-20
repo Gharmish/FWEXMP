@@ -35,6 +35,9 @@ const sharedChecks: Row[] = [];
 /** Rows the guarded guest UPDATE matches (its WHERE lost the race when empty). */
 let guestRowsWritten: Row[] = [{ id: 'g1' }];
 const fake = vi.hoisted(() => ({ current: null as ReturnType<typeof createDbFake> | null }));
+vi.mock('@/lib/deadline', () => ({
+  boundedQuery: async <T>(_key: string, fn: () => Promise<T>) => fn(),
+}));
 vi.mock('@/lib/db', () => ({
   get db() {
     return fake.current;
