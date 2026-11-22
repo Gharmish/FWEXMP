@@ -432,6 +432,19 @@ describe('resolveDispute', () => {
     expect(sendHostBookingCancelledEmail).toHaveBeenCalledWith(REFERENCE);
   });
 
+  it('a QUEUED refund (refund_pending) leaves the booking confirmed, so the host is not told yet', async () => {
+    // The bank-transfer rail and a gateway refusal both return
+    // `refund_pending`: `executeRefund` stamps `refundDueSar` and leaves
+    // the row `confirmed`. The notice belongs to the admin's later settle
+    // through `refundBooking`, which must still find the dedupe key free.
+    disputeRow = { id: DISPUTE_ID, booking: { ...PAID_BOOKING, status: 'confirmed' } };
+    executeRefund.mockResolvedValueOnce('refund_pending');
+    const state = await resolveDispute({ success: false }, resolveForm({ issueRefund: 'on' }));
+    expect(state).toEqual({ success: true });
+    expect(sendDisputeResolvedEmail).toHaveBeenCalledWith(DISPUTE_ID, 450, 'refund_pending');
+    expect(sendHostBookingCancelledEmail).not.toHaveBeenCalled();
+  });
+
   it('refunding a completed booking sends the host no cancellation notice', async () => {
     disputeRow = { id: DISPUTE_ID, booking: PAID_BOOKING };
     const state = await resolveDispute({ success: false }, resolveForm({ issueRefund: 'on' }));

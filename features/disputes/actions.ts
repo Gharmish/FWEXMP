@@ -343,9 +343,14 @@ export async function resolveDispute(
   // A dispute refund on a CONFIRMED booking flips it to `refunded` and
   // takes the guest off a date the host is still preparing for (#408,
   // 2026-11-22). The executor's admin-cancel arm tells the host; this
-  // path went through `executeRefund` and never did. Deduped on
+  // path went through `executeRefund` and never did. Only when the
+  // refund actually SETTLED: on `refund_pending` (the bank-transfer rail,
+  // or a gateway refusal) the executor queues `refundDueSar` and leaves
+  // the row `confirmed`, so the booking is still on the host's calendar
+  // and a notice now would be wrong and would also consume the dedupe
+  // key the admin's later settle (`refundBooking`) relies on. Deduped on
   // `host_booking_cancelled:<ref>`; best-effort, never blocks the resolve.
-  if (refund?.hostNoticeReference) {
+  if (refund?.hostNoticeReference && refundOutcome === 'refunded') {
     try {
       await sendHostBookingCancelledEmail(refund.hostNoticeReference);
     } catch (error) {
