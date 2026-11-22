@@ -15,13 +15,24 @@ import { z } from 'zod';
  */
 export const REVIEW_TEXT_MAX = 1000;
 
+/**
+ * Review text bounded by REVIEW_TEXT_MAX, counted the way the form's
+ * textarea counts it. Browsers submit each textarea line break as CRLF
+ * (the HTML "textarea wrapping transformation") while its `maxLength`
+ * and the on-screen counter count a break as ONE character, so text the
+ * form accepted could arrive over the limit and be refused with no
+ * visible message. Line breaks are normalised to LF before trim/max.
+ */
+const boundedText = () =>
+  z
+    .string()
+    .transform((value) => value.replace(/\r\n?/g, '\n'))
+    .pipe(z.string().trim().max(REVIEW_TEXT_MAX));
+
 export const createReviewSchema = z.object({
   bookingReference: z.uuid(),
   rating: z.coerce.number().int().min(1).max(5),
-  text: z
-    .string()
-    .trim()
-    .max(REVIEW_TEXT_MAX)
+  text: boundedText()
     .optional()
     .transform((value) => (value && value.length > 0 ? value : undefined)),
   locale: z.enum(['en', 'ar']),
@@ -37,7 +48,7 @@ export type CreateReviewInput = z.infer<typeof createReviewSchema>;
  */
 export const hostReplySchema = z.object({
   reviewId: z.uuid(),
-  reply: z.string().trim().min(2).max(REVIEW_TEXT_MAX),
+  reply: boundedText().pipe(z.string().min(2)),
   locale: z.enum(['en', 'ar']),
 });
 
