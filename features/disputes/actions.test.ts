@@ -82,6 +82,11 @@ vi.mock('@/features/bookings/lib/refund', () => ({
   executeRefund: (...args: unknown[]) => executeRefund(...args),
 }));
 
+const sendHostBookingCancelledEmail = vi.fn<(...args: unknown[]) => Promise<void>>(async () => {});
+vi.mock('@/features/bookings/lib/booking-email', () => ({
+  sendHostBookingCancelledEmail: (...args: unknown[]) => sendHostBookingCancelledEmail(...args),
+}));
+
 const sendDisputeResolvedEmail = vi.fn<(...args: unknown[]) => Promise<void>>(async () => {});
 const sendDisputeReceivedEmail = vi.fn<(...args: unknown[]) => Promise<void>>(async () => {});
 const sendHostDisputeOpenedEmail = vi.fn<(...args: unknown[]) => Promise<void>>(async () => {});
@@ -99,6 +104,7 @@ interface RefundableBooking {
   totalAmount: number;
   walletAppliedSar: number;
   refundDueSar: number | null;
+  idempotencyKey: string;
 }
 
 let bookingRow: { id: string; guestId: string; referenceCode: string } | undefined;
@@ -171,6 +177,7 @@ const PAID_BOOKING: RefundableBooking = {
   totalAmount: 450,
   walletAppliedSar: 0,
   refundDueSar: null,
+  idempotencyKey: REFERENCE,
 };
 
 beforeEach(() => {
@@ -180,6 +187,7 @@ beforeEach(() => {
   sendDisputeResolvedEmail.mockClear();
   sendDisputeReceivedEmail.mockClear();
   sendHostDisputeOpenedEmail.mockClear();
+  sendHostBookingCancelledEmail.mockClear();
   currentUser = null;
   isAdmin = false;
   viewerCanAccess = true;
@@ -411,6 +419,42 @@ describe('resolveDispute', () => {
     disputeRow = { id: DISPUTE_ID };
     const state = await resolveDispute({ success: false }, resolveForm());
     expect(state).toEqual({ success: false, message: 'wrong_state' });
+  });
+
+  it('refunding a CONFIRMED booking tells the host their date is free again (#408)', async () => {
+    // `executeRefund` flips the booking to `refunded`, which takes the
+    // guest off a date the host is still preparing for; only the guest
+    // used to hear about it.
+    disputeRow = { id: DISPUTE_ID, booking: { ...PAID_BOOKING, status: 'confirmed' } };
+    const state = await resolveDispute({ success: false }, resolveForm({ issueRefund: 'on' }));
+    expect(state).toEqual({ success: true });
+    expect(sendHostBookingCancelledEmail).toHaveBeenCalledTimes(1);
+    expect(sendHostBookingCancelledEmail).toHaveBeenCalledWith(REFERENCE);
+  });
+
+  it('refunding a completed booking sends the host no cancellation notice', async () => {
+    disputeRow = { id: DISPUTE_ID, booking: PAID_BOOKING };
+    const state = await resolveDispute({ success: false }, resolveForm({ issueRefund: 'on' }));
+    expect(state).toEqual({ success: true });
+    expect(sendHostBookingCancelledEmail).not.toHaveBeenCalled();
+  });
+
+  it('resolving without a refund never pages the host', async () => {
+    disputeRow = { id: DISPUTE_ID, booking: { ...PAID_BOOKING, status: 'confirmed' } };
+    const state = await resolveDispute({ success: false }, resolveForm());
+    expect(state).toEqual({ success: true });
+    expect(sendHostBookingCancelledEmail).not.toHaveBeenCalled();
+  });
+
+  it('a failed host notice never fails the resolve', async () => {
+    disputeRow = { id: DISPUTE_ID, booking: { ...PAID_BOOKING, status: 'confirmed' } };
+    sendHostBookingCancelledEmail.mockRejectedValueOnce(new Error('resend down'));
+    const state = await resolveDispute({ success: false }, resolveForm({ issueRefund: 'on' }));
+    expect(state).toEqual({ success: true });
+    expect(reportError).toHaveBeenCalledWith(
+      expect.any(Error),
+      expect.objectContaining({ surface: 'disputes:resolveHostEmail' }),
+    );
   });
 
   it('returns not_found when the dispute does not exist at all', async () => {
