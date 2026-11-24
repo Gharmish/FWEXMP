@@ -3070,6 +3070,7 @@
     "durationHoursHalf": "{count, plural, =0 {30 min} other {#.5 hr}}",
     "requestMode": "Request to book",
     "newBadge": "New",
+    "datesSoon": "Dates soon",
     "photoPrev": "Previous photo",
     "photoNext": "Next photo",
     "photoGoTo": "Go to photo {n}"
@@ -3199,6 +3200,9 @@
     "decrease": "Fewer guests",
     "increase": "More guests",
     "noDates": "No open dates in the next 8 weeks — new dates are added regularly, so check back soon.",
+    "datesSoon": "Dates soon",
+    "perGuest": "per guest",
+    "askWhatsapp": "Ask on WhatsApp",
     "prevMonth": "Previous month",
     "nextMonth": "Next month",
     "modeInstant": "Instant book — pay now and your spot is confirmed right away.",
@@ -3810,6 +3814,7 @@
     "verified": "Verified host",
     "viewProfile": "View host profile",
     "speaks": "Speaks {languages}",
+    "hostedByName": "Hosted by {name}",
     "respondsIn": "Responds in about {hours}h",
     "responseRate": "{pct}% response rate"
   },

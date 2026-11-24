@@ -52,6 +52,7 @@ function attachRatings(e: SampleExperience): ExperienceDetail {
   return {
     ...e,
     hostSlug: e.host.slug,
+    hostAvatar: e.host.photoUrl,
     ratingAverage: agg.average,
     ratingCount: agg.count,
     heroImage: heroFor(e.slug),

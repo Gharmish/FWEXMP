@@ -233,6 +233,7 @@ export default async function ExperiencesIndexPage({
                       <ExperienceCard
                         experience={experience}
                         locale={loc}
+                        wide
                         actions={
                           <WishlistButton
                             slug={experience.slug}

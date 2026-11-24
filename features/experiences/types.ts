@@ -34,6 +34,13 @@ export interface ExperienceSummary {
   hostSlug: string;
   /** Drives the micro-seal beside the host name on cards; undefined on the sample-data path. */
   hostVerified?: boolean;
+  /**
+   * Host portrait URL for the card's host line (`hosts.photo_url`). Null
+   * until the host has one; undefined on entries cached before the field
+   * existed and on lightweight constructors — the card falls back to
+   * initials either way.
+   */
+  hostAvatar?: string | null;
   featured: boolean;
   /** `instant` auto-confirms against the calendar; `request` is operator-confirmed. */
   bookingMode: BookingMode;

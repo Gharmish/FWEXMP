@@ -41,6 +41,7 @@ import { BookingRequestForm } from '@/features/bookings/components/booking-reque
 import { consentLinkRenderers } from '@/features/bookings/components/consent-links';
 import { ExperienceViewTracking } from '@/features/experiences/components/experience-view-tracking';
 import { getKnownGuestDetails } from '@/features/account/guest-prefill';
+import { HostByline } from '@/features/hosts/components/host-byline';
 import { HostCard } from '@/features/hosts/components/host-card';
 import { toArabicText } from '@/features/experiences/lib/arabic-content';
 import { pickLocalized } from '@/lib/ar-placeholder';
@@ -95,6 +96,15 @@ import type { Category } from '@/features/experiences/types';
  * weather section on /cancellation-policy covers everyone regardless.
  */
 const OUTDOOR_CATEGORIES: ReadonlySet<Category> = new Set<Category>(['nature', 'adventure']);
+
+/**
+ * Phone-only treatment for the back / share controls while they float over
+ * the edge-to-edge photo: the same 44px white round button the wishlist
+ * heart already is. From `sm` up the controls sit in a plain row above the
+ * photo and keep their text-link look.
+ */
+const ON_PHOTO_CONTROL =
+  'max-sm:border-sarat-black/12 max-sm:text-sarat-black max-sm:size-11 max-sm:justify-center max-sm:rounded-full max-sm:border max-sm:bg-white/85';
 
 export async function generateMetadata({
   params,
@@ -653,173 +663,205 @@ export default async function ExperienceDetailPage({
     ],
   };
 
+  // Staffed Gharmish WhatsApp support line, prefilled with this listing's
+  // title — the pre-booking question link in the host section and the
+  // next step on the dates-soon dock. Null when support isn't configured.
+  const supportPhone = supportWhatsappE164();
+  const supportHref = supportPhone
+    ? whatsappLink(supportPhone, t('questionsPrefill', { title }))
+    : null;
+
   return (
-    <article className="mx-auto w-full max-w-6xl px-6 py-12">
+    <article className="mx-auto w-full max-w-6xl px-6 pb-12 sm:pt-12">
       {/* Draft content emits no structured data — crawlers shouldn't see it. */}
       {!previewMode && <JsonLd data={jsonLd} />}
       {previewMode && (
         <p
           role="status"
-          className="border-saffron-gold/50 bg-saffron-gold/10 text-sarat-black rounded-card mb-6 border p-4 text-sm leading-relaxed"
+          className="border-saffron-gold/50 bg-saffron-gold/10 text-sarat-black rounded-card mb-6 border p-4 text-sm leading-relaxed max-sm:mt-6"
         >
           {t('preview.banner')}
         </p>
       )}
-      <div className="flex items-center justify-between gap-4">
-        <Link
-          href="/experiences"
-          className="text-sarat-black-600 inline-flex min-h-11 items-center gap-2 text-sm transition-opacity duration-200 hover:opacity-60"
-        >
-          <ArrowLeft className="size-4 shrink-0 rtl:rotate-180" aria-hidden />
-          {t('back')}
-        </Link>
-        {/* Draft previews are only readable by their owner — a shared
-            link would 404 for everyone else, so no share affordance. */}
-        {!previewMode && (
-          <div className="flex items-center gap-2">
-            {/* Save-for-later at the exact moment of hesitation — the
-                catalog and home already offer it; losing it on click-through
-                was a gap. Static placement (no absolute corner) because this
-                bar isn't an image card. */}
-            <WishlistButton slug={exp.slug} isSaved={wishlistSaved.has(exp.slug)} surface="light" />
-            <ShareButton
-              url={`${SITE_URL}/${loc}/experiences/${exp.slug}`}
-              title={title}
-              contentType="experience"
-              analyticsId={exp.slug}
+      {/* Controls + first screen. On phones the photo runs edge to edge
+          directly under the site header and the controls float over it as
+          round buttons (the row is absolutely positioned inside this
+          wrapper); from `sm` up they are an ordinary row above the photo. */}
+      <div className="relative">
+        <div className="absolute -inset-x-2 top-4 z-20 flex items-center justify-between gap-4 max-sm:pointer-events-none sm:static sm:mb-4">
+          <Link
+            href="/experiences"
+            className={cn(
+              'text-sarat-black-600 pointer-events-auto inline-flex min-h-11 items-center gap-2 text-sm transition-opacity duration-200 hover:opacity-60',
+              ON_PHOTO_CONTROL,
+            )}
+          >
+            <ArrowLeft className="size-4 shrink-0 max-sm:size-5 rtl:rotate-180" aria-hidden />
+            <span className="max-sm:sr-only">{t('back')}</span>
+          </Link>
+          {/* Draft previews are only readable by their owner — a shared
+              link would 404 for everyone else, so no share affordance. */}
+          {!previewMode && (
+            <div className="pointer-events-auto flex items-center gap-2">
+              {/* Save-for-later at the exact moment of hesitation — the
+                  catalog and home already offer it; losing it on click-through
+                  was a gap. */}
+              <WishlistButton
+                slug={exp.slug}
+                isSaved={wishlistSaved.has(exp.slug)}
+                surface="light"
+              />
+              <ShareButton
+                url={`${SITE_URL}/${loc}/experiences/${exp.slug}`}
+                title={title}
+                contentType="experience"
+                analyticsId={exp.slug}
+                className={ON_PHOTO_CONTROL}
+                labelClassName="max-sm:sr-only"
+              />
+            </div>
+          )}
+        </div>
+        {/* Four blocks in reading order — photo, header, content, booking
+            panel — which IS the phone/tablet layout. From `lg` the same
+            DOM becomes two columns by placement alone: the photo spans
+            rows 1–2 of the left column, the header takes row 1 of the
+            right column and the booking panel rows 2–3 beneath it, so the
+            title, host, price and booking action all sit beside the photo
+            on the first screen. Row 2 is the only flexible track: it
+            absorbs whatever the photo is taller than the header by, so
+            the panel starts right under the header instead of under the
+            photo. */}
+        {/* Both tracks are minmax(0,…), never a bare `1fr` or an implicit
+              `auto`. A grid item defaults to `min-width: auto`, i.e. it refuses
+              to shrink below its own min-content, and an `auto`/`1fr` track
+              honours that floor — so one long unbreakable string anywhere in
+              this subtree widens the column past its container and the whole
+              document scrolls sideways. Flooring at 0 makes the track win and
+              the content wrap instead. Latent until some copy trips it, which
+              is why it must not depend on today's strings (2026-08-08). */}
+        <div className="grid grid-cols-[minmax(0,1fr)] gap-y-6 lg:grid-cols-[minmax(0,1fr)_360px] lg:grid-rows-[auto_1fr_auto] lg:gap-x-12">
+          {/* Photo. One frame for every photo count (see PhotoGallery); the
+              lightbox shows every photo in full via object-contain, which
+              is where mixed portrait/landscape orientation belongs. */}
+          <div className="-mx-6 sm:mx-0 lg:col-start-1 lg:row-span-2 lg:row-start-1 lg:self-start">
+            <PhotoGallery
+              heroImage={exp.heroImage}
+              images={exp.images}
+              alt={title}
+              category={exp.category}
+              locale={loc}
+              copy={{
+                open: t('gallery.open'),
+                count: t('gallery.count'),
+                close: t('gallery.close'),
+                prev: t('gallery.prev'),
+                next: t('gallery.next'),
+                goTo: t('gallery.goTo', { n: '{n}' }),
+              }}
             />
           </div>
-        )}
-      </div>
 
-      {/* Hero + gallery. The hero stays the LCP 16:9 frame; the lightbox
-          shows every photo (hero + gallery) in full via object-contain,
-          which is where mixed portrait/landscape orientation belongs. */}
-      <PhotoGallery
-        heroImage={exp.heroImage}
-        images={exp.images}
-        alt={title}
-        category={exp.category}
-        locale={loc}
-        copy={{
-          open: t('gallery.open'),
-          count: t('gallery.count'),
-          close: t('gallery.close'),
-          prev: t('gallery.prev'),
-          next: t('gallery.next'),
-          goTo: t('gallery.goTo', { n: '{n}' }),
-        }}
-      />
-
-      <header className="mt-12 flex flex-col gap-3">
-        <span className={eyebrowClassName}>{exp.featured ? te('originals') : categoryLabel}</span>
-        <h1 className="text-h1-lg max-w-3xl">{title}</h1>
-        <p className="text-sarat-black-600 flex items-center gap-2 text-base">
-          <MapPin className="size-4 shrink-0" aria-hidden />
-          <span>
-            {placeName} · {location}
-          </span>
-        </p>
-        {/* Rating above the fold: the catalog card shows stars, so losing
-            them on click-through inverted the social-proof gradient. Anchor
-            links straight to the reviews section. Hidden at zero reviews —
-            no fake proof. */}
-        {ratingAggregate.count > 0 && ratingAggregate.average !== null && (
-          <a
-            href="#reviews"
-            className="flex items-center gap-2 self-start text-sm font-medium underline-offset-4 transition-opacity duration-200 hover:opacity-60"
-          >
-            <Star className="text-saffron-gold size-4 shrink-0 fill-current" aria-hidden />
-            {t('ratingSummary', {
-              rating: ratingAggregate.average.toFixed(1),
-              count: ratingAggregate.count,
-            })}
-          </a>
-        )}
-        {/* Women-only experiences flag the restriction up front — before the
-            guest invests in the booking flow (the booking form also requires
-            an eligibility acknowledgment). Category tint per BRIEF §3. */}
-        {exp.category === 'women_only' && (
-          <Badge className="bg-tihama-coral/20 text-tihama-coral-800 self-start">
-            <Venus aria-hidden />
-            {t('womenOnlyBadge')}
-          </Badge>
-        )}
-      </header>
-
-      {/* Icon-led quick facts — duration / start time / group / min age were
-          previously buried in a dot-separated run-on string or the booking
-          panel's small print. Surfacing them as a scannable row is the
-          at-a-glance contract a guest reads before committing. */}
-      <section
-        aria-label={t('highlights.heading')}
-        className="border-sarat-black/12 mt-8 grid grid-cols-2 gap-x-6 gap-y-6 border-y py-8 sm:grid-cols-4"
-      >
-        {highlights.map(({ key, Icon, label, value }) => (
-          <div key={key} className="flex items-center gap-3">
-            <Icon className="text-saffron-gold size-5 shrink-0" aria-hidden />
-            <div className="flex flex-col">
-              <span className="text-sarat-black-600 text-xs">{label}</span>
-              <span className="text-sm font-medium">{value}</span>
-            </div>
-          </div>
-        ))}
-      </section>
-
-      {/* Both tracks are minmax(0,…), never a bare `1fr` or an implicit
-          `auto`. A grid item defaults to `min-width: auto`, i.e. it refuses
-          to shrink below its own min-content, and an `auto`/`1fr` track
-          honours that floor — so one long unbreakable string anywhere in
-          this subtree widens the column past its container and the whole
-          document scrolls sideways. Flooring at 0 makes the track win and
-          the content wrap instead. Latent until some copy trips it, which
-          is why it must not depend on today's strings (2026-08-08). */}
-      <div className="mt-12 grid grid-cols-[minmax(0,1fr)] gap-12 lg:grid-cols-[minmax(0,1fr)_360px]">
-        {/* Left: content. `min-w-0` is load-bearing, not cosmetic: a grid
-            item defaults to `min-width: auto` and so refuses to shrink below
-            its own min-content, overflowing the track no matter how the
-            track is sized. Flooring the track alone does NOT fix that —
-            measured. */}
-        <div className="flex min-w-0 flex-col gap-12">
-          <section className="flex flex-col gap-3">
-            <h2 className="text-h2">{t('about')}</h2>
-            {/* ~65–75ch measure: long prose past 80ch is fatiguing to track.
-                pre-line keeps the host's own paragraph breaks — the same
-                text renders pre-line in the host/admin views. */}
-            <p className="text-sarat-black-600 max-w-[68ch] text-lg leading-relaxed whitespace-pre-line">
-              {description}
+          <header className="flex min-w-0 flex-col gap-3 lg:col-start-2 lg:row-start-1">
+            <span className={eyebrowClassName}>
+              {exp.featured ? te('originals') : categoryLabel}
+            </span>
+            {/* text-h1-sm (30→36px): the title shares the first screen with
+                the photo, and from `lg` it sets in the 360px column. */}
+            <h1 className="text-h1-sm">{title}</h1>
+            <p className="text-sarat-black-600 flex items-center gap-2 text-base">
+              <MapPin className="size-4 shrink-0" aria-hidden />
+              <span>
+                {placeName} · {location}
+              </span>
             </p>
-          </section>
+            {/* Rating above the fold: the catalog card shows stars, so losing
+                them on click-through inverted the social-proof gradient. Anchor
+                links straight to the reviews section. Hidden at zero reviews —
+                no fake proof. */}
+            {ratingAggregate.count > 0 && ratingAggregate.average !== null && (
+              <a
+                href="#reviews"
+                className="flex items-center gap-2 self-start text-sm font-medium underline-offset-4 transition-opacity duration-200 hover:opacity-60"
+              >
+                <Star className="text-saffron-gold size-4 shrink-0 fill-current" aria-hidden />
+                {t('ratingSummary', {
+                  rating: ratingAggregate.average.toFixed(1),
+                  count: ratingAggregate.count,
+                })}
+              </a>
+            )}
+            {/* Women-only experiences flag the restriction up front — before the
+                guest invests in the booking flow (the booking form also requires
+                an eligibility acknowledgment). Category tint per BRIEF §3. */}
+            {exp.category === 'women_only' && (
+              <Badge className="bg-tihama-coral/20 text-tihama-coral-800 self-start">
+                <Venus aria-hidden />
+                {t('womenOnlyBadge')}
+              </Badge>
+            )}
+            {/* The host's face on the first screen — the host is the way
+                in. Jumps to the full host section below. */}
+            <HostByline host={exp.host} locale={loc} href="#host" />
+          </header>
 
-          {/* The story behind this experience — optional editorial prose;
-              renders only when real content exists (no fabrication). */}
-          {story && (
+          {/* Left: content. `min-w-0` is load-bearing, not cosmetic: a grid
+                item defaults to `min-width: auto` and so refuses to shrink below
+                its own min-content, overflowing the track no matter how the
+                track is sized. Flooring the track alone does NOT fix that —
+                measured. */}
+          <div className="flex min-w-0 flex-col gap-12 lg:col-start-1 lg:row-start-3">
+            {/* Icon-led quick facts — duration / start time / group / min age were
+                previously buried in a dot-separated run-on string or the booking
+                panel's small print. Surfacing them as a scannable row is the
+                at-a-glance contract a guest reads before committing. */}
+            <section
+              aria-label={t('highlights.heading')}
+              className="border-sarat-black/12 grid grid-cols-2 gap-x-6 gap-y-6 border-y py-6 sm:grid-cols-4"
+            >
+              {highlights.map(({ key, Icon, label, value }) => (
+                <div key={key} className="flex items-center gap-3">
+                  <Icon className="text-saffron-gold size-5 shrink-0" aria-hidden />
+                  <div className="flex flex-col">
+                    <span className="text-sarat-black-600 text-xs">{label}</span>
+                    <span className="text-sm font-medium">{value}</span>
+                  </div>
+                </div>
+              ))}
+            </section>
             <section className="flex flex-col gap-3">
-              <h2 className="text-h2">{t('story')}</h2>
+              <h2 className="text-h2">{t('about')}</h2>
+              {/* ~65–75ch measure: long prose past 80ch is fatiguing to track.
+                  pre-line keeps the host's own paragraph breaks — the same
+                  text renders pre-line in the host/admin views. */}
               <p className="text-sarat-black-600 max-w-[68ch] text-lg leading-relaxed whitespace-pre-line">
-                {story}
+                {description}
               </p>
             </section>
-          )}
 
-          {/* Your host — the person early in the read (brand hierarchy:
-              guest → host → place; the host is the way in, not a footnote
-              below the cancellation policy). */}
-          <section className="flex flex-col gap-4">
-            <h2 className="text-h2">{t('hostedBy')}</h2>
-            <HostCard host={exp.host} locale={loc} responseStats={hostResponseStats} />
-            {/* Pre-booking question path: the staffed Gharmish WhatsApp
-                support line (not the host's personal number — hosts keep
-                their privacy; support relays). Resolved via the shared
-                helper so it tracks the configured number and hides itself
-                when support isn't set up. Quiet secondary link. */}
-            {(() => {
-              const supportPhone = supportWhatsappE164();
-              const supportHref = supportPhone
-                ? whatsappLink(supportPhone, t('questionsPrefill', { title }))
-                : null;
-              if (!supportHref) return null;
-              return (
+            {/* The story behind this experience — optional editorial prose;
+                renders only when real content exists (no fabrication). */}
+            {story && (
+              <section className="flex flex-col gap-3">
+                <h2 className="text-h2">{t('story')}</h2>
+                <p className="text-sarat-black-600 max-w-[68ch] text-lg leading-relaxed whitespace-pre-line">
+                  {story}
+                </p>
+              </section>
+            )}
+
+            {/* Your host — the person early in the read (brand hierarchy:
+                guest → host → place; the host is the way in, not a footnote
+                below the cancellation policy). */}
+            <section id="host" className="flex scroll-mt-20 flex-col gap-4">
+              <h2 className="text-h2">{t('hostedBy')}</h2>
+              <HostCard host={exp.host} locale={loc} responseStats={hostResponseStats} />
+              {/* Pre-booking question path: the staffed Gharmish WhatsApp
+                  support line (not the host's personal number — hosts keep
+                  their privacy; support relays). Resolved via the shared
+                  helper so it tracks the configured number and hides itself
+                  when support isn't set up. Quiet secondary link. */}
+              {supportHref && (
                 <a
                   href={supportHref}
                   target="_blank"
@@ -829,276 +871,281 @@ export default async function ExperienceDetailPage({
                   <MessageCircle className="size-4 shrink-0" aria-hidden />
                   {t('questionsLink')}
                 </a>
-              );
-            })()}
-          </section>
+              )}
+            </section>
 
-          {exp.moments.length > 0 && (
-            <section className="flex flex-col gap-6">
-              <FadeIn>
-                <h2 className="text-h2">{t('timeline')}</h2>
-              </FadeIn>
-              {/* Each moment springs in in sequence; the connector rail draws
-                  itself down as it scrolls into view — one read-as-a-journey
-                  timeline. */}
-              <Stagger>
-                <ol className="flex flex-col">
-                  {exp.moments.map((m, i, arr) => (
-                    <li key={m.orderIndex}>
-                      <StaggerItem className="grid grid-cols-[auto_1fr] gap-x-4">
-                        <div className="flex flex-col items-center" aria-hidden>
-                          <span className="bg-saffron-gold ring-saffron-gold/15 mt-1.5 size-2.5 shrink-0 rounded-full ring-4" />
-                          {i < arr.length - 1 && (
-                            <Draw className="mt-1 w-px flex-1">
-                              <span className="bg-sarat-black/10 block size-full" />
-                            </Draw>
-                          )}
-                        </div>
-                        <div className={cn('flex flex-col gap-1', i < arr.length - 1 && 'pb-8')}>
-                          {/* P3-6: this is a real content label (time of
-                              day), not a decorative eyebrow — 12px is the
-                              floor, so it gets its own class instead of
-                              sharing eyebrowClassName's 11px. */}
-                          <span className={cn('text-sarat-black-600 text-eyebrow')}>
-                            {loc === 'ar' ? toArabicText(m.timeOfDay) : m.timeOfDay}
-                          </span>
-                          <span className="text-lg font-medium">
-                            {loc === 'ar' ? m.titleAr : m.titleEn}
-                          </span>
-                          <span className="text-sarat-black-600 max-w-[68ch] text-base">
-                            {loc === 'ar' ? m.descriptionAr : m.descriptionEn}
-                          </span>
-                        </div>
-                      </StaggerItem>
+            {exp.moments.length > 0 && (
+              <section className="flex flex-col gap-6">
+                <FadeIn>
+                  <h2 className="text-h2">{t('timeline')}</h2>
+                </FadeIn>
+                {/* Each moment springs in in sequence; the connector rail draws
+                    itself down as it scrolls into view — one read-as-a-journey
+                    timeline. */}
+                <Stagger>
+                  <ol className="flex flex-col">
+                    {exp.moments.map((m, i, arr) => (
+                      <li key={m.orderIndex}>
+                        <StaggerItem className="grid grid-cols-[auto_1fr] gap-x-4">
+                          <div className="flex flex-col items-center" aria-hidden>
+                            <span className="bg-saffron-gold ring-saffron-gold/15 mt-1.5 size-2.5 shrink-0 rounded-full ring-4" />
+                            {i < arr.length - 1 && (
+                              <Draw className="mt-1 w-px flex-1">
+                                <span className="bg-sarat-black/10 block size-full" />
+                              </Draw>
+                            )}
+                          </div>
+                          <div className={cn('flex flex-col gap-1', i < arr.length - 1 && 'pb-8')}>
+                            {/* P3-6: this is a real content label (time of
+                                day), not a decorative eyebrow — 12px is the
+                                floor, so it gets its own class instead of
+                                sharing eyebrowClassName's 11px. */}
+                            <span className={cn('text-sarat-black-600 text-eyebrow')}>
+                              {loc === 'ar' ? toArabicText(m.timeOfDay) : m.timeOfDay}
+                            </span>
+                            <span className="text-lg font-medium">
+                              {loc === 'ar' ? m.titleAr : m.titleEn}
+                            </span>
+                            <span className="text-sarat-black-600 max-w-[68ch] text-base">
+                              {loc === 'ar' ? m.descriptionAr : m.descriptionEn}
+                            </span>
+                          </div>
+                        </StaggerItem>
+                      </li>
+                    ))}
+                  </ol>
+                </Stagger>
+              </section>
+            )}
+
+            {inclusions.length > 0 && (
+              <section className="flex flex-col gap-3">
+                <h2 className="text-h2">{t('included')}</h2>
+                <ul className="text-sarat-black-600 flex flex-col gap-3 text-base">
+                  {inclusions.map((item) => (
+                    <li key={item} className="flex items-start gap-3">
+                      <Check className="text-saffron-gold mt-0.5 size-4 shrink-0" aria-hidden />
+                      <span>{item}</span>
                     </li>
                   ))}
-                </ol>
-              </Stagger>
-            </section>
-          )}
+                </ul>
+              </section>
+            )}
 
-          {inclusions.length > 0 && (
-            <section className="flex flex-col gap-3">
-              <h2 className="text-h2">{t('included')}</h2>
-              <ul className="text-sarat-black-600 flex flex-col gap-3 text-base">
-                {inclusions.map((item) => (
-                  <li key={item} className="flex items-start gap-3">
-                    <Check className="text-saffron-gold mt-0.5 size-4 shrink-0" aria-hidden />
-                    <span>{item}</span>
-                  </li>
-                ))}
-              </ul>
-            </section>
-          )}
+            {whatToBring.length > 0 && (
+              <section className="flex flex-col gap-3">
+                <h2 className="text-h2 flex items-center gap-3">
+                  <Backpack className="text-sarat-black-600 size-5 shrink-0" aria-hidden />
+                  {t('bring')}
+                </h2>
+                <ul className="text-sarat-black-600 flex flex-col gap-3 text-base">
+                  {whatToBring.map((item) => (
+                    <li key={item} className="flex items-start gap-3">
+                      <span
+                        className="bg-sarat-black-400 mt-2 size-1.5 shrink-0 rounded-full"
+                        aria-hidden
+                      />
+                      <span>{item}</span>
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            )}
 
-          {whatToBring.length > 0 && (
+            {/* A draft previewed before its pin is placed has sentinel
+                coordinates — no map rather than one pointing at the Gulf
+                of Guinea. Live listings always pass the readiness gate. */}
+            {hasMeetingPoint(exp.lat, exp.lng) && (
+              <section className="flex flex-col gap-3">
+                <h2 className="text-h2 flex items-center gap-3">
+                  <MapPin className="text-sarat-black-600 size-5 shrink-0" aria-hidden />
+                  {t('meetingPoint.heading')}
+                </h2>
+                {/* exact={false}: pre-booking, the map shows the area only —
+                    no pin, no coordinate deep link. The confirmed page keeps
+                    the exact default. */}
+                <MeetingPointMap
+                  lat={exp.lat}
+                  lng={exp.lng}
+                  placeName={placeName}
+                  location={location}
+                  exact={false}
+                />
+              </section>
+            )}
+
             <section className="flex flex-col gap-3">
               <h2 className="text-h2 flex items-center gap-3">
-                <Backpack className="text-sarat-black-600 size-5 shrink-0" aria-hidden />
-                {t('bring')}
+                <ShieldCheck className="text-sarat-black-600 size-5 shrink-0" aria-hidden />
+                {t('cancellation')}
               </h2>
-              <ul className="text-sarat-black-600 flex flex-col gap-3 text-base">
-                {whatToBring.map((item) => (
-                  <li key={item} className="flex items-start gap-3">
-                    <span
-                      className="bg-sarat-black-400 mt-2 size-1.5 shrink-0 rounded-full"
-                      aria-hidden
-                    />
-                    <span>{item}</span>
-                  </li>
-                ))}
-              </ul>
-            </section>
-          )}
-
-          {/* A draft previewed before its pin is placed has sentinel
-              coordinates — no map rather than one pointing at the Gulf
-              of Guinea. Live listings always pass the readiness gate. */}
-          {hasMeetingPoint(exp.lat, exp.lng) && (
-            <section className="flex flex-col gap-3">
-              <h2 className="text-h2 flex items-center gap-3">
-                <MapPin className="text-sarat-black-600 size-5 shrink-0" aria-hidden />
-                {t('meetingPoint.heading')}
-              </h2>
-              {/* exact={false}: pre-booking, the map shows the area only —
-                  no pin, no coordinate deep link. The confirmed page keeps
-                  the exact default. */}
-              <MeetingPointMap
-                lat={exp.lat}
-                lng={exp.lng}
-                placeName={placeName}
-                location={location}
-                exact={false}
-              />
-            </section>
-          )}
-
-          <section className="flex flex-col gap-3">
-            <h2 className="text-h2 flex items-center gap-3">
-              <ShieldCheck className="text-sarat-black-600 size-5 shrink-0" aria-hidden />
-              {t('cancellation')}
-            </h2>
-            {/* Single source of truth: the line is DERIVED from the
-                experience's policy tier — the exact parameters every new
-                booking snapshots and the cancel/reschedule actions
-                enforce. Free text is never rendered here. */}
-            <p className="text-sarat-black-600 text-base">
-              {policyView.partialRefundBps > 0
-                ? t('cancellationTierLine', {
-                    freeWindow: policyWindow(policyView.freeCancelHours, tTiers),
-                    partialPct: policyView.partialRefundBps / 100,
-                    partialWindow: policyWindow(policyView.partialRefundHours, tTiers),
-                    rescheduleWindow: policyWindow(policyView.rescheduleCutoffHours, tTiers),
-                  })
-                : t('cancellationTierLineNoPartial', {
-                    freeWindow: policyWindow(policyView.freeCancelHours, tTiers),
-                    rescheduleWindow: policyWindow(policyView.rescheduleCutoffHours, tTiers),
-                  })}
-            </p>
-            {OUTDOOR_CATEGORIES.has(exp.category) && (
+              {/* Single source of truth: the line is DERIVED from the
+                  experience's policy tier — the exact parameters every new
+                  booking snapshots and the cancel/reschedule actions
+                  enforce. Free text is never rendered here. */}
               <p className="text-sarat-black-600 text-base">
-                {t.rich('weatherNote', { policy: consentLinks.cancellation })}
+                {policyView.partialRefundBps > 0
+                  ? t('cancellationTierLine', {
+                      freeWindow: policyWindow(policyView.freeCancelHours, tTiers),
+                      partialPct: policyView.partialRefundBps / 100,
+                      partialWindow: policyWindow(policyView.partialRefundHours, tTiers),
+                      rescheduleWindow: policyWindow(policyView.rescheduleCutoffHours, tTiers),
+                    })
+                  : t('cancellationTierLineNoPartial', {
+                      freeWindow: policyWindow(policyView.freeCancelHours, tTiers),
+                      rescheduleWindow: policyWindow(policyView.rescheduleCutoffHours, tTiers),
+                    })}
               </p>
-            )}
-          </section>
-
-          {/* Below-the-fold + self-fetching: streamed behind Suspense so the
-              review list never blocks first byte. Safe with the deliberate
-              no-loading.tsx rule — this sits below the notFound() decision,
-              so the response status is committed before fallbacks flush. */}
-          <Suspense fallback={<ReviewsSectionFallback locale={loc} />}>
-            <ReviewsSection
-              experienceSlug={exp.slug}
-              locale={loc}
-              // Reuse the wave-1 aggregate the JSON-LD above already needed,
-              // instead of letting this section re-read it.
-              aggregate={ratingAggregate}
-              showAll={showAllReviews}
-              showAllHref={`/experiences/${exp.slug}?reviews=all#reviews`}
-              // The section emits the visible reviews as JSON-LD Review
-              // entries merged onto the page's Product node by `@id`.
-              // Never on previews (drafts emit no structured data).
-              productId={previewMode ? undefined : `${url}#product`}
-            />
-          </Suspense>
-        </div>
-
-        {/* Right: sticky price / booking panel. On short viewports the panel
-            can be taller than the screen, so it scrolls within itself —
-            keeping the submit button reachable without scrolling the page. */}
-        <aside className="min-w-0 lg:sticky lg:top-20 lg:max-h-[calc(100vh-6rem)] lg:self-start lg:overflow-y-auto">
-          {/* RiseIn, not MountFade: the panel is conversion-critical, so it
-              must SSR visible (transform-only settle; opacity stays 1 —
-              no invisible-until-hydration on mid-range 4G devices). */}
-          <RiseIn className="rounded-card border-sarat-black/12 flex flex-col gap-6 border p-6">
-            <h2 className="text-h2">{bookingCopy.title}</h2>
-            <p className="text-2xl font-medium">
-              <Price amount={exp.priceSar} locale={loc} />
-              <span className="text-sarat-black-600 text-base font-normal"> {te('perPerson')}</span>
-            </p>
-            {/* Same above-the-fold rating as the header — the panel is where
-                the commit decision happens, so proof belongs beside price. */}
-            {ratingAggregate.count > 0 && ratingAggregate.average !== null && (
-              <a
-                href="#reviews"
-                className="-mt-3 flex items-center gap-2 self-start text-sm font-medium underline-offset-4 transition-opacity duration-200 hover:opacity-60"
-              >
-                <Star className="text-saffron-gold size-4 shrink-0 fill-current" aria-hidden />
-                {t('ratingSummary', {
-                  rating: ratingAggregate.average.toFixed(1),
-                  count: ratingAggregate.count,
-                })}
-              </a>
-            )}
-            {/* Trust chips — booking type, refund rule, social proof. */}
-            <div className="flex flex-wrap gap-2">
-              {isInstant ? (
-                <Badge className="bg-saffron-gold/20 text-sarat-black">
-                  <Zap aria-hidden />
-                  {t('instantBadge')}
-                </Badge>
-              ) : (
-                <Badge variant="neutral">
-                  <CalendarClock aria-hidden />
-                  {t('requestBadge')}
-                </Badge>
+              {OUTDOOR_CATEGORIES.has(exp.category) && (
+                <p className="text-sarat-black-600 text-base">
+                  {t.rich('weatherNote', { policy: consentLinks.cancellation })}
+                </p>
               )}
-              <Badge className="bg-success-surface text-success">
-                <ShieldCheck aria-hidden />
-                {/* Multi-day windows read as days ("7 days", like the tier
-                    copy everywhere else), never as "168h" — policyWindow
-                    owns that rule. */}
-                {t('freeCancellationBadge', {
-                  window: policyWindow(policyView.freeCancelHours, tTiers),
-                })}
-              </Badge>
-              {bookedCountChip && (
-                <Badge variant="neutral">
-                  <Users aria-hidden />
-                  {bookedCountChip}
-                </Badge>
-              )}
-            </div>
-            <div className="text-sarat-black-600 flex flex-col gap-2 text-sm">
-              <span className="flex items-center gap-2">
-                <Sunrise className="size-4 shrink-0" aria-hidden />
-                {t('startsAt', {
-                  time: formatTime(startInstant(RIYADH_CLOCK_ANCHOR, exp.startTime), loc),
-                })}
-              </span>
-              <span className="flex items-center gap-2">
-                <Users className="size-4 shrink-0" aria-hidden />
-                {t('groupSizeUpTo', { count: maxGroupSize })}
-              </span>
-              <span className="flex items-center gap-2">
-                <Cake className="size-4 shrink-0" aria-hidden />
-                {exp.minAge > 0 ? t('minAge', { age: minAge }) : t('minAgeAll')}
-              </span>
-            </div>
-            {!previewMode && <ExperienceViewTracking slug={exp.slug} priceSar={exp.priceSar} />}
-            {previewMode ? (
-              <p className="text-sarat-black-600 text-sm leading-relaxed">
-                {t('preview.bookingDisabled')}
-              </p>
-            ) : (
-              <BookingRequestForm
+            </section>
+
+            {/* Below-the-fold + self-fetching: streamed behind Suspense so the
+                review list never blocks first byte. Safe with the deliberate
+                no-loading.tsx rule — this sits below the notFound() decision,
+                so the response status is committed before fallbacks flush. */}
+            <Suspense fallback={<ReviewsSectionFallback locale={loc} />}>
+              <ReviewsSection
                 experienceSlug={exp.slug}
                 locale={loc}
-                maxGroupSize={String(exp.maxGroupSize)}
-                priceSar={exp.priceSar}
-                known={knownGuest}
-                minDate={todayRiyadh}
-                maxDate={addDays(todayRiyadh, BOOKING_HORIZON_DAYS)}
-                availableDates={availableDates}
-                closedDates={closedDateOptions}
-                modeNote={modeNote}
-                scheduleNote={scheduleNote}
-                initialDate={initialDate}
-                initialPartySize={initialPartySize}
-                supersedesReference={supersedesReference}
-                supersedesToken={supersedesToken}
-                vatRateBps={settings.vatEnabled ? settings.vatRateBps : null}
-                requireWomenOnly={exp.category === 'women_only'}
-                requireMinAge={exp.minAge > 0}
-                termsLabel={termsLabel}
-                copy={bookingCopy}
+                // Reuse the wave-1 aggregate the JSON-LD above already needed,
+                // instead of letting this section re-read it.
+                aggregate={ratingAggregate}
+                showAll={showAllReviews}
+                showAllHref={`/experiences/${exp.slug}?reviews=all#reviews`}
+                // The section emits the visible reviews as JSON-LD Review
+                // entries merged onto the page's Product node by `@id`.
+                // Never on previews (drafts emit no structured data).
+                productId={previewMode ? undefined : `${url}#product`}
               />
-            )}
-            {/* Accepted-payment marks at the decision point — previously
-                only on the pay page and footer, i.e. after the commitment. */}
-            {!previewMode && (
-              <PaymentMarks
-                label={tFooter('paymentsLabel')}
-                names={{
-                  mada: tFooter('brandMada'),
-                  visa: tFooter('brandVisa'),
-                  mastercard: tFooter('brandMastercard'),
-                  applePay: tFooter('brandApplePay'),
-                }}
-              />
-            )}
-          </RiseIn>
-        </aside>
+            </Suspense>
+          </div>
+
+          {/* Right: sticky price / booking panel. On short viewports the panel
+              can be taller than the screen, so it scrolls within itself —
+              keeping the submit button reachable without scrolling the page. */}
+          <aside className="min-w-0 lg:sticky lg:top-20 lg:col-start-2 lg:row-span-2 lg:row-start-2 lg:max-h-[calc(100vh-6rem)] lg:self-start lg:overflow-y-auto">
+            {/* RiseIn, not MountFade: the panel is conversion-critical, so it
+                must SSR visible (transform-only settle; opacity stays 1 —
+                no invisible-until-hydration on mid-range 4G devices). */}
+            <RiseIn className="rounded-card border-sarat-black/12 flex flex-col gap-6 border p-6">
+              <h2 className="text-h2">{bookingCopy.title}</h2>
+              <p className="text-2xl font-medium">
+                <Price amount={exp.priceSar} locale={loc} />
+                <span className="text-sarat-black-600 text-base font-normal">
+                  {' '}
+                  {te('perPerson')}
+                </span>
+              </p>
+              {/* Same above-the-fold rating as the header — the panel is where
+                  the commit decision happens, so proof belongs beside price. */}
+              {ratingAggregate.count > 0 && ratingAggregate.average !== null && (
+                <a
+                  href="#reviews"
+                  className="-mt-3 flex items-center gap-2 self-start text-sm font-medium underline-offset-4 transition-opacity duration-200 hover:opacity-60"
+                >
+                  <Star className="text-saffron-gold size-4 shrink-0 fill-current" aria-hidden />
+                  {t('ratingSummary', {
+                    rating: ratingAggregate.average.toFixed(1),
+                    count: ratingAggregate.count,
+                  })}
+                </a>
+              )}
+              {/* Trust chips — booking type, refund rule, social proof. */}
+              <div className="flex flex-wrap gap-2">
+                {isInstant ? (
+                  <Badge className="bg-saffron-gold/20 text-sarat-black">
+                    <Zap aria-hidden />
+                    {t('instantBadge')}
+                  </Badge>
+                ) : (
+                  <Badge variant="neutral">
+                    <CalendarClock aria-hidden />
+                    {t('requestBadge')}
+                  </Badge>
+                )}
+                <Badge className="bg-success-surface text-success">
+                  <ShieldCheck aria-hidden />
+                  {/* Multi-day windows read as days ("7 days", like the tier
+                      copy everywhere else), never as "168h" — policyWindow
+                      owns that rule. */}
+                  {t('freeCancellationBadge', {
+                    window: policyWindow(policyView.freeCancelHours, tTiers),
+                  })}
+                </Badge>
+                {bookedCountChip && (
+                  <Badge variant="neutral">
+                    <Users aria-hidden />
+                    {bookedCountChip}
+                  </Badge>
+                )}
+              </div>
+              <div className="text-sarat-black-600 flex flex-col gap-2 text-sm">
+                <span className="flex items-center gap-2">
+                  <Sunrise className="size-4 shrink-0" aria-hidden />
+                  {t('startsAt', {
+                    time: formatTime(startInstant(RIYADH_CLOCK_ANCHOR, exp.startTime), loc),
+                  })}
+                </span>
+                <span className="flex items-center gap-2">
+                  <Users className="size-4 shrink-0" aria-hidden />
+                  {t('groupSizeUpTo', { count: maxGroupSize })}
+                </span>
+                <span className="flex items-center gap-2">
+                  <Cake className="size-4 shrink-0" aria-hidden />
+                  {exp.minAge > 0 ? t('minAge', { age: minAge }) : t('minAgeAll')}
+                </span>
+              </div>
+              {!previewMode && <ExperienceViewTracking slug={exp.slug} priceSar={exp.priceSar} />}
+              {previewMode ? (
+                <p className="text-sarat-black-600 text-sm leading-relaxed">
+                  {t('preview.bookingDisabled')}
+                </p>
+              ) : (
+                <BookingRequestForm
+                  experienceSlug={exp.slug}
+                  locale={loc}
+                  maxGroupSize={String(exp.maxGroupSize)}
+                  priceSar={exp.priceSar}
+                  known={knownGuest}
+                  minDate={todayRiyadh}
+                  maxDate={addDays(todayRiyadh, BOOKING_HORIZON_DAYS)}
+                  availableDates={availableDates}
+                  closedDates={closedDateOptions}
+                  modeNote={modeNote}
+                  scheduleNote={scheduleNote}
+                  initialDate={initialDate}
+                  initialPartySize={initialPartySize}
+                  supersedesReference={supersedesReference}
+                  supersedesToken={supersedesToken}
+                  vatRateBps={settings.vatEnabled ? settings.vatRateBps : null}
+                  requireWomenOnly={exp.category === 'women_only'}
+                  requireMinAge={exp.minAge > 0}
+                  termsLabel={termsLabel}
+                  showDatesSoon={schedule !== null}
+                  supportHref={supportHref}
+                  copy={bookingCopy}
+                />
+              )}
+              {/* Accepted-payment marks at the decision point — previously
+                  only on the pay page and footer, i.e. after the commitment. */}
+              {!previewMode && (
+                <PaymentMarks
+                  label={tFooter('paymentsLabel')}
+                  names={{
+                    mada: tFooter('brandMada'),
+                    visa: tFooter('brandVisa'),
+                    mastercard: tFooter('brandMastercard'),
+                    applePay: tFooter('brandApplePay'),
+                  }}
+                />
+              )}
+            </RiseIn>
+          </aside>
+        </div>
       </div>
 
       {/* Cross-sell where journeys otherwise dead-end: below the fold for

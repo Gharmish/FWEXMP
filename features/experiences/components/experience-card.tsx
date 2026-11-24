@@ -1,5 +1,6 @@
 import {
   CalendarClock,
+  CalendarDays,
   Castle,
   Coffee,
   Flower2,
@@ -13,6 +14,7 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 import { getTranslations } from 'next-intl/server';
+import { Avatar } from '@/components/ui/avatar';
 import { Card } from '@/components/ui/card';
 import { durationHours, formatInteger, formatRating } from '@/lib/format';
 import { Price } from '@/components/ui/price';
@@ -33,7 +35,16 @@ import { VerifiedSeal } from '@/components/ui/verified-seal';
  * surface with a Saffron Gold category accent. Wraps the whole card
  * in a Link to /experiences/[slug] with a 2px spring hover lift
  * (BRIEF §3 motion — disabled under prefers-reduced-motion).
+ *
+ * Photo-led (2026-11): the photo is 4:3 and carries the booking-state
+ * chip; the text is title (two lines), a two-line description from `sm`
+ * up, place · duration, the host with their portrait, and the price.
+ * Every card fills its grid row, so a row's prices line up.
  */
+
+/** Booking-state chip laid over the photo's top-start corner. */
+const PHOTO_CHIP =
+  'border-sarat-black/12 text-sarat-black pointer-events-none absolute start-4 top-4 z-10 inline-flex items-center gap-1 rounded-full border bg-white/90 px-2 py-1 text-xs font-medium rtl:text-sm';
 
 const CATEGORY_DOT: Record<Category, string> = {
   nature: 'bg-juniper-green',
@@ -110,6 +121,12 @@ export interface ExperienceCardProps {
    * lazy-loaded. Featured cards are always eager.
    */
   priority?: boolean;
+  /**
+   * Set where the card sits in a two-column grid (the featured rows): from
+   * `sm` up the photo stays 16:9, because 4:3 at that width is taller than
+   * the card's text can balance.
+   */
+  wide?: boolean;
 }
 
 export async function ExperienceCard({
@@ -117,6 +134,7 @@ export async function ExperienceCard({
   locale,
   actions,
   priority = false,
+  wide = false,
 }: ExperienceCardProps) {
   const t = await getTranslations('experience');
   const tr = await getTranslations('reviews');
@@ -164,17 +182,25 @@ export async function ExperienceCard({
         ? t('durationHoursHalf', { count: wholeHours })
         : `${durationHours(experience.durationMinutes, locale)} ${t('hours')}`;
 
+  // No recurring weekday means no date can open — the one "no dates" case
+  // the summary can prove without the per-listing schedule read. The chip
+  // then says so instead of advertising a booking mode nobody can use
+  // (2026-11 UX audit P1-1). Blackouts / sold-out horizons still show the
+  // mode chip; the detail page is where those are resolved.
+  const datesSoon = experience.availabilityWeekdays.length === 0;
+  const aspectClassName = wide ? 'aspect-[4/3] sm:aspect-[16/9]' : 'aspect-[4/3]';
+
   return (
-    <div className="relative">
-      <HoverLift>
+    <div className="relative h-full">
+      <HoverLift className="h-full">
         <Card
           variant={experience.featured ? 'dark' : 'default'}
-          className="flex h-full flex-col overflow-hidden p-0"
+          className="relative flex h-full flex-col p-0"
         >
-          {/* Hero carousel — 16:9 to match the canonical crop hosts frame at
-              upload. Swipe/drag through the gallery; a tap navigates to the
-              listing. Falls back to a tonal block in the category colour when
-              no photo is uploaded yet, so cards stay consistent pre-shoot. */}
+          {/* Hero carousel. Swipe/drag through the gallery; a tap navigates
+              to the listing. Falls back to a tonal block in the category
+              colour when no photo is uploaded yet, so cards stay consistent
+              pre-shoot. Hosts frame uploads at 16:9, so 4:3 trims the sides. */}
           {photos.length > 0 ? (
             <PhotoCarousel
               images={photos}
@@ -183,7 +209,7 @@ export async function ExperienceCard({
               href={href}
               linkLabel={title}
               sizes="(min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw"
-              aspectClassName="aspect-[16/9]"
+              aspectClassName={aspectClassName}
               priority={priority || experience.featured}
               copy={carouselCopy}
               // A grid of independently auto-cycling cards violates WCAG
@@ -200,7 +226,8 @@ export async function ExperienceCard({
               aria-hidden
               tabIndex={-1}
               className={cn(
-                'flex aspect-[16/9] w-full items-center justify-center',
+                'flex w-full items-center justify-center',
+                aspectClassName,
                 experience.featured
                   ? CATEGORY_PLACEHOLDER_DARK[experience.category]
                   : CATEGORY_PLACEHOLDER[experience.category],
@@ -219,94 +246,49 @@ export async function ExperienceCard({
             </Link>
           )}
 
-          <Link href={href} className="flex flex-1 flex-col gap-4 p-6">
-            {/* flex-wrap + gap-y-1: three chips exceed a 375px column —
-                without wrapping the Card's overflow-hidden clips them. */}
-            <div className="flex flex-wrap items-center gap-2 gap-y-1">
-              <span
-                className={`size-2 rounded-full ${experience.featured ? 'bg-saffron-gold' : CATEGORY_DOT[experience.category]}`}
-                aria-hidden
-              />
-              <span className={labelClassName}>
-                {experience.featured ? t('originals') : categoryLabel}
+          {/* Booking state on the photo: one chip, 12px (the old in-row
+              chips were 11px — below the brief's floor — and wrapped). It
+              is decoration over the tap layer, so pointer-events pass
+              through to the link beneath. */}
+          <span className={PHOTO_CHIP}>
+            {datesSoon ? (
+              <>
+                <CalendarDays className="size-4 shrink-0" aria-hidden />
+                {t('datesSoon')}
+              </>
+            ) : experience.bookingMode === 'instant' ? (
+              <>
+                <Zap className="size-4 shrink-0" aria-hidden />
+                {t('instant')}
+              </>
+            ) : (
+              <>
+                <CalendarClock className="size-4 shrink-0" aria-hidden />
+                {t('requestMode')}
+              </>
+            )}
+          </span>
+
+          <Link href={href} className="flex flex-1 flex-col gap-3 p-4 sm:p-6">
+            {/* Category at the start, proof at the end: the rating when
+                there is one, otherwise the "New" flag for fresh listings. */}
+            <div className="flex items-center justify-between gap-3">
+              <span className="flex min-w-0 items-center gap-2">
+                <span
+                  className={cn(
+                    'size-2 shrink-0 rounded-full',
+                    experience.featured ? 'bg-saffron-gold' : CATEGORY_DOT[experience.category],
+                  )}
+                  aria-hidden
+                />
+                <span className={cn(labelClassName, 'truncate')}>
+                  {experience.featured ? t('originals') : categoryLabel}
+                </span>
               </span>
-              {experience.bookingMode === 'instant' ? (
+              {ratingDisplay ? (
                 <span
-                  className={cn(
-                    'inline-flex items-center gap-1 rounded-full px-2 py-1 text-[11px] font-medium',
-                    experience.featured
-                      ? 'bg-white/15 text-white'
-                      : 'bg-saffron-gold/20 text-sarat-black',
-                  )}
-                >
-                  <Zap className="size-4 shrink-0" aria-hidden />
-                  {t('instant')}
-                </span>
-              ) : (
-                <span
-                  className={cn(
-                    'inline-flex items-center gap-1 rounded-full px-2 py-1 text-[11px] font-medium',
-                    experience.featured
-                      ? 'bg-white/15 text-white/90'
-                      : 'bg-sarat-black/8 text-sarat-black-800',
-                  )}
-                >
-                  <CalendarClock className="size-4 shrink-0" aria-hidden />
-                  {t('requestMode')}
-                </span>
-              )}
-              {experience.isNew && (
-                <span
-                  className={cn(
-                    'inline-flex items-center gap-1 rounded-full px-2 py-1 text-[11px] font-medium',
-                    experience.featured ? 'bg-white/15 text-white' : 'bg-info-surface text-info',
-                  )}
-                >
-                  <Sparkles className="size-4 shrink-0" aria-hidden />
-                  {t('newBadge')}
-                </span>
-              )}
-            </div>
-
-            <div className="flex flex-col gap-2">
-              <h3 className="text-h2 text-balance">{title}</h3>
-              {/* Phones get the single-column grid — clamp so one wordy
-                  listing can't push the next card two screens away. The
-                  full text lives on the detail page. */}
-              {/* rtl:text-lg — Arabic body reads one step up (BRIEF §3). */}
-              <p className={`text-base max-sm:line-clamp-3 rtl:text-lg ${muted}`}>{description}</p>
-            </div>
-
-            {/* P3-3: host on its own line — when "place · duration" and
-                "With {host}" shared one wrapped row, a mid-line break left
-                a dangling "·" at the end of the first line. */}
-            <div className={`mt-auto flex flex-col gap-1 text-sm ${muted}`}>
-              <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-                <span>{placeName}</span>
-                <span aria-hidden>·</span>
-                <span>{durationLabel}</span>
-              </div>
-              <div className="flex items-center gap-2">
-                {t('withHost', { name: hostName })}
-                {/* Micro-seal, not the tappable lockup: the whole card is one
-                    Link, so a nested button would be invalid — the card builds
-                    the reflex, the detail page opens the door. */}
-                {experience.hostVerified && (
-                  <VerifiedSeal className="size-3.5" label={tv('lockup')} />
-                )}
-              </div>
-            </div>
-
-            <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-2">
-              <p className="text-base font-medium">
-                <Price amount={experience.priceSar} locale={locale} />
-                <span className={`text-sm font-normal ${muted}`}> {t('perPerson')}</span>
-              </p>
-
-              {ratingDisplay && (
-                <p
                   role="img"
-                  className={cn('flex items-center gap-2 text-sm', muted)}
+                  className={cn('flex shrink-0 items-center gap-1 text-sm', muted)}
                   // L11: sighted users see the review count next to the
                   // stars; the aria-label omitted it.
                   aria-label={tr('ratingLabelWithCount', {
@@ -324,9 +306,66 @@ export async function ExperienceCard({
                     {ratingDisplay}
                   </span>
                   <span>({ratingCountDisplay})</span>
-                </p>
-              )}
+                </span>
+              ) : experience.isNew ? (
+                <span
+                  className={cn(
+                    'inline-flex shrink-0 items-center gap-1 rounded-full px-2 py-1 text-xs font-medium rtl:text-sm',
+                    experience.featured ? 'bg-white/15 text-white' : 'bg-info-surface text-info',
+                  )}
+                >
+                  <Sparkles className="size-4 shrink-0" aria-hidden />
+                  {t('newBadge')}
+                </span>
+              ) : null}
             </div>
+
+            <div className="flex flex-col gap-2">
+              <h3 className="text-h3 line-clamp-2 text-balance">{title}</h3>
+              {/* Two lines from `sm` up, none on phones: the single-column
+                  phone card is photo, title, host, price — the full text
+                  lives on the detail page. */}
+              {/* rtl:text-lg — Arabic body reads one step up (BRIEF §3). */}
+              <p className={cn('hidden text-base sm:line-clamp-2 rtl:text-lg', muted)}>
+                {description}
+              </p>
+            </div>
+
+            {/* P3-3: host on its own line — when "place · duration" and
+                "With {host}" shared one wrapped row, a mid-line break left
+                a dangling "·" at the end of the first line. `mt-auto` pins
+                this block and the price to the card's bottom edge, which is
+                what lines them up across a row. */}
+            <div className={cn('mt-auto flex flex-col gap-2 text-sm', muted)}>
+              <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+                <span>{placeName}</span>
+                <span aria-hidden>·</span>
+                <span>{durationLabel}</span>
+              </div>
+              <div className="flex min-w-0 items-center gap-2">
+                {/* The host's face (initials until a portrait lands) — hosts
+                    are the product. Decorative: the name follows in text. */}
+                <Avatar
+                  name={hostName}
+                  src={experience.hostAvatar ?? undefined}
+                  size="sm"
+                  className="size-6"
+                  aria-hidden
+                />
+                <span className="truncate">{t('withHost', { name: hostName })}</span>
+                {/* Micro-seal, not the tappable lockup: the whole card is one
+                    Link, so a nested button would be invalid — the card builds
+                    the reflex, the detail page opens the door. */}
+                {experience.hostVerified && (
+                  <VerifiedSeal className="size-3.5" label={tv('lockup')} />
+                )}
+              </div>
+            </div>
+
+            <p className="text-base font-medium">
+              <Price amount={experience.priceSar} locale={locale} />
+              <span className={cn('text-sm font-normal', muted)}> {t('perPerson')}</span>
+            </p>
           </Link>
         </Card>
       </HoverLift>
