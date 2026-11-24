@@ -43,6 +43,11 @@ interface ShareButtonProps {
    */
   variant?: 'quiet' | 'outline';
   className?: string;
+  /**
+   * Classes for the visible label only — e.g. `max-sm:sr-only` where the
+   * button collapses to an icon over a photo but keeps its accessible name.
+   */
+  labelClassName?: string;
 }
 
 /**
@@ -62,6 +67,7 @@ export function ShareButton({
   label,
   variant = 'quiet',
   className,
+  labelClassName,
 }: ShareButtonProps) {
   const t = useTranslations('share');
   const [open, setOpen] = useState(false);
@@ -131,7 +137,7 @@ export function ShareButton({
         )}
       >
         <Share className="size-4 shrink-0" aria-hidden />
-        {label ?? t('button')}
+        <span className={labelClassName}>{label ?? t('button')}</span>
       </button>
 
       <Dialog

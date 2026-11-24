@@ -8,6 +8,7 @@ import type { Locale } from '@/lib/i18n';
 import type { HostInfo } from '@/features/experiences/types';
 import type { HostResponseStats } from '@/features/hosts/queries';
 import { toArabicText } from '@/features/experiences/lib/arabic-content';
+import { hostLanguagesLabel } from '@/features/hosts/lib/languages';
 import { pickLocalized } from '@/lib/ar-placeholder';
 
 /**
@@ -28,15 +29,7 @@ export async function HostCard({ host, locale, responseStats }: HostCardProps) {
   const name = locale === 'ar' ? toArabicText(host.name) : host.name;
   const slug = host.slug;
 
-  const languageNames = new Intl.DisplayNames(locale === 'ar' ? 'ar' : 'en', {
-    type: 'language',
-  });
-  const languagesLabel =
-    host.languages.length > 0
-      ? new Intl.ListFormat(locale, { style: 'long', type: 'conjunction' }).format(
-          host.languages.map((code) => languageNames.of(code) ?? code),
-        )
-      : null;
+  const languagesLabel = hostLanguagesLabel(host.languages, locale);
 
   return (
     <div className="flex flex-col gap-4">

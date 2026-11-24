@@ -348,6 +348,22 @@ body {
     0 0 0 4px rgb(10 10 10 / 0.55);
 }
 
+/* Inset variant of the ring above, for a control that sits inside a
+ * container clipping its overflow (a photo tile in a rounded card, a
+ * carousel slide in its scroller) — there the outside ring is cut off and
+ * the control shows no focus at all (2026-11 UX audit P1-7). Dark edge +
+ * white inner band so it reads on any photo. The element must have no
+ * child painting over it (inset shadows draw beneath content): use an
+ * empty `absolute inset-0` link/button laid over the image. Unlayered on
+ * purpose — the rule above is unlayered too, so a Tailwind `ring-inset`
+ * utility (layered) could never override it. */
+.focus-ring-inset:focus-visible {
+  outline-offset: -2px;
+  box-shadow:
+    inset 0 0 0 2px rgb(10 10 10 / 0.55),
+    inset 0 0 0 4px var(--color-white);
+}
+
 /* HyperPay COPYandPAY Apple Pay button. The widget owns this element, so
  * Tailwind can't reach it — size it here to match our 44px tap targets
  * and full-width primary CTAs (the widget default is a small inline

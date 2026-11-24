@@ -51,8 +51,16 @@ export interface PhotoGalleryProps {
   copy: PhotoGalleryCopy;
 }
 
-/** Gallery images shown in the desktop mosaic beside the hero. */
-const MAX_SIDE = 4;
+/** Photos shown in the wide-screen grid (hero first); the rest sit behind the count pill. */
+const MAX_TILES = 4;
+
+/**
+ * One frame shape for every photo count, so the page's first screen never
+ * changes height with the listing's content: 4:3 on phones (edge to edge)
+ * and in the desktop two-column layout, 16:9 on tablets where the photo
+ * spans the full content width.
+ */
+const FRAME_ASPECT = 'aspect-[4/3] sm:aspect-[16/9] lg:aspect-[4/3]';
 
 /**
  * Tonal placeholder background per category. Mirrors CATEGORY_PLACEHOLDER
@@ -89,23 +97,23 @@ const CATEGORY_ICON: Record<Category, LucideIcon> = {
 const SWIPE_THRESHOLD = 48;
 
 /**
- * Grid spans for the right-hand mosaic tiles, by how many gallery photos
- * sit beside the hero. The right column is a fixed 2×2 grid; the tiles
- * grow to fill it so 1, 2, 3, or 4 photos all read as a deliberate
- * composition with no empty cells.
+ * Row spans for the wide-screen grid tiles, by how many photos it shows.
+ * The frame is a fixed 2×2 grid: two photos stand side by side at full
+ * height, three put the hero tall beside two stacked crops, four fill
+ * every cell — so 2, 3, or 4 photos all read as a deliberate composition
+ * with no empty cells, inside the same frame a single photo fills.
  */
-function sideSpan(index: number, count: number): string {
-  if (count === 1) return 'col-span-2 row-span-2';
-  if (count === 2) return 'col-span-2 row-span-1';
-  if (count === 3) return index === 0 ? 'col-span-2 row-span-1' : 'col-span-1 row-span-1';
-  return 'col-span-1 row-span-1';
+function tileSpan(index: number, count: number): string {
+  if (count === 2) return 'row-span-2';
+  if (count === 3) return index === 0 ? 'row-span-2' : 'row-span-1';
+  return 'row-span-1';
 }
 
 /**
- * Experience photo gallery. On wide screens it leads with an Airbnb-style
- * mosaic — one large hero beside a 2×2 grid of crops — so the photography
- * fills the frame and sells the experience. On mobile (and for listings
- * with no gallery yet) it falls back to a single tall 3:2 hero. Every tile
+ * Experience photo gallery. One fixed frame (see FRAME_ASPECT) holds
+ * whatever the listing has: a single hero, or on wide screens a grid of
+ * up to four equal crops with a count pill for the rest. On phones the
+ * frame is a swipeable carousel. Every tile
  * opens a full-screen lightbox that shows each photo with `object-contain`
  * on a dark surface, so portrait and landscape shots both display in full.
  * The lightbox rides the shared Base UI Dialog primitives (focus trap,
@@ -185,13 +193,12 @@ export function PhotoGallery({
   // PhotoCarousel: the `{n}` literal survives the server→client boundary.
   const tileLabel = (position: number) => copy.goTo.replace('{n}', formatInteger(position, locale));
 
-  const sideImages = images.slice(0, MAX_SIDE);
-  // Photos that don't fit in the mosaic — surfaced as a "+N" overlay so the
-  // guest knows there's more behind the "view all" affordance.
-  const remaining = images.length - sideImages.length;
+  // Wide-screen grid tiles, hero first. Tile index === lightbox index.
+  const tiles = lightbox.slice(0, MAX_TILES);
 
   // The count pill / "view all" affordance. Always offered when there's more
-  // than one photo, so the lightbox is discoverable on every viewport.
+  // than one photo, so the lightbox is discoverable on every viewport — and
+  // the only sign of the photos past the fourth tile.
   const countPill = total > 1 && (
     <span className="text-sarat-black border-sarat-black/12 pointer-events-none absolute end-4 bottom-4 z-10 inline-flex items-center gap-2 rounded-full border bg-white/90 px-4 py-2 text-sm font-medium transition-transform duration-200 group-hover:-translate-y-px">
       <Images className="size-4 shrink-0" aria-hidden />
@@ -204,12 +211,14 @@ export function PhotoGallery({
   return (
     <>
       {/* No hero yet: the catalog card's category tint (not a bare grey
-          slab), at a shallower aspect so the header stays near the fold,
-          with the category icon as a quiet centre mark. */}
+          slab) in the same frame a photo would fill, with the category
+          icon as a quiet centre mark. Phones run the frame edge to edge,
+          so the rounding starts at `sm`. */}
       {!heroImage && (
         <div
           className={cn(
-            'rounded-image relative mt-8 flex aspect-[21/9] w-full items-center justify-center overflow-hidden',
+            'sm:rounded-image relative flex w-full items-center justify-center overflow-hidden',
+            FRAME_ASPECT,
             CATEGORY_PLACEHOLDER[category],
           )}
         >
@@ -217,41 +226,39 @@ export function PhotoGallery({
         </div>
       )}
 
-      {/* Hero only (no gallery): a single 16:9 frame — the exact aspect the
-          host framed in the crop tool, so the hero shows uncropped. */}
+      {/* Hero only (no gallery): the hero fills the frame. Hosts crop at
+          16:9, so phones and the desktop column trim its sides (4:3); the
+          lightbox still shows the whole photo. */}
       {heroImage && !hasGallery && (
-        <div className="rounded-image relative mt-8 aspect-[16/9] w-full overflow-hidden">
+        <div className={cn('sm:rounded-image relative w-full overflow-hidden', FRAME_ASPECT)}>
           <button
             type="button"
             aria-label={copy.open}
             onClick={() => openLightbox(0)}
-            className="group absolute inset-0 z-10 cursor-pointer outline-none"
-          >
-            {countPill}
-          </button>
+            className="focus-ring-inset absolute inset-0 z-10 cursor-pointer"
+          />
           <Image
             src={heroImage}
             alt={alt}
             fill
-            sizes="(min-width: 1024px) 1024px, 100vw"
+            sizes="(min-width: 1024px) 700px, 100vw"
             className="object-cover"
             priority
           />
         </div>
       )}
 
-      {/* Hero + gallery: a swipeable carousel on mobile, a 1-large-plus-2×2
-          mosaic on wide screens. */}
+      {/* Hero + gallery: a swipeable carousel on phones, a grid of up to
+          four equal crops on wide screens — both inside the same frame. */}
       {heroImage && hasGallery && (
-        <div className="mt-8">
-          {/* Mobile: swipe through every photo inline; a tap opens the lightbox. */}
+        <div>
+          {/* Phones: swipe through every photo inline; a tap opens the lightbox. */}
           <PhotoCarousel
             images={lightbox}
             alt={alt}
             locale={locale}
             sizes="(min-width: 640px) 1px, 100vw"
-            aspectClassName="aspect-[16/9]"
-            roundedClassName="rounded-image"
+            aspectClassName="aspect-[4/3]"
             priority
             copy={{ prev: copy.prev, next: copy.next, goTo: copy.goTo }}
             onSlideClick={(i) => openLightbox(i)}
@@ -265,63 +272,43 @@ export function PhotoGallery({
             className="sm:hidden"
           />
 
-          {/* Desktop: mosaic. The hero tile is exactly 16:9 — the frame the
-              host chose in the crop tool shows uncropped — and the 2×2 side
-              column stretches to match its height. Side tiles are collage
-              crops. */}
-          <div className="group relative hidden sm:grid sm:grid-cols-2 sm:gap-2">
+          {/* Wide screens: the frame as a 2×2 grid. One rounded, clipped
+              container (not rounded tiles) so the composition reads as a
+              single photo block the same size as a lone hero. */}
+          <div
+            className={cn(
+              'group rounded-image relative hidden grid-cols-2 grid-rows-2 gap-1 overflow-hidden sm:grid',
+              FRAME_ASPECT,
+            )}
+          >
+            {tiles.map((src, i) => (
+              <div
+                key={src}
+                className={cn(
+                  'bg-sarat-black/5 relative overflow-hidden',
+                  tileSpan(i, tiles.length),
+                )}
+              >
+                <Image
+                  src={src}
+                  // L10: the tap layer below carries the "photo n" label.
+                  alt=""
+                  fill
+                  sizes="(min-width: 1024px) 350px, (min-width: 640px) 50vw, 1px"
+                  className="object-cover"
+                  priority={i === 0}
+                />
+                {/* Empty tap layer over the image (not a button wrapping
+                    it) so the inset focus ring paints above the photo. */}
+                <button
+                  type="button"
+                  aria-label={tileLabel(1 + i)}
+                  onClick={() => openLightbox(i)}
+                  className="focus-ring-inset absolute inset-0 cursor-pointer"
+                />
+              </div>
+            ))}
             {countPill}
-
-            {/* Hero tile */}
-            <button
-              type="button"
-              aria-label={tileLabel(1)}
-              onClick={() => openLightbox(0)}
-              className="rounded-image relative block aspect-[16/9] w-full cursor-pointer overflow-hidden outline-none"
-            >
-              <Image
-                src={heroImage}
-                // L10: the wrapping button already carries the "photo
-                // n/N" label — mirrors the side-mosaic tiles below.
-                alt=""
-                fill
-                sizes="(min-width: 1024px) 560px, (min-width: 640px) 50vw, 1px"
-                className="object-cover transition-transform duration-200 group-hover:scale-[1.01]"
-                priority
-              />
-            </button>
-
-            {/* Side mosaic */}
-            <div className="grid h-full grid-cols-2 grid-rows-2 gap-2">
-              {sideImages.map((src, i) => {
-                const isLast = i === sideImages.length - 1 && remaining > 0;
-                return (
-                  <button
-                    key={src}
-                    type="button"
-                    aria-label={tileLabel(2 + i)}
-                    onClick={() => openLightbox(1 + i)}
-                    className={cn(
-                      'rounded-image bg-sarat-black/5 relative overflow-hidden outline-none',
-                      sideSpan(i, sideImages.length),
-                    )}
-                  >
-                    <Image
-                      src={src}
-                      alt=""
-                      fill
-                      sizes="(min-width: 1024px) 280px, (min-width: 640px) 25vw, 1px"
-                      className="object-cover"
-                    />
-                    {isLast && (
-                      <span className="bg-sarat-black/55 absolute inset-0 flex items-center justify-center text-lg font-medium text-white">
-                        +{formatInteger(remaining + 1, locale)}
-                      </span>
-                    )}
-                  </button>
-                );
-              })}
-            </div>
           </div>
         </div>
       )}

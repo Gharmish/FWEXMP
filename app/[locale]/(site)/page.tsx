@@ -389,6 +389,7 @@ async function CatalogSections({ locale }: { locale: Locale }) {
                 <ExperienceCard
                   experience={e}
                   locale={locale}
+                  wide
                   actions={
                     <WishlistButton
                       slug={e.slug}

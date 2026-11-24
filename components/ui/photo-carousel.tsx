@@ -196,7 +196,12 @@ export function PhotoCarousel({
               <Link
                 href={href}
                 aria-label={linkLabel ?? label(i)}
-                className="absolute inset-0 outline-none"
+                // One tab stop per carousel, not one per photo: only the
+                // slide in view is focusable (a 12-photo card was twelve
+                // identical links — 2026-11 UX audit P1-7). Arrows/dots
+                // move between slides.
+                tabIndex={i === active ? undefined : -1}
+                className="focus-ring-inset absolute inset-0"
               />
             ) : onSlideClick ? (
               <button
@@ -206,7 +211,8 @@ export function PhotoCarousel({
                   halt(e);
                   onSlideClick(i);
                 }}
-                className="absolute inset-0 cursor-pointer outline-none"
+                tabIndex={i === active ? undefined : -1}
+                className="focus-ring-inset absolute inset-0 cursor-pointer"
               />
             ) : null}
           </div>

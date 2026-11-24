@@ -94,6 +94,7 @@ function toSummary(
     hostName: row.host.name,
     hostSlug: row.host.slug,
     hostVerified: row.host.verificationStatus === 'verified',
+    hostAvatar: row.host.photoUrl,
     featured: row.featured,
     bookingMode: row.bookingMode,
     ratingAverage: agg?.average ?? null,

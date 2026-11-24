@@ -4,7 +4,7 @@ import { useActionState, useEffect, useId, useMemo, useRef, useState, type React
 import { useFormStatus } from 'react-dom';
 import { motion, useReducedMotion } from 'framer-motion';
 import { useTranslations } from 'next-intl';
-import { ArrowRight, ChevronDown, Minus, Plus } from 'lucide-react';
+import { ArrowRight, ChevronDown, MessageCircle, Minus, Plus } from 'lucide-react';
 import {
   requestBooking,
   type BookingRequestState,
@@ -12,7 +12,7 @@ import {
 } from '@/features/bookings/actions';
 import { bookingRequestSchema } from '@/features/bookings/schemas';
 import { halalasToSar, vatPortionHalalas } from '@/features/bookings/lib/vat';
-import { Button } from '@/components/ui/button';
+import { Button, buttonVariants } from '@/components/ui/button';
 import { FieldError as SpringFieldError } from '@/components/ui/field-error';
 import { Input } from '@/components/ui/input';
 import { Pop, SPRING } from '@/components/ui/motion';
@@ -194,8 +194,21 @@ export interface BookingRequestFormProps {
    * server-enforced (2026-08-02 legal audit).
    */
   termsLabel: ReactNode;
+  /**
+   * True when the schedule loaded and simply has no open date in the
+   * booking horizon (as opposed to failing to load). Below `lg` the form
+   * then docks a "Dates soon" bar where the booking bar would be, so the
+   * price and one honest next step stay on screen while the guest reads.
+   */
+  showDatesSoon?: boolean;
+  /** Staffed WhatsApp support link for that bar; hidden when unset. */
+  supportHref?: string | null;
   copy: BookingRequestCopy;
 }
+
+/** Shared shell of the two bottom docks (booking bar / dates-soon bar). */
+const BOTTOM_DOCK_CLASS =
+  'border-sarat-black/12 fixed inset-x-0 bottom-0 z-40 border-t bg-white/95 px-6 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] backdrop-blur lg:hidden';
 
 const FIELD_NAMES = ['name', 'phone', 'email', 'preferredDate', 'partySize', 'guestNote'] as const;
 type FieldName = (typeof FIELD_NAMES)[number];
@@ -314,6 +327,8 @@ export function BookingRequestForm({
   requireWomenOnly = false,
   requireMinAge = false,
   termsLabel,
+  showDatesSoon = false,
+  supportHref,
   copy,
 }: BookingRequestFormProps) {
   const [state, formAction] = useActionState(requestBooking, initialState);
@@ -393,6 +408,8 @@ export function BookingRequestForm({
   // out of view. A sentinel at the inline button drives an Intersection
   // Observer — when it's on screen the user can book inline, so the bar
   // retracts (and stops covering the footer at the bottom of the page).
+  // With no open dates the sentinel is the inline "no dates" note instead,
+  // and the bar it drives is the dates-soon dock.
   const inlineSubmitRef = useRef<HTMLDivElement>(null);
   const [stickyBarVisible, setStickyBarVisible] = useState(false);
   useEffect(() => {
@@ -734,9 +751,47 @@ export function BookingRequestForm({
       )}
 
       {noDates ? (
-        <p className="text-sarat-black-600 rounded-input bg-sarat-black/5 px-3 py-3 text-sm">
-          {copy.noDates}
-        </p>
+        <>
+          <div ref={inlineSubmitRef}>
+            <p className="text-sarat-black-600 rounded-input bg-sarat-black/5 px-3 py-3 text-sm">
+              {copy.noDates}
+            </p>
+          </div>
+          {/* Phone/tablet dock for a listing with no open dates: the same
+              place the booking bar lives, saying so plainly — price, "Dates
+              soon", and the staffed WhatsApp line as the one next step —
+              instead of a booking button that leads nowhere. */}
+          {showDatesSoon && (
+            <motion.div
+              inert={!stickyBarVisible}
+              data-bottom-dock
+              initial={false}
+              animate={{ y: stickyBarVisible ? 0 : '110%' }}
+              transition={reduce ? { duration: 0 } : SPRING}
+              className={cn(BOTTOM_DOCK_CLASS, !stickyBarVisible && 'pointer-events-none')}
+            >
+              <div className="flex items-center justify-between gap-3">
+                <span className="flex min-w-0 flex-col leading-tight">
+                  <span className="font-medium">{t('datesSoon')}</span>
+                  <span className="text-sarat-black-600 truncate text-sm">
+                    <Price amount={priceSar} locale={locale} /> {t('perGuest')}
+                  </span>
+                </span>
+                {supportHref && (
+                  <a
+                    href={supportHref}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className={cn(buttonVariants({ variant: 'secondary', size: 'sm' }), 'shrink-0')}
+                  >
+                    <MessageCircle className="size-4 shrink-0" aria-hidden />
+                    {t('askWhatsapp')}
+                  </a>
+                )}
+              </div>
+            </motion.div>
+          )}
+        </>
       ) : (
         <>
           {/* 1 — Pick a date. Calendar drives the hidden `preferredDate`. */}
@@ -1214,10 +1269,7 @@ export function BookingRequestForm({
             // the inline submit and footer forever.
             animate={{ y: stickyBarVisible ? 0 : '110%' }}
             transition={reduce ? { duration: 0 } : SPRING}
-            className={cn(
-              'border-sarat-black/12 fixed inset-x-0 bottom-0 z-40 border-t bg-white/95 px-6 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] backdrop-blur lg:hidden',
-              !stickyBarVisible && 'pointer-events-none',
-            )}
+            className={cn(BOTTOM_DOCK_CLASS, !stickyBarVisible && 'pointer-events-none')}
           >
             <div className="flex items-center justify-between gap-4">
               <span className="flex min-w-0 flex-col leading-tight">
