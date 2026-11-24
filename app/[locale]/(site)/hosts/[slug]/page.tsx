@@ -16,6 +16,7 @@ import { ExperienceCard } from '@/features/experiences/components/experience-car
 import { HostReviews } from '@/features/reviews/components/host-reviews';
 import { VerifiedBadge } from '@/features/hosts/components/verified-badge';
 import { toArabicText } from '@/features/experiences/lib/arabic-content';
+import { isOrganizationName } from '@/features/hosts/lib/organization-name';
 import { pickLocalized } from '@/lib/ar-placeholder';
 import {
   getExperiencesByHostSlug,
@@ -151,11 +152,9 @@ export default async function HostProfilePage({
 
   const url = `${SITE_URL}/${loc}/hosts/${slug}`;
 
-  // schema.org Person/Organization picked by host type heuristic — a
-  // Co.-style name is treated as an Organization, individuals as Person.
-  // This isn't perfect; once db/schema.ts distinguishes individual vs
-  // company hosts, this picks itself.
-  const isOrganization = /\b(co\.?|company|llc|ltd|inc|الشركة|شركة)\b/i.test(host.name);
+  // schema.org Person/Organization picked by a host-name heuristic (see
+  // isOrganizationName): a Co.-style or شركة name is an Organization.
+  const isOrganization = isOrganizationName(host.name);
   const jsonLd = {
     '@context': 'https://schema.org',
     '@graph': [
