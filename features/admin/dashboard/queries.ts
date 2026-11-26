@@ -12,13 +12,9 @@ import {
   hosts,
   platformSettings,
 } from '@/db/schema';
-import {
-  collectedRevenue,
-  paymentCollected,
-  payoutExpr,
-  platformTakeExpr,
-} from '@/features/bookings/lib/payout-sql';
+import { collectedRevenue, platformTakeExpr } from '@/features/bookings/lib/payout-sql';
 import { adminGuard } from '@/features/admin/guard';
+import { listPayouts } from '@/features/admin/payouts/queries';
 
 /**
  * "Today" on the Riyadh calendar, evaluated in SQL. The queue tiles below
@@ -83,7 +79,10 @@ export interface AdminDashboard {
      * rows sit here forever rather than silently becoming payouts.
      */
     suspendedHostBookings: number;
-    /** Completed-and-paid bookings not yet paid out to hosts. */
+    /**
+     * What the next payout run transfers: the sum of /admin/payouts' net
+     * owed (disputed bookings held back, pending clawbacks deducted).
+     */
     payoutsOwedSar: number;
   };
 }
@@ -144,7 +143,7 @@ export async function getAdminDashboard(): Promise<AdminDashboard | null> {
         })
         .from(hostApplications),
     ]);
-    const [netRow, disputeRow, payoutRow, heartbeatRow] = await Promise.all([
+    const [netRow, disputeRow, heartbeatRow] = await Promise.all([
       // Net commission on revenue bookings in the trailing 30 days, from
       // the per-booking commission snapshot, net of promo discounts AND
       // redeemed Gharmish Credit the platform funded in the same window
@@ -165,19 +164,19 @@ export async function getAdminDashboard(): Promise<AdminDashboard | null> {
       db
         .select({ n: sql<number>`count(*) filter (where ${disputes.status} = 'open')::int` })
         .from(disputes),
-      // Payouts owed: completed + collected bookings the host hasn't been
-      // paid for. Same per-booking split expression as the payouts page.
-      db
-        .select({
-          owed: sql<number>`coalesce(sum(${payoutExpr()}) filter (where ${bookings.hostPaidAt} is null and ${paymentCollected()}), 0)::int`,
-        })
-        .from(bookings)
-        .where(eq(bookings.status, 'completed')),
       db
         .select({ at: platformSettings.lastCronRunAt })
         .from(platformSettings)
         .where(eq(platformSettings.id, 'platform')),
     ]);
+    // Payouts owed: the sum of the payouts page's own net-owed figures, so
+    // the tile that links there shows the total "Mark paid" would transfer
+    // — disputed bookings held back and pending clawbacks deducted. A
+    // hand-copied SUM here skipped both and overstated the figure.
+    // Awaited after the wave above: listPayouts runs two queries, and the
+    // pool is 5.
+    const payouts = await listPayouts();
+    const payoutsOwedSar = payouts.reduce((sum, row) => sum + row.netOwedSar, 0);
 
     return {
       gmvAllTimeSar: bookingRow[0]?.gmv ?? 0,
@@ -197,7 +196,7 @@ export async function getAdminDashboard(): Promise<AdminDashboard | null> {
         refundsDueCount: bookingRow[0]?.refundsDueCount ?? 0,
         refundsDueSar: bookingRow[0]?.refundsDueSar ?? 0,
         suspendedHostBookings: bookingRow[0]?.suspendedHost ?? 0,
-        payoutsOwedSar: payoutRow[0]?.owed ?? 0,
+        payoutsOwedSar,
       },
     };
   } catch (error) {
