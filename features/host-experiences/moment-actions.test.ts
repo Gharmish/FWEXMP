@@ -217,3 +217,63 @@ describe('host moments', () => {
     });
   });
 });
+
+/**
+ * A moment on a live or paused listing is public as soon as it is saved,
+ * so it needs both languages; the draft flow's Arabic placeholder put an
+ * English timeline on the Arabic page (#121, 2026-10-31).
+ */
+describe('host moments on a public listing need their Arabic (#121)', () => {
+  const englishOnly = {
+    timeOfDay: '06:00',
+    titleEn: 'Dawn',
+    descriptionEn: 'We walk the old terraces at first light.',
+    titleAr: '',
+    descriptionAr: '',
+  };
+  const bilingual = { ...englishOnly, titleAr: 'الفجر', descriptionAr: 'نمشي في المدرجات القديمة' };
+
+  it.each(['live', 'paused'] as const)(
+    'refuses an English-only add or update on a %s listing, echoing the form',
+    async (status) => {
+      experience = { id: EXP, hostId: 'h1', status };
+      expect(await addMomentAsHost(initial, form({ experienceId: EXP, ...englishOnly }))).toEqual({
+        success: false,
+        message: 'needs_arabic',
+        values: englishOnly,
+      });
+      expect(
+        await updateMomentAsHost(initial, form({ momentId: 'm1', ...englishOnly })),
+      ).toEqual({ success: false, message: 'needs_arabic', values: englishOnly });
+      // A placeholder typed back in is not Arabic either.
+      expect(
+        await addMomentAsHost(
+          initial,
+          form({ experienceId: EXP, ...englishOnly, titleAr: 'TODO(ar): x', descriptionAr: 'x' }),
+        ),
+      ).toMatchObject({ message: 'needs_arabic' });
+      expect(fake.current?.inserts).toEqual([]);
+      expect(fake.current?.updates).toEqual([]);
+    },
+  );
+
+  it('saves a bilingual moment on a live listing', async () => {
+    experience = { id: EXP, hostId: 'h1', status: 'live' };
+    expect(await addMomentAsHost(initial, form({ experienceId: EXP, ...bilingual }))).toMatchObject(
+      { success: true },
+    );
+    expect(fake.current?.inserts).toEqual([
+      expect.objectContaining({ titleAr: 'الفجر', descriptionAr: 'نمشي في المدرجات القديمة' }),
+    ]);
+  });
+
+  it('still lets a draft keep the Arabic placeholder for the team to fill', async () => {
+    experience = { id: EXP, hostId: 'h1', status: 'draft' };
+    expect(await addMomentAsHost(initial, form({ experienceId: EXP, ...englishOnly }))).toMatchObject(
+      { success: true },
+    );
+    expect(fake.current?.inserts).toEqual([
+      expect.objectContaining({ titleAr: 'TODO(ar): pending translation' }),
+    ]);
+  });
+});

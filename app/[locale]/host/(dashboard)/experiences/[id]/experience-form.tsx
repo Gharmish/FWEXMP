@@ -92,7 +92,9 @@ type FormMessageKey =
   | 'noDb'
   | 'lockedReview'
   | 'archived'
-  | 'scheduleHasBookings';
+  | 'scheduleHasBookings'
+  | 'needsEnglish'
+  | 'needsArabicLists';
 
 const FORM_MESSAGE_KEY: Partial<
   Record<NonNullable<HostExperienceState['message']>, FormMessageKey>
@@ -105,6 +107,8 @@ const FORM_MESSAGE_KEY: Partial<
   locked_review: 'lockedReview',
   archived: 'archived',
   schedule_has_bookings: 'scheduleHasBookings',
+  needs_english: 'needsEnglish',
+  needs_arabic_lists: 'needsArabicLists',
 };
 
 export interface ExperienceFormCopy {
@@ -203,6 +207,9 @@ export interface ExperienceFormCopy {
     archived: string;
     /** Start time / weekdays edit refused because upcoming bookings depend on them. */
     scheduleHasBookings: string;
+    /** A list on a live or paused listing was saved in one language only (#121). */
+    needsEnglish: string;
+    needsArabicLists: string;
     fields: {
       titleShort: string;
       titleLong: string;

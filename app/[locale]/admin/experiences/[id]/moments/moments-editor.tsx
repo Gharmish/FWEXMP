@@ -40,6 +40,8 @@ export interface MomentsCopy {
   arHint: string;
   /** Shown when a live/pending listing's timeline is locked (host editor). */
   lockedLive?: string;
+  /** Shown when a moment on a live or paused listing lacks its Arabic (host editor, #121). */
+  needsArabic?: string;
   save: string;
   saving: string;
   add: string;
@@ -74,6 +76,7 @@ function actionError(state: MomentActionState, copy: MomentsCopy): string | unde
   if (state.success || !state.message) return undefined;
   if (state.message === 'validation') return copy.fieldInvalid;
   if (state.message === 'locked_live') return copy.lockedLive ?? copy.error;
+  if (state.message === 'needs_arabic') return copy.needsArabic ?? copy.error;
   return copy.error;
 }
 
