@@ -342,6 +342,7 @@ export async function sendHostBookingCancelledEmail(reference: string): Promise<
     closing: t('hostNewClosing'),
     footer: t('footer'),
   });
+  const startsAt = startInstant(booking.date, booking.startTime);
   await dispatchNotification({
     type: 'host_booking_cancelled',
     dedupeKey: `host_booking_cancelled:${booking.referenceCode}`,
@@ -353,8 +354,12 @@ export async function sendHostBookingCancelledEmail(reference: string): Promise<
       host.locale,
       {
         experienceName: host.title,
-        date: waDate(startInstant(booking.date, booking.startTime), host.locale),
+        date: waDate(startsAt, host.locale),
         bookingPath: hostBookingPath(host.locale, booking.referenceCode),
+        // The legacy fallback (host_guest_cancelled) also fills these;
+        // WhatsApp rejects a template with a blank variable.
+        time: waTime(startsAt, host.locale),
+        dashboardUrl: hostBookingsUrl(host.locale),
       },
       { reference: booking.referenceCode },
     ),

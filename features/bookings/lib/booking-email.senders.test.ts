@@ -349,6 +349,29 @@ describe('host senders without a reachable host', () => {
   });
 });
 
+describe('host cancellation WhatsApp before the v3 template is approved', () => {
+  // Both cancel senders share the v3 host_booking_cancelled template,
+  // whose legacy fallback (host_guest_cancelled) also fills a time and a
+  // dashboard slot. WhatsApp rejects a template with a blank variable,
+  // so every legacy slot must be filled on both paths.
+  type LegacyPayload = { whatsapp?: { fallback?: { variables: Record<string, string> } } };
+  const legacyVars = (): Record<string, string> | undefined =>
+    (dispatchNotification.mock.calls.at(-1) as unknown as [LegacyPayload] | undefined)?.[0].whatsapp
+      ?.fallback?.variables;
+
+  it.each([
+    ['guest cancelled', () => senders.sendHostGuestCancelledEmail('ref-1')],
+    ['ops cancelled', () => senders.sendHostBookingCancelledEmail('ref-1')],
+  ])('%s: fills every legacy slot', async (_label, run) => {
+    booking = base({ status: 'cancelled' });
+    await run();
+    const vars = legacyVars();
+    expect(vars).toBeDefined();
+    expect(Object.keys(vars ?? {})).toEqual(['1', '2', '3', '4']);
+    for (const value of Object.values(vars ?? {})) expect(value).not.toBe('');
+  });
+});
+
 describe('host notice retries re-fire only the notice that failed', () => {
   it('drops a retried request notice once the host has approved it', async () => {
     booking = base({ status: 'confirmed', paymentStatus: 'unpaid', paidAt: null });
