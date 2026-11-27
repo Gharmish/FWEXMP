@@ -623,6 +623,9 @@ export async function createCheckout(
     // it's the freshest one on file. `state` may be empty (optional for KSA).
     // Apple Pay submits carry no address (the wallet holds it) — skip the
     // write so an Apple Pay checkout can't blank a saved card address.
+    // Never onto a row another booking reads (#264, 2026-10-31): the row's
+    // address is what the OTHER booking's pay page pre-fills, and this
+    // booking's proof of access says nothing about that one.
     if (channel !== 'applepay') {
       await db
         .update(guests)
@@ -633,7 +636,7 @@ export async function createCheckout(
           billingPostcode: input.postcode,
           billingCountry: input.country,
         })
-        .where(eq(guests.id, booking.guestId));
+        .where(and(eq(guests.id, booking.guestId), noOtherBookingOnGuestRow(booking.id)));
     }
 
     // Record the guest's clickwrap consent as append-only proof — who

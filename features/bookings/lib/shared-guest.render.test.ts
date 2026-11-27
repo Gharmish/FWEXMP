@@ -10,6 +10,9 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
  */
 
 vi.mock('server-only', () => ({}));
+vi.mock('@/lib/deadline', () => ({
+  boundedQuery: async <T>(_key: string, fn: () => Promise<T>) => fn(),
+}));
 
 const state = vi.hoisted(() => ({
   executed: [] as { sql: string; params: unknown[] }[],
