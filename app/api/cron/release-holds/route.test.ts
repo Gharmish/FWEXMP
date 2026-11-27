@@ -72,9 +72,14 @@ vi.mock('@/features/bookings/lib/booking-email', () => ({
   RETRYABLE_BOOKING_SENDERS: {},
 }));
 
+// The "get ready" stage fires only for a booking on the next Riyadh day
+// (#273): rows that expect it carry TOMORROW, the departure rows carry TODAY.
+const TODAY_RIYADH = '2026-09-11';
+const TOMORROW_RIYADH = '2026-09-12';
 vi.mock('@/features/bookings/lib/availability', () => ({
-  addDays: (date: string) => date,
-  todayInRiyadh: () => '2026-09-11',
+  addDays: (date: string, days: number) =>
+    date === TODAY_RIYADH && days === 1 ? TOMORROW_RIYADH : date,
+  todayInRiyadh: () => TODAY_RIYADH,
 }));
 
 // `startInstant` is used by the reminder pass to compute hours-until-start.
@@ -323,7 +328,7 @@ describe('GET /api/cron/release-holds', () => {
         id: 'b5',
         reference: 'ref-5',
         preferredLanguage: 'ar',
-        date: 'd',
+        date: TOMORROW_RIYADH,
         startTime: '10',
         reminderSentAt: null,
         finalReminderSentAt: null,
@@ -332,7 +337,7 @@ describe('GET /api/cron/release-holds', () => {
         id: 'b6',
         reference: 'ref-6',
         preferredLanguage: 'en',
-        date: 'd',
+        date: TOMORROW_RIYADH,
         startTime: '20',
         reminderSentAt: null,
         finalReminderSentAt: null,
@@ -353,7 +358,7 @@ describe('GET /api/cron/release-holds', () => {
         id: 'b7',
         reference: 'ref-7',
         preferredLanguage: 'en',
-        date: 'd',
+        date: TODAY_RIYADH,
         startTime: '2',
         reminderSentAt: new Date(),
         finalReminderSentAt: null,
@@ -372,7 +377,7 @@ describe('GET /api/cron/release-holds', () => {
         id: 'b8',
         reference: 'ref-8',
         preferredLanguage: 'en',
-        date: 'd',
+        date: TODAY_RIYADH,
         startTime: '-1',
         reminderSentAt: null,
         finalReminderSentAt: null,
@@ -390,7 +395,7 @@ describe('GET /api/cron/release-holds', () => {
         id: 'b5',
         reference: 'ref-5',
         preferredLanguage: 'ar',
-        date: 'd',
+        date: TOMORROW_RIYADH,
         startTime: '10',
         reminderSentAt: null,
         finalReminderSentAt: null,
@@ -399,7 +404,7 @@ describe('GET /api/cron/release-holds', () => {
         id: 'b6',
         reference: 'ref-6',
         preferredLanguage: 'en',
-        date: 'd',
+        date: TOMORROW_RIYADH,
         startTime: '20',
         reminderSentAt: null,
         finalReminderSentAt: null,
