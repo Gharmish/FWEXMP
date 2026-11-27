@@ -57,9 +57,12 @@ vi.mock('@/features/wallet/ledger', () => ({
   creditWalletTxIdempotent: (...args: unknown[]) => creditWalletTxIdempotent(...(args as [])),
 }));
 const sendBookingCancellationEmail = vi.fn(async () => undefined);
+const sendHostBookingCancelledEmail = vi.fn(async () => undefined);
 vi.mock('@/features/bookings/lib/booking-email', () => ({
   sendBookingCancellationEmail: (...args: unknown[]) =>
     sendBookingCancellationEmail(...(args as [])),
+  sendHostBookingCancelledEmail: (...args: unknown[]) =>
+    sendHostBookingCancelledEmail(...(args as [])),
 }));
 
 type BookingRow = Record<string, unknown>;
@@ -113,6 +116,7 @@ beforeEach(() => {
   releaseWalletReservationTx.mockClear();
   creditWalletTxIdempotent.mockClear();
   sendBookingCancellationEmail.mockClear();
+  sendHostBookingCancelledEmail.mockClear();
   fake.current = createDbFake({
     query: {
       disputes: { findFirst: () => dispute },
@@ -280,5 +284,79 @@ describe('refundBooking eligibility', () => {
     ledger.inFlight = true;
     expect(await refundBooking(initial, form())).toMatchObject({ message: 'wrong_state' });
     expect(fake.current?.updates).toEqual([]);
+  });
+});
+
+/**
+ * The host's calendar changes on every admin cancel or refund of a live
+ * booking, yet only the guest used to hear about it (#408, OPS_AUDIT P1):
+ * the executor's admin-cancel arm sends `sendHostBookingCancelledEmail`,
+ * and these two actions run their own flow and skipped it.
+ */
+describe('admin cancel and refund tell the host (#408)', () => {
+  it('emergency cancel: notifies the host once with the booking reference', async () => {
+    expect(await redirected(emergencyCancelBooking(initial, form()))).toBe(
+      'REDIRECT:/admin/bookings',
+    );
+    expect(sendHostBookingCancelledEmail).toHaveBeenCalledTimes(1);
+    expect(sendHostBookingCancelledEmail).toHaveBeenCalledWith('ref-1');
+  });
+
+  it('emergency cancel: an unpaid pending request also tells the host', async () => {
+    booking = paidConfirmed({ status: 'pending', paymentStatus: 'unpaid', walletAppliedSar: 0 });
+    expect(await redirected(emergencyCancelBooking(initial, form()))).toBe(
+      'REDIRECT:/admin/bookings',
+    );
+    expect(sendHostBookingCancelledEmail).toHaveBeenCalledWith('ref-1');
+  });
+
+  it('emergency cancel: a refused attempt never pages the host', async () => {
+    booking = paidConfirmed({ status: 'completed' });
+    expect(await emergencyCancelBooking(initial, form())).toMatchObject({ message: 'wrong_state' });
+    updateRows = [];
+    booking = paidConfirmed();
+    expect(await emergencyCancelBooking(initial, form())).toMatchObject({ message: 'wrong_state' });
+    expect(sendHostBookingCancelledEmail).not.toHaveBeenCalled();
+  });
+
+  it('emergency cancel: a failed host notice never fails the cancellation', async () => {
+    sendHostBookingCancelledEmail.mockRejectedValueOnce(new Error('resend down'));
+    expect(await redirected(emergencyCancelBooking(initial, form()))).toBe(
+      'REDIRECT:/admin/bookings',
+    );
+    expect(sendBookingCancellationEmail).toHaveBeenCalledTimes(1);
+  });
+
+  it('refund of a confirmed booking: notifies the host once with the booking reference', async () => {
+    expect(await redirected(refundBooking(initial, form()))).toBe('REDIRECT:/admin/bookings');
+    expect(sendHostBookingCancelledEmail).toHaveBeenCalledTimes(1);
+    expect(sendHostBookingCancelledEmail).toHaveBeenCalledWith('ref-1');
+  });
+
+  it('refund of a completed booking: the host delivered it, so no cancellation notice', async () => {
+    booking = paidConfirmed({ status: 'completed' });
+    expect(await redirected(refundBooking(initial, form()))).toBe('REDIRECT:/admin/bookings');
+    expect(sendHostBookingCancelledEmail).not.toHaveBeenCalled();
+  });
+
+  it('settling a queued refund on a cancelled booking: the cancellation already told the host', async () => {
+    booking = paidConfirmed({ status: 'cancelled', refundDueSar: 150 });
+    expect(await redirected(refundBooking(initial, form()))).toBe('REDIRECT:/admin/bookings');
+    expect(sendBookingCancellationEmail).toHaveBeenCalledTimes(1);
+    expect(sendHostBookingCancelledEmail).not.toHaveBeenCalled();
+  });
+
+  it('refund: a refused attempt never pages the host', async () => {
+    ledger.inFlight = true;
+    expect(await refundBooking(initial, form())).toMatchObject({ message: 'wrong_state' });
+    ledger.inFlight = false;
+    updateRows = [];
+    expect(await refundBooking(initial, form())).toMatchObject({ message: 'wrong_state' });
+    expect(sendHostBookingCancelledEmail).not.toHaveBeenCalled();
+  });
+
+  it('refund: a failed host notice never fails the refund', async () => {
+    sendHostBookingCancelledEmail.mockRejectedValueOnce(new Error('resend down'));
+    expect(await redirected(refundBooking(initial, form()))).toBe('REDIRECT:/admin/bookings');
   });
 });

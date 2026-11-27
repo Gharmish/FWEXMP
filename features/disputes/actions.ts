@@ -12,6 +12,7 @@ import { openTicket } from '@/features/support/tickets';
 import { adminFailureMessage, adminGateRefused, requireAdminActor } from '@/features/admin/guard';
 import { bookingViewerCanAccess } from '@/features/bookings/lib/access';
 import { executeRefund } from '@/features/bookings/lib/refund';
+import { sendHostBookingCancelledEmail } from '@/features/bookings/lib/booking-email';
 import { createDisputeSchema, resolveDisputeSchema } from '@/features/disputes/schemas';
 import {
   sendDisputeReceivedEmail,
@@ -210,8 +211,18 @@ export async function resolveDispute(
   }
   const { disputeId, adminNotes, issueRefund } = parsed.data;
 
-  let refund: { bookingId: string; paymentReference: string | null; amountSar: number } | null =
-    null;
+  let refund: {
+    bookingId: string;
+    paymentReference: string | null;
+    amountSar: number;
+    /**
+     * The booking reference to send the host notice for, when the refund
+     * takes a CONFIRMED booking off the host's calendar (#408). Null for
+     * a completed or already-cancelled booking: the host delivered it,
+     * or was told by the cancellation that put it there.
+     */
+    hostNoticeReference: string | null;
+  } | null = null;
   /** What the executor actually managed — drives the guest's copy. */
   let refundOutcome: 'refunded' | 'refund_pending' | undefined;
   try {
@@ -231,6 +242,7 @@ export async function resolveDispute(
               totalAmount: true,
               walletAppliedSar: true,
               refundDueSar: true,
+              idempotencyKey: true,
             },
           },
         },
@@ -246,6 +258,8 @@ export async function resolveDispute(
         // rails split it back across the gateway and the wallet, and
         // `resolutionRefundSar` records what the guest actually gets.
         amountSar: dispute.booking.totalAmount + dispute.booking.walletAppliedSar,
+        hostNoticeReference:
+          dispute.booking.status === 'confirmed' ? dispute.booking.idempotencyKey : null,
       };
     }
 
@@ -324,6 +338,24 @@ export async function resolveDispute(
     await sendDisputeResolvedEmail(disputeId, refund ? refund.amountSar : null, refundOutcome);
   } catch (error) {
     reportError(error, { surface: 'disputes:resolveEmail', disputeId });
+  }
+
+  // A dispute refund on a CONFIRMED booking flips it to `refunded` and
+  // takes the guest off a date the host is still preparing for (#408,
+  // 2026-11-22). The executor's admin-cancel arm tells the host; this
+  // path went through `executeRefund` and never did. Only when the
+  // refund actually SETTLED: on `refund_pending` (the bank-transfer rail,
+  // or a gateway refusal) the executor queues `refundDueSar` and leaves
+  // the row `confirmed`, so the booking is still on the host's calendar
+  // and a notice now would be wrong and would also consume the dedupe
+  // key the admin's later settle (`refundBooking`) relies on. Deduped on
+  // `host_booking_cancelled:<ref>`; best-effort, never blocks the resolve.
+  if (refund?.hostNoticeReference && refundOutcome === 'refunded') {
+    try {
+      await sendHostBookingCancelledEmail(refund.hostNoticeReference);
+    } catch (error) {
+      reportError(error, { surface: 'disputes:resolveHostEmail', disputeId });
+    }
   }
 
   revalidatePath('/[locale]/admin/disputes', 'page');

@@ -28,7 +28,10 @@ import {
 import { splitRefund } from '@/features/bookings/lib/refund-split';
 import { recordClawbackIfPaidOut } from '@/features/bookings/lib/clawback';
 import { creditWalletRefund } from '@/features/wallet/reservation';
-import { sendBookingCancellationEmail } from '@/features/bookings/lib/booking-email';
+import {
+  sendBookingCancellationEmail,
+  sendHostBookingCancelledEmail,
+} from '@/features/bookings/lib/booking-email';
 import { creditWalletTxIdempotent } from '@/features/wallet/ledger';
 import { releaseWalletReservationTx } from '@/features/wallet/reservation';
 
@@ -370,6 +373,22 @@ export async function refundBooking(
       reportError(error, { surface: 'admin:refundEmail', bookingId });
     }
 
+    // Tell the host too (#408, 2026-11-22). Refunding a CONFIRMED booking
+    // takes the guest off a date the host is still preparing for, and
+    // only the executor's admin-cancel arm sent the host notice; this
+    // action runs its own flow and skipped it. `completed` has already
+    // happened, and a `cancelled`/`refunded` row was announced by the
+    // cancellation that put it there. The sender dedupes on
+    // `host_booking_cancelled:<ref>`, so a replay cannot double-send.
+    // Best-effort, never fails the refund.
+    if (booking.status === 'confirmed') {
+      try {
+        await sendHostBookingCancelledEmail(booking.idempotencyKey);
+      } catch (error) {
+        reportError(error, { surface: 'admin:refundBooking:hostEmail', bookingId });
+      }
+    }
+
     // Reverse the reported purchase revenue on GA4 — without this the ad
     // platforms count refunded bookings as revenue forever and ROAS reads
     // permanently high. Env-gated and non-throwing (best-effort like the
@@ -555,6 +574,16 @@ export async function emergencyCancelBooking(
       );
     } catch (error) {
       reportError(error, { surface: 'admin:emergencyCancel:email', bookingId });
+    }
+    // Tell the host too (#408, 2026-11-22): an emergency cancel frees a
+    // date on their calendar without them acting, exactly like the
+    // executor's admin-cancel arm, which already sends this notice. Until
+    // now only the guest heard, and the host prepared for a guest who was
+    // not coming. Deduped on `host_booking_cancelled:<ref>`; best-effort.
+    try {
+      await sendHostBookingCancelledEmail(outcome.reference);
+    } catch (error) {
+      reportError(error, { surface: 'admin:emergencyCancel:hostEmail', bookingId });
     }
   } catch (error) {
     reportError(error, { surface: 'admin:emergencyCancel', bookingId });
