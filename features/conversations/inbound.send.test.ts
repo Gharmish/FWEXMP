@@ -20,6 +20,11 @@ vi.mock('@/lib/notifications/whatsapp/provider', () => ({
   sendWhatsAppText: async () => send.result,
   whatsappAddress: (address: string) => `whatsapp:${address}`,
 }));
+vi.mock('@/lib/notifications/dispatch', () => ({ dispatchNotification: async () => undefined }));
+vi.mock('@/lib/notifications/whatsapp', () => ({
+  SUPPORT_SESSION_COPY: { ack: { ar: 'ack', en: 'ack' } },
+  whatsappPayload: () => ({ templateId: 't', vars: {} }),
+}));
 const fake = vi.hoisted(() => ({ current: null as ReturnType<typeof createDbFake> | null }));
 vi.mock('@/lib/db', () => ({
   get db() {
@@ -27,7 +32,7 @@ vi.mock('@/lib/db', () => ({
   },
 }));
 
-import { sendConversationReply } from './inbound';
+import { sendConversationReply, sendSupportTemplate } from './inbound';
 
 const reply = (type: 'support_ack' | 'support_reply') => ({
   conversationId: 'conv-1',
@@ -65,5 +70,28 @@ describe('sendConversationReply timestamps', () => {
     send.result = { ok: false, error: 'timeout' };
     await sendConversationReply(reply('support_ack'));
     expect(fake.current?.updates).toHaveLength(0);
+  });
+});
+
+describe('sendSupportTemplate transcript attribution (#112)', () => {
+  const template = {
+    conversationId: 'conv-1',
+    address: '+966500000000',
+    locale: 'ar' as const,
+    type: 'support_ticket_resolved',
+    templateId: 'support_ticket_resolved',
+    vars: { ticketReference: 'TK-1' },
+    dedupeKey: 'support_ticket_resolved:t1',
+    transcript: '[template support_ticket_resolved · TK-1]',
+  };
+
+  it('writes the transcript row as an admin reply by default', async () => {
+    expect(await sendSupportTemplate(template)).toEqual({ ok: true });
+    expect(fake.current?.inserts[0]).toMatchObject({ direction: 'out', author: 'admin' });
+  });
+
+  it('writes a system notice when asked, so it does not count as a reply', async () => {
+    await sendSupportTemplate({ ...template, author: 'system' });
+    expect(fake.current?.inserts[0]).toMatchObject({ direction: 'out', author: 'system' });
   });
 });

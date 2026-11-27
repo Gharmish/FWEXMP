@@ -31,7 +31,8 @@ vi.mock('@/lib/db', () => ({
   db: { select: () => chain(selects.shift() ?? []) },
 }));
 
-const { getConversationThread } = await import('@/features/support/queries');
+const { getConversationThread, listConversationsForAdmin } =
+  await import('@/features/support/queries');
 
 const head = {
   id: 'c-1',
@@ -44,6 +45,7 @@ const head = {
   guestAuthUserId: null,
   lastInboundAt: new Date('2026-10-10T10:00:00Z'),
   lastOutboundAt: null,
+  lastReplyAt: null,
   lastMessagePreview: null,
   createdAt: new Date('2026-10-01T10:00:00Z'),
 };
@@ -76,5 +78,55 @@ describe('getConversationThread', () => {
 
     expect(thread?.messages.map((m) => m.id)).toEqual(['m-1', 'm-2', 'm-3']);
     expect(orderBys.at(-1)?.[0]).toEqual(desc(conversationMessages.createdAt));
+  });
+});
+
+/**
+ * "Awaiting reply" means the guest wrote after the last REPLY by a person
+ * or the agent (#112). The automatic `system` ack moves `lastOutboundAt`
+ * too; it must not clear the flag. `lastReplyAt` is the inbox query's own
+ * aggregate (see queries.render.test.ts for its shape), a string from
+ * postgres.js.
+ */
+describe('listConversationsForAdmin: awaiting reply', () => {
+  const inboundAt = new Date('2026-10-10T10:00:00Z');
+  const ackAt = new Date('2026-10-10T10:00:05Z');
+
+  it('keeps a thread awaiting when its only outbound after the guest is the automatic ack', async () => {
+    selects.push([{ ...head, lastInboundAt: inboundAt, lastOutboundAt: ackAt, lastReplyAt: null }]);
+    const rows = await listConversationsForAdmin();
+    expect(rows?.[0]?.awaitingReply).toBe(true);
+  });
+
+  it('keeps a thread awaiting when the last real reply predates the guest message', async () => {
+    selects.push([
+      {
+        ...head,
+        lastInboundAt: inboundAt,
+        lastOutboundAt: ackAt,
+        lastReplyAt: '2026-10-09 18:00:00+00',
+      },
+    ]);
+    const rows = await listConversationsForAdmin();
+    expect(rows?.[0]?.awaitingReply).toBe(true);
+  });
+
+  it('clears the flag once an admin or the agent has replied after the guest', async () => {
+    selects.push([
+      {
+        ...head,
+        lastInboundAt: inboundAt,
+        lastOutboundAt: ackAt,
+        lastReplyAt: '2026-10-10 10:20:00+00',
+      },
+    ]);
+    const rows = await listConversationsForAdmin();
+    expect(rows?.[0]?.awaitingReply).toBe(false);
+  });
+
+  it('never flags a closed thread', async () => {
+    selects.push([{ ...head, state: 'closed', lastInboundAt: inboundAt, lastReplyAt: null }]);
+    const rows = await listConversationsForAdmin();
+    expect(rows?.[0]?.awaitingReply).toBe(false);
   });
 });
