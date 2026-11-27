@@ -644,6 +644,12 @@ export const REFUND_LINES = {
     ar: (amount: string) => `تم استرجاع ${amount} إلى وسيلة الدفع الأصلية`,
     en: (amount: string) => `${amount} has been refunded to your original payment method`,
   },
+  // The manual rail (platform default): the money went to the bank
+  // account the guest gave us, never "the original payment method" (#168).
+  refunded_bank: {
+    ar: (amount: string) => `تم تحويل ${amount} إلى الحساب البنكي الذي زوّدتنا به`,
+    en: (amount: string) => `${amount} has been transferred to the bank account you provided`,
+  },
   refund_pending: {
     ar: (amount: string) => `بدأنا استرجاع ${amount} وقد يظهر في حسابك خلال بضعة أيام عمل`,
     en: (amount: string) =>
