@@ -63,14 +63,16 @@ export default async function MePage({ params }: { params: Promise<{ locale: str
   setRequestLocale(locale);
   const loc = locale as Locale;
 
-  const [wishlist, lastBooking, profile, t, tp, tSteps] = await Promise.all([
+  const [wishlist, profile, t, tp, tSteps] = await Promise.all([
     getWishlistExperiences(),
-    getLastBookingView(),
     getMyProfile(),
     getTranslations('me'),
     getTranslations('me.profile'),
     getTranslations('payment.steps'),
   ]);
+  // After the profile: the cookie-hinted card is shown for an
+  // account-owned booking only to that account (#180, 2026-10-30).
+  const lastBooking = await getLastBookingView(profile?.id ?? null);
   const stepsCopy = {
     label: tSteps('label'),
     details: tSteps('details'),

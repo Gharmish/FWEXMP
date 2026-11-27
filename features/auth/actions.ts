@@ -19,6 +19,7 @@ import {
   STUB_SESSION_MAX_AGE_SECONDS,
   stubEmailCookieValue,
 } from '@/features/auth/lib/stub-session';
+import { LAST_BOOKING_COOKIE } from '@/features/account/cookie';
 import {
   OTP_COOLDOWN_COOKIE,
   OTP_COOLDOWN_SECONDS,
@@ -468,6 +469,11 @@ export async function signOut(formData: FormData): Promise<void> {
   // The admin second-factor proof is bound to the session it was issued
   // for; it must not outlive a sign-out (2026-09 engineering audit SEC-03).
   store.delete(ADMIN_MFA_COOKIE);
+  // The last-booking cookie is written for signed-in bookings too and
+  // lasts 90 days; left behind, it let the next person on a shared
+  // device open, cancel and redirect the refund of this account's last
+  // booking from /me (#180, 2026-10-30). A sign-out ends that proof.
+  store.delete(LAST_BOOKING_COOKIE);
 
   revalidatePath('/[locale]', 'layout');
   redirect({ href: '/', locale });

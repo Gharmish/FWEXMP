@@ -460,6 +460,10 @@ describe('requestBooking — replay cookie needs proven ownership (issue #24)', 
 
   it('fast path: a genuine double-tap (this browser already holds the cookie) keeps it', async () => {
     replayRow = paidRow;
+    // The cookie vouches for an ANONYMOUS booking only (#180, 2026-10-30):
+    // the access check now reads the booking's guest row, so the fixture
+    // has to be the account-less owner.
+    guestRow = { id: 'g-owner', authUserId: null, phone: null, email: null, suspendedAt: null };
     lastBookingCookie = serializeLastBookingCookie({
       reference: IDEMPOTENCY_KEY,
       experienceSlug: 'asiri-coffee',
@@ -805,6 +809,7 @@ describe('requestBooking — superseding an unpaid hold (third-round R7)', () =>
   const HOLD_REF = '9a9a9a9a-2222-4333-8444-555566667777';
   const liveHold = () => ({
     id: 'hold-1',
+    guestId: 'g-owner',
     contactPhone: '+966512345678',
     status: 'confirmed',
     paymentStatus: 'unpaid',
@@ -828,6 +833,9 @@ describe('requestBooking — superseding an unpaid hold (third-round R7)', () =>
   it('the device cookie proves ownership: the hold is discounted, released with its liveness re-asserted, and its credit returned', async () => {
     holdRow = liveHold();
     releasedRows = [{ id: 'hold-1' }];
+    // The cookie vouches for an ANONYMOUS hold only (#180 / #258,
+    // 2026-10-31): the ownership check reads the hold's guest row.
+    guestRow = { id: 'g-owner', authUserId: null, phone: null, email: null, suspendedAt: null };
     lastBookingCookie = serializeLastBookingCookie({
       reference: HOLD_REF,
       experienceSlug: 'asiri-coffee',
