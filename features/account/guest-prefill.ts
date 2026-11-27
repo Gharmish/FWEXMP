@@ -5,6 +5,7 @@ import { boundedQuery } from '@/lib/deadline';
 import { serverEnv } from '@/lib/env';
 import { bookings, guests } from '@/db/schema';
 import { getCurrentUser } from '@/features/auth/queries';
+import { claimEvidence } from '@/features/account/profile/guest-identity';
 import { LAST_BOOKING_COOKIE, parseLastBookingCookie } from '@/features/account/cookie';
 import { reportError } from '@/lib/log';
 
@@ -42,9 +43,10 @@ function clean(details: {
  * Resolve the current visitor's known contact details for booking-form
  * prefill. Never creates or mutates rows — this is a read on a browse
  * page. Resolution order:
- *   1. Signed-in account → the linked `guests` row (by `authUserId`),
- *      backfilled from the session's own email/phone for a brand-new
- *      account with no guest row yet.
+ *   1. Signed-in account → the linked `guests` row (by `authUserId`); else
+ *      the unclaimed row on the session's phone, only with H4 claim
+ *      evidence; else the session's own email/phone (a brand-new account,
+ *      or a number whose row we may not show).
  *   2. Anonymous returning guest → the `guests` row behind their
  *      last-booking cookie.
  * Returns an empty object for a first-time anonymous visitor.
@@ -57,38 +59,55 @@ export async function getKnownGuestDetails(): Promise<KnownGuestDetails> {
     // (a just-created account may have no guest row until it first books).
     if (user) {
       if (serverEnv.DATABASE_URL) {
-        // Prefer the row linked to this account; fall back to a phone match
-        // for a returning phone-OTP guest whose row isn't linked yet (created
-        // at booking time, claimed on first profile visit). Read-only — this
-        // is a browse page, so unlike getMyProfile we never claim the row here.
-        // The fallback matches UNCLAIMED rows only: a row claimed by this
-        // account was already found by auth id, and one claimed by another
-        // account must never prefill (or reveal) its details here.
+        // Prefer the row linked to this account. Read-only — this is a
+        // browse page, so unlike getMyProfile we never claim a row here.
         // (`userPhone` hoisted so the narrowing survives the query closure.)
         const userPhone = user.phone;
-        const guest =
-          (await boundedQuery('account:prefill:byAuthUser', () =>
-            db.query.guests.findFirst({
-              where: eq(guests.authUserId, user.id),
-              columns: { name: true, phone: true, email: true },
-            }),
-          )) ??
-          (userPhone
-            ? await boundedQuery('account:prefill:byPhone', () =>
-                db.query.guests.findFirst({
-                  where: and(eq(guests.phone, userPhone), isNull(guests.authUserId)),
-                  columns: { name: true, phone: true, email: true },
-                }),
-              )
-            : undefined);
-        if (guest) {
+        const linked = await boundedQuery('account:prefill:byAuthUser', () =>
+          db.query.guests.findFirst({
+            where: eq(guests.authUserId, user.id),
+            columns: { name: true, phone: true, email: true },
+          }),
+        );
+        if (linked) {
           return clean({
-            name: guest.name,
-            phone: guest.phone ?? user.phone ?? null,
-            email: guest.email ?? user.email ?? null,
+            name: linked.name,
+            phone: linked.phone ?? user.phone ?? null,
+            email: linked.email ?? user.email ?? null,
+          });
+        }
+
+        // Fall back to the UNCLAIMED row on this account's phone — but only
+        // with the evidence `resolveGuestForUser` would accept to claim it
+        // (#341, 2026-11-11; security audit H4). An anonymous booking writes
+        // the TYPED phone onto its row, so the number's holder is exactly
+        // what is in doubt: a mistyped digit or a recycled number would
+        // otherwise prefill (and show) a stranger's name and email, and a
+        // booking made with them would carry that stranger's address. A row
+        // claimed by another account was never a candidate (`isNull`).
+        const unclaimed = userPhone
+          ? await boundedQuery('account:prefill:byPhone', () =>
+              db.query.guests.findFirst({
+                where: and(eq(guests.phone, userPhone), isNull(guests.authUserId)),
+                columns: { id: true, name: true, phone: true, email: true },
+              }),
+            )
+          : undefined;
+        const evidence = unclaimed
+          ? await boundedQuery('account:prefill:claimEvidence', () =>
+              claimEvidence(unclaimed, user),
+            )
+          : null;
+        if (unclaimed && evidence) {
+          return clean({
+            name: unclaimed.name,
+            phone: unclaimed.phone ?? user.phone ?? null,
+            email: unclaimed.email ?? user.email ?? null,
           });
         }
       }
+      // No row we may show: only what the session itself proved. A refused
+      // row's details stay with the guest who typed them.
       return clean({ phone: user.phone || null, email: user.email ?? null });
     }
 
