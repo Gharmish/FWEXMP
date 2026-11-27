@@ -21,6 +21,8 @@ afterAll(() => vi.useRealTimers());
  */
 
 const updates: Array<Record<string, unknown>> = [];
+/** The `where` argument of each update, in the same order as `updates`. */
+const updateWheres: unknown[] = [];
 const inserts: Array<Record<string, unknown>> = [];
 const notices: Array<Record<string, unknown>> = [];
 let addresses: { email: string | null; phone: string | null } | null = null;
@@ -87,8 +89,9 @@ vi.mock('@/lib/db', () => ({
     query: { hosts: { findFirst: async () => hostRow } },
     update: (table: { _tag?: string }) => ({
       set: (values: Record<string, unknown>) => ({
-        where: () => {
+        where: (condition: unknown) => {
           updates.push({ ...values, __table: table._tag ?? 'hosts' });
+          updateWheres.push(condition);
           return Promise.resolve(undefined);
         },
       }),
@@ -107,6 +110,8 @@ vi.mock('@/db/schema', () => ({
   userProfileEvents: {},
 }));
 
+import { and, eq, ne } from 'drizzle-orm';
+import { conversations } from '@/db/schema';
 import {
   confirmHostContactPhone,
   resendHostContactPhoneCode,
@@ -126,6 +131,7 @@ function contactForm(phone: string, email: string) {
 
 beforeEach(() => {
   updates.length = 0;
+  updateWheres.length = 0;
   inserts.length = 0;
   notices.length = 0;
   addresses = { email: 'host@example.com', phone: '+966541104000' };
@@ -256,8 +262,13 @@ describe('confirmHostContactPhone', () => {
       pendingContactPhoneAt: null,
       __table: 'hosts',
     });
-    // The OLD number loses its WhatsApp host identity the moment the new one takes over.
+    // Every OLD number loses its WhatsApp host identity the moment the new
+    // one takes over: the clear is keyed on the host, not on the previous
+    // contact phone (#97).
     expect(updates[1]).toEqual({ hostId: null, __table: 'conversations' });
+    expect(updateWheres[1]).toEqual(
+      and(eq(conversations.hostId, 'host-1'), ne(conversations.address, '+966559002592')),
+    );
     expect(inserts).toEqual([
       expect.objectContaining({
         field: 'host.contactPhone',
@@ -268,6 +279,20 @@ describe('confirmHostContactPhone', () => {
     expect(notices).toEqual([
       expect.objectContaining({ kind: 'phone', previousEmail: 'host@example.com' }),
     ]);
+  });
+
+  it('clears the old WhatsApp host binding for a legacy host with no previous contact phone (#97)', async () => {
+    // An older host: `hosts.contact_phone` is NULL and the support line
+    // identified them through the approved application's phone. That
+    // thread must lose the host tools when a new contact phone is verified.
+    hostRow = { ...hostRow!, contactPhone: null };
+    pending();
+    const state = await confirmHostContactPhone(IDLE, codeForm('123456'));
+    expect(state).toEqual({ status: 'success', message: 'phone_verified' });
+    expect(updates[1]).toEqual({ hostId: null, __table: 'conversations' });
+    expect(updateWheres[1]).toEqual(
+      and(eq(conversations.hostId, 'host-1'), ne(conversations.address, '+966559002592')),
+    );
   });
 
   it('accepts Arabic-Indic digits in the code', async () => {
