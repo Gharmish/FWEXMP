@@ -45,8 +45,21 @@ export { isUniqueViolation };
  *     own address is unverified, but a match means the account controls
  *     the mailbox that booking named.
  *   - `own_browser` — this browser holds the SIGNED last-booking cookie
- *     for one of the row's bookings. Forging it needs the server key, so
- *     holding it means this browser made that booking.
+ *     for the row's ONLY booking. Forging it needs the server key, so
+ *     holding it means this browser made that booking — and no more than
+ *     that booking. A signed-out booking lands on whatever anonymous row
+ *     holds the typed phone (`features/bookings/lib/shared-guest.ts`), so
+ *     a stranger who books with the guest's number earns a cookie for
+ *     their own booking on the guest's row; accepted for the whole row,
+ *     that one booking was the takeover again (issue #392, 2026-11-19).
+ *     With another booking on the row the cookie proves nothing about
+ *     whose row it is, and the claim falls back to rule 2b. That also
+ *     refuses an honest repeat guest — "change date or guests" cancels
+ *     the old hold in place, so one browser can leave two bookings on
+ *     its own row — who keeps every booking through the signed links
+ *     and the booking page; a narrower rule (ignore cancelled rows) would
+ *     hand a row holding only a stranger's lapsed hold, PII and credit
+ *     to whoever books next on that number, so the safe side wins.
  *
  * A plain `===` on normalized addresses is right here: both sides come
  * from the session and the database, there is no attacker-supplied guess
@@ -62,7 +75,11 @@ export interface ClaimFacts {
   rowEmail: string | null;
   /** Supabase-verified address on the session, if it signed in by email. */
   sessionEmail: string | undefined;
-  /** This browser's signed last-booking cookie names one of the row's bookings. */
+  /**
+   * This browser's signed last-booking cookie names the row's ONLY
+   * booking (#392: one booking out of several proves nothing about the
+   * rest of the row).
+   */
   browserOwnsRowBooking: boolean;
 }
 
@@ -88,8 +105,10 @@ async function claimEvidence(row: Guest, user: AuthUser): Promise<ClaimEvidence 
 
   let browserOwnsRowBooking = false;
   // Only worth the round trip when the cheaper facts did not already
-  // settle it — and only when a cookie is actually present.
-  if (bookingCount > 0) {
+  // settle it — and only when a cookie is actually present. Exactly ONE
+  // booking: with two or more, the cookie can only vouch for one of them
+  // and the others may be someone else's (#392, 2026-11-19).
+  if (bookingCount === 1) {
     const store = await cookies();
     const hint = parseLastBookingCookie(store.get(LAST_BOOKING_COOKIE)?.value);
     if (hint) {
@@ -155,7 +174,8 @@ export async function resolveGuestForUser(user: AuthUser, seed: GuestSeed): Prom
         // H4 takeover. Leave the row untouched — the anonymous guest's
         // bookings, wallet and PII stay theirs — and give this account
         // its own. Reported (never the phone itself) because a refusal
-        // means a recycled number, a typo, or someone trying.
+        // means a recycled number, a typo, someone trying — or, since
+        // #392, a repeat guest whose row carries more than one booking.
         reportError(new Error('guest row not claimed: no evidence the account made its bookings'), {
           surface: 'guest-identity:claim-refused',
           unclaimedGuestId: byPhone.id,
